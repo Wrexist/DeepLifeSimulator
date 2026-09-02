@@ -3,23 +3,24 @@
  *
  * 1-per-week cap enforced by `watchAdForFollowerBoost` via weeksLived.
  * Verified Pro triples the reward (50 → 150 followers).
+ *
+ * Deliberately NOT converted to `BaseModal`: this sheet must stay MOUNTED with
+ * visible=false through the watch flow so the native `onDismiss` fires (see the
+ * note above the return), and BaseModal does not forward that prop.
  */
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { logger } from '@/utils/logger';
 import { X, Play, Users } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted } from '@/lib/ads/rewardedAd';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { watchAdForFollowerBoost, canBoostFollowersWithAd } from '@/contexts/game/actions/PulseActions';
-import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 interface RewardedAdModalProps {
   visible: boolean;
@@ -189,14 +190,9 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
             </Pressable>
           </View>
 
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroBadge}
-          >
-            <Play size={scale(36)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />
-          </LinearGradient>
+          <View style={[styles.heroBadge, { backgroundColor: PULSE_COLORS.accent }]}>
+            <Play size={scale(32)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />
+          </View>
 
           <Text style={[styles.title, { color: theme.text }]}>Watch ad → followers</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
@@ -205,7 +201,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
 
           <View style={[styles.rewardCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
             <View style={styles.rewardRow}>
-              <Users size={fontScale(20)} color={PULSE_GRADIENT[0]} />
+              <Users size={fontScale(20)} color={PULSE_COLORS.accent} />
               <Text style={[styles.rewardValue, { color: theme.text }]}>
                 +{expectedFollowers}
               </Text>
@@ -225,16 +221,10 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
             onPress={handleWatch}
             accessibilityRole="button"
             accessibilityLabel="Watch ad"
-            style={styles.cta}
+            style={[styles.cta, { backgroundColor: PULSE_COLORS.accent }]}
           >
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaFill}
-            >
-              <Text style={styles.ctaText}>Watch ad ▶</Text>
-            </LinearGradient>
+            <Play size={fontScale(14)} color="#FFFFFF" fill="#FFFFFF" />
+            <Text style={styles.ctaText}>Watch ad</Text>
           </Pressable>
         </View>
       </View>
@@ -267,9 +257,9 @@ const styles = StyleSheet.create({
   },
   heroBadge: {
     alignSelf: 'center',
-    width: scale(72),
-    height: scale(72),
-    borderRadius: scale(36),
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: responsiveSpacing.md,
@@ -278,7 +268,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: fontScale(22),
     fontWeight: '700',
-  },
+  },  // the one headline in this sheet
   subtitle: {
     textAlign: 'center',
     fontSize: fontScale(13),
@@ -300,7 +290,7 @@ const styles = StyleSheet.create({
   },
   rewardValue: {
     fontSize: fontScale(28),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   rewardLabel: {
     fontSize: fontScale(13),
@@ -315,16 +305,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   cta: {
-    borderRadius: scale(14),
-    overflow: 'hidden',
-  },
-  ctaFill: {
-    paddingVertical: responsiveSpacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    minHeight: touchTargets.minimum,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: scale(14),
   },
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

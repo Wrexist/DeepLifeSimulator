@@ -6,18 +6,15 @@
  * tap an NPC bubble to open their profile / DMs (future).
  */
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Radio, Plus } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
-import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
+import { PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
-
-const LinearGradient = Gradient;
 
 interface StoriesRailProps {
   onGoLive: () => void;
@@ -63,10 +60,8 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
     onGoLive();
   }, [onGoLive]);
 
-  if (!isLive && npcStories.length === 0) {
-    // Still render the "your story" bubble as a way to encourage going live
-    // even when there's no other content.
-  }
+  // Note: the "your story" bubble renders even with no NPC stories - it is the
+  // go-live affordance, not decoration.
 
   return (
     <View style={[styles.wrap, { borderBottomColor: theme.border }]}>
@@ -84,12 +79,8 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
         >
           <Animated.View style={[styles.ringOuter, { transform: [{ scale: isLive ? ringScale : 1 }] }]}>
             {isLive ? (
-              <LinearGradient
-                colors={[PULSE_COLORS.danger, PULSE_GRADIENT[0]]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.ringInner}
-              >
+              /* Live is a red ring - one colour, the same red as the LIVE tag. */
+              <View style={[styles.ringInner, { backgroundColor: PULSE_COLORS.danger }]}>
                 <Avatar
                   uri={gameState.userProfile?.profilePhoto}
                   fallback="Y"
@@ -97,7 +88,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
                   sex={gameState.userProfile?.sex}
                   age={gameState.date?.age}
                 />
-              </LinearGradient>
+              </View>
             ) : (
               <View style={[styles.ringInnerStatic, { borderColor: theme.border }]}>
                 <Avatar
@@ -107,7 +98,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
                   sex={gameState.userProfile?.sex}
                   age={gameState.date?.age}
                 />
-                <View style={[styles.plusBadge, { backgroundColor: PULSE_GRADIENT[0] }]}>
+                <View style={[styles.plusBadge, { backgroundColor: PULSE_COLORS.accent }]}>
                   <Plus size={fontScale(12)} color="#FFFFFF" strokeWidth={3} />
                 </View>
               </View>
@@ -134,7 +125,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
             accessibilityLabel={`${npc.name}'s story`}
             style={styles.item}
           >
-            <View style={[styles.ringInnerStatic, { borderColor: PULSE_GRADIENT[0] }]}>
+            <View style={[styles.ringInnerStatic, { borderColor: PULSE_COLORS.accent }]}>
               <Avatar
                 uri={npc.profilePicture}
                 fallback={npc.name.slice(0, 1).toUpperCase()}
@@ -173,14 +164,9 @@ function Avatar({ uri, fallback, seed, sex, age }: {
     );
   }
   return (
-    <LinearGradient
-      colors={PULSE_GRADIENT as unknown as string[]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.avatar, styles.avatarFallback]}
-    >
+    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: PULSE_COLORS.accent }]}>
       <Text style={styles.avatarLetter}>{fallback}</Text>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -234,7 +220,7 @@ const styles = StyleSheet.create({
   avatarLetter: {
     color: '#FFFFFF',
     fontSize: fontScale(20),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   plusBadge: {
     position: 'absolute',
@@ -266,7 +252,7 @@ const styles = StyleSheet.create({
   liveTagText: {
     color: '#FFFFFF',
     fontSize: fontScale(10),
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
 });

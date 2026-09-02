@@ -11,15 +11,17 @@ import React, { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Heart, Star, X, Crown } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { withAlpha } from '@/lib/config/theme';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { likeBackFromLikedYou, dismissLikedYou } from '@/contexts/game/actions/SparkActions';
 import EmptyState from '../components/EmptyState';
-import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 
 const LinearGradient = Gradient;
@@ -85,21 +87,9 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
           ]}
         >
           <View style={styles.lockedInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={SPARK_GRADIENT_SOFT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <LinearGradient
-              colors={SPARK_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.lockedBadge}
-            >
-              <Heart size={scale(30)} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2} />
-            </LinearGradient>
+            <View style={[styles.lockedBadge, { backgroundColor: withAlpha(SPARK_COLORS.accent, 0.16) }]}>
+              <Heart size={scale(30)} color={SPARK_COLORS.accent} fill={SPARK_COLORS.accent} strokeWidth={2} />
+            </View>
             <Text style={[styles.lockedCount, { color: theme.text }]}>
               {likedYou.length} {likedYou.length === 1 ? 'person likes' : 'people like'} you
             </Text>
@@ -155,9 +145,11 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
   // ── Full reveal (Ultra) ──
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.revealHeader, { color: theme.textMuted }]}>
-        {likedYou.length} {likedYou.length === 1 ? 'LIKE' : 'LIKES'} · TAP TO MATCH
-      </Text>
+      <SectionTitle
+        title={`${likedYou.length} ${likedYou.length === 1 ? 'like' : 'likes'}`}
+        subtitle="Tap the heart to match instantly."
+        style={styles.revealHeader}
+      />
       {likedYou.map((entry) => {
         const profile = findProfile(entry.profileId);
         if (!profile) return null;
@@ -208,16 +200,9 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
               accessibilityRole="button"
               accessibilityLabel={`Like ${profile.name} back and match`}
               hitSlop={8}
-              style={styles.likeBackBtn}
+              style={[styles.likeBackBtn, { backgroundColor: SPARK_COLORS.accent }]}
             >
-              <LinearGradient
-                colors={SPARK_GRADIENT as unknown as string[]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.likeBackFill}
-              >
-                <Heart size={fontScale(18)} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2} />
-              </LinearGradient>
+              <Heart size={fontScale(18)} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2} />
             </Pressable>
           </View>
         );
@@ -237,10 +222,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   revealHeader: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.xs,
   },
@@ -276,28 +257,24 @@ const styles = StyleSheet.create({
   likeBody: { flex: 1 },
   likeName: {
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   likeJob: {
     fontSize: fontScale(12),
     marginTop: 2,
   },
   iconBtn: {
-    width: scale(38),
-    height: scale(38),
-    borderRadius: scale(19),
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
+    borderRadius: touchTargets.minimum / 2,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   likeBackBtn: {
-    width: scale(38),
-    height: scale(38),
-    borderRadius: scale(19),
-    overflow: 'hidden',
-  },
-  likeBackFill: {
-    flex: 1,
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
+    borderRadius: touchTargets.minimum / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -324,9 +301,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: responsiveSpacing.md,
   },
+  // The locked screen's one headline.
   lockedCount: {
     fontSize: fontScale(20),
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
   },
   lockedSub: {
@@ -348,22 +326,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  blurAvatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: scale(24),
-  },
   blurScrim: {
     ...StyleSheet.absoluteFillObject,
     // Raised from 0.18: this used to sit over an already-blurred Image and only
     // needed to tint it. It is now the ONLY thing hiding the face, so it has to
     // actually obscure - at 0.18 the paywalled identity was legible.
-    backgroundColor: 'rgba(136,32,66,0.82)',
+    backgroundColor: 'rgba(136, 32, 66, 0.82)',
   },
   upsellCta: {
     alignSelf: 'stretch',
     borderRadius: scale(14),
     overflow: 'hidden',
+    minHeight: touchTargets.minimum,
   },
   upsellFill: {
     flexDirection: 'row',
@@ -375,6 +349,6 @@ const styles = StyleSheet.create({
   upsellText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

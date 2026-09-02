@@ -6,18 +6,18 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Eye, DollarSign, Square, X, Sparkles } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Square, Sparkles } from 'lucide-react-native';
+import AppHeader from '@/components/ui/AppHeader';
+import StatStrip from '@/components/ui/StatStrip';
+import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
+import { PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { startLiveStream, tickLiveStream, endLiveStream } from '@/contexts/game/actions/PulseActions';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
-
-const LinearGradient = Gradient;
 
 type Phase = 'setup' | 'live' | 'summary';
 
@@ -101,15 +101,7 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close live screen"
-        hitSlop={8}
-        style={styles.close}
-      >
-        <X size={fontScale(22)} color={theme.text} />
-      </Pressable>
+      <AppHeader title="Live" onBack={onClose} backLabel="Back to feed" />
 
       {phase === 'setup' && (
         <View style={styles.center}>
@@ -131,16 +123,9 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
             onPress={handleGoLive}
             accessibilityRole="button"
             accessibilityLabel="Start live stream"
-            style={styles.cta}
+            style={[styles.cta, { backgroundColor: PULSE_COLORS.accent }]}
           >
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaFill}
-            >
-              <Text style={styles.ctaText}>Go Live ▶</Text>
-            </LinearGradient>
+            <Text style={styles.ctaText}>Go live</Text>
           </Pressable>
           <Text style={[styles.note, { color: theme.textMuted }]}>
             Requires 100 followers and 30 energy.
@@ -150,41 +135,42 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
 
       {phase === 'live' && live && (
         <View style={styles.center}>
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveBadgeText}>LIVE</Text>
-          </View>
+          <Chip label="Live" tone="danger" size="md" accessibilityLabel="You are live" />
           <Animated.View
             style={[
               styles.ringOuter,
               { transform: [{ scale: ringScale }] },
             ]}
           >
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.ringInner}
-            >
+            <View style={[styles.ringInner, { backgroundColor: PULSE_COLORS.accent }]}>
               <View style={[styles.avatarPlaceholder, { backgroundColor: theme.background }]}>
                 <Text style={[styles.avatarLetter, { color: theme.text }]}>
                   {(gameState.userProfile?.handle ?? 'P').slice(0, 1).toUpperCase()}
                 </Text>
               </View>
-            </LinearGradient>
+            </View>
           </Animated.View>
           <Text style={[styles.topic, { color: theme.text }]} numberOfLines={1}>
             {live.topic}
           </Text>
 
-          <View style={styles.statsRow}>
-            <LiveStat icon={Eye} value={formatPulseNumber(live.currentViewers)} label="watching" theme={theme} color={PULSE_COLORS.info} />
-            <LiveStat icon={DollarSign} value={`$${live.donationsEarned.toFixed(2)}`} label="tips" theme={theme} color={PULSE_COLORS.success} />
-          </View>
-
-          <Text style={[styles.minutes, { color: theme.textSecondary }]}>
-            Peak {formatPulseNumber(live.peakViewers)} · {Math.floor(live.minutesElapsed)}m elapsed
-          </Text>
+          <StatStrip
+            style={styles.statsRow}
+            items={[
+              {
+                label: 'Watching',
+                value: formatPulseNumber(live.currentViewers),
+                tint: PULSE_COLORS.info,
+                sub: `peak ${formatPulseNumber(live.peakViewers)}`,
+              },
+              {
+                label: 'Tips',
+                value: `$${live.donationsEarned.toFixed(2)}`,
+                tint: PULSE_COLORS.success,
+                sub: `${Math.floor(live.minutesElapsed)}m elapsed`,
+              },
+            ]}
+          />
 
           <Pressable
             onPress={handleEnd}
@@ -212,31 +198,12 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel="Done"
-            style={styles.cta}
+            style={[styles.cta, { backgroundColor: PULSE_COLORS.accent }]}
           >
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaFill}
-            >
-              <Text style={styles.ctaText}>Done</Text>
-            </LinearGradient>
+            <Text style={styles.ctaText}>Done</Text>
           </Pressable>
         </View>
       )}
-    </View>
-  );
-}
-
-function LiveStat({ icon: Icon, value, label, theme, color }: any) {
-  return (
-    <View style={styles.liveStat}>
-      <View style={[styles.liveStatIcon, { backgroundColor: color + '22' }]}>
-        <Icon size={fontScale(20)} color={color} />
-      </View>
-      <Text style={[styles.liveStatValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.liveStatLabel, { color: theme.textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -251,17 +218,7 @@ function RecapRow({ label, value, theme, color }: { label: string; value: string
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingTop: scale(56) },
-  close: {
-    position: 'absolute',
-    top: scale(20),
-    right: scale(20),
-    zIndex: 10,
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  root: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -292,43 +249,19 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: responsiveSpacing.md,
     borderRadius: scale(14),
-    overflow: 'hidden',
-  },
-  ctaFill: {
     paddingVertical: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   note: {
     fontSize: fontScale(11),
     marginTop: responsiveSpacing.sm,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderColor: PULSE_COLORS.danger,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: PULSE_COLORS.danger,
-  },
-  liveBadgeText: {
-    color: PULSE_COLORS.danger,
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    letterSpacing: 0.6,
   },
   ringOuter: {
     width: scale(160),
@@ -354,7 +287,7 @@ const styles = StyleSheet.create({
   },
   avatarLetter: {
     fontSize: fontScale(48),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   topic: {
     fontSize: fontScale(16),
@@ -362,31 +295,8 @@ const styles = StyleSheet.create({
     marginTop: responsiveSpacing.sm,
   },
   statsRow: {
-    flexDirection: 'row',
-    gap: responsiveSpacing.lg,
+    alignSelf: 'stretch',
     marginTop: responsiveSpacing.md,
-  },
-  liveStat: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  liveStatIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  liveStatValue: {
-    fontSize: fontScale(20),
-    fontWeight: '700',
-  },
-  liveStatLabel: {
-    fontSize: fontScale(11),
-  },
-  minutes: {
-    fontSize: fontScale(11),
-    marginTop: 4,
   },
   endBtn: {
     flexDirection: 'row',
@@ -401,9 +311,6 @@ const styles = StyleSheet.create({
   endBtnText: {
     fontSize: fontScale(13),
     fontWeight: '600',
-  },
-  bigEmoji: {
-    fontSize: fontScale(48),
   },
   recapCard: {
     width: '100%',
@@ -422,6 +329,6 @@ const styles = StyleSheet.create({
   },
   recapValue: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

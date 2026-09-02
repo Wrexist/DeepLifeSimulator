@@ -1,17 +1,19 @@
 /**
  * ProfileScreen - player's own Pulse profile.
  *
- * Hero cover + avatar + stats row + InfluenceMeter + bio + tabs (Posts /
- * Replies / Media / Likes). Tap the verified badge (when unverified) to
- * open the Pulse Pro upsell.
+ * Hero cover + avatar + a three-number StatStrip + InfluenceMeter + bio +
+ * a compact SegmentedControl (Posts / Replies / Media / Bookmarks). Tap the
+ * verified badge (when unverified) to open the Pulse Pro upsell.
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, getAppScreenBottomPadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { BarChart3, Calendar, Link2, MapPin } from 'lucide-react-native';
 import PostCard from '../components/PostCard';
 import CommentItem from '../components/CommentItem';
@@ -21,22 +23,20 @@ import EmptyState from '../components/EmptyState';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import ImageScrim from '@/components/ui/ImageScrim';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
-import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseRecentPost, PulseComment } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
 
 // 'likes' is the historical key; we now surface bookmark-style behavior
 // because `isLiked` toggles on the player's own posts (not posts liked by
 // others). Keep the key for save/state compat; show "Bookmarks" in the UI.
-const PROFILE_TAB_LABELS: Record<ProfileTab, string> = {
-  posts: 'Posts',
-  replies: 'Replies',
-  media: 'Media',
-  likes: 'Bookmarks',
-};
+const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
+  { key: 'posts', label: 'Posts' },
+  { key: 'replies', label: 'Replies' },
+  { key: 'media', label: 'Media' },
+  { key: 'likes', label: 'Bookmarks' },
+];
 
 interface ProfileScreenProps {
   onUpgradePro: () => void;
@@ -119,12 +119,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             style={styles.coverImg}
           />
         ) : (
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.coverImg}
-          />
+          <View style={[styles.coverImg, { backgroundColor: PULSE_COLORS.accent }]} />
         )}
         <ImageScrim height={0.5} strength={0.7} />
       </View>
@@ -145,14 +140,9 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
               style={styles.avatar}
             />
           ) : (
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.avatar, styles.avatarFallback]}
-            >
+            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: PULSE_COLORS.accent }]}>
               <Text style={styles.avatarInitial}>{displayName.slice(0, 1).toUpperCase()}</Text>
-            </LinearGradient>
+            </View>
           )}
         </View>
 
@@ -181,7 +171,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
           {website ? (
             <View style={styles.metaItem}>
               <Link2 size={responsiveIconSize.sm} color={theme.textSecondary} />
-              <Text style={[styles.metaText, { color: PULSE_GRADIENT[0] }]} numberOfLines={1}>
+              <Text style={[styles.metaText, { color: PULSE_COLORS.accent }]} numberOfLines={1}>
                 {website}
               </Text>
             </View>
@@ -213,20 +203,21 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
               accessibilityLabel="Open Creator Studio insights"
               style={[styles.editBtn, styles.studioBtn, { borderColor: theme.border }]}
             >
-              <BarChart3 size={fontScale(14)} color={PULSE_GRADIENT[0]} />
+              <BarChart3 size={fontScale(14)} color={PULSE_COLORS.accent} />
               <Text style={[styles.editBtnText, { color: theme.text }]}>Creator Studio</Text>
             </Pressable>
           ) : null}
         </View>
 
-        {/* Stats row */}
-        <View style={[styles.statsRow, { borderTopColor: theme.border, borderBottomColor: theme.border }]}>
-          <Stat label="Followers" value={formatPulseNumber(followers)} theme={theme} />
-          <View style={[styles.statSep, { backgroundColor: theme.border }]} />
-          <Stat label="Following" value={formatPulseNumber(following)} theme={theme} />
-          <View style={[styles.statSep, { backgroundColor: theme.border }]} />
-          <Stat label="Posts" value={formatPulseNumber(totalPosts)} theme={theme} />
-        </View>
+        {/* The three numbers the player reads their profile by. */}
+        <StatStrip
+          style={[styles.statsRow, { borderTopColor: theme.border, borderBottomColor: theme.border }]}
+          items={[
+            { label: 'Followers', value: formatPulseNumber(followers) },
+            { label: 'Following', value: formatPulseNumber(following) },
+            { label: 'Posts', value: formatPulseNumber(totalPosts) },
+          ]}
+        />
 
         {/* Influence meter */}
         <View style={styles.influenceWrap}>
@@ -238,59 +229,27 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
 
         {/* Pulse Pro upsell strip when not subscribed */}
         {!isVerified ? (
-          <Pressable
-            onPress={onUpgradePro}
-            accessibilityRole="button"
-            accessibilityLabel="Upgrade to Pulse Verified Pro"
-            style={({ pressed }) => [styles.proStrip, pressed && { opacity: 0.85 }]}
-          >
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.proStripFill}
-            >
-              <Text style={styles.proStripText}>
-                ✦ Upgrade to Verified Pro - +25% engagement, blue check, longer posts
-              </Text>
-            </LinearGradient>
-          </Pressable>
+          <View style={styles.proStrip}>
+            <Chip
+              label="Upgrade to Verified Pro"
+              tint={PULSE_COLORS.accent}
+              size="md"
+              onPress={onUpgradePro}
+              accessibilityLabel="Upgrade to Pulse Verified Pro: +25% engagement, blue check, longer posts"
+            />
+          </View>
         ) : null}
       </View>
 
-      {/* Profile sub-tabs */}
-      <View style={[styles.tabsRow, { borderBottomColor: theme.border }]}>
-        {(['posts', 'replies', 'media', 'likes'] as ProfileTab[]).map((t) => {
-          const active = activeTab === t;
-          return (
-            <Pressable
-              key={t}
-              onPress={() => setActiveTab(t)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={PROFILE_TAB_LABELS[t]}
-              style={styles.tabBtn}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  { color: active ? theme.text : theme.textSecondary, fontWeight: active ? '700' : '500' },
-                ]}
-              >
-                {PROFILE_TAB_LABELS[t]}
-              </Text>
-              {active ? (
-                <LinearGradient
-                  colors={PULSE_GRADIENT as unknown as string[]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.tabIndicator}
-                />
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Profile sub-tabs - one shared control, no gradient underline. */}
+      <SegmentedControl
+        compact
+        style={styles.tabs}
+        segments={PROFILE_TABS}
+        value={activeTab}
+        onChange={setActiveTab}
+        activeColor={PULSE_COLORS.accent}
+      />
 
       {/* Posts list */}
       <View style={styles.postsWrap}>
@@ -343,15 +302,6 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   );
 }
 
-function Stat({ label, value, theme }: { label: string; value: string; theme: any }) {
-  return (
-    <View style={styles.statItem}>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
-  );
-}
-
 const COVER_HEIGHT = scale(160);
 const AVATAR_SIZE = scale(88);
 
@@ -383,7 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   avatarRingPro: {
-    borderColor: PULSE_GRADIENT[0],
+    borderColor: PULSE_COLORS.accent,
   },
   avatar: {
     width: AVATAR_SIZE,
@@ -397,7 +347,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     color: '#FFFFFF',
     fontSize: fontScale(36),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   nameRow: {
     flexDirection: 'row',
@@ -408,7 +358,7 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: fontScale(22),
     fontWeight: '700',
-  },
+  },  // the one headline on this screen
   handle: {
     fontSize: fontScale(13),
     marginTop: 2,
@@ -440,6 +390,8 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     alignSelf: 'flex-start',
+    justifyContent: 'center',
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: 999,
@@ -455,69 +407,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
     marginTop: responsiveSpacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: fontScale(20),
-    fontWeight: '700',
-  },
-  statLabel: {
-    fontSize: fontScale(11),
-    marginTop: 2,
-  },
-  statSep: {
-    width: 1,
-    height: scale(28),
   },
   influenceWrap: {
     marginTop: responsiveSpacing.md,
   },
   proStrip: {
-    marginTop: responsiveSpacing.md,
-    borderRadius: scale(12),
-    overflow: 'hidden',
-  },
-  proStripFill: {
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.md,
-  },
-  proStripText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(12),
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  tabsRow: {
     flexDirection: 'row',
     marginTop: responsiveSpacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: responsiveSpacing.md,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  tabLabel: {
-    fontSize: fontScale(13),
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: '20%',
-    right: '20%',
-    height: 3,
-    borderRadius: 999,
+  tabs: {
+    marginTop: responsiveSpacing.md,
+    marginHorizontal: responsiveSpacing.md,
   },
   postsWrap: {
     paddingTop: responsiveSpacing.sm,

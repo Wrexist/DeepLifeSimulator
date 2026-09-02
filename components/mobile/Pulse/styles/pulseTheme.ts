@@ -12,13 +12,21 @@
 import { colors, getThemeColors } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 
-/** Signature gradient — used on FAB, hero surfaces, verified badge, viral border. */
+/**
+ * Signature gradient. One consumer left: the EmptyState EKG illustration's SVG
+ * stroke. The FAB is deleted, and the hero surfaces, verified badge and viral
+ * border are solid identity tint now - the only JSX gradient in Pulse is the
+ * primary Post CTA in ComposeModal, which builds its stops from PULSE_COLORS.
+ */
 export const PULSE_GRADIENT = ['#EC4899', '#6366F1'] as const;
 /** Subtle 30% variant for backdrops, post backgrounds. */
 export const PULSE_GRADIENT_SOFT = ['rgba(236, 72, 153, 0.18)', 'rgba(99, 102, 241, 0.18)'] as const;
-/** Scandal severity gradients (red high, amber mid). */
-export const PULSE_SCANDAL_HIGH = ['#7F1D1D', '#EF4444'] as const;
-export const PULSE_SCANDAL_MID = ['#92400E', '#F59E0B'] as const;
+/*
+ * The two scandal-severity GRADIENTS that used to live here are gone: the
+ * banner and the recovery meter now read severity as ONE colour
+ * (`PULSE_COLORS.scandalHigh` / `scandalMid`), so a two-stop ramp had nothing
+ * left to say and no callers.
+ */
 
 /**
  * Pulse density / spacing presets — generous breathing room.

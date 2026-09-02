@@ -5,20 +5,19 @@
  * Live ROI preview updates as the player edits spend.
  */
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Megaphone, Radio, Smartphone, Sparkles, X, Zap } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Megaphone, Radio, Smartphone, Sparkles, Zap } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { launchCampaign, cancelCampaign, CAMPAIGN_ENERGY_COST } from '@/contexts/game/actions/HustleActions';
 import { campaignCostFloor, projectCampaignROI } from '@/lib/business/hustleLogic';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
+import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleCampaignKind } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 const KINDS: { id: HustleCampaignKind; name: string; icon: any; blurb: string }[] = [
   { id: 'social', name: 'Social Media', icon: Smartphone, blurb: 'Highest ROI per dollar, fast feedback' },
@@ -91,21 +90,12 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text }]}>Marketing campaigns</Text>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.iconBtn}>
-              <X size={fontScale(20)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+    <BaseModal visible={visible} onClose={onDismiss} variant="bottom" title="Marketing campaigns">
+      <View>
             {/* Active campaigns */}
             {active.length > 0 ? (
               <>
-                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Running</Text>
+                <SectionTitle title="Running" />
                 {active.map((c: any) => (
                   <View key={c.id} style={[styles.activeRow, { borderColor: theme.border }]}>
                     <View style={styles.activeText}>
@@ -130,7 +120,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
             ) : null}
 
             {/* Picker */}
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Launch new</Text>
+            <SectionTitle title="Launch new" />
             {KINDS.map((k) => {
               const Icon = k.icon;
               const isSelected = selectedKind === k.id;
@@ -144,12 +134,12 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                     styles.kindCard,
                     {
                       backgroundColor: isSelected ? theme.surfaceElevated : theme.surface,
-                      borderColor: isSelected ? HUSTLE_GRADIENT[0] : theme.border,
+                      borderColor: isSelected ? HUSTLE_COLORS.accent : theme.border,
                       borderWidth: isSelected ? 2 : StyleSheet.hairlineWidth,
                     },
                   ]}
                 >
-                  <View style={[styles.kindIcon, { backgroundColor: HUSTLE_COLORS.accent + '22' }]}>
+                  <View style={[styles.kindIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.accent, 0.13) }]}>
                     <Icon size={fontScale(18)} color={HUSTLE_COLORS.accent} />
                   </View>
                   <View style={styles.kindText}>
@@ -193,71 +183,25 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                   disabled={!canLaunch}
                   accessibilityRole="button"
                   accessibilityLabel="Launch campaign"
-                  style={[styles.cta, !canLaunch && styles.ctaDisabled]}
+                  accessibilityState={{ disabled: !canLaunch }}
+                  style={[
+                    styles.cta,
+                    { backgroundColor: canLaunch ? HUSTLE_COLORS.accent : theme.border, opacity: canLaunch ? 1 : 0.6 },
+                  ]}
                 >
-                  <LinearGradient
-                    colors={
-                      canLaunch
-                        ? (HUSTLE_GRADIENT as unknown as string[])
-                        : [theme.border, theme.border]
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.ctaFill}
-                  >
-                    <Text style={styles.ctaText}>
-                      {canLaunch ? `Launch · $${spendNum.toLocaleString()}` : 'Need more cash'}
-                    </Text>
-                  </LinearGradient>
+                  <Text style={styles.ctaText}>
+                    {canLaunch ? `Launch · $${spendNum.toLocaleString()}` : 'Need more cash'}
+                  </Text>
                 </Pressable>
                 {resultMsg ? <Text style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text> : null}
               </View>
             ) : null}
-          </ScrollView>
-        </View>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '92%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
-  },
-  title: {
-    fontSize: fontScale(20),
-    fontWeight: '800',
-  },
-  iconBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginTop: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
-  },
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,17 +212,20 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
   },
   activeText: { flex: 1 },
-  activeName: { fontSize: fontScale(13), fontWeight: '700' },
+  activeName: { fontSize: fontScale(13), fontWeight: '600' },
   activeMeta: { fontSize: fontScale(11), marginTop: 2 },
   cancelBtn: {
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: 6,
     borderRadius: 999,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    minHeight: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelBtnText: {
     fontSize: fontScale(11),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   kindCard: {
     flexDirection: 'row',
@@ -296,7 +243,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   kindText: { flex: 1 },
-  kindName: { fontSize: fontScale(13), fontWeight: '700' },
+  kindName: { fontSize: fontScale(13), fontWeight: '600' },
   kindBlurb: { fontSize: fontScale(11), marginTop: 2 },
   composer: {
     borderRadius: scale(14),
@@ -306,32 +253,32 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   composerField: { gap: 4 },
-  composerLabel: { fontSize: fontScale(11), fontWeight: '600' },
+  composerLabel: { fontSize: fontScale(11), fontWeight: '500' },
   composerInput: {
     borderWidth: 1,
     borderRadius: scale(10),
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
     fontSize: fontScale(14),
   },
   composerROI: {
     fontSize: fontScale(12),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   cta: {
     borderRadius: scale(12),
     overflow: 'hidden',
     marginTop: responsiveSpacing.sm,
-  },
-  ctaDisabled: { opacity: 0.6 },
-  ctaFill: {
     paddingVertical: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   resultMsg: {
     fontSize: fontScale(12),

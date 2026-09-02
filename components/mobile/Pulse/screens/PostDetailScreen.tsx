@@ -13,7 +13,6 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -23,12 +22,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, Bookmark, Heart, MessageCircle, Repeat2, Send } from 'lucide-react-native';
+import { Bookmark, Heart, MessageCircle, Repeat2, Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppHeader from '@/components/ui/AppHeader';
+import StatStrip from '@/components/ui/StatStrip';
+import Chip from '@/components/ui/Chip';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { bookmarkPost, commentOnPost, likePost, repostPost } from '@/contexts/game/actions/PulseActions';
 import CommentThread from '../components/CommentThread';
 import { PULSE_COLORS } from '../styles/pulseTheme';
@@ -103,7 +105,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
   if (!post) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <Header onBack={onClose} text={theme.text} border={theme.border} />
+        <AppHeader title="Post" onBack={onClose} backLabel="Back to feed" />
         <View style={styles.missingWrap}>
           <Text style={[styles.missingText, { color: theme.textSecondary }]}>
             This post is no longer in your feed.
@@ -116,7 +118,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
   return (
     // Full-screen: keep the sticky composer just above the home indicator.
     <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <Header onBack={onClose} text={theme.text} border={theme.border} />
+      <AppHeader title="Post" onBack={onClose} backLabel="Back to feed" />
 
       <KeyboardAvoidingView
         style={styles.body}
@@ -146,11 +148,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
                 {formatRelativeWeek(post.gameWeek, gameState.weeksLived ?? 0)}
               </Text>
             </View>
-            {post.isViral ? (
-              <View style={[styles.viralPill, { backgroundColor: PULSE_COLORS.tierCelebrity }]}>
-                <Text style={styles.viralPillText}>VIRAL</Text>
-              </View>
-            ) : null}
+            {post.isViral ? <Chip label="Viral" tint={PULSE_COLORS.tierCelebrity} /> : null}
           </View>
 
           {/* Body (larger 18pt per plan) */}
@@ -160,15 +158,20 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
             <ImageWithFallback uri={post.photo} style={styles.photo} />
           ) : null}
 
-          {/* Stat row - passive counts (likes, reposts, comments, views) */}
-          <View style={[styles.statRow, { borderColor: theme.border }]}>
-            <StatBlock value={post.likes} label="likes" color={theme.text} muted={theme.textSecondary} />
-            <StatBlock value={post.reposts ?? 0} label="reposts" color={theme.text} muted={theme.textSecondary} />
-            <StatBlock value={post.comments} label="comments" color={theme.text} muted={theme.textSecondary} />
-            {typeof post.views === 'number' ? (
-              <StatBlock value={post.views} label="views" color={theme.text} muted={theme.textSecondary} />
-            ) : null}
-          </View>
+          {/* The passive counts. Views rides along as the comment tile's sub
+              line rather than a fourth column that appears and disappears. */}
+          <StatStrip
+            style={[styles.statRow, { borderColor: theme.border }]}
+            items={[
+              { label: 'Likes', value: formatPulseNumber(post.likes) },
+              { label: 'Reposts', value: formatPulseNumber(post.reposts ?? 0) },
+              {
+                label: 'Comments',
+                value: formatPulseNumber(post.comments),
+                sub: typeof post.views === 'number' ? `${formatPulseNumber(post.views)} views` : undefined,
+              },
+            ]}
+          />
 
           {/* Action row */}
           <View style={styles.actionRow}>
@@ -247,35 +250,6 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function Header({ onBack, text, border }: { onBack: () => void; text: string; border: string }) {
-  return (
-    <View style={[styles.header, { borderBottomColor: border }]}>
-      <Pressable
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel="Back to feed"
-        hitSlop={8}
-        style={styles.headerBtn}
-      >
-        <ArrowLeft size={responsiveIconSize.md} color={text} />
-      </Pressable>
-      <View style={styles.headerCenter}>
-        <Text style={[styles.headerTitle, { color: text }]}>Post</Text>
-      </View>
-      <View style={styles.headerBtn} />
-    </View>
-  );
-}
-
-function StatBlock({ value, label, color, muted }: { value: number; label: string; color: string; muted: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={[styles.statValue, { color }]}>{formatPulseNumber(value)}</Text>
-      <Text style={[styles.statLabel, { color: muted }]}>{label}</Text>
-    </View>
-  );
-}
-
 interface ActionButtonProps {
   Icon: typeof Heart;
   active: boolean;
@@ -311,27 +285,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: fontScale(16),
-    fontWeight: '700',
-  },
   body: {
     flex: 1,
   },
@@ -350,36 +303,16 @@ const styles = StyleSheet.create({
     height: scale(44),
     borderRadius: scale(22),
   },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: fontScale(18),
-    fontWeight: '700',
-  },
   authorMeta: {
     flex: 1,
   },
   handle: {
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   timeAgo: {
     fontSize: fontScale(12),
     marginTop: 2,
-  },
-  viralPill: {
-    paddingHorizontal: scale(7),
-    paddingVertical: scale(3),
-    borderRadius: scale(4),
-  },
-  viralPillText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(10),
-    fontWeight: '800',
-    letterSpacing: 0.6,
   },
   content: {
     fontSize: fontScale(18),
@@ -393,24 +326,11 @@ const styles = StyleSheet.create({
     marginTop: responsiveSpacing.md,
   },
   statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
     marginHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  statBlock: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  statValue: {
-    fontSize: fontScale(16),
-    fontWeight: '700',
-  },
-  statLabel: {
-    fontSize: fontScale(11),
   },
   actionRow: {
     flexDirection: 'row',

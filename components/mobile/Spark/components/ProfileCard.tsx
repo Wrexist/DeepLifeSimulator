@@ -11,15 +11,12 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MapPin, Briefcase, GraduationCap, AlertCircle } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
-import { SPARK_COLORS, SPARK_GRADIENT } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import type { DatingProfile } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-
-const LinearGradient = Gradient;
 
 // Scrim fade steps, top→bottom. Alphas stay small where the step edge crosses
 // the photo's midsection and only grow near the identity text, so the stacked
@@ -30,6 +27,8 @@ const SCRIM_STEPS = [
   { height: '38%', alpha: 0.16 },
   { height: '28%', alpha: 0.2 },
   { height: '19%', alpha: 0.26 },
+  { height: '13%', alpha: 0.34 },
+  { height: '8%', alpha: 0.44 },
 ] as const;
 
 interface ProfileCardProps {
@@ -82,10 +81,11 @@ export default function ProfileCard({
           />
         </View>
 
-        {/* Bottom scrim so identity text stays legible on any photo. The gradient
-            fallback only renders colors[0], so the fade is faked with stacked
-            translucent steps - gentle alpha jumps up top (over the face),
-            heavier ones only near the text so no single edge reads as a band. */}
+        {/* Bottom scrim so identity text stays legible on any photo. Stacked
+            translucent steps rather than a gradient - gentle alpha jumps up top
+            (over the face), heavier ones only near the text so no single edge
+            reads as a band, and the Gradient fallback (which renders colors[0]
+            flat) can never turn the scrim into a solid slab. */}
         {SCRIM_STEPS.map((s) => (
           <View
             key={s.height}
@@ -93,14 +93,6 @@ export default function ProfileCard({
             style={[styles.scrimStep, { height: s.height, backgroundColor: `rgba(0,0,0,${s.alpha})` }]}
           />
         ))}
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(0,0,0,0.30)', 'rgba(0,0,0,0.85)'] as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.scrimStrong}
-        />
-
         {/* Lit top edge - hero-only highlight (dark mode). */}
         {isDark ? <View pointerEvents="none" style={styles.topHairline} /> : null}
 
@@ -202,13 +194,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  scrimStrong: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '11%',
-  },
   topHairline: {
     position: 'absolute',
     top: 0,
@@ -232,7 +217,7 @@ const styles = StyleSheet.create({
   catfishChipText: {
     color: '#FFFFFF',
     fontSize: fontScale(10),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   stamp: {
     position: 'absolute',
@@ -260,7 +245,7 @@ const styles = StyleSheet.create({
   },
   stampText: {
     fontSize: fontScale(28),
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 2,
   },
   identityBlock: {
@@ -276,10 +261,11 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 8,
   },
+  // The card's one headline.
   name: {
     color: '#FFFFFF',
     fontSize: fontScale(28),
-    fontWeight: '800',
+    fontWeight: '700',
     flexShrink: 1,
   },
   age: {

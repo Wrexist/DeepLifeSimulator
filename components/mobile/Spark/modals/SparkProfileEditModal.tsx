@@ -7,24 +7,24 @@
  * shows the improvement before they save. Photos are asset-driven elsewhere, so
  * they're intentionally omitted here.
  *
- * Styling mirrors SparkPremiumUpsellModal: a bottom sheet over a dim backdrop,
- * theme-aware, crash-safe `Gradient` (react-native-svg, not expo-linear-gradient).
+ * Shell is the shared `BaseModal` bottom sheet, with Save in its footer slot -
+ * the sheet bounds and scrolls its own body, so the button cannot be pushed off
+ * a short screen (the bug the hand-rolled sheet needed maxHeight for).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Check, X } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Check } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import ProgressBar from '@/components/ui/ProgressBar';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { updateMyProfile } from '@/contexts/game/actions/SparkActions';
 import { scorePlayerProfile } from '@/lib/dating/sparkLogic';
 import type { GameState } from '@/contexts/game/types';
-import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
-
-const LinearGradient = Gradient;
 
 const BIO_MAX = 150;
 const MAX_INTERESTS = 8;
@@ -89,142 +89,90 @@ export default function SparkProfileEditModal({ visible, onDismiss }: SparkProfi
     onDismiss();
   }, [setGameState, bio, interests, saveGame, onDismiss]);
 
-  if (!visible) return null;
-
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text }]}>Edit profile</Text>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.closeBtn}>
-              <X size={fontScale(22)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          {/* Live profile-strength meter - the visible payoff of a fuller profile. */}
-          <View style={[styles.scoreCard, { backgroundColor: theme.surfaceElevated }]}>
-            <View style={styles.scoreRow}>
-              <Text style={[styles.scoreLabel, { color: theme.textSecondary }]}>Profile strength</Text>
-              <Text style={[styles.scoreValue, { color: SPARK_COLORS.accent }]}>{previewScore}/100</Text>
-            </View>
-            <View style={[styles.scoreTrack, { backgroundColor: theme.border }]}>
-              <LinearGradient
-                colors={SPARK_GRADIENT as unknown as string[]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.scoreFill, { width: `${Math.max(0, Math.min(100, previewScore))}%` }]}
-              />
-            </View>
-            <Text style={[styles.scoreHint, { color: theme.textMuted }]}>
-              A stronger profile attracts more incoming likes.
-            </Text>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
-            {/* Bio */}
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Bio</Text>
-            <TextInput
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Say something that makes you stand out…"
-              placeholderTextColor={theme.textMuted}
-              multiline
-              maxLength={BIO_MAX}
-              accessibilityLabel="Profile bio"
-              style={[styles.bioInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
-            />
-            <Text style={[styles.charCount, { color: theme.textMuted }]}>{bio.length}/{BIO_MAX}</Text>
-
-            {/* Interests */}
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-              Interests {interests.length > 0 ? `· ${interests.length}/${MAX_INTERESTS}` : ''}
-            </Text>
-            <View style={styles.chipWrap}>
-              {SPARK_INTERESTS.map((interest) => {
-                const selected = interests.includes(interest);
-                const atCap = !selected && interests.length >= MAX_INTERESTS;
-                return (
-                  <Pressable
-                    key={interest}
-                    onPress={() => toggleInterest(interest)}
-                    disabled={atCap}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`${interest}${selected ? ', selected' : ''}`}
-                    style={[
-                      styles.chip,
-                      selected
-                        ? { backgroundColor: SPARK_COLORS.accent, borderColor: SPARK_COLORS.accent }
-                        : { borderColor: theme.border, opacity: atCap ? 0.4 : 1 },
-                    ]}
-                  >
-                    {selected ? <Check size={fontScale(12)} color="#FFFFFF" strokeWidth={3} /> : null}
-                    <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : theme.textSecondary }]}>
-                      {interest}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ScrollView>
-
-          <Pressable
-            onPress={handleSave}
-            accessibilityRole="button"
-            accessibilityLabel="Save profile"
-            style={styles.saveBtn}
-          >
-            <LinearGradient
-              colors={SPARK_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.saveBtnInner}
-            >
-              <Text style={styles.saveBtnText}>Save profile</Text>
-            </LinearGradient>
-          </Pressable>
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title="Edit profile"
+      footer={
+        <Pressable
+          onPress={handleSave}
+          accessibilityRole="button"
+          accessibilityLabel="Save profile"
+          style={[styles.saveBtn, { backgroundColor: SPARK_COLORS.accent }]}
+        >
+          <Text style={styles.saveBtnText}>Save profile</Text>
+        </Pressable>
+      }
+    >
+      {/* Live profile-strength meter - the visible payoff of a fuller profile. */}
+      <View style={[styles.scoreCard, { backgroundColor: theme.surfaceElevated }]}>
+        <View style={styles.scoreRow}>
+          <Text style={[styles.scoreLabel, { color: theme.textSecondary }]}>Profile strength</Text>
+          <Text style={[styles.scoreValue, { color: SPARK_COLORS.accent }]}>{previewScore}/100</Text>
         </View>
+        <ProgressBar
+          value={Math.max(0, Math.min(100, previewScore)) / 100}
+          color={SPARK_COLORS.accent}
+          label={`Profile strength ${previewScore} of 100`}
+        />
+        <Text style={[styles.scoreHint, { color: theme.textMuted }]}>
+          A stronger profile attracts more incoming likes.
+        </Text>
       </View>
-    </Modal>
+
+      {/* Bio */}
+      <SectionTitle title="Bio" />
+      <TextInput
+        value={bio}
+        onChangeText={setBio}
+        placeholder="Say something that makes you stand out…"
+        placeholderTextColor={theme.textMuted}
+        multiline
+        maxLength={BIO_MAX}
+        accessibilityLabel="Profile bio"
+        style={[styles.bioInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+      />
+      <Text style={[styles.charCount, { color: theme.textMuted }]}>{bio.length}/{BIO_MAX}</Text>
+
+      {/* Interests */}
+      <SectionTitle
+        title="Interests"
+        subtitle={interests.length > 0 ? `${interests.length} of ${MAX_INTERESTS} picked` : undefined}
+      />
+      <View style={styles.chipWrap}>
+        {SPARK_INTERESTS.map((interest) => {
+          const selected = interests.includes(interest);
+          const atCap = !selected && interests.length >= MAX_INTERESTS;
+          return (
+            <Pressable
+              key={interest}
+              onPress={() => toggleInterest(interest)}
+              disabled={atCap}
+              accessibilityRole="button"
+              accessibilityState={{ selected, disabled: atCap }}
+              accessibilityLabel={`${interest}${selected ? ', selected' : ''}`}
+              style={[
+                styles.chip,
+                selected
+                  ? { backgroundColor: SPARK_COLORS.accent, borderColor: SPARK_COLORS.accent }
+                  : { borderColor: theme.border, opacity: atCap ? 0.4 : 1 },
+              ]}
+            >
+              {selected ? <Check size={fontScale(12)} color="#FFFFFF" strokeWidth={3} /> : null}
+              <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : theme.textSecondary }]}>
+                {interest}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
-  // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN - and the sheet itself does not
-  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
-  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: responsiveSpacing.md,
-  },
-  title: {
-    fontSize: fontScale(22),
-    fontWeight: '800',
-  },
-  closeBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
   scoreCard: {
     borderRadius: scale(14),
     padding: responsiveSpacing.md,
@@ -244,29 +192,12 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: fontScale(18),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
-  },
-  scoreTrack: {
-    height: scale(8),
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  scoreFill: {
-    height: '100%',
-    borderRadius: 999,
   },
   scoreHint: {
     fontSize: fontScale(11),
     marginTop: responsiveSpacing.xs,
-  },
-  sectionLabel: {
-    fontSize: fontScale(12),
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.xs,
   },
   bioInput: {
     minHeight: scale(88),
@@ -290,6 +221,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(4),
+    minHeight: touchTargets.minimum,
     paddingHorizontal: scale(12),
     paddingVertical: scale(7),
     borderRadius: 999,
@@ -301,10 +233,6 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     borderRadius: scale(14),
-    overflow: 'hidden',
-    marginTop: responsiveSpacing.md,
-  },
-  saveBtnInner: {
     minHeight: touchTargets.minimum,
     alignItems: 'center',
     justifyContent: 'center',
@@ -313,6 +241,6 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: '#FFFFFF',
     fontSize: fontScale(16),
-    fontWeight: '800',
+    fontWeight: '600',
   },
 });

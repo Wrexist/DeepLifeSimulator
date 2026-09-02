@@ -5,19 +5,19 @@
  * player adjust salary + sign-on bonus, then dispatches `hireCandidate`.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Briefcase, RefreshCw, X } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Briefcase, RefreshCw } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import EmptyState from '@/components/ui/EmptyState';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { hireCandidate, refreshCandidates, fireNamedHire } from '@/contexts/game/actions/HustleActions';
 import { evaluateOffer } from '@/lib/business/hustleLogic';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
+import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
-
-const LinearGradient = Gradient;
 
 interface HireEmployeeModalProps {
   visible: boolean;
@@ -103,26 +103,12 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text }]}>Hiring pipeline</Text>
-            <View style={styles.headerActions}>
-              <Pressable onPress={handleRefresh} accessibilityRole="button" accessibilityLabel="Refresh candidates" hitSlop={8} style={styles.iconBtn}>
-                <RefreshCw size={fontScale(18)} color={theme.text} />
-              </Pressable>
-              <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.iconBtn}>
-                <X size={fontScale(20)} color={theme.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+    <BaseModal visible={visible} onClose={onDismiss} variant="bottom" title="Hiring pipeline">
+      <View>
             {/* Named hires */}
             {namedHires.length > 0 ? (
               <>
-                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Current team</Text>
+                <SectionTitle title="Current team" />
                 {namedHires.map((h: any) => (
                   <View key={h.candidateId} style={[styles.hireRow, { borderColor: theme.border }]}>
                     <View style={styles.hireText}>
@@ -146,10 +132,28 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
               </>
             ) : null}
 
-            {/* Candidates */}
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Open positions</Text>
+            {/* Candidates. Refresh lives on the section heading now that the
+                modal chrome belongs to BaseModal. */}
+            <SectionTitle
+              title="Open positions"
+              right={
+                <Pressable
+                  onPress={handleRefresh}
+                  accessibilityRole="button"
+                  accessibilityLabel="Refresh candidates"
+                  hitSlop={8}
+                  style={styles.iconBtn}
+                >
+                  <RefreshCw size={fontScale(18)} color={theme.text} />
+                </Pressable>
+              }
+            />
             {candidates.length === 0 ? (
-              <Text style={[styles.empty, { color: theme.textMuted }]}>No candidates. Tap refresh.</Text>
+              <EmptyState
+                compact
+                observation="Nobody is on the shortlist."
+                nudge="Refresh to bring in a new set of candidates."
+              />
             ) : (
               candidates.map((c: any) => (
                 <Pressable
@@ -161,12 +165,12 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
                     styles.candCard,
                     {
                       backgroundColor: c.id === selectedCandidateId ? theme.surfaceElevated : theme.surface,
-                      borderColor: c.id === selectedCandidateId ? HUSTLE_GRADIENT[0] : theme.border,
+                      borderColor: c.id === selectedCandidateId ? HUSTLE_COLORS.accent : theme.border,
                       borderWidth: c.id === selectedCandidateId ? 2 : StyleSheet.hairlineWidth,
                     },
                   ]}
                 >
-                  <View style={[styles.candIcon, { backgroundColor: HUSTLE_COLORS.accent + '22' }]}>
+                  <View style={[styles.candIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.accent, 0.13) }]}>
                     <Briefcase size={fontScale(16)} color={HUSTLE_COLORS.accent} />
                   </View>
                   <View style={styles.candText}>
@@ -225,75 +229,26 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
                   onPress={handleOffer}
                   accessibilityRole="button"
                   accessibilityLabel="Send offer"
-                  style={styles.cta}
+                  style={({ pressed }) => [styles.cta, { backgroundColor: HUSTLE_COLORS.accent, opacity: pressed ? 0.85 : 1 }]}
                 >
-                  <LinearGradient
-                    colors={HUSTLE_GRADIENT as unknown as string[]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.ctaFill}
-                  >
-                    <Text style={styles.ctaText}>Send offer</Text>
-                  </LinearGradient>
+                  <Text style={styles.ctaText}>Send offer</Text>
                 </Pressable>
                 {resultMsg ? (
                   <Text style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text>
                 ) : null}
               </View>
             ) : null}
-          </ScrollView>
-        </View>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: responsiveSpacing.md,
-  },
-  title: {
-    fontSize: fontScale(20),
-    fontWeight: '800',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-  },
   iconBtn: {
     width: touchTargets.minimum,
     height: touchTargets.minimum,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sectionLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginTop: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
-  },
-  empty: {
-    fontSize: fontScale(12),
-    fontStyle: 'italic',
-    paddingVertical: responsiveSpacing.md,
   },
   candCard: {
     flexDirection: 'row',
@@ -313,7 +268,7 @@ const styles = StyleSheet.create({
   candText: { flex: 1 },
   candName: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   candMeta: {
     fontSize: fontScale(11),
@@ -331,7 +286,7 @@ const styles = StyleSheet.create({
   hireText: { flex: 1 },
   hireName: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   hireMeta: {
     fontSize: fontScale(11),
@@ -341,11 +296,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: 6,
     borderRadius: 999,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    minHeight: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fireBtnText: {
     fontSize: fontScale(11),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   offerCard: {
     borderRadius: scale(14),
@@ -356,37 +314,38 @@ const styles = StyleSheet.create({
   },
   offerTitle: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   offerField: { gap: 4 },
   offerLabel: {
     fontSize: fontScale(11),
-    fontWeight: '600',
+    fontWeight: '500',
   },
   offerInput: {
     borderWidth: 1,
     borderRadius: scale(10),
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
     fontSize: fontScale(14),
   },
   offerScore: {
     fontSize: fontScale(12),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   cta: {
     borderRadius: scale(12),
     overflow: 'hidden',
     marginTop: responsiveSpacing.sm,
-  },
-  ctaFill: {
     paddingVertical: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   resultMsg: {
     fontSize: fontScale(12),

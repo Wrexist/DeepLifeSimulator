@@ -6,19 +6,16 @@
  * For public companies: recent earnings reports + share price ticker.
  */
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Rocket, TrendingDown, TrendingUp, X } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { TrendingDown, TrendingUp } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { launchIPO } from '@/contexts/game/actions/HustleActions';
 import { computeIPOSharePrice } from '@/lib/business/hustleLogic';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
+import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
-
-const LinearGradient = Gradient;
 
 const FLOAT_OPTIONS = [10, 25, 40] as const;
 
@@ -58,30 +55,20 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
   if (!visible || !company) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.iconBtn}>
-              <X size={fontScale(20)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <LinearGradient
-            colors={HUSTLE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroBadge}
-          >
-            <Rocket size={scale(34)} color="#FFFFFF" strokeWidth={2.2} />
-          </LinearGradient>
-
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title={isPublic ? 'Public company' : `Take ${company.name} public`}
+      subtitle={
+        isPublic && overlay
+          ? `Share price $${overlay.ipo.sharePrice.toFixed(2)} · ${overlay.ipo.ownershipPercent}% ownership`
+          : 'An IPO raises cash but dilutes your ownership.'
+      }
+    >
+      <View>
           {isPublic && overlay ? (
             <>
-              <Text style={[styles.title, { color: theme.text }]}>Public company</Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Share price: ${overlay.ipo.sharePrice.toFixed(2)} · {overlay.ipo.ownershipPercent}% ownership
-              </Text>
               <View style={[styles.earningsBox, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                 <Text style={[styles.earningsLabel, { color: theme.textSecondary }]}>Recent earnings reports</Text>
                 {overlay.ipo.recentEarnings.length === 0 ? (
@@ -111,11 +98,6 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
             </>
           ) : (
             <>
-              <Text style={[styles.title, { color: theme.text }]}>Take {company.name} public</Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                IPO raises cash but dilutes your ownership.
-              </Text>
-
               <View style={styles.floatRow}>
                 {FLOAT_OPTIONS.map((opt) => (
                   <Pressable
@@ -127,7 +109,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                     style={[
                       styles.floatBtn,
                       {
-                        borderColor: floatPct === opt ? HUSTLE_GRADIENT[0] : theme.border,
+                        borderColor: floatPct === opt ? HUSTLE_COLORS.accent : theme.border,
                         backgroundColor: floatPct === opt ? theme.surfaceElevated : theme.surface,
                         borderWidth: floatPct === opt ? 2 : StyleSheet.hairlineWidth,
                       },
@@ -158,66 +140,19 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                 onPress={handleLaunch}
                 accessibilityRole="button"
                 accessibilityLabel={`IPO ${company.name} with ${floatPct}% float`}
-                style={styles.cta}
+                style={({ pressed }) => [styles.cta, { backgroundColor: HUSTLE_COLORS.accent, opacity: pressed ? 0.85 : 1 }]}
               >
-                <LinearGradient
-                  colors={HUSTLE_GRADIENT as unknown as string[]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.ctaFill}
-                >
-                  <Text style={styles.ctaText}>Launch IPO</Text>
-                </LinearGradient>
+                <Text style={styles.ctaText}>Launch IPO</Text>
               </Pressable>
               {resultMsg ? <Text style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text> : null}
             </>
           )}
-        </View>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-  },
-  header: { flexDirection: 'row', justifyContent: 'flex-end' },
-  iconBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroBadge: {
-    alignSelf: 'center',
-    width: scale(70),
-    height: scale(70),
-    borderRadius: scale(35),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: responsiveSpacing.md,
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: fontScale(22),
-    fontWeight: '800',
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: fontScale(13),
-    marginTop: 4,
-    marginBottom: responsiveSpacing.md,
-  },
   floatRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
@@ -227,11 +162,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: responsiveSpacing.md,
     borderRadius: scale(12),
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   floatPct: {
     fontSize: fontScale(18),
-    fontWeight: '800',
+    fontWeight: '600',
   },
   floatSub: {
     fontSize: fontScale(10),
@@ -253,7 +190,7 @@ const styles = StyleSheet.create({
   },
   previewValue: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   earningsBox: {
     borderRadius: scale(12),
@@ -263,13 +200,10 @@ const styles = StyleSheet.create({
   },
   earningsLabel: {
     fontSize: fontScale(11),
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontWeight: '600',
   },
   earningsEmpty: {
     fontSize: fontScale(12),
-    fontStyle: 'italic',
   },
   earningsRow: {
     flexDirection: 'row',
@@ -282,15 +216,15 @@ const styles = StyleSheet.create({
   cta: {
     borderRadius: scale(14),
     overflow: 'hidden',
-  },
-  ctaFill: {
     paddingVertical: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '800',
+    fontWeight: '600',
   },
   resultMsg: {
     fontSize: fontScale(12),

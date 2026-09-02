@@ -163,7 +163,7 @@ const MAX_ERRORS = 0;
  * Review 3.1.1) deleted utils/redeemCodes.ts and its modal/tests, which
  * carried four warnings. Lowered in the commit that measured it.
  */
-const MAX_WARNINGS = 775;
+const MAX_WARNINGS = 748;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

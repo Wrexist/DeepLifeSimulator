@@ -3,24 +3,27 @@
  *
  * Mounts when the player taps the Pulse tile from the phone shell. Owns:
  *   - Internal nav state machine (no React Navigation nested container)
- *   - Bottom 5-tab bar (Home / Trending / Compose-FAB / Alerts / DMs)
+ *   - Bottom 4-tab bar (Home / Trending / Alerts / DMs)
  *   - The modal host (composer, scandal recovery, verified-pro upsell)
  *   - The persistent ScandalBanner when a scandal is active
  *   - Profile + BrandDeals + LiveStream as overlay routes (no tab slot)
+ *
+ * Every top bar here - the home bar and the three overlay bars - is the shared
+ * `AppHeader`. Five hand-rolled copies of the same three slots used to live in
+ * this file and in PostDetailScreen / LiveStreamScreen.
  */
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, BarChart3, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
 import { useGame } from '@/contexts/GameContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useTheme } from '@/hooks/useTheme';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
-import { PULSE_GRADIENT } from './styles/pulseTheme';
-import PulseFAB from './components/PulseFAB';
+import { PULSE_COLORS } from './styles/pulseTheme';
 import ScandalBanner from './components/ScandalBanner';
 import FeedScreen from './screens/FeedScreen';
 import TrendingScreen from './screens/TrendingScreen';
@@ -40,8 +43,6 @@ import RewardedAdModal from './modals/RewardedAdModal';
 import NpcProfileSheet, { type NpcStoryTarget } from './modals/NpcProfileSheet';
 import { formatPulseNumber } from './utils/formatPulseNumber';
 
-const LinearGradient = Gradient;
-
 type PulseTab = 'home' | 'trending' | 'alerts' | 'dms';
 /** Overlay routes - full-screen pushed above the tab bar. */
 type PulseOverlay = 'profile' | 'brandDeals' | 'liveStream' | 'insights' | null;
@@ -51,7 +52,7 @@ interface PulseAppProps {
 }
 
 export default function PulseApp({ onBack }: PulseAppProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   // Remove Ads / DeepLife+ hides every "watch ad" affordance in Pulse.
@@ -64,9 +65,6 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const [overlay, setOverlay] = useState<PulseOverlay>(null);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
-  // R6-A: error flag so the gradient fallback covers BOTH "no photo" and
-  // "photo URL failed to load" cases.
-  const [headerAvatarErrored, setHeaderAvatarErrored] = useState(false);
   const [showScandalRecovery, setShowScandalRecovery] = useState(false);
   const [showProUpsell, setShowProUpsell] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -79,6 +77,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const followers = sm?.followers ?? 0;
   const activeScandal = sm?.activeScandal ?? null;
   const profile = gameState.userProfile ?? {};
+  const dealCount = (sm?.brandInbox?.pending?.length ?? 0) + (sm?.activeBrandDeals?.length ?? 0);
 
   const handleComposePress = useCallback(() => setShowComposer(true), []);
   const openPostDetail = useCallback((postId: string) => setDetailPostId(postId), []);
@@ -97,40 +96,47 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   // owns the buy/cancel flow (charges stats.money via subscribeVerifiedPro). No
   // real-IAP path here anymore.
 
-  // ── Overlay routes intercept the entire body when active ──────────────────
+  // ── Route rendering ───────────────────────────────────────────────────────
+  // One body, one modal host. The overlay routes used to be EARLY RETURNS, so
+  // each of them had to re-declare the modals it needed - VerifiedProUpsellModal
+  // and BoostPostModal were mounted twice, and a Boost tap on the profile
+  // reached whichever copy happened to be mounted. Choosing the body instead of
+  // returning early lets the host at the bottom serve every route once.
+  let body: React.ReactNode;
   if (detailPostId) {
-    return (
-      <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <PostDetailScreen postId={detailPostId} onClose={dismissPostDetail} />
-      </View>
-    );
-  }
-  if (overlay === 'liveStream') {
-    return (
-      <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <LiveStreamScreen onClose={dismissOverlay} />
-      </View>
-    );
-  }
-  if (overlay === 'profile') {
-    return (
-      <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <Pressable onPress={dismissOverlay} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-            <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable onPress={openInsights} accessibilityRole="button" accessibilityLabel="Creator Studio insights" hitSlop={8} style={styles.headerBtnEnd}>
-              <BarChart3 size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
-            </Pressable>
-            <Pressable onPress={openLive} accessibilityRole="button" accessibilityLabel="Go live" hitSlop={8} style={styles.headerBtnEnd}>
-              <Radio size={responsiveIconSize.md} color={PULSE_GRADIENT[0]} />
-            </Pressable>
-          </View>
-        </View>
+    body = <PostDetailScreen postId={detailPostId} onClose={dismissPostDetail} />;
+  } else if (overlay === 'liveStream') {
+    body = <LiveStreamScreen onClose={dismissOverlay} />;
+  } else if (overlay === 'profile') {
+    body = (
+      <>
+        <AppHeader
+          title="Profile"
+          onBack={dismissOverlay}
+          backLabel="Back to feed"
+          right={
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={openBrandDeals}
+                accessibilityRole="button"
+                accessibilityLabel={dealCount > 0 ? `Brand deals, ${dealCount}` : 'Brand deals'}
+                hitSlop={8}
+                style={styles.headerBtnEnd}
+              >
+                <Briefcase size={responsiveIconSize.md} color={PULSE_COLORS.accent} />
+              </Pressable>
+              <Pressable
+                onPress={openLive}
+                accessibilityRole="button"
+                accessibilityLabel="Go live"
+                hitSlop={8}
+                style={styles.headerBtnEnd}
+              >
+                <Radio size={responsiveIconSize.md} color={PULSE_COLORS.accent} />
+              </Pressable>
+            </View>
+          }
+        />
         <ProfileScreen
           onUpgradePro={openProUpsell}
           onOpenInsights={openInsights}
@@ -138,207 +144,123 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           onBoostPost={(postId) => setBoostPostId(postId)}
           onEditProfile={() => setShowProfileEdit(true)}
         />
-        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} />
-        <ProfileEditModal visible={showProfileEdit} onDismiss={() => setShowProfileEdit(false)} />
-        {/* Must be mounted here too: this overlay is an early return, so the
-            main return's BoostPostModal never renders while the profile is
-            open - without this, Boost on your own profile posts sets
-            boostPostId but no modal ever appears (silently dead button). */}
-        <BoostPostModal
-          visible={!!boostPostId}
-          postId={boostPostId}
-          onDismiss={() => setBoostPostId(null)}
-        />
-      </View>
+      </>
     );
-  }
-  if (overlay === 'brandDeals') {
-    return (
-      <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <Pressable onPress={dismissOverlay} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-            <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>Brand Deals</Text>
-          </View>
-          <View style={styles.headerBtn} />
-        </View>
+  } else if (overlay === 'brandDeals') {
+    body = (
+      <>
+        <AppHeader title="Brand Deals" onBack={dismissOverlay} backLabel="Back to feed" />
         <BrandDealsScreen />
-      </View>
+      </>
     );
-  }
-  if (overlay === 'insights') {
-    return (
-      <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <Pressable onPress={dismissOverlay} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-            <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>Creator Studio</Text>
-          </View>
-          <View style={styles.headerBtn} />
-        </View>
+  } else if (overlay === 'insights') {
+    body = (
+      <>
+        <AppHeader
+          title="Creator Studio"
+          onBack={dismissOverlay}
+          backLabel="Back to feed"
+          right={
+            <HeaderChip label="Followers" value={formatPulseNumber(followers)} tint={PULSE_COLORS.accent} />
+          }
+        />
         <InsightsScreen onUpgradePro={openProUpsell} />
-        <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} />
-      </View>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        {/* ── Header ──────────────────────────────────────────── */}
+        <AppHeader
+          title="pulse"
+          onBack={onBack}
+          backLabel="Back to phone home"
+          right={
+            <HeaderChip
+              label="Followers"
+              value={formatPulseNumber(followers)}
+              tint={PULSE_COLORS.accent}
+              icon={
+                profile.name ? (
+                  /* The player's own face - the one place in the app where they
+                     could not see themselves before. */
+                  <CharacterAvatar
+                    source={profile}
+                    seed={profile.name}
+                    sex={profile.sex}
+                    age={gameState.date?.age ?? 25}
+                    size={scale(20)}
+                  />
+                ) : undefined
+              }
+              onPress={openProfile}
+            />
+          }
+        />
+
+        {/* ── Sticky scandal banner ──────────────────────────── */}
+        {activeScandal ? (
+          <ScandalBanner scandal={activeScandal} onPress={() => setShowScandalRecovery(true)} />
+        ) : null}
+
+        {/* ── Tab body ─────────────────────────────────────────── */}
+        <View style={styles.body}>
+          {activeTab === 'home' && (
+            <FeedScreen
+              onCompose={handleComposePress}
+              onOpenPostDetail={openPostDetail}
+              onGoLive={openLive}
+              onBoostPost={(postId) => setBoostPostId(postId)}
+              onTapNpc={openNpcSheet}
+            />
+          )}
+          {activeTab === 'trending' && <TrendingScreen />}
+          {activeTab === 'alerts' && (
+            <NotificationsScreen
+              onOpenBrandDeals={openBrandDeals}
+              onOpenPostDetail={openPostDetail}
+              onOpenScandalRecovery={() => setShowScandalRecovery(true)}
+              onWatchAd={adsRemoved ? undefined : () => setShowRewardedAd(true)}
+            />
+          )}
+          {activeTab === 'dms' && <MessagesScreen onBack={() => setActiveTab('home')} />}
+        </View>
+
+        {/* ── Bottom tab bar ──────────────────────────────────── */}
+        <View
+          style={[
+            styles.tabBar,
+            {
+              backgroundColor: theme.surface,
+              borderTopColor: theme.border,
+              // Absorb the safe-area inset here so the bar reaches the screen edge.
+              paddingBottom: responsiveSpacing.sm + bottomInset,
+            },
+          ]}
+          accessibilityRole="tablist"
+        >
+          <TabButton Icon={Home} label="Home" active={activeTab === 'home'} onPress={() => setActiveTab('home')} color={theme.text} mutedColor={theme.textSecondary} />
+          <TabButton Icon={Flame} label="Trending" active={activeTab === 'trending'} onPress={() => setActiveTab('trending')} color={theme.text} mutedColor={theme.textSecondary} />
+          <TabButton Icon={Bell} label="Alerts" active={activeTab === 'alerts'} onPress={() => setActiveTab('alerts')} color={theme.text} mutedColor={theme.textSecondary} />
+          <TabButton Icon={Mail} label="DMs" active={activeTab === 'dms'} onPress={() => setActiveTab('dms')} color={theme.text} mutedColor={theme.textSecondary} />
+        </View>
+      </>
     );
   }
 
   return (
-    // Full-screen: the tab bar owns the bottom safe-area inset (see its style
-    // below) so its surface reaches the screen edge with no dead strip. The
-    // FAB / deal chip are lifted by the same inset to hold their gap above it.
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      {/* ── Header ──────────────────────────────────────────── */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Back to phone home"
-          hitSlop={8}
-          style={styles.headerBtn}
-        >
-          <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
-        </Pressable>
+      {body}
 
-        <View style={styles.headerCenter}>
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.wordmarkPill}
-          >
-            <Text style={styles.wordmarkText}>pulse</Text>
-          </LinearGradient>
-        </View>
-
-        <Pressable
-          onPress={openProfile}
-          accessibilityRole="button"
-          accessibilityLabel={`Profile, ${followers} followers`}
-          hitSlop={8}
-          style={styles.headerProfileBtn}
-        >
-          {/* R6-A: also render the gradient fallback on Image load failure,
-              not just missing-uri. Previously a 404 left a transparent gap. */}
-          {profile.profilePhoto && !headerAvatarErrored ? (
-            <Image
-              source={{ uri: profile.profilePhoto }}
-              style={styles.headerAvatar}
-              onError={() => setHeaderAvatarErrored(true)}
-            />
-          ) : profile.name ? (
-            /* The player's own face. This was a gradient disc with their
-               initial in it, which is the one place in the app where they
-               could not see themselves. */
-            <CharacterAvatar
-              source={profile}
-              seed={profile.name}
-              sex={profile.sex}
-              age={gameState.date?.age ?? 25}
-              size={scale(32)}
-            />
-          ) : (
-            <LinearGradient
-              colors={PULSE_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.headerAvatar, styles.headerAvatarFallback]}
-            >
-              <Text style={styles.headerAvatarLetter}>
-                {(profile.displayName || profile.name || profile.handle || 'Y')
-                  .slice(0, 1)
-                  .toUpperCase()}
-              </Text>
-            </LinearGradient>
-          )}
-          <Text style={[styles.followerCount, { color: theme.text }]}>
-            {formatPulseNumber(followers)}
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* ── Sticky scandal banner ──────────────────────────── */}
-      {activeScandal ? (
-        <ScandalBanner scandal={activeScandal} onPress={() => setShowScandalRecovery(true)} />
-      ) : null}
-
-      {/* ── Tab body ─────────────────────────────────────────── */}
-      <View style={styles.body}>
-        {activeTab === 'home' && (
-          <FeedScreen
-            onCompose={handleComposePress}
-            onOpenPostDetail={openPostDetail}
-            onGoLive={openLive}
-            onBoostPost={(postId) => setBoostPostId(postId)}
-            onTapNpc={openNpcSheet}
-          />
-        )}
-        {activeTab === 'trending' && <TrendingScreen />}
-        {activeTab === 'alerts' && (
-          <NotificationsScreen
-            onOpenBrandDeals={openBrandDeals}
-            onOpenPostDetail={openPostDetail}
-            onOpenScandalRecovery={() => setShowScandalRecovery(true)}
-            onWatchAd={adsRemoved ? undefined : () => setShowRewardedAd(true)}
-          />
-        )}
-        {activeTab === 'dms' && <MessagesScreen onBack={() => setActiveTab('home')} />}
-      </View>
-
-      {/* ── Compose FAB ──────────────────────────────────────── */}
-      <PulseFAB onPress={handleComposePress} bottomOffset={bottomInset} />
-
-      {/* ── Bottom tab bar ──────────────────────────────────── */}
-      <View
-        style={[
-          styles.tabBar,
-          {
-            backgroundColor: theme.surface,
-            borderTopColor: theme.border,
-            // Absorb the safe-area inset here so the bar reaches the screen edge.
-            paddingBottom: responsiveSpacing.sm + bottomInset,
-          },
-        ]}
-      >
-        <TabButton tab="home" Icon={Home} label="Home" active={activeTab === 'home'} onPress={() => setActiveTab('home')} color={theme.text} mutedColor={theme.textSecondary} />
-        <TabButton tab="trending" Icon={Flame} label="Trending" active={activeTab === 'trending'} onPress={() => setActiveTab('trending')} color={theme.text} mutedColor={theme.textSecondary} />
-        <View style={styles.tabSpacer} />{/* room for the raised FAB */}
-        <TabButton tab="alerts" Icon={Bell} label="Alerts" active={activeTab === 'alerts'} onPress={() => setActiveTab('alerts')} color={theme.text} mutedColor={theme.textSecondary} />
-        <TabButton tab="dms" Icon={Mail} label="DMs" active={activeTab === 'dms'} onPress={() => setActiveTab('dms')} color={theme.text} mutedColor={theme.textSecondary} />
-      </View>
-
-      {/* Quick access: brand deals link in header when offers/active exist */}
-      {(sm?.brandInbox?.pending?.length ?? 0) + (sm?.activeBrandDeals?.length ?? 0) > 0 ? (
-        <Pressable
-          onPress={openBrandDeals}
-          accessibilityRole="button"
-          accessibilityLabel={`Brand deals, ${sm?.brandInbox?.pending?.length ?? 0} pending`}
-          style={[
-            styles.dealChip,
-            { backgroundColor: theme.surface, borderColor: theme.border, bottom: scale(80) + bottomInset },
-          ]}
-        >
-          <Briefcase size={fontScale(14)} color={PULSE_GRADIENT[0]} />
-          <Text style={[styles.dealChipText, { color: theme.text }]}>
-            Brand deals · {(sm?.brandInbox?.pending?.length ?? 0) + (sm?.activeBrandDeals?.length ?? 0)}
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {/* ── Modal host ───────────────────────────────────────── */}
+      {/* ── Modal host - one mount each, for every route above ─── */}
       <ComposeModal visible={showComposer} onDismiss={() => setShowComposer(false)} />
       <ScandalRecoveryModal
         visible={showScandalRecovery && !!activeScandal}
         scandal={activeScandal}
         onDismiss={() => setShowScandalRecovery(false)}
       />
-      <VerifiedProUpsellModal
-        visible={showProUpsell}
-        onDismiss={dismissProUpsell}
-      />
+      <VerifiedProUpsellModal visible={showProUpsell} onDismiss={dismissProUpsell} />
+      <ProfileEditModal visible={showProfileEdit} onDismiss={() => setShowProfileEdit(false)} />
       <BoostPostModal
         visible={!!boostPostId}
         postId={boostPostId}
@@ -351,10 +273,9 @@ export default function PulseApp({ onBack }: PulseAppProps) {
 }
 
 function TabButton({
-  tab, Icon, label, active, onPress, color, mutedColor,
+  Icon, label, active, onPress, color, mutedColor,
 }: {
-  tab: PulseTab;
-  Icon: any;
+  Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   label: string;
   active: boolean;
   onPress: () => void;
@@ -380,19 +301,6 @@ function TabButton({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,50 +311,6 @@ const styles = StyleSheet.create({
     height: touchTargets.minimum,
     alignItems: 'flex-end',
     justifyContent: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: fontScale(16),
-    fontWeight: '700',
-  },
-  wordmarkPill: {
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(4),
-    borderRadius: scale(8),
-  },
-  wordmarkText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  headerProfileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minWidth: touchTargets.minimum,
-    paddingLeft: 4,
-  },
-  headerAvatar: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(14),
-  },
-  headerAvatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerAvatarLetter: {
-    color: '#FFFFFF',
-    fontSize: fontScale(12),
-    fontWeight: '700',
-  },
-  followerCount: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
   },
   body: {
     flex: 1,
@@ -466,27 +330,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabSpacer: {
-    width: scale(56),
-  },
   tabLabel: {
     fontSize: fontScale(10),
     marginTop: 2,
-  },
-  dealChip: {
-    position: 'absolute',
-    bottom: scale(80),
-    left: scale(20),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(8),
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  dealChipText: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
   },
 });

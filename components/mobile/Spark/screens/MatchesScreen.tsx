@@ -7,7 +7,7 @@
  */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -16,11 +16,8 @@ import { Star } from 'lucide-react-native';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import EmptyState from '../components/EmptyState';
-import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import { formatRelativeRealTime } from '@/components/mobile/Pulse/utils/formatRelativeTime';
-import type { SparkMatch } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 interface MatchesScreenProps {
   onOpenChat: (matchId: string) => void;
@@ -51,7 +48,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
           nudge="Keep swiping - your next match is one swipe away."
         >
           <Pressable onPress={onOpenSwipe} accessibilityRole="button" accessibilityLabel="Start swiping">
-            <Text style={[styles.cta, { color: SPARK_GRADIENT[0] }]}>Start swiping →</Text>
+            <Text style={[styles.cta, { color: SPARK_COLORS.accent }]}>Start swiping →</Text>
           </Pressable>
         </EmptyState>
       </View>
@@ -60,7 +57,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      {/* Fresh matches rail - the screen's single rose focal surface (Recipe B). */}
+      {/* Fresh matches rail. */}
       {freshMatches.length > 0 ? (
         <View
           style={[
@@ -70,19 +67,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
           ]}
         >
           <View style={styles.freshInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={SPARK_GRADIENT_SOFT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View pointerEvents="none" style={styles.freshGlow} />
-            {isDark ? <View pointerEvents="none" style={styles.freshHairline} /> : null}
-
-            <Text style={[styles.railEyebrow, { color: theme.textMuted }]}>
-              NEW MATCHES · {freshMatches.length}
-            </Text>
+            <SectionTitle title="New matches" subtitle={`${freshMatches.length} waiting`} style={styles.freshTitle} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -123,9 +108,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
       {/* Conversations */}
       {conversations.length > 0 ? (
         <>
-          <Text style={[styles.sectionLabel, { color: theme.textMuted, marginTop: responsiveSpacing.lg }]}>
-            Messages
-          </Text>
+          <SectionTitle title="Messages" style={styles.messagesTitle} />
           {conversations.map((match) => {
             const profile = findProfile(match.profileId);
             if (!profile) return null;
@@ -193,15 +176,12 @@ const styles = StyleSheet.create({
   },
   cta: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  sectionLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+  messagesTitle: {
     paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.xs,
+    marginTop: responsiveSpacing.lg,
+    marginBottom: responsiveSpacing.xs,
   },
   freshCard: {
     marginHorizontal: responsiveSpacing.md,
@@ -213,28 +193,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingVertical: responsiveSpacing.md,
   },
-  freshGlow: {
-    position: 'absolute',
-    top: -scale(40),
-    right: -scale(30),
-    width: scale(140),
-    height: scale(140),
-    borderRadius: scale(70),
-    backgroundColor: 'rgba(244,63,94,0.10)',
-  },
-  freshHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  railEyebrow: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  freshTitle: {
     paddingHorizontal: responsiveSpacing.md,
     marginBottom: responsiveSpacing.sm,
   },
@@ -328,6 +287,6 @@ const styles = StyleSheet.create({
   unreadDotText: {
     color: '#FFFFFF',
     fontSize: fontScale(10),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

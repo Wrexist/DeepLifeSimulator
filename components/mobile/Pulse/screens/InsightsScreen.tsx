@@ -6,7 +6,8 @@
  *   - A follower-growth sparkline from the capped `followerHistory`.
  *   - An engagement snapshot (rate + tier via InfluenceMeter).
  *   - Top posts by reach.
- *   - A lifetime trophy grid from `lifetimeStats` (never surfaced before).
+ *   - Lifetime records from `lifetimeStats` (never surfaced before), as two
+ *     strips of three rather than a six-tile trophy grid.
  *
  * When Verified Pro is inactive the advanced sections dim behind a lock strip
  * with an upsell CTA, finally making the paid perk mean something.
@@ -14,19 +15,18 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Lock, TrendingUp, Award, Heart, Zap, ShieldCheck, Star, Repeat2 } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Lock, TrendingUp, Heart, Repeat2 } from 'lucide-react-native';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, getAppScreenBottomPadding } from '@/utils/scaling';
-import SectionHeader from '../components/SectionHeader';
 import InfluenceMeter from '../components/InfluenceMeter';
 import EmptyState from '../components/EmptyState';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
-import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseRecentPost, PulseLifetimeStats } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 interface InsightsScreenProps {
   /** Tap the upsell strip → open the Verified Pro upsell (owned by PulseApp). */
@@ -81,19 +81,16 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
     >
-      {/* Hero snapshot - always visible (basic stats aren't gated). */}
-      <LinearGradient
-        colors={PULSE_GRADIENT as unknown as string[]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      {/* Snapshot - always visible (basic stats aren't gated). The headline
+          number is the follower count; the other two qualify it. */}
+      <StatStrip
         style={styles.hero}
-      >
-        <Text style={styles.heroLabel}>Followers</Text>
-        <Text style={styles.heroValue}>{formatPulseNumber(followers)}</Text>
-        <Text style={styles.heroSub}>
-          {engagementRate.toFixed(1)}% engagement · {TIER_LABELS[tier] ?? tier}
-        </Text>
-      </LinearGradient>
+        items={[
+          { label: 'Followers', value: formatPulseNumber(followers), hero: true, tint: PULSE_COLORS.accent },
+          { label: 'Engagement', value: `${engagementRate.toFixed(1)}%` },
+          { label: 'Tier', value: TIER_LABELS[tier] ?? tier },
+        ]}
+      />
 
       <View style={styles.influenceWrap}>
         <InfluenceMeter followers={followers} tier={tier} />
@@ -124,7 +121,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
         pointerEvents={analyticsUnlocked ? 'auto' : 'none'}
       >
         {/* Follower growth sparkline */}
-        <SectionHeader title="Follower growth" />
+        <SectionTitle title="Follower growth" style={styles.section} />
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {spark.pts.length >= 2 ? (
             <>
@@ -154,7 +151,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
         </View>
 
         {/* Top posts */}
-        <SectionHeader title="Top posts" />
+        <SectionTitle title="Top posts" style={styles.section} />
         {topPosts.length === 0 ? (
           <EmptyState observation="No posts to rank yet." nudge="Compose a few posts to see your best performers." />
         ) : (
@@ -180,35 +177,34 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
                     <TrendingUp size={fontScale(12)} color={theme.textSecondary} />
                     <Text style={[styles.postMeta, { color: theme.textSecondary }]}>{formatPulseNumber(p.views ?? 0)} views</Text>
                   </View>
-                  {p.isViral ? <Text style={[styles.viralTag, { color: PULSE_COLORS.accent }]}>VIRAL</Text> : null}
+                  {p.isViral ? <Chip label="Viral" tint={PULSE_COLORS.accent} /> : null}
                 </View>
               </View>
             </View>
           ))
         )}
 
-        {/* Lifetime trophy case */}
-        <SectionHeader title="Lifetime records" />
-        <View style={styles.trophyGrid}>
-          <Trophy Icon={Star} label="Peak followers" value={formatPulseNumber(lifetime?.peakFollowers ?? 0)} theme={theme} />
-          <Trophy Icon={Award} label="Peak tier" value={TIER_LABELS[lifetime?.peakInfluenceLevel ?? 'novice'] ?? 'Novice'} theme={theme} />
-          <Trophy Icon={ShieldCheck} label="Scandals survived" value={String(lifetime?.totalScandalsSurvived ?? 0)} theme={theme} />
-          <Trophy Icon={Award} label="Brand deals done" value={String(lifetime?.totalBrandDealsCompleted ?? 0)} theme={theme} />
-          <Trophy Icon={Zap} label="Gem boosts used" value={String(lifetime?.totalGemsBoostsUsed ?? 0)} theme={theme} />
-          <Trophy Icon={ShieldCheck} label="Pro weeks" value={String(lifetime?.totalVerifiedProWeeks ?? 0)} theme={theme} />
-        </View>
+        {/* Lifetime records - two strips of three, not a six-tile trophy grid
+            of bordered icon cards. */}
+        <SectionTitle title="Lifetime records" style={styles.section} />
+        <StatStrip
+          style={styles.records}
+          items={[
+            { label: 'Peak followers', value: formatPulseNumber(lifetime?.peakFollowers ?? 0) },
+            { label: 'Peak tier', value: TIER_LABELS[lifetime?.peakInfluenceLevel ?? 'novice'] ?? 'Novice' },
+            { label: 'Scandals survived', value: String(lifetime?.totalScandalsSurvived ?? 0) },
+          ]}
+        />
+        <StatStrip
+          style={styles.records}
+          items={[
+            { label: 'Brand deals done', value: String(lifetime?.totalBrandDealsCompleted ?? 0) },
+            { label: 'Gem boosts used', value: String(lifetime?.totalGemsBoostsUsed ?? 0) },
+            { label: 'Pro weeks', value: String(lifetime?.totalVerifiedProWeeks ?? 0) },
+          ]}
+        />
       </View>
     </ScrollView>
-  );
-}
-
-function Trophy({ Icon, label, value, theme }: { Icon: typeof Star; label: string; value: string; theme: any }) {
-  return (
-    <View style={[styles.trophy, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Icon size={responsiveIconSize.md} color={PULSE_COLORS.accent} />
-      <Text style={[styles.trophyValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.trophyLabel, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
   );
 }
 
@@ -217,27 +213,15 @@ const styles = StyleSheet.create({
     paddingBottom: scale(140),
   },
   hero: {
-    margin: responsiveSpacing.md,
-    borderRadius: scale(16),
-    padding: responsiveSpacing.lg,
-    alignItems: 'flex-start',
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
   },
-  heroLabel: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: fontScale(12),
-    fontWeight: '600',
+  section: {
+    marginHorizontal: responsiveSpacing.md,
   },
-  heroValue: {
-    color: '#FFFFFF',
-    fontSize: fontScale(34),
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  heroSub: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: fontScale(12),
-    fontWeight: '600',
-    marginTop: 4,
+  records: {
+    marginHorizontal: responsiveSpacing.md,
   },
   influenceWrap: {
     paddingHorizontal: responsiveSpacing.md,
@@ -260,7 +244,7 @@ const styles = StyleSheet.create({
   },
   lockTitle: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   lockSub: {
     fontSize: fontScale(12),
@@ -319,7 +303,7 @@ const styles = StyleSheet.create({
   postRankText: {
     color: '#FFFFFF',
     fontSize: fontScale(12),
-    fontWeight: '800',
+    fontWeight: '600',
   },
   postBody: {
     flex: 1,
@@ -341,33 +325,5 @@ const styles = StyleSheet.create({
   },
   postMeta: {
     fontSize: fontScale(11),
-  },
-  viralTag: {
-    fontSize: fontScale(10),
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  trophyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: responsiveSpacing.md,
-    gap: responsiveSpacing.sm,
-  },
-  trophy: {
-    width: '31%',
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingVertical: responsiveSpacing.md,
-    borderRadius: scale(12),
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 4,
-  },
-  trophyValue: {
-    fontSize: fontScale(16),
-    fontWeight: '800',
-  },
-  trophyLabel: {
-    fontSize: fontScale(10),
-    textAlign: 'center',
   },
 });

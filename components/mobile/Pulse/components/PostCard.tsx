@@ -5,15 +5,14 @@
  * and an engagement row (like / repost / comment / bookmark counts). Tap on
  * like, repost or bookmark calls into `PulseActions` and gives haptic feedback.
  *
- * Viral posts get a 1pt magenta→indigo gradient border treatment.
+ * Viral posts get a subtle tinted rim - no gradient frame, no shimmer sweep.
  *
  * Discriminated-union access (CLAUDE.md hard rule §2): `'photo' in post` etc.
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Bookmark, Heart, MessageCircle, Repeat2, Zap } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGameActions } from '@/contexts/GameContext';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
@@ -24,10 +23,9 @@ import { bookmarkPost, likePost, repostPost } from '@/contexts/game/actions/Puls
 import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { formatRelativeWeek } from '../utils/formatRelativeTime';
 import { pulseHaptics } from '../utils/pulseHaptics';
-import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
+import { withAlpha } from '@/lib/config/theme';
 import type { PulseRecentPost } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 interface PostCardProps {
   post: PulseRecentPost;
@@ -114,8 +112,16 @@ function PostCard({
     setTimeout(() => { void saveGame?.(); }, 0);
   }, [setGameState, saveGame, post.id]);
 
+  // A viral post is marked by its rim and its pill, not by a gradient frame
+  // with a shimmer sweep animating over it on every mount.
   const card = (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.surface, borderColor: theme.border },
+        post.isViral && { borderColor: withAlpha(PULSE_COLORS.accent, 0.35) },
+      ]}
+    >
       {/* Author row */}
       <View style={styles.authorRow}>
         {/* R4-B: avatar uses ImageWithFallback so a 404 URI degrades to the
@@ -207,29 +213,13 @@ function PostCard({
             hitSlop={8}
             style={styles.engagementBtn}
           >
-            <Zap size={fontScale(16)} color={PULSE_GRADIENT[0]} strokeWidth={2.2} />
-            <Text style={[styles.engagementCount, { color: PULSE_GRADIENT[0] }]}>Boost</Text>
+            <Zap size={fontScale(16)} color={PULSE_COLORS.accent} strokeWidth={2.2} />
+            <Text style={[styles.engagementCount, { color: PULSE_COLORS.accent }]}>Boost</Text>
           </Pressable>
         ) : null}
       </View>
     </View>
   );
-
-  // Viral border: wrap the card in a gradient frame with a one-time shimmer
-  // sweep on mount (1200ms per plan §2.5). Respects Reduce Motion.
-  if (post.isViral) {
-    return (
-      <LinearGradient
-        colors={PULSE_GRADIENT as unknown as string[]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.viralFrame}
-      >
-        <ViralShimmer />
-        {card}
-      </LinearGradient>
-    );
-  }
 
   return card;
 }
@@ -328,61 +318,9 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
   );
 }
 
-// Viral-card shimmer: one-time diagonal highlight sweep across the gradient
-// frame. ~1200ms total. Honors Reduce Motion (snap-to-end, no animation).
-function ViralShimmer() {
-  const progress = useRef(new Animated.Value(0)).current;
-  const reduced = useReducedMotion();
-  useEffect(() => {
-    if (reduced) {
-      progress.setValue(1);
-      return;
-    }
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 1200,
-      useNativeDriver: true,
-    }).start();
-    return () => {
-      progress.stopAnimation();
-    };
-  }, [progress, reduced]);
-
-  // Slide a 30%-wide highlight band from −30% to +130% of card width.
-  const translateX = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['-30%', '130%'],
-  });
-  const opacity = progress.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0.55, 0],
-  });
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[styles.shimmerBand, { transform: [{ translateX }], opacity }]}
-    />
-  );
-}
-
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  viralFrame: {
-    borderRadius: scale(14),
-    padding: scale(1.5),
-    marginHorizontal: responsiveSpacing.md,
-    marginVertical: responsiveSpacing.xs,
-    overflow: 'hidden', // contain the shimmer band
-  },
-  shimmerBand: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: '30%',
-    backgroundColor: '#FFFFFF',
-  },
   card: {
     borderRadius: scale(13),
     borderWidth: StyleSheet.hairlineWidth,
@@ -400,21 +338,12 @@ const styles = StyleSheet.create({
     height: scale(36),
     borderRadius: scale(18),
   },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: fontScale(15),
-    fontWeight: '700',
-  },
   authorMeta: {
     flex: 1,
   },
   handle: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   timeAgo: {
     fontSize: fontScale(11),
@@ -428,7 +357,7 @@ const styles = StyleSheet.create({
   viralPillText: {
     color: '#FFFFFF',
     fontSize: fontScale(9),
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.6,
   },
   content: {

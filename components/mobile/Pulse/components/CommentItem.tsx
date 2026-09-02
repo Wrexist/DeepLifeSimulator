@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     color: '#FFFFFF',
     fontSize: fontScale(12),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   bodyWrap: {
     flex: 1,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     fontSize: fontScale(12),
-    fontWeight: '700',
+    fontWeight: '600',
     flexShrink: 1,
   },
   youBadge: {
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   youBadgeText: {
     color: '#FFFFFF',
     fontSize: fontScale(10),
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   timeAgo: {

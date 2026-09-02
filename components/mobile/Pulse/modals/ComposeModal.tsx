@@ -7,36 +7,30 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { X } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Zap } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
+import BaseModal from '@/components/ui/BaseModal';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { composePost, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import { getEnergyCost } from '@/lib/social/socialMedia';
-import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseContentType, PulseActiveBrandDeal } from '@/contexts/game/types';
 
+/** The ONE gradient left in Pulse: the primary Post CTA. */
 const LinearGradient = Gradient;
+const PULSE_GRADIENT_CTA: string[] = [PULSE_COLORS.accent, PULSE_COLORS.accentSecondary];
 
-const CONTENT_TYPES: { id: PulseContentType; label: string }[] = [
-  { id: 'text', label: 'Text' },
-  { id: 'photo', label: 'Photo' },
-  { id: 'video', label: 'Video' },
-  { id: 'story', label: 'Story' },
+const CONTENT_TYPES: { key: PulseContentType; label: string }[] = [
+  { key: 'text', label: 'Text' },
+  { key: 'photo', label: 'Photo' },
+  { key: 'video', label: 'Video' },
+  { key: 'story', label: 'Story' },
 ];
 
 interface ComposeModalProps {
@@ -47,7 +41,6 @@ interface ComposeModalProps {
 export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
 
   const [content, setContent] = useState('');
   const [contentType, setContentType] = useState<PulseContentType>('text');
@@ -73,7 +66,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
   const overLimit = remaining < 0;
 
   // Energy preview - composePost charges getEnergyCost(contentType) (text 15 /
-  // photo 20 / video 40 / story 12), NOT a flat 5. Show ⚡N · −cost for the
+  // photo 20 / video 40 / story 12), NOT a flat 5. Show N · −cost for the
   // selected type so the player isn't surprised by a "not enough energy" error
   // post-tap, and disable Post when they can't afford the real cost.
   const currentEnergy = Math.max(0, Math.floor(gameState.stats?.energy ?? 0));
@@ -133,218 +126,117 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
     onDismiss();
   }, [reset, onDismiss]);
 
+  const postDisabled = !content.trim() || overLimit || lowEnergy;
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.backdrop, { zIndex: Z_INDEX.MODAL }]}
-      >
-        {/* paddingBottom must come from the real inset, not a scaled constant:
-            the home indicator is a fixed 34pt, while scale() shrinks toward 0.7
-            on small devices - i.e. the padding got smallest exactly where it was
-            already too tight. */}
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.surface, borderColor: theme.border, paddingBottom: insets.bottom + responsiveSpacing.md },
-          ]}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable
-              onPress={handleClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close composer"
-              hitSlop={8}
-              style={styles.headerBtn}
-            >
-              <X size={fontScale(20)} color={theme.text} />
-            </Pressable>
-            <View style={styles.titleWrap}>
-              <Text style={[styles.title, { color: theme.text }]}>New post</Text>
-              <Text
-                style={[
-                  styles.energyPill,
-                  {
-                    color: lowEnergy ? PULSE_COLORS.danger : theme.textSecondary,
-                    borderColor: lowEnergy ? PULSE_COLORS.danger : theme.border,
-                  },
-                ]}
-                accessibilityLabel={`Energy ${currentEnergy}, costs ${postEnergyCost} to post a ${contentType}`}
-              >
-                ⚡ {currentEnergy} · −{postEnergyCost}
-              </Text>
-            </View>
-            <Pressable
-              onPress={handlePost}
-              disabled={!content.trim() || overLimit || lowEnergy}
-              accessibilityRole="button"
-              accessibilityLabel="Post"
-              accessibilityState={{ disabled: !content.trim() || overLimit || lowEnergy }}
-              style={[styles.postBtn, (!content.trim() || overLimit || lowEnergy) && styles.postBtnDisabled]}
-            >
-              <LinearGradient
-                colors={PULSE_GRADIENT as unknown as string[]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.postBtnGradient}
-              >
-                <Text style={styles.postBtnText}>Post</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-
-          {/* Content type chips */}
-          <View style={styles.typeRow}>
-            {CONTENT_TYPES.map(t => (
-              <Pressable
-                key={t.id}
-                onPress={() => setContentType(t.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Post type: ${t.label}`}
-                accessibilityState={{ selected: contentType === t.id }}
-                style={[
-                  styles.typeChip,
-                  contentType === t.id
-                    ? { backgroundColor: PULSE_COLORS.tierCelebrity, borderColor: PULSE_COLORS.tierCelebrity }
-                    : { borderColor: theme.border },
-                ]}
-              >
-                <Text style={[
-                  styles.typeChipText,
-                  { color: contentType === t.id ? '#FFFFFF' : theme.textSecondary },
-                ]}>
-                  {t.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Body input */}
-          <TextInput
-            value={content}
-            onChangeText={(v) => { setContent(v); if (error) setError(null); }}
-            placeholder={proActive ? "What's happening? (500 chars)" : "What's happening?"}
-            placeholderTextColor={theme.textSecondary}
-            multiline
-            autoFocus
-            style={[styles.input, { color: theme.text }]}
-            maxLength={maxLength + 50 /* allow brief over so the overLimit message can show */}
+    <BaseModal
+      visible={visible}
+      onClose={handleClose}
+      variant="bottom"
+      title="New post"
+      footer={
+        <View style={styles.footerRow}>
+          <Chip
+            label={`${currentEnergy} · −${postEnergyCost}`}
+            tone={lowEnergy ? 'danger' : 'neutral'}
+            icon={<Zap size={fontScale(12)} color={lowEnergy ? PULSE_COLORS.danger : theme.textSecondary} />}
+            accessibilityLabel={`Energy ${currentEnergy}, costs ${postEnergyCost} to post a ${contentType}`}
           />
-
-          {/* Hashtags input */}
-          <TextInput
-            value={hashtagsRaw}
-            onChangeText={setHashtagsRaw}
-            placeholder="#tags (space- or comma-separated, max 5)"
-            placeholderTextColor={theme.textSecondary}
-            style={[styles.hashtagsInput, { color: theme.text, borderColor: theme.border }]}
-          />
-
-          {/* Sponsor-this-post picker (only when active brand deals exist) */}
-          {eligibleDeals.length > 0 ? (
-            <View style={styles.sponsorWrap}>
-              <Text style={[styles.sponsorLabel, { color: theme.textSecondary }]}>
-                Sponsor this post?
-              </Text>
-              <View style={styles.sponsorChips}>
-                {eligibleDeals.map((d) => {
-                  const selected = sponsorDealId === d.id;
-                  const remaining = (d.postsRequired ?? 1) - (d.postsDelivered ?? 0);
-                  return (
-                    <Pressable
-                      key={d.id}
-                      onPress={() => setSponsorDealId(selected ? null : d.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Sponsor ${d.brandName}, ${remaining} posts remaining`}
-                      accessibilityState={{ selected }}
-                      style={[
-                        styles.sponsorChip,
-                        selected
-                          ? { backgroundColor: PULSE_COLORS.tierCelebrity, borderColor: PULSE_COLORS.tierCelebrity }
-                          : { borderColor: theme.border },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.sponsorChipText,
-                          { color: selected ? '#FFFFFF' : theme.textSecondary },
-                        ]}
-                      >
-                        {d.brandName} · {remaining} left
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Footer: counter + error */}
-          <View style={styles.footer}>
-            <Text
-              style={[
-                styles.counter,
-                { color: overLimit ? PULSE_COLORS.like : remaining < 20 ? PULSE_COLORS.scandalMid : theme.textSecondary },
-              ]}
+          <Text
+            style={[
+              styles.counter,
+              { color: overLimit ? PULSE_COLORS.danger : remaining < 20 ? PULSE_COLORS.scandalMid : theme.textSecondary },
+            ]}
+          >
+            {remaining}
+          </Text>
+          <Pressable
+            onPress={handlePost}
+            disabled={postDisabled}
+            accessibilityRole="button"
+            accessibilityLabel="Post"
+            accessibilityState={{ disabled: postDisabled }}
+            style={[styles.postBtn, postDisabled && styles.postBtnDisabled]}
+          >
+            <LinearGradient
+              colors={PULSE_GRADIENT_CTA}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.postBtnGradient}
             >
-              {remaining}
-            </Text>
-            {error ? (
-              <Text style={[styles.errorText, { color: PULSE_COLORS.like }]}>{error}</Text>
-            ) : null}
+              <Text style={styles.postBtnText}>Post</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      }
+    >
+      {/* Content type */}
+      <SegmentedControl
+        compact
+        segments={CONTENT_TYPES}
+        value={contentType}
+        onChange={setContentType}
+        activeColor={PULSE_COLORS.accent}
+        style={styles.typeRow}
+      />
+
+      {/* Body input */}
+      <TextInput
+        value={content}
+        onChangeText={(v) => { setContent(v); if (error) setError(null); }}
+        placeholder={proActive ? "What's happening? (500 chars)" : "What's happening?"}
+        placeholderTextColor={theme.textSecondary}
+        multiline
+        autoFocus
+        style={[styles.input, { color: theme.text }]}
+        maxLength={maxLength + 50 /* allow brief over so the overLimit message can show */}
+      />
+
+      {/* Hashtags input */}
+      <TextInput
+        value={hashtagsRaw}
+        onChangeText={setHashtagsRaw}
+        placeholder="#tags (space- or comma-separated, max 5)"
+        placeholderTextColor={theme.textSecondary}
+        style={[styles.hashtagsInput, { color: theme.text, borderColor: theme.border }]}
+      />
+
+      {/* Sponsor-this-post picker (only when active brand deals exist) */}
+      {eligibleDeals.length > 0 ? (
+        <View style={styles.sponsorWrap}>
+          <Text style={[styles.sponsorLabel, { color: theme.textSecondary }]}>Sponsor this post?</Text>
+          <View style={styles.sponsorChips}>
+            {eligibleDeals.map((d) => {
+              const selected = sponsorDealId === d.id;
+              const left = (d.postsRequired ?? 1) - (d.postsDelivered ?? 0);
+              return (
+                <Chip
+                  key={d.id}
+                  label={`${d.brandName} · ${left} left`}
+                  tint={PULSE_COLORS.tierCelebrity}
+                  selected={selected}
+                  onPress={() => setSponsorDealId(selected ? null : d.id)}
+                  accessibilityLabel={`Sponsor ${d.brandName}, ${left} posts remaining`}
+                />
+              );
+            })}
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      ) : null}
+
+      {error ? <Text style={[styles.errorText, { color: PULSE_COLORS.danger }]}>{error}</Text> : null}
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
-  sheet: {
-    borderTopLeftRadius: scale(20),
-    borderTopRightRadius: scale(20),
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    padding: responsiveSpacing.lg,
-    minHeight: '55%',
-  },
-  header: {
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: responsiveSpacing.md,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  titleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-  },
-  title: {
-    fontSize: fontScale(17),
-    fontWeight: '700',
-  },
-  energyPill: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(2),
-    borderRadius: 999,
-    borderWidth: 1,
+    gap: responsiveSpacing.sm,
   },
   postBtn: {
+    marginLeft: 'auto',
     borderRadius: scale(20),
     overflow: 'hidden',
   },
@@ -353,27 +245,17 @@ const styles = StyleSheet.create({
   },
   postBtnGradient: {
     paddingHorizontal: scale(20),
-    paddingVertical: scale(8),
+    minHeight: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   postBtnText: {
     color: '#FFFFFF',
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   typeRow: {
-    flexDirection: 'row',
-    gap: scale(8),
     marginBottom: responsiveSpacing.md,
-  },
-  typeChip: {
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(6),
-    borderRadius: scale(16),
-    borderWidth: 1,
-  },
-  typeChipText: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
   },
   input: {
     fontSize: fontScale(16),
@@ -397,16 +279,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: scale(6),
   },
-  sponsorChip: {
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(5),
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  sponsorChipText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-  },
   hashtagsInput: {
     fontSize: fontScale(13),
     paddingVertical: responsiveSpacing.sm,
@@ -415,20 +287,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: responsiveSpacing.sm,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: responsiveSpacing.md,
-  },
   counter: {
     fontSize: fontScale(13),
     fontWeight: '600',
   },
   errorText: {
-    flex: 1,
     fontSize: fontScale(12),
-    textAlign: 'right',
-    marginLeft: responsiveSpacing.sm,
+    marginTop: responsiveSpacing.sm,
   },
 });

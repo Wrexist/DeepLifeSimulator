@@ -1,23 +1,20 @@
 /**
  * MatchBanner - celebratory full-screen overlay when a match lands.
  *
- * Two side-by-side avatars with a pulsing gradient flame between them,
+ * Two side-by-side avatars with a pulsing flame between them,
  * "It's a match!" headline, and CTA to message the new match. Auto-dismisses
  * after 1.6s or on tap.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Flame, MessageCircle, X } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
-import Gradient from '@/components/ui/Gradient';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { SPARK_GRADIENT, SPARK_MOTION } from '../styles/sparkTheme';
-
-const LinearGradient = Gradient;
+import { SPARK_COLORS, SPARK_MOTION } from '../styles/sparkTheme';
+import { withAlpha } from '@/lib/config/theme';
 
 interface MatchBannerProps {
   visible: boolean;
@@ -37,7 +34,6 @@ interface MatchBannerProps {
 export default function MatchBanner({
   visible, partnerName, partnerPhoto, partnerFace, playerPhoto, onMessage, onDismiss,
 }: MatchBannerProps) {
-  const { theme } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const flameScale = useRef(new Animated.Value(1)).current;
 
@@ -69,11 +65,9 @@ export default function MatchBanner({
 
   return (
     <Animated.View style={[styles.root, { opacity }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
-      <LinearGradient
-        colors={[SPARK_GRADIENT[0] + 'EE', SPARK_GRADIENT[1] + 'EE']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(SPARK_COLORS.accent, 0.93) }]}
       />
 
       <Pressable
@@ -128,8 +122,8 @@ export default function MatchBanner({
           accessibilityLabel={`Message ${partnerName}`}
           style={({ pressed }) => [styles.btnPrimary, pressed && { opacity: 0.85 }]}
         >
-          <MessageCircle size={fontScale(16)} color={SPARK_GRADIENT[0]} strokeWidth={2.4} />
-          <Text style={[styles.btnPrimaryText, { color: SPARK_GRADIENT[0] }]}>Send a message</Text>
+          <MessageCircle size={fontScale(16)} color={SPARK_COLORS.accent} strokeWidth={2.4} />
+          <Text style={[styles.btnPrimaryText, { color: SPARK_COLORS.accent }]}>Send a message</Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -176,15 +170,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: AVATAR_SIZE / 2,
   },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: '#FFFFFF',
-    fontSize: fontScale(40),
-    fontWeight: '700',
-  },
   flameWrap: {
     width: scale(64),
     height: scale(64),
@@ -195,10 +180,11 @@ const styles = StyleSheet.create({
     marginHorizontal: scale(-12),
     zIndex: 2,
   },
+  // The one headline on this screen - the only heavy weight left in Spark.
   title: {
     color: '#FFFFFF',
     fontSize: fontScale(36),
-    fontWeight: '800',
+    fontWeight: '700',
   },
   subtitle: {
     color: 'rgba(255,255,255,0.92)',
@@ -214,6 +200,8 @@ const styles = StyleSheet.create({
   },
   btnSecondary: {
     flex: 1,
+    minHeight: touchTargets.minimum,
+    justifyContent: 'center',
     paddingVertical: responsiveSpacing.md,
     borderRadius: scale(14),
     borderWidth: 1.5,
@@ -227,6 +215,7 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     flex: 1.4,
+    minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.md,
     borderRadius: scale(14),
     backgroundColor: '#FFFFFF',
@@ -237,6 +226,6 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

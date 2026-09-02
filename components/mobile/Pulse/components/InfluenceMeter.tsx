@@ -1,19 +1,18 @@
 /**
  * InfluenceMeter - tier progress pill (Novice → Celebrity).
  *
- * Renders the current tier name + a magenta-indigo gradient fill bar that
- * shows progress to the next tier. Animates the fill width on mount.
+ * Renders the current tier name + a solid identity-tinted fill bar that shows
+ * progress to the next tier. Animates the fill width on mount. (The shared
+ * `ProgressBar` is the static equivalent; this one animates its width, which
+ * that primitive does not do.)
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
-import { PULSE_GRADIENT, PULSE_MOTION } from '../styles/pulseTheme';
+import { PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import type { PulseInfluenceLevel } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 const TIER_ORDER: PulseInfluenceLevel[] = ['novice', 'rising', 'popular', 'influencer', 'celebrity'];
 const TIER_THRESHOLDS: Record<PulseInfluenceLevel, number> = {
@@ -97,12 +96,7 @@ export default function InfluenceMeter({ followers, tier, compact = false }: Inf
             },
           ]}
         >
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.fill, { height: barHeight }]}
-          />
+          <View style={[styles.fill, { height: barHeight, backgroundColor: PULSE_COLORS.accent }]} />
         </Animated.View>
       </View>
     </View>

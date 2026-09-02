@@ -3,12 +3,12 @@
  */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AlertTriangle, Bell, Briefcase, Heart, MessageCircle, Repeat2, UserPlus, AtSign, Crown, Star } from 'lucide-react-native';
+import { AlertTriangle, Bell, Briefcase, Heart, MessageCircle, Play, Repeat2, UserPlus, AtSign, Crown, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets } from '@/utils/scaling';
 import EmptyState from '../components/EmptyState';
-import SectionHeader from '../components/SectionHeader';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { markAllNotificationsRead, markNotificationRead } from '@/contexts/game/actions/PulseActions';
 import { formatRelativeRealTime } from '../utils/formatRelativeTime';
 import { PULSE_COLORS } from '../styles/pulseTheme';
@@ -164,8 +164,9 @@ export default function NotificationsScreen({
               accessibilityLabel="Watch ad for follower boost"
               style={[styles.adCta, { borderColor: PULSE_COLORS.accent }]}
             >
+              <Play size={fontScale(12)} color={PULSE_COLORS.accent} fill={PULSE_COLORS.accent} />
               <Text style={[styles.adCtaText, { color: PULSE_COLORS.accent }]}>
-                ▶ Watch ad for +{adFollowerReward} followers
+                Watch ad for +{adFollowerReward} followers
               </Text>
             </Pressable>
           ) : null}
@@ -176,10 +177,16 @@ export default function NotificationsScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <SectionHeader
+      <SectionTitle
+        style={styles.section}
         title={unread > 0 ? `${unread} unread` : 'Notifications'}
-        actionLabel={unread > 0 ? 'Mark all read' : undefined}
-        onActionPress={handleMarkAll}
+        right={
+          unread > 0 ? (
+            <Pressable onPress={handleMarkAll} accessibilityRole="button" accessibilityLabel="Mark all read" hitSlop={8}>
+              <Text style={[styles.markAll, { color: theme.textSecondary }]}>Mark all read</Text>
+            </Pressable>
+          ) : undefined
+        }
       />
 
       {/* Rewarded-ad follower boost - also surfaced here (not just the empty
@@ -191,8 +198,9 @@ export default function NotificationsScreen({
           accessibilityLabel="Watch ad for follower boost"
           style={[styles.adCtaHeader, { borderColor: PULSE_COLORS.accent }]}
         >
+          <Play size={fontScale(12)} color={PULSE_COLORS.accent} fill={PULSE_COLORS.accent} />
           <Text style={[styles.adCtaText, { color: PULSE_COLORS.accent }]}>
-            ▶ Watch ad for +{adFollowerReward} followers
+            Watch ad for +{adFollowerReward} followers
           </Text>
         </Pressable>
       ) : null}
@@ -254,6 +262,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  section: {
+    marginHorizontal: responsiveSpacing.md,
+  },
+  markAll: {
+    fontSize: fontScale(13),
+    fontWeight: '500',
+  },
   scroll: {
     paddingBottom: scale(140),
   },
@@ -304,17 +319,27 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   adCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
     marginTop: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.lg,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: scale(999),
     borderWidth: 1.5,
   },
   adCtaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
     alignSelf: 'center',
     marginHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.xs,
     marginBottom: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.lg,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: scale(999),

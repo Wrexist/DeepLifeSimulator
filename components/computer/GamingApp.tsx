@@ -1,22 +1,21 @@
 /**
- * GamingApp (YouVideo) - YouTube DNA pass (Remake 13).
+ * GamingApp (YouVideo) - the video half of the creator career.
  *
- * Was "eyebrow hero + uniform rows". Now reads like a creator channel:
- *   • Channel tab   - YouTube channel header (avatar + subs · videos · watch-time),
- *                     a big FEATURED thumbnail, monetization + analytics grids,
- *                     recent-video thumbnail rows.
- *   • Record tab    - an upload composer with a live thumbnail PREVIEW, projected
- *                     reach, weekly-upload meter and energy readout.
- *   • Videos tab    - thumbnail-led video cards (Games art) with sort chips; each
- *                     card opens a video DETAIL sub-page (list → detail routing).
- *   • Studio tab    - a gear score ring + an owned/next-tier upgrade GRID using
- *                     the YouVideo/Upgrades art.
+ *   • Record tab    - the LANDING tab, because it holds the primary action: an
+ *                     upload composer with a live thumbnail preview, projected
+ *                     reach, the weekly-upload meter and the energy readout.
+ *   • Channel tab   - the channel header, the featured video, three numbers a
+ *                     creator decides on (followers / total earned / RPM) and
+ *                     the remaining twelve behind "All channel stats".
+ *   • Videos tab    - thumbnail-led video cards with sort chips; each opens a
+ *                     video DETAIL sub-page (list → detail routing).
+ *   • Studio tab    - the gear-score ring plus the gear as plain buy rows.
  *
- * Still Slate Glass: gradients via the SVG-backed `Gradient`, elevation via
- * getGlass* / getPlatformShadows, no expo-blur, no raw boxShadow, no `as any`.
- * ZERO REMOVAL - every prior action/stat is re-homed and still reachable.
- *
- * Tabs: Channel / Record / Videos / Studio
+ * Built on the shared app primitives (AppHeader/CashChip, SegmentedControl,
+ * StatStrip, Chip, SectionTitle, EmptyState, CollapsibleSection, useToast) so
+ * it reads the same as every other launcher-hosted app. One identity colour
+ * (accent.purple, shared with Streaming - the two halves of one career) and
+ * ONE gradient in the file: the "Record & upload" primary action.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -27,12 +26,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
   ImageBackground,
   ImageSourcePropType,
 } from 'react-native';
 import {
-  ArrowLeft,
   Video as VideoIcon,
   Sparkles,
   Users,
@@ -44,7 +41,6 @@ import {
   Play,
   Clock,
   ChevronRight,
-  Radio,
   Award,
   Gauge,
   Heart,
@@ -70,7 +66,6 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTimerManager } from '@/hooks/useTimerManager';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
 import { projectVideoOutcome } from '@/lib/content/algorithm';
@@ -84,7 +79,7 @@ import {
   MAX_PC_TIER,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -101,19 +96,28 @@ import {
 import ProgressRing from '@/components/ui/ProgressRing';
 import ImageScrim from '@/components/ui/ImageScrim';
 import Gradient from '@/components/ui/Gradient';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import EmptyState from '@/components/ui/EmptyState';
+import ProgressBar from '@/components/ui/ProgressBar';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import KeyValueRow from '@/components/ui/KeyValueRow';
+import { useToast } from '@/contexts/ToastContext';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
-// Slate Glass identity accent for the Gaming app: violet #8B5CF6.
-const IDENTITY = '#8B5CF6';
-const IDENTITY_PAIR = '#7C3AED';
-const tint = (alpha: number) => `rgba(139, 92, 246, ${alpha})`;
+// The deep stop of the ONE gradient in this file (the upload CTA). Everything
+// else tints accent.purple through withAlpha.
+const IDENTITY_DEEP = '#7C3AED';
 
 type TabType = 'channel' | 'record' | 'videos' | 'studio';
 type SortType = 'recent' | 'views' | 'earnings';
-type IconType = React.ComponentType<{ size: number; color: string }>;
+type IconType = React.ComponentType<{ size?: number; color?: string }>;
 
 // Mirrors MAX_VIDEOS_PER_WEEK inside ContentActions (display only).
 const WEEKLY_VIDEO_CAP = 5;
@@ -158,24 +162,6 @@ const PC_ICON: Record<keyof GamingStreamingState['pcUpgradeLevels'], IconType> =
   network: Wifi,
 };
 
-// Real gear art (require needs static literals). Keys without a clean photo
-// fall through to a tinted icon panel - no misleading stand-ins.
-const ACCESSORY_ART: Partial<Record<keyof GamingStreamingState['equipment'], ImageSourcePropType>> = {
-  microphone: require('@/assets/images/YouVideo/Upgrades/microphone.webp'),
-  webcam: require('@/assets/images/YouVideo/Upgrades/webcam.webp'),
-  gamingChair: require('@/assets/images/YouVideo/Upgrades/video_editing.webp'),
-  greenScreen: require('@/assets/images/YouVideo/Upgrades/thumbnails.webp'),
-  lighting: require('@/assets/images/YouVideo/Upgrades/lightning.webp'),
-};
-const PC_ART: Partial<Record<keyof GamingStreamingState['pcUpgradeLevels'], ImageSourcePropType>> = {
-  cpu: require('@/assets/images/YouVideo/Upgrades/cpu.webp'),
-  gpu: require('@/assets/images/YouVideo/Upgrades/gpu.webp'),
-  ram: require('@/assets/images/YouVideo/Upgrades/ram.webp'),
-  ssd: require('@/assets/images/YouVideo/Upgrades/storage.webp'),
-  motherboard: require('@/assets/images/YouVideo/Upgrades/capture_card.webp'),
-  network: require('@/assets/images/YouVideo/Upgrades/seo.webp'),
-};
-
 // Thumbnail art pool - matched by keyword, else a stable per-video hash so each
 // video keeps ONE consistent cover (presentational, like an avatar color).
 const GAME_THUMBS: { keys: string[]; src: ImageSourcePropType; label: string }[] = [
@@ -184,6 +170,19 @@ const GAME_THUMBS: { keys: string[]; src: ImageSourcePropType; label: string }[]
   { keys: ['valorant'], src: require('@/assets/images/Games/Valorant.webp'), label: 'Valorant' },
   { keys: ['league', 'legends', 'lol'], src: require('@/assets/images/Games/League of Legends.webp'), label: 'League of Legends' },
   { keys: ['among'], src: require('@/assets/images/Games/Among us.webp'), label: 'Among Us' },
+];
+
+const SORTS: { key: SortType; label: string; icon: IconType }[] = [
+  { key: 'recent', label: 'Recent', icon: Clock },
+  { key: 'views', label: 'Most viewed', icon: Eye },
+  { key: 'earnings', label: 'Top earning', icon: Flame },
+];
+
+const TABS: { key: TabType; label: string; icon: IconType }[] = [
+  { key: 'record', label: 'Record', icon: VideoIcon },
+  { key: 'channel', label: 'Channel', icon: Activity },
+  { key: 'videos', label: 'Videos', icon: Star },
+  { key: 'studio', label: 'Studio', icon: Cpu },
 ];
 
 const GAME_OPTIONS = [
@@ -227,21 +226,20 @@ interface Props {
 export default function GamingApp({ onBack }: Props) {
   const { gameState, setGameState, saveGame } = useGame();
   const insets = useSafeAreaInsets();
-  // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
-  const timers = useTimerManager();
+  const { showToast } = useToast();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
-  const [activeTab, setActiveTab] = useState<TabType>('channel');
+  // Lands on Record: the tab that holds the primary action.
+  const [activeTab, setActiveTab] = useState<TabType>('record');
   const [title, setTitle] = useState('');
   const [selectedGame, setSelectedGame] = useState(GAME_OPTIONS[0]);
-  const [feedback, setFeedback] = useState<string | null>(null);
   // list → detail routing (presentational; no new mechanics).
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [videoSort, setVideoSort] = useState<SortType>('recent');
 
   const channel = gameState.gamingStreaming;
-  const videos = channel?.videos ?? [];
+  const videos = useMemo(() => channel?.videos ?? [], [channel?.videos]);
   const quality = useMemo(
     () => computeQuality(channel?.equipment, channel?.pcUpgradeLevels),
     [channel]
@@ -332,10 +330,7 @@ export default function GamingApp({ onBack }: Props) {
   );
   const inDetail = !!selectedVideo;
 
-  const flash = useCallback((message: string) => {
-    setFeedback(message);
-    timers.setTimeout(() => setFeedback(null), 2800);
-  }, [timers]);
+  const flash = useCallback((message: string) => showToast(message, 'info'), [showToast]);
 
   const goBack = useCallback(() => {
     if (inDetail) setSelectedVideoId(null);
@@ -403,19 +398,10 @@ export default function GamingApp({ onBack }: Props) {
         ]}
       >
         <View style={styles.heroInner}>
-          <View pointerEvents="none" style={styles.heroBlob} />
-          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
           <View style={styles.chIdentityRow}>
-            <View style={[styles.chAvatar, getPlatformShadows(5, 0.28, 2, 8)]}>
-              <LinearGradient
-                colors={[IDENTITY, IDENTITY_PAIR]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.chAvatarInner}
-              >
-                <Play size={scale(22)} color="#fff" />
-              </LinearGradient>
+            <View style={[styles.chAvatar, { backgroundColor: withAlpha(accent.purple, 0.18), borderColor: withAlpha(accent.purple, 0.35) }]}>
+              <Play size={scale(22)} color={accent.purple} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>YOUVIDEO CHANNEL</Text>
@@ -436,10 +422,7 @@ export default function GamingApp({ onBack }: Props) {
                 </Text>
               </View>
             </View>
-            <View style={[styles.badgeChip, { backgroundColor: tint(0.16), borderColor: tint(0.30) }]}>
-              <Award size={scale(12)} color={IDENTITY} />
-              <Text style={[styles.badgeText, { color: IDENTITY }]}>Lv {level}</Text>
-            </View>
+            <Chip label={`Lv ${level}`} icon={<Award size={scale(12)} color={accent.purple} />} tint={accent.purple} accessibilityLabel={`Channel level ${level}`} />
           </View>
 
           <View style={styles.heroRow}>
@@ -453,96 +436,84 @@ export default function GamingApp({ onBack }: Props) {
             </View>
           </View>
 
-          {/* Gear/quality bar - re-homed unchanged. */}
-          <View style={[styles.qualityBar, { backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : theme.surfaceElevated }]}>
-            <View style={[styles.qualityFill, { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) }]} />
-          </View>
+          <ProgressBar value={quality.total / 100} color={qualityColor(quality.tier)} height={scale(8)} label="Gear score" style={styles.qualityBar} />
           <Text style={[styles.qualityLabel, { color: qualityColor(quality.tier) }]}>
             Gear: {quality.total}/100 · {quality.tier.toUpperCase()}
           </Text>
         </View>
       </View>
 
-      {/* Featured video - the big YouTube cover slot. */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Featured</Text>
-        <QuietChip label="All videos" Icon={ChevronRight} onPress={() => goTab('videos')} />
-      </View>
       {videos.length === 0 ? (
-        <TouchableOpacity
-          onPress={() => goTab('record')}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Record your first video"
-          style={[getGlassCard(darkMode, 6), styles.featuredEmpty, { backgroundColor: theme.surface, borderColor: theme.border }]}
-        >
-          <View style={[getGlassIconContainer(darkMode, 48), { backgroundColor: tint(0.15), borderColor: tint(0.30), borderWidth: 1 }]}>
-            <VideoIcon size={scale(22)} color={IDENTITY} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>No videos yet</Text>
-          <Text style={[styles.emptySub, { color: theme.textMuted }]}>Tap to record your first upload.</Text>
-        </TouchableOpacity>
+        <EmptyState
+          icon={<VideoIcon size={scale(24)} color={accent.purple} />}
+          observation="Your channel has no videos yet."
+          nudge="One upload starts the earnings, the subscribers and the catalog."
+          ctaLabel="Record your first video"
+          onCtaPress={() => goTab('record')}
+        />
       ) : (
-        <TouchableOpacity
-          onPress={() => openVideo(videos[0].id)}
-          activeOpacity={0.9}
-          accessibilityRole="button"
-          accessibilityLabel={`Featured video ${videos[0].title}`}
-          style={[getGlassCard(darkMode, 6), styles.featuredCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-        >
-          <VideoThumb v={videos[0]} style={styles.featuredThumb} scrim showPlay overlayTitle />
-          <View style={styles.featuredBody}>
-            <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-              {videos[0].game ?? 'General'} · {videos[0].views.toLocaleString()} views · +{(videos[0].subscribersGained ?? 0).toLocaleString()} subs
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <>
+          <SectionTitle
+            title="Featured"
+            right={<Chip label="All videos" icon={<ChevronRight size={scale(12)} color={accent.purple} />} tint={accent.purple} onPress={() => goTab('videos')} />}
+          />
+          <TouchableOpacity
+            onPress={() => openVideo(videos[0].id)}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={`Featured video ${videos[0].title}`}
+            style={[getGlassCard(darkMode, 6), styles.featuredCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <VideoThumb v={videos[0]} style={styles.featuredThumb} scrim showPlay overlayTitle />
+            <View style={styles.featuredBody}>
+              <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
+                {videos[0].game ?? 'General'} · {videos[0].views.toLocaleString()} views · +{(videos[0].subscribersGained ?? 0).toLocaleString()} subs
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </>
       )}
 
-      {/* Monetization - KEEP RPM / Members / Total, densified with more rates. */}
-      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Monetization</Text>
-        <View style={styles.statsRow}>
-          <MoneyStat label="RPM" value={`$${monetization.rpm}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Members" value={paidMembers.toString()} color={accent.purple} theme={theme} />
-          <MoneyStat label="Total $" value={formatMoney(totalEarnings)} color={accent.info} theme={theme} />
-          <MoneyStat label="$/viewer" value={`$${monetization.viewerPay}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Members/wk" value={formatMoney(monetization.membershipWeekly)} color={accent.success} theme={theme} />
-          <MoneyStat label="Donations" value={formatMoney(totalDonations)} color={accent.info} theme={theme} />
-        </View>
-      </View>
+      {/* The three numbers a creator actually decides on. The other twelve are
+          a record of what happened, not an input - they live behind the fold. */}
+      <StatStrip
+        items={[
+          { label: 'Followers', value: compact(followers) },
+          { label: 'Total $', value: formatMoney(totalEarnings), tint: accent.success },
+          { label: 'RPM', value: `$${monetization.rpm}` },
+        ]}
+      />
 
-      {/* Channel analytics - previously-hidden aggregates. */}
-      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Channel analytics</Text>
-        <View style={styles.aGrid}>
-          <AnalyticStat Icon={Radio} label="Followers" value={compact(followers)} theme={theme} darkMode={darkMode} />
-          <AnalyticStat Icon={Clock} label="Watch hrs" value={streamHours.toFixed(streamHours >= 100 ? 0 : 1)} theme={theme} darkMode={darkMode} />
-          <AnalyticStat Icon={Eye} label="Avg viewers" value={compact(avgViewers)} theme={theme} darkMode={darkMode} />
-          <AnalyticStat Icon={Coins} label="Sub earn" value={`$${compact(totalSubEarnings)}`} valueColor={accent.success} theme={theme} darkMode={darkMode} />
-          <AnalyticStat Icon={Award} label="Level" value={`${level}`} theme={theme} darkMode={darkMode} />
-          <AnalyticStat Icon={Zap} label="XP" value={compact(experience)} theme={theme} darkMode={darkMode} />
-        </View>
-      </View>
+      <CollapsibleSection
+        id="youvideo-all-stats"
+        title="All channel stats"
+        defaultCollapsed
+        tint={accent.purple}
+        summary={`${paidMembers} members · ${compact(totalViews)} views`}
+      >
+        <KeyValueRow label="Members" value={paidMembers.toLocaleString()} />
+        <KeyValueRow label="$ / viewer" value={`$${monetization.viewerPay}`} />
+        <KeyValueRow label="Members / wk" value={formatMoney(monetization.membershipWeekly)} />
+        <KeyValueRow label="Donations" value={formatMoney(totalDonations)} />
+        <KeyValueRow label="Sub earnings" value={formatMoney(totalSubEarnings)} />
+        <KeyValueRow label="Total views" value={totalViews.toLocaleString()} />
+        <KeyValueRow label="Watch hours" value={streamHours.toFixed(streamHours >= 100 ? 0 : 1)} />
+        <KeyValueRow label="Average viewers" value={compact(avgViewers)} />
+        <KeyValueRow label="Level" value={`${level}`} />
+        <KeyValueRow label="Experience" value={compact(experience)} />
+      </CollapsibleSection>
 
-      {/* Recent videos - KEEP (up to 5), now thumbnail rows → detail. */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent videos</Text>
-        {videos.length > 0 ? (
-          <QuietChip label="See all" Icon={ChevronRight} onPress={() => goTab('videos')} />
-        ) : null}
-      </View>
-      {videos.length === 0 ? (
-        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.emptySub, { color: theme.textMuted, textAlign: 'left' }]}>
-            No videos yet - record one in the Record tab.
-          </Text>
-        </View>
-      ) : (
-        videos.slice(0, 5).map((v) => (
-          <VideoRow key={v.id} v={v} week={week} onPress={() => openVideo(v.id)} theme={theme} darkMode={darkMode} />
-        ))
-      )}
+      {videos.length > 0 ? (
+        <>
+          <SectionTitle
+            title="Recent videos"
+            right={<Chip label="See all" icon={<ChevronRight size={scale(12)} color={accent.purple} />} tint={accent.purple} onPress={() => goTab('videos')} />}
+          />
+          {videos.slice(0, 5).map((v) => (
+            <VideoRow key={v.id} v={v} week={week} onPress={() => openVideo(v.id)} theme={theme} darkMode={darkMode} />
+          ))}
+        </>
+      ) : null}
     </ScrollView>
   );
 
@@ -565,18 +536,13 @@ export default function GamingApp({ onBack }: Props) {
           ]}
         >
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={styles.heroBlob} />
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
             <View style={styles.composerHeadRow}>
-              <View style={[getGlassIconContainer(darkMode, 34), { backgroundColor: tint(0.15), borderColor: tint(0.30), borderWidth: 1 }]}>
-                <Upload size={scale(15)} color={IDENTITY} />
+              <View style={[getGlassIconContainer(darkMode, 34), { backgroundColor: withAlpha(accent.purple, 0.15), borderColor: withAlpha(accent.purple, 0.30), borderWidth: 1 }]}>
+                <Upload size={scale(15)} color={accent.purple} />
               </View>
-              <Text style={[styles.sectionTitle, { color: theme.text, flex: 1 }]}>New video</Text>
-              <View style={[styles.badgeChip, { backgroundColor: tint(0.16), borderColor: tint(0.30) }]}>
-                <Gauge size={scale(12)} color={IDENTITY} />
-                <Text style={[styles.badgeText, { color: IDENTITY }]}>{quality.tier.toUpperCase()}</Text>
-              </View>
+              <Text style={[styles.composerTitle, { color: theme.text }]}>New video</Text>
+              <Chip label={quality.tier.toUpperCase()} icon={<Gauge size={scale(12)} color={accent.purple} />} tint={accent.purple} accessibilityLabel={`Gear tier ${quality.tier}`} />
             </View>
 
             {/* Thumbnail preview - updates live from title + topic. */}
@@ -592,12 +558,7 @@ export default function GamingApp({ onBack }: Props) {
             <View style={styles.topicHeadRow}>
               <Text style={[styles.label, { color: theme.textMuted, marginTop: 0 }]}>Topic</Text>
               {trendingTopic ? (
-                <View style={[styles.trendChip, { backgroundColor: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.35)' }]}>
-                  <Flame size={scale(11)} color={accent.warning} />
-                  <Text style={[styles.trendChipText, { color: accent.warning }]} numberOfLines={1}>
-                    Trending: {trendingTopic}
-                  </Text>
-                </View>
+                <Chip label={`Trending: ${trendingTopic}`} icon={<Flame size={scale(11)} color={accent.warning} />} tone="warning" />
               ) : null}
             </View>
             <View style={styles.chipsRow}>
@@ -605,17 +566,16 @@ export default function GamingApp({ onBack }: Props) {
                 const active = selectedGame === g;
                 const hot = g === trendingTopic;
                 return (
-                  <TouchableOpacity
+                  <Chip
                     key={g}
+                    label={g}
+                    size="md"
+                    icon={hot ? <Flame size={scale(11)} color={accent.warning} /> : undefined}
+                    tint={active ? accent.purple : hot ? accent.warning : undefined}
+                    selected={active}
                     onPress={() => setSelectedGame(g)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
                     accessibilityLabel={hot ? `${g} (trending, boosted reach)` : g}
-                    style={[styles.chip, { backgroundColor: active ? tint(0.16) : 'transparent', borderColor: active ? tint(0.30) : hot ? 'rgba(245,158,11,0.35)' : theme.border }]}
-                  >
-                    {hot ? <Flame size={scale(11)} color={accent.warning} /> : null}
-                    <Text style={[styles.chipText, { color: active ? IDENTITY : hot ? accent.warning : theme.textSecondary }]}>{g}</Text>
-                  </TouchableOpacity>
+                  />
                 );
               })}
             </View>
@@ -627,10 +587,10 @@ export default function GamingApp({ onBack }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Record and upload"
               accessibilityState={{ disabled: publishDisabled }}
-              style={[styles.publishBtn, { backgroundColor: publishDisabled ? theme.surfaceElevated : IDENTITY }, !publishDisabled && getPlatformShadows(5, 0.3, 2, 8)]}
+              style={[styles.publishBtn, { backgroundColor: publishDisabled ? theme.surfaceElevated : accent.purple }, !publishDisabled && getPlatformShadows(5, 0.3, 2, 8)]}
             >
               <LinearGradient
-                colors={publishDisabled ? [theme.surfaceElevated, theme.surfaceElevated] : [IDENTITY, IDENTITY_PAIR]}
+                colors={publishDisabled ? [theme.surfaceElevated, theme.surfaceElevated] : [accent.purple, IDENTITY_DEEP]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.publishBtnInner}
@@ -644,7 +604,7 @@ export default function GamingApp({ onBack }: Props) {
 
         {/* Projected performance - real algorithm baseline (non-viral). */}
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Projected reach</Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Projected reach</Text>
           <View style={styles.aGrid}>
             <AnalyticStat Icon={Eye} label="Est. views" value={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)}`} theme={theme} darkMode={darkMode} />
             <AnalyticStat Icon={Users} label="Est. subs" value={`+${compact(projectedRange.lowSubs)}–${compact(projectedRange.highSubs)}`} theme={theme} darkMode={darkMode} />
@@ -661,16 +621,19 @@ export default function GamingApp({ onBack }: Props) {
             <Text style={[styles.meterLabel, { color: theme.textSecondary }]}>Uploads this week</Text>
             <Text style={[styles.meterValue, { color: capped ? accent.warning : theme.text }]}>{uploadsThisWeek}/{WEEKLY_VIDEO_CAP}</Text>
           </View>
-          <View style={[styles.meterBar, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : theme.surfaceElevated }]}>
-            <View style={[styles.meterFill, { width: `${Math.min(100, (uploadsThisWeek / WEEKLY_VIDEO_CAP) * 100)}%`, backgroundColor: capped ? accent.warning : IDENTITY }]} />
-          </View>
+          <ProgressBar
+            value={uploadsThisWeek / WEEKLY_VIDEO_CAP}
+            color={capped ? accent.warning : accent.purple}
+            height={scale(8)}
+            label="Uploads this week"
+          />
           <View style={styles.energyRow}>
             <Zap size={scale(13)} color={energy < 15 ? accent.danger : accent.warning} />
             <Text style={[styles.energyText, { color: theme.textSecondary }]}>
               Energy {Math.round(energy)} <Text style={{ color: theme.textMuted }}>/ 15 needed</Text>
             </Text>
             <View style={{ flex: 1 }} />
-            <QuietChip label="Upgrade gear" Icon={Cpu} onPress={() => goTab('studio')} />
+            <Chip label="Upgrade gear" icon={<Cpu size={scale(12)} color={accent.purple} />} tint={accent.purple} onPress={() => goTab('studio')} />
           </View>
         </View>
       </ScrollView>
@@ -681,21 +644,18 @@ export default function GamingApp({ onBack }: Props) {
   const renderVideos = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {videos.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.30), borderWidth: 1 }]}>
-            <VideoIcon size={scale(28)} color={IDENTITY} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>Catalog empty</Text>
-          <Text style={[styles.emptySub, { color: theme.textMuted }]}>Upload your first video to start building income.</Text>
-          <QuietChip label="Go to Record" Icon={VideoIcon} onPress={() => goTab('record')} />
-        </View>
+        <EmptyState
+          icon={<VideoIcon size={scale(28)} color={accent.purple} />}
+          observation="Your catalog is empty."
+          nudge="Every video keeps earning after it lands, so the first one is the one that compounds."
+          ctaLabel="Go to Record"
+          onCtaPress={() => goTab('record')}
+        />
       ) : (
         <>
           {/* Recipe B hero - catalog summary. */}
           <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
             <View style={[styles.heroInner, { gap: sp.md }]}>
-              <View pointerEvents="none" style={styles.heroBlob} />
-              {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
               <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>YOUR CATALOG</Text>
               <View style={styles.heroRow}>
                 <View style={styles.heroStat}>
@@ -716,9 +676,18 @@ export default function GamingApp({ onBack }: Props) {
 
           {/* Sort chips. */}
           <View style={styles.sortRow}>
-            <SortChip label="Recent" Icon={Clock} active={videoSort === 'recent'} onPress={() => setVideoSort('recent')} theme={theme} />
-            <SortChip label="Most viewed" Icon={Eye} active={videoSort === 'views'} onPress={() => setVideoSort('views')} theme={theme} />
-            <SortChip label="Top earning" Icon={Flame} active={videoSort === 'earnings'} onPress={() => setVideoSort('earnings')} theme={theme} />
+            {SORTS.map(({ key, label, icon: Icon }) => (
+              <Chip
+                key={key}
+                label={label}
+                size="md"
+                icon={<Icon size={scale(13)} color={videoSort === key ? accent.purple : theme.textMuted} />}
+                tint={videoSort === key ? accent.purple : undefined}
+                selected={videoSort === key}
+                onPress={() => setVideoSort(key)}
+                accessibilityLabel={`Sort by ${label}`}
+              />
+            ))}
           </View>
 
           {sortedVideos.map((v) => (
@@ -742,24 +711,16 @@ export default function GamingApp({ onBack }: Props) {
 
         <Text style={[styles.detailTitle, { color: theme.text }]}>{v.title}</Text>
         <View style={styles.detailMetaRow}>
-          <View style={[styles.miniChip, { backgroundColor: tint(0.14), borderColor: tint(0.30) }]}>
-            <Text style={[styles.miniChipText, { color: IDENTITY }]}>{v.game ?? 'General'}</Text>
-          </View>
+          <Chip label={v.game ?? 'General'} tint={accent.purple} />
           {age != null ? (
-            <View style={[styles.miniChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-              <Clock size={scale(11)} color={theme.textMuted} />
-              <Text style={[styles.miniChipText, { color: theme.textMuted }]}>{age === 0 ? 'This week' : `${age}w ago`}</Text>
-            </View>
+            <Chip label={age === 0 ? 'This week' : `${age}w ago`} icon={<Clock size={scale(11)} color={theme.textMuted} />} />
           ) : null}
-          <View style={[styles.miniChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-            <Gauge size={scale(11)} color={qualityColor(quality.tier)} />
-            <Text style={[styles.miniChipText, { color: theme.textMuted }]}>Quality {v.quality ?? '?'}/100</Text>
-          </View>
+          <Chip label={`Quality ${v.quality ?? '?'}/100`} icon={<Gauge size={scale(11)} color={qualityColor(quality.tier)} />} />
         </View>
 
         {/* Full per-video readout - surfaces fields the list never showed. */}
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Performance</Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Performance</Text>
           <View style={styles.aGrid}>
             <AnalyticStat Icon={Eye} label="Views" value={v.views.toLocaleString()} theme={theme} darkMode={darkMode} />
             <AnalyticStat Icon={TrendingUp} label="Earned" value={formatMoney(v.earnings)} valueColor={accent.success} theme={theme} darkMode={darkMode} />
@@ -768,7 +729,7 @@ export default function GamingApp({ onBack }: Props) {
             {v.likes != null ? <AnalyticStat Icon={Heart} label="Likes" value={compact(v.likes)} theme={theme} darkMode={darkMode} /> : null}
             {v.comments != null ? <AnalyticStat Icon={MessageCircle} label="Comments" value={compact(v.comments)} theme={theme} darkMode={darkMode} /> : null}
           </View>
-          <View style={[styles.perfBanner, { backgroundColor: up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)' }]}>
+          <View style={[styles.perfBanner, { backgroundColor: withAlpha(up ? accent.success : accent.danger, 0.12) }]}>
             <TrendingUp size={scale(14)} color={up ? accent.success : accent.danger} />
             <Text style={[styles.perfText, { color: up ? accent.success : accent.danger }]}>
               {up ? '+' : ''}{delta}% vs channel average ({compact(avgVideoViews)} views)
@@ -776,7 +737,15 @@ export default function GamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        <QuietChip label="Back to all videos" Icon={ChevronRight} onPress={() => setSelectedVideoId(null)} block />
+        <View style={styles.detailBackRow}>
+          <Chip
+            label="Back to all videos"
+            size="md"
+            icon={<ChevronRight size={scale(13)} color={accent.purple} />}
+            tint={accent.purple}
+            onPress={() => setSelectedVideoId(null)}
+          />
+        </View>
       </ScrollView>
     );
   };
@@ -787,13 +756,11 @@ export default function GamingApp({ onBack }: Props) {
       {/* Recipe B hero - gear score ring + breakdown. */}
       <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
         <View style={[styles.heroInner, styles.studioHeroInner]}>
-          <View pointerEvents="none" style={styles.heroBlob} />
-          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
           <ProgressRing
             value={quality.total}
             size={96}
             strokeWidth={8}
-            accentColor={IDENTITY}
+            accentColor={accent.purple}
             trackColor={darkMode ? 'rgba(255,255,255,0.10)' : 'rgba(148,163,184,0.25)'}
             surfaceColor={theme.surface}
             borderColor={darkMode ? theme.glassBorder : theme.border}
@@ -801,42 +768,33 @@ export default function GamingApp({ onBack }: Props) {
             ambient={false}
             label={`Gear score ${quality.total} of 100`}
           >
-            <Gauge size={scale(22)} color={IDENTITY} />
+            <Gauge size={scale(22)} color={accent.purple} />
           </ProgressRing>
           <View style={styles.studioHeroBody}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>GEAR SCORE</Text>
             <Text style={[styles.chName, { color: qualityColor(quality.tier) }]}>{quality.tier.toUpperCase()} rig</Text>
             <View style={styles.studioBreakdown}>
-              <View style={[styles.miniChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-                <Text style={[styles.miniChipText, { color: theme.textSecondary }]}>Accessories {ownedAccessories}/5</Text>
-              </View>
-              <View style={[styles.miniChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-                <Text style={[styles.miniChipText, { color: theme.textSecondary }]}>PC tiers {pcTierSum}</Text>
-              </View>
+              <Chip label={`Accessories ${ownedAccessories}/5`} />
+              <Chip label={`PC tiers ${pcTierSum}`} />
             </View>
           </View>
         </View>
       </View>
 
-      {/* Studio kit grid. */}
-      <View style={[styles.sectionHeadGroup, { marginTop: sp.xs }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Studio kit</Text>
-        <Text style={[styles.sectionCaption, { color: theme.textMuted }]}>One-time buys that lift your gear score.</Text>
-      </View>
-      <View style={styles.gearGrid}>
+      <SectionTitle title="Studio kit" subtitle="One-time buys that lift your gear score." />
+      <View style={styles.gearList}>
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
           return (
-            <GearTile
+            <GearRow
               key={k}
               title={ACCESSORY_LABELS[k]}
-              price={ACCESSORY_PRICES[k] ?? 0}
-              art={ACCESSORY_ART[k]}
               Icon={ACCESSORY_ICON[k]}
-              owned={owned}
+              priceLabel={owned ? 'In your kit' : formatMoney(ACCESSORY_PRICES[k] ?? 0)}
               actionLabel={owned ? 'Owned' : 'Buy'}
+              done={owned}
               onPress={() => handleAccessory(k)}
-              disabled={owned}
+              accessibilityLabel={owned ? `${ACCESSORY_LABELS[k]}, owned` : `${ACCESSORY_LABELS[k]}, ${formatMoney(ACCESSORY_PRICES[k] ?? 0)}`}
               theme={theme}
               darkMode={darkMode}
             />
@@ -844,30 +802,29 @@ export default function GamingApp({ onBack }: Props) {
         })}
       </View>
 
-      {/* PC components grid. */}
-      <View style={[styles.sectionHeadGroup, { marginTop: sp.sm }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>PC components</Text>
-        <Text style={[styles.sectionCaption, { color: theme.textMuted }]}>Upgrade tiers up to T{MAX_PC_TIER} - each tier adds gear score.</Text>
-      </View>
-      <View style={styles.gearGrid}>
+      <SectionTitle title="PC components" subtitle={`Upgrade tiers up to T${MAX_PC_TIER} - each tier adds gear score.`} />
+      <View style={styles.gearList}>
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
           const maxed = tier >= MAX_PC_TIER;
           const cost = Math.round(PC_BASE_PRICES[k] * Math.pow(2, tier));
           return (
-            <GearTile
+            <GearRow
               key={k}
               title={PC_LABELS[k]}
-              price={cost}
-              art={PC_ART[k]}
               Icon={PC_ICON[k]}
               tier={tier}
-              maxed={maxed}
-              // Bug-3 fix: the corner badge shows the OWNED tier (T{tier}); this
-              // pill names the UPGRADE TARGET so the two can't be confused.
+              // The tier chip shows what you OWN; the action names the TARGET,
+              // so the two can never be read as the same number.
+              priceLabel={maxed ? 'Max tier' : formatMoney(cost)}
               actionLabel={maxed ? 'Maxed' : `→ T${tier + 1}`}
+              done={maxed}
               onPress={() => handlePCUpgrade(k)}
-              disabled={maxed}
+              accessibilityLabel={
+                maxed
+                  ? `${PC_LABELS[k]}, maxed at tier ${tier}`
+                  : `${PC_LABELS[k]}, tier ${tier}, upgrade to tier ${tier + 1} for ${formatMoney(cost)}`
+              }
               theme={theme}
               darkMode={darkMode}
             />
@@ -879,44 +836,20 @@ export default function GamingApp({ onBack }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={goBack}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.headerBtn}
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{inDetail ? 'Video' : 'YouVideo'}</Text>
-        <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.30) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={inDetail ? 'Video' : 'YouVideo'}
+        onBack={goBack}
+        backLabel={inDetail ? 'Back to videos' : 'Back'}
+        right={<CashChip value={formatMoney(money)} tint={accent.purple} />}
+      />
 
-      <View style={[styles.tabBar, { borderColor: theme.border }]}>
-        {[
-          { id: 'channel' as TabType, label: 'Channel', Icon: Activity },
-          { id: 'record' as TabType, label: 'Record', Icon: VideoIcon },
-          { id: 'videos' as TabType, label: 'Videos', Icon: Star },
-          { id: 'studio' as TabType, label: 'Studio', Icon: Cpu },
-        ].map(({ id, label, Icon }) => {
-          const active = !inDetail && activeTab === id;
-          return (
-            <TouchableOpacity
-              key={id}
-              onPress={() => goTab(id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              style={[styles.tabBtn, active && { borderBottomColor: IDENTITY, borderBottomWidth: 2 }]}
-            >
-              <Icon size={scale(14)} color={active ? IDENTITY : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? IDENTITY : theme.textMuted }]}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        segments={TABS}
+        value={activeTab}
+        onChange={goTab}
+        activeColor={accent.purple}
+        style={styles.tabs}
+      />
 
       {inDetail && selectedVideo
         ? renderDetail(selectedVideo)
@@ -927,12 +860,6 @@ export default function GamingApp({ onBack }: Props) {
         : activeTab === 'videos'
         ? renderVideos()
         : renderStudio()}
-
-      {feedback ? (
-        <View style={[styles.toast, getPlatformShadows(8, 0.2, 0, 16), { backgroundColor: theme.surface, borderColor: tint(0.30), bottom: getAppScreenBottomPadding(insets.bottom) }]}>
-          <Text style={[styles.toastText, { color: theme.text }]}>{feedback}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -959,7 +886,7 @@ function VideoThumb({
     <ImageBackground source={videoThumb(v)} style={[styles.thumbBase, style]} imageStyle={styles.thumbImg} resizeMode="cover">
       {scrim ? <ImageScrim height={0.55} strength={0.5} color="#000000" /> : null}
       {badge ? (
-        <View pointerEvents="none" style={[styles.thumbBadge, { backgroundColor: tint(0.92) }]}>
+        <View pointerEvents="none" style={[styles.thumbBadge, { backgroundColor: withAlpha(accent.purple, 0.92) }]}>
           <Text style={styles.thumbBadgeText}>{badge}</Text>
         </View>
       ) : null}
@@ -1068,142 +995,60 @@ function VideoCard({
   );
 }
 
-function GearTile({
+function GearRow({
   title,
-  price,
-  art,
   Icon,
-  owned,
   tier,
-  maxed,
+  priceLabel,
   actionLabel,
+  done,
   onPress,
-  disabled,
+  accessibilityLabel,
   theme,
   darkMode,
 }: {
   title: string;
-  price: number;
-  art?: ImageSourcePropType;
   Icon: IconType;
-  owned?: boolean;
   tier?: number;
-  maxed?: boolean;
+  priceLabel: string;
   actionLabel: string;
+  done: boolean;
   onPress: () => void;
-  disabled?: boolean;
+  accessibilityLabel: string;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
 }) {
-  const accessibilityLabel = owned
-    ? `${title}, owned`
-    : maxed
-    ? `${title}, maxed at tier ${tier ?? 0}`
-    : tier != null && tier > 0
-    ? `${title}, tier ${tier}, upgrade to tier ${tier + 1} for ${formatMoney(price)}`
-    : `${title}, ${formatMoney(price)}`;
-  const done = !!owned || !!maxed;
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled}
+      disabled={done}
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled: !!disabled, selected: done }}
-      style={[getGlassCard(darkMode, 6), styles.gearTile, { backgroundColor: theme.surface, borderColor: done ? 'rgba(16,185,129,0.35)' : theme.border }]}
+      accessibilityState={{ disabled: done, selected: done }}
+      style={[getGlassCard(darkMode, 6), styles.gearRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
     >
-      <View style={styles.gearMediaClip}>
-        {art ? (
-          <Image source={art} style={styles.gearMediaImg} resizeMode="cover" />
-        ) : (
-          // Bug-4 fix: parts with no illustration (Cooling/PSU/Case) get a
-          // DESIGNED gradient panel + centred glyph instead of a flat, broken-
-          // looking blank. No misleading photo stand-ins.
-          <LinearGradient
-            colors={[tint(0.22), tint(0.06)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gearIconPanel}
-          >
-            <Icon size={scale(40)} color={IDENTITY} />
-          </LinearGradient>
-        )}
-        <View style={[styles.gearIconBadge, getGlassIconContainer(darkMode, 26), { backgroundColor: tint(0.16), borderColor: tint(0.30), borderWidth: 1 }]}>
-          <Icon size={scale(12)} color={IDENTITY} />
-        </View>
-        {tier != null && tier > 0 ? (
-          <View style={[styles.gearTierBadge, { backgroundColor: maxed ? 'rgba(16,185,129,0.95)' : tint(0.92) }]}>
-            <Text style={styles.gearTierText}>T{tier}</Text>
-          </View>
-        ) : null}
-        {owned ? (
-          <View style={[styles.gearTierBadge, { backgroundColor: 'rgba(16,185,129,0.95)' }]}>
-            <Text style={styles.gearTierText}>Owned</Text>
-          </View>
-        ) : null}
+      <View
+        style={[
+          getGlassIconContainer(darkMode, 36),
+          { backgroundColor: withAlpha(accent.purple, 0.15), borderColor: withAlpha(accent.purple, 0.3), borderWidth: 1 },
+        ]}
+      >
+        <Icon size={scale(16)} color={accent.purple} />
       </View>
-      <Text style={[styles.gearTileName, { color: theme.text }]} numberOfLines={1}>{title}</Text>
-      <View style={styles.gearTileFooter}>
-        <Text style={[styles.gearTilePrice, { color: done ? accent.success : theme.textSecondary }]} numberOfLines={1}>
-          {owned ? 'In your kit' : maxed ? 'Max tier' : formatMoney(price)}
+      <View style={styles.gearRowBody}>
+        <Text style={[styles.gearRowName, { color: theme.text }]} numberOfLines={1}>
+          {title}
         </Text>
-        <View style={[styles.gearAction, { backgroundColor: done ? 'rgba(16,185,129,0.16)' : tint(0.16) }]}>
-          {maxed ? <Check size={scale(12)} color={accent.success} /> : null}
-          <Text style={[styles.gearActionText, { color: done ? accent.success : IDENTITY }]}>{actionLabel}</Text>
-        </View>
+        <Text style={[styles.gearRowPrice, { color: done ? accent.success : theme.textSecondary }]} numberOfLines={1}>
+          {priceLabel}
+        </Text>
       </View>
-    </TouchableOpacity>
-  );
-}
-
-function SortChip({
-  label,
-  Icon,
-  active,
-  onPress,
-  theme,
-}: {
-  label: string;
-  Icon: IconType;
-  active: boolean;
-  onPress: () => void;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`Sort by ${label}`}
-      style={[styles.sortChip, { backgroundColor: active ? tint(0.16) : 'transparent', borderColor: active ? tint(0.30) : theme.border }]}
-    >
-      <Icon size={scale(13)} color={active ? IDENTITY : theme.textMuted} />
-      <Text style={[styles.sortChipText, { color: active ? IDENTITY : theme.textSecondary }]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function QuietChip({
-  label,
-  Icon,
-  onPress,
-  block,
-}: {
-  label: string;
-  Icon: IconType;
-  onPress: () => void;
-  block?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={[styles.quietChip, { backgroundColor: tint(0.14) }, block && styles.quietChipBlock]}
-    >
-      <Icon size={scale(13)} color={IDENTITY} />
-      <Text style={[styles.quietChipText, { color: IDENTITY }]}>{label}</Text>
+      {tier != null && tier > 0 ? <Chip label={`T${tier}`} tint={done ? accent.success : accent.purple} /> : null}
+      <View style={[styles.gearAction, { backgroundColor: done ? withAlpha(accent.success, 0.16) : withAlpha(accent.purple, 0.16) }]}>
+        {done ? <Check size={scale(12)} color={accent.success} /> : null}
+        <Text style={[styles.gearActionText, { color: done ? accent.success : accent.purple }]}>{actionLabel}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -1225,34 +1070,13 @@ function AnalyticStat({
 }) {
   return (
     <View style={styles.aStat}>
-      <View style={[getGlassIconContainer(darkMode, 30), { backgroundColor: tint(0.15), borderColor: tint(0.30), borderWidth: 1 }]}>
-        <Icon size={scale(13)} color={IDENTITY} />
+      <View style={[getGlassIconContainer(darkMode, 30), { backgroundColor: withAlpha(accent.purple, 0.15), borderColor: withAlpha(accent.purple, 0.30), borderWidth: 1 }]}>
+        <Icon size={scale(13)} color={accent.purple} />
       </View>
       <Text style={[styles.aValue, { color: valueColor ?? theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {value}
       </Text>
       <Text style={[styles.aLabel, { color: theme.textSecondary }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-function MoneyStat({
-  label,
-  value,
-  color,
-  theme,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <View style={styles.moneyStat}>
-      <Text style={[styles.moneyValue, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
-        {value}
-      </Text>
-      <Text style={[styles.moneyLabel, { color: theme.textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -1289,65 +1113,33 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-    gap: sp.sm,
-  },
-  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
-  cashChip: { paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.full, borderWidth: 1 },
-  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: sp.xs },
-  tabText: { fontSize: fs.sm, fontWeight: '700' },
+  tabs: { marginHorizontal: sp.md, marginBottom: sp.sm },
 
   // Recipe B hero.
   heroCard: { borderRadius: br['2xl'], borderWidth: 1 },
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg, gap: sp.sm },
-  heroBlob: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(139, 92, 246, 0.10)',
-  },
-  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   heroEyebrow: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8 },
   heroRow: { flexDirection: 'row', justifyContent: 'space-between', gap: sp.md },
   heroStat: { gap: scale(2) },
   heroLabel: { fontSize: fs.xs },
   heroValue: { fontSize: fs['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
-  qualityBar: { height: scale(8), borderRadius: br.full, overflow: 'hidden', marginTop: sp.xs },
-  qualityFill: { height: '100%', borderRadius: br.full },
-  qualityLabel: { fontSize: fs.xs, fontWeight: '700' },
+  qualityBar: { marginTop: sp.xs },
+  qualityLabel: { fontSize: fs.xs, fontWeight: '600' },
 
   // Channel header identity.
   chIdentityRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
-  chAvatar: { width: scale(52), height: scale(52), borderRadius: br.lg },
-  chAvatarInner: { flex: 1, borderRadius: br.lg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  chName: { fontSize: fs.lg, fontWeight: '800' },
+  chAvatar: { width: scale(52), height: scale(52), borderRadius: br.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  chName: { fontSize: fs.lg, fontWeight: '600' },
   chMetaLine: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, flexWrap: 'wrap', marginTop: scale(2) },
   chMetaText: { fontSize: fs.xs, fontWeight: '600' },
   chDot: { width: scale(3), height: scale(3), borderRadius: scale(1.5) },
-  badgeChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: scale(5), borderRadius: br.full, borderWidth: 1 },
-  badgeText: { fontSize: fs.xs, fontWeight: '800', letterSpacing: 0.3 },
 
   // Section headers with an action chip.
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.sm },
-  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
-  sectionHeadGroup: { gap: scale(2) },
-  sectionCaption: { fontSize: fs.xs, fontWeight: '500' },
 
   // Featured cover.
   featuredCard: { borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
   featuredThumb: { width: '100%', height: scale(200) },
   featuredBody: { padding: sp.md },
-  featuredEmpty: { borderRadius: br.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.xs },
 
   // Thumbnail primitive.
   thumbBase: { backgroundColor: '#0B1220', justifyContent: 'flex-end' },
@@ -1364,75 +1156,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: scale(3),
     backgroundColor: 'rgba(0,0,0,0.66)', paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm,
   },
-  thumbChipText: { color: '#fff', fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  thumbChipText: { color: '#fff', fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   thumbBadge: { position: 'absolute', top: sp.sm, left: sp.sm, paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm },
-  thumbBadgeText: { color: '#fff', fontSize: fs.xs, fontWeight: '800', letterSpacing: 0.6 },
+  thumbBadgeText: { color: '#fff', fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.6 },
   thumbTitleWrap: { padding: sp.md },
-  thumbTitleText: { color: '#fff', fontSize: fs.md, fontWeight: '800' },
+  thumbTitleText: { color: '#fff', fontSize: fs.md, fontWeight: '700' },
 
   // Recent-video rows.
   vRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1 },
   rowThumb: { width: scale(112), height: scale(64), borderRadius: br.md, overflow: 'hidden' },
-  videoTitle: { fontSize: fs.sm, fontWeight: '700' },
+  videoTitle: { fontSize: fs.sm, fontWeight: '600' },
   videoMeta: { fontSize: fs.xs },
 
   // Video cards (Videos tab).
   vCard: { borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
   cardThumb: { width: '100%', height: scale(170) },
   vCardBody: { padding: sp.md, gap: sp.xs },
-  bigVideoTitle: { fontSize: fs.md, fontWeight: '800' },
+  bigVideoTitle: { fontSize: fs.md, fontWeight: '600' },
   videoStatRow: { flexDirection: 'row', gap: sp.md, marginTop: sp.xs, flexWrap: 'wrap' },
   videoStat: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  videoStatText: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  videoStatText: { fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // Sort chips.
   sortRow: { flexDirection: 'row', gap: sp.xs, flexWrap: 'wrap' },
-  sortChip: {
-    flexDirection: 'row', alignItems: 'center', gap: scale(5),
-    minHeight: scale(36), paddingHorizontal: sp.md, borderRadius: br.full, borderWidth: 1,
-  },
-  sortChipText: { fontSize: fs.xs, fontWeight: '700' },
 
   // Quiet tinted action chips.
-  quietChip: {
-    flexDirection: 'row', alignItems: 'center', gap: scale(5),
-    minHeight: scale(36), paddingHorizontal: sp.md, borderRadius: br.full,
-  },
-  quietChipBlock: { justifyContent: 'center' },
-  quietChipText: { fontSize: fs.xs, fontWeight: '800' },
 
   // Stat cards / grids.
   statsCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
-  moneyStat: { alignItems: 'center', flexBasis: '30%', flexGrow: 1, minWidth: scale(96) },
-  moneyValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  moneyLabel: { fontSize: fs.xs, marginTop: 2 },
   aGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   aStat: { alignItems: 'center', gap: scale(3), flexBasis: '30%', flexGrow: 1, minWidth: scale(92), paddingVertical: sp.xs },
-  aValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  aValue: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
   aLabel: { fontSize: fs.xs, fontWeight: '600' },
 
   // Record composer.
+  composerTitle: { flex: 1, fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
+  cardTitle: { fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
   composerHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   previewThumb: { width: '100%', height: scale(160), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
   input: { borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
-  label: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase' },
+  label: { fontSize: fs.xs, fontWeight: '600', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), minHeight: scale(36), justifyContent: 'center', paddingHorizontal: sp.md, borderRadius: br.full, borderWidth: 1 },
-  chipText: { fontSize: fs.xs, fontWeight: '700' },
   topicHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs, marginTop: sp.sm },
-  trendChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.full, borderWidth: 1, maxWidth: '62%' },
-  trendChipText: { fontSize: fs.xs, fontWeight: '800' },
   recordHint: { fontSize: fs.xs, fontStyle: 'italic' },
 
   // Meters.
   meterHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   meterLabel: { fontSize: fs.sm, fontWeight: '600' },
-  meterValue: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  meterBar: { height: scale(8), borderRadius: br.full, overflow: 'hidden' },
-  meterFill: { height: '100%', borderRadius: br.full },
+  meterValue: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   energyRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
-  energyText: { fontSize: fs.xs, fontWeight: '700' },
+  energyText: { fontSize: fs.xs, fontWeight: '600' },
 
   // Recipe D CTA.
   publishBtn: { borderRadius: br.full, marginTop: sp.xs },
@@ -1440,42 +1213,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.sm,
     minHeight: touchTargets.minimum, paddingHorizontal: sp.md, borderRadius: br.full, overflow: 'hidden',
   },
-  publishBtnText: { fontSize: fs.md, fontWeight: '800' },
+  publishBtnText: { fontSize: fs.md, fontWeight: '600' },
 
   // Video detail.
   detailHeroCard: { borderRadius: br['2xl'], borderWidth: 1, overflow: 'hidden' },
   detailThumb: { width: '100%', height: scale(200) },
   detailTitle: { fontSize: fs.xl, fontWeight: '800' },
+  detailBackRow: { flexDirection: 'row', justifyContent: 'center', marginTop: sp.xs },
   detailMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
-  miniChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: scale(5), borderRadius: br.full, borderWidth: 1 },
-  miniChipText: { fontSize: fs.xs, fontWeight: '700' },
   perfBanner: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, padding: sp.sm, borderRadius: br.lg, marginTop: sp.xs },
-  perfText: { fontSize: fs.xs, fontWeight: '700' },
+  perfText: { fontSize: fs.xs, fontWeight: '600' },
 
-  // Studio hero + gear grid.
+  // Key/value rows behind "All channel stats".
+
+  // Studio hero + gear rows.
   studioHeroInner: { flexDirection: 'row', alignItems: 'center', gap: sp.lg },
   studioHeroBody: { flex: 1, gap: scale(3) },
   studioBreakdown: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs, marginTop: sp.xs },
-  gearGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
-  gearTile: { flexBasis: '47%', flexGrow: 1, minWidth: scale(150), borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
-  gearMediaClip: { width: '100%', height: scale(130), backgroundColor: '#0B1220' },
-  gearMediaImg: { width: '100%', height: '100%' },
-  gearIconPanel: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  gearIconBadge: { position: 'absolute', top: sp.sm, left: sp.sm, alignItems: 'center', justifyContent: 'center' },
-  gearTierBadge: { position: 'absolute', top: sp.sm, right: sp.sm, paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm },
-  gearTierText: { color: '#fff', fontSize: fs.xs, fontWeight: '800' },
-  gearTileName: { fontSize: fs.sm, fontWeight: '800', paddingHorizontal: sp.md, paddingTop: sp.sm },
-  gearTileFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs, paddingHorizontal: sp.md, paddingBottom: sp.md, paddingTop: sp.xs },
-  gearTilePrice: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1 },
+  gearList: { gap: sp.sm },
+  gearRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1, minHeight: touchTargets.minimum },
+  gearRowBody: { flex: 1, gap: scale(2) },
+  gearRowName: { fontSize: fs.sm, fontWeight: '600' },
+  gearRowPrice: { fontSize: fs.xs, fontVariant: ['tabular-nums'] },
   gearAction: { minHeight: scale(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(4), paddingHorizontal: sp.md, borderRadius: br.full },
-  gearActionText: { fontSize: fs.xs, fontWeight: '800' },
+  gearActionText: { fontSize: fs.xs, fontWeight: '600' },
 
   // Empty states.
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
-  emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
-  emptySub: { fontSize: fs.sm, textAlign: 'center' },
 
   // Toast.
-  toast: { position: 'absolute', bottom: sp.lg, left: sp.md, right: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
-  toastText: { fontSize: fs.sm, fontWeight: '600' },
 });

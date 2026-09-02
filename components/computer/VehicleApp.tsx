@@ -27,16 +27,16 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import {
-  ArrowLeft, Car, ShoppingBag, Shield, Fuel, Wrench, AlertCircle, IdCard,
+  Car, ShoppingBag, Shield, Fuel, Wrench, AlertCircle, IdCard,
   ChevronRight, Gauge, Zap, Star,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Vehicle } from '@/contexts/game/types';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
-import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
 import BuyVehicleModal from '@/components/vehicles/BuyVehicleModal';
@@ -71,20 +71,17 @@ import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
 import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import ProgressBar from '@/components/ui/ProgressBar';
+import Chip from '@/components/ui/Chip';
 
-// Identity accent - orange (#F97316 / rgb 249,115,22 / accent.amber). Per the
-// Slate Glass accent budget: solid only on small CTAs/badges; everywhere else
-// translucent tints.
-const ORANGE = accent.amber;
-const ORANGE_FILL = 'rgba(249, 115, 22, 0.15)'; // Recipe C icon-bubble fill
-const ORANGE_RIM = 'rgba(249, 115, 22, 0.30)';  // Recipe C icon-bubble rim / chip rim
-const ORANGE_CHIP = 'rgba(249, 115, 22, 0.14)'; // top-bar chip, refuel / plan / buy chips
-const ORANGE_TAB = 'rgba(249, 115, 22, 0.16)';  // active tab pill
-// Semantic tints - data only, kept translucent (never a saturated fill).
-const GREEN_CHIP = 'rgba(16, 185, 129, 0.14)';  // repair (condition)
-const RED_CHIP = 'rgba(239, 68, 68, 0.12)';     // sell / cancel (destructive)
-const AMBER_FILL = 'rgba(245, 158, 11, 0.15)';  // warning bubble fill
-const AMBER_RIM = 'rgba(245, 158, 11, 0.30)';   // warning bubble rim
+// Identity accent - `accent.amber`, tinted through the shared `withAlpha`.
+// Per the Slate Glass accent budget: solid only on small CTAs/badges;
+// everywhere else translucent tints.
 
 interface VehicleAppProps {
   onBack: () => void;
@@ -93,10 +90,10 @@ interface VehicleAppProps {
 type Tab = 'garage' | 'dealership' | 'insurance';
 type DealerFilter = 'all' | 'car' | 'sports' | 'luxury' | 'motorcycle';
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
-  { id: 'garage',     label: 'Garage',     icon: Car },
-  { id: 'dealership', label: 'Dealership', icon: ShoppingBag },
-  { id: 'insurance',  label: 'Insurance',  icon: Shield },
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { key: 'garage',     label: 'Garage',     icon: Car },
+  { key: 'dealership', label: 'Dealership', icon: ShoppingBag },
+  { key: 'insurance',  label: 'Insurance',  icon: Shield },
 ];
 
 const DEALER_FILTERS: { id: DealerFilter; label: string }[] = [
@@ -247,7 +244,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   // --- License gate -------------------------------------------------------
   const renderLicensePrompt = () => (
     <View style={[getGlassCard(darkMode, 6), styles.licenseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: AMBER_FILL, borderWidth: 1, borderColor: AMBER_RIM }]}>
+      <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: withAlpha(accent.warning, 0.15), borderWidth: 1, borderColor: withAlpha(accent.warning, 0.3) }]}>
         <IdCard size={scale(20)} color={accent.warning} />
       </View>
       <View style={{ flex: 1 }}>
@@ -267,7 +264,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         }}
         style={[
           styles.btn,
-          { backgroundColor: cash >= DRIVERS_LICENSE.cost ? ORANGE : theme.surfaceElevated },
+          { backgroundColor: cash >= DRIVERS_LICENSE.cost ? accent.amber : theme.surfaceElevated },
           cash >= DRIVERS_LICENSE.cost && getPlatformShadows(5, 0.3, 2, 8),
         ]}
       >
@@ -293,7 +290,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     const enabled = affordable && oldEnough;
     return (
       <View style={[getGlassCard(darkMode, 6), styles.licenseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: AMBER_FILL, borderWidth: 1, borderColor: AMBER_RIM }]}>
+        <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: withAlpha(accent.warning, 0.15), borderWidth: 1, borderColor: withAlpha(accent.warning, 0.3) }]}>
           <IdCard size={scale(20)} color={accent.warning} />
         </View>
         <View style={{ flex: 1 }}>
@@ -315,7 +312,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           }}
           style={[
             styles.btn,
-            { backgroundColor: enabled ? ORANGE : theme.surfaceElevated },
+            { backgroundColor: enabled ? accent.amber : theme.surfaceElevated },
             enabled && getPlatformShadows(5, 0.3, 2, 8),
           ]}
         >
@@ -371,7 +368,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               width: scale(150),
               height: scale(150),
               borderRadius: scale(75),
-              backgroundColor: 'rgba(249, 115, 22, 0.10)',
+              backgroundColor: withAlpha(accent.amber, 0.1),
             }}
           />
           {darkMode && (
@@ -383,9 +380,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
           <View style={styles.heroTopRow}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>CURRENT VEHICLE</Text>
-            <View style={[styles.badgeSolid, { backgroundColor: ORANGE }]}>
-              <Text style={styles.badgeSolidText}>ACTIVE</Text>
-            </View>
+            <Chip label="Active" tint={accent.amber} selected />
           </View>
 
           {renderArt(v, 138, responsiveBorderRadius.xl)}
@@ -413,51 +408,42 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 {v.brand} · {v.year} · {(v.mileage ?? 0).toLocaleString()} mi
               </Text>
               <View style={styles.chipWrap}>
-                <SpecChip icon={Fuel} color={fuelColorFor(fuel)} label={`Fuel ${Math.round(fuel)}%`} theme={theme} />
-                <SpecChip icon={Gauge} color={theme.textSecondary} label={`${v.maxSpeed} mph`} theme={theme} />
-                {v.speedBonus > 0 && <SpecChip icon={Zap} color={ORANGE} label={`+${v.speedBonus}% speed`} theme={theme} />}
+                <Chip icon={<Fuel size={scale(11)} color={fuelColorFor(fuel)} />} label={`Fuel ${Math.round(fuel)}%`} tint={fuelColorFor(fuel)} />
+                <Chip icon={<Gauge size={scale(11)} color={theme.textSecondary} />} label={`${v.maxSpeed} mph`} />
+                {v.speedBonus > 0 && <Chip icon={<Zap size={scale(11)} color={accent.amber} />} label={`+${v.speedBonus}% speed`} tint={accent.amber} />}
                 {v.insurance?.active ? (
-                  <SpecChip icon={Shield} color={accent.success} label={`Insured ${v.insurance.coveragePercent}%`} theme={theme} />
+                  <Chip icon={<Shield size={scale(11)} color={accent.success} />} label={`Insured ${v.insurance.coveragePercent}%`} tint={accent.success} />
                 ) : (
-                  <SpecChip icon={Shield} color={accent.danger} label="Uninsured" theme={theme} />
+                  <Chip icon={<Shield size={scale(11)} color={accent.danger} />} label="Uninsured" tint={accent.danger} />
                 )}
               </View>
             </View>
           </View>
 
-          <View style={[styles.viewDetails, { borderColor: ORANGE_RIM, backgroundColor: ORANGE_CHIP }]}>
-            <Text style={[styles.viewDetailsText, { color: ORANGE }]}>View details &amp; manage</Text>
-            <ChevronRight size={scale(16)} color={ORANGE} />
+          <View style={[styles.viewDetails, { borderColor: withAlpha(accent.amber, 0.3), backgroundColor: withAlpha(accent.amber, 0.14) }]}>
+            <Text style={[styles.viewDetailsText, { color: accent.amber }]}>View details &amp; manage</Text>
+            <ChevronRight size={scale(16)} color={accent.amber} />
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  // --- Garage: fleet card (art thumbnail + gauges + actions) ---------------
+  // --- Garage: fleet card ------------------------------------------------
+  // The card answers "what do I own and is it usable"; every ACTION that costs
+  // money (refuel / repair / sell) lives on the detail page the card opens, so
+  // the same button is never in two places with two costs to keep in step.
   const renderFleetCard = (v: Vehicle) => {
     const cond = v.condition ?? 100;
-    const fuel = v.fuelLevel ?? 100;
     const isActive = v.id === activeVehicleId;
-    const loan = loanFor(v);
     const image = getVehicleTemplate(v.id)?.image;
-    const fuelCost = calculateFuelCost(v);
-    const grossRepair = calculateRepairCost(v);
-    const repairCost = calculateRepairCostAfterInsurance(v);
-    const repairLabel =
-      grossRepair <= 0
-        ? 'Repair'
-        : repairCost <= 0
-          ? 'Repair · covered'
-          : `Repair ${formatMoney(repairCost)}`;
-    const sellPrice = calculateVehicleSellPrice(v);
     return (
       <View
         key={v.id}
         style={[
           getGlassCard(darkMode, 6),
           styles.fleetCard,
-          { backgroundColor: theme.surface, borderColor: isActive ? ORANGE_RIM : theme.border },
+          { backgroundColor: theme.surface, borderColor: isActive ? withAlpha(accent.amber, 0.3) : theme.border },
         ]}
       >
         <TouchableOpacity
@@ -479,11 +465,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               <Text style={[styles.fleetName, { color: theme.text }]} numberOfLines={1}>
                 {v.name}
               </Text>
-              {isActive && (
-                <View style={[styles.badgeSolid, { backgroundColor: ORANGE }]}>
-                  <Text style={styles.badgeSolidText}>ACTIVE</Text>
-                </View>
-              )}
+              {isActive && <Chip label="Active" tint={accent.amber} selected />}
             </View>
             <Text style={[styles.fleetSub, { color: theme.textMuted }]} numberOfLines={1}>
               {v.type} · {v.year} · {(v.mileage ?? 0).toLocaleString()} mi · {v.fuelEfficiency} mpg
@@ -492,38 +474,24 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <ChevronRight size={scale(18)} color={theme.textMuted} />
         </TouchableOpacity>
 
-        <View style={styles.gaugesRow}>
-          <MiniGauge icon={Wrench} color={conditionColor(cond)} label="Condition" value={Math.round(cond)} theme={theme} />
-          <MiniGauge icon={Fuel} color={fuelColorFor(fuel)} label="Fuel" value={Math.round(fuel)} theme={theme} />
-        </View>
+        <ProgressBar
+          value={Math.max(0, Math.min(100, cond)) / 100}
+          color={conditionColor(cond)}
+          label={`${v.name} condition ${Math.round(cond)} percent`}
+        />
 
-        <View style={styles.footRow}>
-          {v.insurance?.active ? (
-            <FootChip icon={Shield} color={accent.success} label={`Insured ${v.insurance.coveragePercent}%`} />
-          ) : (
-            <FootChip icon={Shield} color={accent.danger} label="Uninsured" />
-          )}
-          {v.speedBonus > 0 && <FootChip icon={Zap} color={ORANGE} label={`+${v.speedBonus}% speed`} />}
-          {loan && loan.remaining > 0 && (
-            <FootChip icon={AlertCircle} color={accent.warning} label={`Loan ${formatMoney(loan.remaining)}`} />
-          )}
-        </View>
-
-        <View style={styles.actionRow}>
-          {isActive ? (
-            <View style={[styles.actionBtn, { backgroundColor: theme.surfaceElevated }]}>
-              <Star size={scale(12)} color={ORANGE} />
-              <Text style={[styles.actionBtnText, { color: theme.textMuted }]}>Active</Text>
-            </View>
-          ) : (
-            <ActionChip icon={Star} label="Set active" fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleSetActive(v)} a11y={`Set ${v.name} as active`} />
-          )}
-          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={fuelCost <= 0 || cash < fuelCost} />
-        </View>
-        <View style={styles.actionRow}>
-          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={grossRepair <= 0 || cash < repairCost} />
-          <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
-        </View>
+        {!isActive && (
+          <View style={styles.actionRow}>
+            <ActionChip
+              icon={Star}
+              label="Set active"
+              fill={withAlpha(accent.amber, 0.14)}
+              color={accent.amber}
+              onPress={() => handleSetActive(v)}
+              a11y={`Set ${v.name} as active`}
+            />
+          </View>
+        )}
       </View>
     );
   };
@@ -538,17 +506,19 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
       {vehicles.length > 0 && (
         <View style={[getGlassCard(darkMode, 6), styles.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <StatCell label="In garage" value={`${vehicles.length}`} theme={theme} />
-          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-          <StatCell label="Fleet value" value={formatMoney(fleetValue)} theme={theme} />
-          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-          <StatCell label="Weekly upkeep" value={formatMoney(weeklyUpkeep)} theme={theme} />
+          <StatStrip
+            items={[
+              { label: 'In garage', value: vehicles.length },
+              { label: 'Fleet value', value: formatMoney(fleetValue) },
+              { label: 'Weekly upkeep', value: formatMoney(weeklyUpkeep) },
+            ]}
+          />
         </View>
       )}
 
       {totalAutoDebt > 0 && (
         <View style={[getGlassCard(darkMode, 6), styles.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: AMBER_FILL, borderWidth: 1, borderColor: AMBER_RIM }]}>
+          <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: withAlpha(accent.warning, 0.15), borderWidth: 1, borderColor: withAlpha(accent.warning, 0.3) }]}>
             <AlertCircle size={scale(18)} color={accent.warning} />
           </View>
           <View style={{ flex: 1 }}>
@@ -562,7 +532,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
       )}
 
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Your Vehicles</SectionTitle>
+        <SectionTitle title="Your Vehicles" />
         {vehicles.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>
             {hasLicense ? 'Garage is empty. Visit the Dealership tab to buy your first vehicle.' : 'Get your license first.'}
@@ -614,7 +584,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               style={{
                 position: 'absolute', top: -scale(48), right: -scale(36),
                 width: scale(150), height: scale(150), borderRadius: scale(75),
-                backgroundColor: 'rgba(249, 115, 22, 0.10)',
+                backgroundColor: withAlpha(accent.amber, 0.1),
               }}
             />
             {darkMode && (
@@ -624,9 +594,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             <View style={styles.heroTopRow}>
               <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>{v.type.toUpperCase()}</Text>
               {isActive && (
-                <View style={[styles.badgeSolid, { backgroundColor: ORANGE }]}>
-                  <Text style={styles.badgeSolidText}>ACTIVE</Text>
-                </View>
+                <Chip label="Active" tint={accent.amber} selected />
               )}
             </View>
 
@@ -664,56 +632,65 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
         {/* Active status / set-active */}
         {isActive ? (
-          <View style={[styles.activePill, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }]}>
-            <Star size={scale(14)} color={ORANGE} />
-            <Text style={[styles.activePillText, { color: ORANGE }]}>Your active vehicle</Text>
+          <View style={[styles.activePill, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }]}>
+            <Star size={scale(14)} color={accent.amber} />
+            <Text style={[styles.activePillText, { color: accent.amber }]}>Your active vehicle</Text>
           </View>
         ) : (
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={`Set ${v.name} as active vehicle`}
             onPress={() => handleSetActive(v)}
-            style={[styles.wideBtn, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }]}
+            style={[styles.wideBtn, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }]}
           >
-            <Star size={scale(15)} color={ORANGE} />
-            <Text style={[styles.wideBtnText, { color: ORANGE }]}>Set as active vehicle</Text>
+            <Star size={scale(15)} color={accent.amber} />
+            <Text style={[styles.wideBtnText, { color: accent.amber }]}>Set as active vehicle</Text>
           </TouchableOpacity>
         )}
 
         {/* Actions */}
         <View style={styles.actionRow}>
-          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={ORANGE_CHIP} color={ORANGE} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={fuelCost <= 0 || cash < fuelCost} />
-          <ActionChip icon={Wrench} label={repairLabel} fill={GREEN_CHIP} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={grossRepair <= 0 || cash < repairCost} />
-          <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
+          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={withAlpha(accent.amber, 0.14)} color={accent.amber} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={fuelCost <= 0 || cash < fuelCost} />
+          <ActionChip icon={Wrench} label={repairLabel} fill={withAlpha(accent.success, 0.14)} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={grossRepair <= 0 || cash < repairCost} />
+          <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={withAlpha(accent.danger, 0.12)} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
 
-        {/* Spec grid - surfaces the full per-vehicle record */}
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Specifications</SectionTitle>
-          <View style={styles.specGrid}>
-            <SpecTile label="Sticker price" value={formatMoney(v.price)} theme={theme} />
-            <SpecTile label="Resale value" value={formatMoney(sellPrice)} theme={theme} />
-            <SpecTile label="Mileage" value={`${(v.mileage ?? 0).toLocaleString()} mi`} theme={theme} />
-            <SpecTile label="Efficiency" value={`${v.fuelEfficiency} mpg`} theme={theme} />
-            <SpecTile label="Fuel tank" value={`${v.fuelCapacity} gal`} theme={theme} />
-            <SpecTile label="Top speed" value={`${v.maxSpeed} mph`} theme={theme} />
-            <SpecTile label="Speed bonus" value={`+${v.speedBonus}%`} theme={theme} />
-            <SpecTile label="Reputation" value={`+${v.reputationBonus}`} theme={theme} />
-            <SpecTile label="Weekly maint." value={formatMoney(v.weeklyMaintenanceCost ?? 0)} theme={theme} />
-            <SpecTile label="Weekly fuel" value={formatMoney(v.weeklyFuelCost ?? 0)} theme={theme} />
-            <SpecTile label="Model year" value={`${v.year}`} theme={theme} />
-            <SpecTile
-              label="Last service"
-              value={weeksSinceService == null ? '-' : weeksSinceService === 0 ? 'This week' : `${weeksSinceService} wk ago`}
-              theme={theme}
-            />
-          </View>
+        {/* The four specs that change how the vehicle plays; the full record folds. */}
+        <StatStrip
+          items={[
+            { label: 'Condition', value: `${Math.round(cond)}%`, tint: conditionColor(cond) },
+            { label: 'Fuel', value: `${Math.round(fuel)}%`, tint: fuelColorFor(fuel) },
+            { label: 'Resale value', value: formatMoney(sellPrice) },
+            { label: 'Upkeep/wk', value: formatMoney((v.weeklyMaintenanceCost ?? 0) + (v.weeklyFuelCost ?? 0)) },
+          ]}
+        />
+
+        <View style={[getGlassCard(darkMode, 6), styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <CollapsibleSection id="vehicle-all-specs" title="All specs" compact defaultCollapsed summary={`${v.year} · ${v.maxSpeed} mph`}>
+            <View style={styles.detailRows}>
+              <DetailRow label="Sticker price" value={formatMoney(v.price)} theme={theme} />
+              <DetailRow label="Mileage" value={`${(v.mileage ?? 0).toLocaleString()} mi`} theme={theme} />
+              <DetailRow label="Efficiency" value={`${v.fuelEfficiency} mpg`} theme={theme} />
+              <DetailRow label="Fuel tank" value={`${v.fuelCapacity} gal`} theme={theme} />
+              <DetailRow label="Top speed" value={`${v.maxSpeed} mph`} theme={theme} />
+              <DetailRow label="Speed bonus" value={`+${v.speedBonus}%`} theme={theme} />
+              <DetailRow label="Reputation" value={`+${v.reputationBonus}`} theme={theme} />
+              <DetailRow label="Weekly maint." value={formatMoney(v.weeklyMaintenanceCost ?? 0)} theme={theme} />
+              <DetailRow label="Weekly fuel" value={formatMoney(v.weeklyFuelCost ?? 0)} theme={theme} />
+              <DetailRow label="Model year" value={`${v.year}`} theme={theme} />
+              <DetailRow
+                label="Last service"
+                value={weeksSinceService == null ? '-' : weeksSinceService === 0 ? 'This week' : `${weeksSinceService} wk ago`}
+                theme={theme}
+              />
+            </View>
+          </CollapsibleSection>
         </View>
 
         {/* Auto loan */}
         {loan && (
           <View style={{ gap: responsiveSpacing.sm }}>
-            <SectionTitle theme={theme}>Auto loan</SectionTitle>
+            <SectionTitle title="Auto loan" />
             <View style={[getGlassCard(darkMode, 6), styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <DetailRow label="Original principal" value={formatMoney(loan.principal)} theme={theme} />
               <DetailRow label="Remaining balance" value={formatMoney(loan.remaining)} theme={theme} valueColor={accent.warning} />
@@ -732,7 +709,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
         {/* Insurance */}
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Insurance</SectionTitle>
+          <SectionTitle title="Insurance" />
           <View style={[getGlassCard(darkMode, 6), styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {ins?.active ? (
               <>
@@ -749,11 +726,11 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               accessibilityRole="button"
               accessibilityLabel="Manage insurance for this vehicle"
               onPress={openInsuranceTab}
-              style={[styles.manageChip, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }]}
+              style={[styles.manageChip, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }]}
             >
-              <Shield size={scale(13)} color={ORANGE} />
-              <Text style={[styles.manageChipText, { color: ORANGE }]}>Manage insurance</Text>
-              <ChevronRight size={scale(14)} color={ORANGE} />
+              <Shield size={scale(13)} color={accent.amber} />
+              <Text style={[styles.manageChipText, { color: accent.amber }]}>Manage insurance</Text>
+              <ChevronRight size={scale(14)} color={accent.amber} />
             </TouchableOpacity>
           </View>
         </View>
@@ -773,8 +750,8 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         {/* Marketplace summary + type filter */}
         <View style={[getGlassCard(darkMode, 6), styles.dealerHeadCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.dealerHeadTop}>
-            <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: ORANGE_FILL, borderWidth: 1, borderColor: ORANGE_RIM }]}>
-              <ShoppingBag size={scale(18)} color={ORANGE} />
+            <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: withAlpha(accent.amber, 0.15), borderWidth: 1, borderColor: withAlpha(accent.amber, 0.3) }]}>
+              <ShoppingBag size={scale(18)} color={accent.amber} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.dealerHeadTitle, { color: theme.text }]}>Dealership</Text>
@@ -784,26 +761,17 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             </View>
           </View>
           <View style={styles.filterRow}>
-            {DEALER_FILTERS.map((f) => {
-              const on = dealerFilter === f.id;
-              return (
-                <TouchableOpacity
-                  key={f.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filter: ${f.label}`}
-                  accessibilityState={{ selected: on }}
-                  onPress={() => setDealerFilter(f.id)}
-                  style={[
-                    styles.filterChip,
-                    on
-                      ? { backgroundColor: ORANGE_TAB, borderColor: ORANGE_RIM }
-                      : { backgroundColor: 'transparent', borderColor: theme.border },
-                  ]}
-                >
-                  <Text style={[styles.filterChipText, { color: on ? ORANGE : theme.textMuted }]}>{f.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            {DEALER_FILTERS.map((f) => (
+              <Chip
+                key={f.id}
+                label={f.label}
+                size="md"
+                tint={accent.amber}
+                selected={dealerFilter === f.id}
+                accessibilityLabel={`Filter: ${f.label}`}
+                onPress={() => setDealerFilter(f.id)}
+              />
+            ))}
           </View>
         </View>
 
@@ -838,8 +806,8 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                   ) : (
                     <Car size={scale(40)} color={theme.textMuted} />
                   )}
-                  <View style={[styles.dealerTypeBadge, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }]}>
-                    <Text style={[styles.dealerTypeText, { color: ORANGE }]}>{t.type}</Text>
+                  <View style={[styles.dealerTypeBadge, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }]}>
+                    <Text style={[styles.dealerTypeText, { color: accent.amber }]}>{t.type}</Text>
                   </View>
                 </View>
 
@@ -848,9 +816,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                   <Text style={[styles.dealerSub, { color: theme.textMuted }]} numberOfLines={2}>{t.description}</Text>
 
                   <View style={styles.chipWrap}>
-                    <SpecChip icon={Star} color={ORANGE} label={`+${t.reputationBonus} rep`} theme={theme} />
-                    <SpecChip icon={Zap} color={theme.textSecondary} label={`+${t.speedBonus}% speed`} theme={theme} />
-                    <SpecChip icon={Wrench} color={theme.textSecondary} label={`${formatMoney(t.weeklyMaintenanceCost)}/wk`} theme={theme} />
+                    <Chip icon={<Star size={scale(11)} color={accent.amber} />} label={`+${t.reputationBonus} rep`} tint={accent.amber} />
+                    <Chip icon={<Zap size={scale(11)} color={theme.textSecondary} />} label={`+${t.speedBonus}% speed`} />
+                    <Chip icon={<Wrench size={scale(11)} color={theme.textSecondary} />} label={`${formatMoney(t.weeklyMaintenanceCost)}/wk`} />
                   </View>
 
                   <View style={styles.dealerFootRow}>
@@ -860,9 +828,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                         <Text style={[styles.dealerLocked, { color: accent.danger }]}>Requires reputation ≥ {t.requiredReputation}</Text>
                       )}
                     </View>
-                    <View style={[styles.buyBtn, { backgroundColor: buyable ? ORANGE_CHIP : theme.surfaceElevated, borderColor: buyable ? ORANGE_RIM : theme.border }]}>
-                      <ShoppingBag size={scale(13)} color={buyable ? ORANGE : theme.textMuted} />
-                      <Text style={[styles.buyBtnText, { color: buyable ? ORANGE : theme.textMuted }]}>
+                    <View style={[styles.buyBtn, { backgroundColor: buyable ? withAlpha(accent.amber, 0.14) : theme.surfaceElevated, borderColor: buyable ? withAlpha(accent.amber, 0.3) : theme.border }]}>
+                      <ShoppingBag size={scale(13)} color={buyable ? accent.amber : theme.textMuted} />
+                      <Text style={[styles.buyBtnText, { color: buyable ? accent.amber : theme.textMuted }]}>
                         {!hasLicense ? 'License needed' : locked ? 'Locked' : 'Buy'}
                       </Text>
                     </View>
@@ -881,16 +849,18 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     <View style={{ gap: responsiveSpacing.lg }}>
       {vehicles.length > 0 && (
         <View style={[getGlassCard(darkMode, 6), styles.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <StatCell label="Insured" value={`${insuredCount}/${vehicles.length}`} theme={theme} />
-          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-          <StatCell label="Uninsured" value={`${vehicles.length - insuredCount}`} theme={theme} />
-          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-          <StatCell label="Weekly premium" value={formatMoney(weeklyPremium)} theme={theme} />
+          <StatStrip
+            items={[
+              { label: 'Insured', value: `${insuredCount}/${vehicles.length}`, tint: insuredCount > 0 ? accent.success : undefined },
+              { label: 'Uninsured', value: vehicles.length - insuredCount, tint: vehicles.length - insuredCount > 0 ? accent.danger : undefined },
+              { label: 'Weekly premium', value: formatMoney(weeklyPremium) },
+            ]}
+          />
         </View>
       )}
 
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Insurance Plans</SectionTitle>
+        <SectionTitle title="Insurance Plans" />
         {vehicles.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>Buy a vehicle first.</EmptyText>
         ) : (
@@ -900,8 +870,8 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             return (
               <View key={v.id} style={[getGlassCard(darkMode, 6), styles.insVehicleCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <View style={styles.headerRow}>
-                  <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: ORANGE_FILL, borderWidth: 1, borderColor: ORANGE_RIM }]}>
-                    <Car size={scale(16)} color={ORANGE} />
+                  <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: withAlpha(accent.amber, 0.15), borderWidth: 1, borderColor: withAlpha(accent.amber, 0.3) }]}>
+                    <Car size={scale(16)} color={accent.amber} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.insName, { color: theme.text }]}>{v.name}</Text>
@@ -914,10 +884,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                     )}
                   </View>
                   {ins?.active && (
-                    <View style={[styles.insBadge, { backgroundColor: 'rgba(16,185,129,0.14)' }]}>
-                      <Shield size={scale(11)} color={accent.success} />
-                      <Text style={[styles.insBadgeText, { color: accent.success }]}>Covered</Text>
-                    </View>
+                    <Chip label="Covered" tint={accent.success} selected icon={<Shield size={scale(11)} color={accent.success} />} />
                   )}
                 </View>
 
@@ -933,10 +900,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                       accessibilityState={{ disabled: cash < p.monthlyCost * 6 }}
                       disabled={cash < p.monthlyCost * 6}
                       onPress={() => handleBuyInsurance(v, p.type)}
-                      style={[styles.planBtn, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }, cash < p.monthlyCost * 6 && { opacity: 0.55 }]}
+                      style={[styles.planBtn, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }, cash < p.monthlyCost * 6 && { opacity: 0.55 }]}
                     >
-                      <Text style={[styles.planType, { color: ORANGE }]}>{p.type}</Text>
-                      <Text style={[styles.planCoverage, { color: theme.text }]}>{p.coveragePercent}%</Text>
+                      <Text style={[styles.planType, { color: accent.amber }]}>{p.type}</Text>
+                      <Text style={[styles.planCoverage, { color: theme.text }]}>{p.coveragePercent}% cover</Text>
                       <Text style={[styles.planPrice, { color: theme.textSecondary }]}>${p.monthlyCost * 6} / 6mo</Text>
                     </TouchableOpacity>
                   ))}
@@ -945,7 +912,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                       accessibilityRole="button"
                       accessibilityLabel={`Cancel insurance for ${v.name}`}
                       onPress={() => handleCancelInsurance(v)}
-                      style={[styles.cancelBtn, { backgroundColor: RED_CHIP, borderColor: 'rgba(239,68,68,0.3)' }]}
+                      style={[styles.cancelBtn, { backgroundColor: withAlpha(accent.danger, 0.12), borderColor: withAlpha(accent.danger, 0.3) }]}
                     >
                       <Text style={[styles.planType, { color: accent.danger }]}>Cancel policy</Text>
                     </TouchableOpacity>
@@ -963,42 +930,21 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => (inDetail ? setDetailVehicleId(null) : onBack())}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.backBtn}
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
-        <View style={[styles.cashChip, { backgroundColor: ORANGE_CHIP, borderColor: ORANGE_RIM }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={headerTitle}
+        onBack={() => (inDetail ? setDetailVehicleId(null) : onBack())}
+        backLabel={inDetail ? 'Back to garage' : 'Back'}
+        right={<CashChip value={formatMoney(cash)} tint={accent.amber} />}
+      />
 
       {!inDetail && (
-        <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
-          {TABS.map((t) => {
-            const active = activeTab === t.id;
-            const Icon = t.icon;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => setActiveTab(t.id)}
-                accessibilityRole="button"
-                accessibilityLabel={t.label}
-                accessibilityState={{ selected: active }}
-                style={[styles.tab, active && { backgroundColor: ORANGE_TAB }]}
-              >
-                <Icon size={scale(16)} color={active ? ORANGE : theme.textMuted} />
-                <Text style={[styles.tabText, { color: active ? ORANGE : theme.textMuted }]}>{t.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          segments={TABS}
+          value={activeTab}
+          onChange={setActiveTab}
+          activeColor={accent.amber}
+          style={styles.tabs}
+        />
       )}
 
       <ScrollView
@@ -1033,7 +979,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             });
             // Celebrate the win too - buying a car is one of the game's most
             // aspirational purchases and used to complete in total silence.
-            gameAlert(result.success ? '🚗 New Ride!' : 'Purchase', result.message);
+            gameAlert(result.success ? 'New ride' : 'Purchase', result.message);
             queueSave();
             setActiveTab('garage');
           }
@@ -1045,64 +991,6 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 }
 
 // --- Presentational helpers -----------------------------------------------
-
-function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function SpecChip({
-  icon: Icon,
-  color,
-  label,
-  theme,
-}: {
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
-  label: string;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <View style={[styles.specChip, { backgroundColor: theme.surfaceElevated }]}>
-      <Icon size={scale(11)} color={color} />
-      <Text style={[styles.specChipText, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
-  );
-}
-
-function FootChip({
-  icon: Icon,
-  color,
-  label,
-}: {
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
-  label: string;
-}) {
-  return (
-    <View style={styles.footChip}>
-      <Icon size={scale(10)} color={color} />
-      <Text style={[styles.footText, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
-function StatCell({ label, value, theme }: { label: string; value: string; theme: ReturnType<typeof getThemeColors> }) {
-  return (
-    <View style={styles.statCell}>
-      <Text style={[styles.statValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-      <Text style={[styles.statLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-function SpecTile({ label, value, theme }: { label: string; value: string; theme: ReturnType<typeof getThemeColors> }) {
-  return (
-    <View style={[styles.specTile, { backgroundColor: theme.surfaceElevated }]}>
-      <Text style={[styles.specTileValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-      <Text style={[styles.specTileLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
 
 function DetailRow({
   label,
@@ -1121,35 +1009,6 @@ function DetailRow({
     <View style={styles.detailRow}>
       <Text style={[styles.detailRowLabel, { color: theme.textMuted }]}>{label}</Text>
       <Text style={[styles.detailRowValue, { color: valueColor ?? theme.text }, capitalize && { textTransform: 'capitalize' }]}>{value}</Text>
-    </View>
-  );
-}
-
-function MiniGauge({
-  icon: Icon,
-  color,
-  label,
-  value,
-  theme,
-}: {
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
-  label: string;
-  value: number;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <View style={{ flex: 1, gap: 4 }}>
-      <View style={styles.gaugeHeader}>
-        <Icon size={scale(10)} color={color} />
-        <Text style={[styles.gaugeLabel, { color: theme.textMuted }]}>
-          {label} <Text style={{ color, fontWeight: '700' }}>{value}%</Text>
-        </Text>
-      </View>
-      <View style={[styles.gaugeTrack, { backgroundColor: theme.surfaceElevated }]}>
-        <View style={[styles.gaugeFill, { width: `${pct}%`, backgroundColor: color }]} />
-      </View>
     </View>
   );
 }
@@ -1197,63 +1056,9 @@ export default function VehicleApp(props: VehicleAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  backBtn: {
-    width: scale(40),
-    height: scale(40),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  cashChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  tabs: { marginHorizontal: responsiveSpacing.md, marginBottom: responsiveSpacing.sm },
   // Segmented control directly under the top bar - it anchors the screen, so
   // the top bar drops its bottom border.
-  tabBar: {
-    flexDirection: 'row',
-    gap: scale(4),
-    marginHorizontal: responsiveSpacing.md,
-    marginTop: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.sm,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-  },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  sectionTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  emptyCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.lg,
-  },
-  emptyText: {
-    fontSize: responsiveFontSize.sm,
-    textAlign: 'center',
-    opacity: 0.6,
-  },
   licenseCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1262,17 +1067,17 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
   },
-  licenseTitle: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  licenseTitle: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   licenseSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   btn: {
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  btnText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Fleet + insurance summary strip (Recipe A) - dense stat cells.
   summaryCard: {
@@ -1282,10 +1087,6 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
   },
-  statCell: { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.2 },
-  statDivider: { width: 1, alignSelf: 'stretch', marginVertical: 2 },
 
   // Auto-debt status card (Recipe A).
   infoCard: {
@@ -1297,7 +1098,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   infoLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  infoValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  infoValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '600', fontVariant: ['tabular-nums'] },
   infoSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
 
   // Hero (Recipe B) - art-led.
@@ -1315,7 +1116,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroBody: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
-  heroName: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
+  heroName: { fontSize: responsiveFontSize['2xl'], fontWeight: '700' },
   heroSub: { fontSize: responsiveFontSize.xs },
   artStage: {
     width: '100%',
@@ -1323,22 +1124,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  badgeSolid: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 2,
-    borderRadius: responsiveBorderRadius.sm,
-  },
-  badgeSolidText: { color: '#FFFFFF', fontSize: responsiveFontSize.xs, fontWeight: '800', letterSpacing: 0.4 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs },
-  specChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-  },
-  specChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   viewDetails: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1348,9 +1134,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
   },
-  viewDetailsText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  viewDetailsText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Detail rings.
   ringRow: { flexDirection: 'row', justifyContent: 'center', gap: responsiveSpacing.xl, marginTop: responsiveSpacing.sm },
@@ -1365,9 +1151,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
   },
-  activePillText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  activePillText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   wideBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1376,9 +1162,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    minHeight: scale(40),
+    minHeight: touchTargets.minimum,
   },
-  wideBtnText: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  wideBtnText: { fontSize: responsiveFontSize.md, fontWeight: '600' },
 
   // Fleet card.
   fleetCard: {
@@ -1397,20 +1183,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fleetNameRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  fleetName: { fontSize: responsiveFontSize.md, fontWeight: '700', flexShrink: 1 },
+  fleetName: { fontSize: responsiveFontSize.md, fontWeight: '600', flexShrink: 1 },
   fleetSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
-  gaugesRow: { flexDirection: 'row', gap: responsiveSpacing.md },
-  gaugeHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  gaugeLabel: { fontSize: responsiveFontSize.xs },
-  gaugeTrack: {
-    height: scale(4),
-    borderRadius: responsiveBorderRadius.full,
-    overflow: 'hidden',
-  },
-  gaugeFill: { height: '100%', borderRadius: responsiveBorderRadius.full },
-  footRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  footChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  footText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
   actionBtn: {
     flex: 1,
@@ -1420,23 +1194,11 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
   },
-  actionBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  actionBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Detail spec grid.
-  specGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  specTile: {
-    width: '31%',
-    flexGrow: 1,
-    minWidth: scale(96),
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-    gap: 2,
-  },
-  specTileValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  specTileLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
 
   // Detail info cards (loan / insurance).
   detailCard: {
@@ -1445,9 +1207,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: responsiveSpacing.xs,
   },
+  detailRows: { gap: responsiveSpacing.xs, paddingTop: responsiveSpacing.xs },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   detailRowLabel: { fontSize: responsiveFontSize.sm },
-  detailRowValue: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  detailRowValue: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   detailNote: { fontSize: responsiveFontSize.xs, marginTop: responsiveSpacing.xs, opacity: 0.8 },
   manageChip: {
     flexDirection: 'row',
@@ -1458,9 +1221,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
   },
-  manageChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  manageChipText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Dealership.
   dealerHeadCard: {
@@ -1470,18 +1233,9 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.md,
   },
   dealerHeadTop: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
-  dealerHeadTitle: { fontSize: responsiveFontSize.lg, fontWeight: '800' },
+  dealerHeadTitle: { fontSize: responsiveFontSize.lg, fontWeight: '600' },
   dealerHeadSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs },
-  filterChip: {
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.xs,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-    minHeight: scale(34),
-    justifyContent: 'center',
-  },
-  filterChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
   dealerCard: {
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.xl,
@@ -1505,13 +1259,13 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  dealerTypeText: { fontSize: responsiveFontSize.xs, fontWeight: '800', textTransform: 'capitalize' },
+  dealerTypeText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   dealerBody: { gap: responsiveSpacing.xs },
-  dealerName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  dealerName: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   dealerSub: { fontSize: responsiveFontSize.xs },
   dealerFootRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm, marginTop: responsiveSpacing.xs },
-  dealerPrice: { fontSize: responsiveFontSize.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  dealerLocked: { fontSize: responsiveFontSize.xs, fontWeight: '700', marginTop: 2 },
+  dealerPrice: { fontSize: responsiveFontSize.xl, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  dealerLocked: { fontSize: responsiveFontSize.xs, fontWeight: '600', marginTop: 2 },
   buyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1520,9 +1274,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
   },
-  buyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '800' },
+  buyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Insurance.
   insVehicleCard: {
@@ -1532,17 +1286,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
-  insName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  insName: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   insStatus: { fontSize: responsiveFontSize.xs, marginTop: 2 },
-  insBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-  },
-  insBadgeText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
   plansRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs },
   planBtn: {
     flexGrow: 1,
@@ -1556,8 +1301,8 @@ const styles = StyleSheet.create({
     minHeight: scale(56),
     justifyContent: 'center',
   },
-  planType: { fontSize: responsiveFontSize.xs, fontWeight: '800', textTransform: 'capitalize' },
-  planCoverage: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  planType: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
+  planCoverage: { fontSize: responsiveFontSize.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
   planPrice: { fontSize: responsiveFontSize.xs },
   cancelBtn: {
     flexGrow: 1,
@@ -1567,6 +1312,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: scale(40),
+    minHeight: touchTargets.minimum,
   },
 });

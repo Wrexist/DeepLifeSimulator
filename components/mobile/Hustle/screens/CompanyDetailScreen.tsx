@@ -15,18 +15,23 @@
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  AlertTriangle, ArrowLeft, Award, Briefcase, Building2, ChevronRight, Crown,
-  DollarSign, FileText, FlaskConical, Gem, History, Megaphone, Package, Rocket, Star, TrendingUp,
+  AlertTriangle, Award, Building2, ChevronRight, Crown,
+  FileText, FlaskConical, Gem, History, Megaphone, Package, Rocket, Star,
   UserMinus, UserPlus, Users, Zap,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import Chip from '@/components/ui/Chip';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import KeyValueRow from '@/components/ui/KeyValueRow';
+import ProgressBar from '@/components/ui/ProgressBar';
 import ProgressRing from '@/components/ui/ProgressRing';
+import StatStrip, { StatTile } from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getGlassButton, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import KPICard from '../components/KPICard';
 import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import { addWorker, removeWorker, quoteCompanySaleValue, sellCompany } from '@/contexts/game/company';
@@ -47,8 +52,6 @@ import { companyWeeklyIncomeFor } from '@/lib/economy/passiveIncome';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const CAMPAIGN_LABEL: Record<string, string> = {
@@ -214,7 +217,7 @@ export default function CompanyDetailScreen({
   if (!company) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <Header theme={theme} title="Company" onBack={onBack} />
+        <AppHeader title="Company" onBack={onBack} backLabel="Back to portfolio" centered />
         <View style={styles.missingWrap}>
           <Text style={[styles.missingText, { color: theme.textSecondary }]}>
             This company is no longer in your portfolio.
@@ -291,8 +294,6 @@ export default function CompanyDetailScreen({
   const upgradeDiscount = gameState.settings?.businessBanking ? 0.15 : 0;
   const upgradeDefs = COMPANY_UPGRADES[company.type] ?? [];
 
-  const earningsSeries = (overlay?.ipo?.recentEarnings ?? []).map((e) => e.revenue);
-
   // ───────── R&D derived state ─────────
   const rdAccent = HUSTLE_COLORS.accentSecondary;
   const rdLab = company.rdLab;
@@ -317,7 +318,13 @@ export default function CompanyDetailScreen({
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <Header theme={theme} title={company.name} onBack={onBack} />
+      <AppHeader
+        title={company.name}
+        onBack={onBack}
+        backLabel="Back to portfolio"
+        centered
+        right={<CashChip value={formatMoney(money)} tint={HUSTLE_COLORS.accent} />}
+      />
 
       {/* Sticky scandal banner */}
       {scandal ? (
@@ -328,7 +335,7 @@ export default function CompanyDetailScreen({
           }}
           accessibilityRole="alert"
           accessibilityLabel={`Active scandal: ${scandal.headline}, severity ${scandal.severity}, tap to respond`}
-          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger + '26', borderColor: HUSTLE_COLORS.danger }]}
+          style={[styles.scandalBanner, { backgroundColor: withAlpha(HUSTLE_COLORS.danger, 0.15), borderColor: HUSTLE_COLORS.danger }]}
         >
           <AlertTriangle size={fontScale(16)} color={HUSTLE_COLORS.danger} />
           <View style={styles.scandalText}>
@@ -353,30 +360,18 @@ export default function CompanyDetailScreen({
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[accent + '24', accent + '08']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
+            <StatTile
+              hero
+              align="left"
+              label={`${cap(company.type)}${isPublic ? ' · public' : ''} · per week`}
+              value={`$${weekly.toLocaleString()}`}
+              /* employees already INCLUDES named hires - do not sum them */
+              sub={`${company.employees} employees${namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''} · ×${factors.multiplier.toFixed(2)}`}
             />
-            <View pointerEvents="none" style={[styles.heroGlow, { backgroundColor: accent + '17' }]} />
-            {isDark && <View pointerEvents="none" style={styles.heroHairline} />}
-            <Text style={[styles.heroIndustry, { color: theme.textMuted }]}>
-              {company.type.toUpperCase()} {isPublic ? '· PUBLIC' : ''}
-            </Text>
-            <Text style={[styles.heroRevenue, { color: theme.text }]}>
-              ${weekly.toLocaleString()}
-              <Text style={[styles.heroRevenueSuffix, { color: theme.textSecondary }]}> / week</Text>
-            </Text>
-            <Text style={[styles.heroEmployees, { color: theme.textSecondary }]}>
-              {/* employees already INCLUDES named hires - do not sum them */}
-              {company.employees} employees{namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''}
-            </Text>
 
             {/* Revenue composition - base vs lift from staff/upgrades */}
             <View style={styles.compBar} pointerEvents="none">
-              <View style={[styles.compTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.10)' }]}>
+              <View style={[styles.compTrack, { backgroundColor: withAlpha(theme.textMuted, 0.2) }]}>
                 <View style={[styles.compBase, { width: `${basePct}%`, backgroundColor: theme.textMuted }]} />
                 <View style={[styles.compLift, { flex: 1, backgroundColor: accent }]} />
               </View>
@@ -385,41 +380,31 @@ export default function CompanyDetailScreen({
               Base ${base.toLocaleString()}{lift > 0 ? ` + $${lift.toLocaleString()} lift` : ''}
               {isPublic && overlay?.ipo ? ` · you own ${overlay.ipo.ownershipPercent.toFixed(0)}%` : ''}
             </Text>
-            {/* WHY the multiplier is what it is. Without this the number moves
-                and the player still cannot tell which lever moved it - which is
-                how "acquisitions change nothing" gets reported for a feature
-                that does work. */}
-            <Text style={[styles.compCaption, { color: theme.textMuted }]}>
-              {`×${factors.multiplier.toFixed(2)} - brand ${factors.brand >= 0 ? '+' : ''}${Math.round(factors.brand * 100)}%`}
-              {` · share +${Math.round(factors.share * 100)}%`}
-              {` · hires ${factors.hires >= 0 ? '+' : ''}${Math.round(factors.hires * 100)}%`}
-              {factors.clamped ? ' (capped)' : ''}
-            </Text>
           </View>
         </View>
 
-        {/* KPI grid */}
-        <View style={styles.kpiGrid}>
-          <KPICard icon={Briefcase} label="Brand" value={String(brand)} trend={overlay?.brand?.trend === 'rising' ? 'up' : overlay?.brand?.trend === 'declining' ? 'down' : 'flat'} trendValue={overlay?.brand?.trend ?? 'flat'} />
-          <KPICard icon={TrendingUp} label="Share" value={`${share}%`} accentColor={HUSTLE_COLORS.accentSecondary} />
-          {/* Was "Cash", reading `company.money` - a field nothing ever writes,
-              so it displayed $0 for every company forever. Payroll is real and
-              it is the cost side of the hires that lift the multiplier. */}
-          <KPICard
-            icon={DollarSign}
-            label="Payroll"
-            value={payroll > 0 ? `-$${Math.round(payroll / 1000)}K` : '-'}
-            accentColor={HUSTLE_COLORS.success}
-          />
-          {isPublic && overlay?.ipo ? (
-            <KPICard icon={Rocket} label="Share $" value={`$${overlay.ipo.sharePrice.toFixed(2)}`} accentColor={HUSTLE_COLORS.success} chart={earningsSeries} chartKind="line" />
-          ) : (
-            <KPICard icon={Users} label="Employees" value={String(company.employees)} />
-          )}
-        </View>
+        {/* The three numbers this screen is steered on. Brand's trend and the
+            share price moved to the sections that act on them. */}
+        <StatStrip
+          items={[
+            { label: 'Brand', value: brand, sub: overlay?.brand?.trend ?? 'flat' },
+            { label: 'Market share', value: `${share}%`, tint: HUSTLE_COLORS.accentSecondary },
+            /* Was "Cash", reading `company.money` - a field nothing ever writes,
+               so it displayed $0 for every company forever. Payroll is real and
+               it is the cost side of the hires that lift the multiplier. */
+            { label: 'Payroll', value: payroll > 0 ? `-$${Math.round(payroll / 1000)}K` : '-' },
+          ]}
+        />
 
-        {/* ───────── Staff department ───────── */}
-        <Text style={[styles.sectionLabel, { color: theme.text }]}>Staff</Text>
+        {/* ───────── Staff department ─────────
+            Ten sections used to stack in one scroll. Each is a fold now, keyed
+            by a stable id so the shape a player arranges survives the trip.
+            Staff and Marketing are the weekly decisions, so they open. */}
+        <CollapsibleSection
+          id="hustle-detail-staff"
+          title="Staff"
+          summary={`${company.employees} employees · ${namedHires.length} key`}
+        >
 
         {/* Named-hire roster with Face avatars + morale/performance meters */}
         <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
@@ -439,22 +424,20 @@ export default function CompanyDetailScreen({
                     </Text>
                     <View style={styles.rosterMeterRow}>
                       <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Morale</Text>
-                      <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-                        <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, h.morale))}%`, backgroundColor: meterColor(h.morale) }]} />
+                      <View style={styles.meterFlex}>
+                        <ProgressBar value={h.morale / 100} color={meterColor(h.morale)} height={5} label="Morale" />
                       </View>
                       <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(h.morale)}</Text>
                     </View>
                     <View style={styles.rosterMeterRow}>
                       <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Perf</Text>
-                      <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-                        <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, h.performance))}%`, backgroundColor: meterColor(h.performance) }]} />
+                      <View style={styles.meterFlex}>
+                        <ProgressBar value={h.performance / 100} color={meterColor(h.performance)} height={5} label="Performance" />
                       </View>
                       <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(h.performance)}</Text>
                     </View>
                   </View>
-                  <View style={[styles.tenureChip, { backgroundColor: theme.surfaceElevated }]}>
-                    <Text style={[styles.tenureChipText, { color: theme.textSecondary }]}>{tenure}w</Text>
-                  </View>
+                  <Chip label={`${tenure}w`} accessibilityLabel={`${tenure} weeks tenure`} />
                 </View>
               );
             })
@@ -470,8 +453,8 @@ export default function CompanyDetailScreen({
           <Text style={[styles.staffCount, { color: theme.text }]}>
             {company.employees} / {STAFF_CAP} employees · payroll ${company.workerSalary.toLocaleString()}/hire
           </Text>
-          <View style={[styles.meterTrack, styles.staffCapBar, { backgroundColor: theme.surfaceElevated }]}>
-            <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, (company.employees / STAFF_CAP) * 100))}%`, backgroundColor: HUSTLE_COLORS.accent }]} />
+          <View style={styles.staffCapBar}>
+            <ProgressBar value={company.employees / STAFF_CAP} color={HUSTLE_COLORS.accent} label="Headcount against the cap" />
           </View>
           <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
             Hiring costs ${company.workerSalary.toLocaleString()} up front. Each employee compounds weekly income:
@@ -512,8 +495,14 @@ export default function CompanyDetailScreen({
           onPress={() => { hustleHaptics.tap(); onOpenHire(); }}
         />
 
+        </CollapsibleSection>
+
         {/* ───────── Marketing department ───────── */}
-        <Text style={[styles.sectionLabel, { color: theme.text }]}>Marketing</Text>
+        <CollapsibleSection
+          id="hustle-detail-marketing"
+          title="Marketing"
+          summary={activeCampaignsCount > 0 ? `${activeCampaignsCount} running` : 'No campaigns'}
+        >
         {activeCampaignsCount > 0 ? (
           <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
             {campaigns.map((camp, i) => {
@@ -528,7 +517,7 @@ export default function CompanyDetailScreen({
               const roiColor = roiMult > 1 ? HUSTLE_COLORS.success : roiMult > 0 ? theme.textMuted : HUSTLE_COLORS.danger;
               return (
                 <View key={camp.id} style={[styles.campaignRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                  <View style={[styles.campaignIcon, { backgroundColor: HUSTLE_COLORS.accentSecondary + '26', borderColor: HUSTLE_COLORS.accentSecondary + '4D' }]}>
+                  <View style={[styles.campaignIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.accentSecondary, 0.15), borderColor: withAlpha(HUSTLE_COLORS.accentSecondary, 0.3) }]}>
                     <Megaphone size={fontScale(15)} color={HUSTLE_COLORS.accentSecondary} strokeWidth={2.2} />
                   </View>
                   <View style={styles.campaignText}>
@@ -541,8 +530,8 @@ export default function CompanyDetailScreen({
                     <Text style={[styles.campaignMeta, { color: theme.textSecondary }]}>
                       ${camp.spendPerWeek.toLocaleString()}/wk · {remaining}w left{camp.active ? '' : ' · paused'}
                     </Text>
-                    <View style={[styles.meterTrack, styles.campaignBar, { backgroundColor: theme.surfaceElevated }]}>
-                      <View style={[styles.meterFill, { width: `${pct}%`, backgroundColor: HUSTLE_COLORS.accentSecondary }]} />
+                    <View style={styles.campaignBar}>
+                      <ProgressBar value={pct / 100} color={HUSTLE_COLORS.accentSecondary} height={5} label="Campaign run" />
                     </View>
                   </View>
                 </View>
@@ -559,8 +548,29 @@ export default function CompanyDetailScreen({
           onPress={() => { hustleHaptics.tap(); onOpenCampaign(); }}
         />
 
+        </CollapsibleSection>
+
         {/* ───────── Growth & markets department ───────── */}
-        <Text style={[styles.sectionLabel, { color: theme.text }]}>Growth &amp; markets</Text>
+        <CollapsibleSection
+          id="hustle-detail-growth"
+          title="Growth &amp; markets"
+          defaultCollapsed
+          summary={isPublic ? `Public · ${pendingAcqCount} offers` : `Private · ${pendingAcqCount} offers`}
+        >
+          {/* WHY the income multiplier is what it is. It used to be a caption
+              under the hero number, where a four-clause formula competed with
+              the headline; it belongs beside the levers that move it. */}
+          <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+            <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Income multiplier ×{factors.multiplier.toFixed(2)}</Text>
+            {[
+              { label: 'Brand', value: `${factors.brand >= 0 ? '+' : ''}${Math.round(factors.brand * 100)}%` },
+              { label: 'Market share', value: `+${Math.round(factors.share * 100)}%` },
+              { label: 'Key hires', value: `${factors.hires >= 0 ? '+' : ''}${Math.round(factors.hires * 100)}%` },
+              ...(factors.clamped ? [{ label: 'Capped', value: 'at the ceiling' }] : []),
+            ].map((row, i, all) => (
+              <KeyValueRow key={row.label} label={row.label} value={row.value} divider={i < all.length - 1} />
+            ))}
+          </View>
 
         {/* IPO summary (surfaces ownership / shares / earnings beats) */}
         {isPublic && overlay?.ipo ? (
@@ -582,14 +592,11 @@ export default function CompanyDetailScreen({
             {overlay.ipo.recentEarnings.length > 0 ? (
               <View style={styles.earningsRow}>
                 {overlay.ipo.recentEarnings.slice(-4).map((e, i) => (
-                  <View
+                  <Chip
                     key={`${e.week}-${i}`}
-                    style={[styles.earningsChip, { backgroundColor: (e.beat ? HUSTLE_COLORS.success : HUSTLE_COLORS.danger) + '22', borderColor: (e.beat ? HUSTLE_COLORS.success : HUSTLE_COLORS.danger) + '55' }]}
-                  >
-                    <Text style={[styles.earningsChipText, { color: e.beat ? HUSTLE_COLORS.success : HUSTLE_COLORS.danger }]}>
-                      {e.beat ? 'BEAT' : 'MISS'} ${Math.round(e.revenue / 1000)}K
-                    </Text>
-                  </View>
+                    label={`${e.beat ? 'Beat' : 'Miss'} $${Math.round(e.revenue / 1000)}K`}
+                    tone={e.beat ? 'success' : 'danger'}
+                  />
                 ))}
               </View>
             ) : null}
@@ -623,7 +630,7 @@ export default function CompanyDetailScreen({
             <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Board of directors</Text>
             {boardSeats.map((b, i) => (
               <View key={b.id} style={[styles.boardRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                <View style={[styles.boardIcon, { backgroundColor: HUSTLE_COLORS.accent + '22', borderColor: HUSTLE_COLORS.accent + '44' }]}>
+                <View style={[styles.boardIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.accent, 0.13), borderColor: withAlpha(HUSTLE_COLORS.accent, 0.27) }]}>
                   <Star size={fontScale(13)} color={HUSTLE_COLORS.accent} strokeWidth={2.2} />
                 </View>
                 <View style={styles.boardText}>
@@ -633,8 +640,8 @@ export default function CompanyDetailScreen({
                   </Text>
                 </View>
                 <View style={styles.boardSat}>
-                  <View style={[styles.meterTrack, styles.boardSatBar, { backgroundColor: theme.surfaceElevated }]}>
-                    <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, b.satisfaction))}%`, backgroundColor: meterColor(b.satisfaction) }]} />
+                  <View style={styles.boardSatBar}>
+                    <ProgressBar value={b.satisfaction / 100} color={meterColor(b.satisfaction)} height={5} label="Satisfaction" />
                   </View>
                   <Text style={[styles.boardSatVal, { color: theme.textMuted }]}>{Math.round(b.satisfaction)}</Text>
                 </View>
@@ -682,12 +689,19 @@ export default function CompanyDetailScreen({
           onPress={handleSellCompany}
         />
 
+        </CollapsibleSection>
+
         {/* ───────── Family legacy department ───────── */}
-        <Text style={[styles.sectionLabel, { color: theme.text }]}>Family legacy</Text>
+        <CollapsibleSection
+          id="hustle-detail-family"
+          title="Family legacy"
+          defaultCollapsed
+          summary={familyBusiness ? `Gen ${familyBusiness.foundedGeneration}` : 'Not converted'}
+        >
         {familyBusiness ? (
           <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
             <View style={styles.rdRow}>
-              <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+              <View style={[styles.rdIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.13), borderColor: withAlpha(HUSTLE_COLORS.warning, 0.27) }]}>
                 <Crown size={fontScale(15)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
               </View>
               <View style={styles.rdText}>
@@ -701,15 +715,15 @@ export default function CompanyDetailScreen({
             {/* Brand + reputation meters (the two stats manageFamilyBusiness builds) */}
             <View style={[styles.rosterMeterRow, { marginTop: responsiveSpacing.xs }]}>
               <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Brand</Text>
-              <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-                <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, familyBusiness.brandValue))}%`, backgroundColor: meterColor(familyBusiness.brandValue) }]} />
+              <View style={styles.meterFlex}>
+                <ProgressBar value={familyBusiness.brandValue / 100} color={meterColor(familyBusiness.brandValue)} height={5} label="Brand value" />
               </View>
               <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(familyBusiness.brandValue)}</Text>
             </View>
             <View style={styles.rosterMeterRow}>
               <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Rep</Text>
-              <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-                <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, familyBusiness.reputation))}%`, backgroundColor: meterColor(familyBusiness.reputation) }]} />
+              <View style={styles.meterFlex}>
+                <ProgressBar value={familyBusiness.reputation / 100} color={meterColor(familyBusiness.reputation)} height={5} label="Reputation" />
               </View>
               <Text style={[styles.rosterMeterVal, { color: theme.textSecondary }]}>{Math.round(familyBusiness.reputation)}</Text>
             </View>
@@ -732,7 +746,7 @@ export default function CompanyDetailScreen({
                     accessibilityRole="button"
                     accessibilityLabel={`${opt.label} for $${opt.cost.toLocaleString()}`}
                     accessibilityState={{ disabled: !affordable }}
-                    style={[styles.upgradeBuyBtn, { backgroundColor: HUSTLE_COLORS.warning + '24', opacity: affordable ? 1 : 0.5 }]}
+                    style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.14), opacity: affordable ? 1 : 0.5 }]}
                   >
                     <Text style={[styles.upgradeBuyText, { color: HUSTLE_COLORS.warning }]}>${opt.cost.toLocaleString()}</Text>
                   </Pressable>
@@ -743,7 +757,7 @@ export default function CompanyDetailScreen({
         ) : (
           <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
             <View style={styles.rdRow}>
-              <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+              <View style={[styles.rdIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.13), borderColor: withAlpha(HUSTLE_COLORS.warning, 0.27) }]}>
                 <Gem size={fontScale(15)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
               </View>
               <View style={styles.rdText}>
@@ -771,10 +785,16 @@ export default function CompanyDetailScreen({
           </View>
         )}
 
+        </CollapsibleSection>
+
         {/* ───────── Upgrades department - tracks as ProgressRings ───────── */}
         {upgradeDefs.length > 0 ? (
-          <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Upgrade tracks</Text>
+          <CollapsibleSection
+            id="hustle-detail-upgrades"
+            title="Upgrade tracks"
+            defaultCollapsed
+            summary={`${(company.upgrades ?? []).reduce((n, u) => n + (u.level ?? 0), 0)} levels bought`}
+          >
             {upgradeDefs.map((def) => {
               const owned = (company.upgrades ?? []).find((u) => u.id === def.id);
               const level = owned?.level ?? 0;
@@ -822,7 +842,7 @@ export default function CompanyDetailScreen({
                     style={[
                       styles.upgradeBuyBtn,
                       {
-                        backgroundColor: maxed ? theme.surfaceElevated : HUSTLE_COLORS.accent + '24',
+                        backgroundColor: maxed ? theme.surfaceElevated : withAlpha(HUSTLE_COLORS.accent, 0.14),
                         opacity: maxed || !affordable ? 0.55 : 1,
                       },
                     ]}
@@ -832,13 +852,17 @@ export default function CompanyDetailScreen({
                 </View>
               );
             })}
-          </>
+          </CollapsibleSection>
         ) : null}
 
         {/* ───────── R&D Lab department ───────── */}
         {showRD ? (
-          <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>R&amp;D Lab</Text>
+          <CollapsibleSection
+            id="hustle-detail-rd"
+            title="R&amp;D Lab"
+            defaultCollapsed
+            summary={rdLab ? `${labInfo?.name ?? 'Lab'} · ${activeProjects.length} active` : 'No lab'}
+          >
 
             {!rdLab ? (
               /* No lab yet - build options */
@@ -853,7 +877,7 @@ export default function CompanyDetailScreen({
                   const affordable = money >= cost;
                   return (
                     <View key={lt} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                      <View style={[styles.rdIcon, { backgroundColor: rdAccent + '22', borderColor: rdAccent + '44' }]}>
+                      <View style={[styles.rdIcon, { backgroundColor: withAlpha(rdAccent, 0.13), borderColor: withAlpha(rdAccent, 0.27) }]}>
                         <FlaskConical size={fontScale(15)} color={rdAccent} strokeWidth={2.2} />
                       </View>
                       <View style={styles.rdText}>
@@ -868,7 +892,7 @@ export default function CompanyDetailScreen({
                         accessibilityRole="button"
                         accessibilityLabel={`Build ${info.name} for $${cost.toLocaleString()}`}
                         accessibilityState={{ disabled: !affordable }}
-                        style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: affordable ? 1 : 0.5 }]}
+                        style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: affordable ? 1 : 0.5 }]}
                       >
                         <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${cost.toLocaleString()}</Text>
                       </Pressable>
@@ -881,7 +905,7 @@ export default function CompanyDetailScreen({
                 {/* Lab summary + upgrade */}
                 <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
                   <View style={styles.rdRow}>
-                    <View style={[styles.rdIcon, { backgroundColor: rdAccent + '22', borderColor: rdAccent + '44' }]}>
+                    <View style={[styles.rdIcon, { backgroundColor: withAlpha(rdAccent, 0.13), borderColor: withAlpha(rdAccent, 0.27) }]}>
                       <FlaskConical size={fontScale(15)} color={rdAccent} strokeWidth={2.2} />
                     </View>
                     <View style={styles.rdText}>
@@ -897,14 +921,12 @@ export default function CompanyDetailScreen({
                         accessibilityRole="button"
                         accessibilityLabel={`Upgrade lab for $${labUpgradeCost.toLocaleString()}`}
                         accessibilityState={{ disabled: money < labUpgradeCost }}
-                        style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: money < labUpgradeCost ? 0.5 : 1 }]}
+                        style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: money < labUpgradeCost ? 0.5 : 1 }]}
                       >
                         <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Upgrade ${labUpgradeCost.toLocaleString()}</Text>
                       </Pressable>
                     ) : (
-                      <View style={[styles.rdTag, { backgroundColor: theme.surfaceElevated }]}>
-                        <Text style={[styles.rdTagText, { color: theme.textMuted }]}>MAX</Text>
-                      </View>
+                      <Chip label="Max" />
                     )}
                   </View>
                 </View>
@@ -922,8 +944,8 @@ export default function CompanyDetailScreen({
                         <View key={p.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                           <View style={styles.rdText}>
                             <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech?.name ?? p.technologyId}</Text>
-                            <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated, marginTop: 5 }]}>
-                              <View style={[styles.meterFill, { width: `${pct}%`, backgroundColor: rdAccent }]} />
+                            <View style={styles.researchBar}>
+                              <ProgressBar value={pct / 100} color={rdAccent} height={5} label="Research progress" />
                             </View>
                             <Text style={[styles.rdRowMeta, { color: theme.textMuted, marginTop: 3 }]}>
                               {pct >= 100 ? 'Finalizing…' : `~${weeksLeft} week${weeksLeft === 1 ? '' : 's'} left`}
@@ -958,7 +980,7 @@ export default function CompanyDetailScreen({
                             accessibilityRole="button"
                             accessibilityLabel={`Research ${tech.name} for $${tech.researchCost.toLocaleString()}`}
                             accessibilityState={{ disabled }}
-                            style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: disabled ? 0.5 : 1 }]}
+                            style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: disabled ? 0.5 : 1 }]}
                           >
                             <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${tech.researchCost.toLocaleString()}</Text>
                           </Pressable>
@@ -993,10 +1015,11 @@ export default function CompanyDetailScreen({
                             <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{patented ? 'Patented' : 'Eligible for patent'}</Text>
                           </View>
                           {patented ? (
-                            <View style={[styles.rdTag, { backgroundColor: HUSTLE_COLORS.success + '22' }]}>
-                              <FileText size={fontScale(11)} color={HUSTLE_COLORS.success} strokeWidth={2.4} />
-                              <Text style={[styles.rdTagText, { color: HUSTLE_COLORS.success }]}>Patented</Text>
-                            </View>
+                            <Chip
+                              label="Patented"
+                              tone="success"
+                              icon={<FileText size={fontScale(11)} color={HUSTLE_COLORS.success} />}
+                            />
                           ) : (
                             <Pressable
                               onPress={() => handleFilePatent(techId)}
@@ -1004,7 +1027,7 @@ export default function CompanyDetailScreen({
                               accessibilityRole="button"
                               accessibilityLabel={`File patent for ${tech?.name ?? techId} for $${patentCost.toLocaleString()}`}
                               accessibilityState={{ disabled: !affordable }}
-                              style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: affordable ? 1 : 0.5 }]}
+                              style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: affordable ? 1 : 0.5 }]}
                             >
                               <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Patent ${patentCost.toLocaleString()}</Text>
                             </Pressable>
@@ -1021,7 +1044,7 @@ export default function CompanyDetailScreen({
                     <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Patent royalties</Text>
                     {activePatents.map((pt, i) => (
                       <View key={pt.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                        <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.success + '22', borderColor: HUSTLE_COLORS.success + '44' }]}>
+                        <View style={[styles.rdIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.success, 0.13), borderColor: withAlpha(HUSTLE_COLORS.success, 0.27) }]}>
                           <FileText size={fontScale(13)} color={HUSTLE_COLORS.success} strokeWidth={2.2} />
                         </View>
                         <View style={styles.rdText}>
@@ -1045,7 +1068,7 @@ export default function CompanyDetailScreen({
                       const disabled = entered || !eligible || !affordable;
                       return (
                         <View key={comp.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                          <View style={[styles.rdIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+                          <View style={[styles.rdIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.13), borderColor: withAlpha(HUSTLE_COLORS.warning, 0.27) }]}>
                             <Award size={fontScale(14)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
                           </View>
                           <View style={styles.rdText}>
@@ -1055,9 +1078,7 @@ export default function CompanyDetailScreen({
                             </Text>
                           </View>
                           {entered ? (
-                            <View style={[styles.rdTag, { backgroundColor: rdAccent + '22' }]}>
-                              <Text style={[styles.rdTagText, { color: rdAccent }]}>Entered</Text>
-                            </View>
+                            <Chip label="Entered" tint={rdAccent} />
                           ) : (
                             <Pressable
                               onPress={() => handleEnterCompetition(comp.id)}
@@ -1065,7 +1086,7 @@ export default function CompanyDetailScreen({
                               accessibilityRole="button"
                               accessibilityLabel={`Enter ${comp.name} for $${comp.entryCost.toLocaleString()}`}
                               accessibilityState={{ disabled }}
-                              style={[styles.upgradeBuyBtn, { backgroundColor: rdAccent + '24', opacity: disabled ? 0.5 : 1 }]}
+                              style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: disabled ? 0.5 : 1 }]}
                             >
                               <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>{eligible ? 'Enter' : 'Locked'}</Text>
                             </Pressable>
@@ -1079,19 +1100,23 @@ export default function CompanyDetailScreen({
                 </View>
               </>
             )}
-          </>
+          </CollapsibleSection>
         ) : null}
 
         {/* ───────── Suppliers (surfaces suppliers - unused by old UI) ───────── */}
         {suppliers.length > 0 ? (
-          <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Suppliers</Text>
+          <CollapsibleSection
+            id="hustle-detail-suppliers"
+            title="Suppliers"
+            defaultCollapsed
+            summary={`${suppliers.length} contracted`}
+          >
             <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
               {suppliers.map((s, i) => {
                 const contract = s.contractEndWeek ? `${Math.max(0, s.contractEndWeek - weeksLived)}w contract` : 'Month-to-month';
                 return (
                   <View key={s.id} style={[styles.boardRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                    <View style={[styles.boardIcon, { backgroundColor: HUSTLE_COLORS.factory + '22', borderColor: HUSTLE_COLORS.factory + '44' }]}>
+                    <View style={[styles.boardIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.factory, 0.13), borderColor: withAlpha(HUSTLE_COLORS.factory, 0.27) }]}>
                       <Package size={fontScale(13)} color={HUSTLE_COLORS.factory} strokeWidth={2.2} />
                     </View>
                     <View style={styles.boardText}>
@@ -1101,8 +1126,8 @@ export default function CompanyDetailScreen({
                       </Text>
                     </View>
                     <View style={styles.boardSat}>
-                      <View style={[styles.meterTrack, styles.boardSatBar, { backgroundColor: theme.surfaceElevated }]}>
-                        <View style={[styles.meterFill, { width: `${Math.max(0, Math.min(100, s.reliability))}%`, backgroundColor: meterColor(s.reliability) }]} />
+                      <View style={styles.boardSatBar}>
+                        <ProgressBar value={s.reliability / 100} color={meterColor(s.reliability)} height={5} label="Reliability" />
                       </View>
                       <Text style={[styles.boardSatVal, { color: theme.textMuted }]}>{Math.round(s.reliability)}</Text>
                     </View>
@@ -1110,17 +1135,21 @@ export default function CompanyDetailScreen({
                 );
               })}
             </View>
-          </>
+          </CollapsibleSection>
         ) : null}
 
         {/* ───────── Scandal ledger (surfaces scandalHistory - unused) ───────── */}
         {scandalHistory.length > 0 ? (
-          <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Scandal ledger</Text>
+          <CollapsibleSection
+            id="hustle-detail-scandals"
+            title="Scandal ledger"
+            defaultCollapsed
+            summary={`${scandalHistory.length} resolved`}
+          >
             <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
               {scandalHistory.slice(0, 6).map((s, i) => (
                 <View key={s.id} style={[styles.ledgerRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                  <View style={[styles.ledgerIcon, { backgroundColor: HUSTLE_COLORS.warning + '22', borderColor: HUSTLE_COLORS.warning + '44' }]}>
+                  <View style={[styles.ledgerIcon, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.13), borderColor: withAlpha(HUSTLE_COLORS.warning, 0.27) }]}>
                     <History size={fontScale(13)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
                   </View>
                   <View style={styles.ledgerText}>
@@ -1134,7 +1163,7 @@ export default function CompanyDetailScreen({
                 </View>
               ))}
             </View>
-          </>
+          </CollapsibleSection>
         ) : null}
 
         {/* Notifications list. `markHustleNotificationRead` /
@@ -1143,9 +1172,13 @@ export default function CompanyDetailScreen({
             the unread dot was decoration. Tapping a row marks it read; the
             header carries a Clear-all. */}
         {overlay && overlay.notifications.length > 0 ? (
-          <>
+          <CollapsibleSection
+            id="hustle-detail-alerts"
+            title="Recent alerts"
+            defaultCollapsed
+            summary={`${overlay.notifications.filter((n) => !n.read).length} unread`}
+          >
             <View style={styles.notifHeaderRow}>
-              <Text style={[styles.sectionLabel, { color: theme.text }]}>Recent alerts</Text>
               <Pressable
                 onPress={handleClearNotifications}
                 accessibilityRole="button"
@@ -1178,7 +1211,7 @@ export default function CompanyDetailScreen({
                 </Pressable>
               ))}
             </View>
-          </>
+          </CollapsibleSection>
         ) : null}
       </ScrollView>
     </View>
@@ -1212,7 +1245,7 @@ function ActionRow({
         { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, opacity: disabled ? 0.55 : pressed ? 0.85 : 1 },
       ]}
     >
-      <View style={[styles.actionIconSquare, { backgroundColor: color + '26', borderColor: color + '4D' }]}>
+      <View style={[styles.actionIconSquare, { backgroundColor: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.3) }]}>
         <Icon size={fontScale(20)} color={color} strokeWidth={2.2} />
       </View>
       <View style={styles.actionText}>
@@ -1231,38 +1264,10 @@ function ActionRow({
   );
 }
 
-function Header({ theme, title, onBack }: { theme: any; title: string; onBack: () => void }) {
-  return (
-    <View style={styles.header}>
-      <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-        <ArrowLeft size={fontScale(22)} color={theme.text} />
-      </Pressable>
-      <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{title}</Text>
-      <View style={styles.headerBtn} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: fontScale(16),
-    fontWeight: '700',
-  },
+  meterFlex: { flex: 1 },
+  researchBar: { marginTop: 5 },
   missingWrap: {
     flex: 1,
     alignItems: 'center',
@@ -1290,7 +1295,7 @@ const styles = StyleSheet.create({
   scandalText: { flex: 1 },
   scandalTitle: {
     fontSize: fontScale(11),
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   scandalHead: {
@@ -1310,41 +1315,6 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius['2xl'],
     overflow: 'hidden',
     padding: responsiveSpacing.lg,
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-  },
-  heroHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  heroIndustry: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  heroRevenue: {
-    fontSize: fontScale(32),
-    fontWeight: '800',
-    marginTop: 4,
-    fontVariant: ['tabular-nums'],
-  },
-  heroRevenueSuffix: {
-    fontSize: fontScale(16),
-    fontWeight: '500',
-  },
-  heroEmployees: {
-    fontSize: fontScale(12),
-    marginTop: 2,
   },
   compBar: {
     marginTop: responsiveSpacing.sm,
@@ -1367,19 +1337,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontVariant: ['tabular-nums'],
   },
-  kpiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.md,
-  },
-  sectionLabel: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginBottom: responsiveSpacing.sm,
-    marginTop: responsiveSpacing.sm,
-  },
   deptCard: {
     borderRadius: responsiveBorderRadius.xl,
     paddingHorizontal: responsiveSpacing.md,
@@ -1388,7 +1345,7 @@ const styles = StyleSheet.create({
   },
   deptSubhead: {
     fontSize: fontScale(11),
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: responsiveSpacing.sm,
@@ -1419,7 +1376,7 @@ const styles = StyleSheet.create({
   rosterText: { flex: 1, gap: 3 },
   rosterName: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   rosterMeterRow: {
@@ -1436,30 +1393,10 @@ const styles = StyleSheet.create({
   },
   rosterMeterVal: {
     fontSize: fontScale(10),
-    fontWeight: '700',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
     width: scale(20),
     textAlign: 'right',
-  },
-  tenureChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  tenureChipText: {
-    fontSize: fontScale(10),
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  meterTrack: {
-    flex: 1,
-    height: 5,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  meterFill: {
-    height: '100%',
-    borderRadius: 3,
   },
   // Generic staff
   staffCard: {
@@ -1470,7 +1407,7 @@ const styles = StyleSheet.create({
   },
   staffCount: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   staffCapBar: {
@@ -1497,7 +1434,7 @@ const styles = StyleSheet.create({
   staffBtnText: {
     color: '#FFFFFF',
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   staffBtnOutline: {
     flex: 1,
@@ -1511,7 +1448,7 @@ const styles = StyleSheet.create({
   },
   staffBtnOutlineText: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   // Campaigns
   campaignRow: {
@@ -1538,11 +1475,11 @@ const styles = StyleSheet.create({
   campaignTitle: {
     flex: 1,
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   campaignRoi: {
     fontSize: fontScale(11),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   campaignMeta: {
@@ -1569,7 +1506,7 @@ const styles = StyleSheet.create({
   },
   ipoStatValue: {
     fontSize: fontScale(16),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   earningsRow: {
@@ -1577,18 +1514,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     paddingBottom: responsiveSpacing.sm,
-  },
-  earningsChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  earningsChipText: {
-    fontSize: fontScale(10),
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 0.3,
   },
   // Board / suppliers
   boardRow: {
@@ -1608,7 +1533,7 @@ const styles = StyleSheet.create({
   boardText: { flex: 1 },
   boardName: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   boardMeta: {
     fontSize: fontScale(11),
@@ -1626,7 +1551,7 @@ const styles = StyleSheet.create({
   },
   boardSatVal: {
     fontSize: fontScale(10),
-    fontWeight: '700',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   // Acquisitions inline
@@ -1639,7 +1564,7 @@ const styles = StyleSheet.create({
   acqText: { flex: 1 },
   acqName: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   acqMeta: {
     fontSize: fontScale(11),
@@ -1648,7 +1573,7 @@ const styles = StyleSheet.create({
   },
   acqPrice: {
     fontSize: fontScale(14),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   // Ledger
@@ -1669,7 +1594,7 @@ const styles = StyleSheet.create({
   ledgerText: { flex: 1 },
   ledgerTitle: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   ledgerMeta: {
     fontSize: fontScale(11),
@@ -1696,7 +1621,7 @@ const styles = StyleSheet.create({
   actionText: { flex: 1 },
   actionTitle: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   actionSub: {
     fontSize: fontScale(11),
@@ -1713,7 +1638,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: fontScale(10),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   // Upgrades
@@ -1735,7 +1660,7 @@ const styles = StyleSheet.create({
   },
   upgradeRingLvl: {
     fontSize: fontScale(10),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   upgradeBuyBtn: {
@@ -1743,12 +1668,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: 8,
     minWidth: scale(72),
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
     justifyContent: 'center',
   },
   upgradeBuyText: {
     fontSize: fontScale(11),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   // R&D
@@ -1769,7 +1695,7 @@ const styles = StyleSheet.create({
   rdText: { flex: 1 },
   rdRowTitle: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   rdRowMeta: {
     fontSize: fontScale(11),
@@ -1778,28 +1704,15 @@ const styles = StyleSheet.create({
   },
   rdPct: {
     fontSize: fontScale(12),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
     minWidth: scale(34),
     textAlign: 'right',
   },
   rdIncome: {
     fontSize: fontScale(13),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
-  },
-  rdTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  rdTagText: {
-    fontSize: fontScale(11),
-    fontWeight: '800',
-    letterSpacing: 0.3,
   },
   notifHeaderRow: {
     flexDirection: 'row',
@@ -1812,7 +1725,7 @@ const styles = StyleSheet.create({
   },
   notifClearText: {
     fontSize: fontScale(12),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   notifCard: {
     borderRadius: responsiveBorderRadius.xl,

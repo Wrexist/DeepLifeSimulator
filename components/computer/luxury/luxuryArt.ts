@@ -8,7 +8,7 @@
  * The PNGs are generated SEPARATELY from assets/images/luxury/ART-PROMPTS.md and
  * dropped into assets/images/luxury/. Until an image lands its line stays
  * commented out, so the map SHIPS EMPTY and the bundle never references a missing
- * file — the UI falls back to the per-tier gradient placeholder below. To enable
+ * file — the UI falls back to the per-tier solid placeholder below. To enable
  * an image: drop `<id>.png` into assets/images/luxury/ and UNCOMMENT its line
  * (the filename MUST equal the catalog id — see the .md).
  */
@@ -45,13 +45,10 @@ export const LUXURY_ART: Record<string, ImageSourcePropType> = {
   'sports_team_stake':     require('@/assets/images/luxury/sports_team_stake.webp'),
 };
 
-/** Resolve bundled artwork for an item id, or null to use the gradient fallback. */
+/** Resolve bundled artwork for an item id, or null to use the solid fallback. */
 export function luxuryArtFor(id: string): ImageSourcePropType | null {
   return LUXURY_ART[id] ?? null;
 }
-
-/** Deep base behind the placeholder wash (matches the ART-PROMPTS background). */
-export const LUXURY_ART_BASE = '#0B1220';
 
 /** Visual language for a coarse catalog tier (the tinted chip + placeholder wash). */
 export interface LuxuryTierVisual {
@@ -64,13 +61,11 @@ export interface LuxuryTierVisual {
   /** Translucent accent border for the chip. */
   accentBorder: string;
   /**
-   * Placeholder banner wash, until real art is imported. Both colours now paint:
-   * `LuxuryApp` renders these through `components/ui/Gradient`, which draws a
-   * real interpolated ramp. The ordering is still first-colour-leads — a dark
-   * tier-tinted shade over the deep base — because that is what these pairs were
-   * chosen to look like, and it now reads as a diagonal wash rather than a slab.
+   * Solid placeholder wash, used only if an item ever ships without artwork
+   * (all twelve resolve today). It was a two-stop gradient; a flat tier-tinted
+   * shade over the deep base reads the same at banner size and costs no SVG.
    */
-  gradient: readonly [string, string];
+  placeholder: string;
 }
 
 /**
@@ -83,28 +78,28 @@ export const LUXURY_TIER_VISUALS: Record<LuxuryItem['tier'], LuxuryTierVisual> =
     accent: '#60A5FA',
     accentSoft: 'rgba(59, 130, 246, 0.16)',
     accentBorder: 'rgba(59, 130, 246, 0.36)',
-    gradient: ['#14284A', '#0B1220'],
+    placeholder: '#14284A',
   },
   premium: {
     label: 'PREMIUM',
     accent: '#A78BFA',
     accentSoft: 'rgba(139, 92, 246, 0.16)',
     accentBorder: 'rgba(139, 92, 246, 0.36)',
-    gradient: ['#241A4A', '#0B1220'],
+    placeholder: '#241A4A',
   },
   elite: {
     label: 'ELITE',
     accent: '#FBBF24',
     accentSoft: 'rgba(245, 158, 11, 0.16)',
     accentBorder: 'rgba(245, 158, 11, 0.38)',
-    gradient: ['#33280F', '#0B1220'],
+    placeholder: '#33280F',
   },
   ultra: {
     label: 'ULTRA',
     accent: '#F472B6',
     accentSoft: 'rgba(236, 72, 153, 0.16)',
     accentBorder: 'rgba(236, 72, 153, 0.36)',
-    gradient: ['#331333', '#0B1220'],
+    placeholder: '#331333',
   },
 };
 

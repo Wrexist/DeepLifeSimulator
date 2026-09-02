@@ -40,8 +40,11 @@ describe('render - PoliticalApp Career tab', () => {
   });
 
   it('the Office tab points into it for a player with no party', () => {
+    // The Office tab used to stack four full-width CTAs; the two that are not
+    // "the seat you hold right now" are quiet chips under a "More" heading, so
+    // the pointer into this tab is now the chip's label rather than a sentence.
     const { json, unmount } = renderWithProviders(<PoliticalApp onBack={() => {}} />);
-    expect(json).toContain('Join a party, take an appointment, plan your exit');
+    expect(json).toContain('Join a party');
     unmount();
   });
 
@@ -52,23 +55,34 @@ describe('render - PoliticalApp Career tab', () => {
     // `renderCareer` that throws on its first line.
     const { renderer, unmount } = renderWithProviders(<PoliticalApp onBack={() => {}} />);
 
-    const tab = renderer.root.findAll(
-      (node) => node.props?.accessibilityLabel === 'Career' && typeof node.props?.onPress === 'function',
-      { deep: true },
-    )[0];
-    expect(tab).toBeDefined();
+    const press = (label: string) => {
+      const node = renderer.root.findAll(
+        (n) => n.props?.accessibilityLabel === label && typeof n.props?.onPress === 'function',
+        { deep: true },
+      )[0];
+      expect(node).toBeDefined();
+      act(() => { node.props.onPress(); });
+    };
 
-    act(() => { tab.props.onPress(); });
+    press('Career');
 
     const json = JSON.stringify(renderer.toJSON());
     expect(json).toContain('Choose a party');            // party
     expect(json).toContain('Appointed positions');       // appointments
     expect(json).toContain('The war chest');             // embezzlement
     expect(json).toContain('Retirement');                // the exit
+
+    // The four systems are folding sections now: one carries the live decision
+    // and opens (a citizen has no party, so that is the party section), the
+    // rest render a title plus a summary until they are opened. Expanding the
+    // appointments section is therefore part of asserting that its body - not
+    // just its heading - renders.
+    press('Appointed positions');
+    const opened = JSON.stringify(renderer.toJSON());
     // Every appointment is refused for a citizen, and each refusal explains
     // itself rather than greying a row out with no reason.
-    expect(json).toContain('Ambassador');
-    expect(json).toContain('You need to have served as');
+    expect(opened).toContain('Ambassador');
+    expect(opened).toContain('You need to have served as');
     unmount();
   });
 });

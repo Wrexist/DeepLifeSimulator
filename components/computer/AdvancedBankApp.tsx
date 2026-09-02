@@ -29,23 +29,18 @@ import {
   } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import {
-  ArrowLeft,
   Wallet,
   PiggyBank,
   CreditCard as CardIcon,
   Receipt,
-  Target,
   BarChart3,
-  Plus,
   TrendingUp,
   TrendingDown,
   ChevronRight,
-  Shield,
   FileText,
   Coins,
   Percent,
   Calendar,
-  Clock,
   Lock,
   Landmark,
   Building2,
@@ -57,9 +52,8 @@ import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import Gradient from '@/components/ui/Gradient';
 import { initialGameState } from '@/contexts/game/initialState';
 import {
   MIRRORED_ACCOUNT_IDS,
@@ -109,8 +103,12 @@ import TaxStatement from '@/components/banking/TaxStatement';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
+import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import { EmptyCard } from '@/components/ui/EmptyState';
 
 type Tab = 'overview' | 'accounts' | 'borrow' | 'budget' | 'tax';
 
@@ -121,12 +119,12 @@ interface AdvancedBankAppProps {
   onBack: () => void;
 }
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
-  { id: 'overview', label: 'Statement', icon: BarChart3 },
-  { id: 'accounts', label: 'Accounts', icon: Wallet },
-  { id: 'borrow', label: 'Borrow', icon: CardIcon },
-  { id: 'budget', label: 'Budget', icon: Receipt },
-  { id: 'tax', label: 'Tax', icon: Percent },
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { key: 'overview', label: 'Statement', icon: BarChart3 },
+  { key: 'accounts', label: 'Accounts', icon: Wallet },
+  { key: 'borrow', label: 'Borrow', icon: CardIcon },
+  { key: 'budget', label: 'Budget', icon: Receipt },
+  { key: 'tax', label: 'Tax', icon: Percent },
 ];
 
 function formatMoneyExact(n: number): string {
@@ -365,60 +363,59 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     ]);
   }, [transferableAccounts]);
 
-  // ─────────────────────────── Header (nav-safe on every screen state) ───────
-  const renderHeader = (title: string, opts?: { back?: () => void; right?: React.ReactNode }) => (
-    <View style={styles.topBar}>
-      <TouchableOpacity
-        onPress={opts?.back ?? onBack}
-        hitSlop={8}
-        style={styles.backBtn}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-      >
-        <ArrowLeft size={scale(22)} color={theme.text} />
-      </TouchableOpacity>
-      <Text style={[styles.appTitle, { color: theme.text }]} numberOfLines={1}>{title}</Text>
-      <View style={styles.headerRight}>{opts?.right}</View>
-    </View>
+  const scoreChip = (
+    <HeaderChip
+      label="Credit score"
+      value={String(banking.creditScore?.score ?? 0)}
+      tint={accent.info}
+      onPress={() => setSubView({ kind: 'credit' })}
+    />
   );
 
-  const scoreChip = (
-    <TouchableOpacity
-      onPress={() => setSubView({ kind: 'credit' })}
-      accessibilityRole="button"
-      accessibilityLabel={`Credit score ${banking.creditScore?.score ?? 0}, view report`}
-      style={[styles.scoreChip, { backgroundColor: 'rgba(59, 130, 246, 0.14)', borderColor: 'rgba(59, 130, 246, 0.30)' }]}
-    >
-      <Shield size={scale(12)} color={accent.info} />
-      <Text style={[styles.scoreChipText, { color: theme.text }]}>{banking.creditScore?.score ?? 0}</Text>
-      <ChevronRight size={scale(13)} color={theme.textMuted} />
-    </TouchableOpacity>
-  );
+  /**
+   * The savings-goal category picker - the same three-way `gameAlert` chain it
+   * always was, lifted out of the section header so the header can be a Chip.
+   */
+  const pickSavingsGoal = useCallback(() => {
+    gameAlert('What are you saving for?', undefined, [
+      { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
+      { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
+      {
+        text: 'More…',
+        onPress: () =>
+          gameAlert('What are you saving for?', undefined, [
+            { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
+            { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
+            { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
+          ]),
+      },
+    ]);
+  }, []);
 
   // ─────────────────────────── Statement (overview) ──────────────────────────
   const renderStatement = () => {
-    const compositionRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; tintRGB: string; label: string; value: number; sign: 1 | -1 }[] = [
-      { icon: Coins, tintHex: accent.info, tintRGB: '59, 130, 246', label: 'Cash on hand', value: cash, sign: 1 },
-      { icon: PiggyBank, tintHex: accent.success, tintRGB: '16, 185, 129', label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: parts.bankDeposits, sign: 1 },
+    const compositionRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; label: string; value: number; sign: 1 | -1 }[] = [
+      { icon: Coins, tintHex: accent.info, label: 'Cash on hand', value: cash, sign: 1 },
+      { icon: PiggyBank, tintHex: accent.success, label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: parts.bankDeposits, sign: 1 },
     ];
-    if (parts.stocks > 0) compositionRows.push({ icon: LineChart, tintHex: '#a855f7', tintRGB: '168, 85, 247', label: 'Stock holdings', value: parts.stocks, sign: 1 });
-    if (parts.crypto > 0) compositionRows.push({ icon: Coins, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Crypto holdings', value: parts.crypto, sign: 1 });
-    if (parts.re > 0) compositionRows.push({ icon: Building2, tintHex: '#06b6d4', tintRGB: '6, 182, 212', label: 'Real-estate value', value: parts.re, sign: 1 });
-    if (totalCardDebt > 0) compositionRows.push({ icon: CardIcon, tintHex: accent.danger, tintRGB: '239, 68, 68', label: 'Credit-card debt', value: totalCardDebt, sign: -1 });
-    if (totalLoanDebt > 0) compositionRows.push({ icon: Landmark, tintHex: accent.danger, tintRGB: '239, 68, 68', label: 'Loans outstanding', value: totalLoanDebt, sign: -1 });
+    if (parts.stocks > 0) compositionRows.push({ icon: LineChart, tintHex: accent.purple, label: 'Stock holdings', value: parts.stocks, sign: 1 });
+    if (parts.crypto > 0) compositionRows.push({ icon: Coins, tintHex: accent.gold, label: 'Crypto holdings', value: parts.crypto, sign: 1 });
+    if (parts.re > 0) compositionRows.push({ icon: Building2, tintHex: accent.amber, label: 'Real-estate value', value: parts.re, sign: 1 });
+    if (totalCardDebt > 0) compositionRows.push({ icon: CardIcon, tintHex: accent.danger, label: 'Credit-card debt', value: totalCardDebt, sign: -1 });
+    if (totalLoanDebt > 0) compositionRows.push({ icon: Landmark, tintHex: accent.danger, label: 'Loans outstanding', value: totalLoanDebt, sign: -1 });
 
-    const activityRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; tintRGB: string; label: string; value: string; valueColor: string }[] = [
-      { icon: Coins, tintHex: accent.success, tintRGB: '16, 185, 129', label: 'Weekly income', value: `${formatMoney(weeklyIncome)}/wk`, valueColor: accent.success },
-      { icon: TrendingUp, tintHex: accent.success, tintRGB: '16, 185, 129', label: 'Interest earned', value: `+${formatMoney(banking.totalInterestEarned)}`, valueColor: accent.success },
-      { icon: TrendingDown, tintHex: accent.danger, tintRGB: '239, 68, 68', label: 'Interest paid', value: `-${formatMoney(banking.totalInterestPaid)}`, valueColor: accent.danger },
-      { icon: Receipt, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Late fees paid', value: `-${formatMoney(banking.totalLateFeesPaid)}`, valueColor: banking.totalLateFeesPaid > 0 ? accent.warning : theme.text },
+    const activityRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; label: string; value: string; valueColor: string }[] = [
+      { icon: Coins, tintHex: accent.success, label: 'Weekly income', value: `${formatMoney(weeklyIncome)}/wk`, valueColor: accent.success },
+      { icon: TrendingUp, tintHex: accent.success, label: 'Interest earned', value: `+${formatMoney(banking.totalInterestEarned)}`, valueColor: accent.success },
+      { icon: TrendingDown, tintHex: accent.danger, label: 'Interest paid', value: `-${formatMoney(banking.totalInterestPaid)}`, valueColor: accent.danger },
+      { icon: Receipt, tintHex: accent.warning, label: 'Late fees paid', value: `-${formatMoney(banking.totalLateFeesPaid)}`, valueColor: banking.totalLateFeesPaid > 0 ? accent.warning : theme.text },
     ];
     // Live at last: `taxDueThisYear` now has a writer (the week loop's tax
     // ledger), so this row is no longer permanently hidden behind its `> 0`
     // gate. Relabelled to what the number actually is - tax already PAID, not
     // a bill waiting to be settled.
     if (banking.taxDueThisYear > 0) {
-      activityRows.push({ icon: Percent, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Tax paid this year', value: `-${formatMoney(banking.taxDueThisYear)}`, valueColor: accent.warning });
+      activityRows.push({ icon: Percent, tintHex: accent.warning, label: 'Tax paid this year', value: `-${formatMoney(banking.taxDueThisYear)}`, valueColor: accent.warning });
     }
     // The Tax tab is the fifth of five - the one furthest from the thumb and
     // the easiest to never notice. The statement row that summarises it links
@@ -441,40 +438,31 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           ]}
         >
           <View style={styles.mastheadInner}>
-            <View pointerEvents="none" style={styles.heroBlob} />
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
-
             <View style={styles.mastheadTop}>
               <View style={styles.mastheadTitleWrap}>
                 <FileText size={scale(13)} color={accent.info} />
                 <Text style={[styles.mastheadEyebrow, { color: theme.textMuted }]}>ACCOUNT STATEMENT</Text>
               </View>
-              <View style={[styles.periodChip, { backgroundColor: theme.surfaceElevated }]}>
-                <Calendar size={scale(11)} color={theme.textMuted} />
-                <Text style={[styles.periodText, { color: theme.textSecondary }]}>Week {gameState.weeksLived}</Text>
-              </View>
+              <Chip label={`Week ${gameState.weeksLived}`} icon={<Calendar size={scale(11)} color={theme.textMuted} />} />
             </View>
 
-            <View style={styles.summaryColumns}>
-              <SummaryColumn theme={theme} label="ASSETS" value={formatMoney(parts.assets)} caption="cash · bank · holdings" />
-              <View style={[styles.colDivider, { backgroundColor: theme.border }]} />
-              <SummaryColumn
-                theme={theme}
-                label="LIABILITIES"
-                value={formatMoney(parts.liabilities)}
-                caption="cards · loans"
-                valueColor={parts.liabilities > 0 ? accent.danger : theme.text}
-              />
-              <View style={[styles.colDivider, { backgroundColor: theme.border }]} />
-              <SummaryColumn
-                theme={theme}
-                label="NET WORTH"
-                value={formatMoney(parts.net)}
-                caption="assets − liabilities"
-                valueColor={parts.net < 0 ? accent.danger : theme.text}
-                emphasize
-              />
-            </View>
+            <StatStrip
+              items={[
+                { label: 'Assets', value: formatMoney(parts.assets), sub: 'cash · bank · holdings' },
+                {
+                  label: 'Liabilities',
+                  value: formatMoney(parts.liabilities),
+                  sub: 'cards · loans',
+                  tint: parts.liabilities > 0 ? accent.danger : undefined,
+                },
+                {
+                  label: 'Net worth',
+                  value: formatMoney(parts.net),
+                  sub: 'assets − liabilities',
+                  tint: parts.net < 0 ? accent.danger : undefined,
+                },
+              ]}
+            />
           </View>
         </View>
 
@@ -482,7 +470,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
         {/* Net-worth composition ledger - itemises the aggregate above and
             surfaces stocks / crypto / real estate the flat overview never showed. */}
-        <SectionTitle theme={theme}>Net worth composition</SectionTitle>
+        <SectionTitle title="Net worth composition" />
         <StatementSection theme={theme} darkMode={darkMode} columns={['ITEM', 'VALUE']}>
           {compositionRows.map((r, i) => (
             <LedgerRow
@@ -492,7 +480,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               divider={i > 0}
               icon={r.icon}
               tintHex={r.tintHex}
-              tintRGB={r.tintRGB}
               label={r.label}
               value={`${r.sign < 0 ? '-' : ''}${formatMoney(r.value)}`}
               valueColor={r.sign < 0 ? accent.danger : theme.text}
@@ -510,7 +497,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         </StatementSection>
 
         {/* Activity summary - lifetime interest / fees / income the app never surfaced. */}
-        <SectionTitle theme={theme}>Activity summary</SectionTitle>
+        <SectionTitle title="Activity summary" />
         <StatementSection theme={theme} darkMode={darkMode}>
           {activityRows.map((r, i) => (
             <LedgerRow
@@ -520,7 +507,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               divider={i > 0}
               icon={r.icon}
               tintHex={r.tintHex}
-              tintRGB={r.tintRGB}
               label={r.label}
               value={r.value}
               valueColor={r.valueColor}
@@ -533,7 +519,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             onPress={() => setActiveTab('tax')}
             accessibilityRole="button"
             accessibilityLabel="View tax breakdown"
-            style={[styles.reportCta, { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.30)' }]}
+            style={[styles.reportCta, { backgroundColor: withAlpha(accent.warning, 0.14), borderColor: withAlpha(accent.warning, 0.3) }]}
           >
             <Percent size={scale(14)} color={accent.warning} />
             <Text style={[styles.reportCtaText, { color: accent.warning }]}>See where your tax goes</Text>
@@ -542,14 +528,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         )}
 
         {/* Credit standing - gauge stays; full report is one tap away. */}
-        <SectionTitle theme={theme}>Credit standing</SectionTitle>
+        <SectionTitle title="Credit standing" />
         <CreditScoreGauge score={banking.creditScore.score} band={banking.creditScore.band} darkMode={darkMode} compact />
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => setSubView({ kind: 'credit' })}
           accessibilityRole="button"
           accessibilityLabel="View full credit report"
-          style={[styles.reportCta, { backgroundColor: 'rgba(59, 130, 246, 0.14)', borderColor: 'rgba(59, 130, 246, 0.30)' }]}
+          style={[styles.reportCta, { backgroundColor: withAlpha(accent.info, 0.14), borderColor: withAlpha(accent.info, 0.3) }]}
         >
           <FileText size={scale(14)} color={accent.info} />
           <Text style={[styles.reportCtaText, { color: accent.info }]}>View full credit report</Text>
@@ -558,7 +544,11 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
         {/* Accounts ledger - slim statement rows (NOT the phone's card deck), each
             taps through to a full account statement page. */}
-        <SectionHeader theme={theme} title="Accounts" meta={`${banking.accounts.length} open · ${formatMoney(totalBank)} on deposit`} addLabel="Open" onAdd={() => setShowOpenAccount(true)} />
+        <SectionTitle
+          title="Accounts"
+          subtitle={`${banking.accounts.length} open · ${formatMoney(totalBank)} on deposit`}
+          right={<Chip label="Open" tone="info" onPress={() => setShowOpenAccount(true)} accessibilityLabel="Open an account" />}
+        />
         <StatementSection theme={theme} darkMode={darkMode} columns={['ACCOUNT', 'BALANCE']}>
           {banking.accounts.map((acct, i) => {
             const pal = accountPalette(acct.type);
@@ -573,7 +563,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 divider={i > 0}
                 icon={accountGlyph(acct.type)}
                 tintHex={pal.hex}
-                tintRGB={pal.rgb}
                 label={acct.name}
                 sub={sub}
                 value={formatMoney(acct.balance)}
@@ -588,7 +577,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           onPress={() => setActiveTab('accounts')}
           accessibilityRole="button"
           accessibilityLabel="Manage accounts"
-          style={[styles.manageChip, { borderColor: 'rgba(59, 130, 246, 0.30)', backgroundColor: 'rgba(59, 130, 246, 0.10)' }]}
+          style={[styles.manageChip, { borderColor: withAlpha(accent.info, 0.3), backgroundColor: withAlpha(accent.info, 0.1) }]}
         >
           <Wallet size={scale(13)} color={accent.info} />
           <Text style={[styles.manageChipText, { color: accent.info }]}>Manage accounts &amp; goals</Text>
@@ -598,7 +587,11 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         {/* Active loans as slim statement rows (tap → prepay / refinance). */}
         {loans.length > 0 && (
           <>
-            <SectionHeader theme={theme} title="Active loans" meta={`${loans.length} · ${formatMoney(totalLoanDebt)} owed`} addLabel="Apply" onAdd={() => setShowLoanQuote(true)} />
+            <SectionTitle
+              title="Active loans"
+              subtitle={`${loans.length} · ${formatMoney(totalLoanDebt)} owed`}
+              right={<Chip label="Apply" tone="info" onPress={() => setShowLoanQuote(true)} accessibilityLabel="Apply for a loan" />}
+            />
             <StatementSection theme={theme} darkMode={darkMode} columns={['LOAN', 'REMAINING']}>
               {loans.map((loan, i) => (
                 <LedgerRow
@@ -608,7 +601,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                   divider={i > 0}
                   icon={Landmark}
                   tintHex={accent.info}
-                  tintRGB="59, 130, 246"
                   label={loan.name || `${loanTypeLabel(loan.type)} loan`}
                   sub={`${loanTypeLabel(loan.type)} · ${(loan.rateAPR * 100).toFixed(2)}% APR · ${formatMoney(loan.weeklyPayment)}/wk · ${loan.weeksRemaining}w left`}
                   value={formatMoney(loan.remaining)}
@@ -631,13 +623,18 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     return (
       <View style={{ gap: responsiveSpacing.md }}>
         {/* Deposit summary strip - totals + blended APY the flat list hid. */}
-        <View style={styles.summaryStrip}>
-          <SummaryCell theme={theme} icon={PiggyBank} label="On deposit" value={formatMoney(totalBank)} tint={accent.success} />
-          <SummaryCell theme={theme} icon={Wallet} label="Accounts" value={`${banking.accounts.length}`} tint={accent.info} />
-          <SummaryCell theme={theme} icon={Percent} label="Blended APY" value={`${(blendedAPY * 100).toFixed(2)}%`} tint={accent.success} />
-        </View>
+        <StatStrip
+          items={[
+            { label: 'On deposit', value: formatMoney(totalBank), tint: accent.success },
+            { label: 'Accounts', value: banking.accounts.length },
+            { label: 'Blended APY', value: `${(blendedAPY * 100).toFixed(2)}%`, tint: accent.success },
+          ]}
+        />
 
-        <SectionHeader theme={theme} title="Your Accounts" addLabel="Open" onAdd={() => setShowOpenAccount(true)} />
+        <SectionTitle
+          title="Your Accounts"
+          right={<Chip label="Open" tone="info" onPress={() => setShowOpenAccount(true)} accessibilityLabel="Open an account" />}
+        />
         {banking.accounts.map((acct) => (
           <AccountRow
             key={acct.id}
@@ -663,25 +660,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           </TouchableOpacity>
         )}
 
-        <SectionHeader
-          theme={theme}
+        <SectionTitle
           title="Savings Goals"
-          icon={Target}
-          meta={banking.savingsGoals.length > 0 ? `${formatMoney(goalsSaved)} of ${formatMoney(goalsTarget)} saved` : undefined}
-          addLabel="New"
-          onAdd={() => gameAlert('What are you saving for?', undefined, [
-              { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
-              { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
-              {
-                text: 'More…',
-                onPress: () =>
-                  gameAlert('What are you saving for?', undefined, [
-                    { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
-                    { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
-                    { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
-                  ]),
-              },
-            ])}
+          subtitle={banking.savingsGoals.length > 0 ? `${formatMoney(goalsSaved)} of ${formatMoney(goalsTarget)} saved` : undefined}
+          right={<Chip label="New" tone="info" onPress={pickSavingsGoal} accessibilityLabel="Create a savings goal" />}
         />
         {banking.savingsGoals.length === 0 ? (
           <EmptyCard theme={theme} darkMode={darkMode}>
@@ -711,13 +693,27 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     return (
       <View style={{ gap: responsiveSpacing.md }}>
         {/* Debt summary strip. */}
-        <View style={styles.summaryStrip}>
-          <SummaryCell theme={theme} icon={TrendingDown} label="Total debt" value={formatMoney(totalCardDebt + totalLoanDebt)} tint={accent.danger} valueColor={totalCardDebt + totalLoanDebt > 0 ? accent.danger : theme.text} />
-          <SummaryCell theme={theme} icon={Landmark} label="Loan pmts" value={`${formatMoney(weeklyLoanPmt)}/wk`} tint={accent.info} />
-          <SummaryCell theme={theme} icon={CardIcon} label="Card usage" value={`${Math.round(cardUtil * 100)}%`} tint={cardUtil > 0.7 ? accent.danger : accent.info} valueColor={cardUtil > 0.7 ? accent.danger : theme.text} />
-        </View>
+        <StatStrip
+          items={[
+            {
+              label: 'Total debt',
+              value: formatMoney(totalCardDebt + totalLoanDebt),
+              tint: totalCardDebt + totalLoanDebt > 0 ? accent.danger : undefined,
+            },
+            { label: 'Loan pmts', value: `${formatMoney(weeklyLoanPmt)}/wk` },
+            {
+              label: 'Card usage',
+              value: `${Math.round(cardUtil * 100)}%`,
+              tint: cardUtil > 0.7 ? accent.danger : undefined,
+            },
+          ]}
+        />
 
-        <SectionHeader theme={theme} title="Loans" meta={loans.length > 0 ? `${loans.length} active` : undefined} addLabel="Apply" onAdd={() => setShowLoanQuote(true)} />
+        <SectionTitle
+          title="Loans"
+          subtitle={loans.length > 0 ? `${loans.length} active` : undefined}
+          right={<Chip label="Apply" tone="info" onPress={() => setShowLoanQuote(true)} accessibilityLabel="Apply for a loan" />}
+        />
         {loans.length === 0 ? (
           <EmptyCard theme={theme} darkMode={darkMode}>No active loans.</EmptyCard>
         ) : (
@@ -730,16 +726,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             down accrues cashback, and Redeem banks that cashback as cash. Surface
             the accrued rewards pool in the header meta now that it can actually
             accrue. */}
-        <SectionHeader
-          theme={theme}
+        <SectionTitle
           title="Credit Cards"
-          meta={
+          subtitle={
             banking.creditCards.length > 0
               ? `${banking.creditCards.length} active${totalPendingRewards > 0 ? ` · ${formatMoney(totalPendingRewards)} rewards` : ''}`
               : undefined
           }
-          addLabel="Apply"
-          onAdd={() => setShowApplyCard(true)}
+          right={<Chip label="Apply" tone="info" onPress={() => setShowApplyCard(true)} accessibilityLabel="Apply for a credit card" />}
         />
         {banking.creditCards.length === 0 ? (
           <EmptyCard theme={theme} darkMode={darkMode}>
@@ -819,12 +813,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
-        <SectionTitle theme={theme}>Spending overview</SectionTitle>
-        <View style={styles.summaryStrip}>
-          <SummaryCell theme={theme} icon={Receipt} label="Last 4 wks" value={formatMoney(last4Total)} tint={accent.info} />
-          <SummaryCell theme={theme} icon={Calendar} label="Weeks logged" value={`${weeksTracked}`} tint={accent.info} />
-          <SummaryCell theme={theme} icon={TrendingUp} label="Weekly avg" value={formatMoney(weeklyAvg)} tint={accent.warning} />
-        </View>
+        <SectionTitle title="Spending overview" />
+        <StatStrip
+          items={[
+            { label: 'Last 4 wks', value: formatMoney(last4Total) },
+            { label: 'Weeks logged', value: weeksTracked },
+            { label: 'Weekly avg', value: formatMoney(weeklyAvg), tint: accent.warning },
+          ]}
+        />
 
         {/* Weekly spend trend - real per-week totals from the budget ring buffer. */}
         {weekTotals.length >= 2 && (
@@ -854,7 +850,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         {/* Per-category allocation table (budget state → allocation bars).
             Weekly caps (computer-only): tap a row to set/clear a budget target;
             an over-cap category is flagged here and by a weekly overspend alert. */}
-        <SectionTitle theme={theme}>By category</SectionTitle>
+        <SectionTitle title="By category" />
         <BudgetBreakdown
           buckets={banking.budgetSpend}
           darkMode={darkMode}
@@ -862,12 +858,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           onSetTarget={(cat) => setBudgetTargetCategory(cat)}
         />
 
-        <SectionHeader
-          theme={theme}
+        <SectionTitle
           title="Auto-Pay Rules"
-          meta={enabledBills.length > 0 ? `${enabledBills.length} on · ${formatMoney(weeklyBills)}/wk · next ${nextDueText}` : undefined}
-          addLabel="Add"
-          onAdd={() => setShowAddBill(true)}
+          subtitle={enabledBills.length > 0 ? `${enabledBills.length} on · ${formatMoney(weeklyBills)}/wk · next ${nextDueText}` : undefined}
+          right={<Chip label="Add" tone="info" onPress={() => setShowAddBill(true)} accessibilityLabel="Add an auto-pay rule" />}
         />
         {banking.billPayRules.length === 0 ? (
           <EmptyCard theme={theme} darkMode={darkMode}>
@@ -907,7 +901,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // comes from state the tick already writes.
   const renderTax = () => (
     <View style={{ gap: responsiveSpacing.md }}>
-      <SectionTitle theme={theme}>Tax year {taxYearOf(gameState.weeksLived)}</SectionTitle>
+      <SectionTitle title={`Tax year ${taxYearOf(gameState.weeksLived)}`} />
       <TaxStatement
         banking={banking}
         weeksLived={gameState.weeksLived}
@@ -929,18 +923,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const ageWeeks = Math.max(0, gameState.weeksLived - account.openedWeek);
     const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y · ${ageWeeks}w` : `${ageWeeks}w`;
     const relatedBills = banking.billPayRules.filter((b) => b.fromAccountId === account.id);
-    const Glyph = accountGlyph(account.type);
 
     return (
       <>
-        {renderHeader(account.name, {
-          back: () => setSubView(null),
-          right: (
-            <View style={[styles.typeDot, { backgroundColor: `rgba(${pal.rgb}, 0.18)`, borderColor: `rgba(${pal.rgb}, 0.32)` }]}>
-              <Glyph size={scale(14)} color={pal.hex} />
-            </View>
-          ),
-        })}
+        <AppHeader title={account.name} onBack={() => setSubView(null)} backLabel="Back to Bank Pro" />
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom), gap: responsiveSpacing.md }}
@@ -954,29 +940,24 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             ]}
           >
             <View style={styles.detailHeroInner}>
-              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(${pal.rgb}, ${darkMode ? 0.14 : 0.1})` }]} />
-              <View
-                pointerEvents="none"
-                style={{ position: 'absolute', top: -scale(40), right: -scale(30), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: `rgba(${pal.rgb}, 0.10)` }}
-              />
-              {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(pal.hex, darkMode ? 0.14 : 0.1) }]} />
               <Text style={[styles.mastheadEyebrow, { color: theme.textMuted }]}>{accountTypeLabel(account.type).toUpperCase()}</Text>
               <Text style={[styles.detailBalance, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
                 {formatMoneyExact(account.balance)}
               </Text>
               <View style={styles.detailChipRow}>
                 {account.baseAPR > 0 && (
-                  <View style={[styles.aprChipLg, { backgroundColor: `rgba(${pal.rgb}, 0.15)`, borderColor: `rgba(${pal.rgb}, 0.30)` }]}>
-                    <TrendingUp size={scale(11)} color={pal.hex} />
-                    <Text style={[styles.aprTextLg, { color: pal.hex }]}>{(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}% APR</Text>
-                  </View>
+                  <Chip
+                    label={`${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}% APR`}
+                    tint={pal.hex}
+                    icon={<TrendingUp size={scale(11)} color={pal.hex} />}
+                  />
                 )}
-                <View style={[styles.statusChip, { backgroundColor: isLocked ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', borderColor: isLocked ? 'rgba(245, 158, 11, 0.30)' : 'rgba(16, 185, 129, 0.30)' }]}>
-                  <Lock size={scale(10)} color={isLocked ? accent.warning : accent.success} />
-                  <Text style={[styles.statusText, { color: isLocked ? accent.warning : accent.success }]}>
-                    {isLocked ? `Locked · wk ${account.lockUntilWeek}` : 'Active'}
-                  </Text>
-                </View>
+                <Chip
+                  label={isLocked ? `Locked · wk ${account.lockUntilWeek}` : 'Active'}
+                  tone={isLocked ? 'warning' : 'success'}
+                  icon={<Lock size={scale(10)} color={isLocked ? accent.warning : accent.success} />}
+                />
               </View>
             </View>
           </View>
@@ -997,8 +978,9 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 accessibilityLabel={`Deposit to ${account.name}`}
                 style={[styles.ctaShadow, getPlatformShadows(5, 0.3, 2, 8)]}
               >
-                <View style={styles.ctaInner}>
-                  <LinearGradient pointerEvents="none" colors={[pal.hex, pal.hex]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                {/* A gradient from a colour to itself is a flat fill with a
+                    shader attached - so it is a flat fill. */}
+                <View style={[styles.ctaInner, { backgroundColor: pal.hex }]}>
                   <Coins size={scale(16)} color="#fff" />
                   <Text style={styles.ctaText}>Deposit</Text>
                 </View>
@@ -1034,28 +1016,33 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           )}
 
           {/* Facts grid - opened week / age / min balance the flat list hid. */}
-          <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>Account details</Text>
+          <SectionTitle title="Account details" />
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={styles.factsGrid}>
-              <FactCell theme={theme} icon={Glyph} tint={pal.hex} label="Type" value={accountTypeLabel(account.type)} />
-              {/* Label carries the attribution: a rate moved by the economy must
-                  say so, or a reduced number reads as the bank re-pricing and
-                  the "yields drift down" event banner looks cosmetic. */}
-              <FactCell
-                theme={theme}
-                icon={Percent}
-                label={depositAPRNote(banking.rateEnvironment) ? `Interest APR · ${depositAPRNote(banking.rateEnvironment)}` : 'Interest APR'}
-                value={`${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`}
-              />
-              <FactCell theme={theme} icon={Coins} label="Balance" value={formatMoneyExact(account.balance)} />
-              <FactCell theme={theme} icon={Calendar} label="Opened" value={`Week ${account.openedWeek}`} />
-              <FactCell theme={theme} icon={Clock} label="Age" value={ageLabel} />
-              <FactCell theme={theme} icon={PiggyBank} label="Min balance" value={account.minBalance ? formatMoneyExact(account.minBalance) : 'None'} />
-            </View>
+            <StatStrip
+              items={[
+                { label: 'Type', value: accountTypeLabel(account.type), tint: pal.hex },
+                {
+                  label: 'Interest APR',
+                  value: `${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`,
+                  // The sub-line carries the attribution: a rate moved by the
+                  // economy must say so, or a reduced number reads as the bank
+                  // re-pricing and the "yields drift down" banner looks cosmetic.
+                  sub: depositAPRNote(banking.rateEnvironment) || undefined,
+                },
+                { label: 'Min balance', value: account.minBalance ? formatMoneyExact(account.minBalance) : 'None' },
+              ]}
+            />
+            <StatStrip
+              items={[
+                { label: 'Balance', value: formatMoneyExact(account.balance) },
+                { label: 'Opened', value: `Week ${account.openedWeek}` },
+                { label: 'Age', value: ageLabel },
+              ]}
+            />
           </View>
 
           {/* Auto-pay drawing from this account - statement activity rows. */}
-          <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>Auto-pay from this account</Text>
+          <SectionTitle title="Auto-pay from this account" />
           {relatedBills.length === 0 ? (
             <EmptyCard theme={theme} darkMode={darkMode}>No auto-pay rules draw from this account.</EmptyCard>
           ) : (
@@ -1071,7 +1058,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                     divider={i > 0}
                     icon={Receipt}
                     tintHex={accent.info}
-                    tintRGB="59, 130, 246"
                     label={bill.label}
                     sub={`${bill.cadence === 'weekly' ? 'Weekly' : 'Monthly'} · ${bill.enabled ? dueText : 'Paused'}${bill.missedCount > 0 ? ` · ${bill.missedCount} missed` : ''}`}
                     value={formatMoneyExact(bill.amount)}
@@ -1098,14 +1084,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
     return (
       <>
-        {renderHeader('Credit Report', {
-          back: () => setSubView(null),
-          right: (
-            <View style={[styles.typeDot, { backgroundColor: 'rgba(59, 130, 246, 0.16)', borderColor: 'rgba(59, 130, 246, 0.30)' }]}>
-              <FileText size={scale(14)} color={accent.info} />
-            </View>
-          ),
-        })}
+        <AppHeader title="Credit Report" onBack={() => setSubView(null)} backLabel="Back to Bank Pro" />
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom), gap: responsiveSpacing.md }}
@@ -1113,17 +1092,24 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <CreditScoreGauge score={cs.score} band={cs.band} darkMode={darkMode} />
 
           {/* Score trend - real history only, no fabricated arrays. */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Score trend</Text>
-            {hasTrend && (
-              <View style={[styles.deltaChip, { backgroundColor: delta >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
-                {delta >= 0 ? <TrendingUp size={scale(11)} color={accent.success} /> : <TrendingDown size={scale(11)} color={accent.danger} />}
-                <Text style={[styles.deltaText, { color: delta >= 0 ? accent.success : accent.danger }]}>
-                  {delta >= 0 ? '+' : ''}{delta} pts
-                </Text>
-              </View>
-            )}
-          </View>
+          <SectionTitle
+            title="Score trend"
+            right={
+              hasTrend ? (
+                <Chip
+                  label={`${delta >= 0 ? '+' : ''}${delta} pts`}
+                  tone={delta >= 0 ? 'success' : 'danger'}
+                  icon={
+                    delta >= 0 ? (
+                      <TrendingUp size={scale(11)} color={accent.success} />
+                    ) : (
+                      <TrendingDown size={scale(11)} color={accent.danger} />
+                    )
+                  }
+                />
+              ) : undefined
+            }
+          />
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {hasTrend ? (
               <>
@@ -1162,14 +1148,11 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           </View>
 
           {/* Weighted component breakdown (re-homed here from the overview). */}
-          <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>What&apos;s driving your score</Text>
+          <SectionTitle title="What's driving your score" />
           <CreditScoreBreakdown theme={theme} darkMode={darkMode} breakdown={cs.componentBreakdown} />
 
           {/* Recent inquiries - surfaced from state for the first time. */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent inquiries</Text>
-            <Text style={[styles.sectionMeta, { color: theme.textMuted }]}>Updated wk {cs.lastUpdatedWeek}</Text>
-          </View>
+          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated wk ${cs.lastUpdatedWeek}`} />} />
           {inquiries.length === 0 ? (
             <EmptyCard theme={theme} darkMode={darkMode}>No recent credit inquiries. A clean file keeps this factor high.</EmptyCard>
           ) : (
@@ -1185,7 +1168,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                     divider={i > 0}
                     icon={FileText}
                     tintHex={accent.info}
-                    tintRGB="59, 130, 246"
                     label={inquiryLabel(inq.type)}
                     sub={`Week ${inq.weeksLived} · ${agoText}`}
                   />
@@ -1201,32 +1183,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // ─────────────────────────── Main (tabs) ───────────────────────────────────
   const renderMain = () => (
     <>
-      {renderHeader('Bank Pro', { right: scoreChip })}
+      <AppHeader title="Bank Pro" onBack={onBack} right={scoreChip} />
 
-      <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
-        {TABS.map((t) => {
-          const active = activeTab === t.id;
-          const Icon = t.icon;
-          return (
-            <TouchableOpacity
-              key={t.id}
-              onPress={() => setActiveTab(t.id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={t.label}
-              style={[styles.tab, active && { borderBottomColor: accent.info }]}
-            >
-              <Icon size={scale(17)} color={active ? accent.info : theme.textMuted} />
-              <Text
-                style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}
-                numberOfLines={1}
-              >
-                {t.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* Five segments is more than fits a 375pt row, so the shared control
+          scrolls rather than truncating "Statement" - the tab set itself is
+          fixed by the domain. */}
+      <SegmentedControl
+        segments={TABS}
+        value={activeTab}
+        onChange={setActiveTab}
+        activeColor={accent.info}
+        scrollable
+        style={styles.tabBar}
+      />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1583,65 +1552,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
 // ─────────────────────────── Presentational helpers ──────────────────────────
 
-function SummaryColumn({
-  theme,
-  label,
-  value,
-  caption,
-  valueColor,
-  emphasize,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  label: string;
-  value: string;
-  caption?: string;
-  valueColor?: string;
-  emphasize?: boolean;
-}) {
-  return (
-    <View style={styles.summaryCol}>
-      <Text style={[styles.colLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-      <Text
-        style={[emphasize ? styles.colValueEmph : styles.colValue, { color: valueColor ?? theme.text }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.55}
-      >
-        {value}
-      </Text>
-      {caption && <Text style={[styles.colCaption, { color: theme.textMuted }]} numberOfLines={1}>{caption}</Text>}
-    </View>
-  );
-}
-
-function SummaryCell({
-  theme,
-  icon: Icon,
-  label,
-  value,
-  tint,
-  valueColor,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  label: string;
-  value: string;
-  tint?: string;
-  valueColor?: string;
-}) {
-  return (
-    <View style={[styles.summaryCell, { backgroundColor: theme.surfaceElevated }]}>
-      <View style={styles.summaryCellTop}>
-        <Icon size={scale(12)} color={tint ?? theme.textMuted} />
-        <Text style={[styles.summaryCellLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-      </View>
-      <Text style={[styles.summaryCellValue, { color: valueColor ?? theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 function StatementSection({
   theme,
   darkMode,
@@ -1672,7 +1582,6 @@ function LedgerRow({
   divider,
   icon: Icon,
   tintHex,
-  tintRGB,
   label,
   sub,
   value,
@@ -1687,7 +1596,6 @@ function LedgerRow({
   divider?: boolean;
   icon?: React.ComponentType<{ size: number; color: string }>;
   tintHex?: string;
-  tintRGB?: string;
   label: string;
   sub?: string;
   value?: string;
@@ -1700,7 +1608,7 @@ function LedgerRow({
   const content = (
     <>
       {Icon && (
-        <View style={[getGlassIconContainer(darkMode, 32), { backgroundColor: `rgba(${tintRGB ?? '59, 130, 246'}, 0.15)`, borderWidth: 1, borderColor: `rgba(${tintRGB ?? '59, 130, 246'}, 0.30)` }]}>
+        <View style={[getGlassIconContainer(darkMode, 32), { backgroundColor: withAlpha(tintHex ?? accent.info, 0.15), borderWidth: 1, borderColor: withAlpha(tintHex ?? accent.info, 0.3) }]}>
           <Icon size={scale(16)} color={tintHex ?? accent.info} />
         </View>
       )}
@@ -1729,91 +1637,6 @@ function LedgerRow({
     );
   }
   return <View style={rowStyle}>{content}</View>;
-}
-
-function FactCell({
-  theme,
-  icon: Icon,
-  label,
-  value,
-  tint,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  label: string;
-  value: string;
-  tint?: string;
-}) {
-  return (
-    <View style={[styles.factCell, { backgroundColor: theme.surfaceElevated }]}>
-      <View style={styles.factHead}>
-        <Icon size={scale(12)} color={tint ?? theme.textMuted} />
-        <Text style={[styles.factLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-      </View>
-      <Text style={[styles.factValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{value}</Text>
-    </View>
-  );
-}
-
-function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function SectionHeader({
-  theme,
-  title,
-  meta,
-  icon: Icon,
-  addLabel,
-  onAdd,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  title: string;
-  meta?: string;
-  icon?: React.ComponentType<{ size: number; color: string }>;
-  addLabel?: string;
-  onAdd?: () => void;
-}) {
-  return (
-    <View style={styles.headerRow}>
-      <View style={styles.headerTitleWrap}>
-        <View style={styles.headerTitleLine}>
-          {Icon && <Icon size={scale(15)} color={accent.info} />}
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-        </View>
-        {meta && <Text style={[styles.sectionMeta, { color: theme.textMuted }]} numberOfLines={1}>{meta}</Text>}
-      </View>
-      {onAdd && (
-        <TouchableOpacity
-          onPress={onAdd}
-          style={styles.addChip}
-          accessibilityRole="button"
-          accessibilityLabel={addLabel}
-        >
-          <Plus size={scale(12)} color={accent.info} />
-          <Text style={styles.addChipText}>{addLabel ?? 'Add'}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
-
-function EmptyCard({
-  theme,
-  darkMode,
-  children,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  darkMode: boolean;
-  children: React.ReactNode;
-}) {
-  // Give empty sections the same Recipe A card so they share the rhythm of
-  // populated rows instead of floating as bare text (content at 60% opacity).
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
-    </View>
-  );
 }
 
 function CreditScoreBreakdown({
@@ -1869,87 +1692,19 @@ export default function AdvancedBankApp(props: AdvancedBankAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  backBtn: {
-    minWidth: scale(40),
-    minHeight: scale(40),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  headerRight: { minHeight: scale(40), alignItems: 'flex-end', justifyContent: 'center' },
-  scoreChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingLeft: responsiveSpacing.sm,
-    paddingRight: responsiveSpacing.xs,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  scoreChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  typeDot: {
-    width: scale(30),
-    height: scale(30),
-    borderRadius: scale(15),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
+  // Five segments do not share a 375pt row without truncating "Statement",
+  // which is why the shared control is given `scrollable` here: each segment
+  // keeps its natural width and the row pans.
   tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
+    marginHorizontal: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
   },
-  // Icon STACKED over the label, not beside it.
-  //
-  // The row layout needed ~80pt per tab ("Statement" at 12pt bold, plus a 16pt
-  // icon and its gap). Four tabs on a 375pt screen gave 94pt each and it just
-  // fit; the fifth (Tax) cut that to 75pt and the longest label started
-  // squeezing. Stacking drops the requirement to the label width alone, so all
-  // five sit on an even grid with room to spare - and an even grid is most of
-  // what "premium" means in a tab bar.
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scale(3),
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: scale(2),
-    minHeight: touchTargets.minimum,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.2 },
 
   // ── Statement masthead (Recipe B): shadow on outer, tints clipped inside ──
   mastheadInner: {
     borderRadius: responsiveBorderRadius['2xl'],
     overflow: 'hidden',
     padding: responsiveSpacing.lg,
-  },
-  heroBlob: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(59, 130, 246, 0.10)',
-  },
-  heroHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   mastheadTop: {
     flexDirection: 'row',
@@ -1968,83 +1723,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.8,
   },
-  periodChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-  },
-  periodText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  summaryColumns: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-  },
-  summaryCol: {
-    flex: 1,
-    gap: scale(3),
-    paddingHorizontal: responsiveSpacing.xs,
-  },
-  colDivider: {
-    width: 1,
-    alignSelf: 'stretch',
-    marginVertical: scale(2),
-    opacity: 0.8,
-  },
-  colLabel: {
-    fontSize: responsiveFontSize.xs,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  colValue: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  colValueEmph: {
-    fontSize: responsiveFontSize['2xl'],
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  colCaption: {
-    fontSize: scale(9),
-    fontWeight: '500',
-  },
 
   // ── Section titles / headers ──────────────────────────────────────────────
-  sectionTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: responsiveSpacing.sm,
-  },
-  headerTitleWrap: { flex: 1 },
-  headerTitleLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.xs,
-  },
-  sectionMeta: {
-    fontSize: responsiveFontSize.xs,
-    marginTop: 1,
-    fontVariant: ['tabular-nums'],
-  },
-  addChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: responsiveSpacing.xs,
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: 'rgba(59, 130, 246, 0.14)',
-  },
-  addChipText: { color: accent.info, fontSize: responsiveFontSize.xs, fontWeight: '700' },
 
   // ── Statement ledger cards + slim rows ────────────────────────────────────
   ledgerCard: {
@@ -2062,7 +1742,7 @@ const styles = StyleSheet.create({
   },
   colHeadText: {
     fontSize: scale(9),
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   ledgerRow: {
@@ -2072,21 +1752,17 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
   },
   ledgerBody: { flex: 1 },
-  ledgerLabel: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  ledgerLabel: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   ledgerSub: { fontSize: responsiveFontSize.xs, marginTop: 1, fontVariant: ['tabular-nums'] },
-  ledgerValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  ledgerValue: { fontSize: responsiveFontSize.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
   ledgerTotalRow: {
     borderTopWidth: 1,
     marginTop: 2,
   },
-  ledgerTotalLabel: { fontSize: responsiveFontSize.md, fontWeight: '800', letterSpacing: 0.2 },
-  ledgerTotalValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  ledgerTotalLabel: { fontSize: responsiveFontSize.md, fontWeight: '600', letterSpacing: 0.2 },
+  ledgerTotalValue: { fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // ── Summary strips (accounts / borrow / budget) ───────────────────────────
-  summaryStrip: {
-    flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-  },
 
   transferBtn: {
     flexDirection: 'row',
@@ -2100,21 +1776,8 @@ const styles = StyleSheet.create({
   },
   transferBtnText: {
     fontSize: responsiveFontSize.sm,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  summaryCell: {
-    flex: 1,
-    borderRadius: responsiveBorderRadius.lg,
-    padding: responsiveSpacing.sm,
-    gap: scale(4),
-  },
-  summaryCellTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  summaryCellLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', flex: 1 },
-  summaryCellValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   // ── Weekly spend trend (Views, not SVG - crash-safe) ──────────────────────
   trendCard: {
@@ -2128,7 +1791,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  trendTitle: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  trendTitle: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   trendMeta: { fontSize: responsiveFontSize.xs, fontVariant: ['tabular-nums'] },
   barChart: {
     flexDirection: 'row',
@@ -2157,7 +1820,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  reportCtaText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  reportCtaText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   manageChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2167,22 +1830,9 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  manageChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  manageChipText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // ── Empty state ───────────────────────────────────────────────────────────
-  emptyCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.lg,
-    paddingHorizontal: responsiveSpacing.md,
-  },
-  emptyText: {
-    fontSize: responsiveFontSize.sm,
-    textAlign: 'center',
-    opacity: 0.7,
-  },
 
   // ── Credit breakdown card ─────────────────────────────────────────────────
   breakdownCard: {
@@ -2197,7 +1847,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   breakdownLabel: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  breakdownValue: { fontSize: responsiveFontSize.md, fontWeight: '700', minWidth: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
+  breakdownValue: { fontSize: responsiveFontSize.md, fontWeight: '600', minWidth: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
   miniTrack: {
     height: scale(4),
     borderRadius: responsiveBorderRadius.full,
@@ -2218,7 +1868,7 @@ const styles = StyleSheet.create({
   },
   detailBalance: {
     fontSize: responsiveFontSize['4xl'],
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   detailChipRow: {
@@ -2227,26 +1877,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: responsiveSpacing.xs,
   },
-  aprChipLg: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  aprTextLg: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  statusText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // ── Account detail: primary CTA + secondary actions ───────────────────────
   ctaShadow: { borderRadius: responsiveBorderRadius.full },
@@ -2259,7 +1889,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
   },
-  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '800' },
+  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '600' },
   detailSecondaryRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
@@ -2271,7 +1901,7 @@ const styles = StyleSheet.create({
     minHeight: touchTargets.minimum,
     borderRadius: responsiveBorderRadius.full,
   },
-  secondaryText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  secondaryText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   roCard: {
     flexDirection: 'row',
@@ -2284,49 +1914,14 @@ const styles = StyleSheet.create({
   roCardText: { flex: 1, fontSize: responsiveFontSize.sm, lineHeight: responsiveFontSize.md * 1.35 },
 
   // ── Detail: grouped cards (facts) ─────────────────────────────────────────
-  detailSectionTitle: { marginTop: responsiveSpacing.xs },
   groupCard: {
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  factsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: responsiveSpacing.sm,
-  },
-  factCell: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    borderRadius: responsiveBorderRadius.lg,
-    padding: responsiveSpacing.sm,
-    gap: scale(4),
-  },
-  factHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.xs,
-  },
-  factLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', flex: 1 },
-  factValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   // ── Credit detail: sparkline + trend ──────────────────────────────────────
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: responsiveSpacing.sm,
-  },
-  deltaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-  },
-  deltaText: { fontSize: responsiveFontSize.xs, fontWeight: '800', fontVariant: ['tabular-nums'] },
   sparkWrap: { width: '100%', height: scale(56) },
   sparkScale: {
     flexDirection: 'row',

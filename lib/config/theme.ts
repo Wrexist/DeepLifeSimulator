@@ -150,6 +150,30 @@ export const accent = {
   muted: '#7C8BA1',
 } as const;
 
+/**
+ * `withAlpha('#3B82F6', 0.16)` → `'rgba(59, 130, 246, 0.16)'`.
+ *
+ * The ONE tint helper. Before it existed the 19 phone apps carried four
+ * different techniques for the same job - `withAlpha()` in Education,
+ * `${color}22` string suffixes in Pets/Hustle, `rgba(${IDENTITY_RGB}, x)`
+ * templates in Luxury, and ~120 hand-typed `rgba(...)` literals everywhere
+ * else - which is how one accent ended up at eleven slightly different
+ * opacities across the app. Accepts 3- or 6-digit hex; anything else (an
+ * rgba string, a theme token that is already rgba) is returned untouched so a
+ * caller can pass whatever it holds.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  let h = m[1];
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 // ---------------------------------------------------------------------------
 // Spacing (4px base grid)
 // ---------------------------------------------------------------------------

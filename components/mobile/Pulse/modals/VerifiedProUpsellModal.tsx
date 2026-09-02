@@ -9,24 +9,22 @@
  * Cancel control.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { X, Check, Crown } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Check, Crown } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import {
   VERIFIED_PRO_WEEKLY_PRICE,
   VERIFIED_PRO_ANNUAL_PRICE,
 } from '@/lib/social/socialMedia';
 import { subscribeVerifiedPro, cancelVerifiedPro } from '@/contexts/game/actions/PulseActions';
-import { PULSE_GRADIENT } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 /**
  * F7. "No ads in feed - Cleaner browsing experience" used to sit in this list.
@@ -103,159 +101,101 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
   const canAffordAnnual = money >= VERIFIED_PRO_ANNUAL_PRICE;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Pressable
-              onPress={onDismiss}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={8}
-              style={styles.closeBtn}
-            >
-              <X size={fontScale(22)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroBadge}
-          >
-            <Crown size={scale(36)} color="#FFFFFF" strokeWidth={2.4} />
-          </LinearGradient>
-
-          <Text style={[styles.title, { color: theme.text }]}>Pulse Verified Pro</Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {isActive
-              ? "You're a Verified Pro member."
-              : 'Unlock the blue check and creator perks.'}
-          </Text>
-
-          <View style={styles.perksList}>
-            {PERKS.map((p) => (
-              <View key={p.title} style={styles.perkRow}>
-                <View style={[styles.perkIcon, { backgroundColor: theme.surfaceElevated }]}>
-                  <Check size={fontScale(14)} color={PULSE_GRADIENT[0]} strokeWidth={3} />
-                </View>
-                <View style={styles.perkText}>
-                  <Text style={[styles.perkTitle, { color: theme.text }]}>{p.title}</Text>
-                  <Text style={[styles.perkSubtitle, { color: theme.textSecondary }]}>
-                    {p.subtitle}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {isActive ? (
-            <>
-              <View style={[styles.activeCard, { borderColor: PULSE_GRADIENT[0], backgroundColor: theme.surfaceElevated }]}>
-                <Text style={[styles.activeLabel, { color: PULSE_GRADIENT[0] }]}>ACTIVE</Text>
-                <Text style={[styles.activeInfo, { color: theme.text }]}>
-                  {verifiedPro?.plan === 'annual'
-                    ? `Prepaid annual plan · then $${VERIFIED_PRO_WEEKLY_PRICE}/week`
-                    : `$${VERIFIED_PRO_WEEKLY_PRICE}/week · auto-renews from your cash`}
-                </Text>
-              </View>
-              <Pressable
-                onPress={handleCancel}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel Verified Pro subscription"
-                style={[styles.cancelBtn, { borderColor: theme.border }]}
-              >
-                <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>Cancel subscription</Text>
-              </Pressable>
-            </>
-          ) : (
-            <View style={styles.ctaRow}>
-              <Pressable
-                onPress={() => handleSubscribe('weekly')}
-                disabled={!canAffordWeekly}
-                style={[styles.planBtn, { borderColor: theme.border, opacity: canAffordWeekly ? 1 : 0.5 }]}
-                accessibilityRole="button"
-                accessibilityLabel={`Subscribe weekly, $${VERIFIED_PRO_WEEKLY_PRICE} per week`}
-              >
-                <Text style={[styles.planLabel, { color: theme.text }]}>Weekly</Text>
-                <Text style={[styles.planPrice, { color: theme.text }]}>${VERIFIED_PRO_WEEKLY_PRICE}/wk</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleSubscribe('annual')}
-                disabled={!canAffordAnnual}
-                accessibilityRole="button"
-                accessibilityLabel={`Subscribe annually, $${VERIFIED_PRO_ANNUAL_PRICE} for 52 weeks - save 17%`}
-                style={[styles.planBtnPrimary, { opacity: canAffordAnnual ? 1 : 0.5 }]}
-              >
-                <LinearGradient
-                  colors={PULSE_GRADIENT as unknown as string[]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.planBtnPrimaryFill}
-                >
-                  <Text style={styles.planLabelPrimary}>Annual · Save 17%</Text>
-                  <Text style={styles.planPricePrimary}>${VERIFIED_PRO_ANNUAL_PRICE.toLocaleString()}/yr</Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          )}
-
-          <Text style={[styles.legal, { color: theme.textMuted }]}>
-            {isActive
-              ? verifiedPro?.plan === 'annual'
-                ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
-                : 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
-              : `Paid from your in-game cash (${formatMoney(money)} available). Auto-renews weekly until cancelled.`}
-          </Text>
-        </View>
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title="Pulse Verified Pro"
+      subtitle={isActive ? "You're a Verified Pro member." : 'Unlock the blue check and creator perks.'}
+      footer={
+        <Text style={[styles.legal, { color: theme.textMuted }]}>
+          {isActive
+            ? verifiedPro?.plan === 'annual'
+              ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
+              : 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
+            : `Paid from your in-game cash (${formatMoney(money)} available). Auto-renews weekly until cancelled.`}
+        </Text>
+      }
+    >
+      <View style={[styles.badge, { backgroundColor: PULSE_COLORS.accent }]}>
+        <Crown size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
       </View>
-    </Modal>
+
+      <View style={styles.perksList}>
+        {PERKS.map((p) => (
+          <View key={p.title} style={styles.perkRow}>
+            <View style={[styles.perkIcon, { backgroundColor: theme.surfaceElevated }]}>
+              <Check size={fontScale(14)} color={PULSE_COLORS.accent} strokeWidth={3} />
+            </View>
+            <View style={styles.perkText}>
+              <Text style={[styles.perkTitle, { color: theme.text }]}>{p.title}</Text>
+              <Text style={[styles.perkSubtitle, { color: theme.textSecondary }]}>{p.subtitle}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {isActive ? (
+        <>
+          <View style={styles.activeRow}>
+            <Chip label="Active" tint={PULSE_COLORS.accent} size="md" />
+            <Text style={[styles.activeInfo, { color: theme.text }]}>
+              {verifiedPro?.plan === 'annual'
+                ? `Prepaid annual plan · then $${VERIFIED_PRO_WEEKLY_PRICE}/week`
+                : `$${VERIFIED_PRO_WEEKLY_PRICE}/week · auto-renews from your cash`}
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleCancel}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel Verified Pro subscription"
+            style={[styles.cancelBtn, { borderColor: theme.border }]}
+          >
+            <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>Cancel subscription</Text>
+          </Pressable>
+        </>
+      ) : (
+        <View style={styles.ctaRow}>
+          <Pressable
+            onPress={() => handleSubscribe('weekly')}
+            disabled={!canAffordWeekly}
+            style={[styles.planBtn, { borderColor: theme.border, opacity: canAffordWeekly ? 1 : 0.5 }]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canAffordWeekly }}
+            accessibilityLabel={`Subscribe weekly, $${VERIFIED_PRO_WEEKLY_PRICE} per week`}
+          >
+            <Text style={[styles.planLabel, { color: theme.text }]}>Weekly</Text>
+            <Text style={[styles.planPrice, { color: theme.text }]}>${VERIFIED_PRO_WEEKLY_PRICE}/wk</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSubscribe('annual')}
+            disabled={!canAffordAnnual}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canAffordAnnual }}
+            accessibilityLabel={`Subscribe annually, $${VERIFIED_PRO_ANNUAL_PRICE} for 52 weeks - save 17%`}
+            style={[
+              styles.planBtnPrimary,
+              { backgroundColor: PULSE_COLORS.accent, opacity: canAffordAnnual ? 1 : 0.5 },
+            ]}
+          >
+            <Text style={styles.planLabelPrimary}>Annual · Save 17%</Text>
+            <Text style={styles.planPricePrimary}>${VERIFIED_PRO_ANNUAL_PRICE.toLocaleString()}/yr</Text>
+          </Pressable>
+        </View>
+      )}
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  closeBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroBadge: {
+  badge: {
     alignSelf: 'center',
-    width: scale(72),
-    height: scale(72),
-    borderRadius: scale(36),
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: responsiveSpacing.md,
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: fontScale(22),
-    fontWeight: '700',
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: fontScale(13),
-    marginTop: responsiveSpacing.xs,
-    marginBottom: responsiveSpacing.lg,
   },
   perksList: {
     gap: responsiveSpacing.sm,
@@ -293,9 +233,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     borderRadius: scale(14),
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   planLabel: {
     fontSize: fontScale(13),
@@ -303,18 +245,17 @@ const styles = StyleSheet.create({
   },
   planPrice: {
     fontSize: fontScale(16),
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
   planBtnPrimary: {
     flex: 1.4,
-    borderRadius: scale(14),
-    overflow: 'hidden',
-  },
-  planBtnPrimaryFill: {
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
+    borderRadius: scale(14),
     alignItems: 'center',
+    justifyContent: 'center',
   },
   planLabelPrimary: {
     color: '#FFFFFF',
@@ -324,29 +265,24 @@ const styles = StyleSheet.create({
   planPricePrimary: {
     color: '#FFFFFF',
     fontSize: fontScale(16),
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
-  activeCard: {
-    borderRadius: scale(14),
-    borderWidth: 1,
-    padding: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
+  activeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  activeLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '800',
-    letterSpacing: 1,
+    gap: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.md,
   },
   activeInfo: {
+    flex: 1,
     fontSize: fontScale(13),
     fontWeight: '600',
-    marginTop: 4,
-    textAlign: 'center',
   },
   cancelBtn: {
     paddingVertical: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
+    justifyContent: 'center',
     borderRadius: scale(14),
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',

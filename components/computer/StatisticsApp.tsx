@@ -24,7 +24,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import Svg, { Polyline, Polygon, Line, Circle } from 'react-native-svg';
 import {
-  ArrowLeft,
   Activity,
   Trophy,
   Sparkles,
@@ -47,7 +46,6 @@ import {
   Zap,
   Star,
   Clock,
-  Calendar,
   Skull,
   Landmark,
   Bitcoin,
@@ -85,7 +83,7 @@ import { haptic } from '@/utils/haptics';
 import { trendOf } from '@/lib/statistics/trends';
 import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import {
   responsiveFontSize as fs,
@@ -94,12 +92,22 @@ import {
   scale,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
-
-/** Identity accent (blue #3B82F6) as an "R, G, B" string for translucent tints. */
-const ACCENT_RGB = '59, 130, 246';
-const TEAL = '#14B8A6';
+import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import Chip from '@/components/ui/Chip';
+import EmptyState from '@/components/ui/EmptyState';
 
 type TabType = 'overview' | 'systems' | 'milestones' | 'planning';
+
+const TABS: { key: TabType; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { key: 'overview', label: 'Overview', icon: Activity },
+  { key: 'systems', label: 'Systems', icon: Layers },
+  { key: 'milestones', label: 'Milestones', icon: Trophy },
+  { key: 'planning', label: 'Planning', icon: PieChart },
+];
 
 /** Local list -> detail routing. Every target presents EXISTING state only. */
 type DetailView =
@@ -126,7 +134,7 @@ const SYSTEM_META: Record<string, { Icon: IconType; color: string }> = {
   darkweb: { Icon: Skull, color: accent.danger },
   politics: { Icon: Vote, color: accent.info },
   content: { Icon: Radio, color: accent.purple },
-  travel: { Icon: Plane, color: TEAL },
+  travel: { Icon: Plane, color: accent.info },
   pets: { Icon: PawPrint, color: accent.gold },
   vehicles: { Icon: Car, color: accent.amber },
   contacts: { Icon: Users, color: accent.amber },
@@ -269,7 +277,7 @@ export default function StatisticsApp({ onBack }: Props) {
         accessibilityLabel="Vitals detail"
         style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
       >
-        <SectionHead title="Vitals" theme={theme} Icon={Activity} tint={accent.info} chevron />
+        <SectionTitle title="Vitals" right={<ChevronRight size={scale(18)} color={theme.textMuted} />} />
         <View style={styles.vitalsRow}>
           {vitals.map((v) => (
             <View key={v.key} style={styles.vitalItem}>
@@ -294,19 +302,21 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
       </TouchableOpacity>
 
-      {/* Net worth HERO (the one Recipe B gradient on this screen) */}
-      <View
+      {/* Net worth HERO - the ONE headline number, tapping opens the metric detail. */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => setDetail({ kind: 'metric', id: 'networth' })}
+        accessibilityRole="button"
+        accessibilityLabel="Net worth detail"
         style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}
       >
         <View style={styles.heroInner}>
-          <View pointerEvents="none" style={styles.heroBlob} />
-          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
           <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
           <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             ${Math.round(netWorth).toLocaleString()}
           </Text>
           <View style={styles.trendRow}>
-            <TrendBadge trend={netWorthTrend} theme={theme} label="vs prior weeks" />
+            <TrendChip trend={netWorthTrend} label="vs prior weeks" />
           </View>
           {netWorthSeries.length >= 2 ? (
             <View style={styles.heroSpark} pointerEvents="none">
@@ -319,52 +329,26 @@ export default function StatisticsApp({ onBack }: Props) {
             {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>week {s.peakNetWorthWeek}</Text> : null}
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {/* Records medal strip */}
+      {/* Records - one nav row; the bests themselves live on the Records page. */}
       {records.length > 0 ? (
-        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setDetail({ kind: 'records' })}
+          accessibilityRole="button"
+          accessibilityLabel={`Records, ${records.length} personal bests`}
+          style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        >
+          <SectionTitle
             title="Records"
-            theme={theme}
-            Icon={Trophy}
-            tint={accent.gold}
-            right={<NavChip label="All" onPress={() => setDetail({ kind: 'records' })} />}
+            subtitle={`${records.length} personal best${records.length === 1 ? '' : 's'}`}
+            right={<ChevronRight size={scale(18)} color={theme.textMuted} />}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recordStrip}>
-            {records.map((r) => (
-              <TouchableOpacity
-                key={r.id}
-                activeOpacity={0.8}
-                onPress={() => setDetail({ kind: 'records' })}
-                accessibilityRole="button"
-                accessibilityLabel={`${r.label} ${r.value}`}
-                style={[styles.recordChip, { borderColor: withAlpha(r.color, 0.3), backgroundColor: withAlpha(r.color, 0.08) }]}
-              >
-                <View style={[getGlassIconContainer(darkMode, 28), styles.recordChipIcon, { backgroundColor: withAlpha(r.color, 0.16), borderColor: withAlpha(r.color, 0.3) }]}>
-                  <r.Icon size={scale(14)} color={r.color} />
-                </View>
-                <Text style={[styles.recordValue, { color: theme.text }]} numberOfLines={1}>{r.value}</Text>
-                <Text style={[styles.recordLabel, { color: theme.textSecondary }]} numberOfLines={1}>{r.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        </TouchableOpacity>
       ) : null}
 
-      {/* Per-metric trend cards (real SVG sparklines) */}
-      <MetricTrendCard
-        title="Net worth"
-        Icon={TrendingUp}
-        color={accent.info}
-        series={netWorthSeries}
-        current={`$${Math.round(netWorth).toLocaleString()}`}
-        trend={netWorthTrend}
-        footer={metricRange(netWorthSeries)}
-        theme={theme}
-        darkMode={darkMode}
-        onPress={() => setDetail({ kind: 'metric', id: 'networth' })}
-      />
+      {/* Weekly earnings trend (net worth already has the hero above). */}
       <MetricTrendCard
         title="Weekly earnings"
         Icon={Zap}
@@ -390,43 +374,49 @@ export default function StatisticsApp({ onBack }: Props) {
         accessibilityLabel="Career history detail"
         style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
       >
-        <SectionHead title="Career" theme={theme} Icon={Briefcase} tint={accent.info} chevron />
-        <View style={styles.statsRow}>
-          <MoneyStat label="Roles" value={String(careerSummary.totalJobs)} color={accent.info} theme={theme} />
-          <MoneyStat label="Weeks worked" value={String(careerSummary.totalWeeks)} color={accent.success} theme={theme} />
-          <MoneyStat label="Career $" value={formatStatMoney(careerSummary.totalEarnings)} color={accent.gold} theme={theme} />
-        </View>
+        <SectionTitle title="Career" right={<ChevronRight size={scale(18)} color={theme.textMuted} />} />
+        <StatStrip
+          items={[
+            { label: 'Roles', value: careerSummary.totalJobs, tint: accent.info },
+            { label: 'Weeks worked', value: careerSummary.totalWeeks, tint: accent.success },
+            { label: 'Career $', value: formatStatMoney(careerSummary.totalEarnings), tint: accent.gold },
+          ]}
+        />
       </TouchableOpacity>
 
       {/* Lifetime money (kept) */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead title="Lifetime money" theme={theme} Icon={Landmark} tint={accent.info} />
-        <View style={styles.statsRow}>
-          <MoneyStat label="Earned" value={`$${Math.round(s.totalMoneyEarned).toLocaleString()}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Spent" value={`$${Math.round(s.totalMoneySpent).toLocaleString()}`} color={accent.danger} theme={theme} />
-          <MoneyStat label="Top salary" value={`$${Math.round(s.highestSalary).toLocaleString()}`} color={accent.info} theme={theme} />
-        </View>
+        <SectionTitle title="Lifetime money" />
+        <StatStrip
+          items={[
+            { label: 'Earned', value: `$${Math.round(s.totalMoneyEarned).toLocaleString()}`, tint: accent.success },
+            { label: 'Spent', value: `$${Math.round(s.totalMoneySpent).toLocaleString()}`, tint: accent.danger },
+            { label: 'Top salary', value: `$${Math.round(s.highestSalary).toLocaleString()}`, tint: accent.info },
+          ]}
+        />
       </View>
 
-      {/* Life snapshot counters (kept) */}
+      {/* Life snapshot - the three the player builds toward, the rest as rows. */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead title="Life snapshot" theme={theme} Icon={Sparkles} tint={accent.purple} />
-        <View style={styles.gridRow}>
-          <Counter label="Companies" value={s.totalCompaniesOwned} theme={theme} />
-          <Counter label="Properties" value={s.totalPropertiesOwned} theme={theme} />
-          <Counter label="Relationships" value={s.totalRelationships} theme={theme} />
-        </View>
-        <View style={styles.gridRow}>
-          <Counter label="Children" value={s.totalChildren} theme={theme} />
-          <Counter label="Destinations" value={s.totalTravelDestinations} theme={theme} />
-          <Counter label="Posts" value={s.totalPostsMade} theme={theme} />
+        <SectionTitle title="Life snapshot" />
+        <StatStrip
+          items={[
+            { label: 'Companies', value: s.totalCompaniesOwned },
+            { label: 'Properties', value: s.totalPropertiesOwned },
+            { label: 'Relationships', value: s.totalRelationships },
+          ]}
+        />
+        <View style={styles.detailRows}>
+          <DetailRow label="Children" value={String(s.totalChildren)} theme={theme} />
+          <DetailRow label="Destinations" value={String(s.totalTravelDestinations)} theme={theme} />
+          <DetailRow label="Posts" value={String(s.totalPostsMade)} theme={theme} />
         </View>
       </View>
 
       {/* Open IOUs (kept, conditional) */}
       {summary.netFavorMoney !== 0 ? (
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead title="Open IOUs" theme={theme} Icon={Landmark} tint={accent.info} />
+          <SectionTitle title="Open IOUs" />
           <Text style={[styles.heroValue, { color: summary.netFavorMoney >= 0 ? accent.success : accent.danger }]}>
             {summary.netFavorMoney >= 0 ? '+' : '−'}${Math.abs(summary.netFavorMoney).toLocaleString()}
           </Text>
@@ -444,11 +434,15 @@ export default function StatisticsApp({ onBack }: Props) {
   const renderSystems = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {summary.cards.length === 0 ? (
-        <EmptyState Icon={Layers} title="No system data yet" sub="Play through the other apps and metrics will populate here." darkMode={darkMode} theme={theme} />
+        <EmptyState
+          icon={<Layers size={scale(26)} color={accent.info} />}
+          observation="No system data yet."
+          nudge="Play through the other apps and their metrics land here."
+        />
       ) : (
         <>
           <View style={[getGlassCard(darkMode, 6), styles.summaryStrip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={[getGlassIconContainer(darkMode, 36), styles.tintBubble, { backgroundColor: `rgba(${ACCENT_RGB}, 0.15)`, borderColor: `rgba(${ACCENT_RGB}, 0.3)` }]}>
+            <View style={[getGlassIconContainer(darkMode, 36), styles.tintBubble, { backgroundColor: withAlpha(accent.info, 0.15), borderColor: withAlpha(accent.info, 0.3) }]}>
               <Layers size={scale(18)} color={accent.info} />
             </View>
             <View style={{ flex: 1 }}>
@@ -475,13 +469,30 @@ export default function StatisticsApp({ onBack }: Props) {
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {milestones.length === 0 ? (
-          <EmptyState Icon={Trophy} title="No milestones yet" sub="Cross thresholds and they'll appear here." darkMode={darkMode} theme={theme} />
+          <EmptyState
+            icon={<Trophy size={scale(26)} color={accent.info} />}
+            observation="No milestones yet."
+            nudge="Cross a wealth, career or family threshold and it is recorded here."
+          />
         ) : (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-              <FilterChip label={`All ${milestones.length}`} active={milestoneCat === 'all'} color={accent.info} onPress={() => setMilestoneCat('all')} theme={theme} />
+              <Chip
+                label={`All ${milestones.length}`}
+                tint={accent.info}
+                size="md"
+                selected={milestoneCat === 'all'}
+                onPress={() => setMilestoneCat('all')}
+              />
               {cats.map((c) => (
-                <FilterChip key={c} label={c} active={milestoneCat === c} color={categoryColor(c)} onPress={() => setMilestoneCat(c)} theme={theme} />
+                <Chip
+                  key={c}
+                  label={c.charAt(0).toUpperCase() + c.slice(1)}
+                  tint={categoryColor(c)}
+                  size="md"
+                  selected={milestoneCat === c}
+                  onPress={() => setMilestoneCat(c)}
+                />
               ))}
             </ScrollView>
             <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -509,89 +520,120 @@ export default function StatisticsApp({ onBack }: Props) {
   // =====================================================================
   const renderPlanning = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {/* Life expectancy */}
+      {/* The three calculators fold: each header carries its headline number, so a
+          collapsed one still answers the question it exists to answer. */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead
+        <CollapsibleSection
+          id="statistics-life-expectancy"
           title="Life expectancy"
-          theme={theme}
-          Icon={Heart}
-          tint={accent.danger}
-          right={<NavChip label="Vitals" onPress={() => setDetail({ kind: 'vitals' })} />}
-        />
-        <View style={styles.statsRow}>
-          <MoneyStat label="Total" value={`${Math.round(lifeExp.totalLifeExpectancy)}y`} color={accent.info} theme={theme} />
-          <MoneyStat label="Remaining" value={`${Math.round(lifeExp.yearsRemaining)}y`} color={accent.success} theme={theme} />
-          <MoneyStat label="Base" value={`${Math.round(lifeExp.baseAge)}y`} color={theme.textSecondary} theme={theme} />
-        </View>
-        <View style={styles.modRow}>
-          <ModPill label="Health" delta={lifeExp.healthModifier} theme={theme} />
-          <ModPill label="Mood" delta={lifeExp.happinessModifier} theme={theme} />
-          <ModPill label="Lifestyle" delta={lifeExp.lifestyleModifier} theme={theme} />
-        </View>
-        {lifeExp.recommendations.slice(0, 3).map((r, i) => (
-          <Text key={i} style={[styles.recItem, { color: theme.textSecondary }]}>• {r}</Text>
-        ))}
-      </View>
-
-      {/* FIRE tracker (ring + enriched) */}
-      <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead title="FIRE tracker" theme={theme} Icon={Flame} tint={accent.success} />
-        <View style={styles.fireBody}>
-          <ProgressRing
-            value={clampPct(fire.progressToFIRE)}
-            size={96}
-            strokeWidth={9}
-            ambient={false}
-            accentColor={accent.success}
-            positiveColor={accent.success}
-            state={fire.milestones.achieved ? 'done' : 'active'}
-            trackColor={trackColor}
-            surfaceColor={theme.surface}
-            inkColor={theme.text}
-            borderColor={theme.border}
-            label={`FIRE progress ${Math.round(fire.progressToFIRE)} percent`}
-          >
-            <Flame size={scale(24)} color={accent.success} />
-          </ProgressRing>
-          <View style={styles.fireStats}>
-            <MiniStat label="FIRE number" value={formatStatMoney(fire.fireNumber)} theme={theme} />
-            <MiniStat label="Years to FIRE" value={fire.yearsToFIRE >= 999 ? '-' : `${Math.max(0, fire.yearsToFIRE)}y`} theme={theme} />
-            <MiniStat label="Savings rate" value={`${Math.round(fire.savingsRate)}%`} theme={theme} />
-            <MiniStat label="Coast FIRE" value={`${Math.round(fire.coastFIREProgress)}%`} theme={theme} />
+          compact
+          defaultCollapsed
+          summary={`${Math.round(lifeExp.totalLifeExpectancy)}y`}
+        >
+          <View style={styles.sectionBody}>
+            <StatStrip
+              items={[
+                { label: 'Total', value: `${Math.round(lifeExp.totalLifeExpectancy)}y`, tint: accent.info },
+                { label: 'Remaining', value: `${Math.round(lifeExp.yearsRemaining)}y`, tint: accent.success },
+                { label: 'Base', value: `${Math.round(lifeExp.baseAge)}y` },
+              ]}
+            />
+            <View style={styles.detailRows}>
+              <DetailRow label="Health" value={signedYears(lifeExp.healthModifier)} theme={theme} />
+              <DetailRow label="Mood" value={signedYears(lifeExp.happinessModifier)} theme={theme} />
+              <DetailRow label="Lifestyle" value={signedYears(lifeExp.lifestyleModifier)} theme={theme} />
+            </View>
+            {lifeExp.recommendations.slice(0, 3).map((r, i) => (
+              <Text key={i} style={[styles.recItem, { color: theme.textSecondary }]}>• {r}</Text>
+            ))}
+            <View style={styles.chipRow}>
+              <Chip label="Vitals" tint={accent.info} size="md" onPress={() => setDetail({ kind: 'vitals' })} />
+            </View>
           </View>
-        </View>
-        <View style={styles.thresholdRow}>
-          <ThresholdPill label="Lean" value={formatStatMoney(fire.milestones.leanFIRE)} theme={theme} />
-          <ThresholdPill label="Regular" value={formatStatMoney(fire.milestones.regularFIRE)} theme={theme} />
-          <ThresholdPill label="Fat" value={formatStatMoney(fire.milestones.fatFIRE)} theme={theme} />
-        </View>
+        </CollapsibleSection>
       </View>
 
-      {/* Retirement plan */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead title="Retirement plan (age 65)" theme={theme} Icon={Calendar} tint={accent.purple} />
-        <View style={styles.statsRow}>
-          <MoneyStat label="Required" value={formatStatMoney(retirement.requiredNetWorth)} color={accent.purple} theme={theme} />
-          <MoneyStat label="Gap" value={formatStatMoney(Math.abs(retirement.savingsGap))} color={retirementOnTrack ? accent.success : accent.warning} theme={theme} />
-          <MoneyStat label="Status" value={retirementOnTrack ? 'On track' : 'Behind'} color={retirementOnTrack ? accent.success : accent.warning} theme={theme} />
-        </View>
-        <View style={styles.detailRows}>
-          <DetailRow label="Current age" value={`${retirement.currentAge}`} theme={theme} />
-          <DetailRow label="Years to retirement" value={`${retirement.yearsToRetirement}y`} theme={theme} />
-          <DetailRow label="Projected year" value={`${retirement.projectedRetirementDate}`} theme={theme} />
-        </View>
-        <Text style={[styles.recItem, { color: theme.textSecondary }]}>
-          • Save ${Math.round(retirement.monthlySavingsNeeded).toLocaleString()}/mo to close the gap
-        </Text>
-        <Text style={[styles.recItem, { color: theme.textSecondary }]}>
-          • Assumes {retirement.assumptions.expectedReturnRate}% returns, {retirement.assumptions.inflationRate}% inflation
-        </Text>
+        <CollapsibleSection
+          id="statistics-fire"
+          title="FIRE tracker"
+          compact
+          summary={`${Math.round(fire.progressToFIRE)}%`}
+        >
+          <View style={styles.sectionBody}>
+            <View style={styles.fireBody}>
+              <ProgressRing
+                value={clampPct(fire.progressToFIRE)}
+                size={96}
+                strokeWidth={9}
+                ambient={false}
+                accentColor={accent.success}
+                positiveColor={accent.success}
+                state={fire.milestones.achieved ? 'done' : 'active'}
+                trackColor={trackColor}
+                surfaceColor={theme.surface}
+                inkColor={theme.text}
+                borderColor={theme.border}
+                label={`FIRE progress ${Math.round(fire.progressToFIRE)} percent`}
+              >
+                <Flame size={scale(24)} color={accent.success} />
+              </ProgressRing>
+              <StatStrip
+                style={styles.fireStats}
+                items={[
+                  { label: 'FIRE number', value: formatStatMoney(fire.fireNumber) },
+                  { label: 'Years to FIRE', value: fire.yearsToFIRE >= 999 ? '-' : `${Math.max(0, fire.yearsToFIRE)}y` },
+                  { label: 'Savings rate', value: `${Math.round(fire.savingsRate)}%` },
+                ]}
+              />
+            </View>
+            <StatStrip
+              items={[
+                { label: 'Lean', value: formatStatMoney(fire.milestones.leanFIRE) },
+                { label: 'Regular', value: formatStatMoney(fire.milestones.regularFIRE) },
+                { label: 'Fat', value: formatStatMoney(fire.milestones.fatFIRE) },
+                { label: 'Coast', value: `${Math.round(fire.coastFIREProgress)}%` },
+              ]}
+            />
+          </View>
+        </CollapsibleSection>
+      </View>
+
+      <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <CollapsibleSection
+          id="statistics-retirement"
+          title="Retirement plan (age 65)"
+          compact
+          defaultCollapsed
+          summary={retirementOnTrack ? 'On track' : 'Behind'}
+        >
+          <View style={styles.sectionBody}>
+            <StatStrip
+              items={[
+                { label: 'Required', value: formatStatMoney(retirement.requiredNetWorth), tint: accent.purple },
+                { label: 'Gap', value: formatStatMoney(Math.abs(retirement.savingsGap)), tint: retirementOnTrack ? accent.success : accent.warning },
+                { label: 'Status', value: retirementOnTrack ? 'On track' : 'Behind', tint: retirementOnTrack ? accent.success : accent.warning },
+              ]}
+            />
+            <View style={styles.detailRows}>
+              <DetailRow label="Current age" value={`${retirement.currentAge}`} theme={theme} />
+              <DetailRow label="Years to retirement" value={`${retirement.yearsToRetirement}y`} theme={theme} />
+              <DetailRow label="Projected year" value={`${retirement.projectedRetirementDate}`} theme={theme} />
+            </View>
+            <Text style={[styles.recItem, { color: theme.textSecondary }]}>
+              • Save ${Math.round(retirement.monthlySavingsNeeded).toLocaleString()}/mo to close the gap
+            </Text>
+            <Text style={[styles.recItem, { color: theme.textSecondary }]}>
+              • Assumes {retirement.assumptions.expectedReturnRate}% returns, {retirement.assumptions.inflationRate}% inflation
+            </Text>
+          </View>
+        </CollapsibleSection>
       </View>
 
       {/* Past lives */}
       {gameState.previousLives?.length ? (
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead title="Past lives" theme={theme} Icon={Skull} tint={accent.muted} />
+          <SectionTitle title="Past lives" />
           {gameState.previousLives.slice(0, 8).map((pl, idx: number) => (
             <TouchableOpacity
               key={idx}
@@ -639,7 +681,7 @@ export default function StatisticsApp({ onBack }: Props) {
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead title="Vitals" theme={theme} Icon={Activity} tint={accent.info} />
+          <SectionTitle title="Vitals" />
           <View style={styles.vitalsRow}>
             {vitals.map((v) => (
               <View key={v.key} style={styles.vitalItem}>
@@ -665,12 +707,14 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
 
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead title="Longevity breakdown" theme={theme} Icon={Heart} tint={accent.danger} />
-          <View style={styles.statsRow}>
-            <MoneyStat label="Life expectancy" value={`${Math.round(lifeExp.totalLifeExpectancy)}y`} color={accent.info} theme={theme} />
-            <MoneyStat label="Years left" value={`${Math.round(lifeExp.yearsRemaining)}y`} color={accent.success} theme={theme} />
-            <MoneyStat label="Base" value={`${Math.round(lifeExp.baseAge)}y`} color={theme.textSecondary} theme={theme} />
-          </View>
+          <SectionTitle title="Longevity breakdown" />
+          <StatStrip
+            items={[
+              { label: 'Life expectancy', value: `${Math.round(lifeExp.totalLifeExpectancy)}y`, tint: accent.info },
+              { label: 'Years left', value: `${Math.round(lifeExp.yearsRemaining)}y`, tint: accent.success },
+              { label: 'Base', value: `${Math.round(lifeExp.baseAge)}y` },
+            ]}
+          />
           <View style={styles.detailRows}>
             <DetailRow label="Health modifier" value={signedYears(lifeExp.healthModifier)} theme={theme} />
             <DetailRow label="Mood modifier" value={signedYears(lifeExp.happinessModifier)} theme={theme} />
@@ -687,7 +731,11 @@ export default function StatisticsApp({ onBack }: Props) {
   const renderRecordsDetail = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {records.length === 0 ? (
-        <EmptyState Icon={Medal} title="No records yet" sub="Set personal bests and they'll appear here." darkMode={darkMode} theme={theme} />
+        <EmptyState
+          icon={<Medal size={scale(26)} color={accent.info} />}
+          observation="No records yet."
+          nudge="Every personal best you set is kept here."
+        />
       ) : (
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {records.map((r, i) => (
@@ -712,18 +760,24 @@ export default function StatisticsApp({ onBack }: Props) {
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead title="Career summary" theme={theme} Icon={Briefcase} tint={accent.info} />
-          <View style={styles.statsRow}>
-            <MoneyStat label="Roles" value={String(careerSummary.totalJobs)} color={accent.info} theme={theme} />
-            <MoneyStat label="Weeks" value={String(careerSummary.totalWeeks)} color={accent.success} theme={theme} />
-            <MoneyStat label="Earned" value={formatStatMoney(careerSummary.totalEarnings)} color={accent.gold} theme={theme} />
-          </View>
+          <SectionTitle title="Career summary" />
+          <StatStrip
+            items={[
+              { label: 'Roles', value: careerSummary.totalJobs, tint: accent.info },
+              { label: 'Weeks', value: careerSummary.totalWeeks, tint: accent.success },
+              { label: 'Earned', value: formatStatMoney(careerSummary.totalEarnings), tint: accent.gold },
+            ]}
+          />
         </View>
         {history.length === 0 ? (
-          <EmptyState Icon={Briefcase} title="No roles tracked" sub="Take a job and your career history builds here." darkMode={darkMode} theme={theme} />
+          <EmptyState
+            icon={<Briefcase size={scale(26)} color={accent.info} />}
+            observation="No roles tracked."
+            nudge="Take a job and your career history builds here."
+          />
         ) : (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SectionHead title="History" theme={theme} Icon={Clock} tint={accent.purple} />
+            <SectionTitle title="History" />
             {history.map((h, i) => {
               const ongoing = !h.endWeek;
               return (
@@ -763,13 +817,12 @@ export default function StatisticsApp({ onBack }: Props) {
         {/* Big chart hero (Recipe B) */}
         <View style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}>
           <View style={styles.heroInner}>
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <Text style={[styles.heroLabel, { color: theme.textMuted }]}>{isNW ? 'NET WORTH' : 'WEEKLY EARNINGS'}</Text>
             <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
               {isNW ? `$${Math.round(netWorth).toLocaleString()}` : `$${earningsTrend.recentAverage.toLocaleString()}/wk`}
             </Text>
             <View style={styles.trendRow}>
-              <TrendBadge trend={trend} theme={theme} label={isNW ? 'vs prior weeks' : 'weekly earnings'} />
+              <TrendChip trend={trend} label={isNW ? 'vs prior weeks' : 'weekly earnings'} />
             </View>
             {series.length >= 2 ? (
               <View style={styles.detailSpark} pointerEvents="none">
@@ -783,23 +836,23 @@ export default function StatisticsApp({ onBack }: Props) {
 
         {/* Stats strip */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.statsRow}>
-            {metricRange(series).map((f) => (
-              <MoneyStat key={f.label} label={f.label} value={f.value} color={color} theme={theme} />
-            ))}
-            <MoneyStat label="Samples" value={String(series.length)} color={theme.textSecondary} theme={theme} />
-          </View>
+          <StatStrip
+            items={[
+              ...metricRange(series).map((f) => ({ label: f.label, value: f.value, tint: color })),
+              { label: 'Samples', value: series.length },
+            ]}
+          />
         </View>
 
         {/* Snapshot log */}
         {rows.length > 0 ? (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SectionHead title="Snapshots" theme={theme} Icon={Calendar} tint={color} />
+            <SectionTitle title="Snapshots" />
             {rows.map((r, i) => (
               <View key={`${r.week}-${i}`} style={[styles.snapRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
                 <Text style={[styles.snapWeek, { color: theme.textSecondary }]}>Week {r.week}</Text>
                 <Text style={[styles.snapValue, { color: theme.text }]}>${Math.round(r.value).toLocaleString()}</Text>
-                <DeltaChip delta={r.delta} isFirst={r.isFirst} theme={theme} />
+                <DeltaChip delta={r.delta} isFirst={r.isFirst} />
               </View>
             ))}
           </View>
@@ -834,7 +887,7 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
         {card.details.length > 0 ? (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SectionHead title="Breakdown" theme={theme} Icon={Layers} tint={meta.color} />
+            <SectionTitle title="Breakdown" />
             <View style={styles.detailRows}>
               {card.details.map((d) => (
                 <DetailRow key={d.label} label={d.label} value={d.value} theme={theme} />
@@ -862,11 +915,13 @@ export default function StatisticsApp({ onBack }: Props) {
               {typeof pl.generation === 'number' ? <Text style={[styles.cardSub, { color: theme.textSecondary }]}>Generation {pl.generation}</Text> : null}
             </View>
           </View>
-          <View style={styles.statsRow}>
-            <MoneyStat label="Net worth" value={formatStatMoney(safeNum(pl.netWorth ?? pl.peakNetWorth))} color={accent.gold} theme={theme} />
-            {typeof pl.ageAtDeath === 'number' ? <MoneyStat label="Age at death" value={`${pl.ageAtDeath}`} color={accent.info} theme={theme} /> : null}
-            {typeof pl.totalRelationships === 'number' ? <MoneyStat label="Relationships" value={`${pl.totalRelationships}`} color={accent.danger} theme={theme} /> : null}
-          </View>
+          <StatStrip
+            items={[
+              { label: 'Net worth', value: formatStatMoney(safeNum(pl.netWorth ?? pl.peakNetWorth)), tint: accent.gold },
+              ...(typeof pl.ageAtDeath === 'number' ? [{ label: 'Age at death', value: pl.ageAtDeath, tint: accent.info }] : []),
+              ...(typeof pl.totalRelationships === 'number' ? [{ label: 'Relationships', value: pl.totalRelationships, tint: accent.danger }] : []),
+            ]}
+          />
           {pl.deathReason ? (
             <View style={styles.detailRows}>
               <DetailRow label="Cause of death" value={String(pl.deathReason)} theme={theme} />
@@ -875,7 +930,7 @@ export default function StatisticsApp({ onBack }: Props) {
         </View>
         {ach.length > 0 ? (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SectionHead title="Achievements carried" theme={theme} Icon={Award} tint={accent.gold} />
+            <SectionTitle title="Achievements carried" />
             {ach.map((a, i) => (
               <Text key={i} style={[styles.recItem, { color: theme.textSecondary }]}>• {a}</Text>
             ))}
@@ -887,40 +942,24 @@ export default function StatisticsApp({ onBack }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} hitSlop={8} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="Back">
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
-        <View style={[styles.weekChip, { backgroundColor: `rgba(${ACCENT_RGB}, 0.14)`, borderColor: `rgba(${ACCENT_RGB}, 0.3)` }]}>
-          <Text style={[styles.weekChipText, { color: theme.text }]}>Wk {week}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={headerTitle}
+        onBack={handleBack}
+        backLabel={detail ? 'Back to statistics' : 'Back'}
+        right={<HeaderChip label="Week" value={`Wk ${week}`} tint={accent.info} />}
+      />
 
       {detail ? (
         renderDetail()
       ) : (
         <>
-          <View style={[styles.tabBar, { borderColor: theme.border }]}>
-            {[
-              { id: 'overview' as TabType, label: 'Overview', Icon: Activity },
-              { id: 'systems' as TabType, label: 'Systems', Icon: Layers },
-              { id: 'milestones' as TabType, label: 'Milestones', Icon: Trophy },
-              { id: 'planning' as TabType, label: 'Planning', Icon: PieChart },
-            ].map(({ id, label, Icon }) => (
-              <TouchableOpacity
-                key={id}
-                onPress={() => setActiveTab(id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: activeTab === id }}
-                accessibilityLabel={label}
-                style={[styles.tabBtn, activeTab === id && { borderBottomColor: accent.info, borderBottomWidth: 2 }]}
-              >
-                <Icon size={scale(14)} color={activeTab === id ? accent.info : theme.textMuted} />
-                <Text style={[styles.tabText, { color: activeTab === id ? accent.info : theme.textMuted }]}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <SegmentedControl
+            segments={TABS}
+            value={activeTab}
+            onChange={setActiveTab}
+            activeColor={accent.info}
+            style={styles.tabs}
+          />
 
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'systems' && renderSystems()}
@@ -943,68 +982,6 @@ interface RecordItem {
   label: string;
   value: string;
   sub?: string;
-}
-
-function SectionHead({
-  title,
-  theme,
-  Icon,
-  tint,
-  right,
-  chevron,
-}: {
-  title: string;
-  theme: Theme;
-  Icon: IconType;
-  tint: string;
-  right?: React.ReactNode;
-  chevron?: boolean;
-}) {
-  return (
-    <View style={styles.sectionHead}>
-      <View style={styles.sectionHeadLeft}>
-        <Icon size={scale(15)} color={tint} />
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      </View>
-      {right ? right : chevron ? <ChevronRight size={scale(18)} color={theme.textMuted} /> : null}
-    </View>
-  );
-}
-
-function NavChip({ label, onPress, color = accent.info }: { label: string; onPress: () => void; color?: string }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      hitSlop={6}
-      activeOpacity={0.75}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={[styles.navChip, { backgroundColor: withAlpha(color, 0.14) }]}
-    >
-      <Text style={[styles.navChipText, { color }]}>{label}</Text>
-      <ChevronRight size={scale(14)} color={color} />
-    </TouchableOpacity>
-  );
-}
-
-function FilterChip({ label, active, color, onPress, theme }: { label: string; active: boolean; color: string; onPress: () => void; theme: Theme }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.75}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={label}
-      style={[
-        styles.filterChip,
-        active
-          ? { backgroundColor: withAlpha(color, 0.16), borderColor: withAlpha(color, 0.4) }
-          : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
-      ]}
-    >
-      <Text style={[styles.filterChipText, { color: active ? color : theme.textSecondary, textTransform: 'capitalize' }]}>{label}</Text>
-    </TouchableOpacity>
-  );
 }
 
 /**
@@ -1095,65 +1072,34 @@ function MetricTrendCard({
           <Text style={[styles.metricTitle, { color: theme.text }]}>{title}</Text>
           <Text style={[styles.metricCurrent, { color: theme.text }]} numberOfLines={1}>{current}</Text>
         </View>
-        <TrendBadge trend={trend} theme={theme} compact />
+        <TrendChip trend={trend} />
         <ChevronRight size={scale(16)} color={theme.textMuted} />
       </View>
       <View style={styles.metricSpark} pointerEvents="none">
         <Sparkline data={series} color={color} width={scale(300)} height={scale(48)} />
       </View>
-      <View style={styles.metricFooter}>
-        {footer.map((f) => (
-          <View key={f.label} style={styles.metricFootItem}>
-            <Text style={[styles.metricFootValue, { color: theme.text }]} numberOfLines={1}>{f.value}</Text>
-            <Text style={[styles.metricFootLabel, { color: theme.textMuted }]}>{f.label}</Text>
-          </View>
-        ))}
-      </View>
+      <StatStrip items={footer.map((f) => ({ label: f.label, value: f.value }))} />
     </TouchableOpacity>
   );
 }
 
-function TrendBadge({
-  trend,
-  theme,
-  label,
-  compact,
-}: {
-  trend: ReturnType<typeof trendOf>;
-  theme: Theme;
-  label?: string;
-  compact?: boolean;
-}) {
+/** The trend readout as a Chip: direction glyph + signed percentage. */
+function TrendChip({ trend, label }: { trend: ReturnType<typeof trendOf>; label?: string }) {
   const Icon = trend.direction === 'up' ? TrendingUp : trend.direction === 'down' ? TrendingDown : Minus;
   const color = trend.direction === 'up' ? accent.success : trend.direction === 'down' ? accent.danger : accent.muted;
   const sign = trend.pctChange > 0 ? '+' : '';
-  return (
-    <View style={[styles.trendBadgeRow, compact && { backgroundColor: withAlpha(color, 0.14), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full }]}>
-      <Icon size={scale(14)} color={color} />
-      <Text style={[styles.trendText, { color }]}>{sign}{trend.pctChange}%</Text>
-      {label ? <Text style={[styles.trendLabel, { color: theme.textSecondary }]}>{label}</Text> : null}
-    </View>
-  );
+  const text = `${sign}${trend.pctChange}%${label ? ` ${label}` : ''}`;
+  return <Chip label={text} tint={color} selected icon={<Icon size={scale(14)} color={color} />} />;
 }
 
-function DeltaChip({ delta, isFirst, theme }: { delta: number; isFirst: boolean; theme: Theme }) {
-  if (isFirst) {
-    return (
-      <View style={[styles.deltaChip, { backgroundColor: theme.surfaceElevated }]}>
-        <Text style={[styles.deltaText, { color: theme.textMuted }]}>start</Text>
-      </View>
-    );
-  }
+/** Week-over-week change on a snapshot row, as a Chip. */
+function DeltaChip({ delta, isFirst }: { delta: number; isFirst: boolean }) {
+  if (isFirst) return <Chip label="start" style={styles.deltaChip} />;
   const up = delta > 0;
   const flat = delta === 0;
   const color = flat ? accent.muted : up ? accent.success : accent.danger;
-  return (
-    <View style={[styles.deltaChip, { backgroundColor: withAlpha(color, 0.14) }]}>
-      <Text style={[styles.deltaText, { color }]} numberOfLines={1}>
-        {up ? '+' : flat ? '' : '−'}${Math.abs(Math.round(delta)).toLocaleString()}
-      </Text>
-    </View>
-  );
+  const text = `${up ? '+' : flat ? '' : '−'}$${Math.abs(Math.round(delta)).toLocaleString()}`;
+  return <Chip label={text} tint={color} selected style={styles.deltaChip} />;
 }
 
 function SystemRow({ card, theme, darkMode, onPress }: { card: SystemCard; theme: Theme; darkMode: boolean; onPress: () => void }) {
@@ -1247,69 +1193,11 @@ function TimelineItem({
   );
 }
 
-function MoneyStat({ label, value, color, theme }: { label: string; value: string; color: string; theme: Theme }) {
-  return (
-    <View style={styles.moneyStat}>
-      <Text style={[styles.moneyValue, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>{value}</Text>
-      <Text style={[styles.moneyLabel, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
-  );
-}
-
-function MiniStat({ label, value, theme }: { label: string; value: string; theme: Theme }) {
-  return (
-    <View style={styles.miniStat}>
-      <Text style={[styles.miniValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-      <Text style={[styles.miniLabel, { color: theme.textMuted }]}>{label}</Text>
-    </View>
-  );
-}
-
-function Counter({ label, value, theme }: { label: string; value: number; theme: Theme }) {
-  return (
-    <View style={styles.counter}>
-      <Text style={[styles.counterValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.counterLabel, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
-  );
-}
-
 function DetailRow({ label, value, theme }: { label: string; value: string; theme: Theme }) {
   return (
     <View style={styles.systemDetailRow}>
       <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{label}</Text>
-      <Text style={[styles.cardSub, { color: theme.text, fontWeight: '700' }]}>{value}</Text>
-    </View>
-  );
-}
-
-function ModPill({ label, delta, theme }: { label: string; delta: number; theme: Theme }) {
-  const color = delta > 0 ? accent.success : delta < 0 ? accent.danger : accent.muted;
-  return (
-    <View style={[styles.modPill, { backgroundColor: withAlpha(color, 0.12), borderColor: withAlpha(color, 0.28) }]}>
-      <Text style={[styles.modPillValue, { color }]}>{signedYears(delta)}</Text>
-      <Text style={[styles.modPillLabel, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
-  );
-}
-
-function ThresholdPill({ label, value, theme }: { label: string; value: string; theme: Theme }) {
-  return (
-    <View style={[styles.thresholdPill, { backgroundColor: theme.surfaceElevated }]}>
-      <Text style={[styles.thresholdLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.thresholdValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-    </View>
-  );
-}
-
-function EmptyState({ Icon, title, sub, darkMode, theme }: { Icon: IconType; title: string; sub: string; darkMode: boolean; theme: Theme }) {
-  return (
-    <View style={styles.empty}>
-      <View style={[getGlassIconContainer(darkMode, 56), styles.emptyIcon]}>
-        <Icon size={scale(26)} color={accent.info} />
-      </View>
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.emptySub, { color: theme.textSecondary }]}>{sub}</Text>
+      <Text style={[styles.cardSub, { color: theme.text, fontWeight: '600' }]}>{value}</Text>
     </View>
   );
 }
@@ -1354,16 +1242,6 @@ function metricRange(series: number[]): { label: string; value: string }[] {
   ];
 }
 
-/** Convert a 6-digit hex color to an rgba() string with the given alpha. */
-function withAlpha(hex: string, alpha: number): string {
-  const h = hex.replace('#', '');
-  if (h.length < 6) return hex;
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 function categoryColor(category: string): string {
   switch (category) {
     case 'wealth': return accent.gold;
@@ -1378,138 +1256,85 @@ function categoryColor(category: string): string {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  tabs: { marginHorizontal: sp.md, marginBottom: sp.sm },
   flex1: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-    gap: sp.sm,
-  },
-  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.lg, fontWeight: '700', flex: 1 },
-  weekChip: { paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, borderWidth: 1 },
-  weekChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: sp.xs },
-  tabText: { fontSize: fs.sm, fontWeight: '700' },
 
   // Generic card + section header
   card: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, flexShrink: 1 },
-  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
+  sectionBody: { gap: sp.sm, paddingTop: sp.xs },
+  chipRow: { flexDirection: 'row', gap: sp.sm, flexWrap: 'wrap' },
   tintBubble: { borderWidth: 1 },
 
   // Hero
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg, gap: sp.xs },
-  heroBlob: { position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: `rgba(${ACCENT_RGB}, 0.1)` },
-  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   heroLabel: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8 },
-  heroValue: { fontSize: fs['3xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroValue: { fontSize: fs['3xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
   heroSpark: { marginTop: sp.sm, marginHorizontal: -scale(4) },
   detailSpark: { marginTop: sp.md, alignItems: 'center' },
   trendRow: { marginTop: sp.xs, flexDirection: 'row' },
-  trendBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  trendText: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  trendLabel: { fontSize: fs.xs },
   peakRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.sm },
   peakLabel: { fontSize: fs.xs },
-  peakValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  peakValue: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // Vitals rings
   vitalsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-start', paddingVertical: sp.xs },
   vitalItem: { alignItems: 'center', gap: sp.sm },
-  vitalValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  vitalValueLg: { fontSize: fs['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  vitalValue: { fontSize: fs.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  vitalValueLg: { fontSize: fs['2xl'], fontWeight: '600', fontVariant: ['tabular-nums'] },
   vitalLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   vitalLabel: { fontSize: fs.xs, fontWeight: '600' },
 
   // Records
-  recordStrip: { gap: sp.sm, paddingRight: sp.md },
-  recordChip: { width: scale(112), borderWidth: 1, borderRadius: br.lg, padding: sp.sm, gap: 4, minHeight: scale(88), justifyContent: 'center' },
-  recordChipIcon: { borderWidth: 1 },
-  recordValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  recordLabel: { fontSize: fs.xs },
   recordRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, paddingVertical: sp.sm },
-  recordRowValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  recordRowValue: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // Metric trend card
   metricHead: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   metricTitle: { fontSize: fs.sm, fontWeight: '600' },
-  metricCurrent: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  metricCurrent: { fontSize: fs.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
   metricSpark: { marginHorizontal: -scale(2), alignItems: 'center' },
-  metricFooter: { flexDirection: 'row', justifyContent: 'space-between', gap: sp.xs },
-  metricFootItem: { flex: 1, alignItems: 'center' },
-  metricFootValue: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  metricFootLabel: { fontSize: fs.xs, marginTop: 2 },
 
   // Nav / filter chips
-  navChip: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: scale(36), paddingHorizontal: sp.sm, borderRadius: br.full },
-  navChipText: { fontSize: fs.sm, fontWeight: '700' },
   filterRow: { gap: sp.sm, paddingRight: sp.md, paddingVertical: 2 },
-  filterChip: { minHeight: scale(36), paddingHorizontal: sp.md, borderRadius: br.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  filterChipText: { fontSize: fs.sm, fontWeight: '700' },
 
   // Money / counters
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
-  moneyStat: { alignItems: 'center', flexBasis: '30%', flexGrow: 1, minWidth: scale(96) },
-  moneyValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  moneyLabel: { fontSize: fs.xs, marginTop: 2 },
-  gridRow: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: sp.xs },
-  counter: { alignItems: 'center', flex: 1 },
-  counterValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  counterLabel: { fontSize: fs.xs, marginTop: 2 },
-  miniStat: { flexBasis: '48%', flexGrow: 1 },
-  miniValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  miniLabel: { fontSize: fs.xs, marginTop: 1 },
 
   // Systems
   summaryStrip: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
-  summaryStripValue: { fontSize: fs.lg, fontWeight: '800' },
+  summaryStripValue: { fontSize: fs.lg, fontWeight: '600' },
   systemRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
   systemMid: { flex: 1, gap: 2 },
   systemTopRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, flexWrap: 'wrap' },
   systemRight: { alignItems: 'flex-end', maxWidth: scale(96) },
-  systemLabel: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
-  systemLeadValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  systemBigLead: { fontSize: fs['3xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  systemLabel: { fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
+  systemLeadValue: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  systemBigLead: { fontSize: fs['3xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
   systemDetailHead: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
   systemDetailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   detailRows: { gap: sp.xs, marginTop: sp.xs },
   warnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  warnText: { fontSize: fs.xs, fontWeight: '700' },
+  warnText: { fontSize: fs.xs, fontWeight: '600' },
   warnBanner: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, padding: sp.sm, borderRadius: br.md, borderWidth: 1, marginTop: sp.xs },
-  warnBannerText: { fontSize: fs.sm, fontWeight: '700', flex: 1 },
+  warnBannerText: { fontSize: fs.sm, fontWeight: '600', flex: 1 },
 
   // Snapshots
   snapRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.sm },
   snapWeek: { fontSize: fs.sm, width: scale(72) },
-  snapValue: { fontSize: fs.md, fontWeight: '700', fontVariant: ['tabular-nums'], flex: 1 },
-  deltaChip: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full, minWidth: scale(64), alignItems: 'center' },
-  deltaText: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  snapValue: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'], flex: 1 },
+  deltaChip: { minWidth: scale(76), justifyContent: 'center' },
 
   // Vitals / stat chips
   chipWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm, marginTop: sp.xs },
   statChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: sp.sm, paddingVertical: scale(6), borderRadius: br.full, borderWidth: 1 },
-  statChipValue: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  statChipValue: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   statChipLabel: { fontSize: fs.xs },
 
   // FIRE
   fireBody: { flexDirection: 'row', alignItems: 'center', gap: sp.lg },
   fireStats: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
-  thresholdRow: { flexDirection: 'row', gap: sp.sm, marginTop: sp.xs },
-  thresholdPill: { flex: 1, borderRadius: br.md, paddingVertical: sp.sm, paddingHorizontal: sp.sm, alignItems: 'center', gap: 2 },
-  thresholdLabel: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.4 },
-  thresholdValue: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   // Life expectancy modifiers
-  modRow: { flexDirection: 'row', gap: sp.sm, marginTop: sp.xs },
-  modPill: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: sp.sm, borderRadius: br.md, borderWidth: 1 },
-  modPillValue: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  modPillLabel: { fontSize: fs.xs },
 
   // Timeline
   timelineItem: { flexDirection: 'row', gap: sp.sm },
@@ -1523,20 +1348,16 @@ const styles = StyleSheet.create({
   careerRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.sm },
 
   // Misc
-  cardName: { fontSize: fs.md, fontWeight: '700' },
+  cardName: { fontSize: fs.md, fontWeight: '600' },
   cardSub: { fontSize: fs.xs },
   tag: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full },
-  tagText: { fontSize: fs.xs, fontWeight: '700', textTransform: 'capitalize' },
+  tagText: { fontSize: fs.xs, fontWeight: '600', textTransform: 'capitalize' },
   claimChip: { paddingHorizontal: sp.sm, paddingVertical: 3, borderRadius: br.full, borderWidth: 1 },
-  claimChipText: { fontSize: fs.xs, fontWeight: '800' },
+  claimChipText: { fontSize: fs.xs, fontWeight: '600' },
   // Icon+text layout for the Claim/Claimed chips (lucide Gem instead of 💎).
   claimTagRow: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },
   recItem: { fontSize: fs.xs, marginTop: sp.xs },
   pastLifeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.sm },
 
   // Empty
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
-  emptyIcon: { backgroundColor: `rgba(${ACCENT_RGB}, 0.15)`, borderWidth: 1, borderColor: `rgba(${ACCENT_RGB}, 0.3)` },
-  emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
-  emptySub: { fontSize: fs.sm, textAlign: 'center' },
 });

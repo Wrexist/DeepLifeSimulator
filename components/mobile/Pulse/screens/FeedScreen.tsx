@@ -7,33 +7,28 @@
  * feels alive instead of showing one lonely post. Ambient posts regenerate
  * once per game week and their like/repost toggles are optimistic-only.
  *
- * Above the list: a real inline composer (text input + gradient Post button)
- * for quick text posts, with a chevron to escalate to the full ComposeModal
- * for content-type pickers, hashtags, and sponsor selection.
+ * Above the list: ONE compose entry - a composer row that opens the full
+ * ComposeModal. The screen used to carry three (a floating FAB, an inline
+ * send, and a chevron into the modal), all reaching the same action.
  *
  * Pull-to-refresh is decorative - Pulse posts are weekly so a swipe doesn't
  * actually fetch.
  */
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ChevronRight, Send } from 'lucide-react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
-import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { useToast } from '@/contexts/ToastContext';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
-import { composePost } from '@/contexts/game/actions/PulseActions';
-import { getEnergyCost } from '@/lib/social/socialMedia';
+import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { generateNpcPostsForFeed } from '@/lib/social/npcPosts';
 import { generateRandomProfilePosts } from '@/lib/social/randomProfiles';
 import PostCard from '../components/PostCard';
 import EmptyState from '../components/EmptyState';
 import StoriesRail from '../components/StoriesRail';
 import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
-import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
-import { pulseHaptics } from '../utils/pulseHaptics';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseRecentPost, SocialPost } from '@/contexts/game/types';
 
 /**
@@ -85,8 +80,6 @@ function ambientToEntry(sp: SocialPost, engagement?: { liked?: boolean; reposted
   };
 }
 
-const LinearGradient = Gradient;
-
 interface FeedScreenProps {
   /** Open the composer modal (owned by PulseApp). */
   onCompose: () => void;
@@ -101,45 +94,15 @@ interface FeedScreenProps {
 }
 
 export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBoostPost, onTapNpc }: FeedScreenProps) {
-  const { gameState, setGameState, saveGame } = useGame();
+  const { gameState } = useGame();
   const { theme } = useTheme();
-  const { showError } = useToast();
   const [refreshing, setRefreshing] = useState(false);
-  const [draft, setDraft] = useState('');
 
   const handle = gameState.userProfile?.handle
     || gameState.userProfile?.username
     || gameState.userProfile?.name
     || 'you';
   const avatar = gameState.userProfile?.profilePhoto;
-  const currentEnergy = Math.max(0, Math.floor(gameState.stats?.energy ?? 0));
-  // A text post really costs getEnergyCost('text') (15), not 5 - gating at 5
-  // let the button enable at 5-14 energy only for composePost to silently
-  // reject. Gate on the true cost so the button reflects what will happen.
-  const textPostCost = getEnergyCost('text');
-  const canPost = draft.trim().length > 0 && currentEnergy >= textPostCost;
-
-  const handleInlinePost = useCallback(() => {
-    if (draft.trim().length === 0) {
-      pulseHaptics.error();
-      return;
-    }
-    const r = composePost(setGameState, gameState, { content: draft, contentType: 'text' });
-    if (r.success) {
-      pulseHaptics.success();
-      setDraft('');
-      saveGame?.();
-    } else {
-      // Surface the real failure reason (e.g. "Not enough energy…") instead of
-      // just buzzing - previously a 5-14 energy tap did nothing visible.
-      pulseHaptics.error();
-      showError(r.message);
-    }
-  }, [draft, gameState, setGameState, saveGame, showError]);
-
-  const escalateToModal = useCallback(() => {
-    onCompose();
-  }, [onCompose]);
 
   const weeksLived = gameState.weeksLived ?? 0;
   const playerPhoto = gameState.userProfile?.profilePhoto;
@@ -222,11 +185,18 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
 
   const keyExtractor = useCallback((e: FeedEntry) => e.key, []);
 
-  // Inline composer: a real text input for quick text posts. The chevron at
-  // the right escalates to the full ComposeModal for content-type picker,
-  // hashtags, sponsor selection, and the 500-char Verified Pro limit.
+  // ONE compose entry. The row is the affordance: tapping anywhere on it opens
+  // ComposeModal, which owns the content-type picker, hashtags, the sponsor
+  // selection and the 500-char Verified Pro limit. The inline text input and
+  // its send button (a second entry point onto the same `composePost` the modal
+  // calls) and the floating FAB (a third) are gone.
   const composerEntry = (
-    <View style={[styles.composerEntry, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <Pressable
+      onPress={onCompose}
+      accessibilityRole="button"
+      accessibilityLabel="Compose a post"
+      style={[styles.composerEntry, { backgroundColor: theme.surface, borderColor: theme.border }]}
+    >
       {/* R5-A: degrade to initial-letter placeholder on load failure. */}
       <ImageWithFallback
         uri={avatar}
@@ -242,47 +212,11 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         placeholderColor={PULSE_COLORS.tierCelebrity}
         placeholderTextColor="#FFFFFF"
       />
-      <TextInput
-        value={draft}
-        onChangeText={setDraft}
-        placeholder="What's on your mind?"
-        placeholderTextColor={theme.textSecondary}
-        multiline
-        maxLength={280}
-        style={[styles.composerInput, { color: theme.text }]}
-        accessibilityLabel="Quick post"
-      />
-      {draft.length > 0 ? (
-        <Pressable
-          onPress={handleInlinePost}
-          disabled={!canPost}
-          accessibilityRole="button"
-          accessibilityLabel="Post"
-          accessibilityState={{ disabled: !canPost }}
-          hitSlop={6}
-          style={[styles.composerSend, !canPost && styles.composerSendDisabled]}
-        >
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.composerSendFill}
-          >
-            <Send size={fontScale(14)} color="#FFFFFF" strokeWidth={2.4} />
-          </LinearGradient>
-        </Pressable>
-      ) : (
-        <Pressable
-          onPress={escalateToModal}
-          accessibilityRole="button"
-          accessibilityLabel="Open full composer"
-          hitSlop={8}
-          style={styles.composerExpand}
-        >
-          <ChevronRight size={fontScale(18)} color={theme.textSecondary} />
-        </Pressable>
-      )}
-    </View>
+      <Text style={[styles.composerPrompt, { color: theme.textSecondary }]} numberOfLines={1}>
+        What&apos;s on your mind?
+      </Text>
+      <ChevronRight size={fontScale(18)} color={theme.textSecondary} />
+    </Pressable>
   );
 
   const header = (
@@ -301,7 +235,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
           nudge="Compose a post or follow someone to fill it."
         >
           <Pressable onPress={onCompose} accessibilityRole="button" accessibilityLabel="Compose first post">
-            <Text style={[styles.cta, { color: PULSE_GRADIENT[0] }]}>Compose your first post →</Text>
+            <Text style={[styles.cta, { color: PULSE_COLORS.accent }]}>Compose your first post →</Text>
           </Pressable>
         </EmptyState>
       </View>
@@ -318,8 +252,8 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={PULSE_GRADIENT[0]}
-          colors={[PULSE_GRADIENT[0]]}
+          tintColor={PULSE_COLORS.accent}
+          colors={[PULSE_COLORS.accent]}
         />
       }
       contentContainerStyle={styles.listContent}
@@ -337,13 +271,14 @@ const styles = StyleSheet.create({
   },
   composerEntry: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: responsiveSpacing.sm,
     marginHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.sm,
     marginBottom: responsiveSpacing.xs,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
     borderRadius: scale(13),
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -351,47 +286,10 @@ const styles = StyleSheet.create({
     width: scale(32),
     height: scale(32),
     borderRadius: scale(16),
-    marginTop: scale(2),
   },
-  composerAvatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  composerAvatarInitial: {
-    color: '#FFFFFF',
-    fontSize: fontScale(14),
-    fontWeight: '700',
-  },
-  composerInput: {
+  composerPrompt: {
     flex: 1,
     fontSize: fontScale(14),
-    lineHeight: fontScale(20),
-    minHeight: scale(32),
-    maxHeight: scale(100),
-    paddingTop: scale(6),
-    paddingBottom: scale(4),
-    textAlignVertical: 'top',
-  },
-  composerSend: {
-    borderRadius: scale(16),
-    overflow: 'hidden',
-    marginTop: scale(2),
-  },
-  composerSendDisabled: {
-    opacity: 0.5,
-  },
-  composerSendFill: {
-    width: scale(32),
-    height: scale(32),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  composerExpand: {
-    width: scale(32),
-    height: scale(32),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: scale(2),
   },
   cta: {
     fontSize: fontScale(14),

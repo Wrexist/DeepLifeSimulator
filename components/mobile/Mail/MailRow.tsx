@@ -26,6 +26,7 @@ import { senderColor, senderInitial } from '@/lib/mail/senders';
 import { docDateShort } from '@/lib/mail/format';
 import { decisionDeadline } from '@/lib/mail/filters';
 import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+import { mailPalette } from './mailPalette';
 
 interface Props {
   message: MailMessage;
@@ -57,6 +58,7 @@ function MailRow({
   onToggleStar,
 }: Props) {
   const theme = getThemeColors(darkMode);
+  const mail = mailPalette(darkMode);
   const s = makeStyles(theme, darkMode);
   const unread = !message.read;
   const deadline = decisionDeadline(message, currentWeek);
@@ -87,7 +89,7 @@ function MailRow({
             {message.senderName}
           </Text>
           {message.verified ? (
-            <BadgeCheck size={scale(13)} color={darkMode ? '#8AB4F8' : '#1A73E8'} />
+            <BadgeCheck size={scale(13)} color={mail.link} />
           ) : null}
           <Text style={[s.date, unread && s.strong]}>{docDateShort(message.atWeek)}</Text>
         </View>
@@ -124,13 +126,7 @@ function MailRow({
               <View style={[s.chip, deadline.urgent ? s.chipUrgent : s.chipDue]}>
                 <Clock
                   size={scale(10)}
-                  color={
-                    deadline.urgent
-                      ? darkMode
-                        ? '#FDD663'
-                        : '#B06000'
-                      : theme.textSecondary
-                  }
+                  color={deadline.urgent ? mail.warn : theme.textSecondary}
                 />
                 <Text
                   style={[s.chipText, deadline.urgent && s.chipTextUrgent]}
@@ -160,16 +156,17 @@ function MailRow({
       >
         <Star
           size={scale(17)}
-          color={message.starred ? '#F9AB00' : theme.textSecondary}
-          fill={message.starred ? '#F9AB00' : 'transparent'}
+          color={message.starred ? mail.star : theme.textSecondary}
+          fill={message.starred ? mail.star : 'transparent'}
         />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) => {
+  const mail = mailPalette(darkMode);
+  return StyleSheet.create({
     row: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -191,7 +188,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       marginTop: scale(2),
     },
     avatarText: {
-      color: '#FFFFFF',
+      color: mail.onAccent,
       fontSize: fontScale(15),
       fontWeight: '600',
     },
@@ -202,6 +199,8 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     subject: { fontSize: fontScale(13), color: theme.text },
     address: { fontSize: fontScale(10.5), color: theme.textSecondary },
     preview: { flex: 1, fontSize: fontScale(12), color: theme.textSecondary },
+    // Unread weight. The one weight step on this row - everything else is
+    // regular, so bold means "not read yet" and nothing else.
     strong: { fontWeight: '700', color: theme.text },
     chips: {
       flexDirection: 'row',
@@ -219,24 +218,25 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       borderWidth: 1,
     },
     chipDue: {
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      borderColor: mail.border,
       backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
     },
     chipUrgent: {
-      borderColor: darkMode ? '#5C4813' : '#F9AB00',
-      backgroundColor: darkMode ? 'rgba(249,171,0,0.13)' : '#FEF7E0',
+      borderColor: mail.warnBorder,
+      backgroundColor: mail.warnSurface,
     },
     chipFolder: {
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      borderColor: mail.border,
       backgroundColor: 'transparent',
     },
     chipText: { fontSize: fontScale(10), fontWeight: '600', color: theme.textSecondary },
-    chipTextUrgent: { color: darkMode ? '#FDD663' : '#B06000' },
+    chipTextUrgent: { color: mail.warn },
     star: {
       paddingLeft: scale(4),
       paddingTop: scale(4),
       alignSelf: 'flex-start',
     },
   });
+};
 
 export default React.memo(MailRow);

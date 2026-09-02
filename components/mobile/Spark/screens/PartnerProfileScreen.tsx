@@ -15,26 +15,27 @@
  * (proposeMarriage, planWedding, etc.) and is reachable from the
  * SocialActionsContext via the Family tab.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, AlertTriangle, Briefcase, DollarSign, GraduationCap, Heart, MapPin, MessageCircle, ShieldCheck, Sparkles, UserX } from 'lucide-react-native';
+import { AlertTriangle, Briefcase, DollarSign, GraduationCap, Heart, MapPin, MessageCircle, ShieldCheck, Sparkles, UserX } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import AppHeader from '@/components/ui/AppHeader';
+import Chip from '@/components/ui/Chip';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getGlassButton } from '@/utils/glassmorphismStyles';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { unmatch, reportProfile, exposeCatfish, fallForCatfish } from '@/contexts/game/actions/SparkActions';
 import { isCatfish } from '@/lib/dating/sparkLogic';
-import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
 import type { SparkMessage } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 /** Money the player loses if they fall for a catfish's "send money" ask. */
 const CATFISH_SCAM_LOSS = 500;
@@ -52,7 +53,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   const insets = useSafeAreaInsets();
 
   const sp = gameState.sparkApp;
-  const match = sp?.matches?.find((m: any) => m.id === matchId);
+  const match = sp?.matches?.find((m) => m.id === matchId);
   const profile = match ? DATING_PROFILES.find((p) => p.id === match.profileId) : undefined;
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const lastMessages = useMemo(() => messages.slice(-3), [messages]);
@@ -157,7 +158,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   if (!match || !profile) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <Header theme={theme} title="Profile" onBack={onBack} />
+        <AppHeader title="Profile" onBack={onBack} backLabel="Back to chat" centered />
         <EmptyState observation="Profile not found." nudge="Open a different match." />
       </View>
     );
@@ -165,9 +166,9 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <Header theme={theme} title="Profile" onBack={onBack} />
+      <AppHeader title={profile.name} onBack={onBack} backLabel="Back to chat" centered />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        {/* Hero - Recipe B rose backdrop behind the gradient avatar ring. */}
+        {/* Hero - one plain glass card; the identity tint is the avatar ring. */}
         <View
           style={[
             getGlassCard(isDark, 12),
@@ -176,24 +177,9 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
           ]}
         >
           <View style={styles.heroInner}>
-            <LinearGradient
-              pointerEvents="none"
-              colors={SPARK_GRADIENT_SOFT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View pointerEvents="none" style={styles.heroGlow} />
-            {isDark ? <View pointerEvents="none" style={styles.heroHairline} /> : null}
-
-            <LinearGradient
-              colors={SPARK_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatarRing}
-            >
+            <View style={[styles.avatarRing, { backgroundColor: withAlpha(SPARK_COLORS.accent, 0.16) }]}>
               <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={scale(108)} />
-            </LinearGradient>
+            </View>
             <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
               {profile.name}, {profile.age}
             </Text>
@@ -203,14 +189,13 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
                 {profile.distance} mi away
               </Text>
               {match.promoted ? (
-                <View style={[styles.tag, { backgroundColor: SPARK_COLORS.accent }]}>
-                  <Heart size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
-                  <Text style={styles.tagText}>Dating</Text>
-                </View>
+                <Chip
+                  label="Dating"
+                  tint={SPARK_COLORS.accent}
+                  icon={<Heart size={fontScale(10)} color={SPARK_COLORS.accent} fill={SPARK_COLORS.accent} />}
+                />
               ) : (
-                <View style={[styles.tag, { backgroundColor: theme.surfaceElevated }]}>
-                  <Text style={[styles.tagText, { color: theme.text }]}>New match</Text>
-                </View>
+                <Chip label="New match" />
               )}
             </View>
           </View>
@@ -228,12 +213,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
           <Section theme={theme} darkMode={isDark} title="Interests">
             <View style={styles.chipRow}>
               {profile.interests.map((interest) => (
-                <View
-                  key={interest}
-                  style={[styles.chip, { backgroundColor: theme.surfaceElevated }]}
-                >
-                  <Text style={[styles.chipText, { color: theme.text }]}>{interest}</Text>
-                </View>
+                <Chip key={interest} label={interest} />
               ))}
             </View>
           </Section>
@@ -324,22 +304,10 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   );
 }
 
-function Header({ theme, title, onBack }: { theme: any; title: string; onBack: () => void }) {
-  return (
-    <View style={styles.header}>
-      <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-        <ArrowLeft size={fontScale(22)} color={theme.text} />
-      </Pressable>
-      <Text style={[styles.headerTitle, { color: theme.text }]}>{title}</Text>
-      <View style={styles.headerBtn} />
-    </View>
-  );
-}
-
 function Section({
   theme, darkMode, title, icon, children,
 }: {
-  theme: any;
+  theme: ReturnType<typeof useTheme>['theme'];
   darkMode: boolean;
   title: string;
   icon?: React.ReactNode;
@@ -347,16 +315,13 @@ function Section({
 }) {
   return (
     <View style={[getGlassCard(darkMode, 6), styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={styles.sectionHeader}>
-        {icon}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      </View>
+      <SectionTitle title={title} right={icon} />
       <View style={styles.sectionBody}>{children}</View>
     </View>
   );
 }
 
-function Row({ icon, text, theme }: { icon: React.ReactNode; text: string; theme: any }) {
+function Row({ icon, text, theme }: { icon: React.ReactNode; text: string; theme: ReturnType<typeof useTheme>['theme'] }) {
   return (
     <View style={styles.row}>
       {icon}
@@ -367,24 +332,6 @@ function Row({ icon, text, theme }: { icon: React.ReactNode; text: string; theme
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: fontScale(16),
-    fontWeight: '600',
-  },
   scrollContent: {
     paddingHorizontal: responsiveSpacing.md,
     paddingTop: responsiveSpacing.sm,
@@ -401,23 +348,6 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
     alignItems: 'center',
   },
-  heroGlow: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(244,63,94,0.10)',
-  },
-  heroHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
   avatarRing: {
     width: scale(112),
     height: scale(112),
@@ -426,14 +356,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 3,
   },
-  avatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: scale(56),
-  },
   name: {
     fontSize: fontScale(22),
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: responsiveSpacing.sm,
   },
   metaRow: {
@@ -445,36 +370,11 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: fontScale(12),
   },
-  tag: {
-    marginLeft: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  tagText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(10),
-    fontWeight: '700',
-  },
   section: {
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     padding: responsiveSpacing.md,
     gap: responsiveSpacing.sm,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   sectionBody: {
     gap: responsiveSpacing.xs,
@@ -487,14 +387,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  chipText: {
-    fontSize: fontScale(12),
   },
   row: {
     flexDirection: 'row',

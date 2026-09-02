@@ -17,6 +17,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import type { MailAttachment } from '@/contexts/game/types';
 import { getThemeColors } from '@/lib/config/theme';
 import { fontScale, responsiveSpacing, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { mailPalette } from './mailPalette';
 
 interface Props {
   attachment: MailAttachment;
@@ -74,13 +75,14 @@ function MailDocument({ attachment, darkMode }: Props) {
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) =>
-  StyleSheet.create({
+const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) => {
+  const mail = mailPalette(darkMode);
+  return StyleSheet.create({
     doc: {
       borderWidth: 1,
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      borderColor: mail.border,
       borderRadius: responsiveBorderRadius.md,
-      backgroundColor: darkMode ? '#151B23' : '#FFFFFF',
+      backgroundColor: mail.surface,
       padding: responsiveSpacing.md,
       marginTop: responsiveSpacing.md,
     },
@@ -93,8 +95,8 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     kind: {
       fontSize: fontScale(10),
       letterSpacing: 1.2,
-      fontWeight: '700',
-      color: darkMode ? '#8AB4F8' : '#1A73E8',
+      fontWeight: '600',
+      color: mail.link,
     },
     reference: {
       fontSize: fontScale(10),
@@ -103,7 +105,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     },
     title: {
       fontSize: fontScale(15),
-      fontWeight: '700',
+      fontWeight: '600',
       color: theme.text,
     },
     issuer: {
@@ -113,7 +115,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     },
     rule: {
       height: 1,
-      backgroundColor: darkMode ? '#2A3441' : '#E8EAED',
+      backgroundColor: mail.ruleLight,
       marginVertical: responsiveSpacing.sm,
     },
     row: {
@@ -135,22 +137,22 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       fontVariant: ['tabular-nums'],
     },
     muted: { color: theme.textSecondary, fontWeight: '400' },
-    negative: { color: darkMode ? '#F28B82' : '#C5221F' },
+    negative: { color: mail.negative },
     totalRule: {
       height: 1,
-      backgroundColor: darkMode ? '#3C4A5A' : '#BDC1C6',
+      backgroundColor: mail.rule,
       marginTop: responsiveSpacing.sm,
       marginBottom: scale(2),
     },
     totalLabel: {
       flex: 1,
       fontSize: fontScale(13),
-      fontWeight: '700',
+      fontWeight: '600',
       color: theme.text,
     },
     totalValue: {
       fontSize: fontScale(15),
-      fontWeight: '800',
+      fontWeight: '700',
       color: theme.text,
       fontVariant: ['tabular-nums'],
     },
@@ -162,5 +164,6 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       fontStyle: 'italic',
     },
   });
+};
 
 export default React.memo(MailDocument);

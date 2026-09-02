@@ -19,7 +19,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ArrowLeft, BarChart3, Briefcase, Clock, X, Star } from 'lucide-react-native';
+import { BarChart3, Briefcase, Clock, X, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -33,7 +33,7 @@ import {
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
-import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import StockRow, { Sparkline, ChangeChip, SECTOR_COLOR, SECTOR_LABEL } from '@/components/stocks/StockRow';
@@ -52,6 +52,10 @@ import {
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
 import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
 
 const LinearGradient = Gradient;
 
@@ -78,7 +82,7 @@ interface OrderRecord {
   filledWeek?: number;
 }
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: 'market', label: 'Market', icon: BarChart3 },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
   { id: 'orders', label: 'Orders', icon: Clock },
@@ -258,19 +262,16 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     <View style={{ gap: responsiveSpacing.lg }}>
       <EconomyEventBanner context="generic" />
 
-      <SummaryStrip
-        theme={theme}
-        darkMode={darkMode}
+      <StatStrip
         items={[
-          { label: 'Listed', value: String(marketStats.total), color: theme.text },
-          { label: 'Advancing', value: String(marketStats.up), color: accent.success },
-          { label: 'Declining', value: String(marketStats.down), color: accent.danger },
-          { label: 'You own', value: String(marketStats.owned), color: accent.purple },
+          { label: 'Advancing', value: marketStats.up, tint: accent.success },
+          { label: 'Declining', value: marketStats.down, tint: accent.danger },
+          { label: 'You own', value: marketStats.owned, tint: accent.purple },
         ]}
       />
 
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Sector rotation</SectionTitle>
+        <SectionTitle title="Sector rotation" />
         <View style={styles.sectorGrid}>
           {sectorBoard.map((b) => (
             <SectorTile
@@ -287,7 +288,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
       <View style={{ gap: responsiveSpacing.sm }}>
         <View style={styles.listHeader}>
-          <SectionTitle theme={theme}>{sectorFilter ? `${SECTOR_LABEL[sectorFilter]} stocks` : 'All stocks'}</SectionTitle>
+          <SectionTitle title={sectorFilter ? `${SECTOR_LABEL[sectorFilter]} stocks` : 'All stocks'} />
           {sectorFilter && (
             <TouchableOpacity
               onPress={() => setSectorFilter(null)}
@@ -401,7 +402,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
       {allocation.length > 0 && (
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Allocation</SectionTitle>
+          <SectionTitle title="Allocation" />
           <View style={[getGlassCard(darkMode, 6), styles.allocCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.allocBar}>
               {allocation.map((a) => (
@@ -423,24 +424,24 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         </View>
       )}
 
-      <View style={styles.statGrid}>
-        <StatCard theme={theme} darkMode={darkMode} label="Cost basis" value={formatMoney(costBasis)} />
-        <StatCard
-          theme={theme}
-          darkMode={darkMode}
-          label="Unrealized"
-          value={`${unrealized >= 0 ? '+' : ''}${formatMoney(unrealized)}`}
-          negative={unrealized < 0}
-          positive={unrealized > 0}
-        />
-        <StatCard theme={theme} darkMode={darkMode} label="Realized" value={formatMoney(realizedGains)} negative={realizedGains < 0} />
-        <StatCard theme={theme} darkMode={darkMode} label="Dividends" value={formatMoney(totalDividends)} />
-        <StatCard theme={theme} darkMode={darkMode} label="Div. this yr" value={formatMoney(dividendsThisYear)} />
-        <StatCard theme={theme} darkMode={darkMode} label="Positions" value={String(holdings.filter((h) => h.shares > 0).length)} />
-      </View>
+      <StatStrip
+        items={[
+          { label: 'Cost basis', value: formatMoney(costBasis) },
+          {
+            label: 'Unrealized',
+            value: `${unrealized >= 0 ? '+' : ''}${formatMoney(unrealized)}`,
+            tint: unrealized > 0 ? accent.success : unrealized < 0 ? accent.danger : undefined,
+          },
+          { label: 'Realized', value: formatMoney(realizedGains), tint: realizedGains < 0 ? accent.danger : undefined },
+          { label: 'Dividends', value: formatMoney(totalDividends), sub: `${formatMoney(dividendsThisYear)} this year` },
+        ]}
+      />
 
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Holdings</SectionTitle>
+        <SectionTitle
+          title="Holdings"
+          right={<Text style={{ color: theme.textMuted, fontSize: responsiveFontSize.sm }}>{`${holdings.filter((h) => h.shares > 0).length} positions`}</Text>}
+        />
         {holdings.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>
             You don&apos;t hold any stocks yet.
@@ -474,7 +475,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
       {watchItems.length > 0 && (
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Watchlist</SectionTitle>
+          <SectionTitle title="Watchlist" />
           <GroupCard theme={theme} darkMode={darkMode}>
             {watchItems.map((m, i) => (
               <StockRow
@@ -503,18 +504,16 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const closed = orderHistory.filter((o) => o.status === 'cancelled' || o.status === 'expired').length;
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        <SummaryStrip
-          theme={theme}
-          darkMode={darkMode}
+        <StatStrip
           items={[
-            { label: 'Open', value: String(openOrders.length), color: accent.purple },
-            { label: 'Filled', value: String(filled), color: accent.success },
-            { label: 'Closed', value: String(closed), color: theme.textMuted },
+            { label: 'Open', value: openOrders.length, tint: accent.purple },
+            { label: 'Filled', value: filled, tint: accent.success },
+            { label: 'Closed', value: closed },
           ]}
         />
 
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Open orders</SectionTitle>
+          <SectionTitle title="Open orders" />
           {openOrders.length === 0 ? (
             <EmptyText theme={theme} darkMode={darkMode}>
               No open orders.
@@ -547,7 +546,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         </View>
 
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Recent fills</SectionTitle>
+          <SectionTitle title="Recent fills" />
           {orderHistory.length === 0 ? (
             <EmptyText theme={theme} darkMode={darkMode}>
               No fills yet.
@@ -626,15 +625,12 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
     return (
       <View style={{ flex: 1 }}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => setDetailSymbol(null)} hitSlop={8} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
-            <ArrowLeft size={scale(22)} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={[styles.appTitle, { color: theme.text }]}>{symbol}</Text>
-          <View style={[styles.cashChip, { backgroundColor: 'rgba(168,85,247,0.14)', borderColor: 'rgba(168,85,247,0.30)' }]}>
-            <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
-          </View>
-        </View>
+        <AppHeader
+          title={symbol}
+          onBack={() => setDetailSymbol(null)}
+          backLabel="Back to stocks"
+          right={<CashChip value={formatMoney(cash)} tint={accent.purple} />}
+        />
 
         <ScrollView
           style={{ flex: 1 }}
@@ -659,13 +655,13 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
           {owned && (
             <View style={{ gap: responsiveSpacing.sm }}>
-              <SectionTitle theme={theme}>Your position</SectionTitle>
+              <SectionTitle title="Your position" />
               <InfoCard theme={theme} darkMode={darkMode} rows={positionRows} />
             </View>
           )}
 
           <View style={{ gap: responsiveSpacing.sm }}>
-            <SectionTitle theme={theme}>Market data</SectionTitle>
+            <SectionTitle title="Market data" />
             <InfoCard theme={theme} darkMode={darkMode} rows={marketRows} />
           </View>
 
@@ -713,35 +709,15 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         renderDetail()
       ) : (
         <>
-          <View style={styles.topBar}>
-            <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
-              <ArrowLeft size={scale(22)} color={theme.text} />
-            </TouchableOpacity>
-            <Text style={[styles.appTitle, { color: theme.text }]}>Stocks</Text>
-            <View style={[styles.cashChip, { backgroundColor: 'rgba(168,85,247,0.14)', borderColor: 'rgba(168,85,247,0.30)' }]}>
-              <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
-            </View>
-          </View>
+          <AppHeader title="Stocks" onBack={onBack} right={<CashChip value={formatMoney(cash)} tint={accent.purple} />} />
 
-          <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
-            {TABS.map((t) => {
-              const active = activeTab === t.id;
-              const Icon = t.icon;
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => setActiveTab(t.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={t.label}
-                  style={[styles.tab, active && { backgroundColor: 'rgba(168,85,247,0.16)' }]}
-                >
-                  <Icon size={scale(16)} color={active ? accent.purple : theme.textMuted} />
-                  <Text style={[styles.tabText, { color: active ? accent.purple : theme.textMuted }]}>{t.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <SegmentedControl
+            segments={TABS.map((t) => ({ key: t.id, label: t.label, icon: t.icon }))}
+            value={activeTab}
+            onChange={setActiveTab}
+            activeColor={accent.purple}
+            style={styles.tabs}
+          />
 
           <ScrollView
             style={{ flex: 1 }}
@@ -770,36 +746,6 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 }
 
 // --- Small presentational helpers -----------------------------------------
-
-function SectionTitle({ theme, children }: { theme: Theme; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function StatCard({
-  theme,
-  darkMode,
-  label,
-  value,
-  negative,
-  positive,
-}: {
-  theme: Theme;
-  darkMode: boolean;
-  label: string;
-  value: string;
-  negative?: boolean;
-  positive?: boolean;
-}) {
-  const color = negative ? accent.danger : positive ? accent.success : theme.text;
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.statValue, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
-        {value}
-      </Text>
-    </View>
-  );
-}
 
 /** Recipe B hero shell - purple identity wash + glow blob + dark-only hairline. */
 function HeroCard({ theme, darkMode, children }: { theme: Theme; darkMode: boolean; children: React.ReactNode }) {
@@ -855,26 +801,6 @@ function InfoCard({ theme, darkMode, rows }: { theme: Theme; darkMode: boolean; 
 }
 
 /** Dense horizontal stat bar with vertical hairline dividers. */
-function SummaryStrip({ theme, darkMode, items }: { theme: Theme; darkMode: boolean; items: { label: string; value: string; color: string }[] }) {
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.summaryStrip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      {items.map((it, i) => (
-        <React.Fragment key={it.label}>
-          {i > 0 && <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />}
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: it.color }]} numberOfLines={1}>
-              {it.value}
-            </Text>
-            <Text style={[styles.summaryLabel, { color: theme.textMuted }]} numberOfLines={1}>
-              {it.label}
-            </Text>
-          </View>
-        </React.Fragment>
-      ))}
-    </View>
-  );
-}
-
 /** Tappable sector-momentum tile - filters the market list by sector. */
 function SectorTile({
   theme,
@@ -991,41 +917,37 @@ export default function StocksApp(props: StocksAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: {
+  tabs: { marginHorizontal: responsiveSpacing.md, marginBottom: responsiveSpacing.sm },
+
+  // Grouped list card
+  groupCard: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1 },
+  groupClip: { borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
+
+  // Market list controls
+  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  clearChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  backBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  cashChip: {
+    gap: scale(3),
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
+    minHeight: touchTargets.minimum,
     borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
+    backgroundColor: 'rgba(168,85,247,0.14)',
   },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  // Segmented control directly under the top bar - it anchors the screen, so the top bar drops its bottom border.
-  tabBar: {
-    flexDirection: 'row',
-    gap: scale(4),
-    marginHorizontal: responsiveSpacing.md,
-    marginTop: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.sm,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-  },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  sectionTitle: { fontSize: responsiveFontSize.md, fontWeight: '700', letterSpacing: 0.2 },
+  clearChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
+  sortRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
+  sortChip: { flex: 1, minHeight: touchTargets.minimum, alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
+  sortChipText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+
+  // Sector board
+  sectorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
+  sectorTile: { flexBasis: '48%', flexGrow: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: scale(3) },
+  sectorTileHead: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
+  sectorTileName: { fontSize: responsiveFontSize.sm, fontWeight: '600', flexShrink: 1 },
+  sectorTileState: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  sectorTileMeta: { fontSize: responsiveFontSize.xs },
+
+  // Summary strip
   emptyText: { fontSize: responsiveFontSize.sm, textAlign: 'center', opacity: 0.6 },
   emptyCard: {
     borderRadius: responsiveBorderRadius.xl,
@@ -1053,12 +975,12 @@ const styles = StyleSheet.create({
   heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
   heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
-  heroValue: { fontSize: responsiveFontSize['4xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
-  detailPrice: { fontSize: responsiveFontSize['4xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroValue: { fontSize: responsiveFontSize['4xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
+  detailPrice: { fontSize: responsiveFontSize['4xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
   heroChips: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: responsiveSpacing.xs },
   heroChipGroup: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs, flexShrink: 1 },
   heroChipLabel: { fontSize: responsiveFontSize.xs, flexShrink: 1 },
-  heroUnrealized: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  heroUnrealized: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // Allocation
   allocCard: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
@@ -1066,63 +988,11 @@ const styles = StyleSheet.create({
   allocLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
   allocLegendItem: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   legendDot: { width: scale(8), height: scale(8), borderRadius: scale(4) },
-  legendText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  legendText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   legendPct: { fontSize: responsiveFontSize.xs, fontVariant: ['tabular-nums'] },
 
   // Stat grid
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  statCard: {
-    flexBasis: '48%',
-    flexGrow: 1,
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    gap: 2,
-  },
-  statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
-  // Grouped list card
-  groupCard: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1 },
-  groupClip: { borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
-
-  // Market list controls
-  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  clearChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(3),
-    paddingHorizontal: responsiveSpacing.sm,
-    minHeight: scale(36),
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: 'rgba(168,85,247,0.14)',
-  },
-  clearChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  sortRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
-  sortChip: { flex: 1, minHeight: scale(36), alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
-  sortChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
-
-  // Sector board
-  sectorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  sectorTile: { flexBasis: '48%', flexGrow: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: scale(3) },
-  sectorTileHead: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  sectorTileName: { fontSize: responsiveFontSize.sm, fontWeight: '700', flexShrink: 1 },
-  sectorTileState: { fontSize: responsiveFontSize.sm, fontWeight: '800' },
-  sectorTileMeta: { fontSize: responsiveFontSize.xs },
-
-  // Summary strip
-  summaryStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.sm,
-  },
-  summaryItem: { flex: 1, alignItems: 'center', gap: scale(2) },
-  summaryValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  summaryLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  summaryDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: scale(2) },
 
   // Info rows (detail)
   infoRow: {
@@ -1134,7 +1004,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   infoLabel: { fontSize: responsiveFontSize.sm, flexShrink: 0 },
-  infoValue: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
+  infoValue: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
 
   // Order rows. (The scale(3) `stripe` that lived here is gone - Hard Rule #7;
   // the side now shows as a faint row tint plus the existing BUY/SELL title.)
@@ -1148,22 +1018,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   orderTitleRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  orderTitle: { fontSize: responsiveFontSize.sm, fontWeight: '700', flexShrink: 1 },
+  orderTitle: { fontSize: responsiveFontSize.sm, fontWeight: '600', flexShrink: 1 },
   typeChip: { paddingHorizontal: responsiveSpacing.xs, paddingVertical: 1, borderRadius: responsiveBorderRadius.sm },
-  typeChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700', textTransform: 'capitalize' },
+  typeChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   statusChip: { paddingHorizontal: responsiveSpacing.xs, paddingVertical: 1, borderRadius: responsiveBorderRadius.sm },
-  statusChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700', textTransform: 'capitalize' },
+  statusChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   orderMeta: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   cancelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(3),
     paddingHorizontal: responsiveSpacing.sm,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
   },
-  cancelBtnText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  cancelBtnText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
 
   // Trade CTA (detail) + watch pill row
   ctaRow: { flexDirection: 'row', alignItems: 'stretch', gap: responsiveSpacing.sm },
@@ -1179,7 +1049,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  watchPillText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  watchPillText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   tradeCtaFill: {
     borderRadius: responsiveBorderRadius.full,
     minHeight: touchTargets.minimum,
@@ -1188,5 +1058,5 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
-  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '700' },
+  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },
 });
