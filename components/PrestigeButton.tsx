@@ -7,6 +7,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { fontScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
 
@@ -172,7 +173,6 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 8,
     marginVertical: 4,
   },
   button: {
@@ -208,23 +208,23 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   label: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#94A3B8',
   },
   progressText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#64748B',
     marginTop: 2,
   },
   availableLabel: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: 'bold',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   availableSubtext: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#FEF3C7',
     marginTop: 2,
   },

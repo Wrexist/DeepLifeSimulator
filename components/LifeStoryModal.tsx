@@ -22,6 +22,8 @@ import { generateLifeStory, generateShareableStory, type LifeStory, type StoryCh
 import FadeInUp from '@/components/anim/FadeInUp';
 import { haptic } from '@/utils/haptics';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
 
 interface Props {
@@ -204,12 +206,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...tier1Title,
     color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
   },
@@ -238,17 +239,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...tier2,
     color: '#CBD5E1',
     marginTop: 16,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     textAlign: 'center',
     marginTop: 8,
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   chapterCard: {
     backgroundColor: '#1E293B',
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chapterNumber: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '700',
     color: '#FFFFFF',
     textTransform: 'uppercase',
@@ -281,12 +281,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   chapterTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...tier2,
     color: '#F1F5F9',
   },
   chapterAge: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#64748B',
     fontWeight: '500',
   },
@@ -296,8 +295,8 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   paragraph: {
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: fontScale(14),
+    lineHeight: fontScale(21),
     color: '#94A3B8',
     marginLeft: 8,
     flex: 1,
@@ -311,8 +310,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   closingText: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: fontScale(15),
+    lineHeight: fontScale(22),
     color: '#CBD5E1',
     fontStyle: 'italic',
     textAlign: 'center',

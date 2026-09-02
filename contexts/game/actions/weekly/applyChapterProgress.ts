@@ -26,7 +26,7 @@
  */
 import type { GameState } from '@/contexts/game/types';
 import { LIFE_CHAPTERS, getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
-import { featuresUnlockedAtTier, type UnlockTier } from '@/lib/progress/featureUnlocks';
+import { featuresUnlockedAtTier, type UnlockTier, unlockTier } from '@/lib/progress/featureUnlocks';
 
 export interface ChapterProgressInput {
   /** The state as it stands after this tick's other subsystems. */
@@ -99,7 +99,13 @@ export function applyChapterProgress(input: ChapterProgressInput): ChapterProgre
   // stored array, so an out-of-order flag cannot mis-announce.
   const index = LIFE_CHAPTERS.findIndex((c) => c.id === active.id);
   const tier = Math.min(5, Math.max(0, index + 1)) as UnlockTier;
-  const unlocked = unlockAnnouncement(tier);
+  // Announce only what THIS completion opens. `unlockTier` is the max of the
+  // chapter ladder and the wealth/employment milestones, so a player who was
+  // hired in week 0 (or started with $1,500) already held tier 1 when Chapter 1
+  // completed - and was told "Progression and Contacts are now available" about
+  // apps they had been using for six weeks. A reward message that describes an
+  // unlock that never happened teaches the player to skim rewards. Program 6.
+  const unlocked = unlockTier(state) >= tier ? '' : unlockAnnouncement(tier);
 
   return {
     newlyCompleted: [active.id],

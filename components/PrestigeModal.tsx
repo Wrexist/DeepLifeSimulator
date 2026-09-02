@@ -16,6 +16,7 @@ import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScal
 
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
+import { tier1Title, tier1Value, tier2 } from '@/lib/config/hierarchy';
 
 interface PrestigeModalProps {
   visible: boolean;
@@ -804,13 +805,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...tier1Title,
     color: '#FFFFFF',
-    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#94A3B8',
     marginTop: 4,
     fontWeight: '500',
@@ -859,7 +858,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pointsTitle: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
     color: '#FBBF24',
     letterSpacing: 0.5,
@@ -869,10 +868,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   pointsValue: {
-    fontSize: 42,
-    fontWeight: '800',
+    ...tier1Value,
     color: '#FFFFFF',
-    letterSpacing: -1,
   },
   breakdown: {
     gap: 12,
@@ -886,12 +883,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   breakdownLabel: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#CBD5E1',
     fontWeight: '500',
   },
   breakdownValue: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: '700',
     color: '#FBBF24',
   },
@@ -905,11 +902,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...tier2,
     color: '#FFFFFF',
     marginBottom: 16,
-    letterSpacing: -0.3,
   },
   pathSectionTitle: {
     marginTop: 8,
@@ -936,13 +931,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '700',
     color: '#FFFFFF',
     marginTop: 4,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#94A3B8',
     marginTop: 4,
     fontWeight: '500',
@@ -995,11 +990,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pathTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...tier2,
     color: '#FFFFFF',
     marginBottom: 6,
-    letterSpacing: -0.3,
   },
   pathTitleSelected: {
     color: '#60A5FA',
@@ -1008,9 +1001,9 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   pathDescription: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#94A3B8',
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   pathDescriptionSelected: {
     color: '#93C5FD',
@@ -1038,7 +1031,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   benefitText: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#94A3B8',
     fontWeight: '500',
   },
@@ -1086,7 +1079,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   childName: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
@@ -1095,7 +1088,7 @@ const styles = StyleSheet.create({
     color: '#A78BFA',
   },
   childAge: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#94A3B8',
     marginTop: 4,
   },
@@ -1122,13 +1115,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   bonusBadgeText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: '#60A5FA',
     textTransform: 'capitalize',
   },
   moreBonuses: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#94A3B8',
     alignSelf: 'center',
     fontWeight: '500',
@@ -1137,19 +1130,17 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   confirmationTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...tier1Title,
     color: '#FFFFFF',
     marginBottom: 20,
     textAlign: 'center',
-    letterSpacing: -0.5,
   },
   confirmationText: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     color: '#CBD5E1',
     marginBottom: 16,
     fontWeight: '500',
-    lineHeight: 22,
+    lineHeight: fontScale(22),
   },
   confirmationTextSpacing: {
     marginTop: 8,
@@ -1167,21 +1158,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   listBullet: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#94A3B8',
     marginTop: 2,
   },
   warningItem: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#F87171',
     flex: 1,
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   keepItem: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#34D399',
     flex: 1,
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   lifeStoryButton: {
     flexDirection: 'row',
@@ -1196,7 +1187,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   lifeStoryButtonText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
     color: '#A78BFA',
   },
@@ -1210,11 +1201,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   pointsEarned: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...tier2,
     color: '#FBBF24',
     textAlign: 'center',
-    letterSpacing: -0.3,
   },
   actions: {
     flexDirection: 'row',
@@ -1235,7 +1224,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
     color: '#94A3B8',
   },
@@ -1261,7 +1250,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   prestigeButtonText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.2,

@@ -43,6 +43,14 @@ export const styles = StyleSheet.create({
     paddingTop: responsiveSpacing.md,
   },
   contentDark: {},
+  /** The one line that names why a section leads (energy critical -> food). */
+  leadNote: {
+    fontSize: fontScale(13),
+    lineHeight: fontScale(18),
+    fontWeight: '600',
+    color: '#FBBF24',
+    marginBottom: scale(6),
+  },
   sectionDescription: {
     fontSize: fontScale(13),
     color: TEXT_SECONDARY,
@@ -135,8 +143,9 @@ export const styles = StyleSheet.create({
     gap: responsiveSpacing.md,
   },
   housingCardTitle: {
-    fontSize: fontScale(18),
-    fontWeight: '700',
+    // Tier 2: a rental row must not outrank the section header above it.
+    fontSize: fontScale(16),
+    fontWeight: '600',
     color: TEXT,
     letterSpacing: -0.3,
     marginBottom: scale(2),

@@ -9,7 +9,7 @@
  * just renders.
  */
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { MapPin, Briefcase, GraduationCap, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -33,12 +33,12 @@ const SCRIM_STEPS = [
 
 interface ProfileCardProps {
   profile: DatingProfile;
-  /** Visible 'like' watermark opacity (0-1) when the user is dragging right. */
-  likeOpacity?: number;
-  /** Visible 'nope' watermark opacity (0-1) when the user is dragging left. */
-  nopeOpacity?: number;
-  /** Visible 'super' watermark opacity (0-1) when the user is dragging up. */
-  superOpacity?: number;
+  /** 'like' stamp opacity (0-1) while dragging right - a pan interpolation or a number. */
+  likeOpacity?: Animated.AnimatedInterpolation<number> | number;
+  /** 'nope' stamp opacity (0-1) while dragging left. */
+  nopeOpacity?: Animated.AnimatedInterpolation<number> | number;
+  /** 'super' stamp opacity (0-1) while dragging up. */
+  superOpacity?: Animated.AnimatedInterpolation<number> | number;
   /** True when this profile is flagged as a likely catfish. */
   catfishSuspected?: boolean;
 }
@@ -51,7 +51,7 @@ const WEALTH_LABEL: Record<string, string> = {
 };
 
 export default function ProfileCard({
-  profile, likeOpacity = 0, nopeOpacity = 0, superOpacity = 0, catfishSuspected,
+  profile, likeOpacity, nopeOpacity, superOpacity, catfishSuspected,
 }: ProfileCardProps) {
   const { theme, isDark } = useTheme();
 
@@ -104,23 +104,24 @@ export default function ProfileCard({
           </View>
         ) : null}
 
-        {/* LIKE stamp */}
-        {likeOpacity > 0 ? (
-          <View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]}>
+        {/* Drag stamps. Rendered whenever a driver is supplied and faded by
+            it: the old `> 0` gate compared an Animated node to a number,
+            which is always false, so these never drew at all (Program 3
+            logged them as dead; they were broken, not unused). */}
+        {likeOpacity !== undefined ? (
+          <Animated.View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]} pointerEvents="none">
             <Text style={[styles.stampText, { color: SPARK_COLORS.success }]}>LIKE</Text>
-          </View>
+          </Animated.View>
         ) : null}
-        {/* NOPE stamp */}
-        {nopeOpacity > 0 ? (
-          <View style={[styles.stamp, styles.stampNope, { opacity: nopeOpacity }]}>
+        {nopeOpacity !== undefined ? (
+          <Animated.View style={[styles.stamp, styles.stampNope, { opacity: nopeOpacity }]} pointerEvents="none">
             <Text style={[styles.stampText, { color: SPARK_COLORS.danger }]}>NOPE</Text>
-          </View>
+          </Animated.View>
         ) : null}
-        {/* SUPER stamp */}
-        {superOpacity > 0 ? (
-          <View style={[styles.stamp, styles.stampSuper, { opacity: superOpacity }]}>
+        {superOpacity !== undefined ? (
+          <Animated.View style={[styles.stamp, styles.stampSuper, { opacity: superOpacity }]} pointerEvents="none">
             <Text style={[styles.stampText, { color: SPARK_COLORS.superLike }]}>SUPER</Text>
-          </View>
+          </Animated.View>
         ) : null}
 
         {/* Identity */}

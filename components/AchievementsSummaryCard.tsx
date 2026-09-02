@@ -31,7 +31,7 @@ import { useAchievements } from '@/hooks/useAchievements';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { cardStyle } from '@/components/ui/Card';
 import { accent } from '@/lib/config/theme';
-import { scale, fontScale, responsivePadding } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 interface AchievementsSummaryCardProps {
@@ -151,7 +151,6 @@ const styles = StyleSheet.create({
   // app/(tabs)/home.tsx also has (its neighbour in the feed): the shadow, and
   // no flex gap (the body spaces itself with marginTop).
   card: {
-    marginHorizontal: responsivePadding.horizontal,
     gap: 0,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },

@@ -42,26 +42,48 @@ describe('buildGoalRows', () => {
     expect(buildGoalRows(undefined, [])).toEqual([]);
   });
 
-  it('leads with the active chapter goal and ends on the catalogue row', () => {
+  it('leads with the active chapter goal and pins the catalogue row second', () => {
     const rows = buildGoalRows(createTestGameState(), []);
-    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeGreaterThan(1);
     // A fresh life sits in chapter 1 with unfinished goals.
     expect(rows[0].system).toBe('chapter');
-    // The situational recommendation is the fallback, so it comes last — and
-    // it is the only row allowed to carry its own route.
-    const last = rows[rows.length - 1];
-    expect(last.system).toBe('catalogue');
-    expect(last.route).toBeTruthy();
+    // The situational recommendation is the ONLY row with a destination, so it
+    // is pinned second: with three slots and five passive ladders ahead of it,
+    // a fresh life never saw "Get your health back up" while sliding to zero
+    // (Program 6 walkthrough).
+    expect(rows[1].system).toBe('catalogue');
+    expect(rows[1].route).toBeTruthy();
     for (const row of rows) {
       if (row.system !== 'catalogue') expect(row.route).toBeUndefined();
     }
   });
 
-  it('slots the weekly challenge between the chapter and the catalogue', () => {
+  it('the routed recommendation survives a full feed (chapter + challenge + live event)', () => {
+    const state = createTestGameState();
+    const weeksLived = state.weeksLived ?? 0;
+    const full = {
+      ...state,
+      stats: { ...state.stats, money: 5_000 },
+      weeklyChallenge: {
+        challengeId: getWeeklyChallengeIdForWeek(weeksLived),
+        startedAt: Date.now(),
+        startedWeek: weeksLived,
+        progress: [],
+        completed: false,
+        rewardClaimed: false,
+      },
+    };
+    const top3 = buildGoalRows(full, [fakeEvent('active')]).slice(0, 3);
+    expect(top3.some((r) => r.system === 'catalogue' && r.route)).toBe(true);
+  });
+
+  it('slots the weekly challenge after the catalogue row once the mid-game is open', () => {
     const state = createTestGameState();
     const weeksLived = state.weeksLived ?? 0;
     const withChallenge = {
       ...state,
+      // Tier 2 (wealth ≥ $2,000): the padlocks the challenges depend on are open.
+      stats: { ...state.stats, money: 5_000 },
       weeklyChallenge: {
         challengeId: getWeeklyChallengeIdForWeek(weeksLived),
         startedAt: Date.now(),
@@ -75,8 +97,44 @@ describe('buildGoalRows', () => {
     const chapter = systems.indexOf('chapter');
     const challenge = systems.indexOf('challenge');
     const catalogue = systems.indexOf('catalogue');
-    expect(challenge).toBeGreaterThan(chapter);
-    expect(catalogue).toBeGreaterThan(challenge);
+    expect(chapter).toBe(0);
+    expect(catalogue).toBe(1);
+    expect(challenge).toBeGreaterThan(catalogue);
+  });
+
+  it('hides the weekly challenge from a life that has not opened the mid-game (tier < 2)', () => {
+    // Every weekly challenge is a mid-game bundle (properties, educations,
+    // pets, followers, $10k savings). Measured on a fresh quick start the row
+    // read "Have 80+ fitness · 0/4 objectives" as the LEAD goal at fitness 10.
+    const state = createTestGameState();
+    const weeksLived = state.weeksLived ?? 0;
+    const fresh = {
+      ...state,
+      currentJob: undefined,
+      stats: { ...state.stats, money: 500 },
+      bankSavings: 0,
+      weeklyChallenge: {
+        challengeId: getWeeklyChallengeIdForWeek(weeksLived),
+        startedAt: Date.now(),
+        startedWeek: weeksLived,
+        progress: [],
+        completed: false,
+        rewardClaimed: false,
+      },
+    };
+    expect(buildGoalRows(fresh, []).some((r) => r.system === 'challenge')).toBe(false);
+  });
+
+  it('a money objective on a live event reads as money, not as "0/3 done"', () => {
+    const event = {
+      ...fakeEvent('active'),
+      objectives: [
+        { objectiveId: 'cash', label: 'Hold $5,000 in cash', current: 1_500, target: 5_000, met: false },
+        { objectiveId: 'o2', label: 'Objective 2', current: 0, target: 1, met: false },
+      ],
+    } as unknown as ResolvedLiveEvent;
+    const live = buildGoalRows(createTestGameState(), [event]).find((r) => r.system === 'liveops');
+    expect(live?.fraction).toBe('$1,500 / $5,000');
   });
 
   it('skips a challenge whose reward is already claimed', () => {

@@ -105,10 +105,15 @@ const styles = StyleSheet.create({
   textWrap: {
     flex: 1,
   },
+  // Tier 2, not tier 1: the screen's name is chrome. At 22/800 it was the
+  // largest type on Work, Life and Progress - bigger than the job the player
+  // holds or the goal they are on - so the least informative element on the
+  // screen won the squint test every time (Program 4).
   title: {
-    fontSize: fontScale(22),
-    fontWeight: '800',
-    letterSpacing: -0.4,
+    fontSize: fontScale(17),
+    lineHeight: fontScale(22),
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: fontScale(12.5),

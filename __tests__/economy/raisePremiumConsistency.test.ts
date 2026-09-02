@@ -7,7 +7,7 @@
  *
  *   JobActions.ts (promotion payout)      `?? 1`, no clamp at all
  *   applyCareerSalaryAndPenalty.ts        Math.max(1, Math.min(3, …))
- *   CareerPathCard.tsx                    Math.max(1, Math.min(3, …)) — twice
+ *   CareerPathCard.tsx                    Math.max(1, Math.min(3, …)) — twice (component deleted in Program 5)
  *   work.tsx (premium %)                  `?? 1`, no clamp
  *
  * On a save inside the design range all four agree, which is why this survived:
@@ -113,7 +113,6 @@ describe('every reader goes through it - no site keeps its own clamp', () => {
     ['contexts/game/actions/JobActions.ts', /resolveRaisePremium|paidWeeklySalaryForLevel/],
     ['contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts', /paidWeeklySalaryForLevel/],
     ['lib/careers/weeklySalary.ts', /applyRaisePremium/],
-    ['components/CareerPathCard.tsx', /resolveRaisePremium|paidWeeklySalaryForLevel/],
     ['app/(tabs)/work.tsx', /raisePremiumPct/],
   ];
 

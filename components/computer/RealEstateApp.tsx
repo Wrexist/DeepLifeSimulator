@@ -54,6 +54,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { kicker, rhythm, tier1Title } from '@/lib/config/hierarchy';
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
@@ -560,7 +561,55 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
   const renderPortfolio = () => {
     const equityFrac = totalValue > 0 ? totalEquity / totalValue : 1;
+    // The one property the landlord should act on this week, if any. A unit
+    // below the maintenance line loses value every tick and a listed unit with
+    // no tenant earns nothing, so either outranks the equity number as the
+    // thing the screen is about. Repairs first: decay is a cost, vacancy is
+    // only a missed gain. Same thresholds `portfolioStats` counts with, so the
+    // lead and the "rented · vacant" sub-line can never disagree.
+    const leadProperty =
+      ownedProperties.find((p) => (p.condition ?? 90) < 40) ??
+      ownedProperties.find((p) => p.status === 'rented' && !p.tenant) ??
+      null;
+    const leadNeedsWork = !!leadProperty && (leadProperty.condition ?? 90) < 40;
+    // The lead leaves the list while it leads (the Health cures / Work held-job
+    // precedent): its row opens the same detail page either way, and a second
+    // door to the same room is the duplication Program 3 removed.
+    const listProperties = leadProperty ? ownedProperties.filter((p) => p.id !== leadProperty.id) : ownedProperties;
     return (
+      <View>
+        {leadProperty && (
+          <View
+            style={[
+              getGlassCard(darkMode, 12),
+              styles.heroCard,
+              styles.leadCard,
+              { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
+            ]}
+          >
+            <View style={styles.leadInner}>
+              <Text style={[styles.leadKicker, { color: theme.textMuted }]}>Needs attention</Text>
+              {/* Semantic colour only: danger for decay (a cost), warning for
+                  vacancy (a missed gain) - the tones the row's own chip uses. */}
+              <Text
+                style={[styles.leadTitle, { color: leadNeedsWork ? accent.danger : accent.warning }]}
+                numberOfLines={2}
+                maxFontSizeMultiplier={1.3}
+              >
+                {leadNeedsWork
+                  ? `${leadProperty.name} is at ${Math.round(leadProperty.condition ?? 90)}% condition`
+                  : `${leadProperty.name} has no tenant`}
+              </Text>
+              <Text style={[styles.leadSub, { color: theme.textSecondary }]}>
+                {leadNeedsWork
+                  ? 'Value and rent fall every week it goes unrepaired. Open it to book maintenance.'
+                  : 'Listed but earning nothing. Open it to change the rent mode or find a tenant.'}
+              </Text>
+              <PortfolioRow p={leadProperty} />
+            </View>
+          </View>
+        )}
+
       <View style={{ gap: responsiveSpacing.lg }}>
         <EconomyEventBanner context="generic" />
 
@@ -615,8 +664,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         </View>
 
         {/* Three numbers a landlord decides on. Rented/vacant is the sub-line
-            under Owned, and "needs work" is a chip - a count that is zero most
-            of the time does not earn a permanent tile. */}
+            under Owned; a property needing work is the LEAD above the hero, not
+            a count here - a count that is zero most of the time does not earn
+            a permanent tile, and when it is not zero it is the one thing the
+            screen is about. */}
         <StatStrip
           items={[
             { label: 'Weekly rent', value: formatMoney(weeklyRentEstimate), tint: IDENTITY },
@@ -632,30 +683,26 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             },
           ]}
         />
-        {portfolioStats.needsWork > 0 && (
-          <View style={styles.badgeRow}>
-            <Chip
-              label={`${portfolioStats.needsWork} need${portfolioStats.needsWork === 1 ? 's' : ''} work`}
-              tone="danger"
-              icon={<Wrench size={scale(11)} color={accent.danger} />}
-            />
+        {/* Skipped entirely when the lead was the only property: a heading over
+            nothing is worse than no heading. The empty state still keys off
+            ownership, so a lead never reads as "you own nothing". */}
+        {ownedProperties.length === 0 || listProperties.length > 0 ? (
+          <View style={{ gap: responsiveSpacing.sm }}>
+            <SectionTitle title={leadProperty ? 'Other properties' : 'Your properties'} />
+            {ownedProperties.length === 0 ? (
+              <EmptyState
+                icon={<Building size={scale(22)} color={IDENTITY} />}
+                observation="You don't own any property yet."
+                nudge="Buying is the only way to earn rent instead of paying it."
+                ctaLabel="Browse listings"
+                onCtaPress={() => { setActiveTab('browse'); setRoute({ kind: 'list' }); }}
+              />
+            ) : (
+              listProperties.map((p) => <PortfolioRow key={p.id} p={p} />)
+            )}
           </View>
-        )}
-
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle title="Your properties" />
-          {ownedProperties.length === 0 ? (
-            <EmptyState
-              icon={<Building size={scale(22)} color={IDENTITY} />}
-              observation="You don't own any property yet."
-              nudge="Buying is the only way to earn rent instead of paying it."
-              ctaLabel="Browse listings"
-              onCtaPress={() => { setActiveTab('browse'); setRoute({ kind: 'list' }); }}
-            />
-          ) : (
-            ownedProperties.map((p) => <PortfolioRow key={p.id} p={p} />)
-          )}
-        </View>
+        ) : null}
+      </View>
       </View>
     );
   };
@@ -1258,6 +1305,21 @@ const styles = StyleSheet.create({
     borderColor: withAlpha(IDENTITY, 0.3),
   },
   heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
+
+  // Portfolio lead - the one property to act on, above the equity hero.
+  // `rhythm.major` below it is the hierarchy change: everything after is
+  // "the rest of the portfolio". The wrapped PortfolioRow keeps its own tap
+  // (detail page -> Manage), so the lead adds no second handler.
+  leadCard: { marginBottom: rhythm.major },
+  leadInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  leadKicker: { ...kicker },
+  leadTitle: { ...tier1Title },
+  leadSub: { fontSize: responsiveFontSize.sm },
   heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '700', marginTop: 2, fontVariant: ['tabular-nums'] },
   heroSub: { fontSize: responsiveFontSize.xs, marginTop: 4, fontVariant: ['tabular-nums'] },
   equityBar: {

@@ -647,7 +647,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                                   ? 'Insufficient'
                                   : hasAnyLevel
                                   ? 'Upgrade'
-                                  : 'Purchase'}
+                                  : 'Buy'}
                               </Text>
                             </LinearGradient>
                           </TouchableOpacity>

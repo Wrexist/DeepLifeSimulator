@@ -1,5 +1,6 @@
 // components/TopStatsBar.tsx
 import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
+import AutoSaveIndicator from '@/components/AutoSaveIndicator';
 import { View,
  Text,
  TouchableOpacity,
@@ -23,6 +24,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -111,13 +113,6 @@ function TopStatsBarComponent() {
  }).current;
 
  const { width } = useWindowDimensions();
-
- const getStatColor = (_stat: string, value: number) => {
- if (value >= 80) return'#059669'; // Beautiful emerald green
- if (value >= 60) return '#D97706'; // Warm amber
- if (value >= 40) return '#EA580C'; // Vibrant orange
- return '#DC2626'; // Deep red for critical
- };
 
  const shouldGlow = (value: number) => value >= 90 || value <= 20;
 
@@ -241,15 +236,6 @@ function TopStatsBarComponent() {
  }
  }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
 
- // Optimized stat colors with better memoization
- const statColors = useMemo(
- () => ({
- health: getStatColor('health', stats?.health ?? 0),
- happiness: getStatColor('happiness', stats?.happiness ?? 0),
- energy: getStatColor('energy', stats?.energy ?? 0),
- }),
- [stats?.health, stats?.happiness, stats?.energy]
- );
 
 
  // Optimized animation effect with better performance
@@ -381,10 +367,6 @@ function TopStatsBarComponent() {
  key:'health',
  icon: STAT_IDENTITY.health.Icon,
  value: stats.health,
- // The RING colour still grades by value (green at 80+, red when critical);
- // the BAR carries the stat's identity colour, which is what the rest of the
- // app now matches (lib/config/statIdentity.ts).
- color: statColors.health,
  gradient: [STAT_IDENTITY.health.color, '#F87171'] as [string, string],
  max: 100,
  quickActions: [
@@ -396,7 +378,6 @@ function TopStatsBarComponent() {
  key: 'happiness',
  icon: STAT_IDENTITY.happiness.Icon,
  value: stats.happiness,
- color: STAT_IDENTITY.happiness.color,
  gradient: [STAT_IDENTITY.happiness.color, '#FBBF24'] as [string, string],
  max: 100,
  quickActions: [
@@ -408,7 +389,6 @@ function TopStatsBarComponent() {
  key: 'energy',
  icon: STAT_IDENTITY.energy.Icon,
  value: stats.energy,
- color: STAT_IDENTITY.energy.color,
  gradient: [STAT_IDENTITY.energy.color, '#60A5FA'] as [string, string],
  max: 100,
  quickActions: [
@@ -421,7 +401,7 @@ function TopStatsBarComponent() {
  // P2: depend on the primitive stat VALUES (and the already-memoized derived
  // objects) rather than the whole `stats` object, whose identity changes every
  // tick - this list rebuild only matters when a displayed value changes.
- [stats?.health, stats?.happiness, stats?.energy, statColors, handleQuickAction]
+ [stats?.health, stats?.happiness, stats?.energy, handleQuickAction]
  );
 
  // Standardized breakpoint for small devices (covers iPhone SE and Android small devices)
@@ -481,6 +461,11 @@ function TopStatsBarComponent() {
  <Text maxFontSizeMultiplier={1.3} style={[styles.generationBadge, darkMode && styles.generationBadgeDark]}>
  Gen {generationNumber ?? 1}
  </Text>
+ {/* The transient "Saved" chip. It lived inside IdentityCard, absolutely
+ positioned top-right - which is exactly where the net-worth figure sits,
+ so every autosave briefly covered the number (Program 6 capture, week 8).
+ The generation row has free width beside the badge and nothing to cover. */}
+ <AutoSaveIndicator position="relative" />
  {(prestigeLevel > 0) && (
  <View style={styles.prestigeBadgeContainer}>
  <View style={styles.prestigeBadge}>
@@ -594,7 +579,12 @@ function TopStatsBarComponent() {
  )}
  </View>
  <View style={styles.vitalRingLabelRow}>
- <Text maxFontSizeMultiplier={1.3} style={styles.vitalRingValue}>{Math.round(value)}</Text>
+ <Text
+ maxFontSizeMultiplier={1.3}
+ style={[styles.vitalRingValue, value <= CRITICAL_VITAL && styles.vitalRingValueCritical]}
+ >
+ {Math.round(value)}
+ </Text>
  {/* Visible long-press affordance. The quick actions (Rest / Eat /
  Exercise / Socialize) are the fastest way to fix a low vital - the
  exact thing the contextual tips nag about - but the only place the
@@ -651,14 +641,14 @@ function TopStatsBarComponent() {
  <View
  style={[
  styles.moneyChip,
- { backgroundColor: '#16A34A' },
+ styles.moneyChipCash,
  isVerySmallDevice && {
  paddingHorizontal: scale(6),
  minWidth: scale(55)
  }
  ]}
  >
- <Wallet size={14} color="#FFFFFF"style={styles.chipIcon} />
+ <Wallet size={14} color={STAT_IDENTITY.money.color} style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
  <AnimatedMoney
  value={stats?.money ?? 0}
@@ -682,14 +672,14 @@ function TopStatsBarComponent() {
  <View
  style={[
  styles.moneyChip,
- { backgroundColor: '#4F46E5' },
+ styles.moneyChipQuiet,
  isVerySmallDevice && {
  paddingHorizontal: scale(6),
  minWidth: scale(55)
  }
  ]}
  >
- <Gem size={14} color="#FFFFFF"style={styles.chipIcon} />
+ <Gem size={14} color="#A5B4FC" style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
  <Text maxFontSizeMultiplier={1.3}
  style={styles.chipText}
@@ -886,6 +876,12 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
 
  const dateBoxWidth = Math.min(dateBoxWidthRaw, rightSectionWidth);
  const dateBoxMaxWidth = Math.min(maxDateBoxWidth, rightSectionWidth);
+ // The column the date box and the Next week button share. The date box's
+ // own width is capped conservatively (85-105pt) while the button has to
+ // hold a scaled word plus an arrow, so the pair takes the room the right
+ // column actually has, up to a cap - which also stops "January" from
+ // needing to shrink. Both keep one width so the column stays one shape.
+ const actionWidth = Math.max(dateBoxWidth, Math.min(rightSectionWidth, scale(124)));
 
  const dateBoxHeight = isIPad()
  ? scale(140)
@@ -916,10 +912,10 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  <View
  style={[
  styles.dateOuter,
+ styles.dateOuterNeutral,
  {
- backgroundColor: '#2F6FE4',
- width: dateBoxWidth,
- maxWidth: dateBoxMaxWidth,
+ width: actionWidth,
+ maxWidth: Math.max(dateBoxMaxWidth, actionWidth),
  height: dateBoxHeight,
  minHeight: dateBoxMinHeight,
  }
@@ -1058,8 +1054,14 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
      circle - the audit's clearest "primary action buried" finding. A word
      plus the arrow, sized to the date box above it, at the same corner it
      has always lived in. Flat fill (the gradient said nothing). */}
- <View style={[styles.nextWeekButton, { width: dateBoxWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
- {isAdvancingWeek ? (
+ <View style={[styles.nextWeekButton, { width: actionWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
+ {/* The arrow yields before the word does. The box is capped by the right
+     column while the label scales with the device, so on a 360pt phone AND
+     on a Pro Max the two do not fit together (and react-native-web ignores
+     adjustsFontSizeToFit), which left the primary action reading
+     "Next we...". Raw points on purpose: the threshold is about the box's
+     real width, not its scaled design width. */}
+ {actionWidth < 100 ? null : isAdvancingWeek ? (
  <Animated.View
  style={{
  transform: [
@@ -1072,12 +1074,21 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  ],
  }}
  >
- <ArrowRightCircle size={18} color="#FFFFFF"/>
+ <ArrowRightCircle size={16} color="#FFFFFF"/>
  </Animated.View>
  ): (
- <ArrowRightCircle size={18} color="#FFFFFF" />
+ <ArrowRightCircle size={16} color="#FFFFFF" />
  )}
- <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={styles.nextWeekLabel}>
+ {/* The label must never truncate - "Next w..." on a 390pt phone was the
+     primary action reading as a fragment. Shrink the type before the
+     text, and keep the box's padding tight enough for the word to fit. */}
+ <Text
+ maxFontSizeMultiplier={1.2}
+ numberOfLines={1}
+ adjustsFontSizeToFit
+ minimumFontScale={0.8}
+ style={styles.nextWeekLabel}
+ >
  Next week
  </Text>
  </View>

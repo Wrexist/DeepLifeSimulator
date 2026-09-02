@@ -27,6 +27,8 @@ import {
   Smile
 } from 'lucide-react-native';
 import { gameAlert } from '@/utils/gameAlert';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
 
 interface JailScreenProps {
@@ -646,8 +648,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#FFFFFF',
     marginLeft: 10,
   },
@@ -672,8 +673,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   statusTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#FFFFFF',
     marginLeft: 10,
   },
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#FFFFFF',
     marginLeft: 8,
   },
@@ -698,16 +698,15 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#FFFFFF',
     marginBottom: 8,
   },
   sectionDescription: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#94A3B8',
     marginBottom: 15,
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   bailButton: {
     borderRadius: 8,
@@ -719,7 +718,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bailButtonText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
@@ -762,21 +761,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   energyText: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#FFFFFF',
     marginLeft: 4,
   },
   activityName: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 6,
   },
   activityDescription: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#E2E8F0',
     marginBottom: 10,
-    lineHeight: 14,
+    lineHeight: fontScale(14),
   },
   activityRewards: {
     flexDirection: 'row',
@@ -793,7 +792,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   rewardText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#FFFFFF',
     marginLeft: 2,
   },
@@ -803,7 +802,7 @@ const styles = StyleSheet.create({
     right: 8,
   },
   costText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#FCD34D',
     fontWeight: 'bold',
   },
@@ -822,7 +821,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   cooldownText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#FCD34D',
     marginLeft: 4,
   },
@@ -840,7 +839,7 @@ const styles = StyleSheet.create({
     borderColor: '#10B981',
   },
   doneThisWeekText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#10B981',
     marginLeft: 4,
     fontWeight: 'bold',
@@ -869,12 +868,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#94A3B8',
     marginTop: 4,
   },
   statValue: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginTop: 2,
@@ -910,12 +909,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   foodPrice: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: 'bold',
     color: '#F59E0B',
   },
   foodName: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 10,
@@ -932,7 +931,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   foodBenefitText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#FFFFFF',
     marginLeft: 4,
     fontWeight: '500',

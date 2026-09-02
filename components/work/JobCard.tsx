@@ -29,6 +29,8 @@ interface JobCardProps {
   feedback?: string;
   feedbackOpacity?: Animated.Value;
   footer?: React.ReactNode;
+  /** One saturated button per board: the lead card is 'primary', the rest tonal. */
+  emphasis?: 'primary' | 'secondary';
 }
 
 /**
@@ -77,6 +79,7 @@ export default function JobCard({
   feedback,
   feedbackOpacity,
   footer,
+  emphasis = 'primary',
 }: JobCardProps) {
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
@@ -142,6 +145,7 @@ export default function JobCard({
           colors={buttonPalette.button}
           glow={buttonPalette.glow}
           style={styles.buttonSpacing}
+          emphasis={emphasis}
         />
 
         {feedback ? (

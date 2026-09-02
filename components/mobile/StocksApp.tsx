@@ -114,7 +114,10 @@ function StocksAppInner({ onBack }: StocksAppProps) {
   const totalDividends = stocks?.totalDividends ?? 0;
   const dividendsThisYear = stocks?.dividendsThisYear ?? 0;
 
-  const [activeTab, setActiveTab] = useState<Tab>('market');
+  // Land on the player's own position once they hold anything: the market
+  // strip (advancing / declining / owned) is the same for everyone, the
+  // portfolio is theirs (Program 4).
+  const [activeTab, setActiveTab] = useState<Tab>(() => (holdings.length > 0 ? 'portfolio' : 'market'));
   const [tradeTarget, setTradeTarget] = useState<{ symbol: string; price: number } | null>(null);
   const [detailSymbol, setDetailSymbol] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<Sector | null>(null);
@@ -947,16 +950,6 @@ const styles = StyleSheet.create({
   sectorTileState: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   sectorTileMeta: { fontSize: responsiveFontSize.xs },
 
-  // Summary strip
-  emptyText: { fontSize: responsiveFontSize.sm, textAlign: 'center', opacity: 0.6 },
-  emptyCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-    alignItems: 'center',
-  },
-
   // Hero (Recipe B)
   heroInner: {
     borderRadius: responsiveBorderRadius['2xl'],
@@ -1058,5 +1051,4 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
-  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },
-});
+  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },});

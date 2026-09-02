@@ -15,6 +15,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { fontScale, scale } from '@/utils/scaling';
+import { tier1Title, vitalState } from '@/lib/config/hierarchy';
+import { accent } from '@/lib/config/theme';
 
 interface HealthIssue {
   id: string;
@@ -23,7 +25,13 @@ interface HealthIssue {
   level: 'critical' | 'warning' | 'info';
 }
 
-export default function HealthIssuesCard() {
+/**
+ * `lead`: the card is the Health screen's dominant element (the player is
+ * sick or critical), so it takes the tier-1 title and a firmer danger rim -
+ * scale AND colour, so the promotion reads as decided. In its normal place
+ * under the vitals it stays tier 2.
+ */
+export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
   const diseases = useGameSelector((s) => s.diseases);
   const stats = useGameSelector((s) => s.stats, shallowEqual);
   const healthZeroWeeks = useGameSelector((s) => s.healthZeroWeeks);
@@ -50,6 +58,9 @@ export default function HealthIssuesCard() {
       issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
     });
 
+    // Bands from the one vital-state ladder (lib/config/hierarchy.ts). The
+    // zero-week countdown is gameplay and stays exact; 'low' is the shared
+    // LOW_VITAL band, so this card, the HUD and the tips agree on the word.
     const health = stats?.health ?? 100;
     if (health <= 0) {
       const weeksLeft = Math.max(1, 4 - (healthZeroWeeks || 0));
@@ -59,12 +70,12 @@ export default function HealthIssuesCard() {
         fix: "Eat, rest and start a diet plan below before it's too late.",
         level: 'critical',
       });
-    } else if (health <= 30) {
+    } else if (vitalState(health).level !== 'fair' && vitalState(health).level !== 'good') {
       issues.push({
         id: 'health-low',
-        title: 'Low health',
+        title: `${vitalState(health).word} health`,
         fix: 'Improve your diet, rest, and exercise.',
-        level: 'warning',
+        level: vitalState(health).level === 'critical' ? 'critical' : 'warning',
       });
     }
 
@@ -77,22 +88,22 @@ export default function HealthIssuesCard() {
         fix: 'Do something fun or spend time with people you care about.',
         level: 'critical',
       });
-    } else if (happiness <= 30) {
+    } else if (vitalState(happiness).level !== 'fair' && vitalState(happiness).level !== 'good') {
       issues.push({
         id: 'happiness-low',
-        title: 'Low happiness',
+        title: `${vitalState(happiness).word} happiness`,
         fix: 'Spend on hobbies, socialize, or take a break to recover.',
-        level: 'warning',
+        level: vitalState(happiness).level === 'critical' ? 'critical' : 'warning',
       });
     }
 
     const energy = stats?.energy ?? 100;
-    if (energy <= 20) {
+    if (vitalState(energy).level !== 'fair' && vitalState(energy).level !== 'good') {
       issues.push({
         id: 'energy-low',
-        title: 'Low energy',
-        fix: 'Rest or sleep to recover energy before working.',
-        level: 'info',
+        title: `${vitalState(energy).word} energy`,
+        fix: 'Rest, eat, or sleep to recharge.',
+        level: vitalState(energy).level === 'critical' ? 'critical' : 'warning',
       });
     }
 
@@ -102,16 +113,17 @@ export default function HealthIssuesCard() {
   if (healthIssues.length === 0) return null;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, lead && styles.cardLead]}>
       <View style={styles.header}>
-        <AlertTriangle size={scale(18)} color="#EF4444" />
-        <Text style={styles.title} maxFontSizeMultiplier={1.3}>
-          {`Health Issues (${healthIssues.length})`}
+        <AlertTriangle size={scale(lead ? 22 : 18)} color="#EF4444" />
+        <Text style={[styles.title, lead && styles.titleLead]} maxFontSizeMultiplier={1.3}>
+          {lead ? `Treat this first (${healthIssues.length})` : `Health Issues (${healthIssues.length})`}
         </Text>
       </View>
       {healthIssues.map(issue => {
-        const color =
-          issue.level === 'critical' ? '#EF4444' : issue.level === 'warning' ? '#F59E0B' : '#3B82F6';
+        // State colours only (danger / warning) - never a stat's identity hue,
+        // which used to make a low-happiness row amber for two reasons at once.
+        const color = issue.level === 'critical' ? accent.danger : accent.warning;
         return (
           <View key={issue.id} style={styles.row}>
             <View style={[styles.dot, { backgroundColor: color }]} />
@@ -145,6 +157,13 @@ const styles = StyleSheet.create({
     fontSize: fontScale(15),
     fontWeight: '600',
     color: '#F8FAFC',
+    flex: 1,
+  },
+  titleLead: {
+    ...tier1Title,
+  },
+  cardLead: {
+    borderColor: 'rgba(239, 68, 68, 0.6)',
   },
   row: {
     flexDirection: 'row',

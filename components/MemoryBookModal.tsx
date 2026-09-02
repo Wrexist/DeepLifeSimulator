@@ -388,7 +388,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Lock size={scale(16)} color="#EF4444" />
+              <Lock size={scale(16)} color="#94A3B8" />
               <Text style={[styles.statValue, settings.darkMode && styles.textDark]}>{stats.locked}</Text>
               <Text style={[styles.statLabel, settings.darkMode && styles.textDarkSecondary]}>Locked</Text>
             </View>

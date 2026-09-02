@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
-import { Check, Heart, Smile, Zap } from 'lucide-react-native';
+import { Check, Heart } from 'lucide-react-native';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+// Aliased: this component's own prop is called `accent` (vitality / diet).
+import { accent as themeAccent } from '@/lib/config/theme';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 - use the safe fallback.
@@ -33,25 +36,35 @@ interface HealthCardProps {
   active?: boolean;
   /** Transient feedback line shown below the button. */
   feedback?: string;
+  /** 'primary' is the one saturated button on the screen (the treatment lead);
+   *  everything in a list is 'secondary' - tonal, a tier down. */
+  emphasis?: 'primary' | 'secondary';
 }
 
+// One action accent for the screen (the info blue every primary action in
+// the app uses). 'vitality' used to be the danger red - every "see a doctor"
+// button read as "delete", and a free activity's price was painted like a
+// failure - and 'diet' used the success green, which then also meant
+// "selected". Red is danger, green is a gain; neither is a button.
 const ACCENT: Record<HealthAccent, { reward: string; button: [string, string, string]; disabled: [string, string] }> = {
   vitality: {
-    reward: '#F87171',
-    button: ['#EF4444', '#DC2626', '#B91C1C'],
+    reward: '#E2E8F0',
+    button: ['#60A5FA', '#3B82F6', '#1D4ED8'],
     disabled: ['#1E293B', '#0F172A'],
   },
   diet: {
-    reward: '#34D399',
-    button: ['#10B981', '#059669', '#047857'],
+    reward: '#E2E8F0',
+    button: ['#60A5FA', '#3B82F6', '#1D4ED8'],
     disabled: ['#1E293B', '#0F172A'],
   },
 };
 
+// Identity from the one source (red heart, amber face, blue bolt) - these
+// chips used to paint health green, the opposite of the HUD above them.
 const STAT_META: Record<HealthStat, { Icon: typeof Heart; color: string; label: string }> = {
-  health: { Icon: Heart, color: '#34D399', label: 'Health' },
-  happiness: { Icon: Smile, color: '#FBBF24', label: 'Happiness' },
-  energy: { Icon: Zap, color: '#60A5FA', label: 'Energy' },
+  health: { Icon: STAT_IDENTITY.health.Icon, color: STAT_IDENTITY.health.color, label: 'Health' },
+  happiness: { Icon: STAT_IDENTITY.happiness.Icon, color: STAT_IDENTITY.happiness.color, label: 'Happiness' },
+  energy: { Icon: STAT_IDENTITY.energy.Icon, color: STAT_IDENTITY.energy.color, label: 'Energy' },
 };
 
 export default function HealthCard({
@@ -66,6 +79,7 @@ export default function HealthCard({
   lockReason,
   active = false,
   feedback,
+  emphasis = 'secondary',
 }: HealthCardProps) {
   const palette = ACCENT[accent];
   const buttonGradient: [string, string, ...string[]] = locked
@@ -117,7 +131,7 @@ export default function HealthCard({
           <Text
             style={[
               styles.price,
-              { color: locked ? 'rgba(226, 232, 240, 0.45)' : palette.reward },
+              { color: locked ? 'rgba(226, 232, 240, 0.45)' : priceLabel === 'Free' ? themeAccent.success : palette.reward },
             ]}
             numberOfLines={1}
           >
@@ -165,15 +179,21 @@ export default function HealthCard({
           onPress={onPress}
           style={styles.buttonWrap}
         >
-          <LinearGradient
-            colors={buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.button}
-          >
-            {active ? <Check size={scale(14)} color="#FFFFFF" style={{ marginRight: scale(6) }} /> : null}
-            <Text style={[styles.buttonText, locked && styles.buttonTextLocked]}>{buttonText}</Text>
-          </LinearGradient>
+          {emphasis === 'primary' && !locked && !active ? (
+            <LinearGradient
+              colors={buttonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>{buttonText}</Text>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.button, styles.buttonTonal, locked && styles.buttonTonalLocked]}>
+              {active ? <Check size={scale(14)} color={palette.button[0]} style={{ marginRight: scale(6) }} /> : null}
+              <Text style={[styles.buttonText, styles.buttonTextTonal, locked && styles.buttonTextLocked]}>{buttonText}</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         {feedback ? (
@@ -311,6 +331,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: verticalScale(11),
+  },
+  buttonTonal: {
+    backgroundColor: 'rgba(96, 165, 250, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.35)',
+    borderRadius: responsiveBorderRadius.sm,
+  },
+  buttonTonalLocked: {
+    backgroundColor: 'rgba(148, 163, 184, 0.08)',
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  buttonTextTonal: {
+    color: '#93C5FD',
+    fontWeight: '600',
   },
   buttonText: {
     fontSize: fontScale(14),

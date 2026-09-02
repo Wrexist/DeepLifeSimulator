@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
 import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
-import { isIPad } from '@/utils/scaling';
-const LinearGradient = Gradient;
+import { isIPad, touchTargets, fontScale } from '@/utils/scaling';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 
 interface SeasonalIndicatorProps {
   size?: number;
@@ -80,7 +79,10 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
 
   const _hasHoliday = !!holiday; // Unused but kept for potential future use
   // Match iconButton dimensions from TopStatsBar
-  const containerSize = isIPad() ? 70 : 50;
+  // Exactly the HUD icon-button footprint. A hard-coded 50 inside the 44pt
+  // clipped wrapper drew a disc larger than its clip, so the glyph - centred
+  // on the 50 box - sat off-centre in the 44 circle the player saw.
+  const containerSize = isIPad() ? touchTargets.large : touchTargets.minimum;
   const borderRadius = containerSize / 2;
   const iconSize = size;
 
@@ -91,18 +93,16 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
         onPress={() => setShowInfo(true)}
         activeOpacity={0.7}
       >
-        <LinearGradient
-          colors={config.gradient as unknown as readonly [string, string, ...string[]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
+        {/* Neutral disc, season colour on the glyph. The saturated gradient
+            disc was one more filled circle competing with the HUD's primary
+            action for a piece of information the player cannot act on. */}
+        <View style={[styles.gradient, styles.disc]}>
           {holiday && HolidayIcon ? (
-            <HolidayIcon size={iconSize} color="#FFFFFF" />
+            <HolidayIcon size={iconSize} color={holiday.color} />
           ) : (
-            <SeasonIcon size={iconSize} color="#FFFFFF" />
+            <SeasonIcon size={iconSize} color={config.color} />
           )}
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
 
       <Modal
@@ -116,12 +116,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
             styles.modalContainer,
             settings.darkMode && styles.modalContainerDark
           ]}>
-            <LinearGradient
-              colors={config.gradient as unknown as readonly [string, string, ...string[]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.modalHeader}
-            >
+            <View style={[styles.modalHeader, { backgroundColor: config.color }]}>
               <View style={styles.modalHeaderContent}>
                 <SeasonIcon size={32} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>{config.name} Season</Text>
@@ -135,7 +130,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
               >
                 <X size={24} color="#FFFFFF" />
               </TouchableOpacity>
-            </LinearGradient>
+            </View>
 
             <View style={[
               styles.modalContent,
@@ -232,6 +227,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  disc: {
+    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -269,8 +269,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#FFFFFF',
   },
   closeButton: {
@@ -293,8 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   holidayName: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -302,7 +300,7 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   holidayDescription: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     textAlign: 'center',
   },
@@ -322,7 +320,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     marginBottom: 2,
   },
@@ -330,7 +328,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
     color: '#1E293B',
   },
@@ -346,8 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#334155',
   },
   tipTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...tier2,
     color: '#1E293B',
     marginBottom: 8,
   },
@@ -355,9 +352,9 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   tipText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   tipTextDark: {
     color: '#CBD5E1',

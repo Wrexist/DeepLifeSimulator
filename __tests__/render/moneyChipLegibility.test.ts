@@ -38,10 +38,16 @@ describe('the HUD money chip stays legible', () => {
     expect(src).toMatch(/toValue: 1\.12/);
   });
 
-  it('the chip really is on a solid green (why a green tint was invisible)', () => {
-    // Phase 2 flattened the chip's two-stop gradient to one solid fill - the
-    // legibility argument is unchanged: green-on-green text cannot read.
+  it('the chip really is on a solid dark surface (why a direction tint would be invisible)', () => {
+    // Phase 2 flattened the chip's two-stop gradient to one solid green;
+    // Program 4 moved the fill to the neutral elevated surface so the green
+    // Next week button is the HUD's only saturated fill. The legibility
+    // argument is unchanged either way: the value is white on a solid dark
+    // fill, and a red/green tint on it would be the low-contrast text this
+    // test exists to keep out.
     const src = read('components/TopStatsBar.tsx');
-    expect(src).toMatch(/backgroundColor: '#16A34A'/);
+    expect(src).toMatch(/styles\.moneyChipCash/);
+    const cash = topStatsBarStyles.moneyChipCash as { backgroundColor?: string };
+    expect(cash.backgroundColor).toBe('rgba(30, 41, 59, 0.92)');
   });
 });

@@ -137,73 +137,11 @@ export const styles = StyleSheet.create({
  marginBottom: scale(2), // Minimal spacing to prevent collapsing but reduce dead space
  minHeight: scale(18), // Ensure minimum height to prevent collapsing
  },
- statArrowContainer: {
- marginLeft: scale(6),
- alignItems: 'center',
- justifyContent: 'center',
- width: scale(20),
- },
- diseaseIndicator: {
- backgroundColor: '#F59E0B',
- borderRadius: scale(10),
- paddingHorizontal: scale(6),
- paddingVertical: scale(2),
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- minWidth: scale(20),
- height: scale(18),
- },
  diseaseIndicatorSerious: {
  backgroundColor: '#EF4444',
  },
  diseaseIndicatorCritical: {
  backgroundColor: '#DC2626',
- },
- diseaseIndicatorCount: {
- fontSize: scale(10),
- fontWeight: '700',
- color: '#FFFFFF',
- marginLeft: scale(2),
- },
-
- // Progress bars
- progressBarWrapper: {
- height: isIPad() ? scale(24): scale(16),
- backgroundColor: '#F1F5F9',
- borderRadius: responsiveBorderRadius.lg,
- marginLeft: responsiveSpacing.sm,
- overflow: 'hidden',
- justifyContent: 'center',
- borderWidth: 1,
- borderColor: 'rgba(0,0,0,0.06)',
- minWidth: scale(60), // Ensure minimum width to prevent collapsing
- flexShrink: 1, // Allow progress bars to yield space when layout is tight
- // Light mode: subtle inner shadow
-...Platform.select({
- web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.08)'} as any,
- default: {
- shadowColor:'rgba(0,0,0,0.08)',
- shadowOffset: { width: 0, height: 1 },
- shadowOpacity: 1,
- shadowRadius: 2,
- },
- }),
- elevation: 1,
- },
- progressBarWrapperDark: {
- backgroundColor: '#334155',
- borderWidth: 0,
-...Platform.select({
- web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)'} as any,
- default: {
- shadowColor:'#000',
- shadowOffset: { width: 0, height: 1 },
- shadowOpacity: 0.1,
- shadowRadius: 2,
- },
- }),
- elevation: 1,
  },
  progressFill: {
  height: '100%',
@@ -219,10 +157,6 @@ export const styles = StyleSheet.create({
  shadowRadius: 4,
  },
  }),
- },
- progressFillDark: {
- backgroundColor: '#3B82F6',
- shadowColor: 'transparent',
  },
 
  // --- NEW CHIP STYLES ---
@@ -258,6 +192,22 @@ export const styles = StyleSheet.create({
  // Subtle glass rim to match the app design language
  borderWidth: 1,
  borderColor: 'rgba(255,255,255,0.18)',
+ },
+ /**
+  * Colour discipline (Program 4). The bar used to carry four saturated fills
+  * of equal weight - green cash, indigo gems, blue date box, green Next
+  * week - so nothing on it won. Now the ONE saturated fill is the primary
+  * action. Cash sits on the neutral elevated surface with the money identity
+  * colour on its icon (the value stays white: `moneyChipLegibility.test`),
+  * and gems - premium currency, not a decision number - is outline only.
+  */
+ moneyChipCash: {
+ backgroundColor: 'rgba(30, 41, 59, 0.92)',
+ borderColor: 'rgba(255,255,255,0.14)',
+ },
+ moneyChipQuiet: {
+ backgroundColor: 'transparent',
+ borderColor: 'rgba(165, 180, 252, 0.35)',
  },
  chipIcon: {
  marginRight: 6,
@@ -317,6 +267,15 @@ export const styles = StyleSheet.create({
  borderRadius: responsiveBorderRadius.lg,
  marginBottom: responsiveSpacing.xs,
  flexShrink: 1,
+ },
+ /** Information, not action: the date reads on the same neutral surface as
+  *  the chips so the green Next week button below it is the only thing on
+  *  the right that asks for a tap. */
+ dateOuterNeutral: {
+ // No border: the box's height is computed to fit its four lines exactly
+ // on a 360pt phone, and a 1pt rim on each side clipped the month's
+ // descenders ("Januarv").
+ backgroundColor: 'rgba(30, 41, 59, 0.92)',
  },
  dateInner: {
  alignItems: 'center',
@@ -424,11 +383,11 @@ export const styles = StyleSheet.create({
  flexDirection: 'row',
  alignItems:'center',
  justifyContent: 'center',
- gap: scale(6),
+ gap: scale(4),
  borderRadius: responsiveBorderRadius.lg,
  minWidth: scale(50),
  height: scale(40),
- paddingHorizontal: scale(10),
+ paddingHorizontal: scale(8),
  // Light mode button shadow
 ...Platform.select({
  web: { boxShadow: '0px 2px 4px rgba(22, 163, 74, 0.09)'} as any,
@@ -446,15 +405,6 @@ export const styles = StyleSheet.create({
  color: '#FFFFFF',
  fontSize: responsiveFontSize.sm,
  fontWeight: '600',
- },
-
- statTouchable: { width: '100%'},
- statRowContent: {
- flexDirection:'row',
- alignItems: 'center',
- justifyContent: 'flex-start',
- flex: 1,
- minHeight: scale(18), // Ensure minimum height
  },
  statIconContainer: {
  flexDirection: 'row',
@@ -498,9 +448,15 @@ export const styles = StyleSheet.create({
  vitalRingValue: {
  color: '#E2E8F0',
  fontSize: responsiveFontSize.sm,
- fontWeight: '800',
+ fontWeight: '600',
  fontVariant: ['tabular-nums'],
  lineHeight: scale(14),
+ },
+ /** A vital at or under CRITICAL_VITAL: colour AND weight change together,
+  *  so the one number that needs a decision is the one that reads bold. */
+ vitalRingValueCritical: {
+ color: '#F87171',
+ fontWeight: '800',
  },
  vitalRingDisease: {
  position: 'absolute',
@@ -544,4 +500,4 @@ export const styles = StyleSheet.create({
  fontWeight: '600',
  marginLeft: responsiveSpacing.xs,
  }
-});
+,});

@@ -359,16 +359,6 @@ const styles = StyleSheet.create({
   benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(7) },
   benefitText: { flex: 1, color: '#E2E8F0', fontSize: fontScale(12.5), fontWeight: '600' },
   valueLine: { color: '#FBBF24', fontSize: fontScale(11.5), fontWeight: '700' },
-  crest: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(251, 191, 36, 0.13)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.4)',
-  },
   featuredName: { color: '#F8FAFC', fontSize: fontScale(16), fontWeight: '800' },
   featuredBlurb: { color: '#94A3B8', fontSize: fontScale(11.5), marginTop: scale(3) },
   saveBadge: {
@@ -428,7 +418,6 @@ const styles = StyleSheet.create({
     marginTop: scale(8),
     paddingHorizontal: scale(2),
   },
-  footNoteText: { flex: 1, color: '#64748B', fontSize: fontScale(10.5), lineHeight: fontScale(15) },
-});
+  footNoteText: { flex: 1, color: '#64748B', fontSize: fontScale(10.5), lineHeight: fontScale(15) },});
 
 export default React.memo(OfferCenterModal);

@@ -45,6 +45,14 @@ export interface CareerApplicationsResult {
   newCurrentJob: string | undefined;
   /** Formatted log message for acceptance, or `null` otherwise. */
   logMessage: string | null;
+  /**
+   * The player-facing banner for an acceptance, or `null`. Acceptance used to
+   * be announced only to the dev log: the Work tab's "Application pending"
+   * line silently became a Current Job card and no notification, recap line
+   * or coach step named the hire (Program 6 audit). The first wage lands on
+   * the FOLLOWING tick, so the message says so.
+   */
+  hiredNotification: { id: string; title: string; message: string } | null;
 }
 
 export function applyCareerApplications(input: CareerApplicationsInput): CareerApplicationsResult {
@@ -54,6 +62,7 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
   let updatedCareers: Career[] = prevCareers;
   let newCurrentJob: string | undefined = input.prevCurrentJob ?? undefined;
   let logMessage: string | null = null;
+  let hiredNotification: CareerApplicationsResult['hiredNotification'] = null;
 
   // Find the first pending application.
   const pendingCareer = prevCareers.find((c) => c && c.applied && !c.accepted);
@@ -78,6 +87,16 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
       });
       newCurrentJob = pendingCareer.id;
       logMessage = `[WEEK PROGRESSION] Career application accepted: ${pendingCareer.id} after ${weeksPending} weeks`;
+      const entry = pendingCareer.levels?.[0];
+      const title = entry?.name || pendingCareer.id;
+      const salary = typeof entry?.salary === 'number' && Number.isFinite(entry.salary) && entry.salary > 0
+        ? ` $${Math.round(entry.salary).toLocaleString()} a week,`
+        : '';
+      hiredNotification = {
+        id: `hired-${pendingCareer.id}`,
+        title: `Hired: ${title}`,
+        message: `You start now.${salary} paid at the end of each week.`,
+      };
     } else {
       // Still pending, increment counter.
       updatedCareers = prevCareers.map((c) => {
@@ -92,5 +111,5 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
     }
   }
 
-  return { updatedCareers, newCurrentJob, logMessage };
+  return { updatedCareers, newCurrentJob, logMessage, hiredNotification };
 }

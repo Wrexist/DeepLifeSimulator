@@ -122,8 +122,11 @@ describe('C-4 - the honest warning for the same state survives (the control)', (
     expect(start).toBeGreaterThan(-1);
     const block = ISSUES.slice(start, ISSUES.indexOf('return issues;', start));
 
-    expect(block).toMatch(/health <= 30/);
-    expect(block).toMatch(/title: 'Low health'/);
+    // Program 5: the threshold is the shared vital-state ladder
+    // (lib/config/hierarchy.ts, LOW_VITAL) and the word comes from it, so the
+    // card, the HUD and the tips cannot disagree about "low".
+    expect(block).toMatch(/vitalState\(health\)/);
+    expect(block).toMatch(/title: `\$\{vitalState\(health\)\.word\} health`/);
     expect(block).toMatch(/fix: 'Improve your diet, rest, and exercise/);
   });
 

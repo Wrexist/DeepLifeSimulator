@@ -21,6 +21,8 @@ import {
 import {
   getEventFrequencyModifier,
 } from '@/lib/prestige/applyQOLBonuses';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
 
 
@@ -413,8 +415,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#1E293B',
   },
   titleDark: {
@@ -439,15 +440,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
   },
   summaryLabelDark: {
     color: '#94A3B8',
   },
   summaryValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
   },
   summaryValueDark: {
@@ -467,15 +467,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
   },
   categoryTitleDark: {
     color: '#FFFFFF',
   },
   categoryCount: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
   },
   categoryCountDark: {
@@ -497,7 +496,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bonusName: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
     color: '#1E293B',
     flex: 1,
@@ -506,7 +505,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   bonusEffect: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
     marginLeft: 24,
   },
@@ -518,7 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#64748B',
     textAlign: 'center',
   },

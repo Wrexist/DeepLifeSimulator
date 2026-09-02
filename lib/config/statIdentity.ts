@@ -17,9 +17,12 @@
  *     rendered wrong, but it is the value a future reader would reach for.
  *   - `src/features/onboarding/perksFlow.ts:getStatColor` - happiness RED and
  *     energy AMBER, i.e. the HUD's colours swapped onto the wrong stats. It
- *     still colours the onboarding perk cards, so those disagree with the HUD
- *     the player sees seconds later. Left alone here (it changes a different
- *     screen's look); flagged rather than silently reskinned.
+ *     delegates here now. The Health screen, its cards, the sickness modal
+ *     and the Statistics app were the last hold-outs (health green, energy
+ *     amber, happiness green, "Mood" in gold) - closed in Program 5. The
+ *     graded STATE of a vital (critical / low / fair / good) is a separate
+ *     axis: `vitalState` in `lib/config/hierarchy.ts` paints the number; this
+ *     file paints the icon.
  *   - `TopStatsBar` itself, as hard-coded literals with the comment
  *     "Yellow to match bar color" - the real source, now re-exported from here
  *     so the HUD and everything else cannot drift apart.

@@ -128,10 +128,6 @@ export default function AnimatedMoney(props: AnimatedMoneyProps) {
   return <MoneyText {...props} />;
 }
 
-/** Backward-compatible alias. */
-export function AnimatedMoneyNative(props: Omit<AnimatedMoneyProps, 'useNativeDriver'>) {
-  return <MoneyText {...props} />;
-}
 
 const styles = StyleSheet.create({
   text: {

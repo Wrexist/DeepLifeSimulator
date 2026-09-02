@@ -111,6 +111,38 @@ function fuelColorFor(f: number): string {
   return f >= 50 ? accent.success : f >= 20 ? accent.warning : accent.danger;
 }
 
+/**
+ * The refuel and repair buttons, built in ONE place so the garage hero and
+ * the detail page can never quote two different costs for the same tap.
+ */
+function refuelAction(v: Vehicle, cash: number): { label: string; disabled: boolean } {
+  const fuelCost = calculateFuelCost(v);
+  return { label: fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel', disabled: fuelCost <= 0 || cash < fuelCost };
+}
+function repairAction(v: Vehicle, cash: number): { label: string; disabled: boolean } {
+  const grossRepair = calculateRepairCost(v);
+  const repairCost = calculateRepairCostAfterInsurance(v);
+  const label = grossRepair <= 0 ? 'Repair' : repairCost <= 0 ? 'Repair · covered' : `Repair ${formatMoney(repairCost)}`;
+  return { label, disabled: grossRepair <= 0 || cash < repairCost };
+}
+
+/**
+ * Which of the two the garage hero should lead with, if either. Urgency is the
+ * chips' OWN tint ladder - a chip that would already read amber or red is the
+ * one worth a button - so the hero never disagrees with the chip beside it.
+ * Red beats amber; on a tie the lower percentage wins.
+ */
+function urgentVehicleAction(v: Vehicle): 'refuel' | 'repair' | null {
+  const fuel = v.fuelLevel ?? 100;
+  const cond = v.condition ?? 100;
+  const rank = (tone: string) => (tone === accent.danger ? 2 : tone === accent.warning ? 1 : 0);
+  const fuelRank = rank(fuelColorFor(fuel));
+  const condRank = rank(conditionColor(cond));
+  if (fuelRank === 0 && condRank === 0) return null;
+  if (fuelRank !== condRank) return fuelRank > condRank ? 'refuel' : 'repair';
+  return fuel <= cond ? 'refuel' : 'repair';
+}
+
 function VehicleAppInner({ onBack }: VehicleAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const insets = useSafeAreaInsets();
@@ -342,6 +374,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   const renderGarageHero = (v: Vehicle) => {
     const cond = v.condition ?? 100;
     const fuel = v.fuelLevel ?? 100;
+    const urgent = urgentVehicleAction(v);
+    const refuel = refuelAction(v, cash);
+    const repair = repairAction(v, cash);
     return (
       <TouchableOpacity
         activeOpacity={0.9}
@@ -420,10 +455,24 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             </View>
           </View>
 
-          <View style={[styles.viewDetails, { borderColor: withAlpha(accent.amber, 0.3), backgroundColor: withAlpha(accent.amber, 0.14) }]}>
-            <Text style={[styles.viewDetailsText, { color: accent.amber }]}>View details &amp; manage</Text>
-            <ChevronRight size={scale(16)} color={accent.amber} />
-          </View>
+          {/* When a chip above is already amber or red, the bar yields to the
+              action it implies: the SAME costed button the detail page renders,
+              so the fix is one tap from the garage instead of two. The card
+              itself still opens the details. */}
+          {urgent === 'refuel' ? (
+            <View style={[styles.actionRow, styles.heroAction]}>
+              <ActionChip icon={Fuel} label={refuel.label} fill={withAlpha(accent.amber, 0.14)} color={accent.amber} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={refuel.disabled} />
+            </View>
+          ) : urgent === 'repair' ? (
+            <View style={[styles.actionRow, styles.heroAction]}>
+              <ActionChip icon={Wrench} label={repair.label} fill={withAlpha(accent.success, 0.14)} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={repair.disabled} />
+            </View>
+          ) : (
+            <View style={[styles.viewDetails, { borderColor: withAlpha(accent.amber, 0.3), backgroundColor: withAlpha(accent.amber, 0.14) }]}>
+              <Text style={[styles.viewDetailsText, { color: accent.amber }]}>View details &amp; manage</Text>
+              <ChevronRight size={scale(16)} color={accent.amber} />
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -551,15 +600,8 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     const isActive = v.id === activeVehicleId;
     const loan = loanFor(v);
     const ins = v.insurance;
-    const fuelCost = calculateFuelCost(v);
-    const grossRepair = calculateRepairCost(v);
-    const repairCost = calculateRepairCostAfterInsurance(v);
-    const repairLabel =
-      grossRepair <= 0
-        ? 'Repair'
-        : repairCost <= 0
-          ? 'Repair · covered'
-          : `Repair ${formatMoney(repairCost)}`;
+    const refuel = refuelAction(v, cash);
+    const repair = repairAction(v, cash);
     const sellPrice = calculateVehicleSellPrice(v);
     const insWeeksLeft = ins?.active ? Math.max(0, (ins.expiresWeek ?? 0) - currentWeek) : 0;
     const weeksSinceService = v.lastServiceWeek != null ? Math.max(0, currentWeek - v.lastServiceWeek) : null;
@@ -650,8 +692,8 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
         {/* Actions */}
         <View style={styles.actionRow}>
-          <ActionChip icon={Fuel} label={fuelCost > 0 ? `Refuel ${formatMoney(fuelCost)}` : 'Refuel'} fill={withAlpha(accent.amber, 0.14)} color={accent.amber} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={fuelCost <= 0 || cash < fuelCost} />
-          <ActionChip icon={Wrench} label={repairLabel} fill={withAlpha(accent.success, 0.14)} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={grossRepair <= 0 || cash < repairCost} />
+          <ActionChip icon={Fuel} label={refuel.label} fill={withAlpha(accent.amber, 0.14)} color={accent.amber} onPress={() => handleRefuel(v)} a11y={`Refuel ${v.name}`} disabled={refuel.disabled} />
+          <ActionChip icon={Wrench} label={repair.label} fill={withAlpha(accent.success, 0.14)} color={accent.success} onPress={() => handleRepair(v)} a11y={`Repair ${v.name}`} disabled={repair.disabled} />
           <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={withAlpha(accent.danger, 0.12)} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
 
@@ -1137,6 +1179,9 @@ const styles = StyleSheet.create({
     minHeight: touchTargets.minimum,
   },
   viewDetailsText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  // Same top gap as the bar it replaces, so the hero's height does not jump
+  // when a vehicle crosses the fuel or condition line.
+  heroAction: { marginTop: responsiveSpacing.xs },
 
   // Detail rings.
   ringRow: { flexDirection: 'row', justifyContent: 'center', gap: responsiveSpacing.xl, marginTop: responsiveSpacing.sm },

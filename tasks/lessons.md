@@ -4649,3 +4649,103 @@ Second, smaller lesson from the same session: a regex conversion that turns
 compiles (it is a valid string prop) and renders the source code as the
 heading. The type checker cannot see it. After any mechanical JSX rewrite,
 grep for `="{` before trusting tsc.
+
+---
+
+## 2026-09-02 — Program 4: a region-marker patch can delete the block it meant to keep
+
+Rewriting Home's feed with a scripted patch, I cut the region between two
+markers and re-inserted a sub-block I had extracted by searching for its
+END marker — `</SectionGroup>\n\n` — from the start of the region. The
+first match was a DIFFERENT band's closing tag, earlier than the block's own
+start, so the slice was empty and seven goal-detail cards, their toggle,
+the ambition picker and the Elder card silently vanished. Nothing failed:
+tsc was clean (the imports just became unused), the render tests passed
+(the screen still mounted), and the Playwright shot looked plausible. The
+tell was the lint ratchet: eleven new `no-unused-vars` warnings, every one
+an import from the deleted block.
+
+Rules: search for an end marker FROM the start marker (`s.index(end, start)`),
+assert the extracted block contains a name you expect, and treat a sudden
+cluster of unused-import warnings as a deletion, not as tidy-up work.
+
+Second, from the same session: **"dead code" can be broken code.** Program 3
+logged Spark's LIKE / NOPE stamps as dead. They were gated on
+`likeOpacity > 0` where `likeOpacity` is an `Animated` interpolation — an
+object compared to a number is `NaN > 0`, always false — so a feature that
+was wired, styled and driven never drew a pixel. Before deleting "dead" UI,
+ask whether its gate can ever be true; a `> 0` against a non-number is the
+tell, and the `as any as number` cast at the call site was the cover-up.
+
+Third: **Metro's transform cache does not key on `EXPO_PUBLIC_*` values.**
+A web export run without the save-signing key, then re-run with it, still
+shipped the keyless module. `expo export --clear` is the fix; a worktree at
+HEAD is the way to get a clean baseline without `git stash` (see 2026-09-01).
+
+---
+
+## 2026-09-02 — Program 5: three tool traps that made a green gate lie
+
+1. **`eslint -f unix` does not exist in this ESLint** and the command
+   exits non-zero with the error on stderr. Piped through `2>/dev/null |
+   grep warning`, that is an empty result - which reads as "no warnings".
+   Every per-file lint check in Program 4 was vacuous; only `lint:ratchet`
+   (which runs eslint with its default formatter and counts) was real. Use
+   the default formatter, and treat "no output" from a tool as a question,
+   not an answer.
+2. **`tsc --pretty` colours the word "error" separately from "TS2339"**, so
+   `grep "error TS"` matches nothing on a failing run. Gate on the exit
+   code (`npm run -s type-check; echo $?`), never on a grep of pretty
+   output. The four style keys the dead-key prune removed by mistake were
+   only caught by `type-check:tests`, which is not pretty-printed.
+3. **A liveness regex that excludes `key :` as "a definition" also
+   excludes `cond ? styles.key : null`.** The prune deleted four live keys
+   that were only ever read inside a ternary. When a scan decides what to
+   DELETE, the false-positive direction must be "keep": test for member
+   access (`.key` / `['key']`) and nothing else, and let generic names
+   survive.
+
+Also from this program: **a shared warning colour can equal a stat's
+identity colour** (accent.warning IS happiness's amber; accent.danger IS
+health's red). That is not a contradiction to fix with a second red - the
+rule that disambiguates is positional: identity paints the icon and ring,
+state paints only the number. Write the rule down where the tokens live.
+
+---
+
+## 2026-09-02 — Program 6: a scripted "player" that never dismissed a modal measured nothing
+
+The first fresh-life playthrough logged 60 screenshots and a clean exit. Every
+week after the first was the same screen: the Daily Reward modal, because my
+dismiss loop matched the word `Claim` with `exact: true` against a button that
+says `Claim Reward`. Twelve "Next week" clicks were forced through an overlay.
+The run looked complete and contained no information.
+
+Three tool facts, recorded so the next scripted walkthrough starts from them:
+
+1. **Match modal buttons by line, not by word.** Split `innerText` on newlines
+   and test `^Label$` per line; then click with a regex anchored the same way.
+2. **A pulsing CTA needs `force: true`.** Playwright waits for an element to
+   stop moving before clicking; the coach's button loops a scale animation
+   forever, so the click timed out and was logged as a miss — which read, for
+   a moment, like a bug in the coach.
+3. **`innerText` is every mounted tab.** expo-router keeps tab screens mounted,
+   so the page text contains Home AND Work AND Life at once. Read the URL (or a
+   screenshot) to know what is on screen; the text tells you what exists.
+
+The rule: **before trusting a run, look at the last screenshot.** A journey
+that ends on the same frame it started on is a scripting failure, not a quiet
+game. (The corrected run ended on a tombstone at week 13 — which was the
+finding.)
+
+## 2026-09-02 — Program 6: the audit's balance finding was real, and out of scope on purpose
+
+A passive new life (take the first job, tap Next week) dies at week 13 with
+$4,240 in the bank: poverty-doubled decay, the homeless penalty every scenario
+starts with, and the job toll add to −13 happiness a week, and the only rent UI
+is computer-only. The temptation was to fix the numbers. The brief reserved
+balance for the owner, so the work was the comprehension side — name the
+causes, name the free cure, route to it — and the numbers went into
+`tasks/todo.md` as a proposal with the measurement attached. A balance change
+without the measurement would have been a guess; the measurement without the
+proposal would have been a complaint.

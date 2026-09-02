@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View }
 import { ArrowRight } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import usePressableScale from '@/hooks/usePressableScale';
+import { fontScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
 
@@ -104,8 +105,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '800',
+    // The one raw literal on the wizard - the CTA was the only text that
+    // ignored fontScale. Tier 1 of the wizard, sized on the ladder.
+    fontSize: fontScale(18),
+    fontWeight: '700',
     color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',

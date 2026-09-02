@@ -376,6 +376,9 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   const [showStartJob, setShowStartJob] = useState(false);
   const [showLaunder, setShowLaunder] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
+  // Market tab: while heat is critical the console folds to its balance line so
+  // the threat monitor can lead; this reopens the folded lines in place.
+  const [consoleExpanded, setConsoleExpanded] = useState(false);
 
   const btcOwned = useMemo(
     () => (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.owned ?? 0,
@@ -698,69 +701,103 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const weeklyDecay = Math.max(0, Math.round((dw.heat ?? 0) - decayHeat(dw.heat ?? 0, opsecLvl)));
     const listings = dw.listings ?? [];
     const events = dw.recentEvents ?? [];
+    // Program 5 (primary decision + supporting information): at burning heat
+    // the next raid is the decision this tab is about, so the threat monitor
+    // leads with the panel's danger tone and the console folds to the one line
+    // a purchase needs (balance). Below that band the console leads as before.
+    const critical = band === 'burning';
+    const consoleFolded = critical && !consoleExpanded;
+
+    // Console header - buyer standing / balance / vendors (EconomyEventBanner
+    // is this screen's colour moment, so this panel stays flat).
+    const consolePanel = (
+      <TerminalPanel darkMode={darkMode} elevation={critical ? 6 : 12} glow={!critical}>
+        <TermTitleBar title="market@onion" />
+        {consoleFolded ? null : (
+          <>
+            <PromptRow prompt="$" promptColor={TERM.greenDim}>
+              whoami
+            </PromptRow>
+            <PromptRow>
+              <Text style={{ color: TERM.muted }}>buyer_rep = </Text>
+              <Text style={{ color: TERM.green, fontWeight: '600' }}>{rep}</Text>
+              <Text style={{ color: TERM.muted }}>/100  </Text>
+              <Text style={{ color: TERM.purple }}>{asciiBar(rep / 100, 10)}</Text>
+            </PromptRow>
+            <PromptRow>
+              <Text style={{ color: TERM.muted }}>access = </Text>
+              <Text style={{ color: TERM.greenDim }}>{access}</Text>
+            </PromptRow>
+          </>
+        )}
+        <PromptRow>
+          <Text style={{ color: TERM.muted }}>balance = </Text>
+          <Text style={{ color: TERM.text, fontWeight: '600' }}>{btcOwned.toFixed(4)} ₿</Text>
+        </PromptRow>
+        <View style={styles.actionRow}>
+          <BracketButton
+            label="VENDORS"
+            tone="purple"
+            onPress={() => setView({ kind: 'vendors' })}
+            accessibilityLabel="Browse vendor directory"
+          />
+          {critical ? (
+            <BracketButton
+              label={consoleExpanded ? 'LESS' : 'MORE'}
+              tone="neutral"
+              onPress={() => setConsoleExpanded((v) => !v)}
+              accessibilityLabel={
+                consoleExpanded ? 'Hide buyer standing and access' : 'Show buyer standing and access'
+              }
+            />
+          ) : null}
+        </View>
+      </TerminalPanel>
+    );
+
+    // Threat monitor (replaces + densifies HeatGauge). The danger tone and the
+    // lifted elevation are the panel's own props - the terminal skin is unchanged.
+    const threatPanel = (
+      <TerminalPanel
+        darkMode={darkMode}
+        elevation={critical ? 12 : 6}
+        glow
+        tone={critical ? 'danger' : 'green'}
+      >
+        <TermTitleBar title="threat.monitor" accentColor={heatColor} />
+        <View style={styles.threatRow}>
+          <Text style={[styles.threatValue, { color: heatColor }]}>{Math.round(dw.heat ?? 0)}</Text>
+          <View style={{ flex: 1, gap: scale(4) }}>
+            <Text style={styles.mono} numberOfLines={1}>
+              <Text style={{ color: TERM.muted }}>band=</Text>
+              <Text style={{ color: heatColor, fontWeight: '600' }}>{heatBandLabel(band)}</Text>
+            </Text>
+            <Text style={styles.mono} numberOfLines={1}>
+              <Text style={{ color: heatColor }}>{asciiBar((dw.heat ?? 0) / 100, 16)}</Text>
+            </Text>
+          </View>
+        </View>
+        <PromptRow>
+          <Text style={{ color: TERM.muted }}>raid_risk = </Text>
+          <Text style={{ color: raidRisk >= 18 ? accent.danger : raidRisk > 0 ? accent.warning : TERM.greenDim }}>
+            {raidRisk.toFixed(0)}%
+          </Text>
+          <Text style={{ color: TERM.muted }}> / wk</Text>
+        </PromptRow>
+        <PromptRow>
+          <Text style={{ color: TERM.muted }}>decay = </Text>
+          <Text style={{ color: TERM.green }}>-{weeklyDecay}</Text>
+          <Text style={{ color: TERM.muted }}>{` / wk (opsec Lv${opsecLvl})`}</Text>
+        </PromptRow>
+      </TerminalPanel>
+    );
+
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
         <EconomyEventBanner context="darkweb" />
 
-        {/* Console header - buyer standing / balance / vendors (EconomyEventBanner
-            is this screen's colour moment, so this panel stays flat). */}
-        <TerminalPanel darkMode={darkMode} elevation={12} glow>
-          <TermTitleBar title="market@onion" />
-          <PromptRow prompt="$" promptColor={TERM.greenDim}>
-            whoami
-          </PromptRow>
-          <PromptRow>
-            <Text style={{ color: TERM.muted }}>buyer_rep = </Text>
-            <Text style={{ color: TERM.green, fontWeight: '600' }}>{rep}</Text>
-            <Text style={{ color: TERM.muted }}>/100  </Text>
-            <Text style={{ color: TERM.purple }}>{asciiBar(rep / 100, 10)}</Text>
-          </PromptRow>
-          <PromptRow>
-            <Text style={{ color: TERM.muted }}>access = </Text>
-            <Text style={{ color: TERM.greenDim }}>{access}</Text>
-          </PromptRow>
-          <PromptRow>
-            <Text style={{ color: TERM.muted }}>balance = </Text>
-            <Text style={{ color: TERM.text, fontWeight: '600' }}>{btcOwned.toFixed(4)} ₿</Text>
-          </PromptRow>
-          <View style={styles.actionRow}>
-            <BracketButton
-              label="VENDORS"
-              tone="purple"
-              onPress={() => setView({ kind: 'vendors' })}
-              accessibilityLabel="Browse vendor directory"
-            />
-          </View>
-        </TerminalPanel>
-
-        {/* Threat monitor (replaces + densifies HeatGauge). */}
-        <TerminalPanel darkMode={darkMode} glow>
-          <TermTitleBar title="threat.monitor" accentColor={heatColor} />
-          <View style={styles.threatRow}>
-            <Text style={[styles.threatValue, { color: heatColor }]}>{Math.round(dw.heat ?? 0)}</Text>
-            <View style={{ flex: 1, gap: scale(4) }}>
-              <Text style={styles.mono} numberOfLines={1}>
-                <Text style={{ color: TERM.muted }}>band=</Text>
-                <Text style={{ color: heatColor, fontWeight: '600' }}>{heatBandLabel(band)}</Text>
-              </Text>
-              <Text style={styles.mono} numberOfLines={1}>
-                <Text style={{ color: heatColor }}>{asciiBar((dw.heat ?? 0) / 100, 16)}</Text>
-              </Text>
-            </View>
-          </View>
-          <PromptRow>
-            <Text style={{ color: TERM.muted }}>raid_risk = </Text>
-            <Text style={{ color: raidRisk >= 18 ? accent.danger : raidRisk > 0 ? accent.warning : TERM.greenDim }}>
-              {raidRisk.toFixed(0)}%
-            </Text>
-            <Text style={{ color: TERM.muted }}> / wk</Text>
-          </PromptRow>
-          <PromptRow>
-            <Text style={{ color: TERM.muted }}>decay = </Text>
-            <Text style={{ color: TERM.green }}>-{weeklyDecay}</Text>
-            <Text style={{ color: TERM.muted }}>{` / wk (opsec Lv${opsecLvl})`}</Text>
-          </PromptRow>
-        </TerminalPanel>
+        {critical ? threatPanel : consolePanel}
+        {critical ? consolePanel : threatPanel}
 
         <View style={{ gap: responsiveSpacing.sm }}>
           <CmdLine cmd="ls -la ./listings" count={listings.length} />

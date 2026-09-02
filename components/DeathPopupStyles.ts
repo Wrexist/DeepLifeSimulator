@@ -457,7 +457,7 @@ export function createStyles(darkMode: boolean) {
     },
     newLifeButton: {},
     disabledButton: {
-      opacity: 0.5,
+      opacity: 0.6,
     },
     // ── Option rows: revive / gems / rewind ────────────────────────────────
     // A full-width row that states what it does and what it costs on one line,

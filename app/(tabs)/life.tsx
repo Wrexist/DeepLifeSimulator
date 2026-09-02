@@ -43,12 +43,6 @@ import { gameAlert } from '@/utils/gameAlert';
  */
 type LifeSegment = 'health' | 'shop' | 'stats';
 
-/** Subtitle tracks the active segment so the header stays true to the content. */
-const SEGMENT_SUBTITLE: Record<LifeSegment, string> = {
-  health: 'Vitals, activities & diet',
-  shop: 'Items, food & housing',
-  stats: 'Achievements, prestige & lifetime stats',
-};
 
 function LifeScreen() {
   const [segment, setSegment] = useState<LifeSegment>('health');
@@ -96,7 +90,6 @@ function LifeScreen() {
             segmented control floating over unlabelled content. */}
         <ScreenHeader
           title="Your Life"
-          subtitle={SEGMENT_SUBTITLE[segment]}
           icon={<Activity size={scale(18)} color="#F472B6" />}
           tint="#F472B6"
           right={

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { scale } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
@@ -9,6 +9,7 @@ import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
@@ -175,8 +176,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#0F172A',
   },
   closeButton: {
@@ -192,11 +192,8 @@ const styles = StyleSheet.create({
     marginTop: 100,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#64748B',
-  },
-  generationRow: {
-    marginBottom: 24,
   },
   generationLabel: {
     flexDirection: 'row',
@@ -204,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   genText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: 'bold',
     color: '#475569',
     marginRight: 10,
@@ -236,10 +233,6 @@ const styles = StyleSheet.create({
   nodeLight: {
     backgroundColor: '#FFFFFF',
   },
-  nodeDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
-  },
   avatarContainer: {
     width: 40,
     height: 40,
@@ -250,21 +243,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     overflow: 'hidden',
   },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
   nodeInfo: {
     flex: 1,
   },
   nodeName: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...tier2,
     color: '#0F172A',
   },
   nodeDetails: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
   },
   expandedDetails: {
@@ -274,7 +261,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#475569',
   },
   detailText: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#475569',
     marginBottom: 2,
   },
@@ -284,6 +271,8 @@ const styles = StyleSheet.create({
   textDarkSecondary: {
     color: '#94A3B8',
   },
+  nodeDark: {
+    backgroundColor: '#334155',
+    borderColor: '#475569',
+  },
 });
-
-

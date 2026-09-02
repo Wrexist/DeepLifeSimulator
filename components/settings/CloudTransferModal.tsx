@@ -164,7 +164,7 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
             style={styles.close}
             hitSlop={hitSlopToMinTarget(scale(30))}
           >
-            <Text style={styles.closeText}>Close</Text>
+            <Text style={styles.closeText}>Done</Text>
           </TouchableOpacity>
         </View>
       </View>

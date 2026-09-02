@@ -285,7 +285,12 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
-  const [tab, setTab] = useState<Tab>('browse');
+  // Land on what the player OWNS once they own anything - the Garage rule.
+  // Hard-wired to the shop, a collector with twelve trophies was greeted by a
+  // catalogue of things to buy under a thin progress bar (Program 4).
+  const [tab, setTab] = useState<Tab>(() =>
+    (gameState.luxuryItems?.length ?? 0) > 0 ? 'collection' : 'browse'
+  );
   const [sheetItem, setSheetItem] = useState<LuxuryItem | null>(null);
   const [pendingBuy, setPendingBuy] = useState<LuxuryItem | null>(null);
   const [pendingSell, setPendingSell] = useState<LuxuryItem | null>(null);

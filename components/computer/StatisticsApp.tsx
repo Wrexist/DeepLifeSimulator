@@ -84,6 +84,7 @@ import { trendOf } from '@/lib/statistics/trends';
 import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import {
   responsiveFontSize as fs,
@@ -200,9 +201,12 @@ export default function StatisticsApp({ onBack }: Props) {
   // ---- Vitals (activity rings) -----------------------------------------
   const vitals = useMemo(
     () => [
-      { key: 'health', label: 'Health', value: safeNum(stats?.health), color: accent.danger, Icon: Heart as IconType },
-      { key: 'mood', label: 'Mood', value: safeNum(stats?.happiness), color: accent.gold, Icon: Smile as IconType },
-      { key: 'fitness', label: 'Fitness', value: safeNum(stats?.fitness), color: accent.success, Icon: Dumbbell as IconType },
+      // Identity colours from statIdentity, and the stat's own name: 'Mood'
+      // in gold here was 'Happiness' in amber everywhere else, and fitness
+      // wore money's green.
+      { key: 'health', label: 'Health', value: safeNum(stats?.health), color: STAT_IDENTITY.health.color, Icon: Heart as IconType },
+      { key: 'happiness', label: 'Happiness', value: safeNum(stats?.happiness), color: STAT_IDENTITY.happiness.color, Icon: Smile as IconType },
+      { key: 'fitness', label: 'Fitness', value: safeNum(stats?.fitness), color: STAT_IDENTITY.fitness.color, Icon: Dumbbell as IconType },
     ],
     [stats]
   );
@@ -269,7 +273,37 @@ export default function StatisticsApp({ onBack }: Props) {
   // =====================================================================
   const renderOverview = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {/* Vitals ring cluster - the signature silhouette */}
+      {/* Net worth HERO - the ONE headline number, so it comes FIRST. It used to
+          sit under a cluster of four rings that outranked it by area (Program 4). */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => setDetail({ kind: 'metric', id: 'networth' })}
+        accessibilityRole="button"
+        accessibilityLabel="Net worth detail"
+        style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}
+      >
+        <View style={styles.heroInner}>
+          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
+          <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            ${Math.round(netWorth).toLocaleString()}
+          </Text>
+          <View style={styles.trendRow}>
+            <TrendChip trend={netWorthTrend} label="vs prior weeks" />
+          </View>
+          {netWorthSeries.length >= 2 ? (
+            <View style={styles.heroSpark} pointerEvents="none">
+              <Sparkline data={netWorthSeries} color={accent.info} width={scale(300)} height={scale(38)} />
+            </View>
+          ) : null}
+          <View style={styles.peakRow}>
+            <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
+            <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString()}</Text>
+            {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>week {s.peakNetWorthWeek}</Text> : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Vitals ring cluster - the signature silhouette, second to the number. */}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => setDetail({ kind: 'vitals' })}
@@ -299,35 +333,6 @@ export default function StatisticsApp({ onBack }: Props) {
               </View>
             </View>
           ))}
-        </View>
-      </TouchableOpacity>
-
-      {/* Net worth HERO - the ONE headline number, tapping opens the metric detail. */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => setDetail({ kind: 'metric', id: 'networth' })}
-        accessibilityRole="button"
-        accessibilityLabel="Net worth detail"
-        style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}
-      >
-        <View style={styles.heroInner}>
-          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
-          <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-            ${Math.round(netWorth).toLocaleString()}
-          </Text>
-          <View style={styles.trendRow}>
-            <TrendChip trend={netWorthTrend} label="vs prior weeks" />
-          </View>
-          {netWorthSeries.length >= 2 ? (
-            <View style={styles.heroSpark} pointerEvents="none">
-              <Sparkline data={netWorthSeries} color={accent.info} width={scale(300)} height={scale(38)} />
-            </View>
-          ) : null}
-          <View style={styles.peakRow}>
-            <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
-            <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString()}</Text>
-            {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>week {s.peakNetWorthWeek}</Text> : null}
-          </View>
         </View>
       </TouchableOpacity>
 
@@ -675,8 +680,8 @@ export default function StatisticsApp({ onBack }: Props) {
 
   const renderVitalsDetail = () => {
     const secondary = [
-      { label: 'Energy', value: safeNum(stats?.energy), color: accent.info, Icon: Zap as IconType },
-      { label: 'Reputation', value: safeNum(stats?.reputation), color: accent.purple, Icon: Star as IconType },
+      { label: 'Energy', value: safeNum(stats?.energy), color: STAT_IDENTITY.energy.color, Icon: Zap as IconType },
+      { label: 'Reputation', value: safeNum(stats?.reputation), color: STAT_IDENTITY.reputation.color, Icon: Star as IconType },
     ];
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>

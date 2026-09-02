@@ -95,10 +95,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: scale(26),
   },
+  // The md chip IS the app's quiet action (Manage, Found a company, See
+  // all), so it meets the 44pt target and its label reads as an action.
   chipMd: {
-    paddingHorizontal: scale(12),
+    paddingHorizontal: scale(14),
     paddingVertical: scale(8),
-    minHeight: scale(36),
+    minHeight: scale(44),
   },
   text: {
     fontSize: fontScale(11.5),
@@ -106,5 +108,6 @@ const styles = StyleSheet.create({
   },
   textMd: {
     fontSize: fontScale(13),
+    fontWeight: '600',
   },
 });

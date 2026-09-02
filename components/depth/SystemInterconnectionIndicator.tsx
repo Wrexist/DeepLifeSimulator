@@ -219,9 +219,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: responsiveSpacing.xs,
   },
-  icon: {
-    fontSize: fontScale(14),
-  },
   effectIndicator: {
     marginLeft: responsiveSpacing.xs,
   },
@@ -232,6 +229,5 @@ const styles = StyleSheet.create({
   },
   itemTextDark: {
     color: '#94A3B8',
-  },
-});
+  },});
 

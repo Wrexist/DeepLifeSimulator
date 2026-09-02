@@ -92,12 +92,16 @@ describe('event gates are relative to the life, not the absolute clock', () => {
       expect(template.condition?.(life(0, 20))).toBe(false);
     });
 
-    it('the starter grant fires on week 0 of an age-25 life', () => {
+    it('the starter grant fires on the FIRST TICK (week 1) of an age-25 life', () => {
       const starter = templateById('starter_luck');
-      expect(starter.condition?.(life(AGE_25_START, 0))).toBe(true);
-      expect(starter.condition?.(life(0, 0))).toBe(true);
-      // …and only on week 0.
-      expect(starter.condition?.(life(AGE_25_START, 1))).toBe(false);
+      // Events are rolled on the post-advance state (`weeksLived: nextWeeksLived`),
+      // so the first tick of a life evaluates at week 1. A `=== 0` gate could
+      // never fire for any scenario (Program 6 walkthrough).
+      expect(starter.condition?.(life(AGE_25_START, 1))).toBe(true);
+      expect(starter.condition?.(life(0, 1))).toBe(true);
+      // …and only on that tick.
+      expect(starter.condition?.(life(AGE_25_START, 0))).toBe(false);
+      expect(starter.condition?.(life(AGE_25_START, 2))).toBe(false);
     });
 
     it('first_paycheck_bonus opens in weeks 2-5 of the life, not weeks 2-5 past 18', () => {

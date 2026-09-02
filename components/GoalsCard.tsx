@@ -25,13 +25,12 @@ import {
   ChevronRight,
   Compass,
   Flag,
-  ListChecks,
   Sparkles,
   Swords,
   Target,
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { Card, IconBubble } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
 import {
   evaluateChallengeProgress,
@@ -45,8 +44,18 @@ import { objectiveFraction } from '@/components/WeeklyChallengeCard';
 import { rewardLabel } from '@/components/LiveEventsCard';
 import { useLiveOps } from '@/hooks/useLiveOps';
 import { fontScale, scale } from '@/utils/scaling';
+import { kicker, rhythm, tier3, tier4 } from '@/lib/config/hierarchy';
 import type { ResolvedLiveEvent } from '@/lib/liveops/types';
 import type { GameState } from '@/contexts/game/types';
+import { unlockTier } from '@/lib/progress/featureUnlocks';
+
+/** "$1,500", "$5k", "$1.2M" - the same shape the catalogue's money pairs use. */
+const compactMoney = (n: number): string => {
+  const v = Math.max(0, Math.round(n));
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (v >= 10_000) return `$${Math.round(v / 1000)}k`;
+  return `$${v.toLocaleString()}`;
+};
 
 /** Which system a row came from - drives the icon and accent only. */
 export type GoalRowSystem =
@@ -117,9 +126,33 @@ export function buildGoalRows(
     }
   }
 
-  // 2. Weekly challenge - rotates on game weeks, but it is the shortest ladder.
+  // 2. The situational recommendation - the ONLY row with its own destination,
+  //    so it is pinned second. It used to come last, after the challenge, the
+  //    live event, the ambition and the scenario, and with three slots that
+  //    meant a fresh life NEVER saw it: "Get your health back up" (<60) and
+  //    "Do something you enjoy" (<45) were computed every week and shown on
+  //    none of them while the character slid to zero (Program 6 walkthrough).
+  const recommended = recommendGoals(state)[0];
+  if (recommended) {
+    rows.push({
+      id: `catalogue:${recommended.id}`,
+      system: 'catalogue',
+      title: recommended.title,
+      progress: recommended.progress,
+      fraction: recommended.progressLabel,
+      route: recommended.route,
+    });
+  }
+
+  // 3. Weekly challenge - rotates on game weeks, but it is the shortest ladder.
+  //    Hidden below tier 2: every challenge is a mid-game bundle (properties,
+  //    educations, pets, followers, $10k+ savings) whose objectives all sit
+  //    behind the same padlocks the Apps grid shows, so for a new life the row
+  //    read "Have 80+ fitness · 0/4 objectives" as the lead goal at fitness 10.
+  //    Same gate as the Apps grid, so the goal feed never names a system the
+  //    player cannot open. The card itself (Home → details) is untouched.
   const challenge = state.weeklyChallenge;
-  if (challenge?.challengeId && !challenge.rewardClaimed) {
+  if (challenge?.challengeId && !challenge.rewardClaimed && unlockTier(state) >= 2) {
     const definition = getWeeklyChallengeDefinition(challenge.challengeId);
     if (definition) {
       const objectives = evaluateChallengeProgress(challenge.challengeId, state);
@@ -157,7 +190,11 @@ export function buildGoalRows(
         system: 'liveops',
         title: next.label,
         progress: objectiveFraction(next.current, next.target),
-        fraction: `${met}/${active.objectives.length} done`,
+        // A money objective reads as money ("$1,500 / $5,000"); "0/3 done"
+        // under a 30%-full bar read as a contradiction to a new player.
+        fraction: /\$/.test(next.label)
+          ? `${compactMoney(next.current)} / ${compactMoney(next.target)}`
+          : `${met}/${active.objectives.length} objectives`,
       });
     }
   }
@@ -195,38 +232,42 @@ export function buildGoalRows(
     }
   }
 
-  // 6. The situational recommendation - the only row with its own destination.
-  const recommended = recommendGoals(state)[0];
-  if (recommended) {
-    rows.push({
-      id: `catalogue:${recommended.id}`,
-      system: 'catalogue',
-      title: recommended.title,
-      progress: recommended.progress,
-      fraction: recommended.progressLabel,
-      route: recommended.route,
-    });
-  }
-
   return rows;
 }
 
 /** Three rows is a glance; more is the backlog this card exists to replace. */
 const MAX_ROWS = 3;
 
-function Row({ row, onPress }: { row: GoalsCardRow; onPress?: () => void }) {
+/**
+ * NOW and NEXT are different tiers, not different rows. The lead row is the
+ * one objective that matters most right now (the ladder in `buildGoalRows`
+ * puts it first), so it alone gets a crest, tier-2 type and a full-height
+ * bar; the rows under it are what comes after - tier 3, a dot for the
+ * system colour, a hairline bar. Two axes down (scale AND density), so the
+ * difference reads as a decision rather than a rendering glitch. Three equal
+ * rows told the player three things mattered equally, which is never true.
+ */
+function Row({ row, lead, onPress }: { row: GoalsCardRow; lead: boolean; onPress?: () => void }) {
   const { color, Icon } = SYSTEM_META[row.system];
   const body = (
     <>
-      <View style={[styles.rowIcon, { borderColor: color }]}>
-        <Icon size={scale(14)} color={color} />
-      </View>
+      {lead ? (
+        <View style={[styles.rowIcon, { borderColor: color }]}>
+          <Icon size={scale(16)} color={color} />
+        </View>
+      ) : (
+        <View style={[styles.rowDot, { backgroundColor: color }]} />
+      )}
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
+        <Text
+          style={lead ? styles.leadTitle : styles.rowTitle}
+          numberOfLines={lead ? 2 : 1}
+          maxFontSizeMultiplier={1.4}
+        >
           {row.title}
         </Text>
         {typeof row.progress === 'number' && (
-          <View style={styles.barBg}>
+          <View style={lead ? styles.leadBarBg : styles.barBg}>
             <View
               style={[
                 styles.barFill,
@@ -235,18 +276,21 @@ function Row({ row, onPress }: { row: GoalsCardRow; onPress?: () => void }) {
             />
           </View>
         )}
-        {!!row.fraction && <Text style={styles.rowFraction}>{row.fraction}</Text>}
+        {!!row.fraction && (
+          <Text style={lead ? styles.leadFraction : styles.rowFraction}>{row.fraction}</Text>
+        )}
       </View>
       {onPress ? <ChevronRight size={scale(15)} color="#64748B" /> : null}
     </>
   );
 
+  const rowStyle = lead ? styles.leadRow : styles.row;
   // A row with nothing to do on tap renders as plain text - a pressable that
   // does nothing is the dead-tap defect LifeChapterCard's banner documents.
   if (!onPress) {
     return (
       <View
-        style={styles.row}
+        style={rowStyle}
         accessibilityRole="text"
         accessibilityLabel={`${row.title}. ${row.fraction ?? ''}`}
       >
@@ -256,7 +300,7 @@ function Row({ row, onPress }: { row: GoalsCardRow; onPress?: () => void }) {
   }
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={rowStyle}
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
@@ -283,63 +327,83 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
   // self-nulling contract as every card this one summarizes.
   if (rows.length === 0) return null;
 
+  const pressFor = (row: GoalsCardRow) =>
+    row.route
+      ? () =>
+          router.push(
+            (row.route!.includes('segment=') ? `${row.route}&ts=${Date.now()}` : row.route) as never
+          )
+      : onShowDetails;
+
+  const [leadRow, ...nextRows] = rows;
+
   return (
     <Card>
-      <View style={styles.header}>
-        <IconBubble color="#34D399">
-          <ListChecks size={scale(18)} color="#34D399" />
-        </IconBubble>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.kicker}>GOALS</Text>
-          <Text style={styles.title}>What matters now</Text>
+      {/* No crest header: the lead row's own crest is the card's crest, so
+          the title would only have competed with the objective it names. */}
+      <Text style={styles.kicker} accessibilityRole="header">
+        What matters now
+      </Text>
+      <Row row={leadRow} lead onPress={pressFor(leadRow)} />
+      {nextRows.length > 0 && (
+        <View style={styles.next}>
+          <Text style={styles.nextKicker}>Next</Text>
+          {nextRows.map((row) => (
+            <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />
+          ))}
         </View>
-      </View>
-      <View style={styles.list}>
-        {rows.map((row) => (
-          <Row
-            key={row.id}
-            row={row}
-            onPress={
-              row.route
-                ? () =>
-                    router.push(
-                      (row.route!.includes('segment=') ? `${row.route}&ts=${Date.now()}` : row.route) as never
-                    )
-                : onShowDetails
-            }
-          />
-        ))}
-      </View>
+      )}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  // Container from components/ui/Card; crest from IconBubble.
-  header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  kicker: { color: '#34D399', fontSize: fontScale(10), fontWeight: '600', letterSpacing: 0.6 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
-  list: { gap: scale(10) },
-  row: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
+  // Container from components/ui/Card.
+  kicker: { ...kicker, color: '#94A3B8' },
+  leadRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
   rowIcon: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(9),
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(11),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     backgroundColor: 'rgba(148, 163, 184, 0.08)',
   },
-  rowTitle: { color: '#F1F5F9', fontSize: fontScale(13), fontWeight: '600' },
-  barBg: {
-    height: scale(4),
-    borderRadius: scale(2),
+  leadTitle: {
+    color: '#F8FAFC',
+    fontSize: fontScale(17),
+    lineHeight: fontScale(22),
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  leadBarBg: {
+    height: scale(6),
+    borderRadius: scale(3),
     backgroundColor: 'rgba(148, 163, 184, 0.2)',
-    marginTop: scale(5),
+    marginTop: scale(7),
     overflow: 'hidden',
   },
-  barFill: { height: '100%', borderRadius: scale(2) },
-  rowFraction: { color: '#94A3B8', fontSize: fontScale(10.5), fontWeight: '600', marginTop: scale(3) },
+  leadFraction: { ...tier4, color: '#94A3B8', marginTop: scale(4) },
+  next: {
+    gap: rhythm.tight,
+    paddingTop: rhythm.tight,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  nextKicker: { ...kicker, color: '#64748B' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
+  rowDot: { width: scale(8), height: scale(8), borderRadius: scale(4) },
+  rowTitle: { ...tier3, color: '#CBD5E1' },
+  barBg: {
+    height: scale(3),
+    borderRadius: scale(2),
+    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+    marginTop: scale(4),
+    overflow: 'hidden',
+  },
+  barFill: { height: '100%', borderRadius: scale(3) },
+  rowFraction: { ...tier4, color: '#64748B', marginTop: scale(2) },
 });
 
 export default React.memo(GoalsCard);

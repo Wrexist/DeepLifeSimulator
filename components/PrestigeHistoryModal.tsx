@@ -13,6 +13,8 @@ import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
 
@@ -315,15 +317,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#1E293B',
   },
   titleDark: {
     color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     marginTop: 4,
   },
@@ -346,8 +347,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...tier2,
     color: '#64748B',
     marginTop: 16,
   },
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#94A3B8',
     marginTop: 8,
     textAlign: 'center',
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   prestigeNumberText: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
@@ -405,8 +405,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   historyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -422,7 +421,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   historyDate: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
   },
   historyDateDark: {
@@ -438,7 +437,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   pathText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: '#1E293B',
   },
@@ -455,14 +454,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#64748B',
   },
   statLabelDark: {
     color: '#94A3B8',
   },
   statValue: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: '600',
     color: '#1E293B',
     marginLeft: 'auto',
@@ -477,7 +476,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   achievementsTitle: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#64748B',
     marginBottom: 8,
@@ -497,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   achievementText: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#1E293B',
   },
   achievementTextDark: {
