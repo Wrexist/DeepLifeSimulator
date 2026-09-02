@@ -1,3 +1,85 @@
+# UI Overhaul Master Program 4 — ASYMMETRY + EDITORIAL HIERARCHY — IN PROGRESS
+
+Branch: `claude/ui-hierarchy-asymmetry-pass-fwqtue`. Programs 1 and 3 are on
+`main` (PRs #182, #183). **Program 2 (asymmetry / hierarchy) was briefed and
+never implemented** — confirmed: no commit on any branch carries it, the only
+mentions are the two "never landed" notes in `tasks/phone-apps-audit.md` and
+this file. This program applies that missing judgement to the CURRENT tree.
+It does not redo Program 1, undo Program 3, or start another
+component-standardization pass. Rules and scales: `tasks/ui-hierarchy.md`.
+
+Auto-safe classes: PURE LAYOUT / VISUAL STYLE / CONTENT PRIORITY / COPY.
+Everything that changes what a player can do, what it costs, or what is saved
+is out of scope and is called out per screen below as "behaviour: none".
+
+## Phase 1 — repository state (done)
+- [x] Program 1 present (Card, StatBreakdownModal, BaseModal, HUD/Home/Work/launcher rebuilds, ui:ratchet)
+- [x] Program 3 present (AppHeader, StatStrip/StatTile, Chip, SectionTitle, ProgressBar, KeyValueRow, all 19 apps converted, launcher ErrorBoundary)
+- [x] Program 2 missing (no asymmetry work anywhere; every screen still distributes weight evenly)
+- [x] `node_modules` installed; baseline web export + screenshots captured for the walkthrough
+
+## Phase 2 — audit findings (done; four independent read-only passes)
+- HUD: four saturated fills of equal weight (green cash, indigo gems, blue date, green Next week) → nothing wins; gems (premium currency) reads equal to cash; a value-graded stat colour is computed and never rendered (`TopStatsBar.tsx:245`, comment claims otherwise) so a critical vital looks like a full one apart from the arc.
+- Home: IdentityCard is a permanent centred hero (80pt avatar, 2xl name) regardless of state, followed by 4–6 identical list rows of reference data; GoalsCard's three rows are identical in weight though its first row is by construction "the one that matters now"; the lead of the feed never changes with player state.
+- Work: no dominant element in any state; hero salary (12.5) is smaller than every list card's (16); the employed job renders twice (hero + its own list card); the hero has no action; screen chrome ("Work", 22/800) is the largest type; `workScreenStyles.ts` has 574 keys of which **7 are used** — 567 dead, 122 of them raw `fontSize` literals (a third of the app-wide 368).
+- Health: 14 identical cards; when SICK the three cures are cards 5/7/8 below "Walk in park"; the issues card has the lightest heading on the screen.
+- Market: three identical sections; a hungry/low-energy player gets no emphasis on food; a rental row title (18) outranks its section header (17).
+- Progress: 50/50 split "hero" (Prestige | Legacy Pass) identical for a pre-prestige player and a level-5 dynasty; achievements completion printed three times.
+- Onboarding: MainMenu has a real 48→21→20→17→13→10 ladder (keep). The three wizard screens put a static 24pt header above a 20pt raw-literal CTA above 18pt content — chrome wins.
+- Phone apps: 10 of 19 open `banner → StatStrip(3) → SectionTitle → uniform rows`; only Education, Garage and Pulse let state pick what shows first. Weakest five: Crypto, Stocks, Statistics, Luxury, Travel.
+
+## Phase 3 — scales (done: `tasks/ui-hierarchy.md`, tokens in `lib/config/hierarchy.ts`)
+- [x] Four-tier weight scale; five-step rhythm scale from `responsiveSpacing`; hierarchy rules
+
+## Phase 4 — main screens (each its own commit; each verified before the next)
+
+| Screen | Problem | Dominant element | State that picks it | Axes | Yields space | Behaviour |
+|---|---|---|---|---|---|---|
+| HUD | 4 saturated blocks, gems = cash | **Next week** — the only saturated fill | always (primary action) ; a critical vital's number goes danger-red | colour + weight | date box → neutral surface; gems chip → outline; cash chip → neutral surface, white value | none |
+| Home | permanent centred identity hero; 3 equal goal rows | **the lead slot**: prestige CTA → urgent tip (health/happiness/energy/money critical) → goal lead row | `isPrestigeAvailable` / `useContextualTip` / GoalsCard row 1 | scale + position + density | IdentityCard → compact left-aligned strip (avatar 48, name, job · status, net worth); its 4–6 reference rows fold into the existing Details disclosure, cash-flow stays visible | none |
+| Work | hero without action; job rendered twice; chrome biggest | employed: **the current job hero with its one action** (Promote when eligible, Manage otherwise) ; unemployed: the job board with the lead section open | `canPromote` / `isEmployedHere` / `!currentJob` | scale + position + colour (one CTA) | the employed job's duplicate list card; the 3 local 18pt raw headers → `SectionTitle`; 567 dead style keys | none (same `promoteCareer` / manage sheet) |
+| Health | cures buried 5th/7th/8th when sick | sick: **Treatment** (issues + the three cures) leads; healthy: vitals lead | active diseases / critical vitals | position + scale + colour(danger) | cures leave the activities list while promoted (no duplicate) | none |
+| Market | hungry player sees Items first | low energy: **Food** leads; else Items | `stats.energy <= 20` (same threshold as HealthIssuesCard) | position + one lead line | housing row title 18 → 16 | none |
+| Progress | 50/50 hero, state-invariant | **Prestige** full-width lead; Legacy Pass supporting row | `prestigeAvailable` / claimables promote the sub-line | span + scale | half the hero row | none |
+| Onboarding | 24pt static header > 20 CTA > 18 cards | the **CTA** (already the only saturated element) | — | scale | header title 24→18; CTA raw 20 → `fontScale(17)` | none |
+
+- [ ] 4.1 HUD
+- [ ] 4.2 Home (lead slot + IdentityCard strip + GoalsCard lead row)
+- [ ] 4.3 Work
+- [ ] 4.4 Health
+- [ ] 4.5 Market
+- [ ] 4.6 Progress
+- [ ] 4.7 Onboarding chrome + shared `ScreenHeader` title to Tier 2
+
+## Phase 5 — phone apps (weakest five only; landing chosen by state, Garage/Education pattern)
+- [ ] Luxury lands on Collection when anything is owned (Garage rule)
+- [ ] Stocks lands on Portfolio when holdings exist
+- [ ] Statistics: net-worth hero first, vitals rings demoted below it
+- [ ] Crypto lands on the rig console when a rig is running
+- [ ] Travel lands on the trip when one is in flight
+
+## Phase 6 — primitive gaps (only where hierarchy needs them)
+- [ ] Button: NOT created — the one primary per screen uses the existing GradientButton; quiet secondary actions use `Chip size="md"`. Recorded in `tasks/ui-hierarchy.md`.
+- [ ] Chip disabled: NOT added — Spark's gated option chips are the only case and are local by design.
+- [ ] AppHeader wordmark: NOT added — competes with the screen's dominant element; Spark/Pulse keep their own.
+- [ ] `StatTile` `hero` stays the one headline-number treatment; no new variant.
+
+## Phase 7 — raw typography
+- [ ] Delete the 567 dead `workScreenStyles` keys (122 raw sizes) and move the survivors to Tier tokens
+- [ ] `OnboardingFloatingButton` raw 20 → scaled; `PrestigeStatsCard` raw literals only where they compete (leave the rest — ratchet, not sweep)
+- [ ] Lower `rawFontSizes` ceiling in the commit that earns it
+
+## Phase 8 — responsive + accessibility
+- [ ] 360pt / 390pt / 430pt captures; Dynamic Type via `maxFontSizeMultiplier` on every new Tier-1 text; labels on every new pressable; reduced motion untouched
+
+## Phase 9 — walkthrough (web export + Playwright, fresh save; state variants via render tests)
+## Phase 10 — red team + scores + final report (`tasks/ui-hierarchy.md` §Report)
+
+## Verification per phase
+`npm run type-check` · `type-check:tests` · `lint:errors` · `lint:ratchet` · `ui:ratchet` · `check:routes` · targeted Jest; full `npm test` + `npm run preflight` before the final report. No ceiling raised, no test skipped.
+
+---
+
 # UI Overhaul Master Program 3 — THE 19 PHONE APPS — IN PROGRESS
 
 Audit + design matrix + owner decisions: `tasks/phone-apps-audit.md`.

@@ -23,6 +23,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -594,7 +595,12 @@ function TopStatsBarComponent() {
  )}
  </View>
  <View style={styles.vitalRingLabelRow}>
- <Text maxFontSizeMultiplier={1.3} style={styles.vitalRingValue}>{Math.round(value)}</Text>
+ <Text
+ maxFontSizeMultiplier={1.3}
+ style={[styles.vitalRingValue, value <= CRITICAL_VITAL && styles.vitalRingValueCritical]}
+ >
+ {Math.round(value)}
+ </Text>
  {/* Visible long-press affordance. The quick actions (Rest / Eat /
  Exercise / Socialize) are the fastest way to fix a low vital - the
  exact thing the contextual tips nag about - but the only place the
@@ -651,14 +657,14 @@ function TopStatsBarComponent() {
  <View
  style={[
  styles.moneyChip,
- { backgroundColor: '#16A34A' },
+ styles.moneyChipCash,
  isVerySmallDevice && {
  paddingHorizontal: scale(6),
  minWidth: scale(55)
  }
  ]}
  >
- <Wallet size={14} color="#FFFFFF"style={styles.chipIcon} />
+ <Wallet size={14} color={STAT_IDENTITY.money.color} style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
  <AnimatedMoney
  value={stats?.money ?? 0}
@@ -682,14 +688,14 @@ function TopStatsBarComponent() {
  <View
  style={[
  styles.moneyChip,
- { backgroundColor: '#4F46E5' },
+ styles.moneyChipQuiet,
  isVerySmallDevice && {
  paddingHorizontal: scale(6),
  minWidth: scale(55)
  }
  ]}
  >
- <Gem size={14} color="#FFFFFF"style={styles.chipIcon} />
+ <Gem size={14} color="#A5B4FC" style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
  <Text maxFontSizeMultiplier={1.3}
  style={styles.chipText}
@@ -916,8 +922,8 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  <View
  style={[
  styles.dateOuter,
+ styles.dateOuterNeutral,
  {
- backgroundColor: '#2F6FE4',
  width: dateBoxWidth,
  maxWidth: dateBoxMaxWidth,
  height: dateBoxHeight,

@@ -259,6 +259,22 @@ export const styles = StyleSheet.create({
  borderWidth: 1,
  borderColor: 'rgba(255,255,255,0.18)',
  },
+ /**
+  * Colour discipline (Program 4). The bar used to carry four saturated fills
+  * of equal weight - green cash, indigo gems, blue date box, green Next
+  * week - so nothing on it won. Now the ONE saturated fill is the primary
+  * action. Cash sits on the neutral elevated surface with the money identity
+  * colour on its icon (the value stays white: `moneyChipLegibility.test`),
+  * and gems - premium currency, not a decision number - is outline only.
+  */
+ moneyChipCash: {
+ backgroundColor: 'rgba(30, 41, 59, 0.92)',
+ borderColor: 'rgba(255,255,255,0.14)',
+ },
+ moneyChipQuiet: {
+ backgroundColor: 'transparent',
+ borderColor: 'rgba(165, 180, 252, 0.35)',
+ },
  chipIcon: {
  marginRight: 6,
  flexShrink: 0, // Icon should never shrink
@@ -317,6 +333,14 @@ export const styles = StyleSheet.create({
  borderRadius: responsiveBorderRadius.lg,
  marginBottom: responsiveSpacing.xs,
  flexShrink: 1,
+ },
+ /** Information, not action: the date reads on the same neutral surface as
+  *  the chips so the green Next week button below it is the only thing on
+  *  the right that asks for a tap. */
+ dateOuterNeutral: {
+ backgroundColor: 'rgba(30, 41, 59, 0.92)',
+ borderWidth: 1,
+ borderColor: 'rgba(255,255,255,0.14)',
  },
  dateInner: {
  alignItems: 'center',
@@ -498,9 +522,15 @@ export const styles = StyleSheet.create({
  vitalRingValue: {
  color: '#E2E8F0',
  fontSize: responsiveFontSize.sm,
- fontWeight: '800',
+ fontWeight: '600',
  fontVariant: ['tabular-nums'],
  lineHeight: scale(14),
+ },
+ /** A vital at or under CRITICAL_VITAL: colour AND weight change together,
+  *  so the one number that needs a decision is the one that reads bold. */
+ vitalRingValueCritical: {
+ color: '#F87171',
+ fontWeight: '800',
  },
  vitalRingDisease: {
  position: 'absolute',
