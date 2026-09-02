@@ -82,7 +82,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   title: {
-    fontSize: responsiveFontSize['3xl'],
+    // Chrome sits under the content and the CTA: 24pt made "Choose Scenario"
+    // the heaviest object on three wizard screens, above the 18pt cards and
+    // the Continue button (Program 4).
+    fontSize: responsiveFontSize.xl,
     color: '#F8FAFC',
     flex: 1,
     textAlign: 'center',
