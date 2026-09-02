@@ -1,4 +1,5 @@
-import { calculateDiseaseRisk, generateRandomDisease, shouldGenerateDisease, generateEventDisease } from '@/lib/diseases/diseaseGenerator';
+import { calculateDiseaseRisk, calculateDiseaseSpecificRisk, generateRandomDisease, shouldGenerateDisease, generateEventDisease } from '@/lib/diseases/diseaseGenerator';
+import { DISEASE_DEFINITIONS } from '@/lib/diseases/diseaseDefinitions';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('Disease Generator', () => {
@@ -19,7 +20,10 @@ describe('Disease Generator', () => {
       expect(lowHealthRisk).toBeGreaterThan(highHealthRisk);
     });
 
-    it('should return higher risk for low fitness', () => {
+    it('counts fitness once - per disease, not in the overall multiplier as well', () => {
+      // Program 7: fitness was in this multiplier AND in every template's own
+      // fitnessRiskModifier, so the same stat was charged twice. The overall
+      // multiplier is fitness-blind now; the per-disease chance still moves.
       const lowFitnessState = createTestGameState({ 
         stats: { health: 70, fitness: 10, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
         date: { age: 30, year: 2025, month: 'January', week: 1 },
@@ -29,10 +33,12 @@ describe('Disease Generator', () => {
         date: { age: 30, year: 2025, month: 'January', week: 1 },
       });
 
-      const lowFitnessRisk = calculateDiseaseRisk(lowFitnessState);
-      const highFitnessRisk = calculateDiseaseRisk(highFitnessState);
+      const base = calculateDiseaseRisk(highFitnessState);
+      expect(calculateDiseaseRisk(lowFitnessState)).toBe(base);
 
-      expect(lowFitnessRisk).toBeGreaterThan(highFitnessRisk);
+      const flu = DISEASE_DEFINITIONS.find((t) => t.id === 'flu')!;
+      expect(calculateDiseaseSpecificRisk(flu, lowFitnessState, base))
+        .toBeGreaterThan(calculateDiseaseSpecificRisk(flu, highFitnessState, base));
     });
 
     it('should return higher risk for older age', () => {
