@@ -44,7 +44,10 @@ const METRICS = {
    * Goal reflects the blueprint's "< 20, semantic only" target.
    */
   gradientElements: {
-    max: 155,
+    // 155 -> 153 on 2026-09-02 (Program 4): the seasonal indicator's disc and
+    // its modal header went flat - one more filled circle competing with the
+    // HUD's primary action for information the player cannot act on.
+    max: 153,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },
@@ -54,7 +57,9 @@ const METRICS = {
    * the device nor sits on the type scale.
    */
   rawFontSizes: {
-    max: 368,
+    // 368 -> 243 on 2026-09-02 (Program 4): 567 dead keys deleted from
+    // components/work/workScreenStyles.ts, 122 of them raw sizes.
+    max: 243,
     goal: 0,
     pattern: /fontSize:\s*\d/g,
   },
@@ -65,7 +70,9 @@ const METRICS = {
    * against the audit-time total (~2,168 declarations).
    */
   heavyWeights: {
-    max: 755,
+    // 755 -> 693 on 2026-09-02 (Program 4): the same dead sheet, plus the
+    // tier scale (lib/config/hierarchy.ts) putting 600 where 700/800 stood.
+    max: 693,
     goal: 540,
     pattern: /fontWeight:\s*'(?:700|800|900|bold)'/g,
   },

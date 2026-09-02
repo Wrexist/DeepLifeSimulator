@@ -43,31 +43,31 @@ is out of scope and is called out per screen below as "behaviour: none".
 | Progress | 50/50 hero, state-invariant | **Prestige** full-width lead; Legacy Pass supporting row | `prestigeAvailable` / claimables promote the sub-line | span + scale | half the hero row | none |
 | Onboarding | 24pt static header > 20 CTA > 18 cards | the **CTA** (already the only saturated element) | — | scale | header title 24→18; CTA raw 20 → `fontScale(17)` | none |
 
-- [ ] 4.1 HUD
-- [ ] 4.2 Home (lead slot + IdentityCard strip + GoalsCard lead row)
-- [ ] 4.3 Work
-- [ ] 4.4 Health
-- [ ] 4.5 Market
-- [ ] 4.6 Progress
-- [ ] 4.7 Onboarding chrome + shared `ScreenHeader` title to Tier 2
+- [x] 4.1 HUD
+- [x] 4.2 Home (lead slot + IdentityCard strip + GoalsCard lead row)
+- [x] 4.3 Work
+- [x] 4.4 Health
+- [x] 4.5 Market
+- [x] 4.6 Progress
+- [x] 4.7 Onboarding chrome + shared `ScreenHeader` title to Tier 2
 
 ## Phase 5 — phone apps (weakest five only; landing chosen by state, Garage/Education pattern)
-- [ ] Luxury lands on Collection when anything is owned (Garage rule)
-- [ ] Stocks lands on Portfolio when holdings exist
-- [ ] Statistics: net-worth hero first, vitals rings demoted below it
-- [ ] Crypto lands on the rig console when a rig is running
-- [ ] Travel lands on the trip when one is in flight
+- [x] Luxury lands on Collection when anything is owned (Garage rule)
+- [x] Stocks lands on Portfolio when holdings exist
+- [x] Statistics: net-worth hero first, vitals rings demoted below it
+- [x] Crypto lands on the rig console when a rig is running
+- [x] Travel lands on the trip when one is in flight
 
 ## Phase 6 — primitive gaps (only where hierarchy needs them)
-- [ ] Button: NOT created — the one primary per screen uses the existing GradientButton; quiet secondary actions use `Chip size="md"`. Recorded in `tasks/ui-hierarchy.md`.
-- [ ] Chip disabled: NOT added — Spark's gated option chips are the only case and are local by design.
-- [ ] AppHeader wordmark: NOT added — competes with the screen's dominant element; Spark/Pulse keep their own.
-- [ ] `StatTile` `hero` stays the one headline-number treatment; no new variant.
+- [x] Button: NOT created — the one primary per screen uses the existing GradientButton; quiet secondary actions use `Chip size="md"`. Recorded in `tasks/ui-hierarchy.md`.
+- [x] Chip disabled: NOT added — Spark's gated option chips are the only case and are local by design.
+- [x] AppHeader wordmark: NOT added — competes with the screen's dominant element; Spark/Pulse keep their own.
+- [x] `StatTile` `hero` stays the one headline-number treatment; no new variant.
 
 ## Phase 7 — raw typography
-- [ ] Delete the 567 dead `workScreenStyles` keys (122 raw sizes) and move the survivors to Tier tokens
-- [ ] `OnboardingFloatingButton` raw 20 → scaled; `PrestigeStatsCard` raw literals only where they compete (leave the rest — ratchet, not sweep)
-- [ ] Lower `rawFontSizes` ceiling in the commit that earns it
+- [x] Delete the 567 dead `workScreenStyles` keys (122 raw sizes) and move the survivors to Tier tokens
+- [x] `OnboardingFloatingButton` raw 20 → scaled; `PrestigeStatsCard` raw literals only where they compete (leave the rest — ratchet, not sweep)
+- [x] Lower `rawFontSizes` ceiling in the commit that earns it
 
 ## Phase 8 — responsive + accessibility
 - [ ] 360pt / 390pt / 430pt captures; Dynamic Type via `maxFontSizeMultiplier` on every new Tier-1 text; labels on every new pressable; reduced motion untouched
