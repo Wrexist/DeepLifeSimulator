@@ -195,9 +195,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748B',
   },
-  generationRow: {
-    marginBottom: 24,
-  },
   generationLabel: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,10 +233,6 @@ const styles = StyleSheet.create({
   nodeLight: {
     backgroundColor: '#FFFFFF',
   },
-  nodeDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
-  },
   avatarContainer: {
     width: 40,
     height: 40,
@@ -249,11 +242,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
   },
   nodeInfo: {
     flex: 1,
@@ -283,7 +271,6 @@ const styles = StyleSheet.create({
   },
   textDarkSecondary: {
     color: '#94A3B8',
-  },
-});
+  },});
 
 

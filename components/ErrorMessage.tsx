@@ -160,11 +160,6 @@ const styles = StyleSheet.create({
  flexDirection: 'row',
  alignItems: 'flex-start',
  },
- icon: {
- fontSize: 24,
- marginRight: 12,
- marginTop: 2,
- },
  textContainer: {
  flex: 1,
  },
@@ -216,6 +211,5 @@ const styles = StyleSheet.create({
  fontSize: 12,
  fontWeight: '600',
  marginLeft: 4,
- },
-});
+ },});
 

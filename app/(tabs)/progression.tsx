@@ -491,12 +491,6 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '600',
   },
-  heroBar: {
-    height: scale(6),
-    borderRadius: scale(3),
-    overflow: 'hidden',
-    marginTop: scale(2),
-  },
   heroBarFill: {
     height: '100%',
     borderRadius: scale(3),
@@ -613,7 +607,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(14),
     fontWeight: '600',
-  },
-});
+  },});
 
 export default React.memo(ProgressionScreen);

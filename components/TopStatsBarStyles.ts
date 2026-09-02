@@ -137,73 +137,11 @@ export const styles = StyleSheet.create({
  marginBottom: scale(2), // Minimal spacing to prevent collapsing but reduce dead space
  minHeight: scale(18), // Ensure minimum height to prevent collapsing
  },
- statArrowContainer: {
- marginLeft: scale(6),
- alignItems: 'center',
- justifyContent: 'center',
- width: scale(20),
- },
- diseaseIndicator: {
- backgroundColor: '#F59E0B',
- borderRadius: scale(10),
- paddingHorizontal: scale(6),
- paddingVertical: scale(2),
- flexDirection: 'row',
- alignItems: 'center',
- justifyContent: 'center',
- minWidth: scale(20),
- height: scale(18),
- },
  diseaseIndicatorSerious: {
  backgroundColor: '#EF4444',
  },
  diseaseIndicatorCritical: {
  backgroundColor: '#DC2626',
- },
- diseaseIndicatorCount: {
- fontSize: scale(10),
- fontWeight: '700',
- color: '#FFFFFF',
- marginLeft: scale(2),
- },
-
- // Progress bars
- progressBarWrapper: {
- height: isIPad() ? scale(24): scale(16),
- backgroundColor: '#F1F5F9',
- borderRadius: responsiveBorderRadius.lg,
- marginLeft: responsiveSpacing.sm,
- overflow: 'hidden',
- justifyContent: 'center',
- borderWidth: 1,
- borderColor: 'rgba(0,0,0,0.06)',
- minWidth: scale(60), // Ensure minimum width to prevent collapsing
- flexShrink: 1, // Allow progress bars to yield space when layout is tight
- // Light mode: subtle inner shadow
-...Platform.select({
- web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.08)'} as any,
- default: {
- shadowColor:'rgba(0,0,0,0.08)',
- shadowOffset: { width: 0, height: 1 },
- shadowOpacity: 1,
- shadowRadius: 2,
- },
- }),
- elevation: 1,
- },
- progressBarWrapperDark: {
- backgroundColor: '#334155',
- borderWidth: 0,
-...Platform.select({
- web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)'} as any,
- default: {
- shadowColor:'#000',
- shadowOffset: { width: 0, height: 1 },
- shadowOpacity: 0.1,
- shadowRadius: 2,
- },
- }),
- elevation: 1,
  },
  progressFill: {
  height: '100%',
@@ -219,10 +157,6 @@ export const styles = StyleSheet.create({
  shadowRadius: 4,
  },
  }),
- },
- progressFillDark: {
- backgroundColor: '#3B82F6',
- shadowColor: 'transparent',
  },
 
  // --- NEW CHIP STYLES ---
@@ -472,15 +406,6 @@ export const styles = StyleSheet.create({
  fontSize: responsiveFontSize.sm,
  fontWeight: '600',
  },
-
- statTouchable: { width: '100%'},
- statRowContent: {
- flexDirection:'row',
- alignItems: 'center',
- justifyContent: 'flex-start',
- flex: 1,
- minHeight: scale(18), // Ensure minimum height
- },
  statIconContainer: {
  flexDirection: 'row',
  alignItems: 'center',
@@ -575,4 +500,4 @@ export const styles = StyleSheet.create({
  fontWeight: '600',
  marginLeft: responsiveSpacing.xs,
  }
-});
+,});

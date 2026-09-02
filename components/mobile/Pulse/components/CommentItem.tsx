@@ -86,15 +86,6 @@ const styles = StyleSheet.create({
     height: scale(28),
     borderRadius: scale(14),
   },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: fontScale(12),
-    fontWeight: '600',
-  },
   bodyWrap: {
     flex: 1,
   },
@@ -136,5 +127,4 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     marginTop: 2,
     marginLeft: scale(6),
-  },
-});
+  },});

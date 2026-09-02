@@ -259,18 +259,10 @@ ${APP_STORE_URL}
  gap: scale(8),
  ...getPlatformShadows(6, 0.2),
  },
- buttonSecondary: {
- backgroundColor: themeColors.surfaceElevated,
- borderWidth: 1,
- borderColor: themeColors.border,
- },
  buttonText: {
  fontSize: fontScale(14),
  fontWeight: '600',
  color: '#FFFFFF',
- },
- buttonTextSecondary: {
- color: themeColors.text,
  },
  loadingOverlay: {
  position: 'absolute',
@@ -289,8 +281,7 @@ ${APP_STORE_URL}
  right: scale(16),
  zIndex: 10,
  padding: scale(8),
- },
- });
+ },});
 
  return (
  <View style={styles.container}>

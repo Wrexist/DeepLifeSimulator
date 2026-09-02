@@ -100,10 +100,6 @@ export const styles = StyleSheet.create({
       },
     }),
   },
-  avatarDark: {
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: 'rgba(139, 92, 246, 0.3)',
-  },
   avatarGlow: {
     position: 'absolute',
     width: 60,
@@ -113,9 +109,6 @@ export const styles = StyleSheet.create({
     top: -3,
     left: -3,
     zIndex: -1,
-  },
-  avatarGlowDark: {
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
   },
   name: {
     ...tier2,
@@ -136,18 +129,6 @@ export const styles = StyleSheet.create({
   nameDark: {
     color: '#F8FAFC',
     textShadowColor: 'transparent',
-  },
-  scenarioText: {
-    fontSize: responsiveFontSize.sm,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: responsiveSpacing.lg,
-    fontStyle: 'italic',
-    fontWeight: '500',
-  },
-  scenarioTextDark: {
-    color: '#94A3B8',
-    fontWeight: '400',
   },
   text: {
     fontSize: responsiveFontSize.lg,
@@ -200,24 +181,6 @@ export const styles = StyleSheet.create({
   },
   statValueDark: {
     color: '#F8FAFC',
-  },
-  netWorthContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: responsiveBorderRadius.md,
-    padding: responsiveSpacing.md,
-    width: '100%',
-  },
-  netWorthText: {
-    fontSize: responsiveFontSize.lg,
-    fontWeight: '600',
-    color: '#059669',
-    marginLeft: responsiveSpacing.xs,
-  },
-  netWorthTextDark: {
-    color: '#10B981',
   },
   list: {
     borderRadius: responsiveBorderRadius.xl,
@@ -382,12 +345,6 @@ export const styles = StyleSheet.create({
   modalSubTextDark: {
     color: '#94A3B8',
   },
-  modifierItem: {
-    marginBottom: responsiveSpacing.sm,
-  },
-  positiveText: {
-    color: '#059669',
-  },
   negativeText: {
     color: '#DC2626',
   },
@@ -395,12 +352,6 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: 12,
     overflow: 'hidden',
-  },
-  closeButtonGradient: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   closeText: {
     fontSize: responsiveFontSize.lg,
@@ -475,12 +426,6 @@ export const styles = StyleSheet.create({
     color: '#EF4444',
     fontWeight: '500',
   },
-  statWithButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
   youthPillButton: {
     // Pinned to the Age card's corner so the centered label+value stay
     // symmetrical with the other three cards.
@@ -506,10 +451,6 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#C4B5FD',
     fontVariant: ['tabular-nums'],
-  },
-  nameContainer: {
-    alignItems: 'center',
-    width: '100%',
   },
   prestigeBadge: {
     position: 'absolute',
@@ -572,5 +513,4 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FB923C',
     letterSpacing: scale(0.2),
-  },
-});
+  },});

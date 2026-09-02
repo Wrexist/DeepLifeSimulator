@@ -950,16 +950,6 @@ const styles = StyleSheet.create({
   sectorTileState: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   sectorTileMeta: { fontSize: responsiveFontSize.xs },
 
-  // Summary strip
-  emptyText: { fontSize: responsiveFontSize.sm, textAlign: 'center', opacity: 0.6 },
-  emptyCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-    alignItems: 'center',
-  },
-
   // Hero (Recipe B)
   heroInner: {
     borderRadius: responsiveBorderRadius['2xl'],
@@ -1061,5 +1051,4 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
-  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },
-});
+  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },});
