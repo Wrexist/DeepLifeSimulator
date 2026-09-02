@@ -83,6 +83,10 @@ import {
   type AdvancedCareer,
 } from '@/lib/careers/advancedCareers';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
+import SectionTitle from '@/components/ui/SectionTitle';
+import GradientButton from '@/components/ui/GradientButton';
+import Chip from '@/components/ui/Chip';
+import { kicker, tier1Title, tier4 } from '@/lib/config/hierarchy';
 
 
 // Creative/hobby ids that can leak into streetJobs but must not render as street
@@ -616,6 +620,23 @@ function WorkScreenContent() {
         );
     };
 
+    // The promotion is the hero's action now (see the Current Job card), so
+    // the handler lives at screen level rather than inside a list card.
+    const handlePromote = (careerId: string) => {
+        const result = promoteCareer(careerId);
+        if (!result) return;
+        if (!result.success) {
+            showWarning(result.message);
+            return;
+        }
+        // A promotion is the payoff of dozens of weeks of progress, so it gets
+        // the full celebration rather than a toast that scrolls away.
+        // `promotion` is absent only on legacy/edge paths - fall back to the
+        // message so the player is never left with no feedback.
+        if (result.promotion) setPromotionCelebration(result.promotion);
+        else showSuccess(result.message);
+    };
+
     const renderCareerCard = (career: Career): React.ReactElement => {
         // CareerRequirements types `fitness`/`items` directly, so no `as any`
         // needed (was a rule-2 violation that bypassed the narrowed type).
@@ -639,18 +660,9 @@ function WorkScreenContent() {
         // Guard the level index - a stale/migrated save can carry `level` out of
         // bounds for `levels`, making this undefined and crashing the card.
         const level = career.levels?.[career.level] ?? career.levels?.[0];
+        // The career the player holds is the hero above the tabs, never a
+        // list card, so this is only ever true for a stale `accepted` flag.
         const isEmployedHere = gameState.currentJob === career.id;
-        // Progress bar is full and there's a higher rung - but the promotion may
-        // still be gated on performance / experience (getPromotionEligibility).
-        const promotionReady = isEmployedHere && career.progress >= 100 && career.level < career.levels.length - 1;
-        const promotionEligibility = promotionReady
-            ? getPromotionEligibility(career, gameState.weeksLived)
-            : null;
-        const canPromote = promotionReady && !!promotionEligibility?.eligible;
-        // Full progress but blocked by a review/experience gate - surfaced in the
-        // footer with the reason, while "Manage Job" stays available.
-        const promotionGated = promotionReady && !promotionEligibility?.eligible;
-        const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
         const { happinessPenalty, healthPenalty } = getCareerPenalties(career.id);
 
         // What payroll will ACTUALLY pay for this rung, not the listed base.
@@ -752,39 +764,17 @@ function WorkScreenContent() {
             });
         }
 
-        // Button + lock state per employment phase. Five button strings for
-        // the whole screen ("Apply" / "Work" / "Execute" / "Manage" /
-        // "Promote") - every non-actionable state is a DISABLED button whose
+        // Button + lock state. Two button strings for the board ("Apply" /
+        // "Work") - every non-actionable state is a DISABLED button whose
         // reason renders as the card's lock-reason line, never a unique label.
+        // Promote / Manage moved to the Current Job hero, the one place the
+        // held job is shown.
         let buttonText: string;
         let onPress: (() => void) | undefined;
         let locked = false;
         let lockReason: string | undefined;
-        let buttonAccent: 'career' | 'crime' | undefined;
 
-        if (canPromote) {
-            buttonText = 'Promote';
-            onPress = () => {
-                const result = promoteCareer(career.id);
-                if (!result) return;
-                if (!result.success) {
-                    showWarning(result.message);
-                    return;
-                }
-                // A promotion is the payoff of dozens of weeks of progress, so it
-                // gets the full celebration rather than a toast that scrolls away.
-                // `promotion` is absent only on legacy/edge paths - fall back to
-                // the message so the player is never left with no feedback.
-                if (result.promotion) setPromotionCelebration(result.promotion);
-                else showSuccess(result.message);
-            };
-        } else if (isEmployedHere) {
-            // The raise premium is NOT in the label any more - the hero card's
-            // meta line already prints it next to the salary it modifies.
-            buttonText = 'Manage';
-            onPress = () => setManageJobId(career.id);
-            buttonAccent = 'career';
-        } else if (career.accepted) {
+        if (career.accepted) {
             buttonText = t('work.apply');
             locked = true;
             lockReason = 'You already work here.';
@@ -828,50 +818,10 @@ function WorkScreenContent() {
             };
         }
 
-        // Footer: progress bar when employed and not yet promoting; max-level note; quit link when promoting
-        let footer: React.ReactNode = null;
-        if (isEmployedHere) {
-            if (atMaxLevel) {
-                footer = (
-                    <Text style={[styles.maxPromotionText, styles.maxPromotionTextDark, { textAlign: 'center' }]}>
-                        Max promotion reached
-                    </Text>
-                );
-            } else if (canPromote) {
-                footer = (
-                    <TouchableOpacity
-                        onPress={() => setShowQuitJobConfirm(true)}
-                        style={{ alignSelf: 'center', paddingVertical: scale(8), minHeight: scale(32), justifyContent: 'center' }}
-                        hitSlop={hitSlopToMinTarget(scale(32))}
-                        accessibilityRole="button"
-                        accessibilityLabel="Quit this job instead of promoting"
-                    >
-                        <Text style={{ color: 'rgba(248, 113, 113, 0.85)', fontSize: fontScale(12), fontWeight: '600' }}>
-                            Quit instead
-                        </Text>
-                    </TouchableOpacity>
-                );
-            } else if (promotionGated) {
-                // Progress is maxed but the promotion is locked behind a
-                // performance review or tenure requirement - show why.
-                footer = (
-                    <View style={local.cardLockRow}>
-                        <Lock size={scale(14)} color="rgba(251, 191, 36, 0.92)" />
-                        <Text style={local.cardLockText}>{promotionEligibility?.reason}</Text>
-                    </View>
-                );
-            }
-            // No third promotion readout: the hero Current Job ring above the
-            // tabs already shows this exact number, so the employed card adds
-            // nothing here (2026-09-01 audit - progress rendered 3x per
-            // screenful).
-        }
-
         return (
             <JobCard
                 key={career.id}
                 accent="career"
-                buttonAccent={buttonAccent}
                 title={level?.name ?? 'Unemployed'}
                 description={entryProfile && !isEmployedHere ? entryProfile.vibe : career.description}
                 reward={reward}
@@ -880,7 +830,6 @@ function WorkScreenContent() {
                 onPress={onPress}
                 locked={locked}
                 lockReason={lockReason}
-                footer={footer}
             />
         );
     };
@@ -986,8 +935,11 @@ function WorkScreenContent() {
         .join(' · ');
 
     const visibleBasicCareers = basicCareers.filter(c => {
+        // The held job is the hero above the tabs; listing it again was the
+        // audit's "job rendered twice" finding.
+        if (gameState.currentJob === c.id) return false;
         if (!isEntryTierCareer(c.id)) return true;
-        if (c.accepted || c.applied || gameState.currentJob === c.id) return true;
+        if (c.accepted || c.applied) return true;
         return boardIds.has(c.id);
     });
     const openingsCount = visibleBasicCareers.filter(
@@ -1015,6 +967,18 @@ function WorkScreenContent() {
     const currentJobSalary = paidWeeklyCareerSalary(gameState).total;
     const currentJobRaisePct = currentJob ? raisePremiumPct(currentJob.raiseMultiplier) : 0;
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
+    // The hero's ONE action, from the same predicates the list used to apply
+    // per card: full progress + a higher rung = promotion ready; the review /
+    // tenure gate can still hold it, in which case the reason is the line.
+    const currentJobPromotionReady = !!currentJob && currentJob.progress >= 100 && !currentJobAtMax;
+    const currentJobEligibility = currentJob && currentJobPromotionReady
+        ? getPromotionEligibility(currentJob, gameState.weeksLived)
+        : null;
+    const currentJobCanPromote = currentJobPromotionReady && !!currentJobEligibility?.eligible;
+    const currentJobGateReason = currentJobPromotionReady && !currentJobEligibility?.eligible
+        ? currentJobEligibility?.reason
+        : undefined;
+    const nextLevelName = currentJob?.levels?.[currentJob.level + 1]?.name;
 
     // Plain background - the "gradient" this screen shipped with blended
     // #020617 into #020617 (two identical colors), pure decoration cost.
@@ -1030,7 +994,6 @@ function WorkScreenContent() {
                 <>
                     <ScreenHeader
                         title="Work"
-                        subtitle="Careers, quick gigs & the underground"
                         icon={<Briefcase size={scale(18)} color="#34D399" />}
                         tint="#34D399"
                     />
@@ -1043,41 +1006,68 @@ function WorkScreenContent() {
                         showsVerticalScrollIndicator={true}
                     >
                         {currentJob && currentJobLevel && (
+                            /* THE dominant element when employed: the job the player
+                               holds, with its ONE action. A promotion the player can
+                               take right now is the most consequential thing on the
+                               screen, so it is the only saturated button; otherwise a
+                               quiet Manage chip (raise and quit live in its sheet). The
+                               held career no longer repeats as a list card below - that
+                               card was this content a second time. */
                             <View style={local.heroCard}>
-                                <ProgressRing
-                                    value={currentJobAtMax ? 100 : currentJob.progress}
-                                    size={86}
-                                    state={currentJobAtMax ? 'done' : 'active'}
-                                    label={currentJobAtMax ? 'Fully promoted' : `Promotion progress ${currentJob.progress}%`}
-                                >
-                                    <View style={[local.heroRingIcon, { borderColor: currentJobAtMax ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)', backgroundColor: currentJobAtMax ? 'rgba(16,185,129,0.14)' : 'rgba(59,130,246,0.14)' }]}>
-                                        <Briefcase size={scale(24)} color={currentJobAtMax ? '#34D399' : '#60A5FA'} />
-                                    </View>
-                                </ProgressRing>
-
-                                <View style={local.heroRight}>
-                                    <Text style={local.heroLabel}>Current Job</Text>
-                                    <Text style={local.heroTitle} numberOfLines={1}>{currentJobLevel.name}</Text>
-
-                                    <View style={local.heroStageRow}>
-                                        <View style={local.heroStageChip}>
-                                            <TrendingUp size={scale(13)} color={currentJobAtMax ? '#34D399' : '#60A5FA'} />
+                                <View style={local.heroRow}>
+                                    <ProgressRing
+                                        value={currentJobAtMax ? 100 : currentJob.progress}
+                                        size={86}
+                                        state={currentJobAtMax ? 'done' : 'active'}
+                                        label={currentJobAtMax ? 'Fully promoted' : `Promotion progress ${currentJob.progress}%`}
+                                    >
+                                        <View style={[local.heroRingIcon, { borderColor: currentJobAtMax ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)', backgroundColor: currentJobAtMax ? 'rgba(16,185,129,0.14)' : 'rgba(59,130,246,0.14)' }]}>
+                                            <Briefcase size={scale(24)} color={currentJobAtMax ? '#34D399' : '#60A5FA'} />
                                         </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={local.heroStageLabel} numberOfLines={1}>
-                                                {currentJobAtMax ? 'Top of the ladder' : 'Working toward promotion'}
-                                            </Text>
-                                            <Text style={local.heroStageSub} numberOfLines={1}>
-                                                {currentJobAtMax ? 'Max level reached' : `${Math.max(0, 100 - currentJob.progress)}% to next level`}
-                                            </Text>
-                                        </View>
-                                    </View>
+                                    </ProgressRing>
 
-                                    <Text style={local.heroMeta} numberOfLines={1}>
-                                        {formatMoney(currentJobSalary)}/wk · Lv {currentJob.level + 1}/{currentJob.levels.length}
-                                        {currentJobRaisePct > 0 ? ` · +${currentJobRaisePct}%` : ''}
-                                    </Text>
+                                    <View style={local.heroRight}>
+                                        <Text style={local.heroLabel}>Current Job</Text>
+                                        <Text style={local.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+                                            {currentJobLevel.name}
+                                        </Text>
+                                        {/* The paid figure leads the meta line: it is the number the
+                                            job is about, and it used to be smaller here than on every
+                                            listing below. */}
+                                        <Text style={local.heroMeta} numberOfLines={1}>
+                                            {formatMoney(currentJobSalary)}/wk · Lv {currentJob.level + 1}/{currentJob.levels.length}
+                                            {currentJobRaisePct > 0 ? ` · +${currentJobRaisePct}%` : ''}
+                                        </Text>
+                                        <Text
+                                            style={[local.heroStageSub, currentJobGateReason ? local.heroStageGated : null]}
+                                            numberOfLines={2}
+                                        >
+                                            {currentJobAtMax
+                                                ? 'Top of the ladder'
+                                                : currentJobCanPromote
+                                                    ? 'Promotion ready'
+                                                    : currentJobGateReason ?? `${Math.max(0, 100 - currentJob.progress)}% to next level`}
+                                        </Text>
+                                    </View>
                                 </View>
+                                {currentJobCanPromote ? (
+                                    <GradientButton
+                                        label={nextLevelName ? `Promote to ${nextLevelName}` : 'Promote'}
+                                        onPress={() => handlePromote(currentJob.id)}
+                                        colors={['#34D399', '#10B981', '#047857']}
+                                        glow="#10B981"
+                                        accessibilityLabel={nextLevelName ? `Promote to ${nextLevelName}` : 'Take the promotion'}
+                                    />
+                                ) : (
+                                    <View style={local.heroActionRow}>
+                                        <Chip
+                                            label="Manage"
+                                            size="md"
+                                            onPress={() => setManageJobId(currentJob.id)}
+                                            accessibilityLabel="Manage your job: ask for a raise or quit"
+                                        />
+                                    </View>
+                                )}
                             </View>
                         )}
                         <SegmentedControl
@@ -1105,12 +1095,7 @@ function WorkScreenContent() {
                             )}
                             {activeTab === 'street' && (
                                 <View>
-                                    <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Street Jobs</Text>
-                                    </View>
-                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
-                                        Quick gigs paid on the spot - each job ranks up and pays more with repetition.
-                                    </Text>
+                                    <SectionTitle title="Street Jobs" subtitle="Quick gigs paid on the spot - each job ranks up and pays more with repetition." />
                                     {/* BOTH weekly caps the reducer enforces, in ONE line.
                                         Stated up front so the player never discovers a
                                         limit by being refused (UX-4); per-job usage also
@@ -1201,12 +1186,7 @@ function WorkScreenContent() {
                                     {/* No compact CareerPathCard here any more: the hero
                                         Current Job card 100px above already shows the same
                                         job, salary and promotion progress. */}
-                                    <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Careers</Text>
-                                    </View>
-                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
-                                        Meet a career&apos;s requirements, apply, and climb its ladder for bigger salaries.
-                                    </Text>
+                                    <SectionTitle title="Careers" subtitle="Meet a career’s requirements, apply, and climb its ladder for bigger salaries." />
                                     <CollapsibleSection
                                         id="work.standardCareers"
                                         title="Standard Careers"
@@ -1260,7 +1240,9 @@ function WorkScreenContent() {
                                         // 2026-07-30 audit GP-10.
                                         void getUnlockedAdvancedCareers; // still exported for other callers
 
-                                        return (ADVANCED_CAREERS as AdvancedCareer[]).map((career: AdvancedCareer) => {
+                                        return (ADVANCED_CAREERS as AdvancedCareer[])
+                                            .filter((career: AdvancedCareer) => career.id !== gameState.currentJob)
+                                            .map((career: AdvancedCareer) => {
                                             // A career the player has already applied to or holds lives in
                                             // `gameState.careers` with their real level, progress and raise
                                             // premium - so render THAT, through the same card every other
@@ -1301,12 +1283,7 @@ function WorkScreenContent() {
 
                             {activeTab === 'skills' && (
                                 <View>
-                                    <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Crime Skills</Text>
-                                    </View>
-                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
-                                        Illegal jobs level these skills, and their talents add success and payout bonuses.
-                                    </Text>
+                                    <SectionTitle title="Crime Skills" subtitle="Illegal jobs level these skills, and their talents add success and payout bonuses." />
 
                                     <CollapsibleSection
                                         id="work.crimeSkills"
@@ -1554,9 +1531,7 @@ const local = StyleSheet.create({
     },
     // Current Job hero - reference-style ring card.
     heroCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: scale(16),
+        gap: scale(12),
         marginHorizontal: scale(16),
         marginTop: scale(12),
         marginBottom: scale(6),
@@ -1576,56 +1551,41 @@ const local = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    heroRight: {
-        flex: 1,
-        gap: scale(6),
-    },
-    heroLabel: {
-        fontSize: fontScale(10.5),
-        fontWeight: '700',
-        color: 'rgba(226, 232, 240, 0.5)',
-        textTransform: 'uppercase',
-        letterSpacing: 0.7,
-    },
-    heroTitle: {
-        fontSize: fontScale(19),
-        fontWeight: '800',
-        color: '#F8FAFC',
-        letterSpacing: -0.4,
-    },
-    heroStageRow: {
+    heroRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: scale(9),
-        marginTop: scale(1),
+        gap: scale(16),
     },
-    heroStageChip: {
-        width: scale(28),
-        height: scale(28),
-        borderRadius: scale(9),
-        backgroundColor: 'rgba(148, 163, 184, 0.12)',
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(255, 255, 255, 0.08)',
-        alignItems: 'center',
-        justifyContent: 'center',
+    heroActionRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
     },
-    heroStageLabel: {
-        fontSize: fontScale(13),
-        fontWeight: '700',
-        color: '#E2E8F0',
+    heroRight: {
+        flex: 1,
+        gap: scale(4),
+    },
+    heroLabel: {
+        ...kicker,
+        color: 'rgba(226, 232, 240, 0.5)',
+    },
+    heroTitle: {
+        ...tier1Title,
+        color: '#F8FAFC',
     },
     heroStageSub: {
-        fontSize: fontScale(11),
-        fontWeight: '500',
+        ...tier4,
         color: 'rgba(226, 232, 240, 0.55)',
-        marginTop: scale(1),
+    },
+    /** Full progress but held by a review / tenure gate: the reason is the line. */
+    heroStageGated: {
+        color: 'rgba(251, 191, 36, 0.92)',
     },
     heroMeta: {
-        fontSize: fontScale(12.5),
-        fontWeight: '700',
-        color: 'rgba(226, 232, 240, 0.75)',
+        fontSize: fontScale(16),
+        lineHeight: fontScale(21),
+        fontWeight: '600',
+        color: '#E2E8F0',
         fontVariant: ['tabular-nums'],
-        marginTop: scale(1),
     },
     // Promotion-gated footer - full progress but locked on performance/experience.
     cardLockRow: {

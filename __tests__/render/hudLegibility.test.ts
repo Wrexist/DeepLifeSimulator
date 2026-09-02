@@ -216,12 +216,17 @@ describe('no style anywhere pairs a scaled font with a raw line box', () => {
     expect(RAW_LINE_HEIGHT.test(fixed)).toBe(false);
   });
 
-  it('the two work-screen styles that started this are scaled now', () => {
-    // Named explicitly: these were the confirmed findings, so a future edit
-    // that reverts them fails here with a pointer rather than only in the sweep.
+  it('the work-screen sheet that started this carries no raw line box', () => {
+    // The two confirmed findings (`sectionDescription`, `jobDescription`) were
+    // fixed, then found to be DEAD keys - two of 567 the sheet carried with no
+    // reader - and deleted with the rest (Program 4). The pointer stays on the
+    // file: nothing in it may pair text with a raw line box again.
     const src = read('components/work/workScreenStyles.ts');
-    expect(src).toContain('lineHeight: fontScale(24)');
-    expect(src).toContain('lineHeight: fontScale(16)');
+    expect(src.match(/lineHeight:\s*\d/g) ?? []).toEqual([]);
+    // And the screen's own sheet, where the live styles moved, is scaled.
+    const screen = read('app/(tabs)/work.tsx');
+    expect(screen).toContain('lineHeight: fontScale(');
+    expect(screen.match(/lineHeight:\s*\d/g) ?? []).toEqual([]);
   });
 });
 
