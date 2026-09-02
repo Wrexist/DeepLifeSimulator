@@ -59,8 +59,6 @@ export interface SimWeekContext {
   actions: SimActions;
   /** Free-text note that lands in the row for this week. */
   note: (text: string) => void;
-  /** Every notification the last tick pushed (titles), for "did the game tell me". */
-  lastNotifications: string[];
 }
 
 export type SimPolicy = (ctx: SimWeekContext) => Promise<void> | void;
@@ -225,7 +223,6 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
     let deathReason: string | null = null;
     let minHealth = 100;
     let minHappiness = 100;
-    let lastNotifications: string[] = [];
 
     // Every action runs inside `act` so its updater is applied before the
     // persona reads the state again. `performHealthActivity` clears its
@@ -263,14 +260,12 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         week: weekIndex,
         actions,
         note: (t) => notes.push(t),
-        lastNotifications,
       });
       await flush();
 
       const afterActions = captured!.state;
       const spent = Math.round(cashBeforeActions - afterActions.stats.money);
       const cashBeforeTick = afterActions.stats.money;
-      const notificationsBefore = (afterActions.notifications ?? []).length;
 
       await act(async () => {
         await captured!.nextWeek();
@@ -279,10 +274,6 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
       await flush();
 
       const s = captured!.state;
-      lastNotifications = (s.notifications ?? [])
-        .slice(notificationsBefore)
-        .map((n: any) => `${n?.title ?? ''}`)
-        .filter(Boolean);
       const { job, level } = jobLabel(s);
       const row: SimRow = {
         week: weeksInThisLife(s),
