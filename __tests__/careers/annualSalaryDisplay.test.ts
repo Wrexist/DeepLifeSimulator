@@ -37,7 +37,6 @@ const PAY_HELPERS = /paidWeeklySalaryForLevel|paidWeeklyCareerSalary|paidCareerC
  */
 const SURFACES = [
   'app/(tabs)/work.tsx',
-  'components/CareerPathCard.tsx',
   'components/ShareLifeCard.tsx',
   'components/IdentityCard.tsx',
   'components/computer/PoliticalApp.tsx',

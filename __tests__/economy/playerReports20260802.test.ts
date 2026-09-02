@@ -144,36 +144,19 @@ describe('the dead "Cash" metric is gone', () => {
   });
 });
 
-describe('a negotiated raise is visible on the career card', () => {
-  const src = code('components/CareerPathCard.tsx');
-
-  it('every salary shown is multiplied by raiseMultiplier', () => {
-    // The raise was always applied at payout
-    // (`applyCareerSalaryAndPenalty.ts`, `salary * raisePremium`) — but NO
-    // component read `raiseMultiplier`, so the number never moved.
-    expect(src).toMatch(/career\.raiseMultiplier/);
-    // `paidSalary` now takes a level INDEX and resolves the whole paycheck
-    // stack through `paidWeeklySalaryForLevel` — the premium was only part of
-    // what this card was missing (2026-08-22 "conflicting numbers" report).
-    expect(src).toMatch(/paidSalary\(career\.level\)/);
-    expect(src).toMatch(/paidWeeklySalaryForLevel/);
-    expect(src).not.toMatch(/\$\{currentLevel\?\.salary\}\/wk/);
+describe('a negotiated raise is visible where the held job is shown', () => {
+  // CareerPathCard - the surface this report was fixed on - had zero
+  // importers and was deleted in Program 5. The held job is the Work hero
+  // now, and it prints the paid figure and the premium on one line.
+  it('the old card is gone', () => {
+    expect(fs.existsSync(path.join(__dirname, '..', '..', 'components/CareerPathCard.tsx'))).toBe(false);
   });
 
-  it('clamps the premium the same way the payout does (the control)', () => {
-    // The intent here was always right — a display that clamped differently
-    // from the payout would promise a salary the tick refuses to pay. But this
-    // originally pinned `Math.max(1, Math.min(3, …))`, agreeing with the weekly
-    // payout against a ceiling of 3 that `requestRaise` never grants: the
-    // writer caps at RAISE_PREMIUM_CAP = 2. Four sites held four opinions.
-    //
-    // Asserting a shared helper instead of a literal is what makes the control
-    // hold: the number can now only be changed in one place, so display and
-    // payout cannot drift apart again without this failing.
-    // See __tests__/economy/raisePremiumConsistency.test.ts.
-    expect(src).toMatch(/resolveRaisePremium\(career\.raiseMultiplier\)/);
-    expect(src).toMatch(/from '@\/lib\/careers\/raisePremium'/);
-    expect(src).not.toMatch(/Math\.min\(3,/);
+  it('the Work hero prints the paid salary and the negotiated premium', () => {
+    const src = code('app/(tabs)/work.tsx');
+    expect(src).toMatch(/paidWeeklyCareerSalary\(gameState\)/);
+    expect(src).toMatch(/raisePremiumPct\(currentJob\.raiseMultiplier\)/);
+    expect(src).toMatch(/currentJobRaisePct > 0 \? ` · \+\$\{currentJobRaisePct\}%` : ''/);
   });
 });
 
