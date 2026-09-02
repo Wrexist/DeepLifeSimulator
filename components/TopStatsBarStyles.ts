@@ -448,11 +448,11 @@ export const styles = StyleSheet.create({
  flexDirection: 'row',
  alignItems:'center',
  justifyContent: 'center',
- gap: scale(6),
+ gap: scale(5),
  borderRadius: responsiveBorderRadius.lg,
  minWidth: scale(50),
  height: scale(40),
- paddingHorizontal: scale(10),
+ paddingHorizontal: scale(8),
  // Light mode button shadow
 ...Platform.select({
  web: { boxShadow: '0px 2px 4px rgba(22, 163, 74, 0.09)'} as any,

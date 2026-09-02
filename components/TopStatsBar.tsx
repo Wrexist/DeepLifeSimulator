@@ -1083,7 +1083,16 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  ): (
  <ArrowRightCircle size={18} color="#FFFFFF" />
  )}
- <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={styles.nextWeekLabel}>
+ {/* The label must never truncate - "Next w..." on a 390pt phone was the
+     primary action reading as a fragment. Shrink the type before the
+     text, and keep the box's padding tight enough for the word to fit. */}
+ <Text
+ maxFontSizeMultiplier={1.2}
+ numberOfLines={1}
+ adjustsFontSizeToFit
+ minimumFontScale={0.8}
+ style={styles.nextWeekLabel}
+ >
  Next week
  </Text>
  </View>
