@@ -166,7 +166,8 @@ const MAX_ERRORS = 0;
 // 728 on 2026-09-02 (Program 4, was 748): the dead work stylesheet carried
 // unused-import warnings, and Spark's three `as any as number` casts went
 // with the bug they were hiding.
-const MAX_WARNINGS = 728;
+// 722 on 2026-09-02 (Program 5, was 728): dead components and pruned sheets.
+const MAX_WARNINGS = 722;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

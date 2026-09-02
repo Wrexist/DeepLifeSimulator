@@ -257,7 +257,9 @@ No new component. `LoadingButton` `secondary` became the flat tonal secondary; `
 
 ### 12–14. Responsive 390 / 360 captures of Home, Work, Health, Market, Stats: no clipping, no truncation. Every new pressable carries a role and label; tier-1 text carries `maxFontSizeMultiplier`; reduced motion untouched. Routes: 17, one door per room.
 
-### 15–16. Tests and ratchets — see the closing lines below (filled after the full run).
+### 15. Tests: `npm test` — 723 suites passed, 9,191 tests passed, 2 skipped (pre-existing), 0 failed. `type-check` and `type-check:tests` exit 0. `npm run preflight` — passed (exit 0).
+
+### 16. Ratchets, lowered to what was earned: gradients 153 → 152 · raw font sizes 243 → 94 · heavy weights 693 → 652 · lint warnings 748 → 722 (ceiling 728, lowered next) · lint errors 0 · test-tree type errors 0.
 
 ### 17. Remaining issues (honest)
 - Icon overloads (Sparkles / Star / Crown / Check) still carry several meanings; a sweep for another program.
