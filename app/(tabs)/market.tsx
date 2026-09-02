@@ -16,6 +16,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
+import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
@@ -341,6 +342,57 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const rentalOptions = listRentalOptions(gameState);
   const currentRental = rentalOptions.find((option) => option.current);
 
+  const foodFirst = (gameState.stats?.energy ?? 100) <= CRITICAL_VITAL;
+
+  const itemsSection = (
+    <>
+    {/* ITEMS */}
+    <CollapsibleSection
+      id="market.items"
+      title={t('market.items')}
+      icon={<ShoppingBag size={scale(15)} color={accent.info} />}
+      tint={accent.info}
+      summary={`${ownedCount}/${sortedItems.length} owned`}
+    >
+      <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
+        {t('market.purchaseItems')}
+      </Text>
+      {sortedItems.map((item) => renderItem({ item }))}
+    </CollapsibleSection>
+
+    </>
+  );
+
+  const foodSection = (
+    <>
+    {/* FOOD */}
+    <CollapsibleSection
+      id="market.food"
+      title={t('market.food')}
+      icon={<Apple size={scale(15)} color="#34D399" />}
+      tint="#34D399"
+      summary={`${sortedFoods.length} meals`}
+    >
+      {foodFirst && (
+        <Text style={styles.leadNote}>Energy is critical - eat before anything else.</Text>
+      )}
+      <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
+        {t('market.buyFood')}
+      </Text>
+      {/* Satiety state (v48) - shown BEFORE buying, so a reduced
+          restore is never a surprise on the receipt. Absent at full
+          strength, which is the normal state. */}
+      {!!satietyHint(gameState.weeklyFoodPurchases) && (
+        <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark, { fontStyle: 'italic' }]}>
+          {satietyHint(gameState.weeklyFoodPurchases)}
+        </Text>
+      )}
+      {sortedFoods.map((food) => renderFood({ item: food }))}
+    </CollapsibleSection>
+
+    </>
+  );
+
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
       {/* Scrollable Content - one list, three sections, no sub-tab bar. */}
@@ -371,41 +423,13 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             </View>
           )}
 
-          {/* ITEMS */}
-          <CollapsibleSection
-            id="market.items"
-            title={t('market.items')}
-            icon={<ShoppingBag size={scale(15)} color={accent.info} />}
-            tint={accent.info}
-            summary={`${ownedCount}/${sortedItems.length} owned`}
-          >
-            <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-              {t('market.purchaseItems')}
-            </Text>
-            {sortedItems.map((item) => renderItem({ item }))}
-          </CollapsibleSection>
-
-          {/* FOOD */}
-          <CollapsibleSection
-            id="market.food"
-            title={t('market.food')}
-            icon={<Apple size={scale(15)} color="#34D399" />}
-            tint="#34D399"
-            summary={`${sortedFoods.length} meals`}
-          >
-            <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-              {t('market.buyFood')}
-            </Text>
-            {/* Satiety state (v48) - shown BEFORE buying, so a reduced
-                restore is never a surprise on the receipt. Absent at full
-                strength, which is the normal state. */}
-            {!!satietyHint(gameState.weeklyFoodPurchases) && (
-              <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark, { fontStyle: 'italic' }]}>
-                {satietyHint(gameState.weeklyFoodPurchases)}
-              </Text>
-            )}
-            {sortedFoods.map((food) => renderFood({ item: food }))}
-          </CollapsibleSection>
+          {/* FOOD LEADS WHEN ENERGY IS CRITICAL. Three sections of identical
+              weight in a fixed order told a player running on empty to look
+              at gym memberships first. The one state this screen can answer
+              picks the order; nothing else about the sections changes, and
+              their collapse state is remembered per id either way. */}
+          {foodFirst ? foodSection : itemsSection}
+          {foodFirst ? itemsSection : foodSection}
 
           {/* HOUSING. Renting used to live as tab 2 of the Real Estate app -
               which is DESKTOP-ONLY (a $5,000 computer) and gated at tier 3

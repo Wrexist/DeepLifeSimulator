@@ -48,6 +48,7 @@ import {
 } from '@/lib/legacyPass/legacyPass';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { fontScale, scale, verticalScale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
+import { rhythm, tier1Value, tier3, tier4 } from '@/lib/config/hierarchy';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
 
@@ -212,49 +213,54 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           />
         )}
 
-        {/* Hero: Prestige + Legacy Pass */}
-        <View style={styles.heroRow}>
-          {/* Prestige */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            // ONE destination, and the meta line under the value NAMES it.
-            // This tap used to fan out to four different modals depending on
-            // invisible state while the card said only "N points" - the same
-            // gesture doing four undiscoverable things (2026-09-01 UI audit).
-            // The order is unchanged, because it was right: the card whose meta
-            // reads "Ready to prestige" must be the card that starts one, and a
-            // badge must lead to the thing it counts.
-            onPress={() => setOpenModal(prestigeDestination.modal)}
-            style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-          >
-            <View style={styles.heroCardHead}>
-              <Sparkles size={scale(14)} color={accent.purple} />
-              <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Prestige</Text>
-              <ClaimableBadge count={contractsClaimable} />
-            </View>
-            <Text style={[styles.heroValue, { color: theme.text }]}>Lv {prestigeLevel}</Text>
-            <Text style={[styles.heroMeta, { color: theme.textMuted }]}>
-              {prestigeDestination.meta}
-            </Text>
-          </TouchableOpacity>
+        {/* Prestige leads - full width, the one tier-1 number on the screen.
+            It shared a 50/50 row with Legacy Pass, identical for a first-life
+            player and a level-5 dynasty; a split hero is not a hero. Legacy
+            Pass supports it as a row: same tap, same badge, a tier down. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          // ONE destination, and the meta line under the value NAMES it.
+          // This tap used to fan out to four different modals depending on
+          // invisible state while the card said only "N points" - the same
+          // gesture doing four undiscoverable things (2026-09-01 UI audit).
+          // The order is unchanged, because it was right: the card whose meta
+          // reads "Ready to prestige" must be the card that starts one, and a
+          // badge must lead to the thing it counts.
+          onPress={() => setOpenModal(prestigeDestination.modal)}
+          style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Prestige level ${prestigeLevel}. ${prestigeDestination.meta}`}
+        >
+          <View style={styles.heroCardHead}>
+            <Sparkles size={scale(14)} color={accent.purple} />
+            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Prestige</Text>
+            <ClaimableBadge count={contractsClaimable} />
+          </View>
+          <Text style={[styles.heroValue, { color: theme.text }]} maxFontSizeMultiplier={1.3}>
+            Lv {prestigeLevel}
+          </Text>
+          <Text style={[styles.heroMeta, { color: prestigeAvailable ? accent.success : theme.textMuted }]}>
+            {prestigeDestination.meta}
+          </Text>
+        </TouchableOpacity>
 
-          {/* Legacy Pass */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => setOpenModal('legacyPass')}
-            style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-          >
-            <View style={styles.heroCardHead}>
-              <Crown size={scale(14)} color={accent.gold} />
-              <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Legacy Pass</Text>
-              <ClaimableBadge count={legacyClaimable} />
-            </View>
-            <Text style={[styles.heroValue, { color: theme.text }]}>Tier {legacyTier}<Text style={[styles.heroValueDim, { color: theme.textMuted }]}>/{MAX_TIER}</Text></Text>
-            <View style={[styles.heroBar, { backgroundColor: theme.surfaceElevated }]}>
-              <View style={[styles.heroBarFill, { width: `${legacyTierPct}%`, backgroundColor: accent.gold }]} />
-            </View>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setOpenModal('legacyPass')}
+          style={[styles.supportRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Legacy Pass tier ${legacyTier} of ${MAX_TIER}, ${legacyTierPct} percent to the next tier`}
+        >
+          <Crown size={scale(14)} color={accent.gold} />
+          <Text style={[styles.supportLabel, { color: theme.textSecondary }]}>Legacy Pass</Text>
+          <ClaimableBadge count={legacyClaimable} />
+          <View style={[styles.supportBar, { backgroundColor: theme.surfaceElevated }]}>
+            <View style={[styles.heroBarFill, { width: `${legacyTierPct}%`, backgroundColor: accent.gold }]} />
+          </View>
+          <Text style={[styles.supportValue, { color: theme.text }]}>
+            Tier {legacyTier}<Text style={{ color: theme.textMuted }}>/{MAX_TIER}</Text>
+          </Text>
+        </TouchableOpacity>
 
         {/* No PrestigeStatsCard here. Prestige was rendered up to three times
             on this one screen (hero card, full card, contract badges); the
@@ -434,30 +440,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingTop: 0,
   },
-  headerIcon: {
-    width: scale(38),
-    height: scale(38),
-    borderRadius: scale(11),
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: fontScale(24),
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: fontScale(12),
-    marginTop: scale(2),
-  },
   // Hero
-  heroRow: {
-    flexDirection: 'row',
-    gap: scale(12),
-  },
   heroCard: {
-    flex: 1,
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: responsiveSpacing.md,
@@ -474,13 +458,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroValue: {
-    fontSize: fontScale(22),
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    ...tier1Value,
   },
-  heroValueDim: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
+  /** Legacy Pass as a supporting row under the lead: tier 3 label, tier 4 value. */
+  supportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    marginTop: rhythm.tight,
+    paddingVertical: scale(10),
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: scale(44),
+  },
+  supportLabel: {
+    ...tier3,
+    fontWeight: '500',
+  },
+  supportBar: {
+    flex: 1,
+    height: scale(4),
+    borderRadius: scale(2),
+    overflow: 'hidden',
+    marginHorizontal: scale(4),
+  },
+  supportValue: {
+    ...tier4,
+    fontVariant: ['tabular-nums'],
   },
   heroMeta: {
     fontSize: fontScale(11),
@@ -584,12 +589,6 @@ const styles = StyleSheet.create({
   },
   toolsSection: {
     gap: verticalScale(10),
-  },
-  sectionLabel: {
-    fontSize: fontScale(12),
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
   },
   toolsGrid: {
     gap: scale(8),

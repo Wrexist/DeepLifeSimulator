@@ -19,6 +19,7 @@ import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import GymCard from '@/components/health/GymCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
+import { CRITICAL_VITAL, rhythm } from '@/lib/config/hierarchy';
 
 type Vital = { key: string; label: string; value: number; color: string };
 
@@ -173,7 +174,58 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: '#A78BFA', Icon: Dumbbell },
   ];
 
-  const visibleActivityCount = mergedHealthActivities.filter(a => a.id !== 'vacation').length;
+  // TREATMENT LEADS WHEN THE PLAYER IS SICK. With a disease active, or health
+  // in the critical band, the three cures used to sit 5th, 7th and 8th in a
+  // list of fourteen identical cards - below "Walk in Park" - and the issues
+  // card carried the lightest heading on the screen. The situation picks the
+  // dominant element: the issues card and the cures come first, above the
+  // vitals, and leave the activities list so nothing renders twice. A healthy
+  // player sees the list exactly as before.
+  const CURE_IDS = new Set(['doctor', 'hospital', 'experimental']);
+  const hasActiveDisease = (gameState.diseases ?? []).some(d => !!d?.name);
+  const treatmentLeads = hasActiveDisease || (gameState.stats?.health ?? 100) <= CRITICAL_VITAL;
+  const listedActivities = mergedHealthActivities.filter(
+    a => a.id !== 'vacation' && !(treatmentLeads && CURE_IDS.has(a.id))
+  );
+  const visibleActivityCount = listedActivities.length;
+
+  const renderActivityCard = (activity: HealthActivity) => {
+    const deltas = buildActivityDeltas(activity);
+    const activityPrice = priceOf(activity);
+    const locked = !canPerformActivity(activity);
+    const lockReason = !canAfford(activityPrice)
+      ? `Need $${activityPrice}`
+      : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
+        ? `Need ${activity.energyCost} energy`
+        : undefined;
+    const isCureActivity = CURE_IDS.has(activity.id);
+    const description = isCureActivity
+      ? activity.id === 'doctor'
+        ? `${activity.description}  •  ${t('health.chanceToCure')}`
+        : activity.id === 'hospital'
+          ? `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
+          // Experimental treatment is the ONLY cure for critical conditions
+          // (cancer/heart/stroke -- hospital excludes them); without this line
+          // a dying player has no signal it exists.
+          : `${activity.description}  •  Only treatment for critical conditions`
+      : activity.description;
+
+    return (
+      <HealthCard
+        key={activity.id}
+        accent="vitality"
+        title={activity.name}
+        description={description}
+        priceLabel={activityPrice > 0 ? `$${activityPrice}` : 'Free'}
+        deltas={deltas}
+        buttonText={locked ? 'Locked' : t('health.do')}
+        onPress={() => handleHealthActivityPress(activity)}
+        locked={locked}
+        lockReason={lockReason}
+        feedback={healthFeedback[activity.id]}
+      />
+    );
+  };
 
   // Vaccinations the player bought + immunities they earned by recovering.
   // Named from the same catalogues the prevention logic keys off, so a rename
@@ -195,6 +247,13 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
+        {treatmentLeads && (
+          <View style={styles.leadBlock}>
+            <HealthIssuesCard lead />
+            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map(renderActivityCard)}
+          </View>
+        )}
+
         {/* Vitals overview - current health/energy/happiness/fitness at a glance.
             Collapsible, and the numbers ride along in the header when it is
             closed, so folding it away never costs the player the reading. */}
@@ -243,7 +302,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             Home identity card (the audit found health answered on four
             surfaces). Supersedes the old diseases-only card: it lists diseases
             AND critical/low vitals, each with its fix. Self-nulls when clear. */}
-        <HealthIssuesCard />
+        {!treatmentLeads && <HealthIssuesCard />}
 
         {/* Activities */}
         <View style={styles.section}>
@@ -270,45 +329,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             </View>
           )}
 
-          {mergedHealthActivities
-            .filter(activity => activity.id !== 'vacation')
-            .map(activity => {
-              const deltas = buildActivityDeltas(activity);
-              const activityPrice = priceOf(activity);
-              const locked = !canPerformActivity(activity);
-              const lockReason = !canAfford(activityPrice)
-                ? `Need $${activityPrice}`
-                : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
-                  ? `Need ${activity.energyCost} energy`
-                  : undefined;
-              const isCureActivity = activity.id === 'doctor' || activity.id === 'hospital' || activity.id === 'experimental';
-              const description = isCureActivity
-                ? activity.id === 'doctor'
-                  ? `${activity.description}  •  ${t('health.chanceToCure')}`
-                  : activity.id === 'hospital'
-                    ? `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
-                    // Experimental treatment is the ONLY cure for critical
-                    // conditions (cancer/heart/stroke -- hospital excludes them);
-                    // without this line a dying player has no signal it exists.
-                    : `${activity.description}  •  Only treatment for critical conditions`
-                : activity.description;
-
-              return (
-                <HealthCard
-                  key={activity.id}
-                  accent="vitality"
-                  title={activity.name}
-                  description={description}
-                  priceLabel={activityPrice > 0 ? `$${activityPrice}` : 'Free'}
-                  deltas={deltas}
-                  buttonText={locked ? 'Locked' : t('health.do')}
-                  onPress={() => handleHealthActivityPress(activity)}
-                  locked={locked}
-                  lockReason={lockReason}
-                  feedback={healthFeedback[activity.id]}
-                />
-              );
-            })}
+          {listedActivities.map(renderActivityCard)}
           </CollapsibleSection>
         </View>
 
@@ -383,6 +404,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  /** The dominant element (treatment, when sick) and the feed's one wide gap under it. */
+  leadBlock: {
+    marginBottom: rhythm.major,
   },
   // Vitals overview
   vitalsCard: {
