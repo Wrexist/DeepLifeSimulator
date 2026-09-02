@@ -338,9 +338,10 @@ export const styles = StyleSheet.create({
   *  the chips so the green Next week button below it is the only thing on
   *  the right that asks for a tap. */
  dateOuterNeutral: {
+ // No border: the box's height is computed to fit its four lines exactly
+ // on a 360pt phone, and a 1pt rim on each side clipped the month's
+ // descenders ("Januarv").
  backgroundColor: 'rgba(30, 41, 59, 0.92)',
- borderWidth: 1,
- borderColor: 'rgba(255,255,255,0.14)',
  },
  dateInner: {
  alignItems: 'center',
@@ -448,7 +449,7 @@ export const styles = StyleSheet.create({
  flexDirection: 'row',
  alignItems:'center',
  justifyContent: 'center',
- gap: scale(5),
+ gap: scale(4),
  borderRadius: responsiveBorderRadius.lg,
  minWidth: scale(50),
  height: scale(40),

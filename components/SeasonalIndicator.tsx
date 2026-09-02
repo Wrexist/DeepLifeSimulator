@@ -4,7 +4,7 @@ import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
-import { isIPad } from '@/utils/scaling';
+import { isIPad, touchTargets } from '@/utils/scaling';
 
 interface SeasonalIndicatorProps {
   size?: number;
@@ -78,7 +78,10 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
 
   const _hasHoliday = !!holiday; // Unused but kept for potential future use
   // Match iconButton dimensions from TopStatsBar
-  const containerSize = isIPad() ? 70 : 50;
+  // Exactly the HUD icon-button footprint. A hard-coded 50 inside the 44pt
+  // clipped wrapper drew a disc larger than its clip, so the glyph - centred
+  // on the 50 box - sat off-centre in the 44 circle the player saw.
+  const containerSize = isIPad() ? touchTargets.large : touchTargets.minimum;
   const borderRadius = containerSize / 2;
   const iconSize = size;
 

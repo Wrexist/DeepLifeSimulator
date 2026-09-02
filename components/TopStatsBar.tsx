@@ -892,6 +892,12 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
 
  const dateBoxWidth = Math.min(dateBoxWidthRaw, rightSectionWidth);
  const dateBoxMaxWidth = Math.min(maxDateBoxWidth, rightSectionWidth);
+ // The column the date box and the Next week button share. The date box's
+ // own width is capped conservatively (85-105pt) while the button has to
+ // hold a scaled word plus an arrow, so the pair takes the room the right
+ // column actually has, up to a cap - which also stops "January" from
+ // needing to shrink. Both keep one width so the column stays one shape.
+ const actionWidth = Math.max(dateBoxWidth, Math.min(rightSectionWidth, scale(124)));
 
  const dateBoxHeight = isIPad()
  ? scale(140)
@@ -924,8 +930,8 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  styles.dateOuter,
  styles.dateOuterNeutral,
  {
- width: dateBoxWidth,
- maxWidth: dateBoxMaxWidth,
+ width: actionWidth,
+ maxWidth: Math.max(dateBoxMaxWidth, actionWidth),
  height: dateBoxHeight,
  minHeight: dateBoxMinHeight,
  }
@@ -1064,14 +1070,14 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
      circle - the audit's clearest "primary action buried" finding. A word
      plus the arrow, sized to the date box above it, at the same corner it
      has always lived in. Flat fill (the gradient said nothing). */}
- <View style={[styles.nextWeekButton, { width: dateBoxWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
+ <View style={[styles.nextWeekButton, { width: actionWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
  {/* The arrow yields before the word does. The box is capped by the right
      column while the label scales with the device, so on a 360pt phone AND
      on a Pro Max the two do not fit together (and react-native-web ignores
      adjustsFontSizeToFit), which left the primary action reading
      "Next we...". Raw points on purpose: the threshold is about the box's
      real width, not its scaled design width. */}
- {dateBoxWidth < 100 ? null : isAdvancingWeek ? (
+ {actionWidth < 100 ? null : isAdvancingWeek ? (
  <Animated.View
  style={{
  transform: [
@@ -1084,10 +1090,10 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  ],
  }}
  >
- <ArrowRightCircle size={18} color="#FFFFFF"/>
+ <ArrowRightCircle size={16} color="#FFFFFF"/>
  </Animated.View>
  ): (
- <ArrowRightCircle size={18} color="#FFFFFF" />
+ <ArrowRightCircle size={16} color="#FFFFFF" />
  )}
  {/* The label must never truncate - "Next w..." on a 390pt phone was the
      primary action reading as a fragment. Shrink the type before the
