@@ -4749,3 +4749,43 @@ causes, name the free cure, route to it — and the numbers went into
 `tasks/todo.md` as a proposal with the measurement attached. A balance change
 without the measurement would have been a guess; the measurement without the
 proposal would have been a complaint.
+
+---
+
+## 2026-09-02 — Program 7: a "poverty penalty" that everyone pays is not a penalty, it is the base rate
+
+The decay multiplier `100000 / netWorth` clamped to 0.5–2.0 read as a
+gradient. It was not: the ceiling bound for every net worth under $50k,
+which is nine years of a bottom-rung wage, so every fresh life decayed at 8
+while every comment, test fixture and display said "base 4". The tell was
+that no early-game state in the whole simulator ever produced a multiplier
+other than 2.0. Rule: when a formula has a clamp, measure where the clamp
+binds across the states players actually occupy before treating the formula
+as the mechanic. If the clamp binds everywhere, the clamp IS the mechanic.
+
+Second: **a stat counted in a "base multiplier" and again in a per-item
+modifier is counted twice.** Disease risk multiplied every template's chance
+by its own `fitnessRiskModifier` AND by an overall risk that already included
+fitness. Neither line looked wrong on its own; only the product did (a fresh
+25-year-old with the disease rate of a 60-year-old). When two functions both
+"apply" the same stat, one of them is the bug.
+
+Third: **a discovery finding can go stale between programs.** Program 6 wrote
+"the only rent UI is computer-only" the day after Program 5 had put renting on
+Market → Housing, and then rewrote the homeless notice to stop mentioning
+rent. Re-verify a reachability claim against the current tree before acting
+on it, especially one inherited from a report written on the same branch.
+
+Fourth, a harness lesson: **an action's double-tap guard can look like a
+weekly cap.** `performHealthActivity` clears its guard on a 50 ms timer; a
+simulator calling it twice in a microsecond was refused with "already in
+progress" on alternate weeks and the first tables under-reported every
+persona's recovery. When a scripted action is refused, read the refusal
+message before reading it as game balance.
+
+Fifth: **"unlucky" was a schedule.** The disease roll seeds on `weeksLived`
+and the year alone, so every Quick Start life with health under 80 at the
+same week rolled the same disease. Seeded RNG keyed on the week is the
+project's convention and is fine for reproducibility, but a fairness audit
+has to know that "runs more seeds" changes nothing for such a roll — vary the
+STATE, not `Math.random`, and check whether life identity is in the seed.

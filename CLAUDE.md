@@ -151,6 +151,17 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   guarded block turns one subsystem's throw into a lost week for the whole save.
 - Per-tick loops must not call unguarded helpers; a single bad entry must not
   abort the tick.
+- **Natural decay's numbers live in `lib/economy/statDecay.ts`** (base 4, the
+  8-week grace ramp, and the wealth multiplier `100000 / netWorth` clamped
+  **0.5–1.0**). The ceiling was 2.0 until Program 7 (2026-09-02): it bound for
+  every net worth under $50k, i.e. the whole early game, so "base 4" was a
+  rate no fresh life ever lived at. The tick, the recap projection
+  (`vitalDrift.ts`) and both HUD breakdown modals call the one function — do
+  not restate the formula. Balance changes to the early game are measured on
+  the persona simulator (`__tests__/helpers/earlyGameSim.ts`, soak
+  `RUN_EARLY_GAME_SIM=1 npx jest earlyGamePersonas --silent=false`) and gated by
+  `__tests__/simulation/earlyGameSurvivability.test.ts`; the evidence is in
+  `tasks/early-game-balance-2026-09-02.md`.
 
 ### 4.4 Money and other grants must be atomic
 

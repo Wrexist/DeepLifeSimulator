@@ -1,61 +1,57 @@
-# Master Program 7 — NEW LIFE BALANCE — IN PROGRESS
+# Master Program 7 — NEW LIFE BALANCE — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 6 (`b544fd2`).
 Scope: early-game survivability, economic fairness, recovery paths. Programs 1-6
-are complete and are not redone. The repository is authoritative; every number
-below is read from the code or measured on the real tick.
+are complete and are not redone. Full report with every table:
+`tasks/early-game-balance-2026-09-02.md`. No save-format, IAP, subscription or
+monetization change; three owner decisions recorded there (§7), not applied.
 
-## Phase 1 — repository and system audit (done; evidence)
+## Phase 1 — repository and system audit (done)
+The early-game vital loop as the tick runs it (`GameActionsContext.tsx` ~700-960,
+`preTick.computeDecayInputs`, `applyHousingWellbeing`, `applyCareerSalaryAndPenalty`):
 
-The early-game vital loop, as the tick actually runs it (`GameActionsContext.tsx`
-~700-960, `preTick.computeDecayInputs`, `applyHousingWellbeing`,
-`applyCareerSalaryAndPenalty`):
-
-| system | value | source |
+| system | value (before → after) | source |
 |---|---|---|
-| natural decay | base 4 × wealth multiplier × prestige × grace ramp; health ×0.6, happiness ×0.8, fitness ×0.2 (×1.5-4 without gym) | `preTick.ts`, tick ~879-916 |
-| wealth multiplier | `100000 / max(1000, netWorth)` clamped 0.5-2.0 → **2.0 for every net worth ≤ $50k** | `computeDecayInputs` |
-| grace ramp | `0.25 + 0.75 × min(1, weeksInThisLife / 8)` | `computeDecayInputs` (v43 baseline) |
-| full-rate decay, early game | 8/week → −4.8 health, −6.4 happiness, −1.6 fitness | derived |
-| homeless penalty | −2 health / −4 happiness / −5 energy every week; every scenario starts with no home | `rentals.ts HOMELESS_PENALTY`, `scenarioData.ts` |
-| entry job toll | authored per career, −1 floor, scaled ×(1−0.7×levelProgress); unprofiled −3/−2 | `applyCareerSalaryAndPenalty` |
-| energy | +40 regen, minus job toll (−8..−18), minus homeless −5 | tick ~815-853 |
-| death | 4 consecutive weeks at 0 health OR 0 happiness (`ZERO_STAT_DEATH_WEEKS`) | tick ~1441/1471 |
-| free recovery | Walk +6 hap/+3 hp/−5 en; Meditation +10 hap/+2 hp/−3 en; **no weekly cap** | `initialState.healthActivities`, `ItemActionsContext.performHealthActivity` |
-| paid recovery | Yoga $100, Massage $300, Doctor $500 (+25 hp), Therapy $400 | same |
-| housing | Shared Room $45/wk (+1/+1/0), Bedsit $80 (needs $100/wk income) … | `RENTAL_TIERS` |
-| rent surface | **Market → Housing (tier 0, no device)** since `a67ca7d` (Program 5); Program 6's "computer-only" note is stale | `app/(tabs)/market.tsx:437` |
-| poverty | `weeksInPoverty` counts liquid < $500; gates one scholarship event; NO decay multiplier of its own | `applyPovertyTracking` |
-| disease | base 0.1-2%/wk × risk (health<50 up to 3×, fitness<30 up to 2×, age<25 ×0.3-0.5), 4-week cooldown | `diseaseGenerator.ts` |
+| natural decay | base 4 × wealth × prestige × grace; health ×0.6, happiness ×0.8, fitness ×0.2 | `lib/economy/statDecay.ts` (new) |
+| wealth multiplier | `100000 / max(1000, netWorth)` clamped **0.5–2.0 → 0.5–1.0** | same |
+| homeless penalty | −2 hp / −4 hap / −5 en; every scenario starts without a home | `rentals.ts` |
+| entry job toll | authored per career; unprofiled −3/−2 | `applyCareerSalaryAndPenalty` |
+| death | 4 consecutive weeks at 0 health or 0 happiness | `ZERO_STAT_DEATH_WEEKS` |
+| free recovery | Walk +6/+3, Meditation +10/+2, energy-bound, no weekly cap | `healthActivities` |
+| rent surface | **Market → Housing, tier 0** (since Program 5) — Program 6's "computer-only" note was stale | `market.tsx` |
+| disease | occurrence per eligible week, 4-week cooldown, 35% cap; fitness was counted twice | `diseaseGenerator.ts` |
 
-Finding 1 (root cause of the Program 6 death): the "poverty decay" is not a
-poverty system. It is the wealth multiplier, which is pinned at its 2.0 ceiling
-for every net worth under $50,000 — i.e. for the whole early game of every
-scenario except `trust_fund_baby`. "Base 4" is a number nobody in the first
-years of a life ever experiences; the real base is 8.
+## Phase 2–6 — starting state, decay, stacking, recovery, 20-week simulations (done)
+Harness: `__tests__/helpers/earlyGameSim.ts` + `earlyGamePersonas.ts`; soak
+`__tests__/simulation/earlyGamePersonas.sim.test.ts` (`RUN_EARLY_GAME_SIM=1`).
+Six personas × five poor starts × 20 weeks on the REAL tick. Before: the
+text-skipper died at week 12 on every seed with $4k; the average player ended
+at health 4; the careful age-25 player caught four illnesses and hit health 0.
 
-Finding 2: the three drains are independent and additive (no multiplication,
-no double count found in the tick). At full grace, a housed-nowhere entry
-worker loses 4.8+2+2 = 8.8 health and 6.4+4+3 = 13.4 happiness a week.
-Happiness reaches 0 at ~week 9, death at week 13 — the Program 6 measurement.
+## Phase 7 — evidence-based changes (done; one commit each, each with a test)
+Format: SYSTEM · CURRENT · OUTCOME · ROOT CAUSE · BALANCE/DISCOVERY · CHANGE · EXPECTED · RISK · TEST.
+- [x] **Natural decay** · wealth multiplier clamped 0.5–2.0 · ×2 for every net worth < $50k = the whole early game; largest, least visible drain (−4.8 hp / −6.4 hap) · the ceiling, not the formula · BALANCE · ceiling 1.0 in one shared module, four readers (tick, recap projection, both breakdown modals — two had drifted) · careful 61→96, average 4→35, B still dies (12→13) · mid-game ($10k–100k) decays at 1.0 instead of 1.0–2.0 · `statDecay.test.ts`, parity, 5 equivalence snapshots updated on purpose.
+- [x] **Disease roll** · fitness in the base multiplier AND per template · a fresh 25-year-old at fitness 10 (→0 by week 4) had a 60-year-old's disease rate and failed the "young" gate · double count · BALANCE (stacked penalty) · fitness removed from the base, kept per template · careful age-25: health 0 → 96 at week 20; age 30+ unchanged (cap binds) · none found; late game unchanged · two disease tests re-pointed at the per-template term.
+- [x] **Homeless notice** · pointed only at the free offset · a week-1 player was not told a $45 room exists at tier 0 · stale belief that rent was computer-only · DISCOVERY · names the cheapest tier, its price and Market → Housing · rent from week 1 is a known option · none · `applyHousingWellbeing.test.ts`.
+- [x] **Death screen** · "The weight of life became too much" · a player with $4k could not say why · no cause surface at death · FAIR FAILURE · one line: what sat at 0, the drains (same projection as the recap), where the fix was · the three fair-failure questions answered · none (total helper) · `deathCauses.test.ts`.
+- [x] **Gates** · `__tests__/simulation/earlyGameSurvivability.test.ts` — 34 outcome tests (starting state ×15, additivity, careful/average/struggling/strategic, text-skipper fails-fairly, money paradox, recovery ≤ 6 weeks). 4 of 34 fail against the old numbers.
 
-Finding 3: the free fixes are uncapped and energy-bound only. One walk + one
-meditation a week (+16 hap / +5 hp for 8 energy) more than covers the
-happiness drain and covers about half the health drain. This is what the
-careful Program 6 script did and it survived to week 20 at 68/87.
+## Phase 8–10 — recovery validation, walkthrough, red team (done)
+Recovery from the Critical tip: 1 week to ≥ 60/60 (food_courier), ≤ 6 (age 25
+with Pneumonia). Red team and scores in the report §10–12. Overall early-game
+balance 40 → 68; what holds it under 70 is recorded as owner decisions:
+1. Disease frequency at 30+ (35%/week cap binds for any 30+ life without the gym).
+2. The disease roll is seeded on `weeksLived` alone — every Quick Start life
+   rolled Depression at week 7; fold `lineageId` in (project RNG convention, so
+   not changed silently).
+3. Chapter 2: 2 of 4 goals pre-ticked → $2,800 on the single promotion tap at
+   week ~14; the ambition picker asks for a lifelong commitment on frame one.
+4. Fitness decay's "trained this week" bracket is unreachable (`> 0` vs `> 1`).
 
-## Phase 2-6 — starting-state, decay, stacking, recovery, 20-week simulations
-Harness: `__tests__/simulation/earlyGamePersonas.sim.test.ts` — the REAL
-provider `nextWeek()` on the REAL onboarding seed, seeded `Math.random`, five
-personas as weekly policies over the real action functions
-(`applyForJob`, `performHealthActivity`, `rentHome`, `performStreetJob`,
-`buyFood`, `promoteCareer`). Results below (Phase 6 table) once measured.
-
-## Phase 7 — evidence-based balance changes (each row: one change, one test)
-(filled in after Phase 6)
-
-## Phase 8-10 — recovery validation, fresh walkthrough, red team
-(filled in after Phase 7)
+## Verification
+type-check 0 · type-check:tests 0 · lint:errors 0 · lint:ratchet 722/722 ·
+ui:ratchet at ceiling · check:routes 17 · `npm test` 9,271 passed, 0 failed ·
+preflight exit 0 (all 11 sections passed).
 
 # Master Program 6 — THE FIRST 30 MINUTES — COMPLETE
 
