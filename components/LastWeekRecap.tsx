@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { TrendingUp, TrendingDown, Sparkles, Flame, Briefcase, Mail } from 'lucide-react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import { TrendingUp, TrendingDown, Sparkles, Flame, Briefcase, Mail, ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { driftDrainLabels, projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { scale, fontScale } from '@/utils/scaling';
@@ -15,8 +18,22 @@ import { scale, fontScale } from '@/utils/scaling';
  * bonus, and streak bonus the tick already computed (gameState.weekResult). It
  * never pops up, never needs a tap, and simply updates in place.
  */
+/** A vital drifting this much or more per week is worth a line of its own. */
+const DRIFT_WORTH_NAMING = 3;
+
 function LastWeekRecap() {
   const { isDark } = useTheme();
+  const router = useRouter();
+  // The projection is derived inside the selector and flattened to primitives,
+  // so the card re-renders only when the ANSWER changes, not on every state
+  // mutation (CLAUDE.md §4.1).
+  const drift = useGameSelector(
+    (s) => {
+      const d = projectWeeklyVitalDrift(s);
+      return { health: d.health, happiness: d.happiness, causes: driftDrainLabels(d).join(' · ') };
+    },
+    shallowEqual,
+  ) as { health: number; happiness: number; causes: string };
   const data = useGameSelector(
     (s) => ({
       weekResult: s?.weekResult,
@@ -70,6 +87,10 @@ function LastWeekRecap() {
   const expenses = wr.expensesPaid ?? 0;
   const streakBonus = wr.streakBonus ?? 0;
   const streakCount = data?.playStreak?.count ?? 0;
+  // `careerProgressPercent` is the career's CUMULATIVE progress toward the
+  // next level (the tick stores `activeCareer.progress`), not last week's gain.
+  // It used to render as "Career +48%", which reads as a weekly jump; week 8's
+  // "+100%" then sat beside a promotion nobody had been told to collect.
   const careerProgress = Math.round(wr.careerProgressPercent ?? 0);
   const pendingEvents = data?.pendingEventCount ?? 0;
 
@@ -141,7 +162,9 @@ function LastWeekRecap() {
         {careerProgress > 0 && (
           <View style={styles.badge}>
             <Briefcase size={scale(11)} color="#60A5FA" />
-            <Text style={styles.badgeCareer}>Career +{careerProgress}%</Text>
+            <Text style={styles.badgeCareer}>
+              {careerProgress >= 100 ? 'Promotion ready' : `Promotion ${careerProgress}%`}
+            </Text>
           </View>
         )}
         {pendingEvents > 0 && (
@@ -153,6 +176,44 @@ function LastWeekRecap() {
           </View>
         )}
       </View>
+
+      {/* Where the vitals are going and why. Measured on a fresh life, the
+          three causes below cost ~9 happiness and ~6 health a week and nothing
+          named them until the ≤20 tip - by which point the character was four
+          weeks from dying with $4,000 in the bank. One line, the causes, and
+          the destination where the free offsets live. Program 6. */}
+      {(drift.happiness <= -DRIFT_WORTH_NAMING || drift.health <= -DRIFT_WORTH_NAMING) && (
+        <TouchableOpacity
+          style={styles.driftRow}
+          onPress={() => router.push(`/(tabs)/life?segment=health&ts=${Date.now()}` as never)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Each week: ${drift.happiness} happiness, ${drift.health} health. ${drift.causes}. Opens Health.`}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.driftLine, { color: subColor }]} numberOfLines={1}>
+              Each week{' '}
+              {drift.happiness <= -DRIFT_WORTH_NAMING && (
+                <Text style={[styles.driftValue, { color: STAT_IDENTITY.happiness.color }]}>
+                  {drift.happiness} happiness
+                </Text>
+              )}
+              {drift.happiness <= -DRIFT_WORTH_NAMING && drift.health <= -DRIFT_WORTH_NAMING ? ' · ' : ''}
+              {drift.health <= -DRIFT_WORTH_NAMING && (
+                <Text style={[styles.driftValue, { color: STAT_IDENTITY.health.color }]}>
+                  {drift.health} health
+                </Text>
+              )}
+            </Text>
+            {!!drift.causes && (
+              <Text style={[styles.driftCauses, { color: subColor }]} numberOfLines={1}>
+                {drift.causes} · free fixes in Health
+              </Text>
+            )}
+          </View>
+          <ChevronRight size={scale(14)} color="#64748B" />
+        </TouchableOpacity>
+      )}
 
       {/* The cliffhanger teaser - the game's one "tune in next week" beat.
           It used to render only inside WeeklyResultSheet, which is gated
@@ -223,6 +284,26 @@ const styles = StyleSheet.create({
   chipNeg: {
     color: '#F87171',
     fontWeight: '700',
+  },
+  driftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: scale(10),
+    paddingTop: scale(8),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(148, 163, 184, 0.25)',
+  },
+  driftLine: {
+    fontSize: fontScale(12),
+    fontWeight: '500',
+  },
+  driftValue: {
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  driftCauses: {
+    fontSize: fontScale(11),
+    marginTop: scale(2),
   },
   badge: {
     flexDirection: 'row',

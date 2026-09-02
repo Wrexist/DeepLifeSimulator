@@ -124,6 +124,7 @@ exports[`pre-tick equivalence - applyAutoReinvest picks the holding with the mos
 
 exports[`pre-tick equivalence - applyCareerApplications careers array reference is preserved when nothing changes 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": undefined,
   "updatedCareers": [
@@ -148,6 +149,11 @@ exports[`pre-tick equivalence - applyCareerApplications careers array reference 
 
 exports[`pre-tick equivalence - applyCareerApplications mix accepted + pending: pending is processed when no currentJob 1`] = `
 {
+  "hiredNotification": {
+    "id": "hired-new",
+    "message": "You start now. $100 a week, paid at the end of each week.",
+    "title": "Hired: Junior",
+  },
   "logMessage": "[WEEK PROGRESSION] Career application accepted: new after 1 weeks",
   "newCurrentJob": "new",
   "updatedCareers": [
@@ -188,6 +194,11 @@ exports[`pre-tick equivalence - applyCareerApplications mix accepted + pending: 
 
 exports[`pre-tick equivalence - applyCareerApplications multiple pending: only the FIRST is processed (legacy .find) 1`] = `
 {
+  "hiredNotification": {
+    "id": "hired-firstP",
+    "message": "You start now. $100 a week, paid at the end of each week.",
+    "title": "Hired: Junior",
+  },
   "logMessage": "[WEEK PROGRESSION] Career application accepted: firstP after 1 weeks",
   "newCurrentJob": "firstP",
   "updatedCareers": [
@@ -229,6 +240,7 @@ exports[`pre-tick equivalence - applyCareerApplications multiple pending: only t
 
 exports[`pre-tick equivalence - applyCareerApplications no careers: returns prevCareers (same reference) + undefined job 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": undefined,
   "updatedCareers": [],
@@ -237,6 +249,7 @@ exports[`pre-tick equivalence - applyCareerApplications no careers: returns prev
 
 exports[`pre-tick equivalence - applyCareerApplications no pending application (all accepted): no change 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": "engineer",
   "updatedCareers": [
@@ -261,6 +274,7 @@ exports[`pre-tick equivalence - applyCareerApplications no pending application (
 
 exports[`pre-tick equivalence - applyCareerApplications pending application BUT player has currentJob: no acceptance 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": "engineer",
   "updatedCareers": [
@@ -285,6 +299,11 @@ exports[`pre-tick equivalence - applyCareerApplications pending application BUT 
 
 exports[`pre-tick equivalence - applyCareerApplications pending, no current job, delay=1, weeksPending=0: weeks=1 >= 1 → ACCEPT 1`] = `
 {
+  "hiredNotification": {
+    "id": "hired-engineer",
+    "message": "You start now. $100 a week, paid at the end of each week.",
+    "title": "Hired: Junior",
+  },
   "logMessage": "[WEEK PROGRESSION] Career application accepted: engineer after 1 weeks",
   "newCurrentJob": "engineer",
   "updatedCareers": [
@@ -310,6 +329,7 @@ exports[`pre-tick equivalence - applyCareerApplications pending, no current job,
 
 exports[`pre-tick equivalence - applyCareerApplications pending, no current job, delay=2, weeksPending=0: weeks=1 < 2 → DEFER 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": undefined,
   "updatedCareers": [
@@ -335,6 +355,11 @@ exports[`pre-tick equivalence - applyCareerApplications pending, no current job,
 
 exports[`pre-tick equivalence - applyCareerApplications pending, no current job, delay=2, weeksPending=1: weeks=2 >= 2 → ACCEPT 1`] = `
 {
+  "hiredNotification": {
+    "id": "hired-engineer",
+    "message": "You start now. $100 a week, paid at the end of each week.",
+    "title": "Hired: Junior",
+  },
   "logMessage": "[WEEK PROGRESSION] Career application accepted: engineer after 2 weeks",
   "newCurrentJob": "engineer",
   "updatedCareers": [
@@ -360,6 +385,7 @@ exports[`pre-tick equivalence - applyCareerApplications pending, no current job,
 
 exports[`pre-tick equivalence - applyCareerApplications pending, weeksPending=undefined treated as 0 (defaults via || 0) 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": undefined,
   "updatedCareers": [
@@ -385,6 +411,7 @@ exports[`pre-tick equivalence - applyCareerApplications pending, weeksPending=un
 
 exports[`pre-tick equivalence - applyCareerApplications undefined careers: handled gracefully 1`] = `
 {
+  "hiredNotification": null,
   "logMessage": null,
   "newCurrentJob": undefined,
   "updatedCareers": [],

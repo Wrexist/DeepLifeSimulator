@@ -3847,7 +3847,12 @@ export const starterEventTemplates: EventTemplate[] = [
     id: 'starter_luck',
     category: 'economy',
     weight: 100,
-    condition: (state) => weeksInThisLife(state) === 0,
+    // `=== 1`, not `=== 0`: the roll runs on the state AFTER the week advances
+    // (`applyWeeklyEvents` builds it with `weeksLived: nextWeeksLived`), so the
+    // first tick of a life evaluates at week 1 and week 0 is never rolled at
+    // all. With `=== 0` this template — the first decision a new player was
+    // meant to face — could not fire for any scenario. Program 6.
+    condition: (state) => weeksInThisLife(state) === 1,
     generate: () => ({
       id: 'starter_luck',
       description: 'A relative left you a small envelope with a note: "Use this wisely - the world is yours."',

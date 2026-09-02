@@ -4710,3 +4710,42 @@ identity colour** (accent.warning IS happiness's amber; accent.danger IS
 health's red). That is not a contradiction to fix with a second red - the
 rule that disambiguates is positional: identity paints the icon and ring,
 state paints only the number. Write the rule down where the tokens live.
+
+---
+
+## 2026-09-02 — Program 6: a scripted "player" that never dismissed a modal measured nothing
+
+The first fresh-life playthrough logged 60 screenshots and a clean exit. Every
+week after the first was the same screen: the Daily Reward modal, because my
+dismiss loop matched the word `Claim` with `exact: true` against a button that
+says `Claim Reward`. Twelve "Next week" clicks were forced through an overlay.
+The run looked complete and contained no information.
+
+Three tool facts, recorded so the next scripted walkthrough starts from them:
+
+1. **Match modal buttons by line, not by word.** Split `innerText` on newlines
+   and test `^Label$` per line; then click with a regex anchored the same way.
+2. **A pulsing CTA needs `force: true`.** Playwright waits for an element to
+   stop moving before clicking; the coach's button loops a scale animation
+   forever, so the click timed out and was logged as a miss — which read, for
+   a moment, like a bug in the coach.
+3. **`innerText` is every mounted tab.** expo-router keeps tab screens mounted,
+   so the page text contains Home AND Work AND Life at once. Read the URL (or a
+   screenshot) to know what is on screen; the text tells you what exists.
+
+The rule: **before trusting a run, look at the last screenshot.** A journey
+that ends on the same frame it started on is a scripting failure, not a quiet
+game. (The corrected run ended on a tombstone at week 13 — which was the
+finding.)
+
+## 2026-09-02 — Program 6: the audit's balance finding was real, and out of scope on purpose
+
+A passive new life (take the first job, tap Next week) dies at week 13 with
+$4,240 in the bank: poverty-doubled decay, the homeless penalty every scenario
+starts with, and the job toll add to −13 happiness a week, and the only rent UI
+is computer-only. The temptation was to fix the numbers. The brief reserved
+balance for the owner, so the work was the comprehension side — name the
+causes, name the free cure, route to it — and the numbers went into
+`tasks/todo.md` as a proposal with the measurement attached. A balance change
+without the measurement would have been a guess; the measurement without the
+proposal would have been a complaint.

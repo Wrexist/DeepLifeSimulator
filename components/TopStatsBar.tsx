@@ -1,5 +1,6 @@
 // components/TopStatsBar.tsx
 import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
+import AutoSaveIndicator from '@/components/AutoSaveIndicator';
 import { View,
  Text,
  TouchableOpacity,
@@ -460,6 +461,11 @@ function TopStatsBarComponent() {
  <Text maxFontSizeMultiplier={1.3} style={[styles.generationBadge, darkMode && styles.generationBadgeDark]}>
  Gen {generationNumber ?? 1}
  </Text>
+ {/* The transient "Saved" chip. It lived inside IdentityCard, absolutely
+ positioned top-right - which is exactly where the net-worth figure sits,
+ so every autosave briefly covered the number (Program 6 capture, week 8).
+ The generation row has free width beside the badge and nothing to cover. */}
+ <AutoSaveIndicator position="relative" />
  {(prestigeLevel > 0) && (
  <View style={styles.prestigeBadgeContainer}>
  <View style={styles.prestigeBadge}>

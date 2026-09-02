@@ -1,3 +1,102 @@
+# Master Program 6 — THE FIRST 30 MINUTES — IN PROGRESS
+
+Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, on top of Program 5
+(`cf2bc0f`, verified). Scope: comprehension, consequence clarity, game feel,
+pacing, discovery in a FRESH life. No save-format change, no economy/IAP/
+subscription change, no new modal, no owner decision overturned. Balance
+findings are PROPOSED (Phase 12), not applied.
+
+## Phase 1 — fresh walkthrough (done; evidence)
+Method: web export of HEAD (`web-p5`), scripted new player in Playwright
+(`scratchpad/play.mjs`, run `play2/`): Play → coach "Find a job" → Apply →
+Home → 20× Next week, dismissing whatever pops. Four independent read-only
+audits (teaching layer, week-tick visibility, early economy, agency) verified
+against the code.
+
+Quick Start seeds `food_courier`: age 20, $1,500, smartphone + bike, no job,
+no home (`realEstate: []`, no `rental` → HOMELESS from frame one), health/
+happiness/energy 100, fitness 10. `weeksLived` 104, `lifeStartWeek` 104.
+
+Measured passive life (job at week 0, Next week only):
+
+| wk | health | happiness | cash | what the player saw |
+|---|---|---|---|---|
+| 0 | 100 | 100 | 1,500 | coach "You need work" → Work → Apply → hired instantly → coach "Hired. Now live a week / Got it" |
+| 1 | 95 | 91 | 1,642 | +25 gems floater, Daily Reward modal ("Gem +1", "Money bonus $25" — it granted 25 gems and $0), "🌟 Perfect Week!" toast, recap "+$142 · Career +16%", cliffhanger teaser, "Nowhere to live" banner |
+| 2–4 | 89→77 | 82→62 | 1,793→2,063 | identical taps; "N decisions waiting" grows (1st-paycheck bonus, windfall never opened); "Career +32% / +48%" |
+| 5–6 | 70 | 51 | 3,015 | Chapter 1 complete: +$800 +35 gems, banner names "Progression and Contacts" as newly available (they were open at week 0); lead goal becomes "Have 80+ fitness 0/4 objectives" |
+| 7–8 | 62→52 | 39→17 | 3,314 | tip "Feeling down? Do activities you enjoy or socialize!" (no route); disease contracted; ad orb "Full refill"; "Saved" pill over the net-worth figure |
+| 9–12 | 42→4 | 0 | 4,240 | "Health is low! Go to Life → Health…"; promotion ready on Work (never surfaced on Home once the tip took the lead) |
+| 13 | 0 | 0 | 4,240 | **"You Died — The weight of life became too much." MEDIOCRE, Life Quality 5%.** |
+
+Thirteen taps. In real time roughly 8–15 minutes.
+
+## Phase 2 — minute map (0–30, careful new player, ~2 min per week)
+| min | knows | can do | primary goal | decision | consequence seen | feeling | confusion | load | reason to continue |
+|---|---|---|---|---|---|---|---|---|---|
+| 0–1 | a life, Jan 2025, age 20, $1,500 | Play | none | none | — | curious | low | low | novelty |
+| 1–2 | I need a job | Find a job / ambitions / goals | Earn $500 (chapter) | none yet | — | oriented | "0/3 goals" under "Earn $500"; "Hold $5,000 · 0/3 done" | medium | coach CTA |
+| 2–4 | jobs pay $110 | pick 1 of 4, Apply | get hired | REAL: ceiling/toll/climb (metadata chips, same pay) | hired instantly, coach flips | competent | none | medium | "live a week" |
+| 4–5 | the arrow lives a week | Next week, Got it | wage | Got it (retires the coach for good) | +$142, gems modal, praise toast, vitals −5/−9 unexplained | rewarded + noisy | why did happiness drop? what's a gem? | HIGH (3 surfaces + banner) | money went up |
+| 5–10 | tap = money | tap; Work; Life | Earn $500 | none (passive) | recap money only; "Career +32%" reads as weekly | fine → bored | vitals sliding, cause invisible; "decisions waiting" badge | low | chapter bar |
+| 10–14 | chapter done (+$800) | tap | "Have 80+ fitness" (impossible) | none | banner names unlocks that already happened | flat | lead goal impossible at fitness 10 | low | none named |
+| 14–20 | something is wrong | tip (no route), Health tab if found | Get Promoted 3/4 | find the free fixes (walk/meditate) | happiness 17 → 0; disease | anxious | tip says "socialize" — no route, no "free" | low | promotion (Work only) |
+| 20–30 | dying | tap / Health | survive | meditate ×N | health 4 → 0 → death screen | punished | "why?" — the causes were never named | low | new life |
+
+Three questions — Where am I? YES (HUD + identity strip). What can I do? YES at
+0–4 min (coach), NO from 5 min (the only routed goal row is pushed out of the
+three slots by chapter + challenge + live event). Why should I care? WEAK: the
+first consequence (pay) is buried under three simultaneous surfaces, the second
+consequence (vital drift) is never explained.
+
+First meaningful decision: which entry job (min 2–4) — real but the differentiator
+is in chips, not the headline. First success: first pay (min 4). First setback:
+the unexplained happiness slide (min 5–14), then disease (min ~16), then death.
+
+## Phase 3–12 — root causes → changes (each row is one commit; each has a test)
+Format: PLAYER MOMENT · PROBLEM · ROOT CAUSE · CHANGE · BENEFIT · RISK ·
+BEHAVIOUR · STATE · VERIFICATION.
+
+- [x] **R1 consequence: the drift is invisible.** wk 1–12 · vitals lose ~9 happiness / ~6 health a week, three causes (poverty-doubled decay, no home −4/−2, job toll −3/−2), no surface names any until ≤20 · the recap reports money + career only; the breakdown modals exist behind an un-invited ring tap · `lib/economy/vitalDrift.ts` (pure projection, one source shared with the breakdown modals' formula) + one recap line "Drifting −13 happiness · −9 health a week · no home, shifts, drift" that routes to Life → Health · the player learns the cause and the cure at minute 4 · low · none (display) · none · unit test on the helper + render test on the recap line.
+- [x] **R2 teaching stops at the first wage.** min 4 · "Got it" on the 'advance' step retires the coach permanently, so the 'paid' payoff ("That's the loop") never renders · `onAction` calls `retire()` for 'advance' · 'advance' acknowledgement is local (card folds), 'paid' still appears; 'paid' copy adds the second loop in one clause (vitals drift, Life tab tops them up for free) · the loop is closed and the maintenance loop named once · low · coach shows one more card · AsyncStorage flag written one step later · `firstSessionCoach.test.ts` extended.
+- [x] **R2 tip copy has no route.** min 14+ · "Feeling down? Do activities you enjoy or socialize!" · no route, vague · tips name the free fix and are pressable (Life → Health) · low · none · none · render test.
+- [x] **R4 goal feed: the routed row never shows.** min 5–30 · GoalsCard MAX_ROWS=3 filled by chapter + weekly challenge + live event; the catalogue recommendation (the ONLY row with a destination, incl. "Get your health back up" <60) is 6th · row order · catalogue row is pinned second; a weekly challenge whose objectives all need locked systems is omitted (tier gate mirrors the Apps padlocks) · every glance offers one actionable thing · low · none · none · `goalsCardRows.test.ts` extended.
+- [x] **R3 honesty: Daily Reward popup.** min 4 · says "+1 gem" and "$25 money bonus"; grants 25 gems, $0 · hard-coded copy · show `+{rewardAmount} gems`, drop the money row · first reward is believable · none · none · none · render test.
+- [x] **R3 honesty: "Perfect Week!" on week 1.** · praise for stats that started at 100 · no life-age condition · celebration gated on ≥4 weeks into this life · none · none · none · unit test.
+- [x] **R3 honesty: chapter banner announces old unlocks.** min 12 · "Progression and Contacts and 1 more are now available" when tier 1 was granted by the $500 milestone at week 0 · announcement reads the chapter tier, not the delta · announce only features the completion actually opens (prev tier < chapter tier) · none · none · none · unit test.
+- [x] **R3 honesty: recap "Career +48%".** · cumulative progress labelled as a weekly gain · field is cumulative · label "Promotion 48%" / "Promotion ready" · none · none · none · render test.
+- [x] **R3 honesty: live-event row "0/3 done".** · a $1,500 player reads "Hold $5,000 in cash · 0/3 done" under a 30% bar · fraction = objectives met · "$1,500 / $5,000" for numeric objectives, "N/M objectives" otherwise · none · none · none · goalsCardRows test.
+- [x] **Pacing: three surfaces on the first tick.** min 4 · Daily Reward modal lands on the same tick as the first wage · gate `weeksThisLife < 1` · `< 2`: the first tick belongs to the wage; the reward arrives on tap two (same session, one tap later) · fewer collisions at the one moment that teaches the loop · low (one-tap delay of a free reward) · daily reward one week later on a new life · none · home effect test.
+- [x] **Discovery: hire is silent** (pending path) · when an application resolves 1–2 weeks later nothing announces it · `applyCareerApplications` returns no notification · push "Hired: X — $N a week from next week" · low · one banner · none · unit test.
+- [x] **Agency: dead starter event.** wk 1 · `starter_luck` condition `weeksInThisLife === 0` can never be true (events roll on `nextWeeksLived`) · off-by-one · `=== 1` · the first decision (save $300 / invest in yourself) lands on tick one as an inbox item, not a modal · low · one more inbox event in week 1 · none · `lifeRelativeGates` test.
+- [x] **Honesty: homeless banner** · "Renting even a shared room would help" — the only rent UI is Real Estate, computer-only ($5,000) and tier 2 · copy assumes a mid-game player · name the cost and the free offset instead · none · none · none · unit test.
+- [x] **Collision: "Saved" pill over the net-worth figure** (wk 8 capture) · AutoSaveIndicator absolute at `top: insets.top + 70`, right 16 — lands on the identity strip · verify + move below the HUD band or make it non-overlapping · low · none · none · capture.
+- [x] Tests: `__tests__/firstSession/*` — fresh-state truth (quick start seeds), first meaningful decision reachable, consequence visibility (drift line), critical-state prioritisation (tip leads, routed), quiet state (nothing to say → recap silent), simultaneous problems (low health + low happiness + promotion), new-player progression (row order over weeks 1–12), tutorial triggers (coach steps).
+- [ ] Gates after each phase; full `npm test` + `npm run preflight` at the end.
+- [ ] Red team (new / confused / impatient / text-skipping / fast-clicking / unlucky), five- and thirty-minute tests, scores, report in `tasks/ui-hierarchy.md` §Program 6, lessons appended.
+
+## Phase 12 — PROPOSALS (owner decisions, not applied)
+1. **Balance: the passive new life dies at week 13.** Decay is ×2.0 for net
+   worth ≤ $50k (`preTick.ts` wealthMultiplier), every scenario starts homeless
+   (−4 happiness / −2 health / −5 energy a week), and the entry job tolls
+   −3/−2. Together: −13 happiness a week at full grace → 0 at week 9 → death at
+   13 with $4,240 in the bank. `rentals.ts:63-69` says the penalty "alone must
+   never be able to get there from a healthy start"; it can with the other two.
+   Options, cheapest first: (a) no homeless penalty until the player can act on
+   it (Real Estate reachable — see 2); (b) wealth multiplier ceiling 1.5 for the
+   first 26 weeks of a life; (c) cap total passive drift so 0 is ≥ 20 weeks
+   away. Any of these is a number in one file plus a test.
+2. **Reachability: renting.** The $45/wk Shared Room exists but `RealEstateApp`
+   is `onPhone: false` and tier 2. Either a phone entry for rentals or a Life →
+   Home segment. Template/owner decision (Program 3 kept the app map).
+3. **Chapter 2** ships two goals a quick-start player has already met (phone,
+   "Make a Friend" via seeded parents). Content decision.
+4. **Weekly challenges** are all multi-objective mid-game content; for a fresh
+   life every one is impossible within its 4-week window. This program only
+   hides the row on Home; the card itself is untouched.
+5. **Ambition picker at week 1** asks for a lifelong commitment with milestones
+   ("own a company", "$100k") unreachable for 30+ weeks. Content decision.
+
 # UI Overhaul Master Program 5 — CONSISTENCY CLOSURE — COMPLETE
 
 Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, on top of Program 4

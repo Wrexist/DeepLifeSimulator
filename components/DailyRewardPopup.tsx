@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import {
  Gift,
- DollarSign,
  Gem,
  Calendar,
  Zap,
@@ -19,6 +18,14 @@ import { DAILY_LOGIN_REWARDS } from '@/lib/config/gameConstants';
 
 interface DailyRewardPopupProps {
  visible: boolean;
+ /**
+ * The GEMS credited by the grant in `home.tsx` — the one number this popup
+ * exists to report. It used to render a hard-coded "Gem +1" and then this
+ * amount under a "Money bonus" label with a dollar sign, so the first thing a
+ * new player was told about their first reward was wrong twice over (the
+ * grant is 25 gems and $0; the HUD floater beside it said "+25 Gems").
+ * Program 6, consequence clarity: the popup reports exactly what was granted.
+ */
  rewardAmount: number;
  onClose: () => void;
 }
@@ -118,21 +125,9 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  <View style={[styles.rewardIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
  <Gem size={scale(20)} color="#8B5CF6" strokeWidth={2.4} />
  </View>
- <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Gem</Text>
- <Text style={[styles.rewardAmount, { color: palette.title }]}>+1</Text>
+ <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Gems</Text>
+ <Text style={[styles.rewardAmount, { color: palette.title }]}>+{safeRewardAmount.toLocaleString()}</Text>
  </View>
-
- {safeRewardAmount > 0 && (
- <View style={[styles.rewardRow, { borderColor: palette.border, backgroundColor: palette.infoBg }]}>
- <View style={[styles.rewardIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
- <DollarSign size={scale(20)} color="#10B981" strokeWidth={2.4} />
- </View>
- <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Money bonus</Text>
- <Text style={[styles.rewardAmount, { color: palette.title }]}>
- ${safeRewardAmount.toLocaleString()}
- </Text>
- </View>
- )}
  </View>
 
  <View style={[styles.infoBlock, { backgroundColor: palette.infoBg, borderColor: palette.border }]}>

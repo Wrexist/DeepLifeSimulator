@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/game/types';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { showAchievementToast } from './achievementToast';
 import { FeedbackSystem } from './feedbackSystem';
 
@@ -48,6 +49,15 @@ export interface SmartNotification {
     hasDiseases?: boolean;
     hasCriticalDisease?: boolean;
     hasDeathWarning?: boolean;
+    /**
+     * Weeks into THIS life (v43 `lifeStartWeek` baseline) the player must have
+     * lived before the notification is eligible. A celebration for "all stats
+     * above 90" fired on the first tick of every new life, when the stats had
+     * started at 100 and done nothing but fall — praise for a week the player
+     * had not yet played, delivered on top of the first wage and the first
+     * daily reward. Program 6.
+     */
+    minWeeksInLife?: number;
   };
   cooldown?: number; // hours between notifications
   lastShown?: number;
@@ -394,7 +404,7 @@ class SmartNotificationSystem {
         priority: 'high',
         category: 'general',
         icon: '🌟',
-        conditions: { minHealth: 90, minHappiness: 90, minEnergy: 90 },
+        conditions: { minHealth: 90, minHappiness: 90, minEnergy: 90, minWeeksInLife: 4 },
         cooldown: 168,
       },
       {
@@ -527,6 +537,9 @@ class SmartNotificationSystem {
   private checkConditions(conditions: any, gameState: GameState): boolean {
     for (const [key, value] of Object.entries(conditions)) {
       switch (key) {
+        case 'minWeeksInLife':
+          if (weeksSinceLifeStart(gameState.weeksLived, gameState.lifeStartWeek) < (value as number)) return false;
+          break;
         case 'minHealth':
           if (gameState.stats.health < (value as number)) return false;
           break;

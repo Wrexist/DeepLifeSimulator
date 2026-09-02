@@ -25,7 +25,6 @@ import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
@@ -773,8 +772,6 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           HealthIssuesCard) - "how healthy am I?" was answered on four surfaces
           and the list with treatment guidance belongs where the treatments
           are. The HUD's ring + disease badge stay the at-a-glance answer. */}
-
-      <AutoSaveIndicator position="relative" />
 
       {showLegacyTimeline && (
         <Suspense fallback={null}>

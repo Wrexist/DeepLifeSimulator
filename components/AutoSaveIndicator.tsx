@@ -255,9 +255,9 @@ const styles = StyleSheet.create({
     zIndex: Z_INDEX.TOAST,
   },
   containerRelative: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
+    // Inline chip: takes its own slot in the row it is rendered in, so it can
+    // never sit on top of another element (it used to be absolute top-right).
+    position: 'relative',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 8,
     paddingHorizontal: 8,

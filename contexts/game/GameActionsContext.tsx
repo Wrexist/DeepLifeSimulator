@@ -947,11 +947,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevCurrentJob: prevState.currentJob,
    careerAcceptDelay: preRolls.careerAcceptDelay,
    prevIsRetired: prevState.isRetired,
- }), { updatedCareers: prevState.careers || [], newCurrentJob: prevState.currentJob, logMessage: '' });
+ }), { updatedCareers: prevState.careers || [], newCurrentJob: prevState.currentJob, logMessage: '', hiredNotification: null });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;
  if (applicationResult.logMessage) {
    logger.info(applicationResult.logMessage);
+ }
+ if (applicationResult.hiredNotification) {
+   pendingNotifications.push(applicationResult.hiredNotification);
  }
 
  // R7 Phase 2 step 2.5b-iii: career progress extracted into

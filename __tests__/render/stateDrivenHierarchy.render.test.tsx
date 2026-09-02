@@ -169,7 +169,7 @@ describe('dominance collisions - one lead, deterministic', () => {
     }));
     // ContextualTip's ladder is health > happiness > energy > money.
     expect(json).toContain('Health is low');
-    expect(json).not.toContain('Feeling down');
+    expect(json).not.toContain('Happiness is low');
     expect(json).not.toContain('Low energy');
     expect(json).not.toContain('Running low on cash');
     // and the tip sits above the goal ladder, which still renders once.

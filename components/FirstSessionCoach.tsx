@@ -195,6 +195,14 @@ export default function FirstSessionCoach() {
     return () => loop.stop();
   }, [step, reduced, pulse]);
 
+  // 'advance' acknowledged for THIS mount only. It used to call `retire()`,
+  // which persisted the done flag - so every player who tapped "Got it" (the
+  // one big button on screen) never saw the 'paid' step, and the sentence the
+  // whole card exists to deliver ("That's the loop") was shown only to players
+  // who ignored the button. Measured in the Program 6 walkthrough: the coach
+  // vanished on tap and the first wage landed with no teaching at all.
+  const [advanceAcked, setAdvanceAcked] = useState(false);
+
   const onAction = useCallback(() => {
     haptic.light();
     if (step === 'find-work') {
@@ -206,11 +214,13 @@ export default function FirstSessionCoach() {
       retire();
     }
     // 'advance' has no action of its own - the advance button is the action,
-    // and pointing at it is the whole job. Tapping the card just acknowledges.
-    if (step === 'advance') retire();
+    // and pointing at it is the whole job. Tapping the card just folds it
+    // until the wage lands and the 'paid' step takes over.
+    if (step === 'advance') setAdvanceAcked(true);
   }, [step, router, retire]);
 
   if (!step) return null;
+  if (step === 'advance' && advanceAcked) return null;
 
   const c = getThemeColors(darkMode);
   const translateY = enter.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
@@ -235,7 +245,11 @@ export default function FirstSessionCoach() {
       Icon: PartyPopper,
       tone: accent.gold,
       title: `You earned ${formatMoney(incomeEarned)}`,
-      body: "That's the loop: work, live a week, get paid. The rest is yours.",
+      // The second loop, named once, at the moment its first evidence is on
+      // screen (the rings have just dropped for the first time). Nothing else
+      // in the first session says that the vitals fall or where the free
+      // fixes are - the walkthrough died of that silence on week 13.
+      body: "That's the loop: work, live a week, get paid. Health and happiness slip a little each week; Life → Health tops them up for free.",
       cta: 'Start playing',
     },
   }[step];

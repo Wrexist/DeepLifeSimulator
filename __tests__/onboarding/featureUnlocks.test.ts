@@ -533,12 +533,18 @@ describe('the week tick completes chapters, not a button', () => {
     expect(result.gemReward).toBeGreaterThan(0);
   });
 
-  it('the notification names what was unlocked, not just the money', () => {
-    // The unlock is the real reward; money and gems are the garnish.
+  it('the notification names the money and gems, and does not claim an unlock the player already held', () => {
+    // `chapterOneDone` is hired with $5,000, which is tier 2 by milestone
+    // before the chapter completes - so "Progression and Contacts are now
+    // available" would describe apps the player had been using for weeks.
+    // A reward message that describes an unlock that never happened teaches
+    // the player to skim rewards (Program 6). The unlock sentence is only
+    // written when the completion is what opens the tier.
     const [note] = applyChapterProgress({ state: chapterOneDone() }).notifications;
 
     expect(note.title).toMatch(/Fresh Start/);
-    expect(note.message).toMatch(/available|unlocked/i);
+    expect(note.message).toMatch(/\+\$[\d,]+, \+\d+ gems/);
+    expect(note.message).not.toMatch(/available|unlocked/i);
   });
 
   it('an unfinished chapter completes nothing (the control)', () => {

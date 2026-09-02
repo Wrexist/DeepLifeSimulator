@@ -24,7 +24,7 @@
  * and returned unchanged when the player owns; this only supplies happiness for
  * a RENTAL, which that module knows nothing about.
  */
-import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { HOMELESS_PENALTY, computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import type { GameState } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
 
@@ -87,7 +87,11 @@ export function applyHousingWellbeing(
       ctx.notifications.push({
         id: `homeless-${input.nextWeeksLived}`,
         title: 'Nowhere to live',
-        message: 'Sleeping rough is wearing you down. Renting even a shared room would help.',
+        // Names the number and the free offset. The old copy ("Renting even a
+        // shared room would help") pointed a week-1 player at the Real Estate
+        // app, which is computer-only and tier 2 — an action they could not
+        // take for ~25 weeks. Program 6.
+        message: `Sleeping rough costs ${Math.abs(HOMELESS_PENALTY.happiness)} happiness and ${Math.abs(HOMELESS_PENALTY.health)} health every week. A walk or meditation in Life → Health is free and offsets it.`,
       });
     }
   }

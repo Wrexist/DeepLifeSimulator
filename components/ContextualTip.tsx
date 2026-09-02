@@ -10,6 +10,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { DollarSign, Heart, Sparkles, Trophy, X, Zap } from 'lucide-react-native';
 import { fontScale, responsiveSpacing } from '@/utils/scaling';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
@@ -35,48 +36,76 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
                 return {
                     icon: Heart,
                     color: '#EF4444',
-                    message: 'Health is low! Go to Life → Health, or buy food in Life → Market.',
+                    message: 'Health is low. A walk in Life → Health is free; food in the Market helps too.',
+                    route: '/(tabs)/life?segment=health',
                 };
             case 'low_happiness':
                 return {
                     icon: Sparkles,
                     color: '#F59E0B',
-                    message: 'Feeling down? Do activities you enjoy or socialize!',
+                    // Was "Feeling down? Do activities you enjoy or socialize!" -
+                    // no route, and the one free fix went unnamed while the
+                    // character slid toward zero (Program 6 walkthrough).
+                    message: 'Happiness is low. Meditation and a walk in Life → Health are free.',
+                    route: '/(tabs)/life?segment=health',
                 };
             case 'low_energy':
                 return {
                     icon: Zap,
                     color: '#3B82F6',
-                    message: 'Low energy! Rest or eat to recharge. Energy regenerates each week.',
+                    message: 'Low energy. Each week restores some; food in Life → Market restores it now.',
+                    route: '/(tabs)/life?segment=shop',
                 };
             case 'low_money':
                 return {
                     icon: DollarSign,
                     color: STAT_IDENTITY.money.color,
-                    message: 'Running low on cash? Do some street jobs for quick money.',
+                    message: 'Running low on cash? Street jobs in the Work tab pay today.',
+                    route: '/(tabs)/work',
                 };
             case 'promotion_ready':
                 return {
                     icon: Trophy,
                     color: '#F59E0B',
-                    message: 'Promotion available! Visit the Work tab to level up.',
+                    message: 'Promotion ready. Collect it in the Work tab.',
+                    route: '/(tabs)/work',
                 };
             default:
                 return null;
         }
     }, [type]);
 
+    const router = useRouter();
+
     if (!tipContent) return null;
 
     const Icon = tipContent.icon;
+    const route = tipContent.route;
 
+    // The tip is the lead of the Home feed when it fires (the ContextualTip
+    // ladder outranks the goals), so it must DO something: tapping the text
+    // opens the screen the copy names. The X stays a separate target.
     return (
         <View style={styles.tipContainer}>
-            <View style={[styles.tipIcon, { backgroundColor: tipContent.color + '20' }]}>
-                <Icon size={14} color={tipContent.color} />
-            </View>
-            <Text style={styles.tipText}>{tipContent.message}</Text>
-            <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+                style={styles.tipBody}
+                onPress={() => router.push(`${route}${route.includes('?') ? '&' : '?'}ts=${Date.now()}` as never)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={tipContent.message}
+                accessibilityHint="Opens the screen this tip names"
+            >
+                <View style={[styles.tipIcon, { backgroundColor: tipContent.color + '20' }]}>
+                    <Icon size={14} color={tipContent.color} />
+                </View>
+                <Text style={styles.tipText}>{tipContent.message}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                onPress={onDismiss}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss tip"
+            >
                 <X size={14} color="#64748B" />
             </TouchableOpacity>
         </View>
@@ -171,6 +200,12 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: responsiveSpacing.sm,
         marginBottom: responsiveSpacing.sm,
+    },
+    tipBody: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 44,
     },
     tipIcon: {
         width: 28,

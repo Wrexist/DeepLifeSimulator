@@ -47,6 +47,15 @@ import { fontScale, scale } from '@/utils/scaling';
 import { kicker, rhythm, tier3, tier4 } from '@/lib/config/hierarchy';
 import type { ResolvedLiveEvent } from '@/lib/liveops/types';
 import type { GameState } from '@/contexts/game/types';
+import { unlockTier } from '@/lib/progress/featureUnlocks';
+
+/** "$1,500", "$5k", "$1.2M" - the same shape the catalogue's money pairs use. */
+const compactMoney = (n: number): string => {
+  const v = Math.max(0, Math.round(n));
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (v >= 10_000) return `$${Math.round(v / 1000)}k`;
+  return `$${v.toLocaleString()}`;
+};
 
 /** Which system a row came from - drives the icon and accent only. */
 export type GoalRowSystem =
@@ -117,9 +126,33 @@ export function buildGoalRows(
     }
   }
 
-  // 2. Weekly challenge - rotates on game weeks, but it is the shortest ladder.
+  // 2. The situational recommendation - the ONLY row with its own destination,
+  //    so it is pinned second. It used to come last, after the challenge, the
+  //    live event, the ambition and the scenario, and with three slots that
+  //    meant a fresh life NEVER saw it: "Get your health back up" (<60) and
+  //    "Do something you enjoy" (<45) were computed every week and shown on
+  //    none of them while the character slid to zero (Program 6 walkthrough).
+  const recommended = recommendGoals(state)[0];
+  if (recommended) {
+    rows.push({
+      id: `catalogue:${recommended.id}`,
+      system: 'catalogue',
+      title: recommended.title,
+      progress: recommended.progress,
+      fraction: recommended.progressLabel,
+      route: recommended.route,
+    });
+  }
+
+  // 3. Weekly challenge - rotates on game weeks, but it is the shortest ladder.
+  //    Hidden below tier 2: every challenge is a mid-game bundle (properties,
+  //    educations, pets, followers, $10k+ savings) whose objectives all sit
+  //    behind the same padlocks the Apps grid shows, so for a new life the row
+  //    read "Have 80+ fitness · 0/4 objectives" as the lead goal at fitness 10.
+  //    Same gate as the Apps grid, so the goal feed never names a system the
+  //    player cannot open. The card itself (Home → details) is untouched.
   const challenge = state.weeklyChallenge;
-  if (challenge?.challengeId && !challenge.rewardClaimed) {
+  if (challenge?.challengeId && !challenge.rewardClaimed && unlockTier(state) >= 2) {
     const definition = getWeeklyChallengeDefinition(challenge.challengeId);
     if (definition) {
       const objectives = evaluateChallengeProgress(challenge.challengeId, state);
@@ -157,7 +190,11 @@ export function buildGoalRows(
         system: 'liveops',
         title: next.label,
         progress: objectiveFraction(next.current, next.target),
-        fraction: `${met}/${active.objectives.length} done`,
+        // A money objective reads as money ("$1,500 / $5,000"); "0/3 done"
+        // under a 30%-full bar read as a contradiction to a new player.
+        fraction: /\$/.test(next.label)
+          ? `${compactMoney(next.current)} / ${compactMoney(next.target)}`
+          : `${met}/${active.objectives.length} objectives`,
       });
     }
   }
@@ -193,19 +230,6 @@ export function buildGoalRows(
         fraction: `${scenario.metCount}/${scenario.total} conditions`,
       });
     }
-  }
-
-  // 6. The situational recommendation - the only row with its own destination.
-  const recommended = recommendGoals(state)[0];
-  if (recommended) {
-    rows.push({
-      id: `catalogue:${recommended.id}`,
-      system: 'catalogue',
-      title: recommended.title,
-      progress: recommended.progress,
-      fraction: recommended.progressLabel,
-      route: recommended.route,
-    });
   }
 
   return rows;
