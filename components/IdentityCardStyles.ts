@@ -5,6 +5,7 @@
 import { Platform, StyleSheet } from 'react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
+import { rhythm, tier2, tier4 } from '@/lib/config/hierarchy';
 
 export const styles = StyleSheet.create({
   cardContainer: {
@@ -30,15 +31,58 @@ export const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 0,
   },
+  /** The compact identity strip (Program 4): avatar · name + facts · net worth. */
+  strip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
+    padding: responsiveSpacing.md,
+    marginBottom: rhythm.tight,
+  },
+  stripAvatar: {
+    position: 'relative',
+  },
+  stripText: {
+    flex: 1,
+    minWidth: 0,
+    gap: scale(2),
+  },
+  stripMeta: {
+    ...tier4,
+    color: '#94A3B8',
+  },
+  stripWorth: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    maxWidth: '42%',
+    minHeight: scale(44),
+    justifyContent: 'center',
+  },
+  stripWorthValue: {
+    fontSize: fontScale(17),
+    lineHeight: fontScale(22),
+    fontWeight: '600',
+    color: '#F8FAFC',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.2,
+  },
+  stripWorthLabel: {
+    ...tier4,
+    color: '#64748B',
+  },
+  stripFlow: {
+    ...tier4,
+    fontVariant: ['tabular-nums'],
+  },
   avatarContainer: {
     alignItems: 'center',
     marginBottom: responsiveSpacing.md,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     // Now wraps an SVG rather than being an <Image>: centre and clip the child
     // so the ring stays a ring.
@@ -62,9 +106,9 @@ export const styles = StyleSheet.create({
   },
   avatarGlow: {
     position: 'absolute',
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
     top: -3,
     left: -3,
@@ -74,11 +118,10 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.3)',
   },
   name: {
-    fontSize: responsiveFontSize['2xl'],
-    fontWeight: 'bold',
+    ...tier2,
+    fontSize: fontScale(16),
+    lineHeight: fontScale(21),
     color: '#0F172A',
-    textAlign: 'center',
-    marginBottom: responsiveSpacing.xs,
     // Light mode: subtle text shadow for name
     ...Platform.select({
       web: { textShadow: '0px 1px 2px rgba(0,0,0,0.1)' } as any,
@@ -196,8 +239,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.lg,
-    paddingVertical: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    minHeight: scale(44),
     borderBottomWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -207,7 +251,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   listLabel: {
-    fontSize: responsiveFontSize.lg,
+    fontSize: fontScale(14),
     color: '#334155',
     marginLeft: responsiveSpacing.sm,
   },
@@ -509,8 +553,9 @@ export const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: scale(4),
-    marginTop: responsiveSpacing.xs,
+    marginTop: scale(2),
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: scale(2),
     // Color matches the Flame icon (Tailwind orange-400) — consistent with

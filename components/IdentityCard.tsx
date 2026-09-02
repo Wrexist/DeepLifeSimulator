@@ -8,11 +8,7 @@ import { View,
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
-import {
-  responsiveSpacing,
-  scale,
-  fontScale,
-} from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { MINER_POWER_UNITS, minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
@@ -535,12 +531,23 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
     ? getCosmetic(gameState.equippedCosmetics.theme)
     : undefined;
 
+  // The one number that moves week to week rides under net worth, signed
+  // and coloured by direction; the breakdown stays one tap away in Details.
+  const cashFlowLabel = `${cashFlow >= 0 ? '+' : '-'}${formatMoney(Math.abs(cashFlow))}`;
+  const cashFlowColor = cashFlow > 0 ? '#34D399' : cashFlow < 0 ? '#F87171' : '#94A3B8';
+
   return (
     <View style={styles.cardContainer}>
-      {/* Solid fill: the old #1E293B->#0F172A diagonal gradient was near
-          invisible and cost an SVG layer on the first card of the feed. */}
-      <View style={[styles.card, { backgroundColor: '#182236' }]}>
-        <View style={styles.avatarContainer}>
+      {/* A strip, not a hero. This card used to open the feed with a centred
+          80pt avatar, a 2xl name and five equal tiles - a permanent dominant
+          element that never changed with the player's situation, so the one
+          thing on Home that SHOULD lead (the goal, the promotion, the crisis)
+          sat a full screen down. Identity is orientation: tier 2, left
+          aligned, one line of facts, and the one number that moves (net
+          worth, with this week's cash flow under it). Everything that is
+          reference lives behind Details, closed by default. */}
+      <View style={[styles.card, styles.strip]}>
+        <View style={styles.stripAvatar}>
           {/* The ring lives on a wrapper: the avatar is an SVG, so a border on
               the element itself would not follow the circular clip. */}
           <View
@@ -551,16 +558,13 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               seed={name}
               sex={sex}
               age={date?.age ?? 0}
-              size={74}
+              size={48}
               alive
             />
           </View>
           <View
             style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
-          {/* The avatar-corner DeepLife+ crown is gone - the store button in
-              the HUD and the banner inside the gem store are the paywall
-              entries now (audit: four concurrent store affordances on Home). */}
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
             /* The badge used to be a TouchableOpacity whose onPress was an empty
                body with a comment admitting it did nothing - it dimmed on press
@@ -591,36 +595,57 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             )
           )}
         </View>
-        <View style={styles.nameContainer}>
+        <View style={styles.stripText}>
           {/* Player-typed name - clamp to one line so a long one cannot push
-              the streak badge and everything under it down the card
-              (DeathPopup's obituary name does the same). */}
-          <Text style={[styles.name, styles.nameDark]} numberOfLines={1}>{name}</Text>
-          {/* Persistent login-streak badge - surfaces the daily-reward streak
-              outside the popup so loss aversion can do its job. */}
+              the facts under it out of the strip. */}
+          <Text style={[styles.name, styles.nameDark]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+            {name}
+          </Text>
+          <Text style={styles.stripMeta} numberOfLines={1}>
+            {job} · {relationshipStatus}
+          </Text>
+          {/* Login-streak badge - surfaces the daily-reward streak outside the
+              popup so loss aversion can do its job. */}
           {(gameState?.loginStreak ?? 0) >= 2 && (
             <View style={styles.streakBadge}>
-              <Flame size={fontScale(13)} color="#FB923C" />
+              <Flame size={fontScale(12)} color="#FB923C" />
               <Text style={styles.streakBadgeText}>
                 {gameState.loginStreak} {t('game.dayStreak')}
               </Text>
             </View>
           )}
         </View>
-        <Text style={[styles.scenarioText, styles.scenarioTextDark]}>
-          {scenario?.title || t('common.unknown')}
-        </Text>
-        
-        {/* The five identity facts. Collapsible because they are REFERENCE, not
-            news - a player who knows their own age and job can fold them away
-            and get the actionable cards higher up the feed. The summary keeps
-            the two that change (job, relationship) on screen either way. */}
-        <CollapsibleSection
-          id="identity.facts"
-          title="Details"
-          compact
-          summary={`${job} · ${relationshipStatus}`}
+        <TouchableOpacity
+          style={styles.stripWorth}
+          onPress={() => setShowNetWorth(true)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('game.netWorth')} ${formatMoney(netWorth)}, ${t('game.weeklyCashFlow')} ${cashFlowLabel}`}
+          accessibilityHint="Opens the net worth breakdown"
         >
+          <Text style={styles.stripWorthValue} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {formatMoney(netWorth)}
+          </Text>
+          <Text style={styles.stripWorthLabel} numberOfLines={1}>
+            {t('game.netWorth')}
+          </Text>
+          <Text style={[styles.stripFlow, { color: cashFlowColor }]} numberOfLines={1}>
+            {cashFlowLabel}/wk
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Reference, not news: the five identity facts and the breakdown
+          rows. Closed on first view - a player who knows their own age and
+          sex should not scroll past them to reach the goal card - and the
+          summary line keeps the scenario and age readable either way. */}
+      <CollapsibleSection
+        id="identity.facts"
+        title="Details"
+        compact
+        defaultCollapsed
+        summary={`${scenario?.title || t('common.unknown')} · ${t('game.age')} ${Math.floor(date?.age ?? 18)}`}
+      >
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>
@@ -680,21 +705,6 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </Text>
           </View>
         </View>
-        </CollapsibleSection>
-
-        <TouchableOpacity
-          style={styles.netWorthContainer}
-          onPress={() => setShowNetWorth(true)}
-          activeOpacity={0.7}
-        >
-          <DollarSign size={20} color="#10B981" />
-          <Text style={[styles.netWorthText, styles.netWorthTextDark]}>
-            {t('game.netWorth')}: {formatMoney(netWorth)}
-          </Text>
-          <ChevronRight size={16} color="#10B981" style={{ marginLeft: responsiveSpacing.xs }} />
-        </TouchableOpacity>
-      </View>
-
       <View style={[styles.list, { backgroundColor: '#182236' }]}>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowCash(true)}>
           <View style={styles.listItemContent}>
@@ -757,6 +767,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           <ChevronRight size={20} color="#94A3B8" />
         </TouchableOpacity>
       </View>
+      </CollapsibleSection>
 
       {/* Health issues moved to the Health screen (components/health/
           HealthIssuesCard) - "how healthy am I?" was answered on four surfaces

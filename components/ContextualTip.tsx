@@ -165,7 +165,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#1E293B',
         borderRadius: 12,
         padding: responsiveSpacing.sm,
-        marginHorizontal: responsiveSpacing.lg,
         marginBottom: responsiveSpacing.sm,
     },
     tipIcon: {

@@ -27,7 +27,11 @@ import { scale, responsiveBorderRadius } from '@/utils/scaling';
 
 /** The shared container style, for cards whose root must stay a touchable. */
 export const cardStyle: ViewStyle = {
-  marginHorizontal: scale(16),
+  // No horizontal margin: the feed's ScrollView already pads 16, and a card
+  // margin on top of it gave every Card a 32pt gutter next to full-width
+  // neighbours (IdentityCard, the coach) - the one card type on Home that
+  // was visibly narrower than the rest. Education's Cards had been overriding
+  // this to 0 for the same reason. Containers own the gutter; cards fill it.
   marginBottom: scale(12),
   padding: scale(14),
   borderRadius: responsiveBorderRadius.lg,

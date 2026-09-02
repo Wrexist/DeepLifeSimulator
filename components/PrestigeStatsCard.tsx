@@ -151,7 +151,6 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
     marginVertical: 8,
   },
   containerDark: {

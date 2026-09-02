@@ -63,6 +63,7 @@ import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import { gameAlert } from '@/utils/gameAlert';
 import SectionGroup from '@/components/ui/SectionGroup';
+import { rhythm } from '@/lib/config/hierarchy';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
@@ -173,6 +174,18 @@ function HomeScreenContent() {
 
   // Contextual tips hook for showing help when player is stuck
   const { activeTip, dismissTip } = useContextualTip(gameState);
+
+  // THE LEAD SLOT. Home's dominant element is chosen from player state, most
+  // consequential first: a prestige the player can take now beats a crisis
+  // tip (it is the one irreversible decision on the screen), a crisis beats
+  // the goal ladder (health under 25 is not a goal, it is a countdown), and
+  // otherwise the closest objective leads. Everything else on the feed is
+  // tier 2 or lower and sits under `rhythm.major` of whitespace.
+  const lead: 'prestige' | 'tip' | 'goals' = isPrestigeAvailable(gameState)
+    ? 'prestige'
+    : activeTip
+      ? 'tip'
+      : 'goals';
 
   // Every "how far into the game is this player" gate on this screen measures
   // weeks in THIS LIFE, never the raw `weeksLived`, which is seeded from the
@@ -574,6 +587,58 @@ function HomeScreenContent() {
     await recordInviteOffer(gameState.weeksLived, offerRecordRef.current);
   };
 
+  // The goal card and its disclosure travel together: the "Show details"
+  // toggle belongs under the card it expands, whether the card is the lead
+  // (below the identity strip) or, when something more urgent took the
+  // slot, back in its band.
+  const goalsBlock = (
+    <>
+      <GoalsCard onShowDetails={() => setShowGoalDetails(true)} />
+      {/* No FadeInUp inside the disclosure: these mount on a toggle, and
+          re-animating seven cards on every open is exactly the motion the
+          summary card exists to avoid. */}
+      {showGoalDetails && (
+        <>
+          <NextGoalsCard />
+          <WeekAheadCard />
+
+          {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
+          <LifeChapterCard />
+
+          {/* Life Ambition - the lifelong goal chosen at character creation.
+              Renders only when an ambition was picked (freeform lives skip it). */}
+          <AmbitionCard />
+          {/* The challenge-scenario run chosen at onboarding - win conditions
+              were previously invisible between onboarding and first prestige.
+              Renders null for non-challenge lives and prestiged dynasties. */}
+          <ScenarioChallengeCard />
+          {/* Live events sit ABOVE the weekly challenge: they are the only
+              surface here with a real-world deadline, and the challenge rotates
+              on game weeks so it waits for the player either way. The card
+              renders nothing at all when there is nothing active, so a quiet
+              week costs no space. */}
+          <LiveEventsCard />
+          <WeeklyChallengeCard />
+        </>
+      )}
+
+      <TouchableOpacity
+        onPress={() => setShowGoalDetails(v => !v)}
+        activeOpacity={0.8}
+        style={styles.showMoreBtn}
+        accessibilityRole="button"
+      >
+        <Text style={styles.showMoreText}>
+          {showGoalDetails ? 'Hide details' : 'Show details'}
+        </Text>
+        {showGoalDetails
+          ? <ChevronUp size={scale(15)} color="#94A3B8" />
+          : <ChevronDown size={scale(15)} color="#94A3B8" />}
+      </TouchableOpacity>
+
+    </>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -620,27 +685,38 @@ function HomeScreenContent() {
             chip's + are the store entries. Four concurrent paywall
             affordances on one screen was the audit's monetization finding. */}
 
+        {/* THE LEAD SLOT - see `lead` above. One element, chosen by state,
+            with the feed's widest gap under it so the eye lands here first and
+            reads everything below as "the rest". */}
+        <View style={styles.leadSlot}>
+          {lead === 'prestige' && (
+            <PrestigeButton onPress={() => setShowPrestigeModal(true)} />
+          )}
+          {lead === 'tip' && activeTip && (
+            <ContextualTip
+              type={activeTip as ContextualTipType}
+              onDismiss={() => dismissTip(activeTip)}
+            />
+          )}
+          {lead === 'goals' && <FadeInUp delay={20}>{goalsBlock}</FadeInUp>}
+        </View>
+
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
         <SectionGroup label="This week" collapsibleId="home.thisWeek">
-        <FadeInUp delay={20}>
+        <FadeInUp delay={30}>
           <LastWeekRecap />
         </FadeInUp>
 
-        {/* Contextual Tips - shown when player is stuck. The 'no_job' tip and
-            the find-a-job CTA that used to sit here are gone: FirstSessionCoach
-            above owns that message, and three surfaces saying "get a job" on
-            one screen was the audit's duplication finding. */}
-        {activeTip && (
+        {/* A tip that did not win the lead slot (prestige did) still shows -
+            it is the only surface that names the fix for a failing vital. The
+            'no_job' tip and the find-a-job CTA that used to sit here are gone:
+            FirstSessionCoach above owns that message. */}
+        {lead !== 'tip' && activeTip && (
           <ContextualTip
             type={activeTip as ContextualTipType}
             onDismiss={() => dismissTip(activeTip)}
           />
-        )}
-
-        {/* Prestige Button */}
-        {isPrestigeAvailable(gameState) && (
-          <PrestigeButton onPress={() => setShowPrestigeModal(true)} />
         )}
 
         {/* Prestige Stats Card - Show if player has prestiged */}
@@ -663,64 +739,14 @@ function HomeScreenContent() {
 
         </SectionGroup>
 
-        {/* What next / what is coming - the two derived surfaces.
-            They sit ABOVE the fixed ladders on purpose: Life Chapters and the
-            Ambition are the same for everyone at the same point, while these
-            two read the player's own situation, so they are the lines most
-            likely to be true for THIS save. Both render null when they have
-            nothing to say, so a quiet early week is not padded with cards. */}
+        {/* What next / what is coming. Life Chapters and the Ambition are the
+            same for everyone at the same point, while GoalsCard reads the
+            player's own situation - so it leads the feed (above) unless
+            something more urgent took the slot, in which case it opens this
+            band instead. Both render null when they have nothing to say, so a
+            quiet early week is not padded with cards. */}
         <SectionGroup label="What you're working toward" collapsibleId="home.goals">
-        {/* ONE goals surface by default. The audit found five near-identical
-            checklist-with-progress-bars cards stacked in this band, each
-            answering "what should I do next?" in a different accent, so none
-            read as the one that mattered (blueprint §2 item 2). GoalsCard
-            shows the top objectives across all of them; the full cards keep
-            everything they showed, behind the disclosure below. */}
-        <FadeInUp delay={45}>
-          <GoalsCard onShowDetails={() => setShowGoalDetails(true)} />
-        </FadeInUp>
-
-        {/* No FadeInUp inside the disclosure: these mount on a toggle, and
-            re-animating seven cards on every open is exactly the motion the
-            summary card exists to avoid. */}
-        {showGoalDetails && (
-          <>
-            <NextGoalsCard />
-            <WeekAheadCard />
-
-            {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
-            <LifeChapterCard />
-
-            {/* Life Ambition - the lifelong goal chosen at character creation.
-                Renders only when an ambition was picked (freeform lives skip it). */}
-            <AmbitionCard />
-            {/* The challenge-scenario run chosen at onboarding - win conditions
-                were previously invisible between onboarding and first prestige.
-                Renders null for non-challenge lives and prestiged dynasties. */}
-            <ScenarioChallengeCard />
-            {/* Live events sit ABOVE the weekly challenge: they are the only
-                surface here with a real-world deadline, and the challenge rotates
-                on game weeks so it waits for the player either way. The card
-                renders nothing at all when there is nothing active, so a quiet
-                week costs no space. */}
-            <LiveEventsCard />
-            <WeeklyChallengeCard />
-          </>
-        )}
-
-        <TouchableOpacity
-          onPress={() => setShowGoalDetails(v => !v)}
-          activeOpacity={0.8}
-          style={styles.showMoreBtn}
-          accessibilityRole="button"
-        >
-          <Text style={styles.showMoreText}>
-            {showGoalDetails ? 'Hide details' : 'Show details'}
-          </Text>
-          {showGoalDetails
-            ? <ChevronUp size={scale(15)} color="#94A3B8" />
-            : <ChevronDown size={scale(15)} color="#94A3B8" />}
-        </TouchableOpacity>
+        {lead !== 'goals' && <FadeInUp delay={45}>{goalsBlock}</FadeInUp>}
 
         {/* Outside the disclosure on purpose: the picker PROMPTS a choice not
             yet made (hiding it would hide the ambition system from anyone who
@@ -913,11 +939,17 @@ function HomeScreenContent() {
 }
 
 const styles = StyleSheet.create({
+  /** The lead slot's bottom gap plus SectionGroup's own top margin (sm) add
+   *  up to `rhythm.major` - the feed's one wide gap, under the one element
+   *  that leads. */
+  leadSlot: {
+    marginTop: rhythm.tight,
+    marginBottom: rhythm.section,
+  },
   progressLinkCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(12),
-    marginHorizontal: responsivePadding.horizontal,
     marginBottom: verticalScale(12),
     padding: scale(14),
     borderRadius: responsiveBorderRadius.lg,

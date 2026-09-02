@@ -172,7 +172,6 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 8,
     marginVertical: 4,
   },
   button: {
