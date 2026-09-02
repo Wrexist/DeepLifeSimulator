@@ -13,7 +13,7 @@ function seededRandom(seed: number): number {
 
 /**
  * Cache for disease risk calculations
- * Key: `${weeksLived}_${health}_${fitness}_${age}`
+ * Key: `${weeksLived}_${health}_${age}`
  */
 const riskCache = new Map<string, number>();
 const CACHE_MAX_SIZE = 100;
@@ -36,18 +36,32 @@ function clearOldCacheEntries() {
  * Calculate base disease risk based on player stats
  * Returns a risk multiplier (0-1)
  * Uses caching for performance
+ *
+ * HEALTH and AGE only. Fitness used to be in here as well (+1.0 at fitness 0,
+ * −0.5 above 70) AND in `calculateDiseaseSpecificRisk`, which multiplies each
+ * template's chance by its own `fitnessRiskModifier` (1.2-1.8 at fitness 0)
+ * and then by THIS multiplier - so the same number was charged twice. For a
+ * fresh 25-year-old at the seeded fitness of 10 that was ×1.67 here times
+ * ×2.5 there: the disease chance of a 60-year-old, and enough to fail the
+ * "healthy and young" gate below (`< 1.2`) that every 18-24 start passes.
+ * Measured on the real tick (Master Program 7, 2026-09-02): a careful
+ * age-25 start - housed, one walk and one meditation a week - caught four
+ * illnesses in 17 weeks and reached health 0 at week 18; with fitness
+ * counted once it ends week 20 at health 96. The per-template term is the
+ * one kept: it is disease-specific (a heart condition cares more about
+ * fitness than a cold does) and still bites - fitness 0 raises every chance
+ * by 120-180% and fitness 100 lowers it by 40%.
  */
 export function calculateDiseaseRisk(state: GameState): number {
   // BUGFIX: use ?? for health so a 0-health player is correctly treated as
   // high-risk. With `|| 100`, 0 was silently mapped to 100 (full health),
   // making severely sick players incorrectly disease-resistant.
   const health = state.stats.health ?? 100;
-  const fitness = state.stats.fitness ?? 0;
   const age = state.date?.age ?? ADULTHOOD_AGE;
   const weeksLived = state.weeksLived || 0;
 
   // Check cache first
-  const cacheKey = `${weeksLived}_${Math.round(health)}_${Math.round(fitness)}_${age}`;
+  const cacheKey = `${weeksLived}_${Math.round(health)}_${age}`;
   const cachedRisk = riskCache.get(cacheKey);
   if (cachedRisk !== undefined) {
     return cachedRisk;
@@ -67,16 +81,8 @@ export function calculateDiseaseRisk(state: GameState): number {
     riskMultiplier += healthPenalty * 0.5; // Up to 1.5x risk
   }
 
-  // Fitness-based risk (lower fitness = higher risk, higher fitness = lower risk)
-  if (fitness < 30) {
-    const fitnessPenalty = (30 - fitness) / 30; // 0 to 1
-    riskMultiplier += fitnessPenalty * 1.0; // Up to 2x additional risk
-  } else if (fitness > 70) {
-    // High fitness provides protection (reduces risk)
-    const fitnessBonus = (fitness - 70) / 30; // 0 to 1 for fitness 70-100
-    riskMultiplier -= fitnessBonus * 0.5; // Up to 0.5x reduction (50% less risk at 100 fitness)
-    riskMultiplier = Math.max(0.3, riskMultiplier); // Minimum 30% of base risk
-  }
+  // Fitness is deliberately NOT here - see the header. It is applied once,
+  // per disease, in `calculateDiseaseSpecificRisk`.
 
   // Age-based risk (scales dramatically with age)
   if (age < 25) {
@@ -127,9 +133,11 @@ export function shouldGenerateDisease(state: GameState): boolean {
 }
 
 /**
- * Calculate individual disease risk based on template and player state
+ * Calculate individual disease risk based on template and player state.
+ * Exported for the fitness-monotonicity test: this is the ONE place fitness
+ * moves a disease chance.
  */
-function calculateDiseaseSpecificRisk(
+export function calculateDiseaseSpecificRisk(
   template: DiseaseTemplate,
   state: GameState,
   baseRiskMultiplier: number
