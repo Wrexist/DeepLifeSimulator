@@ -112,3 +112,31 @@ describe('`owns` says who the home belongs to, not what it costs', () => {
     expect(result.happiness).toBe(7);
   });
 });
+
+describe('the homeless notice names the fix and where it lives', () => {
+  // Program 7: the notice had dropped the word "rent" because Program 6
+  // believed the only rent surface was a computer-only, tier-2 app. The
+  // rental ladder is on Market → Housing at tier 0, so the notice can point
+  // a week-1 player at the $45 room instead of only at the free offset.
+  const homeless = (nextWeeksLived: number): GameState =>
+    createTestGameState({ weeksLived: nextWeeksLived - 1, realEstate: [], rental: undefined });
+
+  it('fires on the cadence week with the price, the place and the free offset', () => {
+    const c = ctx();
+    applyHousingWellbeing({ prevState: homeless(105), ownedHappinessBonus: 0, nextWeeksLived: 105 }, c);
+    expect(c.notifications).toHaveLength(1);
+    const cheapest = RENTAL_TIERS.reduce((a, b) => (b.weeklyRent < a.weeklyRent ? b : a), RENTAL_TIERS[0]);
+    const message = c.notifications[0].message;
+    expect(message).toContain(`$${cheapest.weeklyRent}/week`);
+    expect(message).toContain(cheapest.name);
+    expect(message).toContain('Market → Housing');
+    expect(message).toContain('Life → Health');
+    expect(message).toContain(`${Math.abs(HOMELESS_PENALTY.happiness)} happiness`);
+  });
+
+  it('stays quiet on the other seven weeks of the cadence', () => {
+    const c = ctx();
+    applyHousingWellbeing({ prevState: homeless(106), ownedHappinessBonus: 0, nextWeeksLived: 106 }, c);
+    expect(c.notifications).toHaveLength(0);
+  });
+});

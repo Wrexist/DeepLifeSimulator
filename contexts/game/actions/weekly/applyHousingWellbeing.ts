@@ -24,9 +24,12 @@
  * and returned unchanged when the player owns; this only supplies happiness for
  * a RENTAL, which that module knows nothing about.
  */
-import { HOMELESS_PENALTY, computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { HOMELESS_PENALTY, RENTAL_TIERS, computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import type { GameState } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+
+/** The bottom rung of the rental ladder - the fix the homeless notice names. */
+const cheapestRental = RENTAL_TIERS.reduce((a, b) => (b.weeklyRent < a.weeklyRent ? b : a), RENTAL_TIERS[0]);
 
 export interface HousingWellbeingResult {
   /** Weekly rent owed for a tenancy. Folded into the bill line by the caller. */
@@ -87,11 +90,13 @@ export function applyHousingWellbeing(
       ctx.notifications.push({
         id: `homeless-${input.nextWeeksLived}`,
         title: 'Nowhere to live',
-        // Names the number and the free offset. The old copy ("Renting even a
-        // shared room would help") pointed a week-1 player at the Real Estate
-        // app, which is computer-only and tier 2 - an action they could not
-        // take for ~25 weeks. Program 6.
-        message: `Sleeping rough costs ${Math.abs(HOMELESS_PENALTY.happiness)} happiness and ${Math.abs(HOMELESS_PENALTY.health)} health every week. A walk or meditation in Life → Health is free and offsets it.`,
+        // Names the number, the price of the fix and WHERE it is. Program 6
+        // dropped the word "rent" from this notice on the belief that the
+        // only rent surface was the computer-only, tier-2 Real Estate app;
+        // Program 5 had already put the rental ladder on Market → Housing,
+        // which is tier 0 and needs no device, so a week-1 player CAN act on
+        // this. The cheapest room is read from the ladder, not restated.
+        message: `Sleeping rough costs ${Math.abs(HOMELESS_PENALTY.happiness)} happiness and ${Math.abs(HOMELESS_PENALTY.health)} health every week. A ${cheapestRental.name} is $${cheapestRental.weeklyRent}/week under Market → Housing; a walk or meditation in Life → Health is free and offsets it meanwhile.`,
       });
     }
   }
