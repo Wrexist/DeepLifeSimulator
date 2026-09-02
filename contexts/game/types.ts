@@ -758,6 +758,12 @@ export interface HealthActivity {
   happinessGain: number;
   healthGain?: number;
   energyCost?: number;
+  /**
+   * Fitness the activity builds (Program 8). Optional and additive - a saved
+   * list without it reads as 0, and `health.tsx` re-merges the catalogue
+   * values into a save on mount, so no migration.
+   */
+  fitnessGain?: number;
 }
 
 export interface DietPlan {

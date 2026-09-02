@@ -85,6 +85,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
           ...savedActivity,
           happinessGain: latestActivity.happinessGain,
           healthGain: latestActivity.healthGain,
+          fitnessGain: latestActivity.fitnessGain,
           energyCost: latestActivity.energyCost,
           price: latestActivity.price,
         };
@@ -97,6 +98,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
       return !saved ||
         saved.happinessGain !== activity.happinessGain ||
         saved.healthGain !== activity.healthGain ||
+        saved.fitnessGain !== activity.fitnessGain ||
         saved.energyCost !== activity.energyCost ||
         saved.price !== activity.price;
     });
@@ -147,6 +149,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const out: HealthDelta[] = [];
     if (activity.healthGain) out.push({ stat: 'health', delta: activity.healthGain });
     if (activity.happinessGain) out.push({ stat: 'happiness', delta: activity.happinessGain });
+    if (activity.fitnessGain) out.push({ stat: 'fitness', delta: activity.fitnessGain });
     if (typeof activity.energyCost === 'number' && activity.energyCost !== 0) {
       // energyCost positive means it costs energy; negative means it restores energy.
       out.push({ stat: 'energy', delta: -activity.energyCost });

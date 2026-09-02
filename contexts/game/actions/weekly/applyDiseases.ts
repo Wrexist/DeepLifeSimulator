@@ -199,7 +199,16 @@ export function applyDiseasesForWeek(
     if (disease.effects) {
       Object.entries(disease.effects).forEach(([stat, value]) => {
         if (typeof value === 'number' && value < 0) {
-          const applied = isManaged ? value * MANAGED_SYMPTOM_FACTOR : value;
+          // Under management a chronic condition stops eroding FITNESS (the
+          // other symptoms are halved). Program 8: arthritis / diabetes / high
+          // blood pressure / asthma each drain 3-5 fitness a week for life,
+          // more than any gym session builds, so one of them pinned fitness at
+          // 0 forever - doubling the disease multiplier for good and feeding
+          // the next chronic condition. Managed care is the lever that breaks
+          // that loop; unmanaged, the drain still runs in full.
+          const applied = isManaged
+            ? (stat === 'fitness' ? 0 : value * MANAGED_SYMPTOM_FACTOR)
+            : value;
           const statKey = stat as keyof GameStats;
           if (statKey in diseaseEffects) {
             (diseaseEffects[statKey] as number) = ((diseaseEffects[statKey] as number) || 0) + applied;

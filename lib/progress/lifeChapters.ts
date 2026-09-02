@@ -261,11 +261,23 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         checkProgress: (s) => Math.min(1, wealthMark(s) / 2000),
       },
       {
-        id: 'ch2_buy_phone',
-        title: 'Buy a Smartphone',
-        description: 'Purchase a smartphone from the market',
-        checkComplete: (s) => !!s.hasPhone,
-        checkProgress: (s) => s.hasPhone ? 1 : 0,
+        /**
+         * Was "Buy a Smartphone" (`hasPhone`). Eight of the fifteen scenarios
+         * seed a phone, so for them this goal was complete on frame one and
+         * its $200 share of the chapter bundle was paid for nothing - half of
+         * a $2,800 grant that landed on the single promotion tap (Program 8
+         * reward ledger). A bed is never seeded, costs $1,500 against a
+         * $110/week wage plus the Chapter 1 reward - reachable around week
+         * 8-12, inside this chapter's window - and it is the Market purchase
+         * that actually changes a week (+10 energy, +5 happiness). The id is
+         * new so a save that had the phone goal ticked is not read as owning
+         * a bed.
+         */
+        id: 'ch2_buy_bed',
+        title: 'Buy a Bed',
+        description: 'Buy a bed from the Market - a real night\'s sleep every week',
+        checkComplete: (s) => (s.items ?? []).some((i) => i?.id === 'basic_bed' && i.owned),
+        checkProgress: (s) => ((s.items ?? []).some((i) => i?.id === 'basic_bed' && i.owned) ? 1 : 0),
       },
       {
         id: 'ch2_make_friend',

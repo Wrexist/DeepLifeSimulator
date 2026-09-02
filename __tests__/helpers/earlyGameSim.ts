@@ -48,6 +48,7 @@ export interface SimActions {
   performStreetJob: (jobId: string) => Promise<SimActionResult | undefined>;
   performHealthActivity: (activityId: string) => Promise<SimActionResult | undefined>;
   buyFood: (foodId: string) => Promise<SimActionResult | undefined>;
+  buyItem: (itemId: string) => Promise<SimActionResult | undefined>;
   rentHome: (tierId: string) => Promise<SimActionResult | undefined>;
 }
 
@@ -80,6 +81,8 @@ export interface SimRow {
   level: number;
   diseases: string[];
   overdue: number;
+  /** `completedChapters` after the tick. */
+  chapters: string[];
   notes: string[];
 }
 
@@ -217,7 +220,10 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
 
   const mounted = mountGame();
   try {
-    let seeded = seedScenario(scenarioId);
+    // `buildNewGameState` mints a lineage id from the wall clock (a real new
+    // game must), which would make every run a different life and the gates
+    // time-dependent. Pin it from the seed; `mutateSeed` can still override.
+    let seeded: GameState = { ...seedScenario(scenarioId), lineageId: `life_seed_${seed}` };
     if (spec.mutateSeed) seeded = spec.mutateSeed(seeded);
     await act(async () => {
       captured!.setGameState(() => seeded);
@@ -253,6 +259,7 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
       performHealthActivity: (id) =>
         wrap(() => captured!.item.performHealthActivity(id) as SimActionResult | undefined, 60),
       buyFood: (id) => wrap(() => captured!.item.buyFood(id) as SimActionResult | undefined),
+      buyItem: (id) => wrap(() => captured!.item.buyItem(id) as SimActionResult | undefined),
       rentHome: (tierId) => wrap(() => rentHomeAction(captured!.setGameState, captured!.state, tierId)),
     };
 
@@ -297,6 +304,7 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         level,
         diseases: (s.diseases ?? []).map((d: any) => d?.name ?? d?.id ?? '?'),
         overdue: Math.round(s.overdueBalance ?? 0),
+        chapters: [...(s.completedChapters ?? [])],
         notes,
       };
       rows.push(row);

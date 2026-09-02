@@ -10,7 +10,7 @@ import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalSc
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 - use the safe fallback.
 const LinearGradient = Gradient;
 
-export type HealthStat = 'health' | 'happiness' | 'energy';
+export type HealthStat = 'health' | 'happiness' | 'energy' | 'fitness';
 
 export interface HealthDelta {
   stat: HealthStat;
@@ -65,6 +65,7 @@ const STAT_META: Record<HealthStat, { Icon: typeof Heart; color: string; label: 
   health: { Icon: STAT_IDENTITY.health.Icon, color: STAT_IDENTITY.health.color, label: 'Health' },
   happiness: { Icon: STAT_IDENTITY.happiness.Icon, color: STAT_IDENTITY.happiness.color, label: 'Happiness' },
   energy: { Icon: STAT_IDENTITY.energy.Icon, color: STAT_IDENTITY.energy.color, label: 'Energy' },
+  fitness: { Icon: STAT_IDENTITY.fitness.Icon, color: STAT_IDENTITY.fitness.color, label: 'Fitness' },
 };
 
 export default function HealthCard({

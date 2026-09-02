@@ -1073,11 +1073,17 @@ export const initialGameState: GameState = {
     { id: 'protein_bar', name: 'Protein Bar', price: 10, healthRestore: 5, energyRestore: 12 },
   ],
   healthActivities: [
-    { id: 'walk', name: 'Walk in Park', description: 'Peaceful walk to clear your mind', price: 0, happinessGain: 6, healthGain: 3, energyCost: 5 },
+    // Fitness (Program 8): the walk and yoga are the only free way to move the
+    // fitness ring. Every scenario seeds fitness 10 and it decays to 0 within a
+    // month; below 30 the disease multiplier climbs to x2, and the only other
+    // route is the $300 gym plus $50 a session. The ActivityContext list that
+    // resets the gym timer has been called FITNESS_INCREASING_ACTIVITIES the
+    // whole time - now it is true.
+    { id: 'walk', name: 'Walk in Park', description: 'Peaceful walk to clear your mind', price: 0, happinessGain: 6, healthGain: 3, energyCost: 5, fitnessGain: 1 },
     // STABILITY FIX: Make meditation free to provide low-cost happiness recovery option
     // This prevents death spiral for players with low money who can't afford health activities
     { id: 'meditation', name: 'Meditation Session', description: 'Find inner peace and reduce stress', price: 0, happinessGain: 10, healthGain: 2, energyCost: 3 },
-    { id: 'yoga', name: 'Yoga Class', description: 'Improve flexibility and mental clarity', price: 100, happinessGain: 10, healthGain: 6, energyCost: 6 },
+    { id: 'yoga', name: 'Yoga Class', description: 'Improve flexibility and mental clarity', price: 100, happinessGain: 10, healthGain: 6, energyCost: 6, fitnessGain: 2 },
     { id: 'massage', name: 'Spa Massage', description: 'Relax and rejuvenate your body', price: 300, happinessGain: 15, healthGain: 8, energyCost: 4 },
     {
       id: 'doctor',
