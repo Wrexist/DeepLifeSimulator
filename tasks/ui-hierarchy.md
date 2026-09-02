@@ -175,12 +175,20 @@ bar height).
 ### 18. Routes: `check:routes` OK — 17 routes, one door per room. No
 navigation structure changed.
 
+### 19. Tests: `npm test` — 722 suites passed, 9,182 tests passed, 2 skipped
+(pre-existing), 0 failed. `type-check` and `type-check:tests` clean.
+`npm run preflight` (routes, the 11-section check script, `lint:errors`,
+`lint:ratchet`, `ui:ratchet`, content, live-ops) — passed.
+
+### 20. Ratchets (lowered in the commits that earned them; none raised):
+gradients 155 → 153 · raw font sizes 368 → 243 · heavy weights 755 → 693 ·
+lint warnings 748 → 728 · lint errors 0 · test-tree type errors 0.
+
 ### 21. Remaining issues (honest)
 
 - The Health screen paints health GREEN while the HUD paints it RED
   (`statIdentity`); pre-existing, outside this program's files, and the one
   colour-meaning contradiction a player still meets.
-- The date box clips "January" at 360pt (fixed height vs scaled line box).
 - The launcher's equal tiles are half empty at three unlocked apps.
 - Work's board still carries three layers of chrome before the first card
   (title, segments, fold header + note).
