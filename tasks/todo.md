@@ -1,8 +1,8 @@
-# Master Program 8 — LIFE VARIATION + DISEASE FAIRNESS + PROGRESSION INTEGRITY — IN PROGRESS
+# Master Program 8 — LIFE VARIATION + DISEASE FAIRNESS + PROGRESSION INTEGRITY — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 7 (`3bfee78`).
 Programs 1–7 untouched. Every row: PROBLEM · ROOT CAUSE · PLAYER IMPACT · PLAN ·
-RISK · TEST · STATUS. Full report when done: `tasks/life-variation-2026-09-02.md`.
+RISK · TEST · STATUS. Full report: `tasks/life-variation-2026-09-02.md`.
 
 ## Phase 1–2 — system map and randomness audit (done, read-only)
 
@@ -32,7 +32,7 @@ old-age roll) are not seeded at all, so a life is not reproducible either.
 - PLAN: harness option to run the game's own RNG (no `Math.random` stub) and set
   `lineageId`; 20 same-seed runs must be byte-identical; 50 seeds must diverge
   in disease timing/type; repeated Quick Starts must mint distinct ids.
-- TEST: `__tests__/simulation/lifeReproducibility.test.ts`. STATUS: pending.
+- TEST: `__tests__/simulation/lifeReproducibility.test.ts`. STATUS: **done** — one life ×20 identical; 50 lives distinct at 20 and 40.
 
 ## Phase 4–5 — disease curves, age fairness, the treadmill
 - PROBLEM: 35%/week occurrence cap binds for 30+ at low fitness. ROOT CAUSE (to
@@ -49,11 +49,15 @@ old-age roll) are not seeded at all, so a life is not reproducible either.
   `> 0` is always true and a player who trained THIS week is charged ×1.5.
 - PLAN: `> 1` (trained this week = base); brackets otherwise unchanged. RISK:
   none found (gym-goers lose ~1.1 fitness/wk instead of 1.6). TEST: unit +
-  real-tick. STATUS: pending.
+  real-tick. STATUS: **done**; plus walk +1 / yoga +2 fitness (the list was
+  named FITNESS_INCREASING and increased nothing) and managed chronic
+  conditions stop draining fitness (arthritis −5/wk for life pinned it at 0).
 
 ## Phase 7 — recovery loop
 - Measure interval between illnesses vs recovery length, overlapping illness,
-  time spent ill, across ages; verify recovery lowers future risk. STATUS: pending.
+  time spent ill, across ages; verify recovery lowers future risk. STATUS: **done**
+  — four clear weeks after every recovery (gate, 78 weeks at 55); age 40 over
+  100 weeks with monthly managed care alive above 50 health.
 
 ## Phase 8–9 — Chapter 2 ledger and reward integrity
 - FINDING (verified in code): `applyChapterProgress` pays `completion + perGoal ×
@@ -62,7 +66,11 @@ old-age roll) are not seeded at all, so a life is not reproducible either.
   complete at frame one for phone-seeded scenarios ("Buy a Smartphone") and all
   scenarios ("Make a Friend", seeded parents, load-bearing).
 - PLAN: reproduce with a ledger on the real tick; assert paid once, never
-  re-paid on reload or a second tick; decide the phone goal on evidence. STATUS: pending.
+  re-paid on reload or a second tick; decide the phone goal on evidence. STATUS: **done**
+  — the $2,800 is the chapter bundle landing when the LAST goal completes,
+  and the promotion was last only because two goals were pre-ticked. "Buy a
+  Smartphone" → "Buy a Bed" (never seeded); "Make a Friend" kept (documented);
+  bundle paid once, never on reload; promotion pays nothing (gates).
 
 ## Phase 10 — ambition picker timing
 - FINDING: `AmbitionPickerCard` renders on frame one for any life without an
@@ -75,9 +83,13 @@ old-age roll) are not seeded at all, so a life is not reproducible either.
 3. `buildPreRolls` and the old-age roll derive from the salted weekly stream
    (pure → StrictMode-safe AND reproducible; `timestamp` stays `Date.now()`).
 4. Fitness bracket.
-5. Whatever Phases 4–5 and 8–10 prove.
+5. Disease occurrence model; cooldown from recovery; walk/yoga fitness;
+   managed-care fitness; Chapter 2 bed goal; ambition picker timing. All done.
 
-## Phase 12–14 — long-run sims (20/50/100 weeks), red team, full gates. STATUS: pending.
+## Phase 12–14 — long-run sims (20/50/100 weeks), red team, full gates. STATUS: **done**
+(report §19–25). Verification: type-check 0 · type-check:tests 0 · lint:errors 0 ·
+lint:ratchet 722/722 · ui:ratchet OK · check:routes 17 · `npm test` 9,297 passed / 0
+failed · preflight exit 0.
 
 # Master Program 7 — NEW LIFE BALANCE — COMPLETE
 

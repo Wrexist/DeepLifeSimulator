@@ -4789,3 +4789,36 @@ same week rolled the same disease. Seeded RNG keyed on the week is the
 project's convention and is fine for reproducibility, but a fairness audit
 has to know that "runs more seeds" changes nothing for such a roll — vary the
 STATE, not `Math.random`, and check whether life identity is in the seed.
+
+---
+
+## 2026-09-02 — Program 8: a seeded architecture with an unminted seed is a script
+
+The codebase had already moved its weekly rolls onto a per-life salt
+(`lineageId:generationNumber`) in five systems, with tests proving two lives
+diverge. All of them were fed the same salt, because `initialState.lineageId`
+was the literal `'initial-lineage'` and the comment promising a UUID "on first
+load" was never implemented. Every new game was the same life. Rule: when a
+seed is supposed to be minted, find the line that mints it - a comment is not
+a minting. And a determinism test that sets `lineageId = 'lineage-A'` by hand
+proves the salt WORKS, not that anyone ever sets it.
+
+Second: **measure at the cap before tuning the factors.** Removing the fitness
+double count (Program 7) and then the whole overall-multiplier product changed
+nothing for a fitness-0 adult, because the SUM of template chances alone
+already exceeded the 35% cap. The lever was the model, not a coefficient: the
+Help copy said "base 1-2% times risk factors", the code summed 29 per-disease
+chances (16% before any factor). Match the code to what the game tells the
+player, then tune one number.
+
+Third: **a simulator's seed must not depend on the wall clock.** Minting the
+lineage id with `Date.now()` was right for the game and made every gate that
+runs the real seed time-dependent; the Program 7 gates went red the moment
+the game did the right thing. Pin the harness's life from its seed; let
+`mutateSeed` override.
+
+Fourth: **a test that pins "week 112 rolls 0.71" pins the salt.** The layoff
+fixtures were hand-picked weeks under the week-only roll; folding the life
+into the roll moved all of them. Pick fixtures by OUTCOME across the bands
+the mechanic exposes (worst performer survives / best is fired) so the test
+stays black-box and survives a change of salt.

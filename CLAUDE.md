@@ -162,6 +162,17 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   `RUN_EARLY_GAME_SIM=1 npx jest earlyGamePersonas --silent=false`) and gated by
   `__tests__/simulation/earlyGameSurvivability.test.ts`; the evidence is in
   `tasks/early-game-balance-2026-09-02.md`.
+- **Every draw on the tick path is a function of the LIFE and the week.**
+  `lifeSalt(state)` / `makeLifeRoll(state, weeksLived)` in `utils/seededRoll.ts`
+  fold `lineageId:generationNumber` into the weekly stream; `buildPreRolls`,
+  the old-age draw, the disease generator and every event payload use it.
+  `lineageId` is minted per new life in `gameStateBuilder` and per prestige
+  reset (Program 8) - it was the literal `'initial-lineage'` for every life
+  before, which made every new game the same life. Never add a `Math.random()`
+  to the tick or to an event `generate()`; never key a life-affecting roll on
+  the week alone. Disease occurrence is `DISEASE_BASE_WEEKLY_CHANCE ×
+  calculateDiseaseRisk` (`lib/diseases/diseaseGenerator.ts`); the template
+  curves only pick WHICH illness. Evidence: `tasks/life-variation-2026-09-02.md`.
 
 ### 4.4 Money and other grants must be atomic
 
