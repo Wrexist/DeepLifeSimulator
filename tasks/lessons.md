@@ -4649,3 +4649,35 @@ Second, smaller lesson from the same session: a regex conversion that turns
 compiles (it is a valid string prop) and renders the source code as the
 heading. The type checker cannot see it. After any mechanical JSX rewrite,
 grep for `="{` before trusting tsc.
+
+---
+
+## 2026-09-02 — Program 4: a region-marker patch can delete the block it meant to keep
+
+Rewriting Home's feed with a scripted patch, I cut the region between two
+markers and re-inserted a sub-block I had extracted by searching for its
+END marker — `</SectionGroup>\n\n` — from the start of the region. The
+first match was a DIFFERENT band's closing tag, earlier than the block's own
+start, so the slice was empty and seven goal-detail cards, their toggle,
+the ambition picker and the Elder card silently vanished. Nothing failed:
+tsc was clean (the imports just became unused), the render tests passed
+(the screen still mounted), and the Playwright shot looked plausible. The
+tell was the lint ratchet: eleven new `no-unused-vars` warnings, every one
+an import from the deleted block.
+
+Rules: search for an end marker FROM the start marker (`s.index(end, start)`),
+assert the extracted block contains a name you expect, and treat a sudden
+cluster of unused-import warnings as a deletion, not as tidy-up work.
+
+Second, from the same session: **"dead code" can be broken code.** Program 3
+logged Spark's LIKE / NOPE stamps as dead. They were gated on
+`likeOpacity > 0` where `likeOpacity` is an `Animated` interpolation — an
+object compared to a number is `NaN > 0`, always false — so a feature that
+was wired, styled and driven never drew a pixel. Before deleting "dead" UI,
+ask whether its gate can ever be true; a `> 0` against a non-number is the
+tell, and the `as any as number` cast at the call site was the cover-up.
+
+Third: **Metro's transform cache does not key on `EXPO_PUBLIC_*` values.**
+A web export run without the save-signing key, then re-run with it, still
+shipped the keyless module. `expo export --clear` is the fix; a worktree at
+HEAD is the way to get a clean baseline without `git stash` (see 2026-09-01).

@@ -1065,10 +1065,13 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
      plus the arrow, sized to the date box above it, at the same corner it
      has always lived in. Flat fill (the gradient said nothing). */}
  <View style={[styles.nextWeekButton, { width: dateBoxWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
- {/* The arrow yields before the word does: on a 360pt phone the box is
-     too narrow for both, and react-native-web ignores adjustsFontSizeToFit,
-     so without this the primary action read "Next we..." there. */}
- {dateBoxWidth < scale(112) ? null : isAdvancingWeek ? (
+ {/* The arrow yields before the word does. The box is capped by the right
+     column while the label scales with the device, so on a 360pt phone AND
+     on a Pro Max the two do not fit together (and react-native-web ignores
+     adjustsFontSizeToFit), which left the primary action reading
+     "Next we...". Raw points on purpose: the threshold is about the box's
+     real width, not its scaled design width. */}
+ {dateBoxWidth < 100 ? null : isAdvancingWeek ? (
  <Animated.View
  style={{
  transform: [

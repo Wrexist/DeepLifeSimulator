@@ -70,10 +70,10 @@ is out of scope and is called out per screen below as "behaviour: none".
 - [x] Lower `rawFontSizes` ceiling in the commit that earns it
 
 ## Phase 8 — responsive + accessibility
-- [ ] 360pt / 390pt / 430pt captures; Dynamic Type via `maxFontSizeMultiplier` on every new Tier-1 text; labels on every new pressable; reduced motion untouched
+- [x] 360pt / 390pt / 430pt captures (360 found the truncated primary action and a clipped month - the first fixed, the second logged); Dynamic Type via `maxFontSizeMultiplier` on every new Tier-1 text; labels on every new pressable; reduced motion untouched
 
-## Phase 9 — walkthrough (web export + Playwright, fresh save; state variants via render tests)
-## Phase 10 — red team + scores + final report (`tasks/ui-hierarchy.md` §Report)
+## Phase 9 — walkthrough (web export + Playwright, fresh save; state variants via render tests) — done, three rounds; `__tests__/render/stateDrivenHierarchy.render.test.tsx`
+## Phase 10 — red team + scores + final report (`tasks/ui-hierarchy.md` §Report) — done; red-team fixes in `407e99b`
 
 ## Verification per phase
 `npm run type-check` · `type-check:tests` · `lint:errors` · `lint:ratchet` · `ui:ratchet` · `check:routes` · targeted Jest; full `npm test` + `npm run preflight` before the final report. No ceiling raised, no test skipped.
