@@ -26,6 +26,7 @@
  */
 import type { TextStyle } from 'react-native';
 import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+import { accent } from '@/lib/config/theme';
 
 /** Tier 1 - the one dominant element: a headline that names the situation. */
 export const tier1Title: TextStyle = {
@@ -92,6 +93,39 @@ export const rhythm = {
   major: responsiveSpacing.lg,
 } as const;
 
-/** Below this a vital is CRITICAL and may take the danger colour. The same
- *  threshold `HealthIssuesCard` and the HUD glow already use. */
+/**
+ * THE vital-state model (Program 5). Nine different answers to "when is a
+ * vital low" lived in the app - 25 in the tips, 30 in the issues card, 40 in
+ * a dead HUD grader, 50 on the pet rail - so the same number could be silent
+ * on Home, amber on Health and red in the HUD at once. One ladder now:
+ *
+ *   critical  <= 20   danger   the HUD glows, the number goes red, a tip fires
+ *   low       <= 40   warning  listed as an issue, amber
+ *   fair      <  80   neutral
+ *   good      >= 80   success
+ *
+ * The rule the HUD already followed: a stat's IDENTITY colour (STAT_IDENTITY)
+ * paints its icon, ring and label; the graded STATE paints only the number
+ * and any badge. Identity says which stat; state says how it is doing.
+ */
 export const CRITICAL_VITAL = 20;
+export const LOW_VITAL = 40;
+export const GOOD_VITAL = 80;
+
+export type VitalLevel = 'critical' | 'low' | 'fair' | 'good';
+
+export interface VitalState {
+  level: VitalLevel;
+  /** Danger / warning / success from `accent`; undefined for fair (use the text colour). */
+  color: string | undefined;
+  /** The one word every surface uses for the band. */
+  word: 'Critical' | 'Low' | 'Fair' | 'Good';
+}
+
+export function vitalState(value: number | undefined | null): VitalState {
+  const v = typeof value === 'number' && Number.isFinite(value) ? value : 100;
+  if (v <= CRITICAL_VITAL) return { level: 'critical', color: accent.danger, word: 'Critical' };
+  if (v <= LOW_VITAL) return { level: 'low', color: accent.warning, word: 'Low' };
+  if (v < GOOD_VITAL) return { level: 'fair', color: undefined, word: 'Fair' };
+  return { level: 'good', color: accent.success, word: 'Good' };
+}

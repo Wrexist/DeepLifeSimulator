@@ -113,13 +113,6 @@ function TopStatsBarComponent() {
 
  const { width } = useWindowDimensions();
 
- const getStatColor = (_stat: string, value: number) => {
- if (value >= 80) return'#059669'; // Beautiful emerald green
- if (value >= 60) return '#D97706'; // Warm amber
- if (value >= 40) return '#EA580C'; // Vibrant orange
- return '#DC2626'; // Deep red for critical
- };
-
  const shouldGlow = (value: number) => value >= 90 || value <= 20;
 
  const handleQuickAction = useCallback((action: string) => {
@@ -242,15 +235,6 @@ function TopStatsBarComponent() {
  }
  }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
 
- // Optimized stat colors with better memoization
- const statColors = useMemo(
- () => ({
- health: getStatColor('health', stats?.health ?? 0),
- happiness: getStatColor('happiness', stats?.happiness ?? 0),
- energy: getStatColor('energy', stats?.energy ?? 0),
- }),
- [stats?.health, stats?.happiness, stats?.energy]
- );
 
 
  // Optimized animation effect with better performance
@@ -382,10 +366,6 @@ function TopStatsBarComponent() {
  key:'health',
  icon: STAT_IDENTITY.health.Icon,
  value: stats.health,
- // The RING colour still grades by value (green at 80+, red when critical);
- // the BAR carries the stat's identity colour, which is what the rest of the
- // app now matches (lib/config/statIdentity.ts).
- color: statColors.health,
  gradient: [STAT_IDENTITY.health.color, '#F87171'] as [string, string],
  max: 100,
  quickActions: [
@@ -397,7 +377,6 @@ function TopStatsBarComponent() {
  key: 'happiness',
  icon: STAT_IDENTITY.happiness.Icon,
  value: stats.happiness,
- color: STAT_IDENTITY.happiness.color,
  gradient: [STAT_IDENTITY.happiness.color, '#FBBF24'] as [string, string],
  max: 100,
  quickActions: [
@@ -409,7 +388,6 @@ function TopStatsBarComponent() {
  key: 'energy',
  icon: STAT_IDENTITY.energy.Icon,
  value: stats.energy,
- color: STAT_IDENTITY.energy.color,
  gradient: [STAT_IDENTITY.energy.color, '#60A5FA'] as [string, string],
  max: 100,
  quickActions: [
@@ -422,7 +400,7 @@ function TopStatsBarComponent() {
  // P2: depend on the primitive stat VALUES (and the already-memoized derived
  // objects) rather than the whole `stats` object, whose identity changes every
  // tick - this list rebuild only matters when a displayed value changes.
- [stats?.health, stats?.happiness, stats?.energy, statColors, handleQuickAction]
+ [stats?.health, stats?.happiness, stats?.energy, handleQuickAction]
  );
 
  // Standardized breakpoint for small devices (covers iPhone SE and Android small devices)

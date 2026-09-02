@@ -15,13 +15,13 @@
 import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Dumbbell } from 'lucide-react-native';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { useGame } from '@/contexts/GameContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import { clampStat, clampStatByKey } from '@/utils/statUtils';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale } from '@/utils/scaling';
-import { accent } from '@/lib/config/theme';
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
 const GLASS_BORDER = 'rgba(255, 255, 255, 0.08)';
@@ -128,7 +128,7 @@ export default function GymCard() {
     <View style={styles.gymCard}>
       <View style={styles.gymCardHeader}>
         <View style={styles.gymIconContainer}>
-          <Dumbbell size={scale(22)} color={accent.info} />
+          <Dumbbell size={scale(22)} color={STAT_IDENTITY.fitness.color} />
         </View>
         <View style={styles.gymTitleContainer}>
           <Text style={styles.gymCardTitle}>{t('market.gymSession')}</Text>
@@ -275,7 +275,8 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: accent.info,
+    // The gym trains FITNESS; the button wore energy's blue.
+    backgroundColor: STAT_IDENTITY.fitness.color,
   },
   gymButtonDisabled: {
     backgroundColor: 'rgba(148, 163, 184, 0.15)',

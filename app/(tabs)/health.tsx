@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { HealthActivity } from '@/contexts/game/types';
-import { Activity, Utensils, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
+import { Activity, Utensils } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import EmptyState from '@/components/ui/EmptyState';
@@ -19,7 +19,8 @@ import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import GymCard from '@/components/health/GymCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
-import { CRITICAL_VITAL, rhythm } from '@/lib/config/hierarchy';
+import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 
 type Vital = { key: string; label: string; value: number; color: string };
 
@@ -32,7 +33,11 @@ function VitalsSummary({ vitals }: { vitals: Vital[] }) {
   return (
     <View style={styles.vitalsSummary}>
       {vitals.map((v) => (
-        <Text key={v.key} style={[styles.vitalsSummaryValue, { color: v.color }]}>
+        <Text
+          key={v.key}
+          style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? '#E2E8F0' }]}
+          accessibilityLabel={`${v.label} ${Math.round(v.value)}, ${vitalState(v.value).word}`}
+        >
           {Math.round(v.value)}
         </Text>
       ))}
@@ -167,11 +172,15 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
   // At-a-glance vitals - the health screen never showed the player's own stats.
   const stats = gameState.stats ?? { health: 0, energy: 0, happiness: 0, fitness: 0 };
+  // Identity from the one source the HUD teaches (red heart, blue bolt,
+  // amber face, purple dumbbell). These were four local literals that
+  // painted health GREEN on the screen that treats it - the contradiction
+  // Program 4 logged and Program 5 closes.
   const vitals = [
-    { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: '#34D399', Icon: Heart },
-    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: '#60A5FA', Icon: Zap },
-    { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: '#FBBF24', Icon: Smile },
-    { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: '#A78BFA', Icon: Dumbbell },
+    { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: STAT_IDENTITY.health.color, Icon: STAT_IDENTITY.health.Icon },
+    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
+    { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: STAT_IDENTITY.happiness.color, Icon: STAT_IDENTITY.happiness.Icon },
+    { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: STAT_IDENTITY.fitness.color, Icon: STAT_IDENTITY.fitness.Icon },
   ];
 
   // TREATMENT LEADS WHEN THE PLAYER IS SICK. With a disease active, or health
@@ -189,7 +198,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   );
   const visibleActivityCount = listedActivities.length;
 
-  const renderActivityCard = (activity: HealthActivity) => {
+  const renderActivityCard = (activity: HealthActivity, emphasis: 'primary' | 'secondary' = 'secondary') => {
     const deltas = buildActivityDeltas(activity);
     const activityPrice = priceOf(activity);
     const locked = !canPerformActivity(activity);
@@ -223,6 +232,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         locked={locked}
         lockReason={lockReason}
         feedback={healthFeedback[activity.id]}
+        emphasis={emphasis}
       />
     );
   };
@@ -250,7 +260,8 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         {treatmentLeads && (
           <View style={styles.leadBlock}>
             <HealthIssuesCard lead />
-            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map(renderActivityCard)}
+            {/* The one saturated button on the screen: the first cure. */}
+            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map((a, i) => renderActivityCard(a, i === 0 ? 'primary' : 'secondary'))}
           </View>
         )}
 
@@ -285,7 +296,12 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
                   >
                     <v.Icon size={scale(16)} color={v.color} />
                   </ProgressRing>
-                  <Text style={styles.vitalRingValue} numberOfLines={1}>
+                  {/* The number carries the STATE (red when critical, amber when
+                      low); the ring keeps the stat's identity - the HUD's rule. */}
+                  <Text
+                    style={[styles.vitalRingValue, vitalState(v.value).color ? { color: vitalState(v.value).color } : null]}
+                    numberOfLines={1}
+                  >
                     {Math.round(v.value)}
                   </Text>
                   <Text style={styles.vitalRingLabel} numberOfLines={1}>
@@ -329,7 +345,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             </View>
           )}
 
-          {listedActivities.map(renderActivityCard)}
+          {listedActivities.map((a) => renderActivityCard(a))}
           </CollapsibleSection>
         </View>
 
@@ -458,21 +474,6 @@ const styles = StyleSheet.create({
   section: {
     gap: verticalScale(10),
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(10),
-    marginBottom: verticalScale(4),
-  },
-  sectionIcon: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(9),
-    borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   protectionCard: {
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.35)',
@@ -492,15 +493,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(148, 163, 184, 0.95)',
   },
-  sectionTitle: {
-    fontSize: fontScale(18),
-    fontWeight: '700',
-    color: '#F8FAFC',
-    letterSpacing: -0.3,
-  },
-  sectionTitleDark: {
-    color: '#F8FAFC',
-  },
   sectionDescription: {
     fontSize: fontScale(12),
     color: 'rgba(226, 232, 240, 0.6)',
@@ -517,7 +509,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: verticalScale(4),
     fontVariant: ['tabular-nums'],
-  },
-});
+  },});
 
 export default React.memo(HealthScreen);

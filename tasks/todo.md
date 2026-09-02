@@ -1,3 +1,67 @@
+# UI Overhaul Master Program 5 — CONSISTENCY CLOSURE — IN PROGRESS
+
+Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, on top of Program 4
+(12 commits, verified). Rules and the closing report: `tasks/ui-hierarchy.md`.
+Every item below is PURE LAYOUT / VISUAL STYLE / CONTENT PRIORITY / COPY
+unless its row says otherwise; nothing changes what a player can do, what it
+costs, or what is saved.
+
+## Phase 1 — remaining Program 4 issues, verified against the code
+- [x] Health green vs HUD red — REAL. `app/(tabs)/health.tsx:171-174` and `HealthCard.tsx:52-54` paint health `#34D399`; `SicknessModal` swaps energy/happiness; Statistics calls happiness "Mood" in gold and fitness green. Nine different "low" thresholds exist (25 / 30 / 40 dead / 50 / 15 / 20).
+- [x] 13 apps on strip-over-rows — PARTLY. Audit of 15 landings: 7 KEEP (DeepMail, Pulse, Pets, YouVideo, Political, Garage, Spark), 8 escape candidates ranked (Streaming, Real Estate, Bank, Contacts, Dark Web, Education, Hustle, Bank Pro).
+- [x] Work chrome — REAL: title → segments → instruction line → fold header → board note → first card.
+- [x] Three merges — untouched in `components/launcher/appCatalog.ts`; stay owner decisions.
+
+## Phase 2 — health and semantic state consistency
+| Area | Problem | Root cause | Change | Why | State | Behaviour | Risk | Verify |
+|---|---|---|---|---|---|---|---|---|
+| Vitals everywhere | same number is silent / amber / red on three surfaces | no shared state model; each surface invented thresholds | `vitalState()` in `lib/config/hierarchy.ts` (critical ≤20, low ≤40, fair, good ≥80) | one word, one colour per band | health/energy/happiness/fitness | tips now fire on the CRITICAL band (was 25/25/15) — a UI gate, not gameplay | low | new unit test + stateDrivenHierarchy |
+| Health screen, HealthCard, SicknessModal, Statistics, GymCard | identity colours contradict the HUD | local literals | consume `STAT_IDENTITY` | recognition | all vitals | none | low | statIdentity test |
+| HUD | dead value-grader with a comment claiming it renders | leftover | deleted | honesty | — | none | none | hudLegibility |
+| Pets | pet health graded 50/25 | local curve | `vitalState` | same ladder as the owner | pet health | none | low | render |
+- [x] implemented; tests pending
+
+## Phase 3 — chrome budget and Work
+- [ ] Work: drop the three generic instruction sentences; fold the board note ("4 openings · new in 8 wks") into the fold summary; the crime tab's duplicate cap line becomes its fold summary. Budget after: title → segments → fold header → card.
+- [ ] Chrome budget recorded per screen in `tasks/ui-hierarchy.md` (Home 0, Work 2, Life 2, Market 1, Health 1).
+
+## Phase 4–5 — template audit and escapes (pure layout; every handler unchanged)
+- [ ] Streaming: a live session replaces the box-art hero on the dashboard (current activity + history); "Go live" becomes the one saturated button, not a text link
+- [ ] Real Estate: a property needing repair or sitting vacant hoists above the equity hero as the lead with its action
+- [ ] Bank: a bill due / negative balance / loan payment this week takes a lead slot above the strip; its section opens
+- [ ] Contacts: the worst at-risk relationship's triage card leads the Personal tab when any is at risk
+- [ ] Dark Web: the threat monitor leads (and the console collapses to its balance line) when heat is critical
+- [ ] Pets: the critical banner sits under the stage; a sick pet is the selected pet
+- [ ] Garage: low fuel / damage swaps the "View details" bar for the costed Refuel / Repair button
+- [ ] KEEP with reasons written down: DeepMail, Pulse, YouVideo, Political, Spark, Education (tab already state-chosen), Hustle (hero already tier 1)
+
+## Phase 6 — buttons, copy, contradictions
+- [ ] `LoadingButton` `secondary` stops aliasing `danger` red: it becomes the flat tonal secondary. Market's Sell uses it.
+- [ ] `GradientButton` gains `emphasis="secondary"` (tonal, no gradient, no glow). One saturated button per viewport: Work's board (first applicable card only), Health's activity list (only the treatment lead), JobCard/HealthCard take the prop.
+- [ ] `Chip` `md` meets the 44pt target and reads as an action (weight 600) — it is the quiet action everywhere already
+- [ ] Red means danger only: HealthCard 'vitality' accent leaves `#EF4444`; "Free" is never red. Crime stays red on purpose (illegal = risk; a real semantic).
+- [ ] Copy: Buy (not Purchase/Acquire) on shop CTAs and confirms; "Done" for sheet dismissals; one cloud-restore label
+- [ ] Locked: one treatment — grey lock + reason line; the JobCard double signal ("- Locked" + lock icon) drops the text; lock icons in red/amber go grey; one disabled opacity
+
+## Phase 7 — edge-state hierarchy tests
+- [ ] collisions (sick + starving + broke + promotion): exactly one lead on Home, Health, Market, Work
+- [ ] quiet state: goals lead, no tip, no invented urgency; very high vitals show nothing red
+- [ ] extremes: health 0 with countdown, energy 100, money negative
+
+## Phase 8 — responsive + accessibility: 360 / 390 / 430 captures of every changed surface; labels on every new pressable; `maxFontSizeMultiplier` on new tier-1 text
+
+## Phase 9 — dead code and typography
+- [ ] delete `CareerPathCard.tsx` (602 L, zero importers), `ui/InfoButton.tsx`, `onboarding/GlassActionButton.tsx`, `AnimatedMoneyNative`
+- [ ] delete the 148 dead style keys (SettingsModalStyles 111, IdentityCardStyles 11, TopStatsBarStyles 8, …)
+- [ ] raw font sizes: modal/screen titles at 20–24 → `tier1Title`; hero numbers → `tier1Value`; card titles 16–18 → `tier2`; JailScreen / SmartNotificationCenter bodies → `fontScale()` with scaled line boxes; keep the splash, crash screens, tab-bar label (documented reasons)
+- [ ] lower `rawFontSizes` and `heavyWeights` ceilings to what is earned
+
+## Phase 10 — red team, walkthrough, scores, report (`tasks/ui-hierarchy.md` §Program 5)
+
+Gates after every phase: type-check · type-check:tests · lint:errors · lint:ratchet · ui:ratchet · check:routes · targeted Jest; full suite + preflight at the end. No ceiling raised, no test skipped.
+
+---
+
 # UI Overhaul Master Program 4 — ASYMMETRY + EDITORIAL HIERARCHY — IN PROGRESS
 
 Branch: `claude/ui-hierarchy-asymmetry-pass-fwqtue`. Programs 1 and 3 are on

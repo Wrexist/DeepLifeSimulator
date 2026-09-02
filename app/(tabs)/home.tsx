@@ -178,7 +178,7 @@ function HomeScreenContent() {
   // THE LEAD SLOT. Home's dominant element is chosen from player state, most
   // consequential first: a prestige the player can take now beats a crisis
   // tip (it is the one irreversible decision on the screen), a crisis beats
-  // the goal ladder (health under 25 is not a goal, it is a countdown), and
+  // the goal ladder (a vital in the CRITICAL band is not a goal, it is a countdown), and
   // otherwise the closest objective leads. Everything else on the feed is
   // tier 2 or lower and sits under `rhythm.major` of whitespace.
   const lead: 'prestige' | 'tip' | 'goals' = isPrestigeAvailable(gameState)

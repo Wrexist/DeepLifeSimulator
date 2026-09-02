@@ -63,7 +63,6 @@ const palette = {
   // because DeathPopup and pulseTheme consume them (and they agree with
   // STAT_IDENTITY).
   fitness: '#8B5CF6',
-  money: '#10B981',
   gems: '#6366F1',
   reputation: '#EC4899',
 

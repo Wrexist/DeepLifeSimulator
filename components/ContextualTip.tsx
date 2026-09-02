@@ -12,6 +12,8 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DollarSign, Heart, Sparkles, Trophy, X, Zap } from 'lucide-react-native';
 import { fontScale, responsiveSpacing } from '@/utils/scaling';
+import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export type ContextualTipType =
@@ -50,7 +52,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
             case 'low_money':
                 return {
                     icon: DollarSign,
-                    color: '#10B981',
+                    color: STAT_IDENTITY.money.color,
                     message: 'Running low on cash? Do some street jobs for quick money.',
                 };
             case 'promotion_ready':
@@ -129,13 +131,16 @@ export function useContextualTip(gameState: any) {
         };
 
         // Check conditions in priority order
-        if (health < 25 && !suppressed('low_health')) {
+        // A vital tip fires on the shared CRITICAL band (lib/config/hierarchy),
+        // the same line at which the HUD's number turns red and Home's lead
+        // slot calls it a crisis - the three used to disagree (25 / 15 / 20).
+        if (health <= CRITICAL_VITAL && !suppressed('low_health')) {
             return 'low_health';
         }
-        if (happiness < 25 && !suppressed('low_happiness')) {
+        if (happiness <= CRITICAL_VITAL && !suppressed('low_happiness')) {
             return 'low_happiness';
         }
-        if (energy < 15 && !suppressed('low_energy')) {
+        if (energy <= CRITICAL_VITAL && !suppressed('low_energy')) {
             return 'low_energy';
         }
         if (money < 50 && !suppressed('low_money')) {

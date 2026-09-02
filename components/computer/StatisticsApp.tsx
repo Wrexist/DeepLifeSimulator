@@ -84,6 +84,7 @@ import { trendOf } from '@/lib/statistics/trends';
 import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import {
   responsiveFontSize as fs,
@@ -200,9 +201,12 @@ export default function StatisticsApp({ onBack }: Props) {
   // ---- Vitals (activity rings) -----------------------------------------
   const vitals = useMemo(
     () => [
-      { key: 'health', label: 'Health', value: safeNum(stats?.health), color: accent.danger, Icon: Heart as IconType },
-      { key: 'mood', label: 'Mood', value: safeNum(stats?.happiness), color: accent.gold, Icon: Smile as IconType },
-      { key: 'fitness', label: 'Fitness', value: safeNum(stats?.fitness), color: accent.success, Icon: Dumbbell as IconType },
+      // Identity colours from statIdentity, and the stat's own name: 'Mood'
+      // in gold here was 'Happiness' in amber everywhere else, and fitness
+      // wore money's green.
+      { key: 'health', label: 'Health', value: safeNum(stats?.health), color: STAT_IDENTITY.health.color, Icon: Heart as IconType },
+      { key: 'happiness', label: 'Happiness', value: safeNum(stats?.happiness), color: STAT_IDENTITY.happiness.color, Icon: Smile as IconType },
+      { key: 'fitness', label: 'Fitness', value: safeNum(stats?.fitness), color: STAT_IDENTITY.fitness.color, Icon: Dumbbell as IconType },
     ],
     [stats]
   );
@@ -676,8 +680,8 @@ export default function StatisticsApp({ onBack }: Props) {
 
   const renderVitalsDetail = () => {
     const secondary = [
-      { label: 'Energy', value: safeNum(stats?.energy), color: accent.info, Icon: Zap as IconType },
-      { label: 'Reputation', value: safeNum(stats?.reputation), color: accent.purple, Icon: Star as IconType },
+      { label: 'Energy', value: safeNum(stats?.energy), color: STAT_IDENTITY.energy.color, Icon: Zap as IconType },
+      { label: 'Reputation', value: safeNum(stats?.reputation), color: STAT_IDENTITY.reputation.color, Icon: Star as IconType },
     ];
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>

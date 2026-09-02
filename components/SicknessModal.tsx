@@ -11,6 +11,7 @@ import {
 import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { X, Heart, Zap, Smile, Dumbbell, AlertTriangle, Stethoscope, Pill, Activity, Clock, Info, Sparkles } from 'lucide-react-native';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { useGame, useItemActions } from '@/contexts/game';
 import type { Disease } from '@/contexts/game/types';
 import { styles } from '@/components/SicknessModalStyles';
@@ -189,10 +190,12 @@ function SicknessModal() {
 
   const getEffectIcon = (stat: string) => {
     switch (stat) {
-      case 'health': return <Heart size={16} color="#EF4444" />;
-      case 'energy': return <Zap size={16} color="#F59E0B" />;
-      case 'happiness': return <Smile size={16} color="#10B981" />;
-      case 'fitness': return <Dumbbell size={16} color="#8B5CF6" />;
+      // Identity colours from the one source: energy wore happiness's amber
+      // and happiness wore a green nothing else uses.
+      case 'health': return <Heart size={16} color={STAT_IDENTITY.health.color} />;
+      case 'energy': return <Zap size={16} color={STAT_IDENTITY.energy.color} />;
+      case 'happiness': return <Smile size={16} color={STAT_IDENTITY.happiness.color} />;
+      case 'fitness': return <Dumbbell size={16} color={STAT_IDENTITY.fitness.color} />;
       default: return <Activity size={16} color="#64748B" />;
     }
   };
