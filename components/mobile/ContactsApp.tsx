@@ -77,6 +77,7 @@ import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { childParentSources } from '@/lib/avatar/family';
 import { getMoodLabel } from '@/lib/social/npcDepth';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { kicker, rhythm } from '@/lib/config/hierarchy';
 import {
   getGlassCard,
   getGlassButton,
@@ -242,9 +243,18 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     ? Math.round(personalContacts.reduce((s, c) => s + c.strength, 0) / personalCount)
     : 0;
   const strongCount = personalContacts.filter((c) => c.strength >= 70).length;
-  const personalAttention = needAttention.filter(
-    (c) => c.kind === 'family' || c.kind === 'partner' || c.kind === 'friend'
-  ).length;
+  // The at-risk contacts the Personal tab can actually act on (a network
+  // contact's triage action is "View profile", which belongs on Attention).
+  // Sorted worst-first - weakest bond, then longest silence - because the tab
+  // promotes exactly ONE of them to its lead slot: the one closest to being lost.
+  const personalAtRisk = useMemo(
+    () =>
+      needAttention
+        .filter((c) => c.kind === 'family' || c.kind === 'partner' || c.kind === 'friend')
+        .sort((a, b) => a.strength - b.strength || (b.weeksSinceContact ?? 0) - (a.weeksSinceContact ?? 0)),
+    [needAttention]
+  );
+  const worstAtRisk = personalAtRisk[0];
 
   const networkCost = useMemo(
     () => networkContacts.reduce((s, c) => s + (c.costPerWeek ?? 0), 0),
@@ -1188,58 +1198,75 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
       }
       ListHeaderComponent={
         personalContacts.length === 0 ? null : (
-          statsHero('Relationship portfolio', (
-            <>
-              {topPersonal.length > 0 ? (
-                <View style={styles.clusterRow}>
-                  <View style={styles.avatarStack}>
-                    {topPersonal.map((c, i) => {
-                      const rr = c.raw as Relationship;
-                      return (
-                        <View
-                          key={c.id}
-                          style={[
-                            styles.clusterAvatar,
-                            { marginLeft: i === 0 ? 0 : -scale(12), borderColor: theme.surface, zIndex: 10 - i },
-                          ]}
-                        >
-                          <CharacterAvatar
-                            seed={c.id}
-                            sex={faceTraitsOf(c.raw).sex}
-                            age={faceTraitsOf(c.raw).age ?? 30}
-                            parents={rr?.type === 'child' ? parentSources : undefined}
-                            size={scale(34)}
-                          />
-                        </View>
-                      );
-                    })}
+          <View style={styles.leadWrap}>
+            {/* The lead slot. "At risk" used to be a number whose only
+                affordance was a tab switch; the worst at-risk contact now
+                opens the tab with the same triage card - and the same
+                "Call to reconnect" - that Attention renders, so the decision
+                the count implied is one tap away instead of two. */}
+            {worstAtRisk ? (
+              <View>
+                <Text style={[styles.leadKicker, { color: theme.textMuted }]} numberOfLines={1}>
+                  {personalAtRisk.length > 1
+                    ? `Needs a call · ${personalAtRisk.length - 1} more on Attention`
+                    : 'Needs a call'}
+                </Text>
+                {renderTriageCard(worstAtRisk)}
+              </View>
+            ) : null}
+            {statsHero('Relationship portfolio', (
+              <>
+                {topPersonal.length > 0 ? (
+                  <View style={styles.clusterRow}>
+                    <View style={styles.avatarStack}>
+                      {topPersonal.map((c, i) => {
+                        const rr = c.raw as Relationship;
+                        return (
+                          <View
+                            key={c.id}
+                            style={[
+                              styles.clusterAvatar,
+                              { marginLeft: i === 0 ? 0 : -scale(12), borderColor: theme.surface, zIndex: 10 - i },
+                            ]}
+                          >
+                            <CharacterAvatar
+                              seed={c.id}
+                              sex={faceTraitsOf(c.raw).sex}
+                              age={faceTraitsOf(c.raw).age ?? 30}
+                              parents={rr?.type === 'child' ? parentSources : undefined}
+                              size={scale(34)}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                    <Text style={[styles.clusterLabel, { color: theme.textSecondary }]} numberOfLines={2}>
+                      Your inner circle · top {topPersonal.length} by bond
+                    </Text>
                   </View>
-                  <Text style={[styles.clusterLabel, { color: theme.textSecondary }]} numberOfLines={2}>
-                    Your inner circle · top {topPersonal.length} by bond
-                  </Text>
-                </View>
-              ) : null}
-              {/* Three numbers, not four: "Strong" is a slice of the average
-                  it sits next to, so it rides as that tile's sub-line rather
-                  than competing with it for a decision. */}
-              <StatStrip
-                items={[
-                  { label: 'People', value: personalCount, tint: accent.amber },
-                  {
-                    label: 'Avg bond',
-                    value: avgStrength,
-                    tint: strengthColor(avgStrength),
-                    sub: `${strongCount} strong`,
-                  },
-                  {
-                    label: 'At risk',
-                    value: personalAttention,
-                    tint: personalAttention > 0 ? accent.warning : undefined,
-                  },
-                ]}
-              />
-            </>
-          ))
+                ) : null}
+                {/* Two numbers, not four: "Strong" is a slice of the average
+                    it sits next to, so it rides as that tile's sub-line rather
+                    than competing with it for a decision - and "At risk" is no
+                    longer a tile because the lead slot above IS the at-risk
+                    contact, with the remainder counted in its kicker and on
+                    the Attention segment. A zero here was reassurance with no
+                    decision behind it; the segment reading plain "Attention"
+                    already says the same thing. */}
+                <StatStrip
+                  items={[
+                    { label: 'People', value: personalCount, tint: accent.amber },
+                    {
+                      label: 'Avg bond',
+                      value: avgStrength,
+                      tint: strengthColor(avgStrength),
+                      sub: `${strongCount} strong`,
+                    },
+                  ]}
+                />
+              </>
+            ))}
+          </View>
         )
       }
     />
@@ -1747,6 +1774,11 @@ const styles = StyleSheet.create({
   feedback: { fontSize: fs.xs, fontStyle: 'italic', marginTop: sp.xs },
   // Summary-card interior: clipped so the fill stays inside the radius.
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg },
+  // The Personal tab's lead slot: the kicker sits `micro` off the card it
+  // labels, and the whole promotion sits `major` off the portfolio strip - a
+  // hierarchy change, not another card in the band.
+  leadWrap: { gap: rhythm.major },
+  leadKicker: { ...kicker, marginBottom: rhythm.micro },
   statsTitle: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sp.sm },
   // Inner-circle avatar stack in the personal hero.
   clusterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginBottom: sp.md },

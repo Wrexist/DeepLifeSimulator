@@ -35,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { kicker, rhythm, tier1Title } from '@/lib/config/hierarchy';
 import { getGlassCard, getGlassButton, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
@@ -56,7 +57,7 @@ import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
 import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
-import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
+import { BankAccount, BillPayRule, BudgetCategory, CreditCardTier, Loan, SavingsGoalCategory } from '@/contexts/game/types';
 import {
   depositCashToAccount,
   withdrawCashFromAccount,
@@ -164,6 +165,37 @@ function BankAppInner({ onBack }: BankAppProps) {
   const totalDebt =
     banking.creditCards.reduce((s, c) => s + c.balance, 0) +
     (gameState.loans ?? []).reduce((s, l) => s + l.remaining, 0);
+
+  /**
+   * The one thing due NOW, if anything is - the Bank's lead slot. At most one,
+   * by severity: an overdrawn account (money already gone) > a loan draw that
+   * will miss this week > an auto-pay bill that is due. The predicates are the
+   * ones the rows already read and the tick already applies, so the lead can
+   * never name a problem the screen or the week loop would not.
+   *
+   * "Loan payment lands this week" is deliberately NOT "any loan": every live
+   * loan amortises weekly, so a mortgage would lead the screen for thirty
+   * years and the lead would never move. A draw leads when the tick's own miss
+   * branch would take it (`applyLoanAutopay`: the payment exceeds the cash on
+   * hand the strip shows) or when the row is already warning of a missed one.
+   * A disabled bill is skipped: paused rules are not drawn, so "due" is moot.
+   */
+  const dueLead = useMemo<
+    | { kind: 'account'; account: BankAccount }
+    | { kind: 'loan'; loan: Loan }
+    | { kind: 'bill'; rule: BillPayRule }
+    | null
+  >(() => {
+    const overdrawn = banking.accounts.find((a) => a.balance < 0);
+    if (overdrawn) return { kind: 'account', account: overdrawn };
+    // `gameState.loans` rather than the `loans` alias: the alias's `?? []`
+    // fallback is a new array every render, which would defeat this memo.
+    const atRisk = (gameState.loans ?? []).find((l) => l.remaining > 0 && ((l.latePayments ?? 0) > 0 || l.weeklyPayment > cash));
+    if (atRisk) return { kind: 'loan', loan: atRisk };
+    const dueBill = banking.billPayRules.find((r) => r.enabled && r.nextDueWeek - gameState.weeksLived <= 0);
+    if (dueBill) return { kind: 'bill', rule: dueBill };
+    return null;
+  }, [banking.accounts, banking.billPayRules, gameState.loans, cash, gameState.weeksLived]);
 
   // Cross-app tile: what the player has working in the market apps (Stocks +
   // Crypto holdings at current prices), so the Bank is the one money overview.
@@ -620,6 +652,65 @@ function BankAppInner({ onBack }: BankAppProps) {
           gap: responsiveSpacing.sm,
         }}
       >
+        {/* The lead slot. Renders nothing when nothing is due, so the layout
+            below is untouched for the player whose bank is quiet. The row is
+            the SAME component with the SAME handlers as its section below -
+            the lead adds position and a headline, never a new action. */}
+        {dueLead && (
+          <View
+            style={[
+              getGlassCard(darkMode, 12),
+              styles.leadCard,
+              { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
+            ]}
+          >
+            <View style={styles.leadInner}>
+              <Text style={[styles.leadKicker, { color: theme.textMuted }]}>Due now</Text>
+              {/* Semantic colour, not decoration: danger where money is already
+                  gone or about to bounce, warning for a bill that is simply due. */}
+              <Text
+                style={[styles.leadTitle, { color: dueLead.kind === 'bill' ? accent.warning : accent.danger }]}
+                numberOfLines={2}
+                maxFontSizeMultiplier={1.3}
+              >
+                {dueLead.kind === 'account'
+                  ? `${dueLead.account.name} is ${formatMoney(-dueLead.account.balance)} overdrawn`
+                  : dueLead.kind === 'loan'
+                    ? `${formatMoney(dueLead.loan.weeklyPayment)} loan payment ${(dueLead.loan.latePayments ?? 0) > 0 ? 'is behind' : 'will bounce'}`
+                    : `${dueLead.rule.label} is due this week`}
+              </Text>
+              {dueLead.kind === 'account' ? (
+                <AccountRow
+                  account={dueLead.account}
+                  currentWeek={gameState.weeksLived}
+                  darkMode={darkMode}
+                  variant="card"
+                  onDetail={() => setSubView({ kind: 'account', id: dueLead.account.id })}
+                  onPress={() => setDepositTarget(dueLead.account)}
+                  onWithdraw={() => setWithdrawTarget(dueLead.account)}
+                  onClose={() => confirmCloseAccount(dueLead.account)}
+                />
+              ) : dueLead.kind === 'loan' ? (
+                <LoanRow loan={dueLead.loan} darkMode={darkMode} onPress={() => setPrepayLoanId(dueLead.loan.id)} />
+              ) : (
+                <BillPayRow
+                  rule={dueLead.rule}
+                  currentWeek={gameState.weeksLived}
+                  darkMode={darkMode}
+                  onToggle={() => {
+                    toggleBill(setGameState, dueLead.rule.id);
+                    queueSave();
+                  }}
+                  onDelete={() => {
+                    removeBill(setGameState, dueLead.rule.id);
+                    queueSave();
+                  }}
+                />
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Three numbers, not nine. The five ledger chips that used to sit
             under this strip are the tax page's business; what is invested
             rides along as the Bank tile's second line. */}
@@ -716,7 +807,9 @@ function BankAppInner({ onBack }: BankAppProps) {
           icon={<Landmark size={scale(15)} color={accent.info} />}
           tint={accent.info}
           summary={loans.length === 0 ? 'None' : `${loans.length} · ${formatMoney(loans.reduce((s, l) => s + l.remaining, 0))} owed`}
-          defaultCollapsed={loans.length === 0}
+          // Open when its row is the lead: the lead names the problem, the
+          // section is where the whole ledger sits.
+          defaultCollapsed={loans.length === 0 && dueLead?.kind !== 'loan'}
         >
           <Chip label="Apply" tone="info" size="md" onPress={() => setShowLoanQuote(true)} accessibilityLabel="Apply for a loan" style={styles.addChip} />
           {loans.length === 0 ? (
@@ -784,7 +877,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           icon={<CalendarClock size={scale(15)} color={accent.warning} />}
           tint={accent.warning}
           summary={banking.billPayRules.length === 0 ? 'None' : `${banking.billPayRules.length} set up`}
-          defaultCollapsed={banking.billPayRules.length === 0}
+          defaultCollapsed={banking.billPayRules.length === 0 && dueLead?.kind !== 'bill'}
         >
           <Chip label="Add" tone="info" size="md" onPress={() => setShowAddBill(true)} accessibilityLabel="Add an auto-pay rule" style={styles.addChip} />
           {banking.billPayRules.length === 0 ? (
@@ -1107,6 +1200,23 @@ const styles = StyleSheet.create({
   },
   linkRowText: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '600' },
   addChip: { alignSelf: 'flex-start' },
+
+  // The lead slot above the strip. `rhythm.major` below it is the hierarchy
+  // change (the ScrollView's own `sm` gap adds to it); the rows inside keep
+  // their own card faces, so the slot is a surface plus a headline, no more.
+  leadCard: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius['2xl'],
+    marginBottom: rhythm.major,
+  },
+  leadInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
+  },
+  leadKicker: { ...kicker },
+  leadTitle: { ...tier1Title },
 
   // ── Detail: hero card face ─────────────────────────────────────────────────
   detailHeroInner: {

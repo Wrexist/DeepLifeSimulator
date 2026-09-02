@@ -9,12 +9,17 @@
  * Two things were said twice and are now said once. "Go Live" appeared in four
  * places; it lives on the Go Live console (the control) and on a past
  * broadcast ("Stream this again" - a different intent), while the dashboard
- * hero just links to the tab. The five-category box-art grid appeared on both
- * Dashboard and Go Live; it is the SELECTION control, so it belongs to Go Live
- * alone and the dashboard shows the best stream instead.
+ * hero carries one button that opens the console. The five-category box-art
+ * grid appeared on both Dashboard and Go Live; it is the SELECTION control, so
+ * it belongs to Go Live alone and the dashboard shows the best stream instead.
  *
- * ONE gradient in the file: the Go Live console's primary action. The
- * real-time drain loop and the stale-session resolver are untouched.
+ * The dashboard reads "current activity + history" (Program 5): while a
+ * broadcast is running the live console leads it in place of the box-art hero,
+ * so the one thing the channel is doing right now is never a tab away.
+ *
+ * ONE gradient in the file: the Go Live console's primary action (the
+ * dashboard's "Go live" is the shared GradientButton primitive). The real-time
+ * drain loop and the stale-session resolver are untouched.
  *
  * Tabs: Dashboard / Go Live / History / Shop   (+ category & broadcast pages)
  */
@@ -75,6 +80,7 @@ import {
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
+import GradientButton from '@/components/ui/GradientButton';
 import ProgressRing from '@/components/ui/ProgressRing';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -451,13 +457,20 @@ export default function GamingStreamingApp({ onBack }: Props) {
         style={styles.flex1}
         contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
       >
-        {/* Recipe B hero - live channel preview over real box art (ONE per view). */}
+        {liveSession ? (
+          // A running broadcast IS the current activity, so the live console
+          // takes the hero's slot rather than sitting behind the Go Live tab
+          // while the dashboard shows a red pill over a stale preview. Same
+          // console as the tab (one Stop handler, one drain loop).
+          renderLiveConsole(liveSession)
+        ) : (
         <View
           style={[
             getGlassCard(darkMode, 12),
             { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] },
           ]}
         >
+          {/* Recipe B hero - channel preview over real box art (ONE per view). */}
           <View style={styles.heroInner}>
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(lastGame)} style={styles.mediaFill} resizeMode="cover" />
@@ -490,20 +503,22 @@ export default function GamingStreamingApp({ onBack }: Props) {
             </View>
 
             <View style={styles.heroFooter}>
-              <TouchableOpacity
+              {/* The dashboard's one saturated action. It only opens the
+                  console (category + energy gate live there), which is why it
+                  is never disabled here - the gate would be a lie this far
+                  from the control. */}
+              <GradientButton
+                label="Go live"
                 onPress={() => setActiveTab('live')}
-                activeOpacity={0.8}
-                accessibilityRole="button"
+                colors={[IDENTITY, IDENTITY, IDENTITY_DEEP]}
+                glow={IDENTITY}
+                icon={<Play size={scale(15)} color="#fff" />}
                 accessibilityLabel="Open the Go Live console"
-                style={styles.heroLink}
-              >
-                <Play size={scale(14)} color={IDENTITY} />
-                <Text style={[styles.heroLinkText, { color: IDENTITY }]}>Go live</Text>
-                <ChevronRight size={scale(14)} color={IDENTITY} />
-              </TouchableOpacity>
+              />
             </View>
           </View>
         </View>
+        )}
 
         {/* The three numbers a streamer decides on. The rest of the revenue
             readout is a record of what happened - it lives behind the fold. */}
@@ -597,18 +612,18 @@ export default function GamingStreamingApp({ onBack }: Props) {
     return `${mm}:${ss.toString().padStart(2, '0')}`;
   };
 
-  // ── LIVE view - shown while a real-time broadcast is running. ──────────────
-  const renderLiveActive = (session: StreamSession) => {
+  // ── LIVE console - the monitor, energy runway, session stats and Stop. ────
+  // A fragment, not a screen: the Go Live tab wraps it in its own ScrollView
+  // (`renderLiveActive`) and the dashboard hosts it inside ITS ScrollView in
+  // the hero's slot - nesting two scroll views would break the outer scroll.
+  const renderLiveConsole = (session: StreamSession) => {
     const elapsed = session.elapsedSeconds ?? 0;
     const liveViewers = session.viewers ?? 0;
     const energyPct = Math.max(0, Math.min(100, energy));
     // Seconds of stream left at the current drain rate (rough runway readout).
     const secondsLeft = Math.max(0, Math.floor(energy / LIVE_ENERGY_DRAIN_PER_SEC));
     return (
-      <ScrollView
-        style={styles.flex1}
-        contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
-      >
+      <>
         {/* Live monitor. */}
         <View
           style={[
@@ -685,9 +700,19 @@ export default function GamingStreamingApp({ onBack }: Props) {
           <Square size={scale(14)} color="#fff" />
           <Text style={styles.publishBtnText}>Stop stream</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </>
     );
   };
+
+  // ── LIVE view - the Go Live tab while a real-time broadcast is running. ────
+  const renderLiveActive = (session: StreamSession) => (
+    <ScrollView
+      style={styles.flex1}
+      contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
+    >
+      {renderLiveConsole(session)}
+    </ScrollView>
+  );
 
   // ── Go Live (broadcast console) ───────────────────────────────────────────
 
@@ -1217,8 +1242,6 @@ const styles = StyleSheet.create({
   heroLevelChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.5)' },
   heroLevelText: { fontSize: fs.xs, fontWeight: '700', color: '#fff' },
   heroFooter: { padding: sp.md },
-  heroLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: touchTargets.minimum },
-  heroLinkText: { fontSize: fs.md, fontWeight: '600' },
 
   // ── Stream health card ──
   healthRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, paddingTop: sp.xs },

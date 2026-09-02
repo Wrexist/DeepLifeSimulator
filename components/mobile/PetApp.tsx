@@ -70,6 +70,7 @@ import {
 } from '@/contexts/game/actions/PetActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { vitalState, CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -108,6 +109,15 @@ const GOLD_RIM = withAlpha(GOLD, 0.3);
 
 const clampPct = (n: number): number => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
 
+/**
+ * The pet `bondingSummary` is warning about. It reports only THAT a pet is
+ * critical (`hasCriticalPet`), and the Pets tab needs WHICH one to put it on
+ * the stage - so this mirrors its rule (health at the shared critical line,
+ * or hunger <= 10) rather than inventing a second ladder for the same word.
+ */
+const isCriticalPet = (p: Pet): boolean =>
+  !p.isDead && ((p.health ?? 0) <= CRITICAL_VITAL || (p.hunger ?? 100) <= 10);
+
 /** "+3" / "0" / "-2" - the bond deltas read as movement, so the sign is kept. */
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
@@ -138,7 +148,14 @@ export default function PetApp({ onBack }: PetAppProps) {
   const theme = getThemeColors(darkMode);
 
   const [activeTab, setActiveTab] = useState<TabType>('pets');
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  // A pet in critical condition is what the tab is about when there is one,
+  // so it opens on the stage - but only as the INITIAL pick. The lazy
+  // initializer runs once, so a companion the player taps on the rail is
+  // never overridden by a later health swing, and the `?? pets[0]` fallback
+  // below still covers the ordinary case.
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(
+    () => (gameState.pets ?? []).find(isCriticalPet)?.id ?? null
+  );
   const [detailPetId, setDetailPetId] = useState<string | null>(null); // Pets-tab drill-down
   const [buyModal, setBuyModal] = useState<string | null>(null); // breed id
   const [petName, setPetName] = useState('');
@@ -146,6 +163,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   const pets = useMemo(() => (gameState.pets ?? []).filter((p) => !p.isDead), [gameState.pets]);
   const deadPets = useMemo(() => (gameState.pets ?? []).filter((p) => p.isDead), [gameState.pets]);
   const bonding = useMemo(() => bondingSummary(pets), [pets]);
+  const criticalPet = useMemo(() => pets.find(isCriticalPet), [pets]);
   const week = gameState.weeksLived || 0;
   const money = gameState.stats?.money ?? 0;
 
@@ -373,7 +391,25 @@ export default function PetApp({ onBack }: PetAppProps) {
         style={styles.flex1}
         contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
       >
-        {pets.length === 0 ? renderAdoptHero() : renderPetStage(selectedPet)}
+        {pets.length === 0 ? (
+          renderAdoptHero()
+        ) : (
+          <View style={styles.section}>
+            {renderPetStage(selectedPet)}
+            {/* Directly under the stage, not inside the bonus card three
+                bands down: a dying pet is the reason to be on this tab, and
+                the care pad it points at is right above. Named, because the
+                stage may be showing a different companion the player picked. */}
+            {bonding.hasCriticalPet ? (
+              <View style={[styles.warningBanner, { backgroundColor: withAlpha(accent.danger, 0.12), borderColor: withAlpha(accent.danger, 0.3) }]}>
+                <Skull size={scale(14)} color={accent.danger} />
+                <Text style={[styles.warningText, { color: accent.danger }]}>
+                  {criticalPet ? `${criticalPet.name} is` : 'A pet is'} in critical condition - feed or visit the vet.
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
 
         {pets.length > 0 ? (
           <View style={styles.section}>
@@ -424,14 +460,6 @@ export default function PetApp({ onBack }: PetAppProps) {
             <Chip label={`${pets.filter((p) => p.isSick).length} sick`} tone="danger" icon={<Skull size={scale(11)} color={accent.danger} />} />
             <Chip label={`${pets.filter((p) => p.vaccinated).length} vaccinated`} tone="success" icon={<Shield size={scale(11)} color={accent.success} />} />
           </View>
-          {bonding.hasCriticalPet ? (
-            <View style={[styles.warningBanner, { backgroundColor: withAlpha(accent.danger, 0.12), borderColor: withAlpha(accent.danger, 0.3) }]}>
-              <Skull size={scale(14)} color={accent.danger} />
-              <Text style={[styles.warningText, { color: accent.danger }]}>
-                A pet is in critical condition - feed or visit the vet.
-              </Text>
-            </View>
-          ) : null}
         </View>
 
         {deadPets.length > 0 ? (
@@ -1172,7 +1200,9 @@ function RailAvatar({
   onPress: () => void;
 }) {
   const health = pet.health ?? 0;
-  const dot = health >= 50 ? accent.success : health >= 25 ? accent.warning : accent.danger;
+  // The same ladder as the player's vitals (lib/config/hierarchy): a pet at 45
+  // used to read 'fine' here while the same number was 'low' for its owner.
+  const dot = vitalState(health).color ?? accent.success;
   return (
     <TouchableOpacity
       style={styles.railItem}
