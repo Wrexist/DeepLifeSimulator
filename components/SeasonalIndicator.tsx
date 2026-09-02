@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
 import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { isIPad } from '@/utils/scaling';
-const LinearGradient = Gradient;
 
 interface SeasonalIndicatorProps {
   size?: number;
@@ -91,18 +89,16 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
         onPress={() => setShowInfo(true)}
         activeOpacity={0.7}
       >
-        <LinearGradient
-          colors={config.gradient as unknown as readonly [string, string, ...string[]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
+        {/* Neutral disc, season colour on the glyph. The saturated gradient
+            disc was one more filled circle competing with the HUD's primary
+            action for a piece of information the player cannot act on. */}
+        <View style={[styles.gradient, styles.disc]}>
           {holiday && HolidayIcon ? (
-            <HolidayIcon size={iconSize} color="#FFFFFF" />
+            <HolidayIcon size={iconSize} color={holiday.color} />
           ) : (
-            <SeasonIcon size={iconSize} color="#FFFFFF" />
+            <SeasonIcon size={iconSize} color={config.color} />
           )}
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
 
       <Modal
@@ -116,12 +112,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
             styles.modalContainer,
             settings.darkMode && styles.modalContainerDark
           ]}>
-            <LinearGradient
-              colors={config.gradient as unknown as readonly [string, string, ...string[]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.modalHeader}
-            >
+            <View style={[styles.modalHeader, { backgroundColor: config.color }]}>
               <View style={styles.modalHeaderContent}>
                 <SeasonIcon size={32} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>{config.name} Season</Text>
@@ -135,7 +126,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
               >
                 <X size={24} color="#FFFFFF" />
               </TouchableOpacity>
-            </LinearGradient>
+            </View>
 
             <View style={[
               styles.modalContent,
@@ -231,6 +222,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  disc: {
+    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   modalOverlay: {
     flex: 1,

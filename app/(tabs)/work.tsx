@@ -83,7 +83,6 @@ import {
   type AdvancedCareer,
 } from '@/lib/careers/advancedCareers';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
-import SectionTitle from '@/components/ui/SectionTitle';
 import GradientButton from '@/components/ui/GradientButton';
 import Chip from '@/components/ui/Chip';
 import { kicker, tier1Title, tier4 } from '@/lib/config/hierarchy';
@@ -942,6 +941,20 @@ function WorkScreenContent() {
         if (c.accepted || c.applied) return true;
         return boardIds.has(c.id);
     });
+    // Applicable jobs lead the board. The first card is the unemployed
+    // screen's dominant element, and by catalogue order it could be a LOCKED
+    // one ("They want Reputation 5 - you have 0") above the job the player can
+    // take today. A stable partition: nothing about any card changes, only
+    // which one the eye lands on first.
+    const isApplicableNow = (c: Career) => {
+        if (c.accepted || c.applied) return false;
+        if (!checkCareerRequirements(c.requirements, gameState).met) return false;
+        if (isEntryTierCareer(c.id) && !evaluateHiring(getEntryJobProfile(c.id), gameState).eligible) return false;
+        return canApplyForCareer(c);
+    };
+    const boardCareers = [...visibleBasicCareers].sort(
+        (a, b) => Number(isApplicableNow(b)) - Number(isApplicableNow(a))
+    );
     const openingsCount = visibleBasicCareers.filter(
         c => isEntryTierCareer(c.id) && !c.accepted && !c.applied
     ).length;
@@ -1095,7 +1108,12 @@ function WorkScreenContent() {
                             )}
                             {activeTab === 'street' && (
                                 <View>
-                                    <SectionTitle title="Street Jobs" subtitle="Quick gigs paid on the spot - each job ranks up and pays more with repetition." />
+                                    {/* No heading: the segment control 40pt above already names this
+                                        section; a second title restating it was a layer of
+                                        chrome between the player and the first card. */}
+                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
+                                        Quick gigs paid on the spot - each job ranks up and pays more with repetition.
+                                    </Text>
                                     {/* BOTH weekly caps the reducer enforces, in ONE line.
                                         Stated up front so the player never discovers a
                                         limit by being refused (UX-4); per-job usage also
@@ -1186,7 +1204,12 @@ function WorkScreenContent() {
                                     {/* No compact CareerPathCard here any more: the hero
                                         Current Job card 100px above already shows the same
                                         job, salary and promotion progress. */}
-                                    <SectionTitle title="Careers" subtitle="Meet a career’s requirements, apply, and climb its ladder for bigger salaries." />
+                                    {/* No heading: the segment control 40pt above already names this
+                                        section; a second title restating it was a layer of
+                                        chrome between the player and the first card. */}
+                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
+                                        Meet a career’s requirements, apply, and climb its ladder for bigger salaries.
+                                    </Text>
                                     <CollapsibleSection
                                         id="work.standardCareers"
                                         title="Standard Careers"
@@ -1199,8 +1222,8 @@ function WorkScreenContent() {
                                             {' · '}new listings in {boardRefreshWeeks} {boardRefreshWeeks === 1 ? 'week' : 'weeks'}
                                         </Text>
                                     )}
-                                    {visibleBasicCareers.length > 0 ? (
-                                        visibleBasicCareers.map(career => renderCareerCard(career))
+                                    {boardCareers.length > 0 ? (
+                                        boardCareers.map(career => renderCareerCard(career))
                                     ) : (
                                         <EmptyState
                                             compact
@@ -1283,7 +1306,12 @@ function WorkScreenContent() {
 
                             {activeTab === 'skills' && (
                                 <View>
-                                    <SectionTitle title="Crime Skills" subtitle="Illegal jobs level these skills, and their talents add success and payout bonuses." />
+                                    {/* No heading: the segment control 40pt above already names this
+                                        section; a second title restating it was a layer of
+                                        chrome between the player and the first card. */}
+                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
+                                        Illegal jobs level these skills, and their talents add success and payout bonuses.
+                                    </Text>
 
                                     <CollapsibleSection
                                         id="work.crimeSkills"
