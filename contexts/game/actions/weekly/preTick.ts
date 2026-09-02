@@ -21,6 +21,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { MINER_PRICES } from '@/lib/economy/constants';
+import { STAT_DECAY_GRACE_WEEKS, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { logger } from '@/utils/logger';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
@@ -206,7 +207,11 @@ export function calculateNetWorth(gameState: GameState): number {
 // Outputs match the variables the inline code computed:
 //   - netWorth        — raw calculateNetWorth result (may be 0)
 //   - safeNetWorth    — floored at 1000 for the wealthMultiplier divisor
-//   - wealthMultiplier — 100000 / max(1000, safeNetWorth), clamped [0.5, 2.0]
+//   - wealthMultiplier — `wealthDecayMultiplier(safeNetWorth)` from
+//     `lib/economy/statDecay.ts`: 100000 / max(1000, netWorth), clamped to
+//     [0.5, 1.0]. The ceiling was 2.0 until Master Program 7 (2026-09-02);
+//     that module's header records why a flat ×2 on every pre-$50k life was
+//     the largest and least visible drain in the early game.
 //   - graceFactor      — current weeks lived / gracePeriodWeeks, capped at 1.0
 //   - effectiveDecayRate — base * wealth * prestige * (0.25 + 0.75 * grace)
 
@@ -229,7 +234,7 @@ export interface DecayInputs {
 
 export function computeDecayInputs(state: GameState, opts: DecayInputsOptions): DecayInputs {
   const baseDecayRate = opts.baseDecayRate;
-  const gracePeriodWeeks = opts.gracePeriodWeeks ?? 8;
+  const gracePeriodWeeks = opts.gracePeriodWeeks ?? STAT_DECAY_GRACE_WEEKS;
 
   // calculateNetWorth has its own try/catch and never throws, but the inline
   // call site wrapped it in an additional try/catch defensive-belt-and-
@@ -242,7 +247,7 @@ export function computeDecayInputs(state: GameState, opts: DecayInputsOptions): 
   }
 
   const safeNetWorth = isFinite(netWorth) && netWorth > 0 ? netWorth : 1000;
-  const wealthMultiplier = Math.max(0.5, Math.min(2.0, 100000 / Math.max(1000, safeNetWorth)));
+  const wealthMultiplier = wealthDecayMultiplier(safeNetWorth);
 
   const safePrestigeMultiplier = isFinite(opts.prestigeMultiplier) && opts.prestigeMultiplier > 0
     ? opts.prestigeMultiplier

@@ -21,11 +21,12 @@
  * ── What it deliberately mirrors ────────────────────────────────────────────
  *
  * - Natural decay: `computeDecayInputs` in `preTick.ts` - base 4 × wealth
- *   multiplier (100k / net worth, clamped 0.5–2.0) × prestige multiplier ×
- *   the 8-week grace ramp; health takes ×0.6, happiness ×0.8 (halved by the
- *   Happiness Boost gold upgrade). `lib/` may not import that function
- *   (CLAUDE.md §5), so the formula is restated here and a parity test pins the
- *   two together (`lib/economy/__tests__/vitalDrift.test.ts`).
+ *   multiplier (100k / net worth, clamped 0.5–1.0 - `lib/economy/statDecay.ts`)
+ *   × prestige multiplier × the 8-week grace ramp; health takes ×0.6,
+ *   happiness ×0.8 (halved by the Happiness Boost gold upgrade). `lib/` may
+ *   not import that function (CLAUDE.md §5), so the composition is restated
+ *   here over the SAME shared pieces, and a parity test pins the two together
+ *   (`lib/economy/__tests__/vitalDrift.test.ts`).
  * - Housing: `computeHousingWellbeing` - the same function the tick calls.
  * - Job toll: the entry-job profile scaled by level, as
  *   `applyCareerSalaryAndPenalty` does; non-profiled careers take the −3/−2
@@ -36,14 +37,15 @@
  *
  * Net worth is read from the canonical `netWorth` in `lib/progress/achievements`
  * rather than the tick's private `calculateNetWorth`; the two count slightly
- * different slices, but the multiplier is clamped to 2.0 for anything under
- * $50k and to 0.5 above $200k, so they agree across the whole early game.
+ * different slices, but the multiplier is clamped to 1.0 for anything under
+ * $100k and to 0.5 above $200k, so they agree across the whole early game.
  */
 import type { GameState } from '@/contexts/game/types';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { getEntryJobProfile } from '@/lib/careers/jobMarket';
 import { getEnergyRegenMultiplier, getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { netWorth } from '@/lib/progress/achievements';
+import { STAT_DECAY_BASE_RATE, graceRampFactor, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export type DriftCauseId = 'decay' | 'home' | 'job' | 'items' | 'rest';
@@ -66,8 +68,6 @@ export interface VitalDrift {
   causes: DriftCause[];
 }
 
-const BASE_DECAY_RATE = 4;
-const GRACE_PERIOD_WEEKS = 8;
 const BASE_ENERGY_REGEN = 40;
 
 const finite = (v: unknown, fallback = 0): number =>
@@ -78,15 +78,12 @@ const finite = (v: unknown, fallback = 0): number =>
  * and happiness (×0.8) lose to "natural decay" on the next Next Week.
  */
 export function projectedDecayRate(state: GameState): number {
-  const worth = finite(netWorth(state), 0);
-  const safeNetWorth = worth > 0 ? worth : 1000;
-  const wealthMultiplier = Math.max(0.5, Math.min(2.0, 100000 / Math.max(1000, safeNetWorth)));
+  const wealthMultiplier = wealthDecayMultiplier(finite(netWorth(state), 0));
   const prestigeMultiplier = getStatDecayMultiplier(state.prestige?.unlockedBonuses || []);
   const safePrestige = Number.isFinite(prestigeMultiplier) && prestigeMultiplier > 0 ? prestigeMultiplier : 1;
   const weeks = weeksSinceLifeStart(state.weeksLived, state.lifeStartWeek);
-  const graceFactor = Math.min(1, Math.max(0, weeks) / GRACE_PERIOD_WEEKS);
-  const rate = BASE_DECAY_RATE * wealthMultiplier * safePrestige * (0.25 + 0.75 * graceFactor);
-  return Number.isFinite(rate) && rate >= 0 ? rate : BASE_DECAY_RATE;
+  const rate = STAT_DECAY_BASE_RATE * wealthMultiplier * safePrestige * graceRampFactor(weeks);
+  return Number.isFinite(rate) && rate >= 0 ? rate : STAT_DECAY_BASE_RATE;
 }
 
 function jobToll(state: GameState): DriftCause | null {

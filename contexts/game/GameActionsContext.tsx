@@ -36,6 +36,7 @@ import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
+import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
@@ -561,7 +562,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // calls - verified by __tests__/refactor/subsystemEquivalence.test.ts.
  const prestigeMultiplier = getStatDecayMultiplier(gameState.prestige?.unlockedBonuses || []);
  const decayInputs = computeDecayInputs(gameState, {
-   baseDecayRate: 4,
+   baseDecayRate: STAT_DECAY_BASE_RATE,
    prestigeMultiplier,
  });
  // No `safeNetWorth` here any more: the lifetimeStatistics block below reads
@@ -705,7 +706,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // `graceFactor` is deliberately not taken: only the outer logger uses it, and
  // pulling it in here would shadow that with an identically-named unused value.
  const { netWorth, effectiveDecayRate } = computeDecayInputs(prevState, {
-   baseDecayRate: 4,
+   baseDecayRate: STAT_DECAY_BASE_RATE,
    prestigeMultiplier,
  });
  // See the lifetimeStatistics block: the peak-net-worth sample is the canonical

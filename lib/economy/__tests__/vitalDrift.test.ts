@@ -70,17 +70,21 @@ describe('the fresh quick start is told the whole truth', () => {
     expect(job.label).toBe('Fast Food Worker shifts');
     expect(job.happiness).toBeLessThan(0);
 
-    // Net: the slide the walkthrough measured (~-13 happiness, ~-9 health at
-    // full decay for a $1.5k life). Bounds, not exact values, so a tuning pass
-    // in the tick does not fail a display test - the parity test above is the
-    // exact one.
-    expect(drift.happiness).toBeLessThanOrEqual(-10);
-    expect(drift.health).toBeLessThanOrEqual(-6);
+    // Net: the slide at full decay for a $1.5k life. Program 6 measured ~-13
+    // happiness / ~-9 health under the ×2 wealth ceiling; Program 7 capped that
+    // multiplier at 1.0 (`lib/economy/statDecay.ts`), so the same life now
+    // slides ~-10 / ~-6. Bounds, not exact values, so a tuning pass in the tick
+    // does not fail a display test - the parity test above is the exact one.
+    expect(drift.happiness).toBeLessThanOrEqual(-8);
+    expect(drift.health).toBeLessThanOrEqual(-5);
 
     // Drains are listed worst first, and the labels are what the recap prints.
+    // With the ×2 gone, the worst drain is the one the player can act on for
+    // $45 a week - "No home" leads, and natural decay is named beside it.
     const labels = driftDrainLabels(drift);
     expect(labels.length).toBeGreaterThanOrEqual(3);
-    expect(labels[0]).toBe('Natural decay');
+    expect(labels[0]).toBe('No home');
+    expect(labels).toContain('Natural decay');
   });
 
   it('a housed, healthy, wealthy life drifts little and the home reads as a gain', () => {
