@@ -195,29 +195,38 @@ named relationship. Reported, not changed.
 
 ## 11. Story variation results (250 weeks, seed 1, after)
 
-| persona | tier | chosen | friends | strong | romance | mean happiness | net worth |
-|---|---|---|---|---|---|---|---|
-| LONER | 5 | 0 | 0 | 0 | none | 74.5 | $50,946 |
-| CAREER-OBSESSED | 5 | 0 | 0 | 0 | none | 76.7 | $52,786 |
-| CASUAL SOCIAL | 5 | 23 | 23 | 25 | none | 76.2 | $51,116 |
-| RISK-TAKER | 5 | 18 | 18 | — | none | 82.1 | $52,950 |
-| FRIENDSHIP-FOCUSED | 5 | 36 | 36 | 38 | none | 82.8 | $5,496 |
-| ROMANCE-FOCUSED | 5 | 9 | 8 | — | partner | 92.3 | $11,236 |
-| FAMILY-FOCUSED | 5 | 9 | 8 | — | partner | 95.3 | $15,781 |
+| persona | tier | chosen | friends | strong | romance | mean happiness | net worth | died |
+|---|---|---|---|---|---|---|---|---|
+| LONER | 5 | 0 | 0 | 0 | none | 74.5 | $50,946 | no |
+| CAREER-OBSESSED | 5 | 0 | 0 | 0 | none | 76.7 | $52,786 | no |
+| CASUAL SOCIAL | 5 | 23 | 23 | 25 | none | 77.2 | $51,516 | no |
+| RISK-TAKER | 5 | 18 | 18 | 13 | none | 79.0 | $52,430 | no |
+| FRIENDSHIP-FOCUSED | 5 | 36 | 36 | 38 | none | 74.5 | $8,159 | no |
+| ROMANCE-FOCUSED | 5 | 9 | 8 | 1 | partner | 92.3 | $6,427 | no |
+| FAMILY-FOCUSED | 5 | 9 | 8 | 11 | partner | 95.4 | $20,234 | no |
 
 The lives are now **differently shaped rather than differently sized**: the
-social lives buy happiness (+15 mean, +15 floor) and pay for it in cash
-(a fifth to a tenth of the loner's), and the romance life reaches a stage the
-friendship life never does. Before the income fix the same table read
-$3.36M for romance against $53k for the loner, which is not a tradeoff — it is a
-dominant strategy hidden behind a heart icon.
+romance lives buy happiness (+16 to +19 mean, and a floor of 61 against 46) and
+pay for it in cash (an eighth of the loner's), and they reach a stage the
+friendship life never does. Before the income fix the same table read $3.36M for
+romance against $53k for the loner, which is not a tradeoff — it is a dominant
+strategy hidden behind a heart icon.
+
+One row is worth reading twice. **FRIENDSHIP-FOCUSED is the worst deal in the
+game on both axes**: 36 relationships and 38 strong bonds bought a mean
+happiness of 74.5 — the same as the loner's — for a sixth of the loner's money.
+Keeping in touch with everybody costs $30 a head and returns almost nothing,
+because a bond above 60 buys nothing a bond of 45 does not. That is §17's
+proposal 4, measured: the friendship loop is reachable now, and it is still not
+worth walking. It is the single clearest piece of evidence for what the next
+program should look at.
 
 ## 12. Social persona results
 
 - **LONER** — survives 250 weeks housed, solvent, at tier 5, with nobody. Gated.
 - **CASUAL SOCIAL** — 3 people by week 20 (was 0 until week 50).
-- **FRIENDSHIP-FOCUSED** — 36 relationships, the poorest life in the set: keeping
-  in touch with everyone costs real money, which is an honest tradeoff.
+- **FRIENDSHIP-FOCUSED** — 36 relationships, the poorest life in the set AND no
+  happier than the loner. An honest cost with no honest return yet (§11).
 - **ROMANCE-FOCUSED / FAMILY-FOCUSED** — happiest, mid-wealth, partnered.
 - **CAREER-OBSESSED** — richest, no relationships, by choice not by blockage.
 - **RISK-TAKER** — collects and neglects; loses nobody, which is finding §7.
@@ -310,8 +319,22 @@ matters most. The Home-screen gap is **reported, not fixed**.
 
 ## 19. Verification
 
-See §20 of this file's companion entry in `tasks/todo.md` for the plan status.
-Gate output is recorded in the commit that closes the program.
+- `npm run type-check` 0 · `npm run type-check:tests` 0 · `npm run lint:errors` 0
+- `npm run lint:ratchet` 0 errors / **719 warnings, ceiling lowered 722 → 719**
+  in the commit that earned it (the three dead social verbs took three
+  exhaustive-deps warnings with them)
+- `npm run ui:ratchet` OK at ceiling (gradients 152 / rawFontSizes 94 /
+  heavyWeights 652) · `npm run check:routes` 17 routes, no conflicts
+- `npm test -- --ci`: **746 suites passed, 0 failed · 9,381 tests passed, 15
+  skipped · 308 snapshots passed**
+- `npm run preflight`: **ALL PREFLIGHT CHECKS PASSED** (14 PASS lines, exit 0)
+- Program 11's own gates: `socialBoundaries.test.ts` 8/8 ·
+  `meetPeople.test.ts` 22/22 · `partnerIncomeUnits.test.ts` 9/9 ·
+  `duplicatePeople.test.ts` 4/4 · `movingInWhileRenting.test.ts` 2/2
+- Earlier programs' gates re-run green after the changes:
+  `progressionIntegrity` 4/4, `retentionJourney` 5/5, `marriageFlow` 25/25,
+  `updaterResultRatchet` 25/25 (ratchet back at 101), `carveOutRoundTrip` 55/55,
+  `wealthRatchet` 42/42.
 
 ## 20. Scores (0–100, honest)
 
@@ -321,7 +344,7 @@ Gate output is recorded in the commit that closes the program.
 | relationship entry | 15 | 62 | was tier 2 only, and the chapter goal had to lie about it |
 | relationship depth | 35 | 38 | unchanged by design; the loop is still four capped taps |
 | player agency | 55 | 72 | the loner is gated as a supported life; no relationship is mandatory |
-| friendship system | 30 | 45 | reachable, capped, remembered — but a 100 bond still buys little |
+| friendship system | 30 | 42 | reachable, capped, remembered — but 36 friendships measured no happier than none, and cost six times more |
 | romance system | 40 | 58 | the fortune is gone, the marriage path is unblocked for renters |
 | family system | 60 | 66 | strong already; the move-in gate was closing marriage for renters |
 | relationship variety | 30 | 42 | one new origin axis; the event pool is unchanged |
@@ -331,7 +354,7 @@ Gate output is recorded in the commit that closes the program.
 | emergent story potential | 35 | 55 | `metAt` + the story lines; moments still name nobody |
 | mid-game aspiration | 30 | 45 | a person every six weeks is a thread, not an arc |
 | exploit resistance | 20 | 78 | the two-order-of-magnitude income exploit and the duplicate-person path are closed |
-| **overall social simulation** | **33** | **54** | |
+| **overall social simulation** | **33** | **53** | |
 
 Under 60 because the depth question is untouched: a friendship at 100 still buys
 almost nothing, conflict almost never fires, and no life moment has ever been
