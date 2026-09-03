@@ -1,8 +1,8 @@
-# Master Program 9 — LONG-TERM RETENTION + PLAYER MOTIVATION — IN PROGRESS
+# Master Program 9 — LONG-TERM RETENTION + PLAYER MOTIVATION — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 8 (`6fbdbf4`).
 Programs 1–8 untouched. Retention here means "the life is still going
-somewhere" — no timers, no streak pressure, no new popups. Report when done:
+somewhere" — no timers, no streak pressure, no new popups. Report:
 `tasks/retention-journey-2026-09-03.md`.
 
 ## Phase 1 — player journey audit (simulated + code-read)
@@ -12,17 +12,23 @@ somewhere" — no timers, no streak pressure, no new popups. Report when done:
   cliffhanger teaser, promotion ready, unlock tier change, chapter goal step,
   goal-recommendation change, anticipation item, weekly-challenge rotation,
   job-board rotation, life moment, relationship change.
-- STATUS: pending.
+- STATUS: **done** — `__tests__/simulation/retentionJourney.sim.test.ts` (soak) and
+  `retentionJourney.test.ts` (gates). The harness now answers inbox events and
+  life moments, so the measurement is a player who opens what the game raises.
 
-## Phase 2 — Day 1 → Day 30 map. STATUS: pending (from Phase 1 + code).
-## Phase 3 — dead-zone detection: ≥ 3 consecutive weeks with no signal. STATUS: pending.
-## Phase 4 — the three loops (short / mid / long). STATUS: pending.
-## Phase 5 — story generation: which systems produce memorable, non-scripted moments. STATUS: pending.
-## Phase 6 — progression pacing: money, career, unlocks, property, relationships. STATUS: pending.
-## Phase 7 — existing-system reuse: events (271 templates, ~1 fire / 8–15 weeks), cliffhangers (28), life moments, ambitions, challenges, apps. STATUS: pending.
-## Phase 8 — proposal ranking (impact × confidence ÷ complexity). STATUS: pending.
-## Phase 9 — evidence-backed implementation, each with a test. STATUS: pending.
-## Phase 10–12 — persona re-test, red team, full gates. STATUS: pending.
+## Phase 2 — Day 1 → Day 30 map. STATUS: **done** (report §2–6).
+## Phase 3 — dead zones. STATUS: **done** — 10 → 3; root causes: frozen goal max, life moments at 1/yr, Chapter 2 stalled on a bed, board turnover unannounced.
+## Phase 4 — the three loops. STATUS: **done** (report §8–10).
+## Phase 5 — story systems. STATUS: **done** (report §11).
+## Phase 6 — pacing. STATUS: **done** (report §9–10, §19).
+## Phase 7 — reuse. STATUS: **done** (report §14) — four underused systems strengthened, none added.
+## Phase 8 — ranking. STATUS: **done** (report §15–16).
+## Phase 9 — implementation. STATUS: **done**, one commit:
+- [x] SOON/DREAM goal spotlight rotation (8-week window, hold at ≥ 60%, NOW never rotates) · `lib/goals/engine.ts` · `spotlight.test.ts`.
+- [x] Life moments 5%/wk, pity 30 (the authored 2–3/yr) · `lifeMomentGenerator.ts` · `cadence.test.ts`.
+- [x] Chapter 2 "Get a Roof Over Your Head" (rent or own) replaces the bed · `lifeChapters.ts` · `progressionIntegrity.test.ts`.
+- [x] Week-ahead "New openings next week" · `lib/anticipation` · `engine.test.ts`.
+## Phase 10–12 — persona re-test, red team, gates. STATUS: **done** (report §19–22).
 
 # Master Program 8 — LIFE VARIATION + DISEASE FAIRNESS + PROGRESSION INTEGRITY — COMPLETE
 

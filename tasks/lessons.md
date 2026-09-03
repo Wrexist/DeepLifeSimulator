@@ -4822,3 +4822,29 @@ fixtures were hand-picked weeks under the week-only roll; folding the life
 into the roll moved all of them. Pick fixtures by OUTCOME across the bands
 the mechanic exposes (worst performer survives / best is fired) so the test
 stays black-box and survives a change of salt.
+
+---
+
+## 2026-09-03 — Program 9: measure the silence before adding anything
+
+The obvious retention move was more content. The per-week signal probe on
+the real tick said otherwise: the goal card had four other eligible goals it
+never showed (a pure max is a frozen card), a 20-template story system fired
+once a year against its own "2-3 a year" comment, and the chapter spine was
+stalled on a single item I had introduced the day before. Every fix was a
+cadence or a selection rule in an existing system. Rule: before proposing a
+retention feature, count how often each existing surface CHANGES over 100
+weeks; the ones that never change are the retention bugs.
+
+Second: **a persona that never answers a modal measures a blocked system.**
+Life moments gate on `pendingMoment`; the first probe read "one moment in
+100 weeks" because the persona left it open forever. The harness now answers
+what the game raises (inbox events, moments), and the gate tests that
+cadence on a player who opens the door, not on one who never does.
+
+Third: **a goal that requires one specific purchase can freeze a spine.** The
+bed fixed the pre-ticked phone (Program 8) and stalled Chapter 2 for anyone
+who never opened the Market (Program 9). The right goal was the decision the
+game already teaches from frame one - a home - never pre-ticked, affordable
+on day one, and on the path every persona takes. Prefer goals that sit on
+the taught path over goals that need a detour.

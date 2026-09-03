@@ -173,6 +173,14 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   the week alone. Disease occurrence is `DISEASE_BASE_WEEKLY_CHANCE ×
   calculateDiseaseRisk` (`lib/diseases/diseaseGenerator.ts`); the template
   curves only pick WHICH illness. Evidence: `tasks/life-variation-2026-09-02.md`.
+- **Retention is measured, not assumed.** `RUN_RETENTION_SIM=1 npx jest
+  retentionJourney.sim --silent=false` prints a per-week signal map (new
+  decision, promotion, unlock, chapter step, goal change, week-ahead row, life
+  moment) over 100 weeks; `__tests__/simulation/retentionJourney.test.ts` gates
+  it. The goal engine rotates SOON/DREAM through the eligible catalogue on an
+  8-week window (`GOAL_SPOTLIGHT_WEEKS`), life moments run at
+  `LIFE_MOMENT_WEEKLY_CHANCE` (5%, pity 30), and Chapter 2 asks for a home.
+  Evidence: `tasks/retention-journey-2026-09-03.md` (Program 9).
 
 ### 4.4 Money and other grants must be atomic
 
