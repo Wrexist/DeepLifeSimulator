@@ -162,6 +162,22 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   `RUN_EARLY_GAME_SIM=1 npx jest earlyGamePersonas --silent=false`) and gated by
   `__tests__/simulation/earlyGameSurvivability.test.ts`; the evidence is in
   `tasks/early-game-balance-2026-09-02.md`.
+- **The economy is measured on the real tick, not read off the doc.**
+  `__tests__/helpers/economyPersonas.ts` holds nine economic personas (POOR
+  START … TEXT-SKIPPER) over the same harness as the survival personas, with
+  economic actions (deposit, stocks, property, enrol, company, licence,
+  vehicle, luxury, loan, pet) routed through the production action modules.
+  Soaks: `RUN_ECONOMY_PERSONAS=1 npx jest economyPersonas --silent=false`
+  (20/50/100/250 weeks, `DUMP=<file>` for JSON), `RUN_ECONOMY_STRATEGIES=1`
+  (equal capital, five deployments), `RUN_ECONOMY_SHOCKS=1` (job loss,
+  illness, low cash, big bill, crash); gates in
+  `__tests__/simulation/economyBoundaries.test.ts`. Two rules that came out
+  of Program 10 (2026-09-03): a log-space drift is a MEDIAN, and the
+  arithmetic expectation a diversified holder compounds at is drift + σ²/2 —
+  `weeklyLogDriftFor` subtracts it and `expectedAnnualReturnFor` states the
+  result, so assert market targets on that; and a single seeded tape is one
+  draw, so market statistics in tests average over lives. Evidence:
+  `tasks/economy-progression-2026-09-03.md`.
 - **Every draw on the tick path is a function of the LIFE and the week.**
   `lifeSalt(state)` / `makeLifeRoll(state, weeksLived)` in `utils/seededRoll.ts`
   fold `lineageId:generationNumber` into the weekly stream; `buildPreRolls`,

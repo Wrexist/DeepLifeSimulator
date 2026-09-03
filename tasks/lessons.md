@@ -4848,3 +4848,43 @@ who never opened the Market (Program 9). The right goal was the decision the
 game already teaches from frame one - a home - never pre-ticked, affordable
 on day one, and on the path every persona takes. Prefer goals that sit on
 the taught path over goals that need a detour.
+
+---
+
+## 2026-09-03 — Program 10: the number the designer thinks in is not the number the player compounds at
+
+The stock walk's comment says "7% a year, plus a small risk premium" and its
+tests asserted exactly that on the DRIFT function. A forty-life Monte Carlo
+on the same function measured 19.3%/yr for a diversified holder. Both were
+right: the log-normal step's median grows at the drift, its MEAN at drift +
+σ²/2 per week, and a portfolio realizes the mean. Rule: when a formula is
+log-space, assert the target on the arithmetic expectation
+(`expectedAnnualReturnFor`), and measure it on the tick across lives before
+believing either the comment or the unit test.
+
+Second: **a single seeded tape is one draw, not a statistic.** Three drift
+tests pinned "median > 1.2" and "portfolio > 1.5" on the unsalted tape; the
+day the drift was corrected that tape read 0.82 while the forty-life median
+sat at 2.46. Average a statistic over lives (twelve is enough, under a
+second) or the test is a coin flip with a comment.
+
+Third: **a persona that never does the taught thing measures a blocked
+system, again.** Every seed-1 economic persona died at week 32–34 of a
+critical back injury while holding $6k–$16k, because none of them tapped the
+doctor the sickness modal names. Program 9's lesson (answer what the game
+raises) applies to every modal, not just the inbox. The deaths that remain
+after the reflex (a $300 float that cannot fund a $500 doctor) are the real
+finding.
+
+Fourth: **a "once in a life" event needs a guard, and the guard already
+exists.** The inheritance cliffhanger re-fired three weeks after paying out
+because cliffhangers never joined the pool events' `eventLog`-derived repeat
+guard. Before adding a stored seen-set, look for the memory the game already
+writes.
+
+Fifth: **the harness's debounces are the app's debounces.** `resolveEvent`
+keeps a 500 ms double-tap key; two identical cliffhangers three game-weeks
+apart landed inside it at simulator speed and the second tap was silently
+dropped, which read as "the event stays pending and pays every week". The
+50 ms health-activity guard from Program 7 was the same class. Wait the
+debounce out in the wrapper; a thumb always does.

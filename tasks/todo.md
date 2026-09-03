@@ -1,3 +1,59 @@
+# Master Program 10 — ECONOMY + PROGRESSION + LONG-TERM LIFE BALANCE — COMPLETE
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 9 (`a227a0b`).
+Programs 1–9 untouched. Rule of the program: measure on the real tick before
+touching a number; priority order broken formulas → exploits → dead
+progression → missing tradeoffs → aspiration gaps → new content. The tier-1
+"meeting someone" path is NOT implemented here (owner instruction) — it is
+assessed and reported only. Report: `tasks/economy-progression-2026-09-03.md`.
+
+## Phase 1 — economy map (code-read, no changes)
+- Every flow with its source: wages (`lib/careers/careerData.ts`, 30 ladders),
+  promotion progress (`applyCareerProgress`: 5 × early 2.5/1.5 × perf × pace),
+  tax brackets (`lib/economy/constants.ts`), rent tiers (`lib/realEstate/rentals.ts`),
+  property catalogue + mortgage + carrying costs, vehicles, luxury, health
+  activities and food, dating/wedding/pets, education programmes + merit +
+  student loans, savings/loans/cards (`lib/banking`), stocks (7%/yr drift,
+  2% fee, quarterly dividends), crypto regimes, companies (founding costs,
+  upgrades, per-company caps), street jobs, prestige threshold ($10M ×1.25^n),
+  chapters 1–7 rewards, unlock tiers, lucky/streak/beginner-luck faucets.
+- STATUS: **done** (report §1–2).
+
+## Phase 2 — money flow map. STATUS: **done** (report §2: sources, sinks, conversions, caps).
+
+## Phase 3 — economic persona simulation (real tick)
+- PROBLEM: the existing simulator only drives the survival actions; the
+  economy questions need deposit / stocks / property / education / company /
+  vehicle / luxury / loan actions through the real action modules.
+- PLAN: extend `__tests__/helpers/earlyGameSim.ts` (`SimActions` +
+  `SimRow` income/expense/housing/education/tier columns) and add
+  `__tests__/helpers/economyPersonas.ts` with POOR START, AVERAGE WORKER,
+  CAREER CLIMBER, HIGH-SPENDER, SAVER, INVESTOR, RISK-TAKER, OPTIMIZER,
+  TEXT-SKIPPER. Soak `__tests__/simulation/economyPersonas.sim.test.ts`
+  (`RUN_ECONOMY_PERSONAS=1`, horizons 20/50/100/250).
+- RISK: a persona that plays better than a thumb can measures a solver, not a
+  player — every policy is written as a reaction to something on screen.
+- TEST: the soak prints the tables; gates in Phase 11 pin the outcomes.
+- STATUS: **done** — 9 personas × 250 weeks (seed 1) + 100 weeks (seeds 2–3),
+  JSON dumps; two harness lessons on the way (the doctor reflex, the 500 ms
+  `resolveEvent` debounce). Report §3.
+
+## Phase 4 — life-stage analysis. STATUS: **done** (report §4) — the two stages the doc never named: the comfort cliff at week ~14 (Chapter 2 bundle = 21 weeks of wage) and the plateau at week ~80 (ladder ceiling, no rung on screen).
+## Phase 5 — progression spine + dead paths. STATUS: **done** (report §5) — entry-ladder dead end; `ch_investment_news` never fired; chapters 3+ are a social spine; the student loan charges during study.
+## Phase 6 — price audit. STATUS: **done** (report §6).
+## Phase 7 — reward audit. STATUS: **done** (report §7) — Chapter 2 spike confirmed; inheritances were repeatable.
+## Phase 8 — dominant-strategy + opportunity-cost. STATUS: **done** (report §8, `economyStrategies.sim.test.ts`) — no dominant deployment at $30k; business is the slope; the 10-year investor beat the tycoon only because of the drift defect.
+## Phase 9 — shocks + long-run stability. STATUS: **done** (report §9–10, `economyShocks.sim.test.ts`) — every shock recovers monotonically, no arrears, no spirals; equities measured at 19.3%/yr against a documented ~9–11.5%.
+## Phase 10 — proposals ranked. STATUS: **done** (report §12, ten proposals).
+## Phase 11 — fixes. STATUS: **done**, one commit:
+- [x] Stock drift: σ²/2 convexity subtracted; `expectedAnnualReturnFor` · `lib/economy/stockMarket.ts` · `stockMarketDrift.test.ts` (multi-life statistics).
+- [x] Inheritance cliffhangers once per life via `eventLog`; `ch_investment_news` gate reads `holdings` · `lib/events/cliffhangerEvents.ts` · `cliffhangerWindfalls.test.ts`.
+- [x] `soon_get_qualified` goal for plateaued entry workers · `lib/goals/catalogue.ts` · `getQualified.test.ts`.
+- [x] Economic boundary gates on the real tick · `__tests__/simulation/economyBoundaries.test.ts`.
+- [ ] NOT done, owner decisions: student-loan deferment (schema), Chapter 2 bundle scaling, play-streak tick counting, the tier-1 "meeting someone" path (per instruction).
+## Phase 12 — red team. STATUS: **done** (report §14).
+## Phase 13 — gates + report. STATUS: **done** — `tasks/economy-progression-2026-09-03.md`, lessons appended, CLAUDE.md §4.3 note.
+
 # Master Program 9 — LONG-TERM RETENTION + PLAYER MOTIVATION — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 8 (`6fbdbf4`).
