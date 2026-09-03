@@ -142,7 +142,7 @@ import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
-import { resolveTenancyStep } from '@/lib/realEstate/rentals';
+import { resolveTenancyStep, computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -5262,25 +5262,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: `You are already with ${committedElsewhere.name}. You can't move in with ${partner.name}.` };
  }
 
- // Check if player owns (and has moved into) or rents any real estate property
- const hasProperty = (currentState.realEstate || []).some(property => {
- const status = 'status' in property ? property.status: undefined;
-
- // Check if player owns the property and has moved in
- // Status must be 'owner' (not 'rented' which means they rented it out)
- const ownsAndLivingIn = property.owned && status === 'owner';
-
- // Check if player rents the property (status is 'rented' and owned is false)
- // This means player is renting it, not that they rented it out to someone else
- const rentsProperty = status === 'rented' &&!property.owned;
-
- return ownsAndLivingIn || rentsProperty;
- });
-
- if (!hasProperty) {
+ /**
+  * "Do you have a home?" - asked with the function the rest of the game asks it
+  * with, so the answer cannot disagree with itself.
+  *
+  * This used to walk `realEstate[]` looking for an owned residence or a
+  * `status: 'rented'` row, and that stopped being the whole truth at v32: a
+  * TENANCY is stored in `state.rental`, deliberately NOT as a `realEstate`
+  * entry ("a tenancy is not a holding" - CLAUDE.md §7, v32, so a rental cannot
+  * inflate net worth or appear in the portfolio as an asset).
+  *
+  * So every renting player was refused with "you need to... rent a property"
+  * while renting one. And because `proposeMarriage` requires `livingTogether`,
+  * that refusal closed the ENTIRE marriage path for anyone who had not bought a
+  * house - which is the taught path: Chapter 2 asks for "a roof over your head"
+  * and prices the $45 shared room, and it reads `computeHousingWellbeing` too.
+  * A player could complete the housing chapter and still be told they had
+  * nowhere to live.
+  */
+ if (computeHousingWellbeing(currentState).homeless) {
  return {
  success: false,
- message: 'You need to own and move into a property, or rent a property before you can move in together. Purchase or rent one from the Real Estate app!'
+ message: 'You need somewhere to live first - rent a place from Market > Housing, or buy a home in the Real Estate app.'
  };
  }
 

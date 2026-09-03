@@ -163,7 +163,11 @@ export function makeRomanceFocused(): SimPolicy {
   };
 }
 
-/** 5. CAREER-OBSESSED — every spare week goes to work. Social surfaces ignored by CHOICE. */
+/**
+ * 5. CAREER-OBSESSED — every spare week goes to work. Social surfaces ignored
+ * by CHOICE, which is the measurement: this persona and LONER are the control
+ * for "is a life without relationships still a life?".
+ */
 export const careerObsessed: SimPolicy = async (ctx) => {
   await baseline(ctx);
   const s = ctx.state();

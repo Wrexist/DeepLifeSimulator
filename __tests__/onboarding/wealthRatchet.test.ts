@@ -485,7 +485,7 @@ describe('the ambition reward reads as status too, not as a button', () => {
   });
 });
 
-describe('chapter 2 stays completable at tier 1 - the friend goal needs a tier-1 door', () => {
+describe('chapter 2 stays completable at tier 1, for everyone including a loner', () => {
   /**
    * This block used to say "do not fix the friend goal" and pinned
    * `ch2_make_friend` as ALREADY COMPLETE on a fresh life, because the seeded
@@ -500,22 +500,41 @@ describe('chapter 2 stays completable at tier 1 - the friend goal needs a tier-1
    * a player was stranded in on 2026-08-13.
    *
    * Program 11 added the third source at TIER 1 (`lib/social/meetPeople.ts`,
-   * surfaced on the Contacts app), so the premise no longer holds and the goal
-   * is a real goal. What has to stay true is the PROPERTY the permissive check
-   * was standing in for, and that is what this block pins now: whatever the
-   * friend goal checks, a tier-1 player must have a reachable way to satisfy
-   * it. That is a stronger guarantee than "the goal is pre-ticked", and it
-   * fails just as loudly if the tier-1 door is ever removed.
+   * surfaced on the Contacts app) — and then measured what requiring it costs:
+   * a LONER, an archetype the brief explicitly supports, never completes
+   * chapter 2 and the chapter spine freezes behind it. So the goal asks for a
+   * bond of 60 with ANYONE, which a player who never meets a soul can satisfy
+   * by calling their mother.
+   *
+   * What has to stay true is the PROPERTY the permissive check was standing in
+   * for, and that is what this block pins now: a tier-1 player must have a
+   * reachable way to satisfy it, without a tier-2 app and without being
+   * required to want a social life. That is a stronger guarantee than "the goal
+   * is pre-ticked", and it fails just as loudly if either route is removed.
    */
   const friendGoal = LIFE_CHAPTERS
     .find((c) => c.id === 'ch2_settling_in')!.goals
-    .find((g) => g.id === 'ch2_make_friend')!;
+    .find((g) => g.id === 'ch2_someone_close')!;
 
   it('is NOT satisfied by the family a life starts with', () => {
     const fresh = createTestGameState({ weeksLived: 1 });
 
     expect((fresh.relationships ?? []).length).toBeGreaterThan(0);
     expect(friendGoal.checkComplete(fresh)).toBe(false);
+  });
+
+  it('but a LONER can satisfy it without meeting anyone - by calling their mother', () => {
+    const fresh = createTestGameState({ weeksLived: 8 });
+    const mum = (fresh.relationships ?? [])[0];
+    expect(mum?.type).toBe('parent');
+
+    const cared: GameState = {
+      ...fresh,
+      relationships: (fresh.relationships ?? []).map((r) =>
+        r.id === mum.id ? { ...r, relationshipScore: 60 } : r,
+      ),
+    };
+    expect(friendGoal.checkComplete(cared)).toBe(true);
   });
 
   it('the tier-1 player working on chapter 2 still cannot reach Spark', () => {
@@ -539,10 +558,10 @@ describe('chapter 2 stays completable at tier 1 - the friend goal needs a tier-1
     expect(isFeatureUnlocked(workingOnChapter2, 'app:contacts')).toBe(true);
   });
 
-  it('and that door actually satisfies the goal at tier 1', () => {
-    // The whole argument in one assertion: take the tier-1 state, take the
-    // introduction the game offers it, and the chapter goal completes - with no
-    // hand-written relationship and no tier-2 app.
+  it('and the tier-1 door puts a real person in reach of it', () => {
+    // The other route, at the tier that used to have none: take the tier-1
+    // state, take the introduction the game offers it, and a chosen
+    // relationship exists - with no hand-written state and no tier-2 app.
     const base = ratchetWealthPeak(withMoney(1_200, {
       weeksLived: 8,
       lifeStartWeek: 0,
@@ -552,6 +571,7 @@ describe('chapter 2 stays completable at tier 1 - the friend goal needs a tier-1
     const r = meetSomeone(base, stub.setGameState);
 
     expect(r.success).toBe(true);
-    expect(friendGoal.checkComplete(stub.current())).toBe(true);
+    const met = (stub.current().relationships ?? []).filter((x) => x.type === 'friend');
+    expect(met).toHaveLength(1);
   });
 });

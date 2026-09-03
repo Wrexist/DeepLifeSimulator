@@ -6,7 +6,7 @@
  * a reload. Plus the two things the reported "$2,800 for one promotion" turned
  * out to be made of.
  */
-import { runPersona, seedScenario, meetIfOffered, type SimPolicy, type SimResult } from '../helpers/earlyGameSim';
+import { runPersona, seedScenario, meetIfOffered, keepInTouch, type SimPolicy, type SimResult } from '../helpers/earlyGameSim';
 import { PERSONAS } from '../helpers/earlyGamePersonas';
 import { LIFE_CHAPTERS, getChapterProgress } from '@/lib/progress/lifeChapters';
 import { applyChapterProgress } from '@/contexts/game/actions/weekly/applyChapterProgress';
@@ -32,20 +32,23 @@ jest.setTimeout(600_000);
 const CH2 = LIFE_CHAPTERS.find((c) => c.id === 'ch2_settling_in')!;
 
 /**
- * The average player - rents the shared room from week 4 (the home goal) and
- * says hello to whoever the Contacts app offers (the friend goal).
+ * The average player - rents the shared room from week 4 (the home goal), says
+ * hello to whoever the Contacts app offers, and rings the people in their phone
+ * (which is what gets a bond to 60 - the social goal).
  *
- * The `meetIfOffered` leg is new with Program 11: `ch2_make_friend` used to be
- * satisfied by the seeded parents and is now a real goal, so a persona that
- * never opens Contacts can no longer finish Chapter 2 - correctly. It is a
- * no-op on the weeks nobody is around, so it does not change what the persona
- * spends or how it survives.
+ * Both social legs are new with Program 11. `ch2_someone_close` used to be
+ * satisfied by the seeded parents at their starting bond of 50 and is a real
+ * goal now, so a persona that never opens Contacts cannot finish Chapter 2 -
+ * correctly. Neither leg costs anything: `meetIfOffered` is a no-op on the
+ * weeks nobody is around, and `keepInTouch` with `hangOut: false` is the free
+ * Call, once per contact per week, which is the Contacts app's headline action.
  */
 const averageWithBed = (): SimPolicy => {
   const base = PERSONAS['A average']();
   return async (ctx) => {
     await base(ctx);
     await meetIfOffered(ctx);
+    await keepInTouch(ctx, { hangOut: false });
   };
 };
 const CH2_BUNDLE = CH2.completionReward.money + CH2.perGoalReward.money * CH2.goals.length;
@@ -59,9 +62,10 @@ describe('goals are earned or intentionally initialised', () => {
     // phone-seeded scenario (Program 8); "Make a Friend" was complete on frame
     // one for EVERY scenario, because it counted the seeded Mom and Dad - a
     // permissive check that was load-bearing while Spark (tier 2) was the only
-    // way to meet anyone. Program 11 put a tier-1 door on the Contacts app
-    // (`lib/social/meetPeople.ts`), so the goal is real and the chapter starts
-    // where a chapter should: nothing ticked, nothing paid.
+    // way to meet anyone. It asks for a bond of 60 with somebody now
+    // (`ch2_someone_close`), reachable at tier 1 by calling the family you
+    // start with or by meeting someone new - so the chapter starts where a
+    // chapter should: nothing ticked, nothing paid.
     expect(done).toEqual([]);
     expect(progress.completedGoals).toBe(0);
     expect(CH2.goals.some((g) => g.id === 'ch2_buy_phone')).toBe(false);

@@ -17,6 +17,10 @@ import { outstandingDebt } from '@/lib/progress/wealthRatchet';
 // Chapter 10's non-monetary capstone. Leaf module (types + constants only), so
 // no cycle back into lib/progress.
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
+// `playstyle` imports only `@/contexts/game/types` (type-only), so this edge
+// cannot form a runtime cycle — and sharing the predicate is the point: the
+// chapter goal and the goal engine must not disagree about what "close" means.
+import { strongRelationshipCount } from '@/lib/goals/playstyle';
 import { logger } from '@/utils/logger';
 import { ageFromWeeksLived, weeksSinceLifeStart } from '@/utils/weekCounters';
 
@@ -197,15 +201,18 @@ export interface LifeChapter {
 }
 
 /**
- * Relationships the player chose to have.
- *
- * Excludes the two seeded parents and every child: neither is met, so counting
- * them answers "were you born?" rather than "did you meet anyone?". Mirrors
- * `relationshipCount` in `lib/ambitions/catalog.ts` — one definition of a
- * chosen relationship, in the two systems that ask.
+ * Bond at which a relationship counts as one the player actually keeps up with.
+ * The same number `strongRelationshipCount` (`lib/goals/playstyle.ts`) uses, so
+ * the chapter goal and the goal engine agree on what "close" means.
  */
-export function chosenRelationshipCount(s: GameState): number {
-  return (s.relationships ?? []).filter((r) => r && r.type !== 'parent' && r.type !== 'child').length;
+export const STRONG_BOND = 60;
+
+/** The strongest bond in the life, 0 when there is nobody. */
+export function bestRelationshipScore(s: GameState): number {
+  return (s.relationships ?? []).reduce(
+    (max, r) => Math.max(max, typeof r?.relationshipScore === 'number' ? r.relationshipScore : 0),
+    0,
+  );
 }
 
 export const LIFE_CHAPTERS: LifeChapter[] = [
@@ -300,44 +307,47 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         checkProgress: (s) => (computeHousingWellbeing(s).homeless ? 0 : 1),
       },
       {
-        id: 'ch2_make_friend',
-        title: 'Make a Friend',
+        id: 'ch2_someone_close',
+        title: 'Someone in Your Corner',
         /**
-         * Counts relationships the player CHOSE — the two `initialState` parents
-         * and any child are excluded, the same predicate
-         * `lib/ambitions/catalog.ts` uses so "Make a Connection" doesn't
-         * auto-complete at birth.
+         * Asks for ONE relationship at 60 — the same threshold
+         * `strongRelationshipCount` uses, so "a bond you actually keep up
+         * with" has one definition in the codebase.
          *
-         * It used to count everything, and that was LOAD-BEARING rather than
-         * lazy: the only producers of a relationship were Spark (tier 2) and the
-         * network `intro` favour, which `FAVOR_KIND_BY_CONTACT` offers only on a
-         * `business` contact (tier 3). A player working on chapter 2 is at tier
-         * 1 with two parents and no business contacts, so Spark was the only
-         * route — and finishing chapter 2 is what UNLOCKS Spark. Tightening the
-         * check without opening a door first re-creates the deadlock a player
-         * was stranded in on 2026-08-13 (rule 3 in `featureUnlocks.ts`).
+         * Three earlier shapes, and why this is the one:
          *
-         * The door is open now: `lib/social/meetPeople.ts` puts somebody around
-         * every `MEET_WINDOW_WEEKS` from week 6, on the Contacts app, which is
-         * tier 1. So this is a real goal — reachable before Spark, never
-         * pre-ticked, and it stops paying its share of the chapter bundle for
-         * a state every life starts in. The description names the surface, the
-         * way the homeless notice names "Market > Housing": a goal whose home
-         * is unstated is how the Chapter 2 bed stalled every persona that never
-         * opened the Market (Program 9).
+         * It was `relationships.length > 0`, satisfied by the two seeded
+         * parents, so it was complete on frame one for every life and paid its
+         * share of the chapter bundle for a state nobody earned. That
+         * permissiveness was LOAD-BEARING, not lazy: the only producers of a
+         * chosen relationship were Spark (tier 2) and the `intro` favour on a
+         * `business` contact (tier 3), and finishing this chapter is what
+         * unlocks Spark — so tightening it to "a chosen relationship" would
+         * have made chapter 2 need the app chapter 2 unlocks (rule 3 in
+         * `featureUnlocks.ts`, and the trap a player was stranded in on
+         * 2026-08-13).
          *
-         * And it cannot re-create the 2026-08-13 trap even if a player never
-         * meets anyone, because Spark's tier no longer depends on this flag
-         * alone: `unlockTier`'s milestone fallback grants tier 2 at a $2,000
-         * wealth mark, which is Chapter 2's own savings goal. The chapter's
-         * REWARD waits for a friend; the chapter's UNLOCKS do not.
+         * Program 11 opened a tier-1 door (`lib/social/meetPeople.ts`, on the
+         * Contacts app), which makes "meet somebody" reachable — but measuring
+         * it on the real tick showed the cost: a LONER, an archetype the brief
+         * explicitly supports, never completes chapter 2 and the whole chapter
+         * spine freezes behind it. That is Program 9's bed all over again, and
+         * "do not punish players for being single" is a rule, not a preference.
+         *
+         * So the goal asks for CONNECTION rather than COLLECTION. A player who
+         * meets someone and gets to know them passes. A player who never meets
+         * anybody and simply calls their mother passes too — parents start at
+         * 50 and a weekly Call is +3 plus the want bonus, so it is three or
+         * four weeks of caring about somebody who is already there. Nothing is
+         * pre-ticked, nothing needs a tier-2 app, and no relationship is
+         * mandatory.
          *
          * Pinned by `__tests__/onboarding/wealthRatchet.test.ts` and
          * `__tests__/social/meetPeople.test.ts`.
          */
-        description: 'Say hello to someone new - Apps > Contacts',
-        checkComplete: (s) => chosenRelationshipCount(s) > 0,
-        checkProgress: (s) => (chosenRelationshipCount(s) > 0 ? 1 : 0),
+        description: 'Build one relationship to 60 - call or spend time (Apps > Contacts)',
+        checkComplete: (s) => strongRelationshipCount(s) >= 1,
+        checkProgress: (s) => Math.min(1, bestRelationshipScore(s) / STRONG_BOND),
       },
     ],
     completionReward: { money: 2000, gems: 50 },
