@@ -50,6 +50,10 @@ export interface SimActions {
   buyFood: (foodId: string) => Promise<SimActionResult | undefined>;
   buyItem: (itemId: string) => Promise<SimActionResult | undefined>;
   rentHome: (tierId: string) => Promise<SimActionResult | undefined>;
+  /** Answer a pending weekly event (the "decisions waiting" inbox). */
+  resolveEvent: (eventId: string, choiceId: string) => Promise<void>;
+  /** Raw state write - for the few things no action exposes (answering a life moment). */
+  setState: (updater: (prev: GameState) => GameState) => Promise<void>;
 }
 
 export interface SimWeekContext {
@@ -156,6 +160,7 @@ type Probe = {
   state: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   nextWeek: () => Promise<void> | void;
+  resolveEvent: (eventId: string, choiceId: string) => void;
   job: ReturnType<typeof useJobActions>;
   item: ReturnType<typeof useItemActions>;
 };
@@ -171,6 +176,7 @@ function ProbeComponent() {
     state: gameState,
     setGameState,
     nextWeek: actions.nextWeek as () => Promise<void> | void,
+    resolveEvent: actions.resolveEvent as (eventId: string, choiceId: string) => void,
     job,
     item,
   };
@@ -261,6 +267,8 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
       buyFood: (id) => wrap(() => captured!.item.buyFood(id) as SimActionResult | undefined),
       buyItem: (id) => wrap(() => captured!.item.buyItem(id) as SimActionResult | undefined),
       rentHome: (tierId) => wrap(() => rentHomeAction(captured!.setGameState, captured!.state, tierId)),
+      resolveEvent: (eventId, choiceId) => wrap(() => captured!.resolveEvent(eventId, choiceId)),
+      setState: (updater) => wrap(() => captured!.setGameState(updater)),
     };
 
     for (let w = 0; w < weeks; w++) {
@@ -424,4 +432,34 @@ export async function rentIfPossible(ctx: SimWeekContext, tierId: string): Promi
   const r = await ctx.actions.rentHome(tierId);
   ctx.note(r?.success ? `rent ${tierId}` : `rent ${tierId} refused: ${r?.message ?? ''}`);
   return !!r?.success;
+}
+
+/** Answer every waiting decision with its first choice - what a player who opens the inbox does. */
+export async function answerPendingEvents(ctx: SimWeekContext): Promise<number> {
+  let answered = 0;
+  for (let guard = 0; guard < 20; guard++) {
+    const s = ctx.state();
+    const next = (s.pendingEvents ?? []).find((e: any) => Array.isArray(e?.choices) && e.choices.length > 0);
+    if (!next) break;
+    await ctx.actions.resolveEvent(next.id, next.choices[0].id);
+    answered++;
+  }
+  if (answered) ctx.note(`answered×${answered}`);
+  return answered;
+}
+
+/**
+ * Answer a pending life moment by clearing it (the modal applies the choice's
+ * small stat/karma effects; the cadence question is only whether the NEXT
+ * moment can arrive, which `pendingMoment` gates).
+ */
+export async function answerLifeMoment(ctx: SimWeekContext): Promise<boolean> {
+  const s = ctx.state();
+  if (!s.lifeMoments?.pendingMoment) return false;
+  await ctx.actions.setState((prev) => ({
+    ...prev,
+    lifeMoments: prev.lifeMoments ? { ...prev.lifeMoments, pendingMoment: undefined } : prev.lifeMoments,
+  }));
+  ctx.note('moment answered');
+  return true;
 }

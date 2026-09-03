@@ -31,19 +31,8 @@ jest.setTimeout(600_000);
 
 const CH2 = LIFE_CHAPTERS.find((c) => c.id === 'ch2_settling_in')!;
 
-/** The average player who also buys the bed once they can afford it. */
-const averageWithBed = (): SimPolicy => {
-  const average = PERSONAS['A average']();
-  return async (ctx) => {
-    await average(ctx);
-    const s = ctx.state();
-    const owned = (s.items ?? []).some((i) => i?.id === 'basic_bed' && i.owned);
-    if (!owned && s.stats.money >= 1_800) {
-      const r = await ctx.actions.buyItem('basic_bed');
-      if (r?.success !== false) ctx.note('bed');
-    }
-  };
-};
+/** The average player - rents the shared room from week 4, which is the home goal. */
+const averageWithBed = (): SimPolicy => PERSONAS['A average']();
 const CH2_BUNDLE = CH2.completionReward.money + CH2.perGoalReward.money * CH2.goals.length;
 
 describe('goals are earned or intentionally initialised', () => {
@@ -53,10 +42,12 @@ describe('goals are earned or intentionally initialised', () => {
     const done = CH2.goals.filter((g) => g.checkComplete(s)).map((g) => g.id);
     // "Make a Friend" counts the seeded parents on purpose (lifeChapters.ts
     // explains the deadlock it prevents). The old "Buy a Smartphone" was
-    // complete on frame one for every phone-seeded scenario; the bed is not.
+    // complete on frame one for every phone-seeded scenario; a home never is -
+    // every scenario starts with nowhere to live.
     expect(done).toEqual(['ch2_make_friend']);
     expect(progress.completedGoals).toBe(1);
     expect(CH2.goals.some((g) => g.id === 'ch2_buy_phone')).toBe(false);
+    expect(CH2.goals.some((g) => g.id === 'ch2_get_a_home')).toBe(true);
   });
 });
 

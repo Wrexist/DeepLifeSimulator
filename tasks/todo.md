@@ -1,3 +1,29 @@
+# Master Program 9 — LONG-TERM RETENTION + PLAYER MOTIVATION — IN PROGRESS
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 8 (`6fbdbf4`).
+Programs 1–8 untouched. Retention here means "the life is still going
+somewhere" — no timers, no streak pressure, no new popups. Report when done:
+`tasks/retention-journey-2026-09-03.md`.
+
+## Phase 1 — player journey audit (simulated + code-read)
+- Personas from `__tests__/helpers/earlyGamePersonas.ts` plus journey-specific
+  ones (optimizer, casual, ambition/wealth/career/social/risk) run 100 weeks on
+  the real tick with a per-week SIGNAL probe: new decision (pending event),
+  cliffhanger teaser, promotion ready, unlock tier change, chapter goal step,
+  goal-recommendation change, anticipation item, weekly-challenge rotation,
+  job-board rotation, life moment, relationship change.
+- STATUS: pending.
+
+## Phase 2 — Day 1 → Day 30 map. STATUS: pending (from Phase 1 + code).
+## Phase 3 — dead-zone detection: ≥ 3 consecutive weeks with no signal. STATUS: pending.
+## Phase 4 — the three loops (short / mid / long). STATUS: pending.
+## Phase 5 — story generation: which systems produce memorable, non-scripted moments. STATUS: pending.
+## Phase 6 — progression pacing: money, career, unlocks, property, relationships. STATUS: pending.
+## Phase 7 — existing-system reuse: events (271 templates, ~1 fire / 8–15 weeks), cliffhangers (28), life moments, ambitions, challenges, apps. STATUS: pending.
+## Phase 8 — proposal ranking (impact × confidence ÷ complexity). STATUS: pending.
+## Phase 9 — evidence-backed implementation, each with a test. STATUS: pending.
+## Phase 10–12 — persona re-test, red team, full gates. STATUS: pending.
+
 # Master Program 8 — LIFE VARIATION + DISEASE FAIRNESS + PROGRESSION INTEGRITY — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 7 (`3bfee78`).

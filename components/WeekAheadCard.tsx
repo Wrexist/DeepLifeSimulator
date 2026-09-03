@@ -47,6 +47,7 @@ const KIND_ICON: Record<UpcomingKind, typeof CalendarClock> = {
   career: TrendingUp,
   election: Vote,
   letter: Mail,
+  jobs: Briefcase,
 };
 
 const TONE_COLOR: Record<UpcomingTone, string> = {
