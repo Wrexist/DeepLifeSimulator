@@ -26,6 +26,7 @@ import {
   BEGINNER_LUCK_WEEKS,
   BEGINNER_LUCK_BASE_BONUS,
   BEGINNER_LUCK_RANDOM_MAX,
+  WEEKS_PER_YEAR,
 } from '@/lib/config/gameConstants';
 import { getIncomeMultiplier } from '@/lib/prestige/applyBonuses';
 import { perks as perksCatalog } from '@/src/features/onboarding/perksData';
@@ -58,6 +59,38 @@ export const PARTNER_INCOME_SHARE = 0.25;
  *
  * Only ONE partner contributes (the top earner) — summing every partner over
  * the score threshold was an unbounded-income exploit.
+ *
+ * ── `income` IS ANNUAL. This line is where that is decided. ────────────────
+ *
+ * The bug this closes was a UNIT mismatch, not a formula error, which is why
+ * three rounds of fixing the formula never found it. `Relationship.income` is
+ * populated from exactly one place — `DATING_PROFILES` (`profile.income`,
+ * copied at promotion) — and every one of those 52 numbers is an annual salary
+ * written as such: Student 15,000 · Elementary Teacher 45,000 · Software
+ * Engineer 75,000 · Investment Banker 150,000 · CEO & Founder 250,000. Nobody
+ * intended a chef to earn $62,000 a week.
+ *
+ * It was nonetheless added straight into the week's income beside
+ * `careerSalary`, which is genuinely weekly and runs from $110 at the bottom
+ * rung to $6,000 at the top of the best ladder in the game. So promoting one
+ * Spark match paid $3,750–$62,500 EVERY WEEK, forever, at a bond of 55 that a
+ * promotion grants for free — ten times the best career in the game, from
+ * about week 13, for a tap.
+ *
+ * Measured, not reasoned: the Program 11 romance persona's weekly tick delta
+ * went from $110 to $15,580 on the week it promoted a match, and it finished
+ * 250 weeks on $3.36M against the loner's $53k, having taken no economic
+ * action at all. `tasks/social-systems-2026-09-03.md` §5.
+ *
+ * Dividing here rather than at the 52 data rows or at promotion is deliberate:
+ * it is the one place the number becomes money, so it fixes saves that already
+ * carry a partner without a migration that would have to guess whether a
+ * stored `income` was annual or weekly. After it, a partner contributes
+ * $72–$1,202 a week — a second earner at a quarter share, which is what the
+ * constant above has always claimed to be.
+ *
+ * The player-facing labels were corrected with it (`ContactsApp`, `FamilyTab`
+ * said "/wk"), so what the card says and what the tick pays are the same unit.
  */
 export function householdPartnerIncome(
   relationships: GameState['relationships'] | undefined | null,
@@ -71,7 +104,7 @@ export function householdPartnerIncome(
       typeof rel.income === 'number' && isFinite(rel.income) && rel.income >= 0 ? rel.income : 0;
     if (safeIncome > top) top = safeIncome;
   }
-  return Math.round(top * PARTNER_INCOME_SHARE);
+  return Math.round((top * PARTNER_INCOME_SHARE) / WEEKS_PER_YEAR);
 }
 
 /** Minimum relationship score before a partner contributes at all. */

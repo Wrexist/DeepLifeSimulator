@@ -6,7 +6,7 @@
  * a reload. Plus the two things the reported "$2,800 for one promotion" turned
  * out to be made of.
  */
-import { runPersona, seedScenario, type SimPolicy, type SimResult } from '../helpers/earlyGameSim';
+import { runPersona, seedScenario, meetIfOffered, type SimPolicy, type SimResult } from '../helpers/earlyGameSim';
 import { PERSONAS } from '../helpers/earlyGamePersonas';
 import { LIFE_CHAPTERS, getChapterProgress } from '@/lib/progress/lifeChapters';
 import { applyChapterProgress } from '@/contexts/game/actions/weekly/applyChapterProgress';
@@ -31,21 +31,39 @@ jest.setTimeout(600_000);
 
 const CH2 = LIFE_CHAPTERS.find((c) => c.id === 'ch2_settling_in')!;
 
-/** The average player - rents the shared room from week 4, which is the home goal. */
-const averageWithBed = (): SimPolicy => PERSONAS['A average']();
+/**
+ * The average player - rents the shared room from week 4 (the home goal) and
+ * says hello to whoever the Contacts app offers (the friend goal).
+ *
+ * The `meetIfOffered` leg is new with Program 11: `ch2_make_friend` used to be
+ * satisfied by the seeded parents and is now a real goal, so a persona that
+ * never opens Contacts can no longer finish Chapter 2 - correctly. It is a
+ * no-op on the weeks nobody is around, so it does not change what the persona
+ * spends or how it survives.
+ */
+const averageWithBed = (): SimPolicy => {
+  const base = PERSONAS['A average']();
+  return async (ctx) => {
+    await base(ctx);
+    await meetIfOffered(ctx);
+  };
+};
 const CH2_BUNDLE = CH2.completionReward.money + CH2.perGoalReward.money * CH2.goals.length;
 
 describe('goals are earned or intentionally initialised', () => {
-  it('a fresh Quick Start has exactly one Chapter 2 goal pre-completed, and it is the documented one', () => {
+  it('a fresh Quick Start has NO Chapter 2 goal pre-completed', () => {
     const s = seedScenario('food_courier'); // seeds a smartphone
     const progress = getChapterProgress(CH2, s);
     const done = CH2.goals.filter((g) => g.checkComplete(s)).map((g) => g.id);
-    // "Make a Friend" counts the seeded parents on purpose (lifeChapters.ts
-    // explains the deadlock it prevents). The old "Buy a Smartphone" was
-    // complete on frame one for every phone-seeded scenario; a home never is -
-    // every scenario starts with nowhere to live.
-    expect(done).toEqual(['ch2_make_friend']);
-    expect(progress.completedGoals).toBe(1);
+    // ZERO now. "Buy a Smartphone" was complete on frame one for every
+    // phone-seeded scenario (Program 8); "Make a Friend" was complete on frame
+    // one for EVERY scenario, because it counted the seeded Mom and Dad - a
+    // permissive check that was load-bearing while Spark (tier 2) was the only
+    // way to meet anyone. Program 11 put a tier-1 door on the Contacts app
+    // (`lib/social/meetPeople.ts`), so the goal is real and the chapter starts
+    // where a chapter should: nothing ticked, nothing paid.
+    expect(done).toEqual([]);
+    expect(progress.completedGoals).toBe(0);
     expect(CH2.goals.some((g) => g.id === 'ch2_buy_phone')).toBe(false);
     expect(CH2.goals.some((g) => g.id === 'ch2_get_a_home')).toBe(true);
   });

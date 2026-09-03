@@ -19,6 +19,13 @@ import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
+import {
+  currentIntroduction,
+  introductionToRelationship,
+  meetBlockedReason,
+  MEET_ENERGY_COST,
+} from '@/lib/social/meetPeople';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 const log = logger.scope('ContactsActions');
 
@@ -891,4 +898,75 @@ export function raiseRelationship(
   log.info('Relationship bond raised', { contactId });
   const afterScore = Math.min(100, (rel.relationshipScore ?? 0) + Math.max(2, Math.round((100 - (rel.relationshipScore ?? 0)) / 12)));
   return { success: true, message: `You spent real time with ${rel.name} · Bond ${afterScore}/100.` };
+}
+
+// ---------------------------------------------------------------------------
+// Program 11 — meeting somebody new
+// ---------------------------------------------------------------------------
+
+/**
+ * Take the introduction the current week is offering.
+ *
+ * The gap this closes, in one line: before this, the ONLY producers of a
+ * `Relationship` were Spark (tier 2) and the `intro` favour on a travel
+ * business contact (tier 3), so a player below tier 2 could not meet anybody.
+ * `lib/social/meetPeople.ts` carries the full reasoning and the derivation.
+ *
+ * Everything happens in ONE updater re-checked against `prev` (§4.4): the
+ * energy, the venue's cost and the appended relationship. The idempotence key
+ * is the relationship's own id, which encodes the meeting window - so a
+ * same-batch double tap finds the person already there and returns `prev`,
+ * and no "already met" flag has to be stored anywhere.
+ *
+ * A refusal is reported from the OUTER guards, which the inner ones mirror, so
+ * the message never depends on React's batching order.
+ */
+export function meetSomeone(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message: string; relationshipId?: string } {
+  const intro = currentIntroduction(gameState);
+  if (!intro) {
+    return { success: false, message: meetBlockedReason(gameState) ?? 'Nobody new right now.' };
+  }
+  const blocked = meetBlockedReason(gameState);
+  if (blocked) return { success: false, message: blocked };
+
+  const atWeek = weeksInThisLife(gameState);
+
+  setGameState((prev) => {
+    // Re-derive from `prev`, never from the snapshot: a week may have ticked
+    // between the tap and the commit, which would make this a different person.
+    const fresh = currentIntroduction(prev);
+    if (!fresh || fresh.id !== intro.id) return prev;
+    if ((prev.relationships ?? []).some((r) => r?.id === fresh.id)) return prev;
+    if ((prev.stats?.energy ?? 0) < MEET_ENERGY_COST) return prev;
+
+    const cost = fresh.venue.cost;
+    let next: GameState = prev;
+    if (cost > 0) {
+      const paid = applyMoneyDelta(prev, -cost, `Coffee with ${fresh.name}`);
+      if (!paid) return prev; // could not afford - atomic reject
+      next = { ...next, ...paid };
+    }
+
+    return {
+      ...next,
+      stats: {
+        ...next.stats,
+        energy: clampStatByKey('energy', (next.stats?.energy ?? 0) - MEET_ENERGY_COST),
+      },
+      relationships: [
+        ...(next.relationships ?? []),
+        introductionToRelationship(fresh, weeksInThisLife(next)),
+      ],
+    };
+  });
+
+  log.info('Met someone new', { id: intro.id, venue: intro.venue.id, week: atWeek });
+  return {
+    success: true,
+    message: `You got talking to ${intro.name} ${intro.venue.label}.`,
+    relationshipId: intro.id,
+  };
 }

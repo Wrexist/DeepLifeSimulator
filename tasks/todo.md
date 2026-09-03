@@ -1,3 +1,82 @@
+# Master Program 11 — SOCIAL LIFE + RELATIONSHIPS + FAMILY + EMERGENT STORIES — IN PROGRESS
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 10 (`4eaa778`).
+Programs 1–10 untouched. Rule of the program: map first, measure on the real
+tick, then fix in priority order (broken → hidden → meaningless → missing
+connections → missing entry points → new content). Relationships stay OPTIONAL;
+nothing here may become a weekly maintenance chore. Report:
+`tasks/social-systems-2026-09-03.md`.
+
+## Phase 1 — social system map (code-read, no changes)
+- Every social system with ENTRY · STATE · PROGRESSION · ACTIONS · EVENTS ·
+  REWARDS · CONSEQUENCES · END STATES: `relationships[]` (`parent|friend|
+  partner|spouse|child`), `family` (spouse + `ChildInfo[]` + grandchildren),
+  Spark (`lib/dating`, `lib/spark`), Contacts (`lib/contacts` aggregator +
+  favour ledger), Pulse (`lib/social`), NPC depth (wants/goals/opinion/
+  memories/moods), pets, parenting, the weekly passes
+  (`applyRelationshipHealth`, `applyNPCDepthTick`, `applyChildAging`,
+  `applyPregnancyProgression`, `applyAnniversaries`, `applyScheduledWedding`),
+  relationship events, life moments, social goals/ambitions/chapters.
+- STATUS: **done** (report §1).
+
+## Phase 2 — relationship entry audit
+- Every producer of a `Relationship`, with availability / cost / tier.
+- STATUS: **done** (report §2–3). Findings: only THREE producers exist —
+  `promoteMatchToRelationship` (partner) and `promoteMatchToFriend` (friend),
+  both Spark = **tier 2**; and the `intro` favour, which
+  `FAVOR_KIND_BY_CONTACT` only offers on a `business` contact (travel, tier 3).
+  A tier-1 player has Mom and Dad and no way to meet anyone. The chapter spine
+  encodes the deadlock in a comment: `ch2_make_friend` deliberately counts the
+  starting parents because Spark is what Chapter 2 UNLOCKS.
+
+## Phase 3 — relationship depth audit
+- What the player DOES per relationship type, and what a score buys.
+- STATUS: **done** (report §4–5).
+
+## Phase 4 — family audit. STATUS: **done** (report §8).
+## Phase 5 — personal history / life moment audit. STATUS: **done** (report §9–10).
+
+## Phase 6 — social persona simulation (real tick)
+- PROBLEM: Programs 7/9/10 measured survival, retention and economy on the real
+  tick; no harness drives a SOCIAL life, so every claim above is a code-read.
+- PLAN: extend `__tests__/helpers/earlyGameSim.ts` with social actions routed
+  through the production modules (swipe, promote to friend/partner, conversation
+  move, call/hang out/bond, date, gift, propose, wedding, have a child,
+  parenting action) plus social columns on `SimRow`; add
+  `__tests__/helpers/socialPersonas.ts` with LONER, CASUAL SOCIAL,
+  FRIENDSHIP-FOCUSED, ROMANCE-FOCUSED, CAREER-OBSESSED, FAMILY-FOCUSED,
+  RISK-TAKER. Soak `__tests__/simulation/socialPersonas.sim.test.ts`
+  (`RUN_SOCIAL_PERSONAS=1`, 20/50/100/250 weeks).
+- RISK: a persona that reaches a system the UI never routes to measures the
+  code, not the game — every social action must be one a thumb can reach at the
+  tier the persona is at.
+- TEST: soak prints the tables; gates in Phase 11 pin the outcomes.
+- STATUS: pending.
+
+## Phase 7 — story variation simulation
+- Five lives (career / relationship / wealth / risky / social) compared on a
+  social-signal probe: people met, bonds ≥ 60, conflicts, recoveries, losses.
+- STATUS: pending.
+
+## Phase 8 — discoverability audit (Home, Goals, Apps, moments, onboarding).
+- STATUS: pending.
+
+## Phase 9 — exploit red team
+- Bond spam, gift/date loops, ask-for-money pity, breakup→re-promote,
+  favour intro farming, inheritance, save/reload.
+- STATUS: pending.
+
+## Phase 10 — proposals ranked (PROBLEM · EVIDENCE · SEGMENT · STAGE · REUSE ·
+  NEW STATE · SAVE IMPACT · COST · RETENTION · STORY · EXPLOIT · TEST).
+- STATUS: pending.
+
+## Phase 11 — implementation (evidence-backed only)
+- STATUS: pending.
+
+## Phase 12 — gates + report
+- type-check · type-check:tests · lint:errors · lint:ratchet · check:routes ·
+  ui:ratchet · npm test · preflight. STATUS: pending.
+
 # Master Program 10 — ECONOMY + PROGRESSION + LONG-TERM LIFE BALANCE — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 9 (`a227a0b`).

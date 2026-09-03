@@ -1,7 +1,7 @@
 import { ChildInfo, GameStats } from '@/contexts/game/types';
 import { FamilyMemberNode } from './familyTree';
 import { GeneticsSystem } from './genetics';
-import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getNurtureStat, NURTURE_DEFAULT } from '@/lib/parenting';
 
 export interface HeirGenerationResult {
@@ -78,7 +78,11 @@ export class HeirGenerator {
       parents: [parentId, spouseId || 'unknown_spouse'],
       children: [],
       traits: inheritedTraits,
-      netWorth: child.income ? child.income * WEEKS_PER_YEAR : 0, // Placeholder estimation
+      // `income` is an ANNUAL salary (see `householdPartnerIncome`); this used
+      // to multiply it by 52 as though it were weekly, estimating an heir's
+      // net worth at fifty-two years of earnings. One year of it is the
+      // placeholder that was meant.
+      netWorth: child.income ? Math.round(child.income) : 0, // Placeholder estimation
       occupation: child.careerPath,
       gender: child.gender,
       avatarSeed: child.id, // Consistent avatar

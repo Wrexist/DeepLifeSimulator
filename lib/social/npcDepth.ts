@@ -201,18 +201,29 @@ export interface NPCLifeEvent {
  weight: number; // Probability weight
 }
 
+/**
+ * `incomeChange` is in the same unit as `Relationship.income`, which is an
+ * ANNUAL salary (the 52 `DATING_PROFILES` rows it is copied from are annual
+ * figures, and `householdPartnerIncome` divides by `WEEKS_PER_YEAR` to spend
+ * it). These deltas were authored as +200 / +100 / -500 against a field whose
+ * unit was ambiguous, which made "{name} got a promotion at work!" a raise of
+ * $200 a YEAR. Rescaled so the number matches the sentence: a promotion is
+ * +6,000, a bonus +2,500, and losing the job costs 20,000 of annual income —
+ * which is a quarter-share of about $96 a week off the household, rather than
+ * the $2.40 it was.
+ */
 const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  // Positive events
  {
  id: 'got_promotion',
  description: '{name} got a promotion at work!',
- effects: { mood: 'happy', incomeChange: 200, relationshipScoreChange: 2 },
+ effects: { mood: 'happy', incomeChange: 6000, relationshipScoreChange: 2 },
  weight: 8,
  },
  {
  id: 'bonus_at_work',
  description: '{name} received a bonus at work.',
- effects: { mood: 'happy', incomeChange: 100 },
+ effects: { mood: 'happy', incomeChange: 2500 },
  weight: 10,
  },
  {
@@ -262,7 +273,7 @@ const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  {
  id: 'lost_job',
  description: '{name} lost their job unexpectedly.',
- effects: { mood: 'sad', incomeChange: -500, jobChange: 'Unemployed', relationshipScoreChange: -3 },
+ effects: { mood: 'sad', incomeChange: -20000, jobChange: 'Unemployed', relationshipScoreChange: -3 },
  weight: 3,
  },
  {

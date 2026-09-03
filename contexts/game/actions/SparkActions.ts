@@ -543,6 +543,35 @@ export const dismissLikedYou = (
  * Returning the next state rather than mutating keeps it composable — the
  * conversation path feeds it a state that already carries the charges.
  */
+/**
+ * Is this profile ALREADY somebody in the player's life?
+ *
+ * A promoted match shares its id with the relationship it creates, so "have I
+ * promoted this MATCH?" was the only guard both promotion paths had. That is
+ * not the same question. `unmatch` (reachable from `PartnerProfileScreen`)
+ * removes the match and leaves the relationship standing, so swiping the same
+ * profile again in a later week produces a NEW match id — which walked straight
+ * past the id guard and appended a SECOND relationship for the same person.
+ *
+ * Measured: two records both named "Sarah Johnson", each counting toward
+ * `social_butterfly` (10 friends, 25 gems), `social_celebrity` (25 friends, 75
+ * gems) and `strongRelationshipCount`, which the goal engine reads as social
+ * emphasis. Duplicated social state, gems for a person met once.
+ *
+ * The right key is the PERSON. Relationships created from a Spark match record
+ * the profile's own name, so matching on it catches both the friend path and
+ * the partner path, and it keeps working for a relationship whose match was
+ * unmatched years earlier — which is exactly the case the id guard misses.
+ */
+function profileAlreadyKnown(state: GameState, profileId: string): string | null {
+  const profile = findProfile(profileId);
+  if (!profile) return null;
+  const known = (state.relationships ?? []).some(
+    (r) => r && r.name === profile.name && r.type !== 'parent' && r.type !== 'child',
+  );
+  return known ? profile.name : null;
+}
+
 export function resolveMatchPromotion(
   prev: GameState,
   matchId: string,
@@ -561,6 +590,9 @@ export function resolveMatchPromotion(
   }
   const profile = findProfile(match.profileId);
   if (!profile) return { ok: false, message: 'Profile no longer exists' };
+  // The person, not the match — see `profileAlreadyKnown`.
+  const known = profileAlreadyKnown(prev, match.profileId);
+  if (known) return { ok: false, message: `${known} is already in your contacts.` };
 
   const relationshipId = match.id; // share the id so future ops can find both sides
   const newRelationship = {
@@ -700,6 +732,10 @@ export const promoteMatchToFriend = (
   if ((gameState.relationships ?? []).some((r) => r?.id === relationshipId)) {
     return { success: false, message: 'Already in your contacts' };
   }
+  // ...and already a contact as a PERSON, which the id cannot see once the
+  // original match has been unmatched. See `profileAlreadyKnown`.
+  const knownAs = profileAlreadyKnown(gameState, match.profileId);
+  if (knownAs) return { success: false, message: `${knownAs} is already in your contacts` };
 
   /**
    * The pessimistic capture that used to live here was REMOVED on 2026-08-15.
@@ -721,6 +757,7 @@ export const promoteMatchToFriend = (
     const stillUnpromoted = s.matches.find((m) => m.id === matchId && !m.promoted);
     if (!stillUnpromoted) return prev;
     if ((prev.relationships ?? []).some((r) => r?.id === relationshipId)) return prev;
+    if (profileAlreadyKnown(prev, match.profileId)) return prev;
 
     const newRelationship = {
       id: relationshipId,

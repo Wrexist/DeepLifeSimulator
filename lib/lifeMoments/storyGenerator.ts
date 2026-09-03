@@ -75,7 +75,31 @@ function relationshipNarrative(relationships: Relationship[]): string[] {
 
  if (partner) {
  const verb = partner.type === 'spouse' ? 'married' : 'fell in love with';
- lines.push(`They ${verb} ${partner.name}, a ${partner.personality?.toLowerCase() || 'wonderful'} person who changed their life.`);
+ // "…, whom they met at work in week 12." `metAt` (v50) is the only durable
+ // record of how somebody entered the life - `npcMemories` decay after a year
+ // - and it is the sentence a player actually remembers. Omitted silently for
+ // a relationship that predates the field, which is every relationship in
+ // every save written before it existed.
+ const where = partner.metAt?.label ? `, whom they met ${partner.metAt.label}` : '';
+ lines.push(`They ${verb} ${partner.name}${where}, a ${partner.personality?.toLowerCase() || 'wonderful'} person who changed their life.`);
+ }
+
+ // The friendships the life actually kept. The story named the partner and the
+ // children and stopped there, so a life spent building a circle of friends
+ // read as a life with nobody in it - which is the shape Program 11 set out to
+ // fix. Only bonds that were genuinely maintained (>= 60, the same threshold
+ // `strongRelationshipCount` uses) earn a line; a contact list is not a story.
+ const closeFriends = (relationships ?? []).filter(
+ r => r?.type === 'friend' && (r.relationshipScore ?? 0) >= 60,
+ );
+ if (closeFriends.length === 1) {
+ const f = closeFriends[0];
+ const where = f.metAt?.label ? ` They met ${f.metAt.label}.` : '';
+ lines.push(`${f.name} stayed close through all of it.${where}`);
+ } else if (closeFriends.length > 1) {
+ const names = closeFriends.slice(0, 3).map(f => f.name).join(', ');
+ const rest = closeFriends.length > 3 ? ` and ${closeFriends.length - 3} more` : '';
+ lines.push(`They kept real friendships going: ${names}${rest}.`);
  }
 
  if (children.length === 1) {

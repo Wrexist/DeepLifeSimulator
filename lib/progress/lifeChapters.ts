@@ -196,6 +196,18 @@ export interface LifeChapter {
   perGoalReward: { money: number; gems: number };
 }
 
+/**
+ * Relationships the player chose to have.
+ *
+ * Excludes the two seeded parents and every child: neither is met, so counting
+ * them answers "were you born?" rather than "did you meet anyone?". Mirrors
+ * `relationshipCount` in `lib/ambitions/catalog.ts` — one definition of a
+ * chosen relationship, in the two systems that ask.
+ */
+export function chosenRelationshipCount(s: GameState): number {
+  return (s.relationships ?? []).filter((r) => r && r.type !== 'parent' && r.type !== 'child').length;
+}
+
 export const LIFE_CHAPTERS: LifeChapter[] = [
   {
     id: 'ch1_fresh_start',
@@ -291,29 +303,41 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch2_make_friend',
         title: 'Make a Friend',
         /**
-         * Counts EVERY relationship, including the Mom and Dad `initialState`
-         * seeds — so this reads as complete on a brand-new life. That looks
-         * like a bug, and the sibling ambition system tightened the equivalent
-         * check for exactly that reason (`lib/ambitions/catalog.ts`: "Exclude
-         * the starting parents ... so 'Make a Connection' doesn't auto-complete
-         * at birth"). Do not copy it here.
+         * Counts relationships the player CHOSE — the two `initialState` parents
+         * and any child are excluded, the same predicate
+         * `lib/ambitions/catalog.ts` uses so "Make a Connection" doesn't
+         * auto-complete at birth.
          *
-         * The permissive count is LOAD-BEARING. A chosen relationship comes
-         * from Spark (tier 2) or a network-favour introduction, and
-         * `FAVOR_KIND_BY_CONTACT` only offers an intro on a `business` contact
-         * — personal kinds are excluded on purpose. A player working on chapter
-         * 2 is at tier 1 with two parents and no business contacts, so Spark is
-         * the only route, and finishing chapter 2 is what UNLOCKS Spark.
-         * Tightening this deadlocks the chapter: rule 3 in `featureUnlocks.ts`,
-         * and the trap a player was stranded in on 2026-08-13.
+         * It used to count everything, and that was LOAD-BEARING rather than
+         * lazy: the only producers of a relationship were Spark (tier 2) and the
+         * network `intro` favour, which `FAVOR_KIND_BY_CONTACT` offers only on a
+         * `business` contact (tier 3). A player working on chapter 2 is at tier
+         * 1 with two parents and no business contacts, so Spark was the only
+         * route — and finishing chapter 2 is what UNLOCKS Spark. Tightening the
+         * check without opening a door first re-creates the deadlock a player
+         * was stranded in on 2026-08-13 (rule 3 in `featureUnlocks.ts`).
          *
-         * Making it a real goal means shipping a visible tier-1 way to meet
-         * someone in the same change. Pinned by
-         * `__tests__/onboarding/wealthRatchet.test.ts`.
+         * The door is open now: `lib/social/meetPeople.ts` puts somebody around
+         * every `MEET_WINDOW_WEEKS` from week 6, on the Contacts app, which is
+         * tier 1. So this is a real goal — reachable before Spark, never
+         * pre-ticked, and it stops paying its share of the chapter bundle for
+         * a state every life starts in. The description names the surface, the
+         * way the homeless notice names "Market > Housing": a goal whose home
+         * is unstated is how the Chapter 2 bed stalled every persona that never
+         * opened the Market (Program 9).
+         *
+         * And it cannot re-create the 2026-08-13 trap even if a player never
+         * meets anyone, because Spark's tier no longer depends on this flag
+         * alone: `unlockTier`'s milestone fallback grants tier 2 at a $2,000
+         * wealth mark, which is Chapter 2's own savings goal. The chapter's
+         * REWARD waits for a friend; the chapter's UNLOCKS do not.
+         *
+         * Pinned by `__tests__/onboarding/wealthRatchet.test.ts` and
+         * `__tests__/social/meetPeople.test.ts`.
          */
-        description: 'Start a relationship with someone',
-        checkComplete: (s) => (s.relationships?.length || 0) > 0,
-        checkProgress: (s) => (s.relationships?.length || 0) > 0 ? 1 : 0,
+        description: 'Say hello to someone new - Apps > Contacts',
+        checkComplete: (s) => chosenRelationshipCount(s) > 0,
+        checkProgress: (s) => (chosenRelationshipCount(s) > 0 ? 1 : 0),
       },
     ],
     completionReward: { money: 2000, gems: 50 },

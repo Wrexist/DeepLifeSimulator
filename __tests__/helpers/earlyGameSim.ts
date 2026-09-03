@@ -54,6 +54,16 @@ import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyPassiveIncome, companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { unlockTier } from '@/lib/progress/featureUnlocks';
+// Social actions (Program 11). Same rule as the economic block above: every
+// entry is the production module the app screens call, with the arguments the
+// screen passes — so what a persona "does" socially is what a thumb can do.
+import { swipeOnProfile, promoteMatchToFriend, promoteMatchToRelationship, playConversationOption, getSparkConversationView } from '@/contexts/game/actions/SparkActions';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import { recordInteraction, raiseRelationship, meetSomeone } from '@/contexts/game/actions/ContactsActions';
+import { goOnDate as goOnDateAction, giveGift as giveGiftAction, proposeMarriage as proposeMarriageAction, type DateType } from '@/contexts/game/actions/DatingActions';
+import { updateStats as updateStatsModule } from '@/contexts/game/actions/StatsActions';
+import { strongRelationshipCount } from '@/lib/goals/playstyle';
+import type { SparkConversationOptionId, SparkDateVenueId } from '@/lib/spark/conversation';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
@@ -104,6 +114,28 @@ export interface SimActions {
   /** Spend `amountUSD` of cash on a coin at the board price (the Crypto app's buy). */
   buyCrypto: (cryptoId: string, amountUSD: number) => Promise<void>;
   buyPet: (breedId: string) => Promise<SimActionResult | undefined>;
+  // ── Social actions (Program 11) ────────────────────────────────────────
+  /** Swipe a Spark profile — the app's only way to meet a stranger. */
+  swipe: (profileId: string, direction: 'left' | 'right' | 'super') => Promise<SimActionResult | undefined>;
+  /** Promote a Spark match into a friend / a partner. */
+  promoteFriend: (matchId: string) => Promise<SimActionResult | undefined>;
+  promotePartner: (matchId: string) => Promise<SimActionResult | undefined>;
+  /** Play one Spark conversation move (the v45 choice-driven chat). */
+  converse: (
+    matchId: string,
+    optionId: SparkConversationOptionId,
+    venueId?: SparkDateVenueId,
+  ) => Promise<SimActionResult | undefined>;
+  /** Contacts app: Call (free) / Hang Out ($30) — one per action per week. */
+  contactInteract: (contactId: string, action: string, cost: number, bonus: number) => Promise<SimActionResult | undefined>;
+  /** Contacts app: the paid "meaningful gesture" bond raise. */
+  bond: (contactId: string) => Promise<SimActionResult | undefined>;
+  /** Contacts app date sheet — partners only. */
+  date: (partnerId: string, type: DateType) => Promise<SimActionResult | undefined>;
+  gift: (partnerId: string, type: 'flowers' | 'jewelry' | 'trip' | 'surprise' | 'luxury') => Promise<SimActionResult | undefined>;
+  propose: (partnerId: string, ringId: string) => Promise<SimActionResult | undefined>;
+  /** Take the tier-1 introduction the Contacts app is offering this week. */
+  meet: () => Promise<SimActionResult | undefined>;
 }
 
 /** Where a persona's cash went this week, by the tab it was spent on. */
@@ -176,6 +208,23 @@ export interface SimRow {
   companies: number;
   /** Cash spent this week by category (positive numbers). */
   spentBy: Partial<Record<SpendCategory, number>>;
+  // ── Social columns (Program 11) ───────────────────────────────────────
+  /** Relationships the player CHOSE — everything but the seeded parents. */
+  chosen: number;
+  /** Friends held (type 'friend'). */
+  friends: number;
+  /** Bonds at 60+ (the `strongRelationshipCount` the goal engine reads). */
+  strong: number;
+  /** 'none' | 'partner' | 'engaged' | 'spouse'. */
+  romance: string;
+  /** Children in `family.children`. */
+  children: number;
+  /** Spark matches held (promoted + not). */
+  matches: number;
+  /** Mean bond over every relationship, rounded. */
+  avgBond: number;
+  /** Social notifications the tick raised this week, by id. */
+  socialEvents: string[];
 }
 
 export interface SimResult {
@@ -356,6 +405,56 @@ function economyColumns(
 }
 
 /**
+ * The SOCIAL columns of a row (Program 11).
+ *
+ * `chosen` deliberately excludes the two seeded parents and every child: those
+ * arrive without the player meeting anyone, and counting them is exactly the
+ * mistake `ch2_make_friend` documents. It is the same predicate
+ * `lib/ambitions/catalog.ts` uses for "Make a Connection", so the harness and
+ * the ambition agree on what a relationship the player CHOSE is.
+ */
+function socialColumns(
+  s: GameState,
+): Pick<SimRow, 'chosen' | 'friends' | 'strong' | 'romance' | 'children' | 'matches' | 'avgBond'> {
+  const rels = (s.relationships ?? []).filter(Boolean);
+  const chosen = rels.filter((r) => r.type !== 'parent' && r.type !== 'child').length;
+  const friends = rels.filter((r) => r.type === 'friend').length;
+  const spouse = rels.find((r) => r.type === 'spouse');
+  const partner = rels.find((r) => r.type === 'partner');
+  const romance = spouse
+    ? 'spouse'
+    : partner
+      ? partner.engagementWeek != null
+        ? 'engaged'
+        : 'partner'
+      : 'none';
+  const avgBond = rels.length
+    ? Math.round(rels.reduce((sum, r) => sum + safeNum(r.relationshipScore), 0) / rels.length)
+    : 0;
+  return {
+    chosen,
+    friends,
+    strong: strongRelationshipCount(s),
+    romance,
+    children: (s.family?.children ?? []).length,
+    matches: (s.sparkApp?.matches ?? []).length,
+    avgBond,
+  };
+}
+
+/** Journal entries whose tags mark them social — the week's relationship news. */
+function socialJournalSince(s: GameState, seenIds: Set<string>): string[] {
+  const out: string[] = [];
+  for (const e of s.journal ?? []) {
+    if (!e?.id || seenIds.has(e.id)) continue;
+    seenIds.add(e.id);
+    const tags = e.tags ?? [];
+    if (tags.includes('relationship') || tags.includes('family')) out.push(e.id);
+  }
+  return out;
+}
+
+/**
  * Run one persona for N weeks. Ticks stop at death (the row for the death week
  * is still recorded).
  */
@@ -507,7 +606,49 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         spend('pets', () =>
           buyPetAction(captured!.state, captured!.setGameState, breedId, 'Sim Pet', { updateMoney: updateMoneyModule }),
         ),
+      // ── Social actions (Program 11) ──────────────────────────────────
+      swipe: (profileId, direction) =>
+        wrap(() => swipeOnProfile(captured!.setGameState, captured!.state, profileId, direction)),
+      promoteFriend: (matchId) =>
+        wrap(() => promoteMatchToFriend(captured!.setGameState, captured!.state, matchId)),
+      promotePartner: (matchId) =>
+        wrap(() => promoteMatchToRelationship(captured!.setGameState, captured!.state, matchId)),
+      converse: (matchId, optionId, venueId) =>
+        spend('other', () =>
+          playConversationOption(captured!.setGameState, captured!.state, matchId, optionId, venueId),
+        ),
+      contactInteract: (contactId, action, cost, bonus) =>
+        spend('other', () =>
+          recordInteraction(captured!.state, captured!.setGameState, contactId, action, cost, bonus),
+        ),
+      bond: (contactId) =>
+        spend('other', () => raiseRelationship(captured!.state, captured!.setGameState, contactId)),
+      date: (partnerId, type) =>
+        spend('other', () =>
+          goOnDateAction(captured!.state, captured!.setGameState, partnerId, type, {
+            updateMoney: updateMoneyModule,
+            updateStats: updateStatsModule,
+          }),
+        ),
+      gift: (partnerId, type) =>
+        spend('other', () =>
+          giveGiftAction(captured!.state, captured!.setGameState, partnerId, type, {
+            updateMoney: updateMoneyModule,
+            updateStats: updateStatsModule,
+          }),
+        ),
+      propose: (partnerId, ringId) =>
+        spend('other', () =>
+          proposeMarriageAction(captured!.state, captured!.setGameState, partnerId, ringId, {
+            updateMoney: updateMoneyModule,
+            updateStats: updateStatsModule,
+          }),
+        ),
+      meet: () => spend('other', () => meetSomeone(captured!.state, captured!.setGameState)),
     };
+    // Journal ids already folded into a row, so each week reports only its own
+    // relationship news rather than the running total.
+    const seenJournalIds = new Set<string>((captured!.state.journal ?? []).map((e) => e?.id).filter(Boolean) as string[]);
 
     for (let w = 0; w < weeks; w++) {
       const notes: string[] = [];
@@ -555,6 +696,8 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         notes,
         ...economyColumns(s),
         spentBy,
+        ...socialColumns(s),
+        socialEvents: socialJournalSince(s, seenJournalIds),
       };
       rows.push(row);
       minHealth = Math.min(minHealth, row.health);
@@ -711,6 +854,165 @@ export async function answerLifeMoment(ctx: SimWeekContext): Promise<boolean> {
   }));
   ctx.note('moment answered');
   return true;
+}
+
+// ── Social policy building blocks (Program 11) ────────────────────────────
+
+/**
+ * Try to meet somebody on Spark, the way the app is used: swipe right on the
+ * first profile not already matched, up to `swipes` times, and stop the moment
+ * the game refuses (out of swipes, app locked, no profiles left).
+ *
+ * Returns the number of MATCHES produced, not swipes spent — "did anyone enter
+ * my life this week" is the measurement, and it is what a player is counting.
+ */
+export async function swipeForMatches(ctx: SimWeekContext, swipes = 10): Promise<number> {
+  const before = (ctx.state().sparkApp?.matches ?? []).length;
+  let refused = '';
+  for (let i = 0; i < swipes; i++) {
+    const s = ctx.state();
+    const matched = new Set((s.sparkApp?.matches ?? []).map((m) => m.profileId));
+    const swiped = new Set(
+      (s.sparkApp?.swipes ?? []).map((h) => h?.profileId).filter(Boolean) as string[],
+    );
+    const next = DATING_PROFILES.find((p) => !matched.has(p.id) && !swiped.has(p.id));
+    if (!next) {
+      refused = 'no profiles left';
+      break;
+    }
+    const r = await ctx.actions.swipe(next.id, 'right');
+    if (r && r.success === false) {
+      refused = r.message ?? 'refused';
+      break;
+    }
+  }
+  const gained = (ctx.state().sparkApp?.matches ?? []).length - before;
+  if (gained > 0) ctx.note(`matched×${gained}`);
+  else if (refused) ctx.note(`swipe: ${refused.slice(0, 40)}`);
+  return gained;
+}
+
+/**
+ * Say hello to whoever the Contacts app is offering this week.
+ *
+ * The tier-1 door (`lib/social/meetPeople.ts`). A no-op on the weeks when
+ * nobody is around, which is most of them — so calling it every week is what a
+ * player who opens Contacts regularly does, not a grind.
+ */
+export async function meetIfOffered(ctx: SimWeekContext): Promise<boolean> {
+  const r = await ctx.actions.meet();
+  if (r?.success) ctx.note(`met: ${r.message?.replace('You got talking to ', '') ?? ''}`);
+  return !!r?.success;
+}
+
+/** Promote every unpromoted Spark match into a friend. */
+export async function befriendMatches(ctx: SimWeekContext, max = 3): Promise<number> {
+  let made = 0;
+  for (let i = 0; i < max; i++) {
+    const pending = (ctx.state().sparkApp?.matches ?? []).find((m) => !m.promoted);
+    if (!pending) break;
+    const r = await ctx.actions.promoteFriend(pending.id);
+    if (!r?.success) {
+      ctx.note(`befriend refused: ${(r?.message ?? '').slice(0, 40)}`);
+      break;
+    }
+    made++;
+  }
+  if (made) ctx.note(`befriended×${made}`);
+  return made;
+}
+
+/**
+ * Keep in touch with everyone the player knows: Call (free) then Hang Out ($30)
+ * where affordable. Both are once-per-week per contact by the real action's own
+ * gate, so this is exactly the maintenance loop the Contacts app offers.
+ */
+export async function keepInTouch(ctx: SimWeekContext, opts: { hangOut?: boolean; budget?: number } = {}): Promise<number> {
+  const hangOut = opts.hangOut ?? true;
+  let budget = opts.budget ?? Number.POSITIVE_INFINITY;
+  let touched = 0;
+  const ids = (ctx.state().relationships ?? []).filter(Boolean).map((r) => r.id);
+  for (const id of ids) {
+    const call = await ctx.actions.contactInteract(id, 'call', 0, 3);
+    if (call?.success) touched++;
+    if (hangOut && budget >= 30 && (ctx.state().stats?.money ?? 0) >= 30) {
+      const hang = await ctx.actions.contactInteract(id, 'hangout', 30, 5);
+      if (hang?.success) budget -= 30;
+    }
+  }
+  if (touched) ctx.note(`kept in touch×${touched}`);
+  return touched;
+}
+
+/**
+ * Play the Spark chat toward a relationship: the best move the gate says is
+ * available, cheapest venue when one is required. One move per match per week —
+ * a thumb opening a chat once.
+ */
+export async function courtMatches(ctx: SimWeekContext, max = 2): Promise<number> {
+  const order: SparkConversationOptionId[] = [
+    'go_steady',
+    'ask_date',
+    'flirt',
+    'joke',
+    'compliment',
+    'ask_interests',
+    'break_ice',
+  ];
+  let played = 0;
+  const matches = (ctx.state().sparkApp?.matches ?? []).slice(0, max);
+  for (const m of matches) {
+    const view = getSparkConversationView(ctx.state(), m.id);
+    if (!view) continue;
+    const pick = order
+      .map((id) => view.options.find((o) => o.option.id === id))
+      .find((o) => o?.available);
+    if (!pick) continue;
+    const r = await ctx.actions.converse(
+      m.id,
+      pick.option.id,
+      pick.option.requiresVenue ? 'coffee' : undefined,
+    );
+    if (r?.success) {
+      played++;
+      ctx.note(`spark:${pick.option.id}`);
+    }
+  }
+  return played;
+}
+
+/** The partner-only loop the Contacts date sheet offers, at a chosen tier. */
+export async function courtPartner(ctx: SimWeekContext, tier: DateType = 'chat'): Promise<boolean> {
+  const partner = (ctx.state().relationships ?? []).find(
+    (r) => r?.type === 'partner' || r?.type === 'spouse',
+  );
+  if (!partner) return false;
+  const r = await ctx.actions.date(partner.id, tier);
+  if (r?.success) ctx.note(`date:${tier}`);
+  return !!r?.success;
+}
+
+/**
+ * Format a run as a SOCIAL table: one line per sampled week with who is in the
+ * life, how strong the bonds are, and the relationship news the tick raised.
+ */
+export function formatSocialRun(r: SimResult, every = 5): string {
+  const lines: string[] = [];
+  lines.push(
+    `--- ${r.name} · ${r.scenarioId} · seed ${r.seed} · ${r.died ? `DIED week ${r.deathWeek} (${r.deathReason})` : `alive at week ${r.rows[r.rows.length - 1]?.week ?? 0}`}`,
+  );
+  lines.push(
+    ' wk | T | chosen | frnd | strng | romance | kids | match | avgBond | ha | notes / social news',
+  );
+  for (const row of r.rows) {
+    const newsy = row.socialEvents.length > 0 || row.notes.length > 0;
+    const sampled = row.week % every === 0 || row.week <= 2 || newsy;
+    if (!sampled) continue;
+    lines.push(
+      `${String(row.week).padStart(3)} | ${row.tier} | ${String(row.chosen).padStart(6)} | ${String(row.friends).padStart(4)} | ${String(row.strong).padStart(5)} | ${row.romance.padEnd(7)} | ${String(row.children).padStart(4)} | ${String(row.matches).padStart(5)} | ${String(row.avgBond).padStart(7)} | ${String(row.happiness).padStart(2)} | ${[...row.notes, ...row.socialEvents.map((e) => `NEWS ${e}`)].join('; ').slice(0, 90)}`,
+    );
+  }
+  return lines.join('\n');
 }
 
 /**

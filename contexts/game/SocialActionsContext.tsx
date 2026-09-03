@@ -14,18 +14,38 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
 
+/**
+ * Social actions — dating, gifts, weddings, children, divorce.
+ *
+ * THREE VERBS WERE REMOVED HERE (Program 11), and it is worth saying which and
+ * why, because they looked like features:
+ *
+ *   - `increaseRelationshipLevel(id)` — +5 bond, no cost, no cooldown, no cap.
+ *   - `inviteToEvent(id, type)` — +3 bond, +5 happiness, −5 energy, no cooldown.
+ *   - `startConversation(id)` — +2 bond, +2 happiness, no cost, no cooldown.
+ *
+ * A repo-wide search found ZERO callers for all three: no screen, no hook, no
+ * test, and nothing in the aggregated `useGameActions` surface either. They
+ * were dead. That matters more than tidiness, because the first one is a free
+ * uncapped bond faucet and the third a free uncapped happiness faucet — the
+ * exact gate-then-grant shape CLAUDE.md §4.4 exists to stop — sitting on a
+ * public provider API where the next feature to reach for "raise this bond"
+ * would have found them before it found the guarded versions.
+ *
+ * The guarded versions already exist and are what the UI calls:
+ * `recordInteraction` (Call / Hang Out — once per action per week, priced) and
+ * `raiseRelationship` (the paid gesture, diminishing, once a week), both in
+ * `ContactsActions`. Deleting the unguarded twins leaves one way to do it.
+ */
 interface SocialActionsContextType {
   // Dating & Relationships
   executeWedding: (partnerId: string) => void;
   startDating: (characterId: string) => void;
   breakUp: (relationshipId: string) => void;
-  increaseRelationshipLevel: (relationshipId: string) => void;
 
   // Social Actions
   goOnDate: (characterId: string) => void;
-  inviteToEvent: (characterId: string, eventType: string) => void;
   giveGift: (characterId: string, giftId: string) => void;
-  startConversation: (characterId: string) => void;
 
   // Family
   haveChild: (partnerId: string) => void;
@@ -145,25 +165,6 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     logger.info('Broke up with:', { relationshipId, name: relationship.name });
   }, [setGameState, showError, showInfoBanner]);
 
-  const increaseRelationshipLevel = useCallback((relationshipId: string) => {
-    const state = getGameState();
-    if (!state) return;
-
-    const relationship = state.relationships?.find(r => r.id === relationshipId);
-    if (!relationship) return;
-
-    const boost = 5;
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).map(r =>
-        r.id === relationshipId
-          ? { ...r, relationshipScore: Math.min(100, r.relationshipScore + boost) }
-          : r
-      ),
-    }));
-    logger.info('Relationship level increased:', { relationshipId, boost });
-  }, [setGameState]);
-
   // --- Social Actions ---
 
   const goOnDate = useCallback((characterId: string) => {
@@ -176,31 +177,6 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     } else {
       showError('Date Failed', result?.message || 'Could not go on date.');
     }
-  }, [setGameState, showError, showInfoBanner]);
-
-  const inviteToEvent = useCallback((characterId: string, eventType: string) => {
-    const state = getGameState();
-    if (!state) return;
-
-    const relationship = state.relationships?.find(r => r.id === characterId);
-    if (!relationship) {
-      showError('Error', 'Person not found.');
-      return;
-    }
-
-    // Boost relationship from spending time together
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).map(r =>
-        r.id === characterId
-          ? { ...r, relationshipScore: Math.min(100, r.relationshipScore + 3) }
-          : r
-      ),
-    }));
-    rawUpdateStats(setGameState, { happiness: 5, energy: -5 });
-
-    showInfoBanner('Event', `You invited ${relationship.name} to ${eventType}. They had a great time!`);
-    logger.info('Invited to event:', { characterId, eventType });
   }, [setGameState, showError, showInfoBanner]);
 
   const giveGift = useCallback((characterId: string, giftId: string) => {
@@ -221,27 +197,6 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
       showError('Gift Failed', result?.message || 'Could not give gift.');
     }
   }, [setGameState, showError, showInfoBanner]);
-
-  const startConversation = useCallback((characterId: string) => {
-    const state = getGameState();
-    if (!state) return;
-
-    const relationship = state.relationships?.find(r => r.id === characterId);
-    if (!relationship) return;
-
-    // Small relationship boost from chatting
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).map(r =>
-        r.id === characterId
-          ? { ...r, relationshipScore: Math.min(100, r.relationshipScore + 2) }
-          : r
-      ),
-    }));
-    rawUpdateStats(setGameState, { happiness: 2 });
-
-    logger.info('Had conversation with:', { characterId, name: relationship.name });
-  }, [setGameState]);
 
   // --- Family Actions ---
 
@@ -408,15 +363,12 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     executeWedding: executeWeddingAction,
     startDating,
     breakUp,
-    increaseRelationshipLevel,
     goOnDate,
-    inviteToEvent,
     giveGift,
-    startConversation,
     haveChild,
     nameChild,
     divorce,
-  }), [executeWeddingAction, startDating, breakUp, increaseRelationshipLevel, goOnDate, inviteToEvent, giveGift, startConversation, haveChild, nameChild, divorce]);
+  }), [executeWeddingAction, startDating, breakUp, goOnDate, giveGift, haveChild, nameChild, divorce]);
 
   return (
     <SocialActionsContext.Provider value={value}>

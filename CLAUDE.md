@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 49`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 50`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -382,7 +382,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 49`** — single source of truth in
+- **Canonical `STATE_VERSION = 50`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with

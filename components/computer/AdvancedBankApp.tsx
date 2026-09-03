@@ -98,6 +98,7 @@ import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/L
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
 import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
+import { householdPartnerIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import TaxStatement from '@/components/banking/TaxStatement';
 
@@ -247,11 +248,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     // tycoon a "Weekly income" several times what the tick pays - and inflated
     // the DTI gate by the same factor. One shared helper encodes the payout.
     income += companyIncomePaidWeekly(gameState);
-    for (const rel of (gameState.relationships ?? [])) {
-      if (rel?.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
-        income += Math.round(rel.income * 0.25);
-      }
-    }
+    // Same argument as the company line above, one field over: this used to
+    // re-derive the partner's contribution (`rel.income * 0.25`, summed over
+    // EVERY qualifying partner) instead of calling the tick's own function.
+    // That copy missed the annual-to-weekly conversion `householdPartnerIncome`
+    // makes and the "only the top earner contributes" rule, so the DTI gate saw
+    // a weekly income up to 52x what the tick pays. One helper, one answer.
+    income += householdPartnerIncome(gameState.relationships);
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies, gameState.relationships]);
 
