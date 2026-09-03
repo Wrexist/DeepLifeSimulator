@@ -4888,3 +4888,78 @@ apart landed inside it at simulator speed and the second tap was silently
 dropped, which read as "the event stays pending and pays every week". The
 50 ms health-activity guard from Program 7 was the same class. Wait the
 debounce out in the wrapper; a thumb always does.
+
+---
+
+## 2026-09-03 — Program 11: two numbers added together are a claim about their units
+
+`householdPartnerIncome` had been fixed twice — once for a stray `× 7`, once for
+a missing 25% share — and both fixes were about the FORMULA. The defect was in
+the UNIT. `Relationship.income` comes from exactly one place, the 52
+`DATING_PROFILES` rows, and every one of them is an annual salary written as
+such (Student 15,000 · Elementary Teacher 45,000 · CEO & Founder 250,000). A
+quarter of it was added to a WEEKLY total beside a career salary running $110 to
+$6,000. So one Spark promotion paid up to $62,500 a week, forever, from about
+week 13, and the romance persona finished 250 weeks on $3.36M against the
+loner's $53k having taken no economic action at all.
+
+Nothing about the line looked wrong. Both operands were numbers, both were
+"income", and the ratio only becomes visible when you put the two side by side.
+Rule: **when an expression adds two quantities, name their units out loud before
+you check its arithmetic** — and when a value is copied from a data table, read
+three rows of that table and ask what a human would have meant by them. The tell
+here was free: a chef does not earn $62,000 a week.
+
+Second, and the reason it survived three passes of review: **a persona that
+never reaches a system cannot measure it.** Program 10 measured the economy with
+nine economic personas over 250 weeks and never saw this, because not one of
+them ever got a partner. The defect sat in the income line the whole time. A
+sweep is only as wide as the states its actors occupy.
+
+Third: **a permissive check with a comment explaining why is a TODO, not a
+decision.** `ch2_make_friend` counted the seeded parents and said so at length —
+"the permissive count is LOAD-BEARING… making it a real goal means shipping a
+visible tier-1 way to meet someone in the same change". The comment was right
+about the deadlock and right about the fix, and the goal still paid a $2,800
+bundle for a state every life starts in, for as long as nobody did the other
+half. When a comment names the change that would make a check honest, that is a
+work item with a rationale attached.
+
+Fourth, from getting it wrong once in the middle: **tightening a goal is a
+change to who can finish the game, so measure it on the archetype most likely to
+be hurt.** Making the chapter goal require a CHOSEN relationship worked
+perfectly for six personas and froze the whole chapter spine for the LONER —
+an archetype the brief explicitly supports. The fix was to ask for a bond of 60
+with ANYONE, which a player who never meets a soul satisfies by calling their
+mother. Asking for connection rather than collection is both the kinder rule and
+the truer one.
+
+Fifth: **an id-shaped idempotence guard answers the question the id encodes, not
+the question you meant.** Both Spark promotion paths guarded on "have I promoted
+this MATCH?", and `unmatch` — which leaves the relationship standing — is
+exactly the operation that separates a match id from a person. Re-swiping the
+same profile minted a new id and appended a second "Sarah Johnson", both
+counting toward two gem achievements. Before trusting a uniqueness guard, ask
+what can change while the thing it identifies stays the same.
+
+Sixth: **a stale reachability check outlives the schema change that broke it.**
+`moveInTogether` walked `realEstate[]` for a home, which stopped being the whole
+truth at v32 when a tenancy deliberately moved to `state.rental`. Every renting
+player was refused with "you need to … rent a property" while renting one — and
+because proposing requires living together, that one line closed the entire
+marriage path for anyone who had not bought a house. The fix was not a better
+check but the SAME check the rest of the game uses (`computeHousingWellbeing`),
+which is what stops the game telling a player they are housed and homeless in
+the same session.
+
+Seventh, a measurement lesson: **count the KINDS of thing a system produces, not
+how much it produces.** Over 1,750 simulated persona-weeks the social systems
+raised 121 notifications for the friendship persona and every single one was the
+same template family — NPC life-event flavour. Zero breakups, zero drifts, zero
+losses, across seven very different lives including one built to neglect people.
+A system that is busy is not the same as a system that is doing something.
+
+Eighth, a harness lesson that cost a full 280-second run: **`| tail` on a
+background soak throws away the measurement.** Jest prints its console output
+before the summary, so piping to `tail -120` kept the summary and discarded every
+table. Write the whole log to a file and let `DUMP=` carry the data.

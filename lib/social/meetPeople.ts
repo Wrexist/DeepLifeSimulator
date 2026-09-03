@@ -36,7 +36,12 @@
  *
  *   - "have I already met this window's person?" is
  *     `relationships.some(r => r.id === id)` — the memory the game already
- *     writes, the same trick the `intro` favour uses (`intro-<contact>-<week>`);
+ *     writes, the same trick the `intro` favour uses (`intro-<contact>-<week>`).
+ *     The id encodes the WINDOW ONLY, deliberately: an earlier cut folded the
+ *     venue in (`met-work-2`), and `pickVenue` reads the live state, so taking a
+ *     job or enrolling mid-window changed the venue, changed the id, and offered
+ *     a SECOND person inside the same window. One window is one person, whatever
+ *     the player does that week;
  *   - a double-tap in one React batch cannot append twice, because the updater
  *     re-checks that id against `prev` (CLAUDE.md §4.4);
  *   - a reload cannot re-roll who is standing there, because nothing here
@@ -156,7 +161,7 @@ const MET_FIRST_NAMES = [
 
 const MET_LAST_NAMES = [
   'Hale', 'Okafor', 'Rivas', 'Bennett', 'Sultan', 'Moreau', 'Idris', 'Lange', 'Costa', 'Whitlock',
-  'Nakamura', 'Ferreira', 'Ashby', 'Solano', 'Варга', 'Duarte', 'Vance', 'Osei', 'Blackwood', 'Ilves',
+  'Nakamura', 'Ferreira', 'Ashby', 'Solano', 'Varga', 'Duarte', 'Vance', 'Osei', 'Blackwood', 'Ilves',
 ];
 
 export interface Introduction {
@@ -214,9 +219,12 @@ export function currentIntroduction(state: GameState): Introduction | null {
   const windowIndex = Math.floor(week / MEET_WINDOW_WEEKS);
   if (windowIndex < 1) return null;
 
-  const venue = pickVenue(state);
-  const id = `met-${venue.id}-${windowIndex}`;
+  // WINDOW ONLY in the id — never the venue. `pickVenue` reads the live state,
+  // so folding it in would let a player take a job (or enrol, or rent) to change
+  // the venue mid-window and be offered a second person inside it.
+  const id = `met-w${windowIndex}`;
   if ((state.relationships ?? []).some((r) => r?.id === id)) return null;
+  const venue = pickVenue(state);
 
   // Keyed on the life AND the window, so two lives meet different people in
   // the same week and one life meets the same person on every reload.
@@ -269,7 +277,7 @@ export function meetBlockedReason(state: GameState): string | null {
     return 'You already have as many new people in your life as you can keep up with.';
   }
   if (!currentIntroduction(state)) {
-    return 'Nobody new right now — someone usually turns up within a few weeks.';
+    return 'Nobody new right now - someone usually turns up within a few weeks.';
   }
   if ((state.stats?.energy ?? 0) < MEET_ENERGY_COST) {
     return `You are too tired to be good company (needs ${MEET_ENERGY_COST} energy).`;

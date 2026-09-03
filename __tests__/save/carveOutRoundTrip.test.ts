@@ -335,7 +335,7 @@ const CARVE_OUTS: CarveOut[] = [
         ...b,
         relationships: [
           {
-            id: 'met-work-2',
+            id: 'met-w2',
             name: 'Mia Hale',
             type: 'friend' as const,
             relationshipScore: 40,

@@ -15,25 +15,25 @@ import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
 
 /**
- * Social actions — dating, gifts, weddings, children, divorce.
+ * Social actions - dating, gifts, weddings, children, divorce.
  *
  * THREE VERBS WERE REMOVED HERE (Program 11), and it is worth saying which and
  * why, because they looked like features:
  *
- *   - `increaseRelationshipLevel(id)` — +5 bond, no cost, no cooldown, no cap.
- *   - `inviteToEvent(id, type)` — +3 bond, +5 happiness, −5 energy, no cooldown.
- *   - `startConversation(id)` — +2 bond, +2 happiness, no cost, no cooldown.
+ *   - `increaseRelationshipLevel(id)` - +5 bond, no cost, no cooldown, no cap.
+ *   - `inviteToEvent(id, type)` - +3 bond, +5 happiness, −5 energy, no cooldown.
+ *   - `startConversation(id)` - +2 bond, +2 happiness, no cost, no cooldown.
  *
  * A repo-wide search found ZERO callers for all three: no screen, no hook, no
  * test, and nothing in the aggregated `useGameActions` surface either. They
  * were dead. That matters more than tidiness, because the first one is a free
- * uncapped bond faucet and the third a free uncapped happiness faucet — the
- * exact gate-then-grant shape CLAUDE.md §4.4 exists to stop — sitting on a
+ * uncapped bond faucet and the third a free uncapped happiness faucet - the
+ * exact gate-then-grant shape CLAUDE.md §4.4 exists to stop - sitting on a
  * public provider API where the next feature to reach for "raise this bond"
  * would have found them before it found the guarded versions.
  *
  * The guarded versions already exist and are what the UI calls:
- * `recordInteraction` (Call / Hang Out — once per action per week, priced) and
+ * `recordInteraction` (Call / Hang Out - once per action per week, priced) and
  * `raiseRelationship` (the paid gesture, diminishing, once a week), both in
  * `ContactsActions`. Deleting the unguarded twins leaves one way to do it.
  */

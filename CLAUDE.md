@@ -242,6 +242,38 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   for a while afterwards; nothing ever imported it either, so it is deleted too.
 - Load native modules lazily via `require()` in a try/catch, never at module top level.
 
+### 4.7 Other people enter a life through exactly three doors
+
+`Relationship` records are produced by **three** functions and nothing else:
+`promoteMatchToFriend` / `promoteMatchToRelationship` (Spark, **tier 2**), the
+`intro` favour (`resolveNonMoneyFavor`, offered only on a `business` contact, so
+**tier 3**), and `meetSomeone` (`lib/social/meetPeople.ts`, the Contacts app,
+**tier 1**). Before the third existed a player below tier 2 could not meet
+anybody at all, which is why Chapter 2's social goal had to count the seeded
+parents and paid its share of the bundle for a state every life starts in. If
+you add a fourth, say which tier it is reachable at — a social system nobody can
+reach is indistinguishable from one that does not exist.
+
+Two rules that came out of measuring it (Program 11,
+`tasks/social-systems-2026-09-03.md`):
+
+- **`Relationship.income` is an ANNUAL salary.** It is copied from
+  `DATING_PROFILES`, whose 52 rows are annual figures, and
+  `householdPartnerIncome` divides by `WEEKS_PER_YEAR` before spending it. It
+  used to be added straight into the WEEKLY income beside `careerSalary`
+  ($110–$6,000), so one Spark promotion paid up to $62,500 a week forever. Every
+  label that shows it says "/yr".
+- **The social systems are measured on the real tick**, like the economy.
+  `__tests__/helpers/socialPersonas.ts` holds seven personas (LONER … RISK-TAKER)
+  over the `earlyGameSim` harness, with swipes, conversation moves, calls,
+  bonds, dates, gifts and proposals routed through the production action
+  modules. Soak: `RUN_SOCIAL_PERSONAS=1 npx jest socialPersonas --silent=false`
+  (`DUMP=<file>` for JSON); gates in
+  `__tests__/simulation/socialBoundaries.test.ts`. The rule that came out of it:
+  a persona that never reaches a system cannot measure it — Program 10 ran nine
+  economic personas for 250 weeks and never saw the partner-income defect,
+  because not one of them ever got a partner.
+
 ---
 
 ## 5. Conventions
@@ -705,6 +737,23 @@ including the crash screen.
   a tick that runs twice cannot double-credit, and an existing save loads with
   its events already part-complete. Event WINDOWS are real UTC time and
   everything EARNED is game state — see `docs/LIVEOPS.md`.
+- **v50 adds `metAt` on `Relationship`** — where and when somebody entered the
+  life (`{ venue, label, week }`, the week being `weeksInThisLife`). A field on
+  the ELEMENT of a concrete array, so it takes the v34 `grandchildren` / v42
+  `title` treatment rather than a top-level backfill. It exists because the game
+  had nowhere DURABLE to put the one fact a player most wants back about
+  somebody: how they met. `npcMemories` looked like the place and is not —
+  `decayMemories` drops anything older than `MEMORY_TTL_WEEKS` (52), so an
+  origin written as a memory is guaranteed to be forgotten in the second year,
+  which is exactly when remembering it starts to matter. Default `undefined`, so
+  a CARVE-OUT: version bumped, NO backfill and no `repairGameState` mirror. A
+  relationship written before this has no record of where it began and cannot
+  grow one — the week it happened is gone — so readers fall back to saying
+  nothing, which is what those saves show today. Writing a value would be worse
+  than useless: it would be a FABRICATED memory, telling a player they met their
+  spouse somewhere they did not, on the screens whose whole job is to be the
+  life they remember. Shipped with the first producer that has an origin to
+  record, the tier-1 meeting door (§4.7).
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you
@@ -998,6 +1047,7 @@ replaced with review checklists.
 |---|---|
 | `README.md` | Feature overview, web preview viewports, cloud-save backend contract |
 | `tasks/lessons.md` | Post-mortems and recurring bug patterns — read first |
+| `tasks/social-systems-2026-09-03.md` | The social/relationship/family map, the persona measurements, and §4.7's evidence |
 | `tasks/todo.md` | Active plan |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |

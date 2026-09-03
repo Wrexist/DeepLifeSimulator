@@ -404,7 +404,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   /**
    * Meet the person this week is offering (Program 11).
    *
-   * The card this drives is the only tier-1 way anybody new enters a life —
+   * The card this drives is the only tier-1 way anybody new enters a life -
    * Spark is tier 2 and the network `intro` favour needs a travel contact. It
    * is deliberately on the PERSONAL tab, above the portfolio: the question
    * "where do people come from?" should be answered on the screen that lists
@@ -1151,13 +1151,13 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
 
   // ---- Attention: triage card with one primary action -----------------------
   /**
-   * "Somebody new" — the tier-1 door into a social life.
+   * "Somebody new" - the tier-1 door into a social life.
    *
    * Renders only when there is actually a person around, so it is not a
    * standing chore: `currentIntroduction` returns null between windows and once
    * the cap is reached, and the card disappears with it. When somebody IS
    * around but the player cannot afford the moment, the button stays visible
-   * and says why — a visible gate is a goal, an absent button is a mystery.
+   * and says why - a visible gate is a goal, an absent button is a mystery.
    */
   const renderMeetCard = () => {
     if (!introduction) return null;

@@ -35,22 +35,17 @@ d('social personas on the real tick', () => {
         policy: spec.make(),
       });
       results[name] = r;
-      // eslint-disable-next-line no-console
       console.log(formatSocialRun(r, 10));
     }
 
-    // eslint-disable-next-line no-console
     console.log('\n=== SOCIAL HORIZON TABLE ===');
     for (const week of HORIZONS) {
-      // eslint-disable-next-line no-console
       console.log(`\n-- week ${week} --`);
-      // eslint-disable-next-line no-console
       console.log('persona              | tier | chosen | friends | strong | romance | kids | avgBond | happiness | netWorth');
       for (const [name, r] of Object.entries(results)) {
         const row = rowAt(r, week);
         if (!row) continue;
-        // eslint-disable-next-line no-console
-        console.log(
+          console.log(
           `${name.padEnd(20)} | ${String(row.tier).padStart(4)} | ${String(row.chosen).padStart(6)} | ${String(row.friends).padStart(7)} | ${String(row.strong).padStart(6)} | ${row.romance.padEnd(7)} | ${String(row.children).padStart(4)} | ${String(row.avgBond).padStart(7)} | ${String(row.happiness).padStart(9)} | ${String(row.netWorth).padStart(8)}`,
         );
       }

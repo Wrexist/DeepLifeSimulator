@@ -2897,12 +2897,20 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('partner with relationshipScore >= 50 contributes 25% of income', () => {
+  /**
+   * `Relationship.income` is an ANNUAL salary - the 52 `DATING_PROFILES` rows it
+   * is copied from are annual figures, so `householdPartnerIncome` divides by
+   * `WEEKS_PER_YEAR` before spending it (Program 11). These fixtures used to
+   * carry 1,000 and 2,000, which read as plausible only while the field was
+   * being spent weekly; they carry catalogue-scale salaries now, and the
+   * assertions state the derivation rather than a magic number.
+   */
+  it('partner with relationshipScore >= 50 contributes a weekly quarter-share of an annual salary', () => {
     const result = computeWeeklyIncome({
       prevState: {
         ...fixtures.midGame,
         relationships: [
-          { id: 'r1', name: 'Pat', type: 'partner', relationshipScore: 80, income: 1000 } as any,
+          { id: 'r1', name: 'Pat', type: 'partner', relationshipScore: 80, income: 52_000 } as any,
         ],
       },
       careerSalary: 0,
@@ -2911,6 +2919,7 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
       weeksLivedNow: 250,
       unlockedBonuses: [],
     });
+    expect(result.partnerIncome).toBe(Math.round((52_000 * 0.25) / 52));
     expect(result).toMatchSnapshot();
   });
 
@@ -2919,8 +2928,8 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
       prevState: {
         ...fixtures.midGame,
         relationships: [
-          { id: 'r1', name: 'Spouse', type: 'spouse', relationshipScore: 75, income: 2000 } as any,
-          { id: 'r2', name: 'Partner', type: 'partner', relationshipScore: 60, income: 500 } as any,
+          { id: 'r1', name: 'Spouse', type: 'spouse', relationshipScore: 75, income: 104_000 } as any,
+          { id: 'r2', name: 'Partner', type: 'partner', relationshipScore: 60, income: 26_000 } as any,
         ],
       },
       careerSalary: 100,
@@ -2929,8 +2938,11 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
       weeksLivedNow: 250,
       unlockedBonuses: [],
     });
-    // EXPLOIT FIX: 25% of the top earner only (2000 → 500), not 500 + 125.
-    expect(result.partnerIncome).toBe(500);
+    // EXPLOIT FIX: a quarter of the TOP earner only, not the sum of both.
+    expect(result.partnerIncome).toBe(Math.round((104_000 * 0.25) / 52));
+    expect(result.partnerIncome).toBeLessThan(
+      Math.round((104_000 * 0.25) / 52) + Math.round((26_000 * 0.25) / 52),
+    );
     expect(result).toMatchSnapshot();
   });
 

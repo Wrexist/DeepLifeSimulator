@@ -167,7 +167,12 @@ const MAX_ERRORS = 0;
 // unused-import warnings, and Spark's three `as any as number` casts went
 // with the bug they were hiding.
 // 722 on 2026-09-02 (Program 5, was 728): dead components and pruned sheets.
-const MAX_WARNINGS = 722;
+// 719 on 2026-09-03 (Program 11, was 722): the three dead verbs deleted from
+// SocialActionsContext (`increaseRelationshipLevel`, `inviteToEvent`,
+// `startConversation` - zero callers, and two of them free uncapped faucets)
+// carried three exhaustive-deps warnings with them. Lowered in the commit that
+// measured it, per the ratchet rule.
+const MAX_WARNINGS = 719;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

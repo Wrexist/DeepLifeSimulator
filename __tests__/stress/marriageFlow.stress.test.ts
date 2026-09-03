@@ -693,13 +693,21 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
     seedPartner('lover_alex', 90);
     // Give the player a home to move into, and leave headroom under the
     // happiness clamp so a doubled +10 would actually be visible.
+    //
+    // `currentResidence: true` is load-bearing since Program 11: the move-in
+    // gate reads `computeHousingWellbeing`, the same function the Chapter 2
+    // housing goal reads, and that asks whether the player LIVES somewhere -
+    // not merely whether they hold a deed. A property owned and let out is not
+    // somewhere to move in together. (The gate used to walk `realEstate` for
+    // `owned && status === 'owner'`, which also missed every v32 tenancy, so a
+    // renting player was refused with "you need to ... rent a property".)
     act(() => {
       captured!.setGameState(prev => ({
         ...prev,
         stats: { ...prev.stats, happiness: 50 },
         realEstate: [
           ...(prev.realEstate || []),
-          { id: 'home_1', name: 'Starter Home', owned: true, status: 'owner', purchasePrice: 100000, currentValue: 100000 } as unknown as NonNullable<GameState['realEstate']>[number],
+          { id: 'home_1', name: 'Starter Home', owned: true, status: 'owner', currentResidence: true, purchasePrice: 100000, currentValue: 100000 } as unknown as NonNullable<GameState['realEstate']>[number],
         ],
       }));
     });

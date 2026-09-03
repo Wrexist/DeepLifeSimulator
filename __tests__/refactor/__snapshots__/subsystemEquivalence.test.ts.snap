@@ -5393,7 +5393,7 @@ exports[`pre-tick equivalence - computeWeeklyIncome partner with relationshipSco
 }
 `;
 
-exports[`pre-tick equivalence - computeWeeklyIncome partner with relationshipScore >= 50 contributes 25% of income 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome partner with relationshipScore >= 50 contributes a weekly quarter-share of an annual salary 1`] = `
 {
   "baseTotalIncome": 250,
   "partnerIncome": 250,

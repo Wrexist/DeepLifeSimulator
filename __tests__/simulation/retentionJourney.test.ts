@@ -11,7 +11,7 @@
  *   - the week-ahead surface has something in motion regularly;
  *   - no long stretch without a single signal after the opening weeks.
  */
-import { runPersona, answerPendingEvents, answerLifeMoment, type SimPolicy, type SimWeekContext } from '../helpers/earlyGameSim';
+import { runPersona, answerPendingEvents, answerLifeMoment, meetIfOffered, keepInTouch, type SimPolicy, type SimWeekContext } from '../helpers/earlyGameSim';
 import { PERSONAS } from '../helpers/earlyGamePersonas';
 import { recommendGoals } from '@/lib/goals';
 import { upcomingEvents } from '@/lib/anticipation';
@@ -72,6 +72,28 @@ function instrument(inner: SimPolicy, out: WeekSignals[]): SimPolicy {
   };
 }
 
+/**
+ * The careful persona, plus the two social legs a player who opens Contacts
+ * takes: say hello to whoever is around, and ring the people already in the
+ * phone.
+ *
+ * Added with Program 11, when Chapter 2's social goal stopped being satisfied
+ * by the seeded parents at their starting bond of 50 and became
+ * `ch2_someone_close` (one relationship at 60). Both legs are free and both are
+ * no-ops most weeks - `meetIfOffered` only fires in the week a new person is
+ * around, and `keepInTouch` with `hangOut: false` is the Contacts app's free
+ * Call, once per contact per week. Wrapped here rather than added to the shared
+ * `C careful` persona, which the Program 7 survivability gates measure.
+ */
+function carefulAndSociable(): SimPolicy {
+  const inner = PERSONAS['C careful']();
+  return async (ctx: SimWeekContext) => {
+    await inner(ctx);
+    await meetIfOffered(ctx);
+    await keepInTouch(ctx, { hangOut: false });
+  };
+}
+
 describe('the careful player over 100 weeks has a life that keeps going somewhere', () => {
   const weeks: WeekSignals[] = [];
   let finalChapters: string[] = [];
@@ -81,7 +103,7 @@ describe('the careful player over 100 weeks has a life that keeps going somewher
 
   beforeAll(async () => {
     const r = await runPersona({
-      name: 'C', policy: instrument(PERSONAS['C careful'](), weeks), scenarioId: 'food_courier', seed: 1, weeks: 100,
+      name: 'C', policy: instrument(carefulAndSociable(), weeks), scenarioId: 'food_courier', seed: 1, weeks: 100,
       mutateSeed: (s) => ({ ...s, lineageId: 'life_retention' }),
     });
     died = r.died;

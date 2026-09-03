@@ -192,7 +192,7 @@ describe('saying hello', () => {
     const s = lifeAt(20, { currentJob: 'janitor' });
     expect(introducedCount(s)).toBe(0);
     const intro = currentIntroduction(s)!;
-    expect(intro.id).toBe(`met-work-${Math.floor(20 / MEET_WINDOW_WEEKS)}`);
+    expect(intro.id).toBe(`met-w${Math.floor(20 / MEET_WINDOW_WEEKS)}`);
   });
 });
 
@@ -204,7 +204,7 @@ describe('it is capped, so a social life never becomes an inbox', () => {
       relationships: [
         ...(base.relationships ?? []),
         ...Array.from({ length: MEET_MAX_INTRODUCED }, (_, i) => ({
-          id: `met-work-${i + 1}`,
+          id: `met-w${i + 1}`,
           name: `Person ${i}`,
           type: 'friend' as const,
           relationshipScore: 50,
@@ -235,7 +235,7 @@ describe('the story can say where it started', () => {
           metAt: { venue: 'gym', label: 'at the gym', week: 30 },
         },
         {
-          id: 'met-work-2', name: 'Owen Rivas', type: 'friend', relationshipScore: 72,
+          id: 'met-w2', name: 'Owen Rivas', type: 'friend', relationshipScore: 72,
           personality: 'reserved', gender: 'male', age: 31,
           metAt: { venue: 'work', label: 'at work', week: 12 },
         },
@@ -265,5 +265,24 @@ describe('the story can say where it started', () => {
     const text = generateLifeStory(s).chapters.flatMap((c: { paragraphs: string[] }) => c.paragraphs).join(' ');
     expect(text).toContain('Mia Hale');
     expect(text).not.toContain('whom they met');
+  });
+});
+
+describe('one window is one person, whatever the player does that week', () => {
+  it('changing your circumstances mid-window does not offer a second introduction', () => {
+    // The defect an earlier cut had: the venue was part of the id, and
+    // `pickVenue` reads the live state - so taking a job mid-window changed
+    // `met-street-2` into `met-work-2` and offered somebody else inside the
+    // same six weeks.
+    const jobless = lifeAt(12, { currentJob: undefined });
+    expect(pickVenue(jobless).id).not.toBe('work');
+
+    const stub = createSetGameStateStub(jobless);
+    expect(meetSomeone(jobless, stub.setGameState).success).toBe(true);
+
+    const employed: GameState = { ...stub.current(), currentJob: 'janitor' };
+    expect(pickVenue(employed).id).toBe('work');
+    expect(currentIntroduction(employed)).toBeNull();
+    expect(meetSomeone(employed, stub.setGameState).success).toBe(false);
   });
 });
