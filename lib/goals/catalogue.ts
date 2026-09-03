@@ -22,6 +22,9 @@ import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { visibleContracts, getContractProgress } from '@/lib/legacy/contracts';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
 import { getNextCollectionTarget, getCompletedCollections } from '@/lib/luxury/collections';
+import { EDUCATION_PROGRAMS } from '@/lib/education/programs';
+import { isEntryTierCareer } from '@/lib/careers/jobMarket';
+import { unlockTier } from '@/lib/progress/featureUnlocks';
 
 import type { GoalDefinition } from './types';
 import { playstyleEmphasis, investedValue, strongRelationshipCount } from './playstyle';
@@ -53,6 +56,13 @@ const countPair = (current: number, target: number): string =>
  * player is already past (the failure mode that makes a goal card feel stale).
  */
 const SAVINGS_RUNGS = [1_000, 5_000, 25_000, 100_000, 500_000, 1_000_000];
+
+/** The cheapest programme that costs money - the first rung off an entry ladder. */
+const cheapestPaidProgrammeCost = (): number =>
+  EDUCATION_PROGRAMS.reduce(
+    (best, p) => (p.cost > 0 && p.cost < best ? p.cost : best),
+    Number.POSITIVE_INFINITY,
+  );
 
 const activeSavingsRung = (s: GameState): number =>
   SAVINGS_RUNGS.find((r) => liquid(s) < r) ?? SAVINGS_RUNGS[SAVINGS_RUNGS.length - 1];
@@ -194,6 +204,34 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
       const c = (s.careers ?? []).find((x) => x?.id === s.currentJob);
       return c ? c.level : 0;
     },
+  },
+  {
+    id: 'soon_get_qualified',
+    horizon: 'soon',
+    title: 'Get qualified',
+    rationale: 'Every entry ladder tops out around $200/wk; a certificate opens ladders that pay four times that.',
+    route: '/(tabs)/apps',
+    // Master Program 10 (2026-09-03): the measured entry-tier life. A janitor
+    // reaches the ceiling ($200/wk) by week ~80 and then banks ~$120/wk with
+    // nothing on the home feed pointing anywhere: $17k at week 100, $52k at
+    // week 250, tier 3, no rung in sight. The cheapest certificate ($12k) was
+    // affordable from week ~20 - the chapter bundles and windfalls pay for it -
+    // but the Education app only ever recommended FINISHING a degree, never
+    // starting one. This is the missing SOON goal: eligible once the app is
+    // open (tier 2), for a player on an entry ladder with no qualification
+    // started or earned, measured against the cheapest paid programme so the
+    // bar moves with every week of saving.
+    isEligible: (s) =>
+      unlockTier(s) >= 2 &&
+      !!s.currentJob &&
+      isEntryTierCareer(s.currentJob) &&
+      !(s.educations ?? []).some(
+        (e) => e && (e.completed || (e.weeksRemaining ?? 0) > 0),
+      ),
+    measure: (s) => ({ current: liquid(s), target: cheapestPaidProgrammeCost() }),
+    priority: (s) => 70 + 15 * emphasis(s).career,
+    format: moneyPair,
+    achievementLevel: (s) => (s.educations ?? []).filter((e) => e?.completed).length,
   },
   {
     id: 'soon_finish_studies',

@@ -27,17 +27,18 @@ import {
   resetStockPrices,
   simulateWeek,
   weeklyLogDriftFor,
+  expectedAnnualReturnFor,
 } from '../stockMarket';
 
 /** One game year. Matches WEEKS_PER_YEAR without importing the game config. */
 const WEEKS_PER_YEAR = 52;
 
 /** Run the walk for N years from a clean board and return the per-symbol multiple. */
-function buyAndHoldMultiples(years: number): number[] {
+function buyAndHoldMultiples(years: number, lifeSalt?: string): number[] {
   resetStockPrices();
   const start = getStockPricesSnapshot();
   for (let week = 1; week <= years * WEEKS_PER_YEAR; week++) {
-    simulateWeek(undefined, week);
+    simulateWeek(undefined, week, lifeSalt);
   }
   const end = getStockPricesSnapshot();
   return Object.keys(start)
@@ -57,21 +58,31 @@ const median = (sorted: number[]): number => sorted[Math.floor(sorted.length / 2
 const portfolio = (multiples: number[]): number =>
   multiples.reduce((sum, x) => sum + x, 0) / multiples.length;
 
+/**
+ * The same statistic averaged over several LIVES. One tape is one draw from a
+ * heavy-tailed distribution - the unsalted tape's ten-year board median came
+ * out at 0.82 the day the drift was corrected while the forty-life median sat
+ * at 2.46 - so a single-tape assertion is the coin flip this file warns about
+ * below. Twelve lives keep the run under a second and the estimate honest.
+ */
+const LIVES = Array.from({ length: 12 }, (_, i) => `drift-test-life-${i + 1}:1`);
+
+const acrossLives = (years: number, stat: (multiples: number[]) => number): number =>
+  LIVES.reduce((sum, salt) => sum + stat(buyAndHoldMultiples(years, salt)), 0) / LIVES.length;
+
 describe('long-run stock market drift', () => {
   afterAll(() => resetStockPrices());
 
   it('does not grind the median stock down over a decade', () => {
-    const multiples = buyAndHoldMultiples(10);
-
     // The pre-fix value here was 0.32×. Anything at or below 1.0 means holding
     // cash beat holding the market for ten years, which makes the entire stocks
     // pillar a trap.
-    expect(median(multiples)).toBeGreaterThan(1.2);
+    expect(acrossLives(10, median)).toBeGreaterThan(1.2);
   });
 
   it('pays a diversified holder over a decade and over a life', () => {
-    expect(portfolio(buyAndHoldMultiples(10))).toBeGreaterThan(1.5);
-    expect(portfolio(buyAndHoldMultiples(60))).toBeGreaterThan(5);
+    expect(acrossLives(10, portfolio)).toBeGreaterThan(1.5);
+    expect(acrossLives(60, portfolio)).toBeGreaterThan(5);
   });
 
   it('does not pin any symbol to the hard price floor over a full life', () => {
@@ -98,17 +109,40 @@ describe('long-run stock market drift', () => {
     // flip dressed up as an assertion. (The first draft was exactly that, and
     // it failed for a third reason entirely: at a 200-year horizon every symbol
     // was resting on MAX_STOCK_PRICE, so it was comparing opening prices.)
-    expect(weeklyLogDriftFor(0.08)).toBeGreaterThan(weeklyLogDriftFor(0.04));
+    // "In expectation" means the arithmetic mean, the figure a diversified
+    // holder compounds at. The LOG drift of a high-vol name is lower - it
+    // carries the σ²/2 convexity correction - so the ordering is asserted on
+    // the expected return, not on the log drift (which is the median).
+    expect(expectedAnnualReturnFor(0.08)).toBeGreaterThan(expectedAnnualReturnFor(0.04));
+    expect(expectedAnnualReturnFor(0.04)).toBeGreaterThan(MARKET_ANNUAL_DRIFT);
     expect(weeklyLogDriftFor(0.04)).toBeGreaterThan(0);
     expect(weeklyLogDriftFor(0.04, true)).toBeGreaterThan(weeklyLogDriftFor(0.04));
   });
 
   it('keeps the all-in annual return in index territory, not fantasy territory', () => {
-    const annual = (vol: number) => Math.exp(weeklyLogDriftFor(vol) * WEEKS_PER_YEAR) - 1;
-    // A real broad index does ~10%/yr over the long run. Drifting far above that
-    // makes every other system in the game pointless by the second decade.
-    expect(annual(0.04)).toBeGreaterThan(0.06);
-    expect(annual(0.08)).toBeLessThan(0.14);
+    // The EXPECTED return - what a diversified holder compounds at. The first
+    // version of this test read `exp(drift × 52) - 1`, which is the MEDIAN of a
+    // single name under a log-normal step and understates the mean by σ²/2 per
+    // week (+4.2%/yr at 4% vol, +16.6%/yr at 8%). Measured on the tick before
+    // the 2026-09-03 fix: an equal-weight board compounded at 19.3%/yr against
+    // this test's "index territory". A real broad index does ~10%/yr over the
+    // long run. Drifting far above that makes every other system in the game
+    // pointless by the second decade.
+    expect(expectedAnnualReturnFor(0.04)).toBeGreaterThan(0.06);
+    expect(expectedAnnualReturnFor(0.04)).toBeLessThan(0.11);
+    expect(expectedAnnualReturnFor(0.08)).toBeGreaterThan(expectedAnnualReturnFor(0.04));
+    expect(expectedAnnualReturnFor(0.08)).toBeLessThan(0.14);
+  });
+
+  it('subtracts the log-normal convexity so the stated drift is the expectation, not the median', () => {
+    // exp(μ + σ²/2) per week is the arithmetic expectation of a log-normal
+    // step; without the correction the risk premium is paid twice - once as
+    // authored and once as hidden convexity that grows with σ².
+    for (const vol of [0.04, 0.05, 0.06, 0.08]) {
+      const weeklyLogMean = weeklyLogDriftFor(vol) + (vol * vol) / 2;
+      const premiumFree = Math.exp((weeklyLogMean - 0.01 * vol) * WEEKS_PER_YEAR) - 1;
+      expect(premiumFree).toBeCloseTo(MARKET_ANNUAL_DRIFT, 6);
+    }
   });
 
   it('never leaves a price resting on the ceiling in a played life', () => {

@@ -18,7 +18,7 @@
  */
 import React from 'react';
 import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions, useItemActions, useJobActions } from '@/contexts/game';
+import { useGameState, useGameActions, useItemActions, useJobActions, useMoneyActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
 import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
@@ -30,6 +30,30 @@ import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+// Economic actions (Program 10). Every one is the production action module the
+// app screens call, invoked with the same arguments the screen passes.
+import { depositCashToAccount, withdrawCashFromAccount } from '@/contexts/game/actions/BankingActions';
+import { LEGACY_SAVINGS_ACCOUNT_ID } from '@/lib/banking/operations';
+import { buyStockMarket, sellStockMarket } from '@/contexts/game/actions/StockActions';
+import { getStockInfo, resetStockPrices } from '@/lib/economy/stockMarket';
+import { buyPropertyWithMortgage } from '@/contexts/game/actions/RealEstateActions';
+import { PROPERTY_CATALOG } from '@/lib/realEstate/catalog';
+import type { DownPaymentTier, MortgageTerm } from '@/lib/realEstate/mortgage';
+import { enrollInProgram } from '@/contexts/game/actions/EducationActions';
+import { getEducationProgram } from '@/lib/education/programs';
+import {
+  createCompany as createCompanyAction,
+  buyCompanyUpgrade as buyCompanyUpgradeAction,
+} from '@/contexts/game/actions/CompanyActions';
+import { updateMoney as updateMoneyModule } from '@/contexts/game/actions/MoneyActions';
+import { getDriversLicense, purchaseVehicle } from '@/contexts/game/actions/VehicleActions';
+import { purchaseLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
+import { acceptLoan } from '@/contexts/game/actions/LoanActions';
+import { buyPet as buyPetAction } from '@/contexts/game/actions/PetActions';
+import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
+import { calcWeeklyPassiveIncome, companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
+import { calcWeeklyExpenses } from '@/lib/economy/expenses';
+import { unlockTier } from '@/lib/progress/featureUnlocks';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
@@ -54,7 +78,49 @@ export interface SimActions {
   resolveEvent: (eventId: string, choiceId: string) => Promise<void>;
   /** Raw state write - for the few things no action exposes (answering a life moment). */
   setState: (updater: (prev: GameState) => GameState) => Promise<void>;
+  // ── Economic actions (Program 10) ──────────────────────────────────────
+  quitJob: () => Promise<void>;
+  /** Move cash into the savings account (the Bank app's deposit). */
+  deposit: (amount: number) => Promise<void>;
+  withdraw: (amount: number) => Promise<void>;
+  /** Market buy at the board's current price, 2% fee on top - the Stocks app's tap. */
+  buyStock: (symbol: string, amountUSD: number) => Promise<void>;
+  sellStock: (symbol: string, shares: number) => Promise<void>;
+  /** Buy a catalogue property with the mortgage the Real Estate app quotes. */
+  buyProperty: (
+    propertyId: string,
+    tier: DownPaymentTier,
+    term: MortgageTerm,
+    asResidence?: boolean,
+  ) => Promise<SimActionResult | undefined>;
+  /** Enrol in a programme from the Education app; cash or student loan. */
+  enroll: (programId: string, mode: 'cash' | 'loan') => Promise<void>;
+  createCompany: (type: string) => Promise<SimActionResult | undefined>;
+  buyCompanyUpgrade: (upgradeId: string, companyId?: string) => Promise<SimActionResult | undefined>;
+  getLicense: () => Promise<SimActionResult | undefined>;
+  buyVehicle: (vehicleId: string) => Promise<SimActionResult | undefined>;
+  buyLuxury: (itemId: string) => Promise<SimActionResult | undefined>;
+  takeLoan: (principal: number, termWeeks: number, type: 'personal' | 'auto' | 'business') => Promise<void>;
+  /** Spend `amountUSD` of cash on a coin at the board price (the Crypto app's buy). */
+  buyCrypto: (cryptoId: string, amountUSD: number) => Promise<void>;
+  buyPet: (breedId: string) => Promise<SimActionResult | undefined>;
 }
+
+/** Where a persona's cash went this week, by the tab it was spent on. */
+export type SpendCategory =
+  | 'food'
+  | 'health'
+  | 'items'
+  | 'housing'
+  | 'education'
+  | 'investing'
+  | 'property'
+  | 'business'
+  | 'vehicle'
+  | 'luxury'
+  | 'pets'
+  | 'savings'
+  | 'other';
 
 export interface SimWeekContext {
   /** The state at the START of this week's actions (refreshed after each action). */
@@ -88,6 +154,28 @@ export interface SimRow {
   /** `completedChapters` after the tick. */
   chapters: string[];
   notes: string[];
+  // ── Economic columns (Program 10) ──────────────────────────────────────
+  age: number;
+  /** Gross weekly job pay at the level held after the tick. */
+  salary: number;
+  /** Passive income the paycheck would credit next week (after caps). */
+  passive: number;
+  /** Standing weekly bills incl. projected income tax (`calcWeeklyExpenses`). */
+  expenses: number;
+  savings: number;
+  /** Stocks + crypto at current prices. */
+  invested: number;
+  /** Owned real estate at current value. */
+  property: number;
+  /** Loans outstanding + arrears. */
+  debt: number;
+  /** Progression unlock tier (0-5). */
+  tier: number;
+  /** Active programme id, or `done:<n>` completed programmes. */
+  education: string;
+  companies: number;
+  /** Cash spent this week by category (positive numbers). */
+  spentBy: Partial<Record<SpendCategory, number>>;
 }
 
 export interface SimResult {
@@ -163,6 +251,7 @@ type Probe = {
   resolveEvent: (eventId: string, choiceId: string) => void;
   job: ReturnType<typeof useJobActions>;
   item: ReturnType<typeof useItemActions>;
+  money: ReturnType<typeof useMoneyActions>;
 };
 
 let captured: Probe | null = null;
@@ -172,6 +261,7 @@ function ProbeComponent() {
   const actions = useGameActions();
   const job = useJobActions();
   const item = useItemActions();
+  const money = useMoneyActions();
   captured = {
     state: gameState,
     setGameState,
@@ -179,6 +269,7 @@ function ProbeComponent() {
     resolveEvent: actions.resolveEvent as (eventId: string, choiceId: string) => void,
     job,
     item,
+    money,
   };
   return null;
 }
@@ -213,6 +304,57 @@ function jobLabel(state: GameState): { job: string; level: number } {
   return { job: state.currentJob, level: career?.level ?? 0 };
 }
 
+function safeNum(n: unknown): number {
+  return typeof n === 'number' && isFinite(n) ? n : 0;
+}
+
+/** The economic columns of a row, read from the state after the tick. */
+function economyColumns(
+  s: GameState,
+): Pick<
+  SimRow,
+  'age' | 'salary' | 'passive' | 'expenses' | 'savings' | 'invested' | 'property' | 'debt' | 'tier' | 'education' | 'companies'
+> {
+  const salary = Math.round(weeklyCareerSalary(s));
+  let passive = 0;
+  try {
+    passive = Math.round(calcWeeklyPassiveIncome(s).total);
+  } catch {
+    passive = 0;
+  }
+  let expenses = 0;
+  try {
+    expenses = Math.round(calcWeeklyExpenses(s as any, salary + passive).total);
+  } catch {
+    expenses = 0;
+  }
+  const stocks = (s.stocks?.holdings ?? []).reduce(
+    (sum, h) => sum + safeNum(h?.shares) * safeNum(h?.currentPrice),
+    0,
+  );
+  const crypto = (s.cryptos ?? []).reduce((sum, c) => sum + safeNum(c?.owned) * safeNum(c?.price), 0);
+  const property = (s.realEstate ?? []).reduce(
+    (sum, p) => (p?.owned ? sum + safeNum(p.currentValue ?? p.price) : sum),
+    0,
+  );
+  const loans = (s.loans ?? []).reduce((sum, l) => sum + Math.max(0, safeNum(l?.remaining)), 0);
+  const active = (s.educations ?? []).find((e) => e && !e.completed && safeNum(e.weeksRemaining) > 0);
+  const done = (s.educations ?? []).filter((e) => e?.completed).length;
+  return {
+    age: Math.floor(safeNum(s.date?.age)),
+    salary,
+    passive,
+    expenses,
+    savings: Math.round(safeNum(s.bankSavings)),
+    invested: Math.round(stocks + crypto),
+    property: Math.round(property),
+    debt: Math.round(loans + safeNum(s.overdueBalance)),
+    tier: unlockTier(s),
+    education: active ? `${active.id}:${Math.round(safeNum(active.weeksRemaining))}w` : `done:${done}`,
+    companies: (s.companies ?? []).length,
+  };
+}
+
 /**
  * Run one persona for N weeks. Ticks stop at death (the row for the death week
  * is still recorded).
@@ -231,6 +373,9 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
     // time-dependent. Pin it from the seed; `mutateSeed` can still override.
     let seeded: GameState = { ...seedScenario(scenarioId), lineageId: `life_seed_${seed}` };
     if (spec.mutateSeed) seeded = spec.mutateSeed(seeded);
+    // The stock board is a module store; a new life opens it on catalogue
+    // prices (the tick does the same when the save carries no market).
+    resetStockPrices();
     await act(async () => {
       captured!.setGameState(() => seeded);
       await Promise.resolve();
@@ -258,21 +403,115 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
       return out!;
     };
 
+    let spentBy: Partial<Record<SpendCategory, number>> = {};
+    /** Run an action and book the cash it moved under `category`. */
+    const spend = async <T,>(category: SpendCategory, fn: () => T, settleMs = 0): Promise<T> => {
+      const before = captured!.state.stats.money;
+      const out = await wrap(fn, settleMs);
+      const delta = before - captured!.state.stats.money;
+      if (delta > 0) spentBy[category] = Math.round((spentBy[category] ?? 0) + delta);
+      return out;
+    };
+    const jobIncome = (s: GameState) => weeklyCareerSalary(s) + companyIncomePaidWeekly(s);
+
     const actions: SimActions = {
       applyForJob: (id) => wrap(() => captured!.job.applyForJob(id) as SimActionResult | undefined),
       promoteCareer: (id) => wrap(() => captured!.job.promoteCareer(id) as SimActionResult | undefined),
       performStreetJob: (id) => wrap(() => captured!.job.performStreetJob(id) as SimActionResult | undefined),
       performHealthActivity: (id) =>
-        wrap(() => captured!.item.performHealthActivity(id) as SimActionResult | undefined, 60),
-      buyFood: (id) => wrap(() => captured!.item.buyFood(id) as SimActionResult | undefined),
-      buyItem: (id) => wrap(() => captured!.item.buyItem(id) as SimActionResult | undefined),
-      rentHome: (tierId) => wrap(() => rentHomeAction(captured!.setGameState, captured!.state, tierId)),
-      resolveEvent: (eventId, choiceId) => wrap(() => captured!.resolveEvent(eventId, choiceId)),
+        spend('health', () => captured!.item.performHealthActivity(id) as SimActionResult | undefined, 60),
+      buyFood: (id) => spend('food', () => captured!.item.buyFood(id) as SimActionResult | undefined),
+      buyItem: (id) => spend('items', () => captured!.item.buyItem(id) as SimActionResult | undefined),
+      rentHome: (tierId) =>
+        spend('housing', () => rentHomeAction(captured!.setGameState, captured!.state, tierId)),
+      // `resolveEvent` keeps `${eventId}_${choiceId}` in a 500 ms double-tap
+      // set after a successful resolve (GameActionsContext). Two cliffhangers
+      // with the same resolve id three game-weeks apart land inside that
+      // window at simulator speed and the second tap is silently dropped, so
+      // the simulator waits the debounce out - a thumb always would.
+      resolveEvent: (eventId, choiceId) =>
+        spend('other', () => captured!.resolveEvent(eventId, choiceId), 520),
       setState: (updater) => wrap(() => captured!.setGameState(updater)),
+      quitJob: () => wrap(() => captured!.job.quitJob()),
+      deposit: (amount) =>
+        spend('savings', () => depositCashToAccount(captured!.setGameState, LEGACY_SAVINGS_ACCOUNT_ID, amount)),
+      withdraw: (amount) =>
+        wrap(() => withdrawCashFromAccount(captured!.setGameState, LEGACY_SAVINGS_ACCOUNT_ID, amount)),
+      buyStock: (symbol, amountUSD) =>
+        spend('investing', () =>
+          buyStockMarket(captured!.setGameState, symbol, amountUSD, getStockInfo(symbol).price),
+        ),
+      sellStock: (symbol, shares) =>
+        wrap(() => sellStockMarket(captured!.setGameState, symbol, shares, getStockInfo(symbol).price)),
+      buyProperty: (propertyId, tier, term, asResidence) =>
+        spend('property', () => {
+          const property = PROPERTY_CATALOG.find((p) => p.id === propertyId);
+          if (!property) return { success: false, message: `no such property ${propertyId}` };
+          return buyPropertyWithMortgage(captured!.state, captured!.setGameState, {
+            property,
+            tier,
+            term,
+            weeklyIncome: jobIncome(captured!.state),
+            asResidence,
+          });
+        }),
+      enroll: (programId, mode) =>
+        spend('education', () => {
+          const program = getEducationProgram(programId);
+          if (!program) return;
+          enrollInProgram(captured!.setGameState, {
+            templateId: program.id,
+            name: program.name,
+            description: program.description,
+            cost: program.cost,
+            duration: program.duration,
+            mode,
+          });
+        }),
+      createCompany: (type) =>
+        spend('business', () =>
+          createCompanyAction(captured!.state, captured!.setGameState, type, { updateMoney: updateMoneyModule }),
+        ),
+      buyCompanyUpgrade: (upgradeId, companyId) =>
+        spend('business', () =>
+          buyCompanyUpgradeAction(
+            captured!.state,
+            captured!.setGameState,
+            upgradeId,
+            { updateMoney: updateMoneyModule },
+            companyId,
+          ),
+        ),
+      getLicense: () =>
+        spend('vehicle', () =>
+          getDriversLicense(captured!.state, captured!.setGameState, { updateMoney: updateMoneyModule }),
+        ),
+      buyVehicle: (vehicleId) =>
+        spend('vehicle', () => purchaseVehicle(captured!.state, captured!.setGameState, vehicleId)),
+      buyLuxury: (itemId) =>
+        spend('luxury', () => purchaseLuxuryItem(captured!.state, captured!.setGameState, itemId)),
+      takeLoan: (principal, termWeeks, type) =>
+        wrap(() =>
+          acceptLoan(captured!.setGameState, {
+            principal,
+            termWeeks,
+            type,
+            name: `${type} loan`,
+            weeklyIncome: jobIncome(captured!.state),
+            depositAccountId: 'checking-default',
+            autoPay: true,
+          }),
+        ),
+      buyCrypto: (cryptoId, amountUSD) => spend('investing', () => captured!.money.buyCrypto(cryptoId, amountUSD)),
+      buyPet: (breedId) =>
+        spend('pets', () =>
+          buyPetAction(captured!.state, captured!.setGameState, breedId, 'Sim Pet', { updateMoney: updateMoneyModule }),
+        ),
     };
 
     for (let w = 0; w < weeks; w++) {
       const notes: string[] = [];
+      spentBy = {};
       const before = captured!.state;
       const weekIndex = weeksInThisLife(before);
       const cashBeforeActions = before.stats.money;
@@ -314,6 +553,8 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         overdue: Math.round(s.overdueBalance ?? 0),
         chapters: [...(s.completedChapters ?? [])],
         notes,
+        ...economyColumns(s),
+        spentBy,
       };
       rows.push(row);
       minHealth = Math.min(minHealth, row.health);
@@ -437,14 +678,22 @@ export async function rentIfPossible(ctx: SimWeekContext, tierId: string): Promi
 /** Answer every waiting decision with its first choice - what a player who opens the inbox does. */
 export async function answerPendingEvents(ctx: SimWeekContext): Promise<number> {
   let answered = 0;
+  const titles: string[] = [];
+  // One tap per popup: an event that is still pending after its answer is a
+  // game defect to report, not something a player can tap twenty times a week.
+  const tapped = new Set<string>();
   for (let guard = 0; guard < 20; guard++) {
     const s = ctx.state();
-    const next = (s.pendingEvents ?? []).find((e: any) => Array.isArray(e?.choices) && e.choices.length > 0);
+    const next = (s.pendingEvents ?? []).find(
+      (e: any) => Array.isArray(e?.choices) && e.choices.length > 0 && !tapped.has(e.id),
+    );
     if (!next) break;
+    tapped.add(next.id);
     await ctx.actions.resolveEvent(next.id, next.choices[0].id);
     answered++;
+    titles.push(String(next.id ?? '?').slice(0, 24));
   }
-  if (answered) ctx.note(`answered×${answered}`);
+  if (answered) ctx.note(`answered×${answered} [${titles.slice(0, 3).join(', ')}${titles.length > 3 ? ', …' : ''}]`);
   return answered;
 }
 
@@ -462,4 +711,46 @@ export async function answerLifeMoment(ctx: SimWeekContext): Promise<boolean> {
   }));
   ctx.note('moment answered');
   return true;
+}
+
+/**
+ * Format a run as an ECONOMY table: one line per sampled week with cash, net
+ * worth, income, bills, where the money sits and what the persona did.
+ */
+export function formatEconomyRun(r: SimResult, every = 10): string {
+  const k = (n: number) => {
+    const abs = Math.abs(n);
+    if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+    if (abs >= 10_000) return `${Math.round(n / 1000)}k`;
+    return String(Math.round(n));
+  };
+  const lines: string[] = [];
+  lines.push(
+    `--- ${r.name} · ${r.scenarioId} · seed ${r.seed} · ${r.died ? `DIED week ${r.deathWeek} (${r.deathReason})` : `alive at week ${r.rows[r.rows.length - 1]?.week ?? 0}`}`,
+  );
+  lines.push(
+    ' wk | age |   cash |  tick |  netW | salary | pass. | bills |  save | invest |  prop |  debt | T | housing         | job/lvl          | edu            | spent                | notes',
+  );
+  for (const row of r.rows) {
+    const sampled = row.week % every === 0 || row.week === r.rows[r.rows.length - 1].week || row.week <= 2;
+    if (!sampled) continue;
+    const spent = Object.entries(row.spentBy)
+      .filter(([, v]) => (v ?? 0) > 0)
+      .map(([c, v]) => `${c}:${k(v ?? 0)}`)
+      .join(' ');
+    lines.push(
+      `${String(row.week).padStart(3)} | ${String(row.age).padStart(3)} | ${k(row.cash).padStart(6)} | ${k(row.tickDelta).padStart(5)} | ${k(row.netWorth).padStart(5)} | ${k(row.salary).padStart(6)} | ${k(row.passive).padStart(5)} | ${k(row.expenses).padStart(5)} | ${k(row.savings).padStart(5)} | ${k(row.invested).padStart(6)} | ${k(row.property).padStart(5)} | ${k(row.debt).padStart(5)} | ${row.tier} | ${row.housing.padEnd(15)} | ${`${row.job}/${row.level}`.padEnd(16)} | ${row.education.padEnd(14)} | ${spent.padEnd(20)} | ${row.notes.join('; ').slice(0, 60)}`,
+    );
+  }
+  return lines.join('\n');
+}
+
+/** The row at (or just before) a horizon week, for the horizon tables. */
+export function rowAt(r: SimResult, week: number): SimRow | undefined {
+  let best: SimRow | undefined;
+  for (const row of r.rows) {
+    if (row.week <= week) best = row;
+    else break;
+  }
+  return best;
 }
