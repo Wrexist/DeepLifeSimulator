@@ -636,6 +636,48 @@ function pickFrom(arr: string[], roll: number): string {
 }
 
 /**
+ * How much a free catch-up is still worth, as a bond approaches the ceiling.
+ *
+ * ## The defect this closes
+ *
+ * `Call` cost nothing, was capped at once per contact per week, and paid a FLAT
+ * +3 at every score. Against the only downward pressure in the system (−2 per
+ * fully-ignored want cycle, i.e. −0.5/week) that is a free ratchet: Program 12
+ * measured the CASUAL SOCIAL persona — which calls its contacts once every four
+ * weeks and does nothing else — sitting at an average bond of 100 across 23
+ * relationships by week 250. Every contact anyone ever rang reached the top of
+ * the scale and stayed there, which is why quantity dominated quality and why
+ * the upper half of the scale could not be made to mean anything: everybody was
+ * already at the top of it.
+ *
+ * Every comparable ladder in this repository already diminishes —
+ * `raiseRelationship` pays `(100 − score) / 12` (8 down to 2), `wantBonus` pays
+ * 4/2/1/0 across a cycle, food satiety restores at full / half / quarter. The
+ * free interaction was the one that did not.
+ *
+ * ## The curve
+ *
+ * Full value up to `known` (45), then a linear taper to a quarter at 100. So:
+ *
+ *   - RECOVERY STAYS CHEAP. A neglected friend at 20 recovers at full rate,
+ *     which is the property Program 11 measured and deliberately preserved —
+ *     mistakes must be repairable.
+ *   - `close` (60) is a handful of calls. The goal engine's threshold, the
+ *     Chapter 2 goal and the story line all stay reachable for free.
+ *   - `trusted` (80) is real sustained contact, which is what makes "somebody
+ *     who turns up" something a life earns rather than collects.
+ *   - 100 is not reachable on free calls alone at all. The last stretch belongs
+ *     to the moves that cost something — the paid `raiseRelationship` gesture,
+ *     dates, gifts, and reading what somebody actually wants.
+ */
+export function closenessFalloff(score: number | undefined): number {
+ const n = typeof score === 'number' && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+ if (n <= 45) return 1;
+ // 1.0 at 45 → 0.25 at 100.
+ return 1 - 0.75 * ((n - 45) / 55);
+}
+
+/**
  * Resolve a lightweight relationship interaction (Call / Hang Out / …) into a
  * VARIED outcome: the score delta and the copy both shift with the NPC's mood,
  * their memory of you, and whether the action satisfies their current want.
@@ -737,7 +779,11 @@ export function resolveInteraction(
  }
  }
 
- delta = Math.max(1, Math.round(delta));
+ delta = Math.max(1, Math.round(delta)) * closenessFalloff(rel.relationshipScore);
+ // Floor of 1 AFTER the falloff, but only while there is somewhere to go: a
+ // bond already at 100 gains nothing, or "call once a week forever" would still
+ // ratchet, just more slowly.
+ delta = (rel.relationshipScore ?? 0) >= 100 ? 0 : Math.max(1, Math.round(delta));
  return {
  scoreDelta: delta,
  npcMood: nextMood,

@@ -4366,6 +4366,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth family type: just clamps
   "notifications": [],
   "result": {
     "happinessPenalty": 0,
+    "happinessSupport": 0,
     "rel": {
       "id": "r1",
       "name": "Mom",
@@ -4381,6 +4382,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth friend type: just clamps
   "notifications": [],
   "result": {
     "happinessPenalty": 0,
+    "happinessSupport": 1,
     "rel": {
       "id": "r1",
       "name": "Pal",
@@ -4396,6 +4398,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth healthy partner (score 5
   "notifications": [],
   "result": {
     "happinessPenalty": 0,
+    "happinessSupport": 0,
     "rel": {
       "id": "r1",
       "name": "Goodvibes",
@@ -4418,6 +4421,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel (score 20), week
   ],
   "result": {
     "happinessPenalty": -25,
+    "happinessSupport": 0,
     "rel": null,
   },
 }
@@ -4428,6 +4432,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel, FIRST week at l
   "notifications": [],
   "result": {
     "happinessPenalty": 0,
+    "happinessSupport": 0,
     "rel": {
       "id": "r1",
       "name": "FirstWeek",
@@ -4450,6 +4455,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel, breakup miss + 
   ],
   "result": {
     "happinessPenalty": -10,
+    "happinessSupport": 0,
     "rel": {
       "id": "r1",
       "name": "Sad",
@@ -4466,6 +4472,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel, weeksAtLow=2, b
   "notifications": [],
   "result": {
     "happinessPenalty": 0,
+    "happinessSupport": 0,
     "rel": {
       "id": "r1",
       "name": "TrackMe",

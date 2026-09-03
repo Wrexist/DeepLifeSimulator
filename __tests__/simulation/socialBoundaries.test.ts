@@ -17,6 +17,7 @@
 import { runPersona, rowAt, type SimResult } from '../helpers/earlyGameSim';
 import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
 import { MEET_MAX_INTRODUCED, MEET_WINDOW_WEEKS } from '@/lib/social/meetPeople';
+import { closeCircle } from '@/lib/social/closeness';
 
 jest.setTimeout(20 * 60 * 1000);
 
@@ -130,5 +131,38 @@ describe('different social lives are actually different', () => {
 
     expect(romance.romance).not.toBe('none');
     expect(friendly.romance).toBe('none');
+  });
+});
+
+describe('a bond is worth something, and not too much (Program 12)', () => {
+  it('the social lives are measurably better off than the loner in WELLBEING', async () => {
+    // The defect Program 12 opened on: 36 relationships bought exactly the same
+    // mean happiness as nobody at all, because the only wire between
+    // relationships and wellbeing subtracted.
+    const social = await run('CASUAL SOCIAL');
+    const loner = await run('LONER');
+    expect(meanHappiness(social)).toBeGreaterThan(meanHappiness(loner) + 8);
+  });
+
+  it('and NOT better off in money — wellbeing is what a bond buys', async () => {
+    const friendly = rowAt(await run('FRIENDSHIP-FOCUSED'), WEEKS)!;
+    const wealth = rowAt(await run('WEALTH MAXIMIZER'), WEEKS)!;
+    expect(friendly.netWorth).toBeLessThan(wealth.netWorth);
+  });
+
+  it('the loner is not punished — their happiness is unchanged by any of it', async () => {
+    const loner = await run('LONER');
+    expect(loner.died).toBe(false);
+    expect(closeCircle(loner.finalState)).toHaveLength(0);
+    // Still a liveable life, not a penalty box.
+    expect(meanHappiness(loner)).toBeGreaterThan(60);
+  });
+
+  it('over-investing in people is a real way to go broke', async () => {
+    // SOCIAL OPTIMIZER holds everyone and pays to see all of them. It is the
+    // control for "is social investment costless?" - it is not.
+    const optimizer = rowAt(await run('SOCIAL OPTIMIZER'), WEEKS)!;
+    const loner = rowAt(await run('LONER'), WEEKS)!;
+    expect(optimizer.netWorth).toBeLessThan(loner.netWorth / 4);
   });
 });

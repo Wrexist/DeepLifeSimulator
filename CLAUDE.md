@@ -242,7 +242,33 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   for a while afterwards; nothing ever imported it either, so it is deleted too.
 - Load native modules lazily via `require()` in a try/catch, never at module top level.
 
-### 4.7 Other people enter a life through exactly three doors
+### 4.7 What a bond is worth, and the one place it is defined
+
+`lib/social/closeness.ts` is the single definition of what a relationship score
+MEANS — `estranged` 25 · `known` 45 · `close` 60 · `trusted` 80 — and every
+consumer reads it rather than restating a threshold. Two rules came out of
+measuring it (Program 12, `tasks/relationship-depth-2026-09-03.md`):
+
+- **The wire runs BOTH ways.** `applyRelationshipHealth` returns a
+  `happinessSupport` beside its `happinessPenalty`, and the tick caps them the
+  same way (+1 per close bond to a ceiling of +3, mirroring the −1/−3 neglect
+  drag). Before that, relationships could only ever subtract happiness, and a
+  controlled nine-cohort run measured the consequence: happiness, health and
+  energy byte-identical whether a life held nobody, one soulmate or fifty
+  acquaintances. If you add a relationship effect, check which direction the
+  existing wire runs before concluding it is merely weak.
+- **The bond ladder diminishes.** `closenessFalloff` (`lib/social/npcDepth.ts`)
+  makes a free catch-up worth less to somebody you already see — full value to
+  45, a quarter at 100 — because a flat +3 at every score against a −0.5/week
+  decay ratcheted every contact anyone ever rang to 100, which is what made
+  headcount beat depth and left the upper half of the scale meaningless.
+  Consistency buys depth; collecting people does not.
+
+Relationship value is deliberately NOT money: nothing here grants cash on a
+timer, and the one support branch that pays at all is capped at $400, needs real
+arrears, and costs 12 bond.
+
+### 4.8 Other people enter a life through exactly three doors
 
 `Relationship` records are produced by **three** functions and nothing else:
 `promoteMatchToFriend` / `promoteMatchToRelationship` (Spark, **tier 2**), the
@@ -753,7 +779,7 @@ including the crash screen.
   than useless: it would be a FABRICATED memory, telling a player they met their
   spouse somewhere they did not, on the screens whose whole job is to be the
   life they remember. Shipped with the first producer that has an origin to
-  record, the tier-1 meeting door (§4.7).
+  record, the tier-1 meeting door (§4.8).
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you
@@ -1047,7 +1073,8 @@ replaced with review checklists.
 |---|---|
 | `README.md` | Feature overview, web preview viewports, cloud-save backend contract |
 | `tasks/lessons.md` | Post-mortems and recurring bug patterns — read first |
-| `tasks/social-systems-2026-09-03.md` | The social/relationship/family map, the persona measurements, and §4.7's evidence |
+| `tasks/social-systems-2026-09-03.md` | The social/relationship/family map, the persona measurements, and §4.8's evidence |
+| `tasks/relationship-depth-2026-09-03.md` | What a bond is WORTH: the controlled cohort experiment, the ladder measurements, and §4.7's evidence |
 | `tasks/todo.md` | Active plan |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |

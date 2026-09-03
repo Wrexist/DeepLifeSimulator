@@ -4963,3 +4963,59 @@ Eighth, a harness lesson that cost a full 280-second run: **`| tail` on a
 background soak throws away the measurement.** Jest prints its console output
 before the summary, so piping to `tail -120` kept the summary and discarded every
 table. Write the whole log to a file and let `DUMP=` carry the data.
+
+---
+
+## 2026-09-03 — Program 12: a system that can only subtract is not a weak system, it is half a system
+
+`applyRelationshipHealth` could take 25 happiness for a breakup, 10 for a
+disappointed partner, 8 for a friendship fading and a standing 1 a week for
+estrangement. It could add nothing. Not "not much" — nothing. Every reviewer who
+looked at relationships saw a rich file full of thresholds and rolls and
+concluded the wiring was thin; it was one-directional, which reads identically
+from the code and completely differently from the measurement.
+
+The measurement that made it undeniable was a CONTROLLED one, and building it
+was most of the value of the program: nine cohorts, same policy, same seed, same
+scenario, differing only in who was in the life and at what bond, with the bonds
+re-stamped weekly so decay could not confound it. Result: happiness, health and
+energy **byte-identical** across a life with nobody, a life with one soulmate
+and a life with fifty acquaintances. Rule: **when you suspect a system is weak,
+hold everything else still and vary only it.** A persona run mixes the effect
+with what the effect cost; a cohort run does not, and "byte-identical" is an
+answer no amount of code reading produces.
+
+Second: **the ladder that never diminishes is the one that breaks every band
+above it.** `Call` was free, capped at once a week, and paid a flat +3 at every
+score against a −0.5/week decay — so every contact anybody ever rang climbed to
+100 and stayed. That is why quantity beat quality, and it is also why no upper
+band could be given a meaning: there was no upper band, everyone was at the top.
+Three sibling systems in the same repo already diminished (`raiseRelationship`
+8→2, `wantBonus` 4/2/1/0, food satiety full/half/quarter). When one ladder in a
+family of ladders is flat, that is the bug, and fixing it is what makes the
+whole scale available.
+
+Third, and I made this mistake myself after writing it down twice: **a persona
+that never answers a modal measures a blocked system.** My story probe reported
+"the support events never fire" across four 250-week lives. They fired fine; the
+persona I built had no `answerPendingEvents` leg, so its `eventLog` was empty —
+250 weeks, zero events of any kind resolved. Programs 9 and 10 each recorded
+this lesson once. It is apparently worth making a third time. Before concluding
+a feature does not fire, check that the harness can see ANY feature fire.
+
+Fourth: **when a tuning experiment shows no effect, do not ship the tuning.**
+Doubling an event's weight from 1.6 to 3.0 produced the same single occurrence,
+in the same week, in all four probe lives. The honest reading is not "3.0 is
+better"; it is "weight is not what is deciding this" — the weekly pick is
+deterministic in the week and not salted per life, so every life draws the same
+event on the same week whatever the weights say. I reverted to the value
+justified by the pool it sits in and wrote the finding down. A number tuned
+against an experiment that did not respond is a number with no reason attached.
+
+Fifth: **check that a new gate is a state the game reaches.** The first cut of
+the crisis events required the player to be ill AND broke. Measured across
+twelve personas over 250 weeks, `ill && broke` occurred in 0 weeks for ten of
+them; `ill && health < 45` occurs 3-10 weeks in every life. An event gated on a
+state nothing produces is decoration — the exact defect Program 11 catalogued in
+`networking_opportunity`, re-created by me one program later. Every gate now has
+a test that builds the state from the fields the tick writes.

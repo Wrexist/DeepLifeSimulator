@@ -4072,6 +4072,15 @@ describe('pre-tick equivalence - applyRelationshipHealth', () => {
 
   it('friend type: just clamps score, no penalty, no notif', () => {
     const ctx = relhStubCtx(relhStubStats());
+    /**
+     * These seven snapshots gained a `happinessSupport` field in Program 12, and
+     * that is a deliberate shape change rather than a quiet bump: the result
+     * object could previously only carry a PENALTY, which is why a life with
+     * fifty relationships measured byte-identical to a life with none. Read the
+     * updated values as the assertion - support is 1 only for the friend at
+     * 100, and 0 for the breakup, the disappointed partner, the failing partner
+     * and the estranged family member.
+     */
     const rel = { id: 'r1', name: 'Pal', type: 'friend', relationshipScore: 105 } as any;
     const result = applyRelationshipHealth(rel, 0, ctx);
     expect({ result, notifications: ctx.notifications }).toMatchSnapshot();

@@ -209,6 +209,74 @@ export function makeRiskTaker(): SimPolicy {
   };
 }
 
+/**
+ * 8. SOCIAL BUT BROKE — spends on people with money they do not have. The
+ * persona that tests whether social investment is affordable at the bottom of
+ * the ladder, where most of a life is actually lived.
+ */
+export const socialButBroke: SimPolicy = async (ctx) => {
+  await baseline(ctx);
+  await meetIfSocial(ctx);
+  if (contactsOpen(ctx)) await keepInTouch(ctx, { hangOut: true, budget: 60 });
+  if (sparkOpen(ctx) && ctx.week % 6 === 0) {
+    await swipeForMatches(ctx, 6);
+    await befriendMatches(ctx, 2);
+  }
+};
+
+/**
+ * 9. SOCIAL + CAREER — the balanced life the brief asks about in §17: takes
+ * every promotion AND keeps a small circle warm. If a tradeoff exists, this is
+ * the persona that pays it.
+ */
+export const socialAndCareer: SimPolicy = async (ctx) => {
+  await baseline(ctx);
+  await meetIfSocial(ctx);
+  const s = ctx.state();
+  if (s.stats.energy >= 40 && !s.currentJob) await ctx.actions.performStreetJob('wash_cars');
+  // A SMALL circle, kept warm: the three strongest bonds only, weekly.
+  if (contactsOpen(ctx)) {
+    const top = (ctx.state().relationships ?? [])
+      .filter(Boolean)
+      .sort((a, b) => (b.relationshipScore ?? 0) - (a.relationshipScore ?? 0))
+      .slice(0, 3);
+    for (const r of top) await ctx.actions.contactInteract(r.id, 'call', 0, 3);
+  }
+  if (s.stats.energy < 30 && s.stats.money > 100) await ctx.actions.buyFood('sandwich');
+};
+
+/**
+ * 10. WEALTH MAXIMIZER — banks everything, never spends on a person. The
+ * ceiling the social lives are measured against.
+ */
+export const wealthMaximizer: SimPolicy = async (ctx) => {
+  await baseline(ctx);
+  const s = ctx.state();
+  if (s.stats.energy >= 40 && !s.currentJob) await ctx.actions.performStreetJob('wash_cars');
+  if (s.stats.money > 3000) await ctx.actions.deposit(Math.floor(s.stats.money - 2000));
+  if (s.stats.energy < 30 && s.stats.money > 100) await ctx.actions.buyFood('sandwich');
+};
+
+/** 11. TEXT SKIPPER — takes a job and taps Next Week. Reads nothing. */
+export const textSkipper: SimPolicy = async (ctx) => {
+  await takeFirstJob(ctx);
+};
+
+/**
+ * 12. SOCIAL OPTIMIZER — plays the social systems for whatever they pay. If a
+ * relationship can be farmed, this is the persona that finds it: it holds as
+ * many people as the game allows and touches every one of them every week.
+ */
+export const socialOptimizer: SimPolicy = async (ctx) => {
+  await baseline(ctx);
+  await meetIfSocial(ctx);
+  if (sparkOpen(ctx)) {
+    await swipeForMatches(ctx, 12);
+    await befriendMatches(ctx, 5);
+  }
+  if (contactsOpen(ctx)) await keepInTouch(ctx, { hangOut: true, budget: 600 });
+};
+
 export interface SocialPersonaSpec {
   make: () => SimPolicy;
   scenarioId: string;
@@ -222,4 +290,10 @@ export const SOCIAL_PERSONAS: Record<string, SocialPersonaSpec> = {
   'CAREER-OBSESSED': { make: () => careerObsessed, scenarioId: 'food_courier' },
   'FAMILY-FOCUSED': { make: makeFamilyFocused, scenarioId: 'food_courier' },
   'RISK-TAKER': { make: makeRiskTaker, scenarioId: 'food_courier' },
+  // Program 12 §38 — the rest of the required set.
+  'SOCIAL BUT BROKE': { make: () => socialButBroke, scenarioId: 'immigrant_story' },
+  'SOCIAL + CAREER': { make: () => socialAndCareer, scenarioId: 'food_courier' },
+  'WEALTH MAXIMIZER': { make: () => wealthMaximizer, scenarioId: 'food_courier' },
+  'TEXT SKIPPER': { make: () => textSkipper, scenarioId: 'food_courier' },
+  'SOCIAL OPTIMIZER': { make: () => socialOptimizer, scenarioId: 'food_courier' },
 };

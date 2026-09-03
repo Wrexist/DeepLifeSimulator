@@ -3,6 +3,7 @@ import { marketCrash, sideGig, earningsReport } from './economy';
 import { getSeasonalEvents } from './seasonalEvents';
 import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEvent, getCurrentEconomicState } from './economyEvents';
 import { personalCrisisEventTemplates } from './personalCrises';
+import { friendSupportEventTemplates } from './friendSupportEvents';
 import { enhancedEventTemplates } from './enhancedEvents';
 import { lifeMilestoneEventTemplates } from './lifeMilestoneEvents';
 import { legalEventTemplates } from './legalEvents';
@@ -3076,6 +3077,10 @@ export const eventTemplates: EventTemplate[] = [
   friendDistant,
   // Personal Crisis Events (added first for priority)
   ...personalCrisisEventTemplates,
+  // Somebody shows up (Program 12). Every one is weight 0 unless the player is
+  // genuinely in trouble AND has a bond at `BOND.close`, so a loner never sees
+  // them and they cost that life nothing.
+  ...friendSupportEventTemplates,
   // Economic Event Templates (for individual economic events, not global state)
   ...economyEventTemplates,
   // Regular Events

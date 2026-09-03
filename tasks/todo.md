@@ -1,3 +1,50 @@
+# Master Program 12 — RELATIONSHIP DEPTH + SOCIAL VALUE + CONSEQUENCES — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 11 (`10001ab`).
+Programs 1-11 untouched. Rule of the program: no money printing, no chores, no
+new subsystems - an existing system plus a small state-aware rule. Relationships
+stay OPTIONAL. Report: `tasks/relationship-depth-2026-09-03.md`.
+
+## Phase 1 - what a bond buys. STATUS: **done** (report §3)
+Measured with a controlled cohort experiment, not a code read: nine cohorts,
+same policy, same seed, differing only in who was in the life and at what bond.
+**Happiness, health and energy byte-identical** whether a life held nobody, one
+soulmate or fifty acquaintances. 45 bought nothing; 60 bought a one-off $2,800;
+75, 90 and 100 bought exactly what 60 bought.
+
+ROOT CAUSE 1: the only wire between relationships and wellbeing ran ONE WAY -
+`applyRelationshipHealth` could subtract 25/10/8/1-a-week and could add nothing.
+ROOT CAUSE 2: a free `Call` paid a flat +3 at every score against a -0.5/week
+decay, so any contact anyone ever rang ratcheted to 100 (measured: CASUAL SOCIAL
+at avgBond 100 across 23 relationships). Nothing above the floor could mean
+anything because everybody was already at the ceiling.
+
+## Phase 2 - harness. STATUS: **done** - the §38 set is complete (twelve personas).
+## Phase 3-6 - value / friendship / romance / family. STATUS: **done** (report §3-6).
+## Phase 7-8 - consequence graph + emergent stories. STATUS: **done** (report §8, §14-15).
+## Phase 9 - proposals, split SAFE / OWNER / REJECTED. STATUS: **done** (report §18-20).
+## Phase 10 - implementation. STATUS: **done**, one commit:
+- [x] `lib/social/closeness.ts` - one definition of what a bond means
+      (estranged 25 / known 45 / close 60 / trusted 80) · `closeness.test.ts`.
+- [x] The wire runs both ways: `happinessSupport`, +1 per close bond capped +3,
+      mirroring the neglect drag exactly · `closeness.test.ts`.
+- [x] `closenessFalloff` - a catch-up is worth less to somebody you already see.
+      The root-cause fix for quantity-over-quality · `bondFalloff.test.ts`.
+- [x] `lib/events/friendSupportEvents.ts` - four templates gated on a real
+      crisis AND a trusted bond, bound to the person · `friendSupport.test.ts`.
+- [x] The Happiness breakdown names the circle, from the same function the tick
+      applies, and shows the line at ZERO so the gap is legible.
+- [x] Program 11's partner-income fix re-verified under every §9 state ·
+      `partnerIncomeBounded.test.ts`.
+- [x] Four new gates in `socialBoundaries.test.ts`.
+- [ ] NOT done, owner decisions (report §19): a free Call has no time cost (the
+      one remaining imbalance); the weekly event pick is not life-salted; the
+      support events are delivered by a channel that gives them ~1 appearance
+      per life.
+## Phase 11-13 - red team, regression, verification. STATUS: **done** (report §16-17, §22).
+
+NO SAVE FORMAT CHANGE. `STATE_VERSION` stays at 50.
+
 # Master Program 11 — SOCIAL LIFE + RELATIONSHIPS + FAMILY + EMERGENT STORIES — COMPLETE
 
 Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 10 (`4eaa778`).

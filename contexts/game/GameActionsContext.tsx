@@ -143,6 +143,7 @@ import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
 import { resolveTenancyStep, computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { CLOSE_BOND_HAPPINESS_CAP } from '@/lib/social/closeness';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -1543,6 +1544,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let relationshipHappinessPenalty = 0;
  // Neglect drag accumulates separately so it can be capped as a group.
  let neglectDragTotal = 0;
+ // ...and its mirror: what the people you are close to are worth, capped the
+ // same way (Program 12). Declared beside the drag so the two stay visible as
+ // the pair they are.
+ let closeCircleSupportTotal = 0;
  const newBornChildren: Relationship[] = [];
  let newShowBirthPopup = false;
  let birthMessage = '';
@@ -1577,6 +1582,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const weddingSpouseBefore = newWeddingSpouse;
  const happinessPenaltyBefore = relationshipHappinessPenalty;
  const neglectDragBefore = neglectDragTotal;
+ const closeCircleSupportBefore = closeCircleSupportTotal;
 
  try {
 
@@ -1632,19 +1638,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // newStats AFTER the .map() below.
  const healthResult = applyRelationshipHealth(rel, relIdx, weeklyCtx);
  if (healthResult.happinessPenalty !== 0) {
- // The standing neglect drag is capped ACROSS all relationships, separately
- // from the one-off breakup / disappointed / drift hits. Without the split, a
- // large family all sitting below the threshold would out-punish a failing
- // marriage purely on headcount (see NEGLECT_HAPPINESS_DRAG_CAP).
- if (healthResult.happinessPenalty === NEGLECT_HAPPINESS_DRAG) {
- neglectDragTotal = Math.max(
- NEGLECT_HAPPINESS_DRAG_CAP,
- neglectDragTotal + healthResult.happinessPenalty,
+  // The standing neglect drag is capped ACROSS all relationships, separately
+  // from the one-off breakup / disappointed / drift hits. Without the split, a
+  // large family all sitting below the threshold would out-punish a failing
+  // marriage purely on headcount (see NEGLECT_HAPPINESS_DRAG_CAP).
+  if (healthResult.happinessPenalty === NEGLECT_HAPPINESS_DRAG) {
+   neglectDragTotal = Math.max(
+    NEGLECT_HAPPINESS_DRAG_CAP,
+    neglectDragTotal + healthResult.happinessPenalty,
+   );
+  } else {
+   relationshipHappinessPenalty += healthResult.happinessPenalty;
+  }
+ }
+ // ...and the mirror of that drag: what the people you ARE close to are
+ // worth. Capped across all relationships the same way and for the same
+ // reason - so three close bonds reach the ceiling and the fiftieth
+ // acquaintance is worth what the fourth is, which is nothing (Program 12).
+ closeCircleSupportTotal = Math.min(
+  CLOSE_BOND_HAPPINESS_CAP,
+  closeCircleSupportTotal + healthResult.happinessSupport,
  );
- } else {
- relationshipHappinessPenalty += healthResult.happinessPenalty;
- }
- }
  return healthResult.rel;
  } catch (relEntryErr) {
  // Roll back anything this entry managed to contribute before throwing, so a
@@ -1658,6 +1672,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newWeddingSpouse = weddingSpouseBefore;
  relationshipHappinessPenalty = happinessPenaltyBefore;
  neglectDragTotal = neglectDragBefore;
+ closeCircleSupportTotal = closeCircleSupportBefore;
  // The id read is itself guarded: the entries that reach this catch are by
  // definition malformed, and a throwing getter must not escalate a contained
  // per-entry failure back into a whole-pass one.
@@ -1705,6 +1720,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  birthMessage = '';
  relationshipHappinessPenalty = 0;
  neglectDragTotal = 0;
+ closeCircleSupportTotal = 0;
  }
 
  // Applied outside the try: a throw mid-pass resets the accumulators above, so
@@ -1712,9 +1728,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // `neglectDragTotal` is already capped as it accumulates; the one-off hits
  // (breakup / disappointed / drift) are not, because each is a single event the
  // player can attribute to a specific person.
+ //
+ // Program 12 added the SUPPORT term. Before it, the only wire between
+ // relationships and wellbeing ran one way: this block could subtract 25 for a
+ // breakup, 10 for a disappointed partner, 8 for a friendship fading and a
+ // standing 3 a week for estrangement, and could not add anything at all. A
+ // nine-cohort controlled run over 250 weeks measured the consequence -
+ // happiness, health and energy byte-identical whether a life held nobody, one
+ // soulmate or fifty acquaintances. Relationships were a pure liability.
+ //
+ // The support term is capped at +3 (`CLOSE_BOND_HAPPINESS_CAP`) against a
+ // natural decay of 4/week, so a maxed circle offsets three quarters of one
+ // stat's drift and nothing else - and it reaches that ceiling at THREE close
+ // bonds, which is what stops fifty acquaintances beating one real friendship.
  const totalRelationshipPenalty = relationshipHappinessPenalty + neglectDragTotal;
- if (totalRelationshipPenalty < 0) {
- newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + totalRelationshipPenalty));
+ const netRelationshipHappiness = totalRelationshipPenalty + closeCircleSupportTotal;
+ if (netRelationshipHappiness !== 0) {
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + netRelationshipHappiness));
  }
 
  // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect

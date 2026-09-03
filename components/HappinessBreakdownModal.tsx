@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { TrendingDown, Briefcase, GraduationCap, Utensils, Home } from 'lucide-react-native';
+import { TrendingDown, Briefcase, GraduationCap, Utensils, Home, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { closeCircle, closeCircleHappiness, CLOSE_BOND_HAPPINESS_CAP } from '@/lib/social/closeness';
 import { projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
@@ -134,6 +135,44 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
         description: housing.homeless
           ? `Sleeping rough costs ${Math.abs(housing.happiness)} happiness per week - rent or buy a home`
           : `Your housing costs ${Math.abs(housing.happiness)} happiness per week`,
+      });
+    }
+
+    /**
+     * The people you are close to.
+     *
+     * Read from `closeCircleHappiness` - the SAME function the tick applies
+     * (`applyRelationshipHealth` -> the relationships pass) - because the rule
+     * this modal already follows for decay and the job toll is that the number
+     * on screen is produced by the code that charges it, never restated
+     * (CLAUDE.md 4.3).
+     *
+     * Shown at ZERO too, unlike the other lines, and that is deliberate: a
+     * player with three acquaintances at bond 50 needs to be told what the
+     * missing line is worth and what it would take, or "friendship does
+     * nothing" stays true in their head after it stopped being true in the
+     * code.
+     */
+    const circle = closeCircle(gameState);
+    const circleHappiness = closeCircleHappiness(gameState);
+    if (circleHappiness > 0) {
+      incomes.push({
+        label: circle.length === 1 ? `${circle[0].name}` : `${circle.length} close relationships`,
+        value: circleHappiness,
+        icon: Users,
+        color: '#10B981',
+        description:
+          circle.length >= CLOSE_BOND_HAPPINESS_CAP
+            ? `The people you are closest to add ${circleHappiness} happiness per week - the most a circle can give`
+            : `Adds ${circleHappiness} per week, up to ${CLOSE_BOND_HAPPINESS_CAP} with ${CLOSE_BOND_HAPPINESS_CAP} close relationships`,
+      });
+    } else {
+      incomes.push({
+        label: 'Nobody close yet',
+        value: 0,
+        icon: Users,
+        color: '#6B7280',
+        description: `A relationship at 60+ adds 1 happiness per week, up to ${CLOSE_BOND_HAPPINESS_CAP} - and is who turns up when things go wrong`,
       });
     }
 
