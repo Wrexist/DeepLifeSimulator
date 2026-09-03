@@ -3,6 +3,7 @@ import { TrendingDown, Briefcase, GraduationCap, Utensils, AlertTriangle, Home }
 import type { LucideIcon } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -17,45 +18,61 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
   const currentJob = useGameSelector((s) => s.currentJob);
   const educations = useGameSelector((s) => s.educations);
   const diseases = useGameSelector((s) => s.diseases);
-  const bankSavings = useGameSelector((s) => s.bankSavings);
   const dietPlans = useGameSelector((s) => s.dietPlans);
   const realEstate = useGameSelector((s) => s.realEstate);
   const rental = useGameSelector((s) => s.rental, shallowEqual);
+  // Natural decay and the job toll come from the ONE projection the tick's
+  // formula is pinned to (`lib/economy/vitalDrift.ts`). This modal used to
+  // restate the decay formula with no grace ramp, no prestige bonus and a
+  // different net worth, and charged every career a flat -2 - so the number
+  // here disagreed with the recap line and with what the tick applied.
+  const drift = useGameSelector(
+    (s) => {
+      const d = projectWeeklyVitalDrift(s);
+      const decay = d.causes.find((c) => c.id === 'decay');
+      const job = d.causes.find((c) => c.id === 'job');
+      return { decayHealth: decay?.health ?? 0, jobHealth: job?.health ?? 0, jobLabel: job?.label ?? '' };
+    },
+    shallowEqual,
+  );
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
     const incomes: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
 
-    // Calculate natural decay
-    const netWorth = (stats?.money || 0) + (bankSavings || 0);
-    const safeNetWorth = isFinite(netWorth) && netWorth > 0 ? netWorth : 1000;
-    const wealthMultiplier = Math.max(0.5, Math.min(2.0, 100000 / Math.max(1000, safeNetWorth)));
-    const prestigeMultiplier = 1.0; // Simplified for display
-    const statDecayRate = 4;
-    const effectiveDecayRate = statDecayRate * wealthMultiplier * prestigeMultiplier;
-    const naturalDecay = Math.round(effectiveDecayRate * 0.6);
-
-    if (naturalDecay > 0) {
+    if (drift.decayHealth < 0) {
       drains.push({
         label: 'Natural Decay',
-        value: -naturalDecay,
+        value: drift.decayHealth,
         icon: TrendingDown,
         color: '#EF4444',
-        description: `Health naturally decreases over time (based on wealth)`,
+        description: 'Health naturally decreases over time; wealth slows it, never speeds it',
       });
     }
 
-    // Calculate health drain from career
-    if (currentJob) {
+    // The job's weekly toll, exactly as the tick charges it (some careers
+    // lift health rather than drain it - a farmhand's +1).
+    if (currentJob && drift.jobHealth !== 0) {
       const career = careers?.find(c => c.id === currentJob && c.accepted);
       if (career) {
-        drains.push({
-          label: `Career: ${career.levels?.[career.level]?.name || career.id}`,
-          value: -2,
-          icon: Briefcase,
-          color: '#EF4444',
-          description: `Working reduces health by 2 per week`,
-        });
+        const label = `Career: ${career.levels?.[career.level]?.name || career.id}`;
+        if (drift.jobHealth < 0) {
+          drains.push({
+            label,
+            value: drift.jobHealth,
+            icon: Briefcase,
+            color: '#EF4444',
+            description: `Working costs ${Math.abs(drift.jobHealth)} health per week`,
+          });
+        } else {
+          incomes.push({
+            label,
+            value: drift.jobHealth,
+            icon: Briefcase,
+            color: '#10B981',
+            description: `This work keeps you fit: +${drift.jobHealth} health per week`,
+          });
+        }
       }
     }
 
@@ -179,7 +196,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       currentHealth,
       projectedHealth,
     };
-  }, [stats?.health, currentJob, careers, educations, stats?.money, bankSavings, dietPlans, realEstate, rental, diseases]);
+  }, [stats?.health, currentJob, careers, educations, drift, dietPlans, realEstate, rental, diseases]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {
@@ -230,7 +247,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
         title: 'How Health Works',
         text: (
           <>
-            {'\u2022'} Health naturally decreases over time based on your wealth{'\n'}
+            {'\u2022'} Health naturally decreases over time; wealth slows it down{'\n'}
             {'\u2022'} Working at a career reduces health by 2 per week{'\n'}
             {'\u2022'} Studying multiple educations simultaneously increases health drain{'\n'}
             {'\u2022'} Paused educations don't affect health{'\n'}

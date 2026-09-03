@@ -183,3 +183,23 @@ describe('upcomingEvents', () => {
     });
   });
 });
+
+describe('the job board turnover is announced the week before (Program 9)', () => {
+  const { upcomingEvents: upcoming } = jest.requireActual('../engine') as typeof import('../engine');
+  const { BOARD_ROTATION_WEEKS } = jest.requireActual('@/lib/careers/jobMarket') as typeof import('@/lib/careers/jobMarket');
+  const { createTestGameState: mk } = jest.requireActual('../../../__tests__/helpers/createTestGameState') as typeof import('../../../__tests__/helpers/createTestGameState');
+
+  it('shows one "New openings next week" row exactly one week before the board rotates', () => {
+    const s = mk({ weeksLived: BOARD_ROTATION_WEEKS * 13 - 1 });
+    const rows = upcoming(s).filter((e) => e.kind === 'jobs');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].weeksAway).toBe(1);
+    expect(rows[0].title).toMatch(/openings/i);
+  });
+
+  it('is silent on every other week of the cycle', () => {
+    for (let w = BOARD_ROTATION_WEEKS * 13; w < BOARD_ROTATION_WEEKS * 14 - 1; w++) {
+      expect(upcoming(mk({ weeksLived: w })).some((e) => e.kind === 'jobs')).toBe(false);
+    }
+  });
+});

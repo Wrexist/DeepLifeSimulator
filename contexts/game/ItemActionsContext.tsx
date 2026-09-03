@@ -352,9 +352,14 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           const hp = Number.isFinite(prevState.stats.health) ? prevState.stats.health : 0;
           healthDelta = clampStatByKey('health', hp + activity.healthGain) - hp;
         }
+        let fitnessDelta = 0;
+        if (activity.fitnessGain) {
+          const ft = Number.isFinite(prevState.stats.fitness) ? prevState.stats.fitness : 0;
+          fitnessDelta = clampStatByKey('fitness', ft + activity.fitnessGain) - ft;
+        }
         const gymTimerStale = (prevState.lastGymVisitWeek || 0) !== (prevState.weeksLived || 0);
         const wouldRefreshStaleTimer = resetsGymTimer && gymTimerStale;
-        if (happinessDelta <= 0 && healthDelta <= 0 && !wouldRefreshStaleTimer) {
+        if (happinessDelta <= 0 && healthDelta <= 0 && fitnessDelta <= 0 && !wouldRefreshStaleTimer) {
           processingActivities.current.delete(activityId);
           result = { message: `You're already at peak wellness - ${activity.name} wouldn't change anything right now.` };
           return prevState;
@@ -421,6 +426,14 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         const newHealth = clampStatByKey('health', currentHealth + activity.healthGain);
         updatedStats.health = newHealth;
         actualChanges.health = newHealth - currentHealth;
+      }
+
+      // Add fitness if applicable (Program 8: the walk and yoga build it).
+      if (activity.fitnessGain) {
+        const currentFitness = Number.isFinite(prevState.stats.fitness) ? prevState.stats.fitness : 0;
+        const newFitness = clampStatByKey('fitness', currentFitness + activity.fitnessGain);
+        updatedStats.fitness = newFitness;
+        actualChanges.fitness = newFitness - currentFitness;
       }
 
       // Track gym visits: activities that improve fitness/health count as gym
@@ -705,6 +718,9 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         // two sources, and listing it twice reads as a bug of its own.
         curedDiseases: Array.from(new Set(curedDiseases)),
         showCureSuccessModal: showCureSuccessModal,
+        // A cure restarts the generator's cooldown, like a natural recovery
+        // does in the tick (Program 8): four clear weeks before the next roll.
+        ...(curedDiseases.length > 0 ? { lastDiseaseWeek: prevState.weeksLived || 0 } : {}),
         diseaseHistory: updatedDiseaseHistory,
         diseaseImmunities: updatedImmunities,
         vaccinations: vaccinationsResult,

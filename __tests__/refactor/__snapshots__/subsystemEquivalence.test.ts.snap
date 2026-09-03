@@ -1981,7 +1981,7 @@ exports[`pre-tick equivalence - applyDiseasesForWeek high health/fitness acceler
       "totalDiseases": 0,
     },
     "diseases": [],
-    "lastDiseaseWeek": undefined,
+    "lastDiseaseWeek": 100,
     "showSicknessModal": false,
   },
 }
@@ -2016,7 +2016,7 @@ exports[`pre-tick equivalence - applyDiseasesForWeek natural recovery removes di
       "totalDiseases": 1,
     },
     "diseases": [],
-    "lastDiseaseWeek": 90,
+    "lastDiseaseWeek": 100,
     "showSicknessModal": false,
   },
 }
@@ -5173,51 +5173,51 @@ exports[`pre-tick equivalence - calculateNetWorth wealthyGame 1`] = `730000`;
 
 exports[`pre-tick equivalence - computeDecayInputs earlyCareer 1`] = `
 {
-  "effectiveDecayRate": 8,
+  "effectiveDecayRate": 4,
   "graceFactor": 1,
   "netWorth": 10500,
   "safeNetWorth": 10500,
-  "wealthMultiplier": 2,
+  "wealthMultiplier": 1,
 }
 `;
 
 exports[`pre-tick equivalence - computeDecayInputs freshGame 1`] = `
 {
-  "effectiveDecayRate": 2,
+  "effectiveDecayRate": 1,
   "graceFactor": 0,
   "netWorth": 1000,
   "safeNetWorth": 1000,
-  "wealthMultiplier": 2,
+  "wealthMultiplier": 1,
 }
 `;
 
 exports[`pre-tick equivalence - computeDecayInputs inPrison 1`] = `
 {
-  "effectiveDecayRate": 8,
+  "effectiveDecayRate": 4,
   "graceFactor": 1,
   "netWorth": 0,
   "safeNetWorth": 1000,
-  "wealthMultiplier": 2,
+  "wealthMultiplier": 1,
 }
 `;
 
 exports[`pre-tick equivalence - computeDecayInputs midGame 1`] = `
 {
-  "effectiveDecayRate": 7.547169811320755,
+  "effectiveDecayRate": 4,
   "graceFactor": 1,
   "netWorth": 53000,
   "safeNetWorth": 53000,
-  "wealthMultiplier": 1.8867924528301887,
+  "wealthMultiplier": 1,
 }
 `;
 
 exports[`pre-tick equivalence - computeDecayInputs nearDeath 1`] = `
 {
-  "effectiveDecayRate": 8,
+  "effectiveDecayRate": 4,
   "graceFactor": 1,
   "netWorth": 50,
   "safeNetWorth": 50,
-  "wealthMultiplier": 2,
+  "wealthMultiplier": 1,
 }
 `;
 

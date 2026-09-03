@@ -151,6 +151,52 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   guarded block turns one subsystem's throw into a lost week for the whole save.
 - Per-tick loops must not call unguarded helpers; a single bad entry must not
   abort the tick.
+- **Natural decay's numbers live in `lib/economy/statDecay.ts`** (base 4, the
+  8-week grace ramp, and the wealth multiplier `100000 / netWorth` clamped
+  **0.5–1.0**). The ceiling was 2.0 until Program 7 (2026-09-02): it bound for
+  every net worth under $50k, i.e. the whole early game, so "base 4" was a
+  rate no fresh life ever lived at. The tick, the recap projection
+  (`vitalDrift.ts`) and both HUD breakdown modals call the one function — do
+  not restate the formula. Balance changes to the early game are measured on
+  the persona simulator (`__tests__/helpers/earlyGameSim.ts`, soak
+  `RUN_EARLY_GAME_SIM=1 npx jest earlyGamePersonas --silent=false`) and gated by
+  `__tests__/simulation/earlyGameSurvivability.test.ts`; the evidence is in
+  `tasks/early-game-balance-2026-09-02.md`.
+- **The economy is measured on the real tick, not read off the doc.**
+  `__tests__/helpers/economyPersonas.ts` holds nine economic personas (POOR
+  START … TEXT-SKIPPER) over the same harness as the survival personas, with
+  economic actions (deposit, stocks, property, enrol, company, licence,
+  vehicle, luxury, loan, pet) routed through the production action modules.
+  Soaks: `RUN_ECONOMY_PERSONAS=1 npx jest economyPersonas --silent=false`
+  (20/50/100/250 weeks, `DUMP=<file>` for JSON), `RUN_ECONOMY_STRATEGIES=1`
+  (equal capital, five deployments), `RUN_ECONOMY_SHOCKS=1` (job loss,
+  illness, low cash, big bill, crash); gates in
+  `__tests__/simulation/economyBoundaries.test.ts`. Two rules that came out
+  of Program 10 (2026-09-03): a log-space drift is a MEDIAN, and the
+  arithmetic expectation a diversified holder compounds at is drift + σ²/2 —
+  `weeklyLogDriftFor` subtracts it and `expectedAnnualReturnFor` states the
+  result, so assert market targets on that; and a single seeded tape is one
+  draw, so market statistics in tests average over lives. Evidence:
+  `tasks/economy-progression-2026-09-03.md`.
+- **Every draw on the tick path is a function of the LIFE and the week.**
+  `lifeSalt(state)` / `makeLifeRoll(state, weeksLived)` in `utils/seededRoll.ts`
+  fold `lineageId:generationNumber` into the weekly stream; `buildPreRolls`,
+  the old-age draw, the disease generator and every event payload use it.
+  `lineageId` is minted per new life in `gameStateBuilder` and per prestige
+  reset (Program 8) - it was the literal `'initial-lineage'` for every life
+  before, which made every new game the same life. Never add a `Math.random()`
+  to the tick or to an event `generate()`; never key a life-affecting roll on
+  the week alone. Disease occurrence is `DISEASE_BASE_WEEKLY_CHANCE ×
+  calculateDiseaseRisk` (`lib/diseases/diseaseGenerator.ts`); the template
+  curves only pick WHICH illness. Evidence: `tasks/life-variation-2026-09-02.md`.
+- **Retention is measured, not assumed.** `RUN_RETENTION_SIM=1 npx jest
+  retentionJourney.sim --silent=false` prints a per-week signal map (new
+  decision, promotion, unlock, chapter step, goal change, week-ahead row, life
+  moment) over 100 weeks; `__tests__/simulation/retentionJourney.test.ts` gates
+  it. The goal engine rotates SOON/DREAM through the eligible catalogue on an
+  8-week window (`GOAL_SPOTLIGHT_WEEKS`), life moments run at
+  `LIFE_MOMENT_WEEKLY_CHANCE` (5%, pity 30), and Chapter 2 asks for a home.
+  Evidence: `tasks/retention-journey-2026-09-03.md` (Program 9).
 
 ### 4.4 Money and other grants must be atomic
 

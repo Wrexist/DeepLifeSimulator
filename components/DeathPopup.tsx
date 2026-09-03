@@ -39,6 +39,7 @@ import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
+import { explainVitalDeath } from '@/lib/economy/deathCauses';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { stashNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { characterName } from '@/utils/characterName';
@@ -704,6 +705,7 @@ function DeathPopup() {
 
   if (!gameState.showDeathPopup) return null;
 
+  const vitalDeath = explainVitalDeath(gameState);
   const age = Math.floor(date.age);
   const weeksLived = gameState.weeksLived || 0;
   const yearsLived = Math.floor(weeksLived / WEEKS_PER_YEAR);
@@ -913,6 +915,15 @@ function DeathPopup() {
                 </Text>
                 <Text style={styles.heroSubtitle}>{deathSubtitle}</Text>
                 <Text style={styles.heroCause}>{deathMessage}</Text>
+                {/* Fair failure (Program 7): a vital death says what sat at
+                    zero, what was pulling it down - the same drains the
+                    weekly recap named - and where the fix was. "The weight
+                    of life became too much" is true; it is not an answer. */}
+                {vitalDeath && (
+                  <Text style={styles.heroCause} accessibilityLabel={`${vitalDeath.what} ${vitalDeath.why} ${vitalDeath.fix}`}>
+                    {vitalDeath.what}{vitalDeath.why ? ` ${vitalDeath.why}` : ''}{` ${vitalDeath.fix}`}
+                  </Text>
+                )}
               </View>
 
               {/* Identity card - the portrait belongs here. A player who spent

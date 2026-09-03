@@ -76,3 +76,38 @@ export function makeWeeklyRoll(weeksLived: number): (key: string) => number {
     return mulberry32(hashStringToSeed(weeksLived, key))();
   };
 }
+
+/**
+ * The per-life salt: `lineageId:generationNumber`, the convention the stock
+ * tape, the lucky bonus, cliffhangers, life moments and Spark already fold into
+ * their keys. One helper so the spelling cannot drift.
+ *
+ * Master Program 8 (2026-09-02): `lineageId` used to be the literal
+ * `'initial-lineage'` for every life - the comment in `initialState` promised
+ * a UUID "on first load" that nothing ever minted - so this salt was one
+ * constant for every new game and every seeded roll replayed across lives.
+ * `gameStateBuilder` mints one per new life and the prestige reset mints a
+ * fresh one; the heir path keeps the lineage and bumps the generation.
+ */
+export function lifeSalt(state: { lineageId?: string; generationNumber?: number } | null | undefined): string {
+  const lineage = typeof state?.lineageId === 'string' && state.lineageId.length > 0 ? state.lineageId : '';
+  const generation = typeof state?.generationNumber === 'number' && Number.isFinite(state.generationNumber)
+    ? state.generationNumber
+    : 1;
+  return `${lineage}:${generation}`;
+}
+
+/**
+ * A weekly roll stream keyed on the life AND the week. Same life + same week +
+ * same key → same number, on every device and after every reload; a different
+ * life gets a different number for the same key. Use this for any draw that
+ * decides something about THIS life (a disease, an accident, a breakup).
+ */
+export function makeLifeRoll(
+  state: { lineageId?: string; generationNumber?: number } | null | undefined,
+  weeksLived: number,
+): (key: string) => number {
+  const weekly = makeWeeklyRoll(weeksLived);
+  const salt = lifeSalt(state);
+  return (key: string) => weekly(`${salt}|${key}`);
+}

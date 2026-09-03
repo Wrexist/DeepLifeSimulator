@@ -110,9 +110,23 @@ export const MARKET_ANNUAL_DRIFT = 0.07;
 /**
  * The weekly LOG drift that produces `MARKET_ANNUAL_DRIFT` when compounded over
  * a year. Kept as a log-space figure because the step below is log-normal:
- * `price *= exp(μ + σz)` makes μ mean exactly "expected log return per week",
- * with no σ²/2 bookkeeping hiding in the call site, and makes a negative price
- * arithmetically impossible rather than merely clamped away.
+ * `price *= exp(μ + σz)`, which makes a negative price arithmetically
+ * impossible rather than merely clamped away.
+ *
+ * The σ²/2 bookkeeping is NOT optional, and `weeklyLogDriftFor` subtracts it
+ * (Master Program 10, 2026-09-03). A log-normal step with log-mean μ has an
+ * arithmetic price expectation of exp(μ + σ²/2) per week, and the arithmetic
+ * expectation is what a diversified holder compounds at - the dispersion of
+ * 25 names averages out and the mean survives. With μ set to the 7% target
+ * directly, a 4%-vol blue chip carried +4.2%/yr of hidden convexity and an
+ * 8%-vol growth name +16.6%/yr, on top of the risk premium below: an
+ * equal-weight portfolio measured 19.3%/yr mean (18.8% median) over ten years
+ * across forty lives, and NVDA 31.7%/yr, against the ~9-11.5% the comments
+ * on this file promise. That was the "one uncapped channel" the 2026-08-25
+ * audit saw equities become past $10M. Subtracting σ²/2 makes the EXPECTED
+ * return equal the stated target plus the premium; the median of a single
+ * high-vol name now sits below it, which is what a real gamble looks like -
+ * the winners carry the mean. `expectedAnnualReturnFor` states the result.
  */
 const WEEKLY_LOG_DRIFT = Math.log(1 + MARKET_ANNUAL_DRIFT) / 52;
 
@@ -152,10 +166,25 @@ const VOLATILITY_RISK_PREMIUM = 0.01;
 export function weeklyLogDriftFor(volatility: number, isBoosted = false): number {
   const vol = Number.isFinite(volatility) && volatility > 0 ? volatility : 0;
   return (
-    WEEKLY_LOG_DRIFT +
+    WEEKLY_LOG_DRIFT -
+    (vol * vol) / 2 +
     VOLATILITY_RISK_PREMIUM * vol +
     (isBoosted ? BOOST_ANNUAL_DRIFT_BONUS_LOG : 0)
   );
+}
+
+/**
+ * The EXPECTED (arithmetic-mean) annual return the drift above produces for a
+ * symbol of this volatility - the number a diversified holder actually
+ * compounds at, and the one the design targets are written in.
+ *
+ * Exported so the drift test can assert the target in the unit the designer
+ * thinks in instead of re-deriving the log-normal identity in the test.
+ */
+export function expectedAnnualReturnFor(volatility: number, isBoosted = false): number {
+  const vol = Number.isFinite(volatility) && volatility > 0 ? volatility : 0;
+  const weeklyLogMean = weeklyLogDriftFor(vol, isBoosted) + (vol * vol) / 2;
+  return Math.exp(weeklyLogMean * 52) - 1;
 }
 
 /**

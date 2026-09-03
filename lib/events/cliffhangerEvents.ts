@@ -24,6 +24,21 @@ export interface CliffhangerDefinition {
   resolveEvent: (state: GameState) => WeeklyEvent;
 }
 
+/**
+ * Has this life already lived a cliffhanger's resolution? Derived from
+ * `eventLog` - the memory the game already writes on every resolved event -
+ * so there is no stored seen-set to drift (the pool events' repeat guard,
+ * `recentlyLivedEventIds`, made the same choice). The log is capped at 500
+ * entries, which at the authored event cadence is longer than any life, and
+ * a new life starts with an empty log, so the guard is per LIFE.
+ */
+export function resolvedThisLife(
+  state: Pick<GameState, 'eventLog'>,
+  resolveEventId: string,
+): boolean {
+  return (state.eventLog ?? []).some((e) => e && e.id === resolveEventId);
+}
+
 export const CLIFFHANGERS: CliffhangerDefinition[] = [
   // ── Relationship cliffhangers ──
   {
@@ -161,7 +176,12 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_mysterious_letter',
     teaser: 'A mysterious letter with no return address arrived today...',
     weight: 0.25,
-    condition: (s) => weeksInThisLife(s) > 10,
+    // An inheritance is a once-in-a-life event. Nothing stopped it re-firing
+    // (Master Program 10, 2026-09-03): a seeded life received the same
+    // long-lost relative's $2,000 at weeks 16 and 19, and with `ch_email_from_lawyer`
+    // the two inheritances were a standing ~$40/wk faucet at ANY income -
+    // about a third of an entry wage, paid for tapping a popup. Once per life.
+    condition: (s) => weeksInThisLife(s) > 10 && !resolvedThisLife(s, 'ch_mysterious_letter_resolve'),
     resolveEvent: () => ({
       id: 'ch_mysterious_letter_resolve',
       description:
@@ -293,7 +313,10 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_investment_news',
     teaser: 'Breaking news about one of your investments...',
     weight: 0.2,
-    condition: (s) => Array.isArray(s.stocks) && s.stocks.length > 0,
+    // `stocks` is an object (`{ holdings, ... }`), never an array, so the old
+    // `Array.isArray(s.stocks)` gate was false for every save ever written and
+    // this cliffhanger had never fired (Master Program 10, 2026-09-03).
+    condition: (s) => (s.stocks?.holdings?.length ?? 0) > 0,
     resolveEvent: () => ({
       id: 'ch_investment_news_resolve',
       description:
@@ -390,7 +413,8 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_email_from_lawyer',
     teaser: 'You received an email from a lawyer you\'ve never heard of...',
     weight: 0.15,
-    condition: (s) => weeksInThisLife(s) > 25,
+    // The second inheritance; same once-per-life rule as the letter above.
+    condition: (s) => weeksInThisLife(s) > 25 && !resolvedThisLife(s, 'ch_email_from_lawyer_resolve'),
     resolveEvent: () => ({
       id: 'ch_email_from_lawyer_resolve',
       description:

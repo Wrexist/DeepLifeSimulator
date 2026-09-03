@@ -39,6 +39,10 @@ const layoffs = careerEventTemplates.find((t) => t.id === 'company_layoffs')!;
 function employedState(weeksLived = 200): GameState {
   return createTestGameState({
     currentJob: 'programmer',
+    // Program 8: the payload roll is keyed on the LIFE as well as the week, so
+    // the fixture weeks below are a property of this lineage. Pinned.
+    lineageId: 'layoff-test-life',
+    generationNumber: 1,
     weeksLived,
     careers: [
       {
@@ -58,10 +62,32 @@ function stayCalmChoice(state: GameState) {
   return event.choices.find((c) => c.id === 'stay_calm')!;
 }
 
-/** Weeks whose seeded roll lands BELOW 0.3 — survives in every performance band. */
-const SURVIVING_WEEKS = [101, 105, 107, 109];
-/** Weeks whose seeded roll lands at/above 0.85 — fired in every performance band. */
-const FIRED_WEEKS = [100, 110, 122, 139, 140];
+/**
+ * Fixture weeks, found by OUTCOME rather than by recomputing the roll: a week
+ * where even the worst performer survives is a low-roll week, a week where even
+ * the best performer is fired is a high-roll week, and a week where only the
+ * mid band is fired sits between. Scanning keeps the test black-box on what
+ * the player sees, and survives a change of salt (Program 8 folded the life
+ * into the roll, which moved every previously hand-pinned week).
+ */
+const withPerformanceAt = (week: number, performance: number): GameState => {
+  const state = employedState(week);
+  (state.careers[0] as unknown as { performance: number }).performance = performance;
+  return state;
+};
+const firedAt = (week: number, performance: number): boolean =>
+  stayCalmChoice(withPerformanceAt(week, performance)).special === 'fire_from_job';
+const scan = (predicate: (week: number) => boolean, want: number): number[] => {
+  const out: number[] = [];
+  for (let week = 100; week < 400 && out.length < want; week++) if (predicate(week)) out.push(week);
+  return out;
+};
+/** Weeks whose seeded roll lands BELOW the lowest band — survives in every performance band. */
+const SURVIVING_WEEKS = scan((w) => !firedAt(w, 0), 4);
+/** Weeks whose seeded roll lands at/above the top band — fired in every performance band. */
+const FIRED_WEEKS = scan((w) => firedAt(w, 100), 5);
+/** A week in the 0.6–0.85 band: fired at mid performance, survives as a high performer. */
+const MID_WEEK = scan((w) => firedAt(w, 55) && !firedAt(w, 90), 1)[0];
 
 describe('company_layoffs resolves to ONE consistent outcome', () => {
   it('never calls Math.random - the outcome comes from the save, not the render', () => {
@@ -112,14 +138,11 @@ describe('company_layoffs resolves to ONE consistent outcome', () => {
     // A week in the 0.6–0.85 band: fired at the mid performance band
     // (surviveChance 0.6), survives as a high performer (0.85). Same week, so
     // only the band moved — proof the seeding did not pin the result.
-    const week = 112; // seeded roll ≈ 0.71
-    const withPerformance = (performance: number): GameState => {
-      const state = employedState(week);
-      (state.careers[0] as unknown as { performance: number }).performance = performance;
-      return state;
-    };
-    expect(stayCalmChoice(withPerformance(55)).special).toBe('fire_from_job'); // 0.6 band
-    expect(stayCalmChoice(withPerformance(90)).special).toBeUndefined(); // 0.85 band
+    expect(SURVIVING_WEEKS).toHaveLength(4);
+    expect(FIRED_WEEKS).toHaveLength(5);
+    expect(MID_WEEK).toBeDefined();
+    expect(stayCalmChoice(withPerformanceAt(MID_WEEK, 55)).special).toBe('fire_from_job'); // 0.6 band
+    expect(stayCalmChoice(withPerformanceAt(MID_WEEK, 90)).special).toBeUndefined(); // 0.85 band
   });
 
   it('re-generating the same week is byte-identical (no save-scum, no StrictMode drift)', () => {

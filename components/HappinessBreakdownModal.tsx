@@ -3,6 +3,7 @@ import { TrendingDown, Briefcase, GraduationCap, Utensils, Home } from 'lucide-r
 import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -19,36 +20,48 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
     const incomes: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
 
-    // Calculate natural decay
-    const netWorth = (stats?.money || 0) + (gameState.bankSavings || 0);
-    const safeNetWorth = isFinite(netWorth) && netWorth > 0 ? netWorth : 1000;
-    const wealthMultiplier = Math.max(0.5, Math.min(2.0, 100000 / Math.max(1000, safeNetWorth)));
-    const prestigeMultiplier = 1.0; // Simplified for display
-    const statDecayRate = 4;
-    const effectiveDecayRate = statDecayRate * wealthMultiplier * prestigeMultiplier;
-    const naturalDecay = Math.round(effectiveDecayRate * 0.8);
+    // Natural decay and the job toll come from the ONE projection the tick's
+    // formula is pinned to (`lib/economy/vitalDrift.ts`). This modal used to
+    // restate the decay formula with no grace ramp, no prestige bonus and a
+    // different net worth, and charged every career a flat -3 - so the number
+    // here disagreed with the recap line and with what the tick applied.
+    const drift = projectWeeklyVitalDrift(gameState);
+    const decayCause = drift.causes.find((c) => c.id === 'decay');
+    const jobCause = drift.causes.find((c) => c.id === 'job');
 
-    if (naturalDecay > 0) {
+    if (decayCause && decayCause.happiness < 0) {
       drains.push({
         label: 'Natural Decay',
-        value: -naturalDecay,
+        value: decayCause.happiness,
         icon: TrendingDown,
         color: '#EF4444',
-        description: `Happiness naturally decreases over time (based on wealth)`,
+        description: 'Happiness naturally decreases over time; wealth slows it, never speeds it',
       });
     }
 
-    // Calculate happiness drain from career
-    if (currentJob) {
+    // The job's weekly toll, exactly as the tick charges it (a busker's week
+    // is +4 - the one entry job whose work is itself a lift).
+    if (currentJob && jobCause && jobCause.happiness !== 0) {
       const career = careers?.find(c => c.id === currentJob && c.accepted);
       if (career) {
-        drains.push({
-          label: `Career: ${career.levels?.[career.level]?.name || career.id}`,
-          value: -3,
-          icon: Briefcase,
-          color: '#EF4444',
-          description: `Working reduces happiness by 3 per week`,
-        });
+        const label = `Career: ${career.levels?.[career.level]?.name || career.id}`;
+        if (jobCause.happiness < 0) {
+          drains.push({
+            label,
+            value: jobCause.happiness,
+            icon: Briefcase,
+            color: '#EF4444',
+            description: `Working costs ${Math.abs(jobCause.happiness)} happiness per week`,
+          });
+        } else {
+          incomes.push({
+            label,
+            value: jobCause.happiness,
+            icon: Briefcase,
+            color: '#10B981',
+            description: `You enjoy the work: +${jobCause.happiness} happiness per week`,
+          });
+        }
       }
     }
 
@@ -147,7 +160,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
     // pre-tenancy numbers after the player rented - a modal advertising a
     // weekly effect different from the one the tick applies, which is the
     // exact class of divergence the shared helper was adopted to close.
-  }, [stats?.happiness, currentJob, careers, educations, stats?.money, gameState.bankSavings, gameState.dietPlans, gameState.realEstate, gameState.rental]);
+  }, [stats?.happiness, currentJob, careers, educations, gameState]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {
@@ -198,7 +211,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
         title: 'How Happiness Works',
         text: (
           <>
-            {'\u2022'} Happiness naturally decreases over time based on your wealth{'\n'}
+            {'\u2022'} Happiness naturally decreases over time; wealth slows it down{'\n'}
             {'\u2022'} Working at a career reduces happiness by 3 per week{'\n'}
             {'\u2022'} Studying multiple educations simultaneously increases happiness drain{'\n'}
             {'\u2022'} Paused educations don't affect happiness{'\n'}

@@ -9,6 +9,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { netWorth } from '@/lib/progress/achievements';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
@@ -261,11 +262,30 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         checkProgress: (s) => Math.min(1, wealthMark(s) / 2000),
       },
       {
-        id: 'ch2_buy_phone',
-        title: 'Buy a Smartphone',
-        description: 'Purchase a smartphone from the market',
-        checkComplete: (s) => !!s.hasPhone,
-        checkProgress: (s) => s.hasPhone ? 1 : 0,
+        /**
+         * Was "Buy a Smartphone" (`hasPhone`), then briefly "Buy a Bed".
+         *
+         * The phone was complete on frame one for eight of fifteen scenarios,
+         * so its $200 share of the chapter bundle was paid for nothing
+         * (Program 8). The bed was never seeded, but measured over 100 weeks
+         * every simulated persona that never visited the Market stalled on
+         * this one purchase: Chapter 2 open at week 100 with $43k in the
+         * bank, Chapter 3 never active, and the chapter spine - which is what
+         * opens the app grid - frozen behind a single item (Program 9).
+         *
+         * A home is the goal the early game already teaches: every scenario
+         * starts with nowhere to live, the "Nowhere to live" notice prices the
+         * $45 room and names Market → Housing, and renting is the recovery
+         * path Program 7 measured. It is never pre-ticked, it is affordable
+         * from frame one, and it is the decision a settling-in chapter is
+         * about. Owning counts too. The id is new so a save that had the
+         * earlier goal ticked is not read as housed.
+         */
+        id: 'ch2_get_a_home',
+        title: 'Get a Roof Over Your Head',
+        description: 'Rent a room or buy a home - somewhere that is yours each week',
+        checkComplete: (s) => !computeHousingWellbeing(s).homeless,
+        checkProgress: (s) => (computeHousingWellbeing(s).homeless ? 0 : 1),
       },
       {
         id: 'ch2_make_friend',

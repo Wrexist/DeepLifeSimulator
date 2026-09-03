@@ -1,4 +1,5 @@
-import { calculateDiseaseRisk, generateRandomDisease, shouldGenerateDisease, generateEventDisease } from '@/lib/diseases/diseaseGenerator';
+import { calculateDiseaseRisk, calculateDiseaseSpecificRisk, generateRandomDisease, shouldGenerateDisease, generateEventDisease } from '@/lib/diseases/diseaseGenerator';
+import { DISEASE_DEFINITIONS } from '@/lib/diseases/diseaseDefinitions';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('Disease Generator', () => {
@@ -19,7 +20,9 @@ describe('Disease Generator', () => {
       expect(lowHealthRisk).toBeGreaterThan(highHealthRisk);
     });
 
-    it('should return higher risk for low fitness', () => {
+    it('fitness raises the overall multiplier (occurrence) and the per-disease pick weight', () => {
+      // Program 8: occurrence is DISEASE_BASE_WEEKLY_CHANCE × calculateDiseaseRisk,
+      // so fitness counts there once; the template term only weights the pick.
       const lowFitnessState = createTestGameState({ 
         stats: { health: 70, fitness: 10, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 },
         date: { age: 30, year: 2025, month: 'January', week: 1 },
@@ -29,10 +32,11 @@ describe('Disease Generator', () => {
         date: { age: 30, year: 2025, month: 'January', week: 1 },
       });
 
-      const lowFitnessRisk = calculateDiseaseRisk(lowFitnessState);
-      const highFitnessRisk = calculateDiseaseRisk(highFitnessState);
+      expect(calculateDiseaseRisk(lowFitnessState)).toBeGreaterThan(calculateDiseaseRisk(highFitnessState));
 
-      expect(lowFitnessRisk).toBeGreaterThan(highFitnessRisk);
+      const flu = DISEASE_DEFINITIONS.find((t) => t.id === 'flu')!;
+      expect(calculateDiseaseSpecificRisk(flu, lowFitnessState))
+        .toBeGreaterThan(calculateDiseaseSpecificRisk(flu, highFitnessState));
     });
 
     it('should return higher risk for older age', () => {

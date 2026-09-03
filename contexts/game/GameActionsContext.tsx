@@ -36,6 +36,7 @@ import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
+import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
@@ -48,7 +49,7 @@ import { queueSave, forceSave } from '@/utils/saveQueue';
 import { isWritableSlot } from '@/utils/slotNumber';
 import { isSaveFromFutureError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
-import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
@@ -561,7 +562,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // calls - verified by __tests__/refactor/subsystemEquivalence.test.ts.
  const prestigeMultiplier = getStatDecayMultiplier(gameState.prestige?.unlockedBonuses || []);
  const decayInputs = computeDecayInputs(gameState, {
-   baseDecayRate: 4,
+   baseDecayRate: STAT_DECAY_BASE_RATE,
    prestigeMultiplier,
  });
  // No `safeNetWorth` here any more: the lifetimeStatistics block below reads
@@ -653,18 +654,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // setGameState, accumulating hundreds of pending callbacks over 5-10 minutes of play.
  const pendingNotifications: { id: string; message: string; title: string }[] = [];
 
- // PRE-ROLLS: R7 Phase 2 step 2.1 - extracted to ./actions/weekly/preTick.ts
- // (`buildPreRolls`). Every Math.random() and Date.now() that the updater
- // will consume is pre-rolled here, BEFORE setGameState, so React StrictMode
- // double-invocation produces identical results both times.
- const preRolls = buildPreRolls();
- // H-12 (R8): pre-roll the old-age death draw OUTSIDE the updater. A bare
- // Math.random() inside the setGameState updater is double-invoked by React 19
- // StrictMode (and any future concurrent re-render), so the player could "die"
- // on a discarded pass while the committed pass survived, or vice-versa.
- // Pre-rolling makes both invocations see the same outcome - matching the rest
- // of the buildPreRolls() determinism architecture.
- const oldAgeDeathRoll = Math.random();
+ // PRE-ROLLS: R7 Phase 2 step 2.1 extracted them to ./actions/weekly/preTick.ts
+ // (`buildPreRolls`). Program 8 made them a pure function of the life salt and
+ // the week (`makeLifeRoll`), so they are built INSIDE the updater from
+ // `prevState` - the one state React guarantees is current - and are identical
+ // on StrictMode's second pass, on a reload, and on another device. Only the
+ // wall clock is still captured out here.
+ const preRollTimestamp = Date.now();
 
  setGameState(prevState => {
  // THE DEATH GUARD, WHERE IT CAN ACTUALLY SEE THE DEATH.
@@ -705,7 +701,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // `graceFactor` is deliberately not taken: only the outer logger uses it, and
  // pulling it in here would shadow that with an identically-named unused value.
  const { netWorth, effectiveDecayRate } = computeDecayInputs(prevState, {
-   baseDecayRate: 4,
+   baseDecayRate: STAT_DECAY_BASE_RATE,
    prestigeMultiplier,
  });
  // See the lifetimeStatistics block: the peak-net-worth sample is the canonical
@@ -724,6 +720,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  ? prevState.weeksLived
 : 0;
  const nextWeeksLived = currentWeeksLived + 1;
+ const preRolls = buildPreRolls(
+   { lineageId: prevState.lineageId, generationNumber: prevState.generationNumber, nextWeeksLived },
+   preRollTimestamp,
+ );
+ // H-12 (R8): the old-age death draw used to be a bare Math.random() pre-rolled
+ // outside the updater so StrictMode's two passes agreed. It is a life-keyed
+ // roll now, for the same reason as the pre-rolls above.
+ const oldAgeDeathRoll = makeLifeRoll(prevState, nextWeeksLived)('old-age-death');
 
  const currentAge = typeof prevState.date?.age === 'number' &&!isNaN(prevState.date.age) && isFinite(prevState.date.age) && prevState.date.age >= 0
  ? prevState.date.age
@@ -896,8 +900,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Base natural aging decay
  let fitnessDecay = effectiveDecayRate * 0.2;
 
- // Accelerated decay if not going to gym
- if (weeksSinceLastGym > 0) {
+ // Accelerated decay if not going to gym. `weeksSinceLastGym` is measured from
+ // the week being ticked, so a workout THIS week reads as 1, never 0 - under
+ // `> 0` the base rate below was unreachable and a player who trained every
+ // week still paid the "1-2 weeks away" ×1.5. A visit this week is the base
+ // rate; the brackets start from the first week without one. Program 8.
+ if (weeksSinceLastGym > 1) {
  // Decay increases with time away from gym
  // 1-2 weeks: 1.5x decay
  // 3-4 weeks: 2x decay

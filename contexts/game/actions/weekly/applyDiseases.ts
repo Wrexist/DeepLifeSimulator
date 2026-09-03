@@ -199,7 +199,16 @@ export function applyDiseasesForWeek(
     if (disease.effects) {
       Object.entries(disease.effects).forEach(([stat, value]) => {
         if (typeof value === 'number' && value < 0) {
-          const applied = isManaged ? value * MANAGED_SYMPTOM_FACTOR : value;
+          // Under management a chronic condition stops eroding FITNESS (the
+          // other symptoms are halved). Program 8: arthritis / diabetes / high
+          // blood pressure / asthma each drain 3-5 fitness a week for life,
+          // more than any gym session builds, so one of them pinned fitness at
+          // 0 forever - doubling the disease multiplier for good and feeding
+          // the next chronic condition. Managed care is the lever that breaks
+          // that loop; unmanaged, the drain still runs in full.
+          const applied = isManaged
+            ? (stat === 'fitness' ? 0 : value * MANAGED_SYMPTOM_FACTOR)
+            : value;
           const statKey = stat as keyof GameStats;
           if (statKey in diseaseEffects) {
             (diseaseEffects[statKey] as number) = ((diseaseEffects[statKey] as number) || 0) + applied;
@@ -332,6 +341,14 @@ export function applyDiseasesForWeek(
       if (recoveryWeeks <= 0) {
         // Disease naturally recovered.
         diseasesToRemove.push(index);
+        // RECOVERY → LOWER RISK (Program 8). The generator's 4-week cooldown
+        // (`shouldGenerateDisease`) counted from ONSET, so a 12-week illness
+        // could be joined by a second one at week 4 and a third at week 8 -
+        // measured: a careful 40-year-old spent 45 of 52 weeks ill, mostly
+        // with two or three conditions at once. Restarting the clock at
+        // recovery makes illnesses sequential: four clear weeks after every
+        // one, whether it ran its course here or was cured by a doctor.
+        lastDiseaseWeek = nextWeeksLived;
         updatedDiseaseHistory = {
           ...updatedDiseaseHistory,
           totalCured: updatedDiseaseHistory.totalCured + 1,

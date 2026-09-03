@@ -552,6 +552,22 @@ export function recentMomentKeys(
   return out;
 }
 
+/**
+ * Per-week chance of a life moment, and the drought after which one is
+ * guaranteed (Master Program 9).
+ *
+ * The comment below has always said "20 templates at 2-3/year". The numbers
+ * were 1.5% a week with a 52-week pity, which is 0.8 a year by chance and one
+ * a year by pity: measured on the persona simulator, every persona saw exactly
+ * ONE moment in 100 weeks - the pity one - and nineteen of the twenty authored
+ * moments were never met. 5% a week is 2.6 a year, the authored cadence; the
+ * pity at 30 weeks bounds a drought without turning the system into a
+ * schedule. Still one at a time (`pendingMoment` gates), still seeded on the
+ * life and the week.
+ */
+export const LIFE_MOMENT_WEEKLY_CHANCE = 0.05;
+export const LIFE_MOMENT_PITY_WEEKS = 30;
+
 export function generateLifeMoment(state: GameState): LifeMoment | null {
   // Don't generate if already have one pending
   if (state.lifeMoments?.pendingMoment) {
@@ -583,7 +599,8 @@ export function generateLifeMoment(state: GameState): LifeMoment | null {
   const rollFor = makeWeeklyRoll(state.weeksLived || 0);
   const lifeSalt = `${state.lineageId || ''}:${state.generationNumber || 1}`;
   const shouldGenerate =
-    weeksSinceLastMoment >= 52 || rollFor(`life-moment-fire:${lifeSalt}`) < 0.015;
+    weeksSinceLastMoment >= LIFE_MOMENT_PITY_WEEKS ||
+    rollFor(`life-moment-fire:${lifeSalt}`) < LIFE_MOMENT_WEEKLY_CHANCE;
 
   if (!shouldGenerate) {
     return null;

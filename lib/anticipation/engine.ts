@@ -20,6 +20,7 @@
  * here would be both wrong across a restore and farmable.
  */
 import { PREGNANCY_DURATION_WEEKS } from '@/lib/config/gameConstants';
+import { weeksUntilBoardRefresh } from '@/lib/careers/jobMarket';
 import { mailEvents } from '@/lib/events/routing';
 import type { GameState, Relationship } from '@/contexts/game/types';
 
@@ -313,6 +314,31 @@ function letterEvents(state: GameState, now: number): UpcomingEvent[] {
  * the same week, then by id so the order is fully deterministic - the list is
  * rendered every frame and must not reshuffle between renders.
  */
+/**
+ * The job board turns over every `BOARD_ROTATION_WEEKS` weeks with a fresh
+ * set of openings - the one recurring mid-game decision (stay, or take a
+ * different ladder) that nothing on Home announced. Measured on the persona
+ * simulator (Program 9): after week 15 the only regular signals a working
+ * life saw were a promotion every 13-25 weeks and an event every 9. The
+ * turnover is already scheduled by `jobMarket`; this only shows it the week
+ * before, the way every other row here works.
+ */
+function jobBoardEvents(state: GameState, now: number): UpcomingEvent[] {
+  const weeks = weeksUntilBoardRefresh(state);
+  if (weeks !== 1) return [];
+  return [
+    {
+      id: 'jobs:board',
+      kind: 'jobs',
+      tone: 'neutral',
+      title: 'New openings next week',
+      detail: 'The job board turns over - worth a look at what else is hiring.',
+      weeksAway: 1,
+      dueWeeksLived: now + 1,
+    },
+  ];
+}
+
 export function upcomingEvents(
   state: GameState | undefined | null,
   options?: { horizonWeeks?: number; limit?: number },
@@ -336,6 +362,7 @@ export function upcomingEvents(
     careerEvents,
     electionEvents,
     letterEvents,
+    jobBoardEvents,
   ];
   for (const collect of collectors) {
     try {

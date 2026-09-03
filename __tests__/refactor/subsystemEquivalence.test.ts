@@ -5285,12 +5285,27 @@ describe('pre-tick equivalence - applyCliffhangerRoll', () => {
 });
 
 describe('pre-tick - buildPreRolls', () => {
-  // buildPreRolls uses Math.random() and Date.now() - its values are
+  // Program 8: buildPreRolls is a pure function of the life salt and the week
+  // (plus a wall-clock timestamp the caller passes in), so the same seed must
+  // reproduce and a different life must diverge.
+  const SEED = { lineageId: 'life_test', generationNumber: 1, nextWeeksLived: 105 };
+  it('reproduces exactly for the same life and week, and diverges for another life', () => {
+    const a = buildPreRolls(SEED, 1);
+    const b = buildPreRolls(SEED, 1);
+    expect(b).toEqual(a);
+    const other = buildPreRolls({ ...SEED, lineageId: 'life_other' }, 1);
+    expect(other.relBreakup).not.toEqual(a.relBreakup);
+    expect(other.diseaseComplication).not.toEqual(a.diseaseComplication);
+    const nextWeek = buildPreRolls({ ...SEED, nextWeeksLived: 106 }, 1);
+    expect(nextWeek.relBreakup).not.toEqual(a.relBreakup);
+  });
+
+  // The value-shape checks below predate that change; the values are
   // intentionally non-deterministic. Only shape + value-range checks here;
   // determinism guarantees belong in the StrictMode-double-invoke harness,
   // which happens at the React layer (not in this pure-function test).
   it('returns the expected key shape', () => {
-    const rolls = buildPreRolls();
+    const rolls = buildPreRolls(SEED);
     expect(Object.keys(rolls).sort()).toEqual([
       'careerAcceptDelay',
       'childGender',
@@ -5313,7 +5328,7 @@ describe('pre-tick - buildPreRolls', () => {
   });
 
   it('returns values in their declared ranges', () => {
-    const rolls = buildPreRolls();
+    const rolls = buildPreRolls(SEED);
     expect([1, 2]).toContain(rolls.careerAcceptDelay);
     expect(rolls.stockPickRoll).toBeGreaterThanOrEqual(0);
     expect(rolls.stockPickRoll).toBeLessThan(1);

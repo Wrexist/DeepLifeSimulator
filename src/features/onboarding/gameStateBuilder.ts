@@ -6,6 +6,7 @@
  */
 
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, computeWeeksLived } from '@/lib/config/gameConstants';
+import { mintId } from '@/utils/uniqueId';
 import type { MindsetId } from '@/lib/mindset/config';
 import { perks as perksCatalog } from './perksData';
 import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
@@ -232,6 +233,12 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     // is the one place that knows the life is starting; deriving it later is
     // impossible once `weeksLived` has moved.
     lifeStartWeek: weeksLived,
+    // A fresh lineage per new game. `initialGameState.lineageId` is the literal
+    // 'initial-lineage' and nothing ever replaced it, so the per-life salt
+    // (`lifeSalt`, utils/seededRoll.ts) that seeds diseases, events, the stock
+    // tape and the pre-rolled tick draws was ONE constant for every life -
+    // every Quick Start rolled the same illness on the same week. Program 8.
+    lineageId: mintId('life'),
     week: (weeksLived % WEEKS_PER_MONTH) + 1,
     // Same 1-4 week-of-month cycle as the sibling `week` above. This used to
     // take the modulus by WEEKS_PER_YEAR, which only stayed inside the 1-4

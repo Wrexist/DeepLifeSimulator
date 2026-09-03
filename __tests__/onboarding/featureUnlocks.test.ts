@@ -282,7 +282,7 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
    *
    * Only goals with a HARD single-surface dependency are listed. `ch2_save_2k`
    * is not here: cash counts as well as bank savings, so the Bank app is not
-   * required. `ch2_buy_phone` is not here: the Market tab is tier 0.
+   * required. `ch2_get_a_home` is not here: the Market tab is tier 0.
    */
   const GOAL_REQUIRES_APP: Record<string, string[]> = {
     // Market rents homes but does not sell them, and sells no securities.

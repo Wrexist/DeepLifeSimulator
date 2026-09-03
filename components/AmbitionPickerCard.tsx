@@ -28,6 +28,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { LIFE_AMBITIONS } from '@/lib/ambitions';
+import { ambitionPickerReady } from '@/lib/ambitions/pickerTiming';
 import { fontScale, scale } from '@/utils/scaling';
 
 /** One line describing what an ambition pays, for the picker rows. */
@@ -45,12 +46,18 @@ export function payoffLine(payoff: {
 
 function AmbitionPickerCard() {
   const ambitionId = useGameSelector((s) => s?.ambitionId);
+  const readyToChoose = useGameSelector((s) => ambitionPickerReady(s));
   const setGameState = useSetGameState();
   const { saveGame } = useGameActions();
   const [expanded, setExpanded] = useState(false);
 
   // A life that already has one is served by AmbitionCard, not this.
   if (ambitionId) return null;
+  // Not before Chapter 1 is done (Program 8). This card rendered on frame one
+  // of every life, asking for a lifelong commitment whose every milestone
+  // needs a tier-2+ system, before the player had a job, a wage, a room or a
+  // single week of consequences. After Chapter 1 they have all four.
+  if (!readyToChoose) return null;
 
   const choose = (id: string) => {
     haptic.success();

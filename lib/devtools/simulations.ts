@@ -247,7 +247,7 @@ export function advanceOneWeekHeadless(state: GameState): GameState {
   const ctx: WeekContext = {
     newStats,
     notifications: [],
-    preRolls: buildPreRolls(),
+    preRolls: buildPreRolls({ lineageId: state.lineageId, generationNumber: state.generationNumber, nextWeeksLived }),
     nextWeeksLived,
   };
   applyLuxuryItemsForWeek(state.luxuryItems, ctx);

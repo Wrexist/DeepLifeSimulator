@@ -14,11 +14,14 @@
  * in this repo (CLAUDE.md §4.4). Nothing here grants, so nothing here can be
  * farmed. No field, no migration, no `repairGameState` mirror, no version bump.
  *
- * DETERMINISM. Selection is a pure max over a fixed catalogue with a stable
- * id tie-break, so the same state always yields the same three goals. It is
- * safe to call during render (CLAUDE.md §35 — no randomness in the UI).
+ * DETERMINISM. Selection is a pure function of the state: an urgency max for
+ * NOW, and for SOON / DREAM a max that rotates through the eligible set on an
+ * eight-week window derived from `weeksLived` (see `GOAL_SPOTLIGHT_WEEKS`), so
+ * the same state always yields the same three goals. It is safe to call during
+ * render (CLAUDE.md §35 — no randomness in the UI).
  */
 import type { GameState } from '@/contexts/game/types';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 import { GOAL_CATALOGUE } from './catalogue';
 import type {
@@ -77,9 +80,19 @@ function bestInHorizon(
   horizon: GoalHorizon,
   exclude: ReadonlySet<string>,
 ): RecommendedGoal | null {
-  let best: RecommendedGoal | null = null;
-  let bestScore = -Infinity;
+  const ranked = rankHorizon(state, horizon, exclude);
+  if (ranked.length === 0) return null;
+  if (horizon === 'now') return ranked[0].goal;
+  return spotlight(state, ranked);
+}
 
+/** Every eligible goal in a horizon, best score first, stable on ties by id. */
+function rankHorizon(
+  state: GameState,
+  horizon: GoalHorizon,
+  exclude: ReadonlySet<string>,
+): { goal: RecommendedGoal; score: number }[] {
+  const out: { goal: RecommendedGoal; score: number }[] = [];
   for (const def of GOAL_CATALOGUE) {
     if (def.horizon !== horizon) continue;
     if (exclude.has(def.id)) continue;
@@ -94,16 +107,47 @@ function bestInHorizon(
     }
     if (!Number.isFinite(priority)) priority = 0;
 
-    const score = priority + evaluated.progress * 10;
-    // Strict `>` plus a lexicographic id fallback keeps the result stable when
-    // two goals score identically — otherwise catalogue order would silently
-    // decide it and a reorder would change what players see.
-    if (score > bestScore || (score === bestScore && best !== null && def.id < best.id)) {
-      bestScore = score;
-      best = evaluated;
-    }
+    out.push({ goal: evaluated, score: priority + evaluated.progress * 10 });
   }
-  return best;
+  // Strict score order plus a lexicographic id fallback keeps the result
+  // stable when two goals score identically — otherwise catalogue order would
+  // silently decide it and a reorder would change what players see.
+  out.sort((a, b) => (b.score - a.score) || (a.goal.id < b.goal.id ? -1 : a.goal.id > b.goal.id ? 1 : 0));
+  return out;
+}
+
+/**
+ * Weeks a SOON / DREAM goal holds the spotlight before the next eligible one
+ * takes a turn (Master Program 9).
+ *
+ * Measured on the persona simulator: the recommendation read "Earn your next
+ * promotion / Reach a fortune" from week 6 to week 100 - identical for 90
+ * weeks - while "Find someone", "Buy your first property" and "Raise a
+ * family" were eligible the whole time and never shown, because the pure max
+ * picks the same winner every week. A goal card that never changes stops
+ * being read. Rotating through the eligible set on an eight-week cadence
+ * shows every next possibility in turn, from existing content, with no state
+ * (the window is derived from `weeksLived`, so it is deterministic and
+ * reload-safe). The NOW horizon never rotates: it is an urgency ranking
+ * (arrears before savings, health before both).
+ */
+export const GOAL_SPOTLIGHT_WEEKS = 8;
+
+/**
+ * Progress at or above which the best goal keeps the spotlight instead of
+ * rotating away - a promotion at 80% is anticipation, not staleness.
+ */
+export const GOAL_SPOTLIGHT_HOLD_PROGRESS = 0.6;
+
+function spotlight(
+  state: GameState,
+  ranked: { goal: RecommendedGoal; score: number }[],
+): RecommendedGoal {
+  const best = ranked[0].goal;
+  if (ranked.length === 1 || best.progress >= GOAL_SPOTLIGHT_HOLD_PROGRESS) return best;
+  const weeks = weeksInThisLife(state);
+  const window = Math.floor(Math.max(0, weeks) / GOAL_SPOTLIGHT_WEEKS);
+  return ranked[window % ranked.length].goal;
 }
 
 /**

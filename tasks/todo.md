@@ -1,3 +1,239 @@
+# Master Program 10 — ECONOMY + PROGRESSION + LONG-TERM LIFE BALANCE — COMPLETE
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 9 (`a227a0b`).
+Programs 1–9 untouched. Rule of the program: measure on the real tick before
+touching a number; priority order broken formulas → exploits → dead
+progression → missing tradeoffs → aspiration gaps → new content. The tier-1
+"meeting someone" path is NOT implemented here (owner instruction) — it is
+assessed and reported only. Report: `tasks/economy-progression-2026-09-03.md`.
+
+## Phase 1 — economy map (code-read, no changes)
+- Every flow with its source: wages (`lib/careers/careerData.ts`, 30 ladders),
+  promotion progress (`applyCareerProgress`: 5 × early 2.5/1.5 × perf × pace),
+  tax brackets (`lib/economy/constants.ts`), rent tiers (`lib/realEstate/rentals.ts`),
+  property catalogue + mortgage + carrying costs, vehicles, luxury, health
+  activities and food, dating/wedding/pets, education programmes + merit +
+  student loans, savings/loans/cards (`lib/banking`), stocks (7%/yr drift,
+  2% fee, quarterly dividends), crypto regimes, companies (founding costs,
+  upgrades, per-company caps), street jobs, prestige threshold ($10M ×1.25^n),
+  chapters 1–7 rewards, unlock tiers, lucky/streak/beginner-luck faucets.
+- STATUS: **done** (report §1–2).
+
+## Phase 2 — money flow map. STATUS: **done** (report §2: sources, sinks, conversions, caps).
+
+## Phase 3 — economic persona simulation (real tick)
+- PROBLEM: the existing simulator only drives the survival actions; the
+  economy questions need deposit / stocks / property / education / company /
+  vehicle / luxury / loan actions through the real action modules.
+- PLAN: extend `__tests__/helpers/earlyGameSim.ts` (`SimActions` +
+  `SimRow` income/expense/housing/education/tier columns) and add
+  `__tests__/helpers/economyPersonas.ts` with POOR START, AVERAGE WORKER,
+  CAREER CLIMBER, HIGH-SPENDER, SAVER, INVESTOR, RISK-TAKER, OPTIMIZER,
+  TEXT-SKIPPER. Soak `__tests__/simulation/economyPersonas.sim.test.ts`
+  (`RUN_ECONOMY_PERSONAS=1`, horizons 20/50/100/250).
+- RISK: a persona that plays better than a thumb can measures a solver, not a
+  player — every policy is written as a reaction to something on screen.
+- TEST: the soak prints the tables; gates in Phase 11 pin the outcomes.
+- STATUS: **done** — 9 personas × 250 weeks (seed 1) + 100 weeks (seeds 2–3),
+  JSON dumps; two harness lessons on the way (the doctor reflex, the 500 ms
+  `resolveEvent` debounce). Report §3.
+
+## Phase 4 — life-stage analysis. STATUS: **done** (report §4) — the two stages the doc never named: the comfort cliff at week ~14 (Chapter 2 bundle = 21 weeks of wage) and the plateau at week ~80 (ladder ceiling, no rung on screen).
+## Phase 5 — progression spine + dead paths. STATUS: **done** (report §5) — entry-ladder dead end; `ch_investment_news` never fired; chapters 3+ are a social spine; the student loan charges during study.
+## Phase 6 — price audit. STATUS: **done** (report §6).
+## Phase 7 — reward audit. STATUS: **done** (report §7) — Chapter 2 spike confirmed; inheritances were repeatable.
+## Phase 8 — dominant-strategy + opportunity-cost. STATUS: **done** (report §8, `economyStrategies.sim.test.ts`) — no dominant deployment at $30k; business is the slope; the 10-year investor beat the tycoon only because of the drift defect.
+## Phase 9 — shocks + long-run stability. STATUS: **done** (report §9–10, `economyShocks.sim.test.ts`) — every shock recovers monotonically, no arrears, no spirals; equities measured at 19.3%/yr against a documented ~9–11.5%.
+## Phase 10 — proposals ranked. STATUS: **done** (report §12, ten proposals).
+## Phase 11 — fixes. STATUS: **done**, one commit:
+- [x] Stock drift: σ²/2 convexity subtracted; `expectedAnnualReturnFor` · `lib/economy/stockMarket.ts` · `stockMarketDrift.test.ts` (multi-life statistics).
+- [x] Inheritance cliffhangers once per life via `eventLog`; `ch_investment_news` gate reads `holdings` · `lib/events/cliffhangerEvents.ts` · `cliffhangerWindfalls.test.ts`.
+- [x] `soon_get_qualified` goal for plateaued entry workers · `lib/goals/catalogue.ts` · `getQualified.test.ts`.
+- [x] Economic boundary gates on the real tick · `__tests__/simulation/economyBoundaries.test.ts`.
+- [ ] NOT done, owner decisions: student-loan deferment (schema), Chapter 2 bundle scaling, play-streak tick counting, the tier-1 "meeting someone" path (per instruction).
+## Phase 12 — red team. STATUS: **done** (report §14).
+## Phase 13 — gates + report. STATUS: **done** — `tasks/economy-progression-2026-09-03.md`, lessons appended, CLAUDE.md §4.3 note.
+
+# Master Program 9 — LONG-TERM RETENTION + PLAYER MOTIVATION — COMPLETE
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 8 (`6fbdbf4`).
+Programs 1–8 untouched. Retention here means "the life is still going
+somewhere" — no timers, no streak pressure, no new popups. Report:
+`tasks/retention-journey-2026-09-03.md`.
+
+## Phase 1 — player journey audit (simulated + code-read)
+- Personas from `__tests__/helpers/earlyGamePersonas.ts` plus journey-specific
+  ones (optimizer, casual, ambition/wealth/career/social/risk) run 100 weeks on
+  the real tick with a per-week SIGNAL probe: new decision (pending event),
+  cliffhanger teaser, promotion ready, unlock tier change, chapter goal step,
+  goal-recommendation change, anticipation item, weekly-challenge rotation,
+  job-board rotation, life moment, relationship change.
+- STATUS: **done** — `__tests__/simulation/retentionJourney.sim.test.ts` (soak) and
+  `retentionJourney.test.ts` (gates). The harness now answers inbox events and
+  life moments, so the measurement is a player who opens what the game raises.
+
+## Phase 2 — Day 1 → Day 30 map. STATUS: **done** (report §2–6).
+## Phase 3 — dead zones. STATUS: **done** — 10 → 3; root causes: frozen goal max, life moments at 1/yr, Chapter 2 stalled on a bed, board turnover unannounced.
+## Phase 4 — the three loops. STATUS: **done** (report §8–10).
+## Phase 5 — story systems. STATUS: **done** (report §11).
+## Phase 6 — pacing. STATUS: **done** (report §9–10, §19).
+## Phase 7 — reuse. STATUS: **done** (report §14) — four underused systems strengthened, none added.
+## Phase 8 — ranking. STATUS: **done** (report §15–16).
+## Phase 9 — implementation. STATUS: **done**, one commit:
+- [x] SOON/DREAM goal spotlight rotation (8-week window, hold at ≥ 60%, NOW never rotates) · `lib/goals/engine.ts` · `spotlight.test.ts`.
+- [x] Life moments 5%/wk, pity 30 (the authored 2–3/yr) · `lifeMomentGenerator.ts` · `cadence.test.ts`.
+- [x] Chapter 2 "Get a Roof Over Your Head" (rent or own) replaces the bed · `lifeChapters.ts` · `progressionIntegrity.test.ts`.
+- [x] Week-ahead "New openings next week" · `lib/anticipation` · `engine.test.ts`.
+## Phase 10–12 — persona re-test, red team, gates. STATUS: **done** (report §19–22).
+
+# Master Program 8 — LIFE VARIATION + DISEASE FAIRNESS + PROGRESSION INTEGRITY — COMPLETE
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 7 (`3bfee78`).
+Programs 1–7 untouched. Every row: PROBLEM · ROOT CAUSE · PLAYER IMPACT · PLAN ·
+RISK · TEST · STATUS. Full report: `tasks/life-variation-2026-09-02.md`.
+
+## Phase 1–2 — system map and randomness audit (done, read-only)
+
+Randomness sources on the week-tick path, as found:
+
+| source | seed | per-life? | reproducible from save? |
+|---|---|---|---|
+| `buildPreRolls()` (career delay, breakups, police, miners, disease complications/progression, pets, luxury, vehicles) | `Math.random()` | n/a | **no** |
+| `oldAgeDeathRoll` | `Math.random()` | n/a | **no** |
+| `makeWeeklyRoll(weeksLived)` keyed streams (education, crypto, dark web, politics, pulse, relationships, events) | week + key | only where the caller folds `lineageId:generationNumber` into the key (stocks, lucky bonus, cliffhangers, life moments, spark) | yes |
+| `generateRandomDisease` | `weeksLived*1000 + year*100` via `Math.sin` | **no** | yes |
+| event payload rolls (`payloadRoll`, six inline `Math.sin(weeksLived*777+42)`) | week only | **no** | yes |
+| job board | `rngCommitLog.seed` + first name + week block | first name only | yes |
+| `deterministicRng` commit log (street jobs, applications, dating, luxury) | `rngCommitLog.seed` → falls back to `lineageId:generation` | see below | yes (persisted) |
+
+**Root finding.** `initialState.lineageId = 'initial-lineage'` "will be replaced
+with a UUID on first load" — nothing ever does. Every fresh life carries the same
+lineage id and generation 1, so the per-life salt the codebase already adopted
+(`${lineageId}:${generationNumber}`) is one constant for every new game. The
+seeded architecture is sound; its seed is never minted. That is why every Quick
+Start rolled Depression at week 7, why stock tapes and cliffhangers replay
+across lives, and why "unlucky" was a schedule. Two systems (`preRolls`, the
+old-age roll) are not seeded at all, so a life is not reproducible either.
+
+## Phase 3 — reproducibility and variation (simulation)
+- PROBLEM: identical lives across players; non-reproducible ticks. ROOT CAUSE: above.
+- PLAN: harness option to run the game's own RNG (no `Math.random` stub) and set
+  `lineageId`; 20 same-seed runs must be byte-identical; 50 seeds must diverge
+  in disease timing/type; repeated Quick Starts must mint distinct ids.
+- TEST: `__tests__/simulation/lifeReproducibility.test.ts`. STATUS: **done** — one life ×20 identical; 50 lives distinct at 20 and 40.
+
+## Phase 4–5 — disease curves, age fairness, the treadmill
+- PROBLEM: 35%/week occurrence cap binds for 30+ at low fitness. ROOT CAUSE (to
+  verify): summed template base chances (~0.16) × age × fitness saturate the cap;
+  recovery grants no resistance (immunity list is short), cooldown is 4 weeks.
+- PLAN: measure curves at ages 18/25/30/35/40/50/60 × fitness 0/10/30/50/100 ×
+  health bands; run the careful persona 50–100 weeks at ages 30/40/50/60; define
+  the treadmill as (expected interval ≤ recovery time). Change only what the
+  measurement names. TEST: `diseaseCurves.test.ts`, long-run gates. STATUS: pending.
+
+## Phase 6 — fitness forensic audit
+- PROBLEM: the "base" fitness-decay bracket is unreachable. ROOT CAUSE:
+  `weeksSinceLastGym = nextWeeksLived − lastGymVisitWeek ≥ 1` always, so
+  `> 0` is always true and a player who trained THIS week is charged ×1.5.
+- PLAN: `> 1` (trained this week = base); brackets otherwise unchanged. RISK:
+  none found (gym-goers lose ~1.1 fitness/wk instead of 1.6). TEST: unit +
+  real-tick. STATUS: **done**; plus walk +1 / yoga +2 fitness (the list was
+  named FITNESS_INCREASING and increased nothing) and managed chronic
+  conditions stop draining fitness (arthritis −5/wk for life pinned it at 0).
+
+## Phase 7 — recovery loop
+- Measure interval between illnesses vs recovery length, overlapping illness,
+  time spent ill, across ages; verify recovery lowers future risk. STATUS: **done**
+  — four clear weeks after every recovery (gate, 78 weeks at 55); age 40 over
+  100 weeks with monthly managed care alive above 50 health.
+
+## Phase 8–9 — Chapter 2 ledger and reward integrity
+- FINDING (verified in code): `applyChapterProgress` pays `completion + perGoal ×
+  totalGoals` in ONE grant on the tick the LAST goal completes; the promotion
+  itself pays nothing. Chapter 2 = $2,000 + 4 × $200 = $2,800, two of four goals
+  complete at frame one for phone-seeded scenarios ("Buy a Smartphone") and all
+  scenarios ("Make a Friend", seeded parents, load-bearing).
+- PLAN: reproduce with a ledger on the real tick; assert paid once, never
+  re-paid on reload or a second tick; decide the phone goal on evidence. STATUS: **done**
+  — the $2,800 is the chapter bundle landing when the LAST goal completes,
+  and the promotion was last only because two goals were pre-ticked. "Buy a
+  Smartphone" → "Buy a Bed" (never seeded); "Make a Friend" kept (documented);
+  bundle paid once, never on reload; promotion pays nothing (gates).
+
+## Phase 10 — ambition picker timing
+- FINDING: `AmbitionPickerCard` renders on frame one for any life without an
+  ambition; every milestone needs tier-2+ systems. PLAN: evidence table of what
+  the player knows at each candidate moment; decide. STATUS: pending.
+
+## Phase 11 — implementation (evidence-backed, one commit each)
+1. Mint a per-life `lineageId` at new-life creation (`mintId`); prestige keeps it.
+2. Disease seeds and event payload rolls fold the life salt.
+3. `buildPreRolls` and the old-age roll derive from the salted weekly stream
+   (pure → StrictMode-safe AND reproducible; `timestamp` stays `Date.now()`).
+4. Fitness bracket.
+5. Disease occurrence model; cooldown from recovery; walk/yoga fitness;
+   managed-care fitness; Chapter 2 bed goal; ambition picker timing. All done.
+
+## Phase 12–14 — long-run sims (20/50/100 weeks), red team, full gates. STATUS: **done**
+(report §19–25). Verification: type-check 0 · type-check:tests 0 · lint:errors 0 ·
+lint:ratchet 722/722 · ui:ratchet OK · check:routes 17 · `npm test` 9,297 passed / 0
+failed · preflight exit 0.
+
+# Master Program 7 — NEW LIFE BALANCE — COMPLETE
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 6 (`b544fd2`).
+Scope: early-game survivability, economic fairness, recovery paths. Programs 1-6
+are complete and are not redone. Full report with every table:
+`tasks/early-game-balance-2026-09-02.md`. No save-format, IAP, subscription or
+monetization change; three owner decisions recorded there (§7), not applied.
+
+## Phase 1 — repository and system audit (done)
+The early-game vital loop as the tick runs it (`GameActionsContext.tsx` ~700-960,
+`preTick.computeDecayInputs`, `applyHousingWellbeing`, `applyCareerSalaryAndPenalty`):
+
+| system | value (before → after) | source |
+|---|---|---|
+| natural decay | base 4 × wealth × prestige × grace; health ×0.6, happiness ×0.8, fitness ×0.2 | `lib/economy/statDecay.ts` (new) |
+| wealth multiplier | `100000 / max(1000, netWorth)` clamped **0.5–2.0 → 0.5–1.0** | same |
+| homeless penalty | −2 hp / −4 hap / −5 en; every scenario starts without a home | `rentals.ts` |
+| entry job toll | authored per career; unprofiled −3/−2 | `applyCareerSalaryAndPenalty` |
+| death | 4 consecutive weeks at 0 health or 0 happiness | `ZERO_STAT_DEATH_WEEKS` |
+| free recovery | Walk +6/+3, Meditation +10/+2, energy-bound, no weekly cap | `healthActivities` |
+| rent surface | **Market → Housing, tier 0** (since Program 5) — Program 6's "computer-only" note was stale | `market.tsx` |
+| disease | occurrence per eligible week, 4-week cooldown, 35% cap; fitness was counted twice | `diseaseGenerator.ts` |
+
+## Phase 2–6 — starting state, decay, stacking, recovery, 20-week simulations (done)
+Harness: `__tests__/helpers/earlyGameSim.ts` + `earlyGamePersonas.ts`; soak
+`__tests__/simulation/earlyGamePersonas.sim.test.ts` (`RUN_EARLY_GAME_SIM=1`).
+Six personas × five poor starts × 20 weeks on the REAL tick. Before: the
+text-skipper died at week 12 on every seed with $4k; the average player ended
+at health 4; the careful age-25 player caught four illnesses and hit health 0.
+
+## Phase 7 — evidence-based changes (done; one commit each, each with a test)
+Format: SYSTEM · CURRENT · OUTCOME · ROOT CAUSE · BALANCE/DISCOVERY · CHANGE · EXPECTED · RISK · TEST.
+- [x] **Natural decay** · wealth multiplier clamped 0.5–2.0 · ×2 for every net worth < $50k = the whole early game; largest, least visible drain (−4.8 hp / −6.4 hap) · the ceiling, not the formula · BALANCE · ceiling 1.0 in one shared module, four readers (tick, recap projection, both breakdown modals — two had drifted) · careful 61→96, average 4→35, B still dies (12→13) · mid-game ($10k–100k) decays at 1.0 instead of 1.0–2.0 · `statDecay.test.ts`, parity, 5 equivalence snapshots updated on purpose.
+- [x] **Disease roll** · fitness in the base multiplier AND per template · a fresh 25-year-old at fitness 10 (→0 by week 4) had a 60-year-old's disease rate and failed the "young" gate · double count · BALANCE (stacked penalty) · fitness removed from the base, kept per template · careful age-25: health 0 → 96 at week 20; age 30+ unchanged (cap binds) · none found; late game unchanged · two disease tests re-pointed at the per-template term.
+- [x] **Homeless notice** · pointed only at the free offset · a week-1 player was not told a $45 room exists at tier 0 · stale belief that rent was computer-only · DISCOVERY · names the cheapest tier, its price and Market → Housing · rent from week 1 is a known option · none · `applyHousingWellbeing.test.ts`.
+- [x] **Death screen** · "The weight of life became too much" · a player with $4k could not say why · no cause surface at death · FAIR FAILURE · one line: what sat at 0, the drains (same projection as the recap), where the fix was · the three fair-failure questions answered · none (total helper) · `deathCauses.test.ts`.
+- [x] **Gates** · `__tests__/simulation/earlyGameSurvivability.test.ts` — 34 outcome tests (starting state ×15, additivity, careful/average/struggling/strategic, text-skipper fails-fairly, money paradox, recovery ≤ 6 weeks). 4 of 34 fail against the old numbers.
+
+## Phase 8–10 — recovery validation, walkthrough, red team (done)
+Recovery from the Critical tip: 1 week to ≥ 60/60 (food_courier), ≤ 6 (age 25
+with Pneumonia). Red team and scores in the report §10–12. Overall early-game
+balance 40 → 68; what holds it under 70 is recorded as owner decisions:
+1. Disease frequency at 30+ (35%/week cap binds for any 30+ life without the gym).
+2. The disease roll is seeded on `weeksLived` alone — every Quick Start life
+   rolled Depression at week 7; fold `lineageId` in (project RNG convention, so
+   not changed silently).
+3. Chapter 2: 2 of 4 goals pre-ticked → $2,800 on the single promotion tap at
+   week ~14; the ambition picker asks for a lifelong commitment on frame one.
+4. Fitness decay's "trained this week" bracket is unreachable (`> 0` vs `> 1`).
+
+## Verification
+type-check 0 · type-check:tests 0 · lint:errors 0 · lint:ratchet 722/722 ·
+ui:ratchet at ceiling · check:routes 17 · `npm test` 9,271 passed, 0 failed ·
+preflight exit 0 (all 11 sections passed).
+
 # Master Program 6 — THE FIRST 30 MINUTES — COMPLETE
 
 Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, on top of Program 5

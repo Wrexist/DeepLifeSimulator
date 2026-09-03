@@ -40,6 +40,8 @@ import type { GameState, Disease } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
 import {
   calculateDiseaseRisk,
+  calculateDiseaseSpecificRisk,
+  DISEASE_BASE_WEEKLY_CHANCE,
   shouldGenerateDisease,
   generateRandomDisease,
   generateEventDisease,
@@ -158,10 +160,23 @@ describe('Disease lifecycle audit', () => {
     expect(calculateDiseaseRisk(old)).toBeGreaterThan(calculateDiseaseRisk(young));
   });
 
-  it('calculateDiseaseRisk: high fitness (100) is LOWER risk than low fitness (0)', () => {
+  it('fitness drives OCCURRENCE once, through the overall multiplier; the template term only weights the pick', () => {
+    // Program 7 removed a double count; Program 8 moved occurrence to
+    // DISEASE_BASE_WEEKLY_CHANCE × calculateDiseaseRisk, so fitness lives in
+    // that multiplier (once) and the per-template factor only decides WHICH
+    // illness is drawn.
     const fit = freshState({ stats: { ...initialGameState.stats, health: 80, fitness: 100 }, date: { ...initialGameState.date, age: 40 } });
     const unfit = freshState({ stats: { ...initialGameState.stats, health: 80, fitness: 0 }, date: { ...initialGameState.date, age: 40 } });
     expect(calculateDiseaseRisk(unfit)).toBeGreaterThan(calculateDiseaseRisk(fit));
+
+    const template = DISEASE_DEFINITIONS.find((t) => t.id === 'flu')!;
+    expect(calculateDiseaseSpecificRisk(template, unfit)).toBeGreaterThan(calculateDiseaseSpecificRisk(template, fit));
+  });
+
+  it('a healthy fresh 25-year-old at the seeded fitness is nowhere near the occurrence cap', () => {
+    // Under the summed-template model this life sat at the 35%/week cap.
+    const s = freshState({ stats: { ...initialGameState.stats, health: 100, fitness: 10 }, date: { ...initialGameState.date, age: 25 } });
+    expect(DISEASE_BASE_WEEKLY_CHANCE * calculateDiseaseRisk(s)).toBeLessThan(0.06);
   });
 
   // ── BUG-FIX REGRESSION (this turn) ─────────────────────────────────────

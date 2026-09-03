@@ -24,6 +24,21 @@ function probeStates(): GameState[] {
     createTestGameState({ stats: { money: 900, health: 55, happiness: 40 } }),
     createTestGameState({ stats: { money: 50_000 }, currentJob: 'tech' }),
     createTestGameState({ stats: { money: 5_000_000 }, currentJob: 'tech' }),
+    // Entry-ladder workers with the Education app open and no schooling, at
+    // two cash levels, so `soon_get_qualified` (Program 10) is eligible with a
+    // moving bar. `janitor` is a real entry-tier career; `tech` is not.
+    createTestGameState({
+      stats: { money: 6_000 },
+      currentJob: 'janitor',
+      educations: [],
+      completedChapters: ['ch1_fresh_start', 'ch2_settling_in'],
+    }),
+    createTestGameState({
+      stats: { money: 11_000 },
+      currentJob: 'janitor',
+      educations: [],
+      completedChapters: ['ch1_fresh_start', 'ch2_settling_in'],
+    }),
     // Passive-income probes. Without one, any goal measured against what the
     // player's ASSETS earn is eligible in zero states - which this file's own
     // movement invariant calls a gap in the probes, not a pass. Three levels:

@@ -4749,3 +4749,142 @@ causes, name the free cure, route to it — and the numbers went into
 `tasks/todo.md` as a proposal with the measurement attached. A balance change
 without the measurement would have been a guess; the measurement without the
 proposal would have been a complaint.
+
+---
+
+## 2026-09-02 — Program 7: a "poverty penalty" that everyone pays is not a penalty, it is the base rate
+
+The decay multiplier `100000 / netWorth` clamped to 0.5–2.0 read as a
+gradient. It was not: the ceiling bound for every net worth under $50k,
+which is nine years of a bottom-rung wage, so every fresh life decayed at 8
+while every comment, test fixture and display said "base 4". The tell was
+that no early-game state in the whole simulator ever produced a multiplier
+other than 2.0. Rule: when a formula has a clamp, measure where the clamp
+binds across the states players actually occupy before treating the formula
+as the mechanic. If the clamp binds everywhere, the clamp IS the mechanic.
+
+Second: **a stat counted in a "base multiplier" and again in a per-item
+modifier is counted twice.** Disease risk multiplied every template's chance
+by its own `fitnessRiskModifier` AND by an overall risk that already included
+fitness. Neither line looked wrong on its own; only the product did (a fresh
+25-year-old with the disease rate of a 60-year-old). When two functions both
+"apply" the same stat, one of them is the bug.
+
+Third: **a discovery finding can go stale between programs.** Program 6 wrote
+"the only rent UI is computer-only" the day after Program 5 had put renting on
+Market → Housing, and then rewrote the homeless notice to stop mentioning
+rent. Re-verify a reachability claim against the current tree before acting
+on it, especially one inherited from a report written on the same branch.
+
+Fourth, a harness lesson: **an action's double-tap guard can look like a
+weekly cap.** `performHealthActivity` clears its guard on a 50 ms timer; a
+simulator calling it twice in a microsecond was refused with "already in
+progress" on alternate weeks and the first tables under-reported every
+persona's recovery. When a scripted action is refused, read the refusal
+message before reading it as game balance.
+
+Fifth: **"unlucky" was a schedule.** The disease roll seeds on `weeksLived`
+and the year alone, so every Quick Start life with health under 80 at the
+same week rolled the same disease. Seeded RNG keyed on the week is the
+project's convention and is fine for reproducibility, but a fairness audit
+has to know that "runs more seeds" changes nothing for such a roll — vary the
+STATE, not `Math.random`, and check whether life identity is in the seed.
+
+---
+
+## 2026-09-02 — Program 8: a seeded architecture with an unminted seed is a script
+
+The codebase had already moved its weekly rolls onto a per-life salt
+(`lineageId:generationNumber`) in five systems, with tests proving two lives
+diverge. All of them were fed the same salt, because `initialState.lineageId`
+was the literal `'initial-lineage'` and the comment promising a UUID "on first
+load" was never implemented. Every new game was the same life. Rule: when a
+seed is supposed to be minted, find the line that mints it - a comment is not
+a minting. And a determinism test that sets `lineageId = 'lineage-A'` by hand
+proves the salt WORKS, not that anyone ever sets it.
+
+Second: **measure at the cap before tuning the factors.** Removing the fitness
+double count (Program 7) and then the whole overall-multiplier product changed
+nothing for a fitness-0 adult, because the SUM of template chances alone
+already exceeded the 35% cap. The lever was the model, not a coefficient: the
+Help copy said "base 1-2% times risk factors", the code summed 29 per-disease
+chances (16% before any factor). Match the code to what the game tells the
+player, then tune one number.
+
+Third: **a simulator's seed must not depend on the wall clock.** Minting the
+lineage id with `Date.now()` was right for the game and made every gate that
+runs the real seed time-dependent; the Program 7 gates went red the moment
+the game did the right thing. Pin the harness's life from its seed; let
+`mutateSeed` override.
+
+Fourth: **a test that pins "week 112 rolls 0.71" pins the salt.** The layoff
+fixtures were hand-picked weeks under the week-only roll; folding the life
+into the roll moved all of them. Pick fixtures by OUTCOME across the bands
+the mechanic exposes (worst performer survives / best is fired) so the test
+stays black-box and survives a change of salt.
+
+---
+
+## 2026-09-03 — Program 9: measure the silence before adding anything
+
+The obvious retention move was more content. The per-week signal probe on
+the real tick said otherwise: the goal card had four other eligible goals it
+never showed (a pure max is a frozen card), a 20-template story system fired
+once a year against its own "2-3 a year" comment, and the chapter spine was
+stalled on a single item I had introduced the day before. Every fix was a
+cadence or a selection rule in an existing system. Rule: before proposing a
+retention feature, count how often each existing surface CHANGES over 100
+weeks; the ones that never change are the retention bugs.
+
+Second: **a persona that never answers a modal measures a blocked system.**
+Life moments gate on `pendingMoment`; the first probe read "one moment in
+100 weeks" because the persona left it open forever. The harness now answers
+what the game raises (inbox events, moments), and the gate tests that
+cadence on a player who opens the door, not on one who never does.
+
+Third: **a goal that requires one specific purchase can freeze a spine.** The
+bed fixed the pre-ticked phone (Program 8) and stalled Chapter 2 for anyone
+who never opened the Market (Program 9). The right goal was the decision the
+game already teaches from frame one - a home - never pre-ticked, affordable
+on day one, and on the path every persona takes. Prefer goals that sit on
+the taught path over goals that need a detour.
+
+---
+
+## 2026-09-03 — Program 10: the number the designer thinks in is not the number the player compounds at
+
+The stock walk's comment says "7% a year, plus a small risk premium" and its
+tests asserted exactly that on the DRIFT function. A forty-life Monte Carlo
+on the same function measured 19.3%/yr for a diversified holder. Both were
+right: the log-normal step's median grows at the drift, its MEAN at drift +
+σ²/2 per week, and a portfolio realizes the mean. Rule: when a formula is
+log-space, assert the target on the arithmetic expectation
+(`expectedAnnualReturnFor`), and measure it on the tick across lives before
+believing either the comment or the unit test.
+
+Second: **a single seeded tape is one draw, not a statistic.** Three drift
+tests pinned "median > 1.2" and "portfolio > 1.5" on the unsalted tape; the
+day the drift was corrected that tape read 0.82 while the forty-life median
+sat at 2.46. Average a statistic over lives (twelve is enough, under a
+second) or the test is a coin flip with a comment.
+
+Third: **a persona that never does the taught thing measures a blocked
+system, again.** Every seed-1 economic persona died at week 32–34 of a
+critical back injury while holding $6k–$16k, because none of them tapped the
+doctor the sickness modal names. Program 9's lesson (answer what the game
+raises) applies to every modal, not just the inbox. The deaths that remain
+after the reflex (a $300 float that cannot fund a $500 doctor) are the real
+finding.
+
+Fourth: **a "once in a life" event needs a guard, and the guard already
+exists.** The inheritance cliffhanger re-fired three weeks after paying out
+because cliffhangers never joined the pool events' `eventLog`-derived repeat
+guard. Before adding a stored seen-set, look for the memory the game already
+writes.
+
+Fifth: **the harness's debounces are the app's debounces.** `resolveEvent`
+keeps a 500 ms double-tap key; two identical cliffhangers three game-weeks
+apart landed inside it at simulator speed and the second tap was silently
+dropped, which read as "the event stays pending and pays every week". The
+50 ms health-activity guard from Program 7 was the same class. Wait the
+debounce out in the wrapper; a thumb always does.
