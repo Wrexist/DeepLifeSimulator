@@ -253,9 +253,19 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                 accessibilityIgnoresInvertColors
               />
             ) : (
-              // No PNG yet: the Lucide glyph on the same neutral surface.
-              <View style={[styles.appIconFallback, settings.darkMode && styles.appIconFallbackDark]}>
-                <IconGlyph size={responsiveIconSize.lg} color={settings.darkMode ? '#CBD5E1' : '#475569'} />
+              // No PNG yet: the Lucide glyph on a brand-tinted tile when the
+              // app declares one (appCatalog.tint), else the neutral chip.
+              <View
+                style={[
+                  styles.appIconFallback,
+                  settings.darkMode && styles.appIconFallbackDark,
+                  app.tint ? { backgroundColor: app.tint, borderColor: app.tint } : null,
+                ]}
+              >
+                <IconGlyph
+                  size={responsiveIconSize.lg}
+                  color={app.tint ? '#FFFFFF' : settings.darkMode ? '#CBD5E1' : '#475569'}
+                />
               </View>
             )}
           </View>
@@ -382,10 +392,16 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   appCard: {
-    // Fixed height so every card is identical: icon + name (locked tiles trade
-    // dead space for their requirement line). Shorter than the old 150 because
-    // the marketing description is gone.
-    height: scale(112),
+    // Sized to its content, not to a fixed 112.
+    //
+    // The fixed height existed so a locked tile's requirement line had somewhere
+    // to go, but it was paid by EVERY tile: with content anchored to the top, an
+    // ordinary one-line app left ~a third of its card empty and the grid read as
+    // a rendering fault (screenshot report, 2026-09-04). Cards on the same row
+    // still match each other - a wrapped flex row stretches its items to the
+    // line's height - so a locked tile grows its own row rather than padding all
+    // of them. `minHeight` keeps a short name from collapsing into a stub.
+    minHeight: scale(80),
     borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
     overflow: 'hidden',

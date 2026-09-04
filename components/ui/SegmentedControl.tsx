@@ -117,7 +117,17 @@ export default function SegmentedControl<T extends string>({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={[styles.container, compact && styles.containerCompact, style]}
+        // `styles.scrollSelf` LAST-but-one so a caller's `style` can still win.
+        //
+        // React Native's ScrollView carries `flexGrow: 1, flexShrink: 1` in its
+        // own base style. As a direct child of a screen's flex column that makes
+        // a HORIZONTAL tab bar claim a share of the leftover vertical space and
+        // inflate to hundreds of points tall - Bank Pro rendered its five tabs
+        // floating in the middle of an empty box half the viewport high
+        // (screenshot report, 2026-09-04). The non-scrollable branch is a plain
+        // View and was never affected, which is why only the two `scrollable`
+        // callers (Bank Pro, LuxuryApp) showed it.
+        style={[styles.container, compact && styles.containerCompact, styles.scrollSelf, style]}
         contentContainerStyle={styles.scrollContent}
         accessibilityRole="tablist"
       >
@@ -149,16 +159,48 @@ const styles = StyleSheet.create({
     padding: scale(3),
     gap: scale(3),
   },
+  /**
+   * Hold the horizontal control to its content height. See the note at the
+   * `scrollable` branch: without this the ScrollView's inherited `flexGrow: 1`
+   * lets a tab bar swallow half a screen.
+   */
+  scrollSelf: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   scrollContent: {
     flexDirection: 'row',
     gap: scale(4),
     paddingRight: scale(4),
   },
+  /**
+   * Content-width segments for the scrollable variant - in LONGHAND, because
+   * `flex: 0` does not mean the same thing on both platforms.
+   *
+   * Yoga (iOS/Android) expands `flex: 0` to `flexBasis: auto`, so the slot
+   * sizes to its content and the labels render at their natural width. React
+   * Native Web expands it to `flex: 0 1 0%` - basis ZERO - so the slot computes
+   * to 0px and every label collapses to the icon (measured: slot width 0,
+   * label width 28). The scrollable bank tabs have therefore been unreadable on
+   * the web preview target while looking correct on device, which is the worst
+   * shape a layout bug can have: it only exists where nobody is looking at it.
+   *
+   * Spelling the three properties out is what the variant's docblock already
+   * says it wants - "segments keep their natural width instead of sharing the
+   * row" - and it means the same thing everywhere.
+   */
   slotScroll: {
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
   tabScroll: {
     paddingHorizontal: scale(12),
+    // `styles.tab` sets `flex: 1` for the SHARED-row variant; a scrolling row
+    // must not share, or the same basis-0% collapse applies one level down.
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
   slot: {
     flex: 1,

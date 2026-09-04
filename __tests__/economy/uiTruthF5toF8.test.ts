@@ -35,6 +35,10 @@
 import fs from 'fs';
 import path from 'path';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { scaledFoodRestore } from '@/lib/economy/foodSatiety';
+import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import type { GameState } from '@/contexts/game/types';
 
 const ROOT = path.join(__dirname, '..', '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -88,6 +92,63 @@ describe('F5 - food is priced like everything else', () => {
     // is a fast path. Removing that guarantee would reintroduce a worse bug.
     expect(read('contexts/game/MoneyActionsContext.tsx'))
       .toMatch(/Rejected purchase: insufficient funds/);
+  });
+});
+
+/**
+ * F5b - the same card, the same class of defect, three months later.
+ *
+ * F5 made the PRICE agree across the label, the gate and the charge. v48 then
+ * added food satiety (meals 1-3 full strength, 4-6 half, 7+ a quarter) and
+ * routed the toast and the section hint through the satiety helpers - but not
+ * the restore chips on the card itself. So past the third meal of a game week,
+ * Instant Ramen advertised "+4 Health / +8 Energy" and delivered +1 / +2
+ * (screenshot report, 2026-09-04). The one surface a player reads BEFORE
+ * deciding to spend was the one still quoting pre-satiety numbers.
+ *
+ * This asserts the CONTRACT (the advertised value equals the applied value at
+ * every satiety tier) rather than only the wiring, which is pinned separately
+ * in __tests__/render/layoutRegressions.test.ts.
+ */
+describe('F5b - the food card advertises what the meal pays', () => {
+  const FOOD = { id: 'ramen', name: 'Instant Ramen', price: 8, healthRestore: 4, energyRestore: 8 };
+
+  const stateWith = (eaten: number): GameState =>
+    createTestGameState({
+      weeklyFoodPurchases: eaten,
+      foods: [FOOD],
+      stats: { money: 100_000, health: 10, energy: 10, happiness: 10 },
+    } as Partial<GameState>);
+
+  // What the card renders, transcribed from renderFood in app/(tabs)/market.tsx.
+  const advertised = (eaten: number) => ({
+    health: scaledFoodRestore(FOOD.healthRestore, eaten),
+    energy: scaledFoodRestore(FOOD.energyRestore, eaten),
+    happiness: scaledFoodRestore(Math.max(1, Math.round(FOOD.healthRestore / 2)), eaten),
+  });
+
+  it('satiety actually bites (the premise)', () => {
+    // Without this, every assertion below would pass on a no-op curve.
+    expect(advertised(0).energy).toBeGreaterThan(advertised(3).energy);
+    expect(advertised(3).energy).toBeGreaterThan(advertised(6).energy);
+  });
+
+  it.each([0, 1, 2, 3, 4, 5, 6, 7, 12])(
+    'matches what the purchase applies after %i meals',
+    (eaten) => {
+      const result = resolveFoodPurchase(stateWith(eaten), FOOD.id);
+      expect(result.ok).toBe(true);
+      expect(result.applied).toEqual(advertised(eaten));
+    }
+  );
+
+  it('and what the state actually moves by', () => {
+    // The end of the chain: the numbers on the card are the numbers the bars
+    // gain. Health and energy start at 10 so nothing clips at the 100 ceiling.
+    const before = stateWith(5);
+    const result = resolveFoodPurchase(before, FOOD.id);
+    expect(result.next.stats.health - before.stats.health).toBe(advertised(5).health);
+    expect(result.next.stats.energy - before.stats.energy).toBe(advertised(5).energy);
   });
 });
 

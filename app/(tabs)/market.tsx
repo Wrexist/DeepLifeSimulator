@@ -6,7 +6,7 @@ import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { satietyHint } from '@/lib/economy/foodSatiety';
+import { satietyHint, scaledFoodRestore } from '@/lib/economy/foodSatiety';
 import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { ShoppingBag, Apple, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
@@ -276,6 +276,27 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     // Calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)
     const happinessRestore = Math.max(1, Math.round(food.healthRestore / 2));
 
+    /**
+     * What THIS meal actually restores, right now.
+     *
+     * The chips used to print the raw catalogue numbers while satiety (v48) was
+     * quietly paying a fraction of them: past the third meal of a week, Instant
+     * Ramen advertised "+4 Health / +8 Energy" on the card and delivered +2/+4,
+     * then +1/+2 (screenshot report, 2026-09-04). The toast and the section
+     * hint had been routed through the satiety helpers when v48 landed and this
+     * card was missed - so the one surface a player reads BEFORE deciding to
+     * spend was the one still quoting the pre-satiety values.
+     *
+     * Same helper, same input as `resolveFoodPurchase`, so the card, the toast
+     * and the charge cannot disagree.
+     */
+    const eaten = gameState.weeklyFoodPurchases;
+    const preview = {
+      health: scaledFoodRestore(food.healthRestore, eaten),
+      energy: scaledFoodRestore(food.energyRestore, eaten),
+      happiness: scaledFoodRestore(happinessRestore, eaten),
+    };
+
     return (
       <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
         <View style={styles.itemInfo}>
@@ -299,9 +320,9 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             caption={t('market.restores')}
             darkMode={settings.darkMode}
             effects={[
-              { key: 'health', value: food.healthRestore },
-              { key: 'energy', value: food.energyRestore },
-              { key: 'happiness', value: happinessRestore },
+              { key: 'health', value: preview.health },
+              { key: 'energy', value: preview.energy },
+              { key: 'happiness', value: preview.happiness },
             ]}
           />
         </View>
@@ -339,7 +360,13 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         />
       </View>
     );
-  }, [settings.darkMode, buyFood, canAfford, showSuccess, showError, t]);
+    // `weeklyFoodPurchases` drives the satiety-scaled chips above and
+    // `priceIndex` the inflated price beside them - both were read in the body
+    // and neither was declared, so the card kept rendering last week's numbers
+    // after a meal (and last month's price after an inflation tick) until some
+    // other dependency happened to change.
+  }, [settings.darkMode, buyFood, canAfford, showSuccess, showError, t,
+      gameState.weeklyFoodPurchases, gameState.economy?.priceIndex]);
 
   // Pure and cheap over ~5 tiers; called once per render, used by both the
   // section body and the collapsed summary.
