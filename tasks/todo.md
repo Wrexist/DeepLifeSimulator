@@ -98,6 +98,24 @@ January, Independence Day in April, Halloween in August.
       The seasonal share did rise slightly (0.033 -> 0.043 over 2000 weeks)
       because Halloween and Thanksgiving got their real three-week windows back.
 
+## Phase 10 — captured, and one more defect found by capturing. STATUS: **done**
+- [x] 10.1 `scripts/capture-screenshot-fixes.mjs` photographs all four changed
+      screens against the static web export. Each shot ASSERTS its subject is on
+      screen before writing, and the market step compares the food card's
+      advertised restores before and after seven meals - measured
+      `+4/+8/+2` -> `+1/+2/+1`, so the capture cannot quietly become a
+      photograph of the bug.
+- [x] 10.2 Bank Pro's container measured 456px tall without the fix and 58px
+      with it, in the live page, by toggling `flexGrow` - the half-viewport box
+      the player photographed.
+- [x] 10.3 NEW DEFECT the capture found: the scrollable tab labels collapsed to
+      bare icons on web. `flex: 0` expands to `flexBasis: auto` under Yoga and
+      to `flex: 0 1 0%` (basis ZERO) under React Native Web, so the slot
+      computed to 0px. Fixed in longhand; pinned. NOT a regression from 4.1 -
+      tab width was identical (28px) with `flexGrow` forced back to 1.
+- [x] 10.4 The season badge had no `accessibilityLabel` while its modal's close
+      button did, so the HUD control announced as an unnamed button.
+
 ## Out of scope / flagged, not changed
 - The Christmas-in-"Fall" consequence of the Jan-Mar=Winter mapping — see the
   note in `seasonalEvents.ts`. One constant table away if the owner wants the

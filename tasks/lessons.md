@@ -5340,3 +5340,25 @@ exactly where the owner set them. The mirror image of Program 13's rule about
 underpowered probes: a null result from a weak probe is not a null effect, and a
 FAILURE from a weak probe is not a regression. Measure before you touch a bound
 in either direction.
+
+Seventh, added after photographing the fixes: **`flex: 0` is not portable, and
+a layout bug that only exists on the platform nobody looks at will outlive
+every screenshot report.** Photographing the Bank Pro fix showed its tab labels
+collapsed to bare icons on the web export while the player's iOS screenshot
+showed them rendering fine. Measured: the slot computed to 0px wide. Yoga
+expands `flex: 0` to `flexBasis: auto`, so the slot sizes to its content;
+React Native Web expands it to `flex: 0 1 0%` - basis ZERO. The shorthand reads
+as correct in both places, which is why it survived. Longhand
+(`flexGrow`/`flexShrink`/`flexBasis`) means the same thing everywhere.
+
+Two things about the method, not the bug. The capture is what found it - no
+test in 759 suites could have, because they assert on source and on pure
+functions, and this was a computed style on one platform. And I nearly filed it
+as my own regression: it appeared in the same component I had just changed, one
+commit after changing it. What settled it was a controlled measurement in the
+live page rather than an argument - forcing the container's `flexGrow` back to
+`1` left the tab width identical at 28px and changed only the height, 58 with
+the fix against 456 without. Same discipline as lesson six, in the opposite
+direction: there I refused to relax a bound before measuring, here I refused to
+claim a regression before measuring. A screenshot is evidence; a screenshot
+plus a toggled property is an experiment.
