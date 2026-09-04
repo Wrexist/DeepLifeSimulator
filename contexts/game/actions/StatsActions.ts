@@ -5,6 +5,7 @@ import React from 'react';
 import { GameState, GameStats } from '../types';
 import { logger } from '@/utils/logger';
 import { clampStatByKey } from '@/utils/statUtils';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 const log = logger.scope('StatsActions');
@@ -56,9 +57,18 @@ export function applyStatsDelta(
     }
     if (typeof value === 'number' && !isNaN(value)) {
       // Apply the gym-efficiency multiplier to positive fitness gains only.
-      const effectiveValue = (k === 'fitness' && value > 0 && fitnessGainMult > 1)
+      let effectiveValue = (k === 'fitness' && value > 0 && fitnessGainMult > 1)
         ? value * fitnessGainMult
         : value;
+      // Diminishing returns on happiness GAINS (Program 14). A point is worth
+      // less the happier you already are, so the top of the scale has to be
+      // earned continuously instead of arrived at and held. Negative deltas
+      // pass through untouched - this makes the good times harder to bank,
+      // never the bad times worse. See `lib/economy/happinessGain.ts` for the
+      // measurement that produced it.
+      if (k === 'happiness' && effectiveValue > 0) {
+        effectiveValue = scaledHappinessGain(prev.stats?.happiness ?? 0, effectiveValue);
+      }
       const currentVal = prev.stats[k];
       const newVal = clampStatByKey(k, currentVal + effectiveValue);
       updatedStats[k] = newVal;

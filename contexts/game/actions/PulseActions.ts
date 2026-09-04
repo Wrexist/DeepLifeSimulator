@@ -26,6 +26,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { updateStats, applyStatsDelta } from './StatsActions';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
+import { lifeSalt, makeLifeRoll } from '@/utils/seededRoll';
 import {
   calculatePostEngagement,
   calculateNewFollowersFromPost,
@@ -61,8 +62,17 @@ function ensureSocial(prev: GameState): NonNullable<GameState['socialMedia']> {
   );
 }
 
-function genId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+/**
+ * Ids that are a function of the LIFE, not the wall clock (Program 14).
+ *
+ * `${prefix}-${Date.now()}-${Math.random()}` put an unseeded draw and a real
+ * timestamp into every post, comment and notification the save carries, so the
+ * same life replayed produced a different feed. `seq` is the count of items
+ * already in the list the new one joins, which makes the id unique within its
+ * week without consulting anything outside the state.
+ */
+function genId(prefix: string, weeksLived: number, seq: number): string {
+  return `${prefix}-w${weeksLived}-${seq}`;
 }
 
 function pushNotification(
@@ -73,7 +83,7 @@ function pushNotification(
   extras: Partial<PulseNotification> = {},
 ): PulseNotification {
   const notification: PulseNotification = {
-    id: genId('pn'),
+    id: genId('pn', weeksLived, (social.notifications ?? []).length),
     type,
     timestamp: Date.now(),
     gameWeek: weeksLived,
@@ -137,16 +147,27 @@ export const composePost = (
     return { success: false, message: ok.reason || 'Cannot post right now.' };
   }
 
-  const isViral = checkViralChance(social.influenceLevel, args.contentType);
+  // How a post performs is a fact about THIS life in THIS week, not about the
+  // millisecond the button was tapped (Program 14). Every draw below used to be
+  // a raw `Math.random()` (or, for the viral check, a hash of `Date.now()`
+  // wearing an anti-exploit comment), so a post's reach could be rerolled by
+  // reloading and reposting, and the same life never replayed the same feed.
+  const postRoll = makeLifeRoll(gameState, weeksLived);
+  const postSeq = (social.recentPosts ?? []).length;
+  const isViral = checkViralChance(
+    social.influenceLevel, args.contentType, postSeq, weeksLived, lifeSalt(gameState),
+  );
   const engagement = calculatePostEngagement(
     social.followers,
     args.contentType,
     isViral,
+    (k) => postRoll(`post:${postSeq}:${k}`),
   );
   const followersGained = calculateNewFollowersFromPost(
     social.followers,
     engagement,
     isViral,
+    (k) => postRoll(`post:${postSeq}:${k}`),
   );
   const proMultiplier = getEngagementMultiplierFromVerifiedPro(gameState);
   const adRevenue = Math.floor(
@@ -155,10 +176,11 @@ export const composePost = (
       args.contentType,
       isViral,
       social.followers,
+      (k) => postRoll(`post:${postSeq}:${k}`),
     ) * proMultiplier,
   );
 
-  const postId = genId('pp');
+  const postId = genId('pp', weeksLived, postSeq);
   const newPost: PulseRecentPost = {
     id: postId,
     content,
@@ -371,7 +393,8 @@ export const commentOnPost = (
   if (gameState.stats.energy < 3) return { success: false, message: 'Need 3 energy to comment.' };
 
   const weeksLived = gameState.weeksLived ?? 0;
-  const commentId = genId('pc');
+  const commentSeq = (gameState.socialMedia?.commentThreads?.[postId] ?? []).length;
+  const commentId = genId('pc', weeksLived, commentSeq);
   const comment: PulseComment = {
     id: commentId,
     postId,

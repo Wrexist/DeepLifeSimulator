@@ -70,9 +70,17 @@ export function applyChoiceConsequences(
     eventWeightModifiers: { ...currentState.eventWeightModifiers },
   };
   
-  hiddenConsequences.forEach(consequenceTemplate => {
+  hiddenConsequences.forEach((consequenceTemplate, index) => {
     const newConsequence: HiddenConsequence = {
-      id: `${eventId}_${choiceId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      // Deterministic in the LIFE, not the wall clock (Program 14). This was
+      // `${eventId}_${choiceId}_${Date.now()}_${Math.random()}`, which put an
+      // unseeded draw and a real timestamp into saved state on the event-answer
+      // path - so the same life replayed produced different consequence ids,
+      // and `Math.random()` here is what CLAUDE.md §4.3 forbids on the tick.
+      // The tuple below is already unique: one event's one choice can only be
+      // answered once in a given week, and `index` separates the consequences
+      // that choice carries.
+      id: `${eventId}_${choiceId}_w${state.weeksLived || 0}_${index}`,
       eventId,
       choiceId,
       ...consequenceTemplate,

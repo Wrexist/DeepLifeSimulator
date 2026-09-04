@@ -70,7 +70,7 @@ export const checkpointSidecarKey = (slot: number): string =>
 
 /**
  * Fingerprint of a checkpoints array: the ids, which are minted per creation
- * (`cp_<week>_<Date.now()>`) and never edited in place. Cheap enough to run
+ * (`cp_<lineage>_<week>`) and never edited in place. Cheap enough to run
  * on every save; any add/remove/replace changes it.
  */
 function fingerprint(checkpoints: Checkpoints | undefined): string {

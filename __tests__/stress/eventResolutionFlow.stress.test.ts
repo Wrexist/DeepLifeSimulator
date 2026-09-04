@@ -141,7 +141,13 @@ describe('Random event resolution audit', () => {
     act(() => captured!.game.resolveEvent('test_money_event', 'accept'));
 
     expect(captured!.state.stats.money).toBe(moneyBefore + 500);
-    expect(captured!.state.stats.happiness).toBe(happinessBefore + 5);
+    // A +5 happiness effect lands as somewhat less than +5, because Program 14
+    // made a happiness gain worth less the happier a life already is and this
+    // fixture starts high. What this test is checking is that the choice's
+    // effects were APPLIED at all - the exact arithmetic of the curve is
+    // covered by `lib/economy/__tests__/happinessGain.test.ts`.
+    expect(captured!.state.stats.happiness).toBeGreaterThan(happinessBefore);
+    expect(captured!.state.stats.happiness).toBeLessThanOrEqual(happinessBefore + 5);
     expect((captured!.state.pendingEvents || []).length).toBe(pendingBefore - 1);
     expect((captured!.state.pendingEvents || []).find(e => e.id === 'test_money_event')).toBeUndefined();
     assertClean('happy path');

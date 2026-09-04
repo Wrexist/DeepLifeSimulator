@@ -1,3 +1,64 @@
+# Master Program 14 — STAT SEMANTICS + DETERMINISM + DIFFERENTIATION — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 13 (`9fe90c5`).
+Programs 1-13 untouched. Report: `tasks/simulation-integrity-2026-09-04.md`.
+
+**Result.** The simulation is deterministic: the same life replayed produces the
+same life, field for field, week for week, and so does a life continued from a
+saved game. Seven defects, three guards. Happiness had compressed every persona
+into 90-97; it now diminishes as it rises, which cut ceiling-weeks 24-31% and
+widened the median spread 85% — real, measured, and partial (see Phase 11).
+
+## Phase 1 — determinism audit. STATUS: **done** (report 1-2)
+Program 13 named `Date.now()` as the likely cause of the non-reproducible tick.
+**That was a hypothesis and it was wrong**: freezing the clock for a whole run
+changed nothing. The obvious instrumentation failed too — a probe replacing
+`Math.random` recorded ZERO calls, because `earlyGameSim` seeds the global for
+its own runs and overwrote the probe. A draw that is unreproducible in the app
+looks reproducible in a test, which is why the eventual guard is static.
+
+## Phase 2 — isolate the divergence. STATUS: **done** (report 2)
+Seven rounds of "diff two identical runs field by field, fix the first field
+that differs, diff again": `generateNPCGoals` (Math.random ON THE TICK), memory
+ids, the disease-cure rolls, Spark ids, checkpoint ids, the whole Pulse posting
+path, and `playConversationOption`'s default roll. Plus `checkViralChance`,
+which carried an "ANTI-EXPLOIT: deterministic hash instead of Math.random()"
+comment over a hash of `Date.now()`.
+
+## Phase 3 — same-life reproducibility. STATUS: **done** (report 4)
+5 personas x 3 runs x 80 weeks, every field every week. All pass.
+
+## Phase 4 — save/load reproducibility. STATUS: **done** (report 5)
+Continuing from a round-tripped save (through the real `hydrateLoadedState`)
+matches continuing straight through. One documented normalization.
+
+## Phase 5-8 — the happiness equation, ledger, saturation, distribution
+- STATUS: **done** (report 7-9). Root cause is NOT the cap: unbounded linear
+  inflow against one fixed drain, with the clamp discarding the surplus. The
+  romance life spent **132 of 149 weeks with happiness moving by exactly zero**;
+  weeks below 50 were **zero for all six personas**; CAREER-OBSESSED and WEALTH
+  MAXIMIZER were identical to the decimal; and a life knocked to 20 converged on
+  the identical trajectory within ~25 weeks.
+
+## Phase 9-10 — differentiation + second-order. STATUS: **done** (report 6, 13)
+25 lives vary (happiness sd 8.0, net worth sd $6.3k) while repeats do not. No
+happiness->health or happiness->energy loop exists to run away.
+
+## Phase 11 — implementation. STATUS: **done** (report 10-12)
+`lib/economy/happinessGain.ts`, the `closenessFalloff` / food-satiety pattern
+applied to a third flat ladder. Four choke points, chosen by measurement: the
+first cut used the two obvious ones and barely moved the distribution because
+they carry 1-3.5 points a week out of a much larger flow.
+**Did NOT achieve**: romance is still pinned (136/150 weeks at 95+), career and
+wealth are still identical, and weeks below 50 is still zero. Halving the
+falloff floor was tried, measured to buy nothing (12.18 -> 12.29), and reverted.
+
+## Phase 12-14 — long-run, red team, verification. STATUS: **done** (report 16-18)
+Measured to 150 weeks; 250/500 not run. Four save-scum rerolls closed. Six
+suites failed on the first full run and every one was inspected rather than
+adjusted — two were em dashes I introduced, four were exact-value assertions
+that the curve legitimately shifted.
+
 # Master Program 13 — WORLD SIMULATION + EVENT DELIVERY — COMPLETE
 
 Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 12 (`f405c91`).

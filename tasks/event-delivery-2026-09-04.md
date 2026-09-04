@@ -360,12 +360,25 @@ until now no life ever saw enough of the catalogue for it to show.
 Running the SAME persona, same seed, same lineage, same week count, twice in one
 process gives different happiness (91.05 / 93.28 / 92.50 on three consecutive
 runs) — while the **event stream is byte-identical across all three**. So the
-event pipeline is deterministic and something else on the tick is not. It is not
-`Math.random()`: a probe that instrumented the global and ran a 60-week life
-recorded **zero** calls from repository code, which is CLAUDE.md §4.3's rule
-holding. `Date.now()` is read on the tick path from at least six places
-(`weeklyChallenges`, `GameActionsContext` x3, `npcDepth`, `consequenceTracker`),
-and divergence begins around week 24 and widens.
+event pipeline is deterministic and something else on the tick is not.
+
+> **CORRECTION (Program 14, same day).** The two conclusions in the paragraph
+> below are both wrong, and the way they were wrong is worth more than the
+> guesses were. `tasks/simulation-integrity-2026-09-04.md` §1-2 has the detail.
+> The `Math.random()` probe recorded zero calls because the simulation harness
+> assigns `Math.random = mulberry32(seed)` for its own runs and overwrote the
+> probe — there were seven unseeded draws and wall-clock ids on the path, one
+> of them `generateNPCGoals` calling `Math.random()` directly on the weekly
+> tick. And freezing `Date.now()` for an entire run changed the divergence not
+> at all, so the clock was not the cause either. Both are fixed; the tick is
+> deterministic now. The original text is kept below because inheriting a
+> plausible-sounding cause without testing it is the mistake worth seeing.
+
+It is not `Math.random()`: a probe that instrumented the global and ran a
+60-week life recorded **zero** calls from repository code, which is CLAUDE.md
+§4.3's rule holding. `Date.now()` is read on the tick path from at least six
+places (`weeklyChallenges`, `GameActionsContext` x3, `npcDepth`,
+`consequenceTracker`), and divergence begins around week 24 and widens.
 
 This predates Program 13 — the pre-fix engine has it too — and it is out of
 scope here, but it is recorded rather than left for someone to rediscover:

@@ -70,22 +70,31 @@ export interface PostEngagement {
 export function calculatePostEngagement(
   followers: number,
   contentType: ContentType,
-  isViral: boolean = false
+  isViral: boolean = false,
+  /**
+   * A seeded [0,1) draw for the engagement-rate jitter (Program 14). The six
+   * branches below each ran a raw `Math.random()`, so how well a post did was
+   * unreproducible and rerollable by reloading - the same defect the viral
+   * check above carried, in the same file. Callers pass the life-and-week
+   * stream; the default keeps offline model exploration working.
+   */
+  roll: (key: string) => number = () => Math.random(),
 ): PostEngagement {
   // Base engagement rate decreases as followers increase (realistic pattern)
+  const jitter = roll('engagement-rate');
   let baseEngagementRate: number;
   if (followers < 100) {
-    baseEngagementRate = 0.15 + Math.random() * 0.10; // 15-25% for tiny accounts
+    baseEngagementRate = 0.15 + jitter * 0.10; // 15-25% for tiny accounts
   } else if (followers < 1_000) {
-    baseEngagementRate = 0.08 + Math.random() * 0.07; // 8-15% for small accounts
+    baseEngagementRate = 0.08 + jitter * 0.07; // 8-15% for small accounts
   } else if (followers < 10_000) {
-    baseEngagementRate = 0.04 + Math.random() * 0.04; // 4-8% for rising
+    baseEngagementRate = 0.04 + jitter * 0.04; // 4-8% for rising
   } else if (followers < 100_000) {
-    baseEngagementRate = 0.02 + Math.random() * 0.02; // 2-4% for popular
+    baseEngagementRate = 0.02 + jitter * 0.02; // 2-4% for popular
   } else if (followers < 1_000_000) {
-    baseEngagementRate = 0.01 + Math.random() * 0.01; // 1-2% for influencer
+    baseEngagementRate = 0.01 + jitter * 0.01; // 1-2% for influencer
   } else {
-    baseEngagementRate = 0.005 + Math.random() * 0.01; // 0.5-1.5% for celebrity
+    baseEngagementRate = 0.005 + jitter * 0.01; // 0.5-1.5% for celebrity
   }
   
   // Content type multipliers (photos/videos get more engagement)
@@ -100,35 +109,35 @@ export function calculatePostEngagement(
   const contentMultiplier = contentMultipliers[contentType];
   
   // Add randomness for natural variation (+/- 30%)
-  const randomVariation = 0.7 + Math.random() * 0.6;
+  const randomVariation = 0.7 + roll('variation') * 0.6;
   
   // Calculate base likes
   let baseLikes = Math.floor(followers * baseEngagementRate * contentMultiplier * randomVariation);
   
   // Minimum likes (even with 0 followers, friends/family might like)
-  baseLikes = Math.max(baseLikes, Math.floor(Math.random() * 5) + 1);
+  baseLikes = Math.max(baseLikes, Math.floor(roll('floor-likes') * 5) + 1);
   
   // Viral boost (5-10x normal engagement)
   if (isViral) {
-    const viralMultiplier = 5 + Math.random() * 5;
+    const viralMultiplier = 5 + roll('viral-mult') * 5;
     baseLikes = Math.floor(baseLikes * viralMultiplier);
   }
   
   // Calculate other metrics based on likes (realistic ratios)
   // Comments are typically 1-5% of likes
-  const commentRate = 0.01 + Math.random() * 0.04;
+  const commentRate = 0.01 + roll('comment-rate') * 0.04;
   const comments = Math.max(0, Math.floor(baseLikes * commentRate));
   
   // Reposts/shares are typically 5-15% of likes
-  const repostRate = 0.05 + Math.random() * 0.10;
+  const repostRate = 0.05 + roll('repost-rate') * 0.10;
   const reposts = Math.max(0, Math.floor(baseLikes * repostRate));
   
   // Views are typically 10-30x likes (most people view but don't engage)
-  const viewMultiplier = 10 + Math.random() * 20;
+  const viewMultiplier = 10 + roll('view-mult') * 20;
   const views = Math.floor(baseLikes * viewMultiplier);
   
   // Bookmarks are rare, about 1-3% of likes
-  const bookmarkRate = 0.01 + Math.random() * 0.02;
+  const bookmarkRate = 0.01 + roll('bookmark-rate') * 0.02;
   const bookmarks = Math.max(0, Math.floor(baseLikes * bookmarkRate));
   
   return {
@@ -147,19 +156,21 @@ export function calculatePostEngagement(
 export function calculateNewFollowersFromPost(
   currentFollowers: number,
   engagement: PostEngagement,
-  isViral: boolean = false
+  isViral: boolean = false,
+  /** Seeded draw, as `calculatePostEngagement` (Program 14). */
+  roll: (key: string) => number = () => Math.random(),
 ): number {
   // Base: 1 new follower per 50-100 likes
-  const likesPerFollower = 50 + Math.random() * 50;
+  const likesPerFollower = 50 + roll('likes-per-follower') * 50;
   let newFollowers = Math.floor(engagement.likes / likesPerFollower);
-  
+
   // Bonus from views (people discover you)
-  const viewsPerFollower = 500 + Math.random() * 500;
+  const viewsPerFollower = 500 + roll('views-per-follower') * 500;
   newFollowers += Math.floor(engagement.views / viewsPerFollower);
-  
+
   // Viral posts attract many more followers
   if (isViral) {
-    const viralBonus = 100 + Math.floor(Math.random() * 400);
+    const viralBonus = 100 + Math.floor(roll('viral-bonus') * 400);
     newFollowers += viralBonus;
   }
   
@@ -280,10 +291,18 @@ export function calculateFollowerGrowthFull(
 export function checkViralChance(
   influenceLevel: InfluenceLevel,
   contentType: ContentType,
-  // Distinguishes otherwise-identical rolls made in the same millisecond (e.g. a
-  // "tripled virality" boost that calls this 3×). Without it, all three shared a
-  // seed and returned the same boolean, so `a || a || a === a` — a no-op boost.
+  // Distinguishes otherwise-identical rolls made in the same post (e.g. a
+  // "tripled virality" boost that calls this 3x). Without it, all three shared a
+  // seed and returned the same boolean, so `a || a || a === a` - a no-op boost.
   nonce = 0,
+  /**
+   * The absolute week the roll belongs to, and the life it belongs to
+   * (Program 14). REQUIRED in practice - the default exists only so an
+   * exploratory caller can still call this - because without them the seed
+   * below was `Date.now()`, which is `Math.random()` with extra steps.
+   */
+  weeksLived = 0,
+  lifeSalt = '',
 ): boolean {
   // Base viral chance by influence level
   const levelChances: Record<InfluenceLevel, number> = {
@@ -306,9 +325,19 @@ export function checkViralChance(
   };
   viralChance *= typeMultipliers[contentType];
 
-  // ANTI-EXPLOIT: Use deterministic hash instead of Math.random() to prevent save/reload abuse
-  // Same inputs at same game state = same outcome every time
-  const hashInput = `viral:${influenceLevel}:${contentType}:${nonce}:${Date.now()}`;
+  // ANTI-EXPLOIT: a deterministic hash rather than `Math.random()`, so a save
+  // and reload cannot reroll a post into virality.
+  //
+  // That is what this comment claimed before Program 14, and the line under it
+  // hashed `Date.now()`. A millisecond timestamp is not "the same game state" -
+  // it is the one input guaranteed to differ on every call, so the seed was a
+  // clock-driven coin flip and the anti-exploit note read as protection that
+  // was not there. Reloading and re-posting genuinely did reroll it. The seed
+  // is now the LIFE and the WEEK, the convention the rest of the repository
+  // uses (CLAUDE.md 4.3), which is what makes the outcome stable for a given
+  // post in a given week of a given life - and `checkViralChanceFull`, ten
+  // lines below, had been doing exactly this the whole time.
+  const hashInput = `viral:${lifeSalt}:${weeksLived}:${influenceLevel}:${contentType}:${nonce}`;
   const hash = hashInput.split('').reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
   const pseudoRandom = (Math.abs(hash) % 10000) / 10000;
   return pseudoRandom < viralChance;
@@ -724,7 +753,9 @@ export function calculatePostAdRevenueFull(
   likes: number,
   contentType: ContentType,
   isViral: boolean,
-  followers: number
+  followers: number,
+  /** Seeded draw (Program 14); default keeps offline callers working. */
+  roll: (key: string) => number = () => Math.random(),
 ): number {
   // Base CPM (Cost Per Mille) - $1 per 1000 likes/views
   const baseCPM = 1.0;
@@ -739,7 +770,7 @@ export function calculatePostAdRevenueFull(
   };
   
   // Views estimate (likes * 10-20 for engagement rate)
-  const estimatedViews = likes * (10 + Math.random() * 10);
+  const estimatedViews = likes * (10 + roll('views-per-like') * 10);
   
   // Calculate revenue
   let revenue = (estimatedViews / 1000) * baseCPM * typeMultipliers[contentType];

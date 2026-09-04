@@ -3421,7 +3421,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
   it('empty relationships in: empty out, no notifications', () => {
     npcDepth.processWeeklyNPCDepth.mockReturnValue({ relationships: [], notifications: [] });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: [], weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: [], weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
@@ -3434,7 +3434,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     ];
     npcDepth.processWeeklyNPCDepth.mockReturnValue({ relationships: outputRels, notifications: [] });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
@@ -3445,7 +3445,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['Bob got a promotion!'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(1);
     expect(ctx.notifications[0].id).toBe('npc-life-event-100-0');
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
@@ -3458,7 +3458,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['Carol moved to NYC.', 'Carol started yoga.'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(1);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
@@ -3470,7 +3470,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['msg1', 'msg2', 'msg3', 'msg4', 'msg5'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(1);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
@@ -3482,7 +3482,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['Grace got a dog!'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    applyNPCDepthTick({ relationships: inputRels, weeksLived: 101 }, ctx);
+    applyNPCDepthTick({ relationships: inputRels, weeksLived: 101 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(0);
   });
 
@@ -3492,7 +3492,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     });
     const inputRels = [{ id: 'r1', name: 'Eve', type: 'friend', relationshipScore: 50 } as any];
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(result.relationships).toBe(inputRels); // same reference returned
     expect({
       newStats: ctx.newStats,
@@ -3501,11 +3501,16 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     }).toMatchSnapshot();
   });
 
-  it('weeksLived passed through to processWeeklyNPCDepth', () => {
+  it('weeksLived and the life salt are passed through to processWeeklyNPCDepth', () => {
     npcDepth.processWeeklyNPCDepth.mockReturnValue({ relationships: [], notifications: [] });
     const ctx = depthStubCtx(depthStubStats());
-    applyNPCDepthTick({ relationships: [], weeksLived: 1234 }, ctx);
-    expect(npcDepth.processWeeklyNPCDepth).toHaveBeenCalledWith([], 1234);
+    applyNPCDepthTick({ relationships: [], weeksLived: 1234, lifeSalt: 'equiv-fixture' }, ctx);
+    // The salt is the third argument as of Program 14: this stream used to be
+    // keyed on the week and the relationship id alone, and the ids that matter
+    // (`parent1`, `parent2`, the meeting door's `met-w2`) are literals shared
+    // across lives, so two players' NPCs drifted through identical moods in
+    // identical weeks.
+    expect(npcDepth.processWeeklyNPCDepth).toHaveBeenCalledWith([], 1234, 'equiv-fixture');
   });
 
   it('does NOT touch ctx.newStats on any successful path', () => {
@@ -3517,7 +3522,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     const stats = depthStubStats({ happiness: 42, money: 9999 });
     const before = { ...stats };
     const ctx = depthStubCtx(stats);
-    applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.newStats).toEqual(before);
   });
 });

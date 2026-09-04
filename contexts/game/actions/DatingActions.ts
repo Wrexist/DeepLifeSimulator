@@ -10,6 +10,7 @@
  */
 
 import { GameState, WeddingPlan } from '../types';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta, updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
@@ -221,7 +222,13 @@ export const goOnDate = (
       // `prev` so it uses the commitments in force when the updater runs.
       energy: Math.max(0, Math.min(100,
         (prev.stats.energy || 0) - getCommitmentModifiers(prev, 'relationships').energyCost(config.energy))),
-      happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + config.happiness)),
+      // Program 14: through the diminishing-returns curve like every other
+      // happiness gain. A direct write here is how the romance life stayed
+      // pinned at 100 while every other persona spread out - going on a date
+      // every week restored the whole tick's decay, and the write bypassed
+      // both `applyStatsDelta` and the tick's own choke point.
+      happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0)
+        + scaledHappinessGain(prev.stats.happiness || 0, config.happiness))),
     },
     relationships: (prev.relationships || []).map(r => {
       if (r.id !== partnerId) return r;
@@ -517,7 +524,8 @@ export const proposeMarriage = (
         stats: {
           ...prev.stats,
           money: Math.max(0, (prev.stats.money || 0) - ring.price),
-          happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + 30)),
+          happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0)
+            + scaledHappinessGain(prev.stats.happiness || 0, 30))),
         },
         relationships: (prev.relationships || []).map(r =>
           r.id === partnerId
@@ -784,7 +792,8 @@ export const executeWedding = (
       stats: {
         ...prev.stats,
         money: Math.max(0, (prev.stats.money || 0) - remainingBalance),
-        happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + happinessBonus)),
+        happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0)
+          + scaledHappinessGain(prev.stats.happiness || 0, happinessBonus))),
         reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + reputationBonus)),
       },
       relationships: updatedRelationships,

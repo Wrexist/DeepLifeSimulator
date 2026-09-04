@@ -5091,3 +5091,58 @@ was confirmed by stashing the one-line engine change, re-running the same tests
 and watching them pass on the old code. That took four minutes and it is the
 difference between "my change did this, and here is why the new number is
 right" and "I adjusted a threshold until the suite went green".
+
+
+## 2026-09-04 — Program 14: a hypothesis in a report is not a finding
+
+First: **the cause named in the last report was wrong, and testing it took four
+minutes.** Program 13 recorded that the tick was not reproducible and named
+`Date.now()` as the culprit. Program 14 froze the clock for an entire run and
+the divergence was unchanged. Had I inherited that guess instead of testing it,
+I would have spent the program rewriting timestamps. When a report hands you a
+cause, check whether it was measured or reasoned — and when you write one,
+say which it was. I have marked that sentence in Program 13's report.
+
+Second, and it is the reason the bug survived three programs: **the simulation
+harness seeds `Math.random`, so an unseeded draw is invisible to the very tests
+that would catch it.** `earlyGameSim` assigns `Math.random = mulberry32(seed)`
+for its runs. A probe I installed before calling it recorded ZERO draws, because
+the harness overwrote the probe. Every unit test of `generateNPCGoals` passed,
+deterministically, for as long as the function has existed — while the app it
+ships in rolled fresh dice every week. A test environment that repairs the
+defect under test is worse than no test. That is why the guard that finally
+holds the line is STATIC.
+
+Third: **fix the choke point, not the call site — and measure which one you are
+actually at.** I applied the happiness curve to the two obvious writers,
+re-measured, and found almost nothing had moved: those two carried 1-3.5 points
+a week out of a much larger flow. Three more rounds followed. The lesson is not
+"look harder" — it is that I should have instrumented the flow BEFORE choosing
+where to intervene, which would have shown in one run what four rounds showed
+slowly.
+
+Fourth: **a comment asserting a safety property is a claim to verify.**
+`checkViralChance` carried "ANTI-EXPLOIT: Use deterministic hash instead of
+Math.random() to prevent save/reload abuse. Same inputs at same game state =
+same outcome every time." Its hash input was `Date.now()`. Ten lines below,
+`checkViralChanceFull` did the same job correctly on `weeksLived`. This is the
+same shape as the `notifications` feature flag with zero readers (CLAUDE.md
+4.6) and the coverage gate that could never pass (8): a guard nobody checks
+reads as protection and is not.
+
+Fifth: **when a regression makes an exact-value assertion fail, read what the
+test is NAMED before touching the number.** Six suites went red. One was called
+"clamps stat effects to 100" and asserted `toBe(100)`; the value is now 99.6
+because a gain near the ceiling is worth less. The bound is what it meant; the
+exact 100 was only ever true because gains were free at the top of the scale,
+which is the defect being removed. Two others pinned an arithmetic identity to
+six decimal places across two lives that are now scaled differently. None of
+those was a weakened assertion — but I only get to say that because I read each
+one instead of nudging tolerances until the suite went green.
+
+Sixth: **verify a null result before reporting it, and report it when it holds.**
+Halving the falloff floor moved the persona spread from 12.18 to 12.29 and did
+not move the romance life at all. That is a real answer — the floor is not what
+is holding the ceiling together — so it is recorded in the module rather than
+shipped as a tuning. Program 12 did this with an event weight and it is what
+made Program 13's first hour productive.

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { Alert } from 'react-native';
 import {
   executeWedding,
@@ -282,7 +283,8 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
       ...prev,
       stats: {
         ...prev.stats,
-        happiness: Math.min(100, (prev.stats.happiness || 0) + 20),
+        happiness: Math.min(100, (prev.stats.happiness || 0)
+        + scaledHappinessGain(prev.stats.happiness || 0, 20)),
       },
       relationships: (prev.relationships || []).map(r =>
         r.id === partnerId ? {

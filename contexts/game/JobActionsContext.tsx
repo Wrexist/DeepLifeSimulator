@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import * as JobActions from './actions/JobActions';
 import { rejectIfBlocked, isPlayerJailed } from './actions/_guards';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { updateStats } from './actions/StatsActions';
 import { updateMoney as updateMoneyModule, applyMoneyDelta } from './actions/MoneyActions';
 import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
@@ -429,7 +430,8 @@ function applyCriminalXp(
           newStats.health = Math.min(100, (newStats.health || 0) + activity.healthGain);
         }
         if (activity.happinessGain) {
-          newStats.happiness = Math.min(100, (newStats.happiness || 0) + activity.happinessGain);
+          newStats.happiness = Math.min(100, (newStats.happiness || 0)
+   + scaledHappinessGain(newStats.happiness || 0, activity.happinessGain));
         }
         if (activity.reputationGain) {
           newStats.reputation = Math.min(100, (newStats.reputation || 0) + activity.reputationGain);

@@ -49,7 +49,10 @@ import { queueSave, forceSave } from '@/utils/saveQueue';
 import { isWritableSlot } from '@/utils/slotNumber';
 import { isSaveFromFutureError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
-import { makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
+import { lifeSalt, makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
+// Diminishing returns on happiness GAINS (Program 14). Every positive happiness
+// delta in this file goes through it; decay below is untouched.
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
@@ -893,6 +896,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
  }
  newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
+ // The baseline for the single diminishing-returns application at the end of
+ // this updater (Program 14): happiness AFTER natural decay, not before it.
+ //
+ // The difference matters and the first cut got it wrong. Measuring from the
+ // start of the tick nets the decay in with the gains, so scaling the net
+ // scales the DECAY down too - a week that gained 10 and decayed 3.2 moved
+ // +6.8, and taking a fifth of that credits +1.36 instead of applying the full
+ // -3.2 against a diminished +2. Decay is not a gain and must not diminish;
+ // measuring from here keeps it at full strength and applies the curve to
+ // exactly what the subsystems added.
+ const happinessAfterDecay = newStats.happiness ?? 0;
 
  // Fitness decay: increases the longer you don't visit the gym
  const lastGymVisitWeek = prevState.lastGymVisitWeek || 0;
@@ -1700,6 +1714,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const npcDepthResult = applyNPCDepthTick({
    relationships: processedRelationships,
    weeksLived: nextWeeksLived,
+   lifeSalt: lifeSalt(prevState),
  }, weeklyCtx);
  // The helper returns a fresh array; replace in place to preserve the
  // legacy mutation-of-the-same-reference contract the downstream blocks
@@ -2804,6 +2819,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (goalsErr) {
  logger.error('[SAVINGS GOALS TICK] failed:', goalsErr);
  }
+ }
+
+ // ── DIMINISHING RETURNS ON THE WEEK'S NET HAPPINESS GAIN (Program 14) ─────
+ //
+ // Applied ONCE, here, on the net movement of the whole tick rather than at
+ // each writer. That is deliberate and it is the second design: the first
+ // scaled four individual call sites, and measurement showed those four carry
+ // between 1 and 3.5 points a week while roughly twenty other writers
+ // (`applyPets`, `applyLuxuryItems`, `applyEducationProgression`,
+ // `applyPregnancyProgression`, the career and education penalties, the travel
+ // and dating actions...) carry the rest. Chasing them one at a time would
+ // have left the next new subsystem free to bypass the curve silently, which
+ // is the failure mode this whole program exists to close.
+ //
+ // Scaling the NET also says the right thing: what faces diminishing returns
+ // is the life's emotional movement over the week, not each individual
+ // contribution to it. A week that gains 10 from events and loses 5 to a
+ // career penalty has moved +5, and +5 is what gets scaled.
+ //
+ // A net-NEGATIVE week passes through untouched. Nothing here makes a bad week
+ // worse; it makes a good week harder to bank once you are already thriving.
+ if (typeof happinessAfterDecay === 'number') {
+   const netHappinessMove = (newStats.happiness ?? 0) - happinessAfterDecay;
+   if (netHappinessMove > 0) {
+     newStats.happiness = clampStat0to100(
+       happinessAfterDecay + scaledHappinessGain(happinessAfterDecay, netHappinessMove),
+     );
+   }
  }
 
  // (3) Favor ledger expiry - wires the previously-unwired contacts favor tick
@@ -5256,7 +5299,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return {
 ...prev,
 ...spend,
- stats: { ...spend.stats, happiness: Math.max(0, Math.min(100, (prev.stats?.happiness ?? 0) + 15)) },
+ stats: { ...spend.stats, happiness: Math.max(0, Math.min(100,
+   (prev.stats?.happiness ?? 0) + scaledHappinessGain(prev.stats?.happiness ?? 0, 15))) },
  relationships: (prev.relationships || []).map(r =>
  r.id === partnerId ? {...r, engagementWeek: prev.weeksLived || 0 }: r
  ),

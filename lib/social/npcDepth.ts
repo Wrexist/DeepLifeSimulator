@@ -87,9 +87,29 @@ const GOAL_TEMPLATES: Omit<NPCGoal, 'fulfilled' | 'fulfilledWeek'>[] = [
 ];
 
 /**
- * Generate 2-3 personal goals for a new NPC based on their type and personality.
+ * The 2-3 goals an NPC carries, drawn from the pool their type allows.
+ *
+ * `roll` is REQUIRED, not optional (Program 14). This function ran on
+ * `Math.random()` and is called from the WEEKLY TICK, which CLAUDE.md
+ * §4.3 forbids outright - and its output is written into the save, so the
+ * same life replayed produced a different NPC. It was the first field to
+ * diverge when two identical persona runs were diffed week by week, and it
+ * hid for as long as it did because the simulation harness seeds
+ * `Math.random` for its own runs: the draw looked reproducible in a test and
+ * was not reproducible in the app. An optional roll with a `Math.random`
+ * fallback would leave exactly that hiding place open, so there is no
+ * fallback and the one caller must supply the stream.
+ *
+ * The shuffle is a real Fisher-Yates. It was
+ * `pool.sort(() => Math.random() - 0.5)`, which is not a shuffle at all: the
+ * comparator is inconsistent, so the permutation it produces depends on the
+ * engine's sort implementation and is heavily biased toward the input order.
  */
-export function generateNPCGoals(type: Relationship['type'], _personality: string): NPCGoal[] {
+export function generateNPCGoals(
+ type: Relationship['type'],
+ _personality: string,
+ roll: (key: string) => number,
+): NPCGoal[] {
  const pool = GOAL_TEMPLATES.filter(g => {
  // Children don't have career/travel/relationship goals
  if (type === 'child') return g.category === 'family' || g.category === 'lifestyle';
@@ -98,8 +118,14 @@ export function generateNPCGoals(type: Relationship['type'], _personality: strin
  return true;
  });
 
- const shuffled = pool.sort(() => Math.random() - 0.5);
- const count = 2 + (Math.random() < 0.5 ? 1 : 0); // 2-3 goals
+ const shuffled = pool.slice();
+ for (let i = shuffled.length - 1; i > 0; i--) {
+ const j = Math.floor(roll(`goal-shuffle:${i}`) * (i + 1));
+ const swap = shuffled[i];
+ shuffled[i] = shuffled[j];
+ shuffled[j] = swap;
+ }
+ const count = 2 + (roll('goal-count') < 0.5 ? 1 : 0); // 2-3 goals
  return shuffled.slice(0, count).map(g => ({ ...g, fulfilled: false }));
 }
 
@@ -164,20 +190,38 @@ const MAX_MEMORIES = 20;
 /**
  * Add a memory to an NPC. Keeps the most recent MAX_MEMORIES.
  */
+/** FNV-1a over a string, base36. Stable across engines; used only for ids. */
+function shortHash(text: string): string {
+ let h = 0x811c9dc5;
+ for (let i = 0; i < text.length; i++) {
+ h ^= text.charCodeAt(i);
+ h = Math.imul(h, 0x01000193) >>> 0;
+ }
+ return h.toString(36);
+}
+
 export function addMemory(
  existing: NPCMemory[],
  memory: Omit<NPCMemory, 'id'>,
  /**
   * Optional deterministic id factory. The seeded weekly tick threads one in
   * (derived from the weekly roll) so reloads / StrictMode double-invoke produce
-  * byte-identical memory ids. Live actions (Contacts/Dating) omit it and keep
-  * the unique wall-clock + random id so concurrent user actions never collide.
+  * byte-identical memory ids.
   */
  makeId?: () => string
 ): NPCMemory[] {
  const newMemory: NPCMemory = {
  ...memory,
- id: makeId ? makeId() : `mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+ // The fallback is CONTENT-ADDRESSED, not wall-clock (Program 14). It was
+ // `mem_${Date.now()}_${Math.random()}`, justified in a comment as keeping
+ // "concurrent user actions" from colliding — but there is no concurrency
+ // here, and the cost was real: memory ids are written into the save, so the
+ // same life replayed produced a different save. This was the second field to
+ // diverge when two identical persona runs were diffed week by week (the
+ // first was `generateNPCGoals`). Nothing reads a memory id, so a collision
+ // between two byte-identical memories in the same week is harmless, while
+ // determinism is not.
+ id: makeId ? makeId() : `mem_${memory.weeksLived}_${memory.type}_${shortHash(memory.description)}`,
  };
  const updated = [...existing, newMemory];
  // Keep only most recent
@@ -804,19 +848,31 @@ export function resolveInteraction(
 export function processWeeklyNPCDepth(
  relationships: Relationship[],
  weeksLived: number,
+ /**
+  * `lineageId:generationNumber` for the life being ticked, folded into every
+  * key below (Program 14). Without it this stream was keyed on the week and
+  * the relationship id, and the ids that matter here are SHARED across lives:
+  * `parent1`, `parent2` and the meeting door's `met-w2` are literals, so two
+  * different players' mothers drifted through the same moods in the same
+  * weeks. Optional so a caller that genuinely has no life (a unit test on a
+  * bare array) still works; the tick always passes it.
+  */
+ lifeSalt = '',
 ): { relationships: Relationship[]; notifications: string[] } {
  const notifications: string[] = [];
 
- // Deterministic per-week roll stream (seeded on weeksLived) - the mood drift
- // + want rotation below are reproducible across reloads (no save-scum).
- const weeklyRoll = makeWeeklyRoll(weeksLived);
+ // Deterministic per-week roll stream (seeded on weeksLived AND the life) -
+ // the mood drift + want rotation below are reproducible across reloads (no
+ // save-scum) and differ between two lives living the same week.
+ const weekStream = makeWeeklyRoll(weeksLived);
+ const weeklyRoll = (key: string): number => weekStream(`${lifeSalt}|${key}`);
 
  const updated = relationships.map(rel => {
  let r = { ...rel };
 
  // Initialize depth fields on first encounter
  if (!r.npcGoals) {
- r.npcGoals = generateNPCGoals(r.type, r.personality);
+ r.npcGoals = generateNPCGoals(r.type, r.personality, (k) => weeklyRoll(`goals:${r.id}:${k}`));
  }
  if (!r.npcOpinion) {
  r.npcOpinion = createInitialOpinion(r.type, r.relationshipScore);

@@ -13,6 +13,7 @@
  * natural stat decay + old-age death roll are reused unchanged.
  */
 import type { GameState, GameStats } from '@/contexts/game/types';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { applyMoneyDelta } from '@/lib/economy/moneyDelta';
 import { getAge, isRetired } from './pension';
 import { RETIREMENT_AGE, EARLY_RETIRE_MIN_AGE } from './constants';
@@ -299,7 +300,8 @@ export function applyElderActivity(state: GameState, id: string): ElderActivityR
   const eff = activity.effects;
   const newStats: GameStats = {
     ...statsAfterSpend,
-    happiness: clamp(num(statsAfterSpend.happiness) + num(eff.happiness), 0, 100),
+    happiness: clamp(num(statsAfterSpend.happiness)
+      + scaledHappinessGain(num(statsAfterSpend.happiness), num(eff.happiness)), 0, 100),
     health: clamp(num(statsAfterSpend.health) + num(eff.health), 0, 100),
     energy: clamp(num(statsAfterSpend.energy) + num(eff.energy), 0, 100),
     reputation: clamp(num(statsAfterSpend.reputation) + num(eff.reputation), 0, 100),

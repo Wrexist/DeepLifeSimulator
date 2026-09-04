@@ -11,6 +11,7 @@
  * worked exemplar is `purchaseLifeSkill` (C-10).
  */
 import type { GameState } from '@/contexts/game/types';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { scaledFoodRestore } from '@/lib/economy/foodSatiety';
 
@@ -62,7 +63,8 @@ export function resolveFoodPurchase(state: GameState, foodId: string): FoodPurch
         money: (state.stats.money ?? 0) - price,
         health: Math.min(100, (state.stats.health ?? 0) + applied.health),
         energy: Math.min(100, (state.stats.energy ?? 0) + applied.energy),
-        happiness: Math.min(100, (state.stats.happiness ?? 0) + applied.happiness),
+        happiness: Math.min(100, (state.stats.happiness ?? 0)
+      + scaledHappinessGain(state.stats.happiness ?? 0, applied.happiness)),
       },
       weeklyFoodPurchases: eatenBefore + 1,
     },
