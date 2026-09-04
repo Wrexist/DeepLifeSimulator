@@ -94,21 +94,29 @@ export function estimateWeeklyMining(
   let cryptoEarned = result.cryptoEarned * halvingMultiplier;
   let totalEarnings = result.totalEarnings * halvingMultiplier;
   const totalPowerCost = result.totalPowerCost;
+  // The electricity basis - the hardware's own output, before the per-coin
+  // lever and the difficulty divisor. Halved alongside the yield, capped
+  // alongside it below, and used as the denominator in step 3, exactly as the
+  // tick does. See the note in applyMiningCryptos for why it is not
+  // `totalEarnings`.
+  let hardwareGrossUsd = result.hardwareGrossUsd * halvingMultiplier;
 
   // 2. $100K/wk realizable-value cap (scale crypto + USD together).
   if (totalEarnings > MINING_USD_CAP && cryptoEarned > 0) {
     const scale = MINING_USD_CAP / totalEarnings;
     cryptoEarned *= scale;
     totalEarnings = MINING_USD_CAP;
+    hardwareGrossUsd *= scale;
   }
 
   const grossUsd = Math.max(0, totalEarnings);
 
-  // 3. Electricity charged out of the minted crypto (NOT halved) — post-halving
-  //    mining can go unprofitable, exactly as the tick models it.
+  // 3. Electricity charged out of the minted crypto, as a share of the
+  //    hardware's own output — post-halving mining can still go unprofitable
+  //    (the bill is never halved), exactly as the tick models it.
   let netCrypto = cryptoEarned;
-  if (cryptoEarned > 0 && totalEarnings > 0) {
-    const powerCostFraction = totalPowerCost / totalEarnings;
+  if (cryptoEarned > 0 && hardwareGrossUsd > 0) {
+    const powerCostFraction = totalPowerCost / hardwareGrossUsd;
     const net = cryptoEarned * (1 - powerCostFraction);
     netCrypto = Number.isFinite(net) ? Math.max(0, net) : 0;
   }

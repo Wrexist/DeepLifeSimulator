@@ -81,3 +81,65 @@ describe('applyScheduledWedding - auto wedding-completion path', () => {
     expect(ctx.newStats.money).toBe(100); // not charged
   });
 });
+
+/**
+ * PLAYER REPORT (BBQ, 2026-08-31): "Choosing to get engaged instead of moving in
+ * together. This is also broken. The wedding is planned but never occurs.
+ * Forever engaged. Can have kids. After about a year can re-plan the wedding and
+ * it works as intended."
+ *
+ * That description matches this subsystem line for line: an unaffordable balance
+ * slides the date four weeks, forever, until the one-year expiry clears the plan
+ * and the player can re-plan. What made it read as broken rather than as an
+ * unpaid bill is that every one of those outcomes was announced to `logger.info`
+ * and to nobody else. The player is told at planning time that the wedding
+ * "happens on its week"; the game then never mentions it again.
+ */
+describe('a wedding that does not happen tells the player why', () => {
+  const balanceOf = (budget: number) => Math.floor(budget * 0.75);
+
+  it('postponing says what was owed, what is on hand, and when it retries', () => {
+    const ctx = makeCtx(100, 52);
+    const result = applyScheduledWedding(engagedRel(52), ctx);
+
+    expect(result!.rel.type).toBe('partner'); // still engaged, not married
+    expect(result!.rel.weddingPlanned?.scheduledWeek).toBe(56); // +4 weeks
+    expect(ctx.notifications).toHaveLength(1);
+    const note = ctx.notifications[0];
+    expect(note.title).toBe('Wedding Postponed');
+    expect(note.message).toContain(balanceOf(8000).toLocaleString());
+    expect(note.message).toContain('4 weeks');
+    expect(note.message).toContain('Alex');
+  });
+
+  it('expiring says the deposit is gone and the engagement is not', () => {
+    const rel = engagedRel(104);
+    (rel.weddingPlanned as { originalScheduledWeek?: number }).originalScheduledWeek = 52;
+    const ctx = makeCtx(0, 104);
+    const result = applyScheduledWedding(rel, ctx);
+
+    expect(result!.rel.weddingPlanned).toBeUndefined();
+    expect(ctx.notifications).toHaveLength(1);
+    expect(ctx.notifications[0].title).toBe('Wedding Called Off');
+    expect(ctx.notifications[0].message).toContain('kept the deposit');
+  });
+
+  it('the stale-plan sweep is announced too', () => {
+    // A plan whose date is more than a year in the past - e.g. carried through a
+    // migration. It quietly vanished before.
+    const ctx = makeCtx(1_000_000, 200);
+    const result = applyScheduledWedding(engagedRel(52), ctx);
+
+    expect(result!.rel.weddingPlanned).toBeUndefined();
+    expect(ctx.notifications).toHaveLength(1);
+    expect(ctx.notifications[0].title).toBe('Wedding Called Off');
+  });
+
+  it('a wedding that DOES happen raises the popup, not a notification', () => {
+    const ctx = makeCtx(1_000_000, 52);
+    const result = applyScheduledWedding(engagedRel(52), ctx);
+
+    expect(result!.weddingPopup).toEqual({ partnerName: 'Alex' });
+    expect(ctx.notifications).toHaveLength(0);
+  });
+});

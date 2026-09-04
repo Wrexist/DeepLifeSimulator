@@ -17,6 +17,7 @@ import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScal
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
 import { tier1Title, tier1Value, tier2 } from '@/lib/config/hierarchy';
+import AlertHost from '@/components/ui/AlertHost';
 
 interface PrestigeModalProps {
   visible: boolean;
@@ -740,6 +741,12 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
         )}
       </View>
       <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

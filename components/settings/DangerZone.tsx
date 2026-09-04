@@ -20,6 +20,7 @@ import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
 
 interface Props {
@@ -217,6 +218,12 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
             </View>
           </View>
         </View>
+        {/* iOS presents an RN Modal from the view controller nearest its mount
+            point, so the ROOT AlertHost's dialog cannot present while this Modal
+            covers the screen - the tap that raised it looks dead. This nested
+            host registers on top of the gameAlert stack while this Modal is up.
+            See __tests__/tooling/nestedAlertHosts.test.ts. */}
+        <AlertHost />
       </Modal>
     </>
   );

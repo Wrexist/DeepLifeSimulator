@@ -14,7 +14,7 @@ import { haptic } from '@/utils/haptics';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { satietyHint } from '@/lib/economy/foodSatiety';
 import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
-import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
+import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 
 /**
  * What a food purchase actually did - the market toast reads THIS rather than
@@ -725,6 +725,13 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         diseaseImmunities: updatedImmunities,
         vaccinations: vaccinationsResult,
         lastGymVisitWeek: updatedLastGymVisitWeek,
+        // C-1 (BBQ, 2026-08-31): performing a health activity raises the health
+        // commitment level, the same way practising raises `hobbies`. Without
+        // this the level could only ever decay, so the level half of the focus
+        // bonus (a primary focus is +30% at level 0 and +50% at level 100) was
+        // unreachable and the modal's bar never moved. Inside the same updater
+        // as the charge, so a same-batch double tap cannot count twice.
+        activityCommitments: recordCommitmentActivity(prevState.activityCommitments, 'health'),
       };
     });
 
