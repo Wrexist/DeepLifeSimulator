@@ -75,7 +75,7 @@ function relationshipNarrative(relationships: Relationship[]): string[] {
 
  if (partner) {
  const verb = partner.type === 'spouse' ? 'married' : 'fell in love with';
- // "…, whom they met at work in week 12." `metAt` (v50) is the only durable
+ // "…, whom they met at work in week 12." `metAt` (v51) is the only durable
  // record of how somebody entered the life - `npcMemories` decay after a year
  // - and it is the sentence a player actually remembers. Omitted silently for
  // a relationship that predates the field, which is every relationship in

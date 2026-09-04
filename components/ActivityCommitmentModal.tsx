@@ -11,6 +11,7 @@ import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/ut
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
 import { gameAlert } from '@/utils/gameAlert';
 import { tier1Title } from '@/lib/config/hierarchy';
+import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -352,6 +353,12 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
           </LinearGradient>
         </View>
       </View>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

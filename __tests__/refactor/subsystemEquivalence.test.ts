@@ -1230,6 +1230,16 @@ describe('pre-tick equivalence - applyMiningCryptos', () => {
     expect(result).toMatchSnapshot();
   });
 
+  /**
+   * SNAPSHOT UPDATED 2026-09-04, deliberately. 10 basic rigs on ETH used to mint
+   * 0.045333 ETH ($136) and now mint 0.048 ($144) - exactly 80% of BTC's net
+   * ($220 gross - $40 electricity = $180), which is what the x0.8 ETH lever is
+   * documented to mean. The old figure charged the $40 power bill against the
+   * POST-lever $176 rather than the $220 the hardware produces, so the lever
+   * inflated the bill's share too; on XRP (x0.1) that share cleared 100% and the
+   * payout floored at zero forever. See applyMiningCryptos and the entry-point
+   * tests in __tests__/economy/miningAltCoinYield.test.ts.
+   */
   it('mining ETH (lower multiplier in calculateMiningEarnings)', () => {
     const result = applyMiningCryptos({
       prevWarehouse: {

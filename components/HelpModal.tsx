@@ -13,6 +13,7 @@ import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
 import { gameAlert } from '@/utils/gameAlert';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
+import AlertHost from '@/components/ui/AlertHost';
 
 /**
  * The Onion Browser explainer, shared by the two FAQ sections that both ask
@@ -864,6 +865,12 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
           </TouchableOpacity>
         </View>
       </View>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

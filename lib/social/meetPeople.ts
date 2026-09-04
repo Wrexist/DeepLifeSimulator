@@ -266,7 +266,7 @@ export function introductionToRelationship(intro: Introduction, atWeek: number):
     gender: intro.gender,
     age: intro.age,
     job: intro.job,
-    // v50 — the whole point. A bond is a number; where it started is a story.
+    // v51 — the whole point. A bond is a number; where it started is a story.
     metAt: { venue: intro.venue.id, label: intro.venue.label, week: Math.max(0, Math.floor(atWeek)) },
   };
 }

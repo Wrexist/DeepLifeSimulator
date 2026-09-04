@@ -70,7 +70,8 @@ import { proposeMarriage, cancelEngagement } from '@/contexts/game/actions/Datin
 import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
 import { colors, accent } from '@/lib/config/theme';
-import { getLifeStage } from '@/lib/config/gameConstants';
+import { getLifeStage, WEDDING_REMAINDER_RATE } from '@/lib/config/gameConstants';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
  getActionsForAge,
@@ -85,6 +86,7 @@ import {
 } from '@/lib/parenting';
 import type { ChildInfo, Relationship } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
 
 const c = colors.dark;
@@ -584,6 +586,10 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  const isEngaged = partner.engagementWeek != null;
  const hasWeddingPlan = Boolean(partner.weddingPlanned);
+ // The 75% the venue collects on the day - the same figure
+ // `applyScheduledWedding` charges, read from the one constant so the promise
+ // and the charge cannot drift.
+ const weddingBalanceDue = Math.floor((partner.weddingPlanned?.budget || 0) * WEDDING_REMAINDER_RATE);
  const committed = Boolean(partner.livingTogether) || isEngaged;
  const score = partner.relationshipScore;
 
@@ -635,7 +641,22 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {isEngaged && hasWeddingPlan && (
  <View style={styles.scheduledBanner}>
  <Heart size={scale(16)} color={accent.success} />
- <Text style={styles.scheduledBannerText}>Wedding scheduled - it happens on its week</Text>
+ {/* PLAYER REPORT (BBQ, 2026-08-31): "The wedding is planned but never
+     occurs. Forever engaged." The balance is what decides that. Planning
+     pays a 25% deposit; the venue takes the other 75% on the day, and if
+     the cash is not there the tick slides the date four weeks (silently,
+     until now - see applyScheduledWedding). This banner promised "it
+     happens on its week" and never mentioned the bill, so a player short
+     of it had no way to know what they were waiting on. */}
+ <Text style={styles.scheduledBannerText}>
+ {weddingBalanceDue > 0
+ ? `Wedding scheduled - ${formatMoney(weddingBalanceDue)} due on the day${
+ (gameState.stats?.money ?? 0) < weddingBalanceDue
+ ? `. You have ${formatMoney(gameState.stats?.money ?? 0)} - short of it, the venue rebooks you 4 weeks later.`
+ : ''
+ }`
+ : 'Wedding scheduled - it happens on its week'}
+ </Text>
  </View>
  )}
 
@@ -973,6 +994,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </ScrollView>
  </View>
  </View>
+   {/* iOS presents an RN Modal from the view controller nearest its mount
+       point, so the ROOT AlertHost's dialog cannot present while this Modal
+       covers the screen - the tap that raised it looks dead. This nested
+       host registers on top of the gameAlert stack while this Modal is up.
+       See __tests__/tooling/nestedAlertHosts.test.ts. */}
+   <AlertHost />
  </Modal>
  );
  };

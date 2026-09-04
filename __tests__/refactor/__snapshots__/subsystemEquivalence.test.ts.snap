@@ -3457,7 +3457,7 @@ exports[`pre-tick equivalence - applyMiningCryptos mining ETH (lower multiplier 
     {
       "id": "eth",
       "name": "Ether",
-      "owned": 0.04533333333333334,
+      "owned": 0.048,
       "price": 3000,
       "symbol": "ETH",
       "weeklyRate": 0.01,

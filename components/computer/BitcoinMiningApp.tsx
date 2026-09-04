@@ -76,7 +76,7 @@ import {
   ENERGY_TYPES,
 } from '@/contexts/game/actions/MiningActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { sellMiner } from '@/contexts/game/company';
+import { sellMiner, sellAllMiners } from '@/contexts/game/company';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CoinRow from '@/components/crypto/CoinRow';
@@ -423,6 +423,35 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         },
       },
     ]);
+  };
+
+  // "One at a time is not enough, needs a sell all option" (BBQ, 2026-09-01).
+  // Unwinding the 600-rig fleet that prompted the report was 600 confirms.
+  const handleSellAllMiners = (tierId: string, label: string) => {
+    const price = MINER_PRICES[tierId];
+    if (price == null) return;
+    const owned = gameState.warehouse?.miners?.[tierId] ?? 0;
+    if (owned <= 0) {
+      gameAlert('Nothing to sell', `You don't own a ${label}.`);
+      return;
+    }
+    const proceeds = Math.floor(price * 0.5) * owned;
+    gameAlert(
+      'Sell all rigs',
+      `Sell all ${owned} ${label}${owned === 1 ? '' : 's'} for ${formatMoneyCompact(proceeds)}? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Sell all ${owned}`,
+          style: 'destructive',
+          onPress: () => {
+            const res = sellAllMiners(gameState, setGameState, tierId, label, price);
+            gameAlert(res.success ? 'Rigs sold' : 'Cannot sell', res.message ?? '');
+            if (res.success) queueSave();
+          },
+        },
+      ]
+    );
   };
 
   const handleSelectMineTarget = (coinId: string) => {
@@ -1513,6 +1542,22 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             <Minus size={scale(13)} color={accent.danger} />
             <Text style={[styles.buyBtnText, { color: accent.danger }]}>
               Sell · {formatMoneyCompact(Math.floor(price * 0.5))}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* Sell all - only worth a second button once one-at-a-time is tedious,
+            so it appears from the second unit up. */}
+        {owned > 1 ? (
+          <TouchableOpacity
+            onPress={() => handleSellAllMiners(tier.id, tier.label)}
+            style={[styles.buyBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: accent.danger }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Sell all ${owned} ${tier.label} rigs for ${formatMoneyCompact(Math.floor(price * 0.5) * owned)}`}
+          >
+            <Minus size={scale(13)} color={accent.danger} />
+            <Text style={[styles.buyBtnText, { color: accent.danger }]}>
+              Sell all {owned} · {formatMoneyCompact(Math.floor(price * 0.5) * owned)}
             </Text>
           </TouchableOpacity>
         ) : null}

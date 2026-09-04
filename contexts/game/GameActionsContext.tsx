@@ -172,6 +172,7 @@ import { applyNPCDepthTick } from './actions/weekly/applyNPCDepthTick';
 import { applyChildAging } from './actions/weekly/applyChildAging';
 import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
+import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import { clearPromotedSparkMatch, clearOrphanedSparkPromotions } from '@/lib/dating/sparkStats';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import {
@@ -3564,6 +3565,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevState,
    newStats,
    nextWeeksLived,
+   // A week actually worked - held a job, not retired, not in a cell. Feeds the
+   // `career` activity-commitment level (see the growth block there).
+   workedThisWeek: Boolean(newCurrentJob) && !prevState.isRetired && !((prevState.jailWeeks ?? 0) > 0),
  }).partial,
  };
 
@@ -3950,6 +3954,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // Apply relationship change
  let updatedRelationships = prevState.relationships || [];
+ // Set when the `wedding` event's "marry" choice promotes a partner, so the
+ // denormalized `family.spouse` copy is written in the SAME transition - see the
+ // note on that branch.
+ let eventWeddingSpouse: Relationship | undefined;
  // Prefer the event's bound relationId. Several event templates
  // (personalCrises/enhancedEvents/cliffhangerEvents/seasonalEvents) specify a
  // relationship delta but never set relationId, which silently dropped the
@@ -3976,14 +3984,36 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...rel,
  relationshipScore: Math.max(0, Math.min(100, (rel.relationshipScore ?? 50) + effects.relationship!)),
  };
- // Wedding event: promote partner to spouse when player chooses 'marry'
+ // Wedding event: promote partner to spouse when player chooses 'marry'.
+ //
+ // PLAYER REPORT (BBQ, 2026-08-31): "Moving in with Partner skips the marriage
+ // aspect of the game. Making them a spouse. The propose button is available
+ // but also says 'partner not found' once a ring option is chosen. Unable to
+ // breakup says 'partner not found'. The bugged spouse does not show up in
+ // family page."
+ //
+ // All three symptoms came from this branch, which used to stamp
+ // `type = 'spouse'` by hand. It is the THIRD path to marriage, and
+ // `lib/dating/spouseRecord.ts` exists precisely because the other two drifted
+ // when each wrote its own field list - this one was never told about it.
+ // Hand-written it left `marriageWeek`/`anniversaryWeek` unset (anniversaries
+ // bail on a missing `anniversaryWeek`, so they were permanently off) and,
+ // worse, never mirrored `family.spouse`. FamilyTab renders its partner card
+ // only when `family.spouse` is ABSENT and its spouse card only when it is
+ // PRESENT, so a marriage recorded in `relationships` alone showed NEITHER -
+ // the person vanished from the family page. And with `type` no longer
+ // `'partner'`, `proposeMarriage` and `breakUpWithPartner` - both of which look
+ // for exactly that - could only answer "Partner not found."
+ //
+ // Through the shared factory now (which also clears the engagement/plan flags
+ // the old P1-2 lines cleared by hand, so the weekly scheduled-wedding tick
+ // still cannot re-charge the 75% balance), and mirrored into `family.spouse`
+ // in the same transition below.
  if (eventId === 'wedding' && choiceId === 'marry' && rel.type === 'partner') {
- (updated as Record<string, unknown>).type = 'spouse';
- // P1-2: clear any planned/engagement state so the weekly scheduled-wedding
- // tick doesn't later charge the 75% balance again for an already-married spouse.
- (updated as Record<string, unknown>).weddingPlanned = undefined;
- (updated as Record<string, unknown>).engagementWeek = undefined;
+ const married = buildSpouseRecord(updated, prevState.weeksLived || 0);
+ eventWeddingSpouse = married;
  logger.info(`[WEDDING] ${rel.name} changed from partner to spouse via event`);
+ return married;
  }
  return updated;
  }
@@ -4337,6 +4367,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...prevState, // Preserve ALL existing properties
  stats: updatedStats, // Update stats
  relationships: updatedRelationships, // Update relationships if changed
+ // Mirror a wedding-event marriage into the denormalized family copy, in the
+ // same transition that promotes the relationship, so the two cannot disagree.
+...(eventWeddingSpouse
+ ? {
+ family: {
+...prevState.family,
+ // `children` is required on FamilyState; a malformed save can still omit it,
+ // and this must not be the write that removes it.
+ children: prevState.family?.children ?? [],
+ spouse: eventWeddingSpouse,
+ },
+ }
+ : {}),
  pets: updatedPets, // Update pets if changed
  pendingEvents: finalPendingEvents, // Remove resolved event
  pendingChainedEvents: updatedPendingChainedEvents, // P0-12: append chained event immutably

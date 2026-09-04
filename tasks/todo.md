@@ -220,7 +220,7 @@ soak `RUN_SOCIAL_PERSONAS=1 npx jest socialPersonas`.
       `WEEKS_PER_YEAR` · `partnerIncomeUnits.test.ts`.
 - [x] A tier-1 way to meet somebody · `lib/social/meetPeople.ts` + `meetSomeone`
       + the Contacts card · `meetPeople.test.ts`.
-- [x] v50 `metAt` — where and when somebody entered the life; surfaced on the
+- [x] v51 `metAt` — where and when somebody entered the life; surfaced on the
       Contacts card and in the life story · `carveOutRoundTrip.test.ts`.
 - [x] `ch2_someone_close` — one bond at 60, satisfiable by a loner who calls
       their mother · `wealthRatchet.test.ts`, `progressionIntegrity.test.ts`.
@@ -238,6 +238,145 @@ soak `RUN_SOCIAL_PERSONAS=1 npx jest socialPersonas`.
       for family estrangement.
 ## Phase 12 — gates + report. STATUS: **done** — `tasks/social-systems-2026-09-03.md`,
 lessons appended, CLAUDE.md §7 (v50) and the social note updated.
+
+# Plan — Discord bug triage, round 2 (2026-09-04)
+
+Follow-up to PR #186 (merged). Three screenshots arrived after that landed and
+they change two conclusions.
+
+## What the screenshots proved
+
+- **#5 App Initialization Error — the reporter's own theory was wrong, and the
+  recording names the cause.** It is not achievements or discovery. The error
+  text is `crypto.getRandomValues() not supported`, which is verbatim from
+  `uuid`'s browser `rng.js`. Metro resolves `uuid`'s `browser` export for React
+  Native, Hermes has no `crypto` global, and the repo ships no polyfill - so the
+  single `uuidv4()` call in the codebase throws every time it runs. The screen
+  then blames iOS ("This may be caused by an incompatible iOS version"), which is
+  why the report reads as a version problem.
+- **#3 Re-occurring pop-ups — my merged fix was for a DIFFERENT bug.** The five
+  screenshots are toasts, not queued modal events: "You're now a parent",
+  "Congratulations on getting married", the perfect-week celebration. These are
+  `showOnce` milestones in `utils/smartNotifications.ts`, and the "already shown"
+  record is a private `Map` on a module singleton - pure in-memory state that dies
+  with the JS runtime. Every relaunch re-arms the entire backlog, because every
+  condition (`hasSpouse`, `hasChildren`, `minMoney`) is still true. That is
+  exactly "they pop up every time the game is refreshed". The pendingEvents
+  dedupe I shipped was a real bug; it was not this one.
+
+## Tasks
+
+- [x] 1. Drop the `uuid` dependency. Its one call site mints an ad-impression
+      correlation id, which needs uniqueness, not cryptographic randomness -
+      a far smaller change than adding a native polyfill on the boot path. (#5)
+- [x] 2. `AdMobService.trackBannerRevenue` evaluates `newImpressionId()` as an
+      ARGUMENT, so the throw lands outside the try/catch that `BannerAd` says
+      "fully swallowed inside the service". Make the guard true. (#5)
+- [x] 3. Persist the `showOnce` notification record so a milestone the player has
+      already been told about cannot fire again on the next launch. (#3)
+- [x] 4. Verify: type-check, type-check:tests, lint, routes, save audit, full suite.
+
+All four complete. Verification: type-check clean, type-check:tests clean,
+check:routes OK, lint:errors 0, lint:ratchet 722/722, check:aso and check:content
+OK, `npm run audit:save` clean — its `as GameState` count is 41, two lower than when
+this round started, because the hand-cast state PR #186 introduced in
+`applyWeeklyEvents.test.ts` was routed through `createTestGameState` as well.
+Full suite: 743 suites / 9399 tests green.
+The v50 carve-out row was added after `carveOutRoundTrip` correctly failed for
+its absence.
+
+## Deliberately not doing
+
+- **Settings > Show Tutorial "incomplete"** - the reporter self-resolved it in a
+  follow-up ("The FAQ help button next to settings more than makes up for this").
+  A content gap, not a defect.
+- **A `crypto.getRandomValues` polyfill.** `react-native-get-random-values` is a
+  native module, so it lands under Hard Rule #4 (config-plugin alignment) and has
+  to be imported before anything touches uuid - a boot-order hazard on the ad
+  path. Removing the only uuid call removes the need entirely.
+- **Persisting notification COOLDOWNS.** They are keyed on `Date.now()`, and a
+  persisted wall-clock gate is the farmable shape CLAUDE.md warns about
+  (v28/v31/v35/v40/v44). Only the showOnce set is persisted; a cooldown resetting
+  on restart lets a warning repeat, which is not what was reported.
+
+---
+
+# Plan — Discord bug triage (2026-09-04)
+
+Source: `#bug-reports` triage brief. All 8 current reports from `a.a.a8644` (BBQ),
+build 2.5.8 (2026-07-20); HEAD is 2.12.0. Each item below was re-verified against
+HEAD before planning — several of the brief's hypotheses did not survive that.
+
+One limit worth stating: this clone's history begins at 2.9.0 (the 2026-08-18
+repo-cleanup merge), so the reporter's 2.5.8 code is not reachable here and "was
+this already broken then?" cannot be answered. Everything below is a defect that
+is live at HEAD, which is what a future build would ship regardless.
+
+## Findings that changed the brief
+
+- **#2 Property / #6 Life Skills are ONE bug, not two.** Neither is a real-estate
+  or skill-tree logic error. Both screens raise their confirm through `gameAlert`
+  from inside an RN `Modal` that does not nest its own `AlertHost`. iOS refuses
+  the root host's sibling Modal presentation, so the dialog never appears — "button
+  lights up but nothing happens" — and the refused transparent presentation is what
+  strands touches ("screen freezes"). `__tests__/tooling/nestedAlertHosts.test.ts`
+  already documents the class and pins THREE files by hand; 13 more surfaces need it.
+- **#1 Crypto Mines is not the `selectedCrypto` gate.** Measured on the real tick:
+  electricity is charged out of revenue that has ALREADY been cut by the per-coin
+  multiplier, the difficulty ramp and the halvings — while the cost itself is
+  scaled by none of them. XRP mines exactly $0/wk at every fleet size; ADA hits $0
+  the moment the automatic difficulty ramp reaches 2.0. That is permanent and silent.
+- **#4 Activity Commitments is half-fixed at HEAD.** The bonus/penalty wiring landed
+  (C-1, four sites). What is still live: `commitmentLevels` has an increment path for
+  `hobbies` ONLY — career, relationships and health can only ever decay.
+- **#7 part 1 root cause found.** The `wedding` random event's "marry" choice
+  promotes `type` to `'spouse'` inline instead of via `buildSpouseRecord`, and never
+  mirrors `family.spouse`. That single line produces all three reported symptoms.
+- **#7 part 2 is not the unpushed branch.** `claude/fix-wedding-popup-stuck-state`
+  does not exist in this clone or on `origin`. The real cause is `applyScheduledWedding`
+  postponing an unaffordable wedding +4 weeks, silently, until it expires a year later.
+- **#3 root cause found.** `applyWeeklyEvents` appends without deduping against
+  `pendingEvents`, and `resolveEvent` removes one entry by index — so a template
+  queued twice reappears after being answered.
+
+## Tasks
+
+- [x] 1. AlertHost: nest `<AlertHost />` in the 13 Modal surfaces that raise
+      `gameAlert`, and replace the hand-maintained list in
+      `__tests__/tooling/nestedAlertHosts.test.ts` with a derived scan so the
+      inventory cannot rot again. (#2, #6)
+- [x] 2. Mining: charge electricity against the fleet's own gross output rather than
+      post-lever revenue, so the coin multiplier / difficulty / halving scale the NET
+      instead of driving it to a hard zero. Mirror in `estimateWeeklyMining`. (#1)
+- [x] 3. Mining QoL: "Sell all" for a rig tier. (#1, explicit request)
+- [x] 4. Commitments: give career / relationships / health the increment path hobbies
+      already has, at the three sites that already resolve their modifiers. (#4)
+- [x] 5. Wedding event: route the `marry` promotion through `buildSpouseRecord` and
+      mirror `family.spouse`; make `resolveFamilySpouse` adopt an unmirrored spouse so
+      already-broken saves self-heal. (#7 part 1)
+- [x] 6. Scheduled wedding: tell the player when a wedding is postponed for want of
+      the balance, and when the plan expires. (#7 part 2)
+- [x] 7. Events: do not queue an event whose id is already pending. (#3)
+- [x] 8. Verify: `npm run type-check`, `type-check:tests`, lint, and the affected suites.
+
+All eight complete. Verification: `type-check` clean, `type-check:tests` clean
+(ratchet holding at 0), `check:routes` OK, `lint:errors` 0, `lint:ratchet` 722 /
+ceiling 722, full `npm test` green. One snapshot updated deliberately
+(`subsystemEquivalence` ETH mining, reasoning recorded at the test).
+
+## Out of scope this pass (reported, not fixed)
+
+- **#5 App Initialization Error** — the only evidence is a screen recording on the
+  Discord thread. Investigate + report; do not guess a fix.
+- **#6 clipped "X" on Pro Max** — a recurring device-class layout issue (three prior
+  threads). Needs a device/simulator repro, not a static read.
+- **Rigs at 0% durability still earn full yield** — real, but a nerf that needs
+  balance measurement, and it is not what the player reported.
+- **`app/_layout.tsx` gates the wedding/death popups on `showStatsBar`** — a real
+  soft-lock risk, but it is a protected file whose checklist requires a TestFlight
+  pass. Flagged, not touched.
+
+---
 
 # Master Program 10 — ECONOMY + PROGRESSION + LONG-TERM LIFE BALANCE — COMPLETE
 

@@ -765,7 +765,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 All real, none of it a decision - so it folds away by default. */}
             <CollapsibleSection id={`contact-about-${c.id}`} title="About them" defaultCollapsed compact>
             <View style={styles.factRow}>
-              {/* Where the story started. `metAt` (v50) is stamped once, when
+              {/* Where the story started. `metAt` (v51) is stamped once, when
                   the relationship is created, and never touched again - unlike
                   `npcMemories`, which `decayMemories` drops after a year, so
                   the one fact a player most wants back was the first thing the

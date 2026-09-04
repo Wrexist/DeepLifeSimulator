@@ -21,7 +21,7 @@ import {
   type PursuitReward,
 } from '@/lib/pursuits/pursuitMastery';
 import { getSkillGainMultiplier } from '@/lib/prestige/applyBonuses';
-import { getCommitmentModifiers, updateCommitmentLevel } from '@/lib/commitments/commitmentSystem';
+import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 
 const log = logger.scope('PursuitActions');
 
@@ -137,25 +137,15 @@ export const practicePursuit = (
     }
 
     // Fix 5b: practicing a hobby raises the "hobbies" activity-commitment level so
-    // the ActivityCommitmentModal bar reflects the focus. `updateCommitmentLevel`
-    // previously had no callers; a committed (primary/secondary) hobby grows
-    // faster (+2/practice) than an uncommitted one (+1), capped at 100.
+    // the ActivityCommitmentModal bar reflects the focus. A committed
+    // (primary/secondary) hobby grows faster (+2/practice) than an uncommitted
+    // one (+1), capped at 100. This used to inline the whole shape here, which is
+    // how it stayed the ONLY one of the four areas that could rise; it goes
+    // through the shared `recordCommitmentActivity` now, alongside career
+    // (applyAutoCheckpoint), relationships (DatingActions) and health
+    // (ItemActionsContext), so the four cannot drift.
     const prevCommit = prev.activityCommitments;
-    let nextCommitments = prevCommit;
-    if (prevCommit) {
-      const isHobbiesCommitted =
-        prevCommit.primary === 'hobbies' || prevCommit.secondary === 'hobbies';
-      const levels = prevCommit.commitmentLevels;
-      nextCommitments = {
-        ...prevCommit,
-        commitmentLevels: {
-          career: levels?.career ?? 0,
-          hobbies: updateCommitmentLevel(levels?.hobbies ?? 0, 'hobbies', isHobbiesCommitted),
-          relationships: levels?.relationships ?? 0,
-          health: levels?.health ?? 0,
-        },
-      };
-    }
+    const nextCommitments = recordCommitmentActivity(prevCommit, 'hobbies');
 
     return {
       ...prev,

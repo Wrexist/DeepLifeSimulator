@@ -41,7 +41,7 @@ import {
   shouldAutoPostMilestone,
   type SparkMilestone,
 } from '@/lib/dating/sparkPulseBridge';
-import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
+import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 import { composePost } from './PulseActions';
 
 const log = logger.scope('DatingActions');
@@ -216,6 +216,11 @@ export const goOnDate = (
     ...(moneyPatch ?? {}),
     // Spark lifetime stat: this date counts toward the dating profile readout.
     sparkApp: bumpSparkLifetimeStat(prev.sparkApp, 'totalDatesGoneOn'),
+    // C-1 (BBQ, 2026-08-31): going on a date is PERFORMING a relationships
+    // activity, so it raises that commitment level - the same way practising
+    // raises `hobbies`. Without this the level could only ever decay, and the
+    // level half of the focus bonus (+30% -> +50%) was unreachable.
+    activityCommitments: recordCommitmentActivity(prev.activityCommitments, 'relationships'),
     stats: {
       ...(moneyPatch?.stats ?? prev.stats),
       // C-1: the Commitment focus moves a date's energy cost. Resolved from

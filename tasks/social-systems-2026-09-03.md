@@ -187,7 +187,7 @@ guaranteed and the result is not).
 What it could not remember was **how anybody entered the life**. `npcMemories`
 looked like the place, but `decayMemories` drops anything older than 52 weeks —
 so an origin written as a memory is guaranteed to be forgotten in the second
-year, exactly when remembering it starts to matter. **v50 `metAt`** is the
+year, exactly when remembering it starts to matter. **v51 `metAt`** is the
 durable stamp: it is surfaced on the Contacts card ("Met at work · week 12") and
 the life story now says *"…whom they met at the gym"* and names the friendships a
 life kept. Life moments themselves remain stateless — no template addresses a
@@ -277,7 +277,7 @@ matters most. The Home-screen gap is **reported, not fixed**.
    + the Contacts card. Derived, deterministic per life and week, no new stored
    bookkeeping, capped at 8, paced at one person per 6 weeks, venue read off the
    life. · `__tests__/social/meetPeople.test.ts`
-3. **v50 `metAt`** — where and when somebody entered the life; surfaced on the
+3. **v51 `metAt`** — where and when somebody entered the life; surfaced on the
    Contacts card and in the life story. Carve-out; no backfill.
    · `__tests__/save/carveOutRoundTrip.test.ts`
 4. **Chapter 2's social goal is real** — `ch2_someone_close`: one bond at 60,
@@ -361,3 +361,12 @@ almost nothing, conflict almost never fires, and no life moment has ever been
 about a person the player knows. What changed is that other people can now enter
 a life at all, that having one is no longer the best financial decision in the
 game, and that the game remembers where they came from.
+
+---
+
+## Postscript (2026-09-04): `metAt` is v51, not v50
+
+Renumbered when this branch merged `main`. `shownNotificationIds` was authored
+as v50 on a separate branch and reached `main` first, so it owns the number.
+One version number must mean one schema shape — the same call the v46 Spark
+carve-out records in CLAUDE.md §7.

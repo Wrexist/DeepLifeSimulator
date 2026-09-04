@@ -359,7 +359,21 @@ class AdMobServiceImpl {
    * identifies. Called by `components/BannerAd.tsx` via its `onPaid` prop.
    */
   trackBannerRevenue(adUnitId: string, event: AdMobPaidEvent): void {
-    this.reportRevenue(event, 'banner', adUnitId, newImpressionId());
+    // The id is minted INSIDE the guard on purpose. It used to be passed as an
+    // argument, and an argument is evaluated before the callee is entered - so
+    // `reportRevenue`'s try/catch, and `BannerAd`'s comment that this is "fully
+    // swallowed inside the service", covered everything except the one call that
+    // could actually throw. When `newImpressionId` did throw (see its note - it
+    // used uuid, which has no `crypto.getRandomValues` on Hermes), the error
+    // escaped through the banner's `onPaid` callback into the render tree and the
+    // player got a full-screen "App Initialization Error" from an ANALYTICS
+    // failure. AdMob refreshes banners in place, so it fired again on every
+    // refresh. The mint no longer throws; this makes the promise true regardless.
+    try {
+      this.reportRevenue(event, 'banner', adUnitId, newImpressionId());
+    } catch (error) {
+      log.warn('Banner revenue report failed', { error: errMessage(error) });
+    }
   }
 
   // --- Listener management ---

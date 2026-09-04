@@ -58,14 +58,14 @@ export function calculateMiningEarnings(
   miners: { id: string; weeklyEarnings: number; powerConsumption: number; owned: number }[],
   selectedCrypto: string | undefined,
   cryptos: { id: string; price: number }[]
-): { totalEarnings: number; totalPowerCost: number; cryptoEarned: number } {
+): { totalEarnings: number; totalPowerCost: number; cryptoEarned: number; hardwareGrossUsd: number } {
   if (!warehouse || !selectedCrypto) {
-    return { totalEarnings: 0, totalPowerCost: 0, cryptoEarned: 0 };
+    return { totalEarnings: 0, totalPowerCost: 0, cryptoEarned: 0, hardwareGrossUsd: 0 };
   }
 
   const crypto = cryptos.find(c => c.id === selectedCrypto);
   if (!crypto) {
-    return { totalEarnings: 0, totalPowerCost: 0, cryptoEarned: 0 };
+    return { totalEarnings: 0, totalPowerCost: 0, cryptoEarned: 0, hardwareGrossUsd: 0 };
   }
 
   // Per-tier TARGET weekly USD yield — the "BTC-equivalent" figures the old fixed
@@ -116,6 +116,15 @@ export function calculateMiningEarnings(
 
   let totalCryptoEarned = 0;
   let totalPowerConsumption = 0;
+  /**
+   * The same yield WITHOUT the two levers that scale reward only - the per-coin
+   * multiplier and the global difficulty divisor. This is what the HARDWARE
+   * produces, and it is the honest basis for the electricity charge: a rig
+   * pointed at XRP does not draw ten times the power of the same rig pointed at
+   * BTC, and a rising difficulty does not raise the power bill either. See the
+   * `hardwareGrossUsd` note on the return value.
+   */
+  let hardwareCryptoEarned = 0;
 
   // Calculate base crypto earnings per miner type
   miners.forEach(miner => {
@@ -125,6 +134,8 @@ export function calculateMiningEarnings(
     // Base crypto earnings (already in crypto, not dollars)
     let minerCryptoEarnings = (cryptoEarningsPerMiner[miner.id] || 0) * owned;
     let minerPower = miner.powerConsumption * owned;
+    // Tracked alongside, skipping the coin lever and the difficulty divisor.
+    let minerHardwareEarnings = minerCryptoEarnings;
 
     // Apply crypto-specific difficulty multiplier
     const difficultyMultiplier = cryptoMiningMultipliers[selectedCrypto] || 1.0;
@@ -139,6 +150,7 @@ export function calculateMiningEarnings(
       switch (definition.type) {
         case 'efficiency':
           minerCryptoEarnings *= (1 + definition.effectPerLevel * upgrade.level);
+          minerHardwareEarnings *= (1 + definition.effectPerLevel * upgrade.level);
           break;
         case 'power':
           minerPower *= (1 - definition.effectPerLevel * upgrade.level);
@@ -151,14 +163,17 @@ export function calculateMiningEarnings(
       const pool = warehouse.pools?.find(p => p.id === warehouse.activePool && p.cryptoId === selectedCrypto);
       if (pool && pool.bonusMultiplier) {
         minerCryptoEarnings *= pool.bonusMultiplier;
+        minerHardwareEarnings *= pool.bonusMultiplier;
         // Apply pool fee
         minerCryptoEarnings *= (1 - (pool.fee || 0));
+        minerHardwareEarnings *= (1 - (pool.fee || 0));
       }
     }
 
     // Apply automation bonus
     const automationBonus = (warehouse.automationLevel || 0) * 0.02; // 2% per level
     minerCryptoEarnings *= (1 + automationBonus);
+    minerHardwareEarnings *= (1 + automationBonus);
 
     // Apply difficulty multiplier (global mining difficulty).
     // Clamp to >= 1: difficulty should only ever reduce earnings. A corrupt or
@@ -169,6 +184,7 @@ export function calculateMiningEarnings(
 
     totalCryptoEarned += minerCryptoEarnings;
     totalPowerConsumption += minerPower;
+    hardwareCryptoEarned += minerHardwareEarnings;
   });
 
   // Apply energy efficiency
@@ -183,5 +199,22 @@ export function calculateMiningEarnings(
     totalEarnings, // Dollar value for display
     totalPowerCost,
     cryptoEarned: totalCryptoEarned, // Actual crypto amount earned
+    /**
+     * USD the fleet's hardware produces before the per-coin yield lever and the
+     * global difficulty divisor - the denominator callers must use when they
+     * charge electricity as a share of output.
+     *
+     * PLAYER REPORT (BBQ, 2026-09-01): "Mining any currency does not increase
+     * holdings. I have over 600 rigs and they do nothing." Both callers used to
+     * divide `totalPowerCost` by `totalEarnings`, which is the yield AFTER those
+     * two levers (and, in the tick, after the halvings too). The power draw is
+     * scaled by none of them, so a lever documented as "XRP lands at ~10% of the
+     * BTC USD yield" was really a lever that multiplied the power bill's SHARE by
+     * ten - past 100% for every XRP fleet at every size, which floors the payout
+     * at exactly 0 forever. ADA did the same the moment the automatic difficulty
+     * ramp (x1.1/period, capped 2.0) arrived. Charging against this figure keeps
+     * electricity a property of the hardware, which is what it is.
+     */
+    hardwareGrossUsd: hardwareCryptoEarned * crypto.price,
   };
 }

@@ -21,6 +21,7 @@ import { watchAdForFollowerBoost, canBoostFollowersWithAd } from '@/contexts/gam
 import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 
 interface RewardedAdModalProps {
   visible: boolean;
@@ -228,6 +229,12 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
           </Pressable>
         </View>
       </View>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

@@ -13,6 +13,7 @@ import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
 
 interface WeddingPlanningModalProps {
@@ -346,6 +347,12 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
           </View>
         </View>
       </View>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

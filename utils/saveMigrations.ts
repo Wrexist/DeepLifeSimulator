@@ -1254,7 +1254,37 @@ const migrations: Record<number, (state: any) => any> = {
   },
 
   /**
-   * v50 adds `metAt` on `Relationship` - where and when a person entered the
+   * v50 adds `shownNotificationIds` - the ids of `showOnce` smart notifications
+   * the player has already been shown (`utils/smartNotifications.ts`).
+   *
+   * PLAYER REPORT (BBQ, 2026-08-31): "There are too many frequent pop ups of
+   * events that have already happened. They pop up every time the game is
+   * refreshed." The record was a private `Map` on a module singleton, so it died
+   * with the JS runtime; every milestone's condition is derived from the save
+   * and stays true, so the entire backlog re-armed on each launch.
+   *
+   * Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+   * `repairGameState` mirror. What makes that safe here is NOT that absence
+   * means "nothing shown" - it plainly does not, and writing that in would hand
+   * every existing player the backlog one final time, which is the bug. Absence
+   * RESOLVES instead: the first evaluation on a save without the field seeds it
+   * from the notifications whose conditions are ALREADY satisfied and fires none
+   * of them (`SmartNotificationSystem.earnedShowOnceIds`). A save where
+   * `hasSpouse` is true has certainly already been told about the wedding -
+   * repeatedly - so deriving the set from the save is not a guess, and it is the
+   * same "absence already resolves" shape as v39's `resolveAvatar`.
+   *
+   * Seeding here in the migration instead would need the notification catalogue
+   * and a full condition evaluation inside the save pipeline, which is a lot of
+   * surface for an answer the reader can compute exactly when it needs it.
+   */
+  50: (state) => {
+    state.version = 50;
+    return state;
+  },
+
+  /**
+   * v51 adds `metAt` on `Relationship` - where and when a person entered the
    * life, stamped once when the relationship is created.
    *
    * It exists because the game had nowhere durable to put the one fact a
@@ -1277,9 +1307,14 @@ const migrations: Record<number, (state: any) => any> = {
    * FABRICATED memory, telling a player they met their spouse somewhere they
    * did not, on a screen whose whole job is to be the life they remember. The
    * one honest answer for an existing relationship is silence.
+   *
+   * Numbered 51, not 50. Both this and `shownNotificationIds` above were
+   * authored as v50 on separate branches; that one reached `main` first and
+   * owns the number. One version number must mean one schema shape - the same
+   * call the v46 Spark carve-out records.
    */
-  50: (state) => {
-    state.version = 50;
+  51: (state) => {
+    state.version = 51;
     return state;
   },
 };

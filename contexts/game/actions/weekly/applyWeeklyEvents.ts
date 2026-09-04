@@ -11,11 +11,12 @@
  *      what lets persistence safely retain unresolved events across
  *      saves — otherwise the cyclic `state.week` (1-4) is unable to
  *      identify how old an event is.
- *   3. Append to `prevState.pendingEvents`. Cap at `MAX_PENDING_EVENTS = 100`
- *      by dropping the OLDEST (slice(-100)). ANTI-BLOAT: players who skip
- *      events accumulate them indefinitely; over a full life that grows
- *      ~131KB/1000 weeks of save data. Keep recent prompts visible, stays
- *      well above any realistic interactive load.
+ *   3. Append to `prevState.pendingEvents`, SKIPPING any event whose id is
+ *      already queued unresolved (see the dedupe note below). Cap at
+ *      `MAX_PENDING_EVENTS = 100` by dropping the OLDEST (slice(-100)).
+ *      ANTI-BLOAT: players who skip events accumulate them indefinitely; over a
+ *      full life that grows ~131KB/1000 weeks of save data. Keep recent prompts
+ *      visible, stays well above any realistic interactive load.
  *
  * The try/catch around `rollWeeklyEvents` is PRESERVED VERBATIM. Reason:
  * the generator depends on RNG + several lookup tables (events catalog,
@@ -73,9 +74,44 @@ export function applyWeeklyEvents(input: WeeklyEventsInput): WeeklyEventsResult 
     ...event,
     generatedAtWeeksLived: input.nextWeeksLived,
   }));
+
+  /**
+   * An event id may appear in the queue AT MOST ONCE.
+   *
+   * PLAYER REPORT (BBQ, 2026-08-31): "There are too many frequent pop ups of
+   * events that have already happened. They pop up every time the game is
+   * refreshed. In this manner are they re-occurring."
+   *
+   * `rollWeeklyEvents` never consulted `pendingEvents`, so a template it picked
+   * again while an unresolved copy was still queued was simply appended - and an
+   * event id IS the template id, so the two copies are indistinguishable in the
+   * modal, in the inbox and in the log. Two things follow, and the player hit
+   * both. The same prompt is presented twice, which reads as an event that
+   * "already happened". And answering it only clears one: `resolveEvent` removes
+   * a single entry by index, so the duplicate is still there on the next open -
+   * "every time the game is refreshed". (The modal's emergency dismiss removes
+   * every copy by id, so the two paths did not even agree.)
+   *
+   * Dropping the re-roll rather than the queued copy is the conservative choice:
+   * the queued one may already be stamped, routed to the mail app, or carrying an
+   * expiry, and it is the one the player has seen.
+   */
+  const existingPending = input.prevState.pendingEvents || [];
+  const queuedIds = new Set(existingPending.map((e) => e?.id).filter(Boolean));
+  const freshEvents = stampedNewEvents.filter((event: any) => {
+    if (!event?.id) return true;
+    if (queuedIds.has(event.id)) {
+      logger.info(`[EVENTS] Skipped duplicate '${event.id}' - an unresolved copy is already queued.`);
+      return false;
+    }
+    // Guard the batch against itself too: one tick can roll several sources.
+    queuedIds.add(event.id);
+    return true;
+  });
+
   let updatedPendingEvents = [
-    ...(input.prevState.pendingEvents || []),
-    ...stampedNewEvents,
+    ...existingPending,
+    ...freshEvents,
   ];
 
   if (updatedPendingEvents.length > MAX_PENDING_EVENTS) {

@@ -31,6 +31,7 @@
  * 2026-08-01, product decision taken by the owner.
  */
 import {
+  recordCommitmentActivity,
   getCommitmentModifiers,
   getCommitmentBonuses,
   getCommitmentPenalties,
@@ -237,6 +238,65 @@ describe('C-1 - practising a hobby costs what the focus says', () => {
   });
 });
 
+/**
+ * PLAYER REPORT (BBQ, 2026-08-31): "As weeks progress the commitment levels do
+ * not go up. Even after performing activities... This applies to the other two
+ * as well. They do not perform."
+ *
+ * Bonuses were wired (above). LEVELS were not: `updateCommitmentLevel` had one
+ * caller - practising a hobby - so career, relationships and health could only
+ * ever decay, and a committed area sat pinned at 0 forever. That silently costs
+ * the whole top half of the focus reward: a primary focus pays +30% progress at
+ * level 0 and +50% at level 100, and level 100 was unreachable for three of the
+ * four areas.
+ */
+describe('C-1 - performing an activity raises its commitment level', () => {
+  const levels = (over: Partial<Record<string, number>> = {}) => ({
+    career: 0, hobbies: 0, relationships: 0, health: 0, ...over,
+  });
+  const commitments = (primary?: string, secondary?: string, over = {}) =>
+    ({ primary, secondary, commitmentLevels: levels(over) }) as never;
+
+  it('a committed area grows faster than an uncommitted one', () => {
+    const committed = recordCommitmentActivity(commitments('career'), 'career');
+    const plain = recordCommitmentActivity(commitments('hobbies'), 'career');
+    expect(committed?.commitmentLevels?.career).toBe(2);
+    expect(plain?.commitmentLevels?.career).toBe(1);
+  });
+
+  it.each(['career', 'hobbies', 'relationships', 'health'] as const)(
+    '%s can rise (all four, not just hobbies)',
+    (area) => {
+      const next = recordCommitmentActivity(commitments(area), area);
+      expect(next?.commitmentLevels?.[area]).toBe(2);
+    },
+  );
+
+  it('touches only the area performed', () => {
+    const next = recordCommitmentActivity(commitments('career'), 'career');
+    expect(next?.commitmentLevels).toEqual(levels({ career: 2 }));
+  });
+
+  it('caps at 100 and then returns the SAME object (no state churn)', () => {
+    const maxed = commitments('career', undefined, { career: 100 });
+    expect(recordCommitmentActivity(maxed, 'career')).toBe(maxed);
+  });
+
+  it('is a no-op for a save with no commitments slice', () => {
+    expect(recordCommitmentActivity(undefined, 'career')).toBeUndefined();
+  });
+
+  it('reaching level 100 is what unlocks the top of the focus bonus', () => {
+    // The point of the fix: without a way up, this second figure was unreachable.
+    const cold = getCommitmentModifiers(withCommitments('career'), 'career');
+    const warm = getCommitmentModifiers(
+      withCommitments('career', undefined, { career: 100 }),
+      'career',
+    );
+    expect(warm.progressMultiplier).toBeGreaterThan(cold.progressMultiplier);
+  });
+});
+
 describe('C-1 - every area is wired, not just the one that already was', () => {
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
@@ -252,6 +312,25 @@ describe('C-1 - every area is wired, not just the one that already was', () => {
 
   for (const [area, file, pattern] of SITES) {
     it(`${area} reads the resolver`, () => {
+      expect(`${area}: ${pattern.test(read(file))}`).toBe(`${area}: true`);
+    });
+  }
+
+  /**
+   * The LEVEL half of the same wiring. Pinned per-area because the failure this
+   * catches is exactly "three of the four were forgotten" - which is what
+   * shipped, and what the player reported.
+   */
+  const GROWTH_SITES: [string, string][] = [
+    ['career', 'contexts/game/actions/weekly/applyAutoCheckpoint.ts'],
+    ['hobbies', 'contexts/game/actions/PursuitActions.ts'],
+    ['relationships', 'contexts/game/actions/DatingActions.ts'],
+    ['health', 'contexts/game/ItemActionsContext.tsx'],
+  ];
+
+  for (const [area, file] of GROWTH_SITES) {
+    it(`${area} records the activity that raises its level`, () => {
+      const pattern = new RegExp(`recordCommitmentActivity\\([^)]*'${area}'\\)`);
       expect(`${area}: ${pattern.test(read(file))}`).toBe(`${area}: true`);
     });
   }

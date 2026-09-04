@@ -12,6 +12,7 @@ import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 
 interface Props {
   visible: boolean;
@@ -365,6 +366,12 @@ export default function ManagePropertyModal({
           </ScrollView>
         </View>
       </View>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }
