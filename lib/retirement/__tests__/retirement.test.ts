@@ -264,7 +264,14 @@ describe('elder activities', () => {
     const s = makeState({ age: 70 });
     s.stats.happiness = 98;
     const res = applyElderActivity(s, 'write_memoir'); // +6 happiness
-    expect(res.state.stats.happiness).toBe(100);
+    // Still rises, still cannot exceed 100 - which is what this test is named
+    // for. It no longer lands EXACTLY on 100, because a happiness gain is
+    // scaled by `happinessGainFalloff` (Program 14) and +6 at 98 is worth
+    // about +1.6. Asserting the bound rather than the exact value is what the
+    // test meant; pinning 100 was only ever true because gains were free at
+    // the top of the scale, which is the defect that program removed.
+    expect(res.state.stats.happiness).toBeGreaterThan(98);
+    expect(res.state.stats.happiness).toBeLessThanOrEqual(100);
   });
 
   it('enforces the cooldown (cannot repeat immediately)', () => {

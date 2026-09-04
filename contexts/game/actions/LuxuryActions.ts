@@ -15,6 +15,7 @@
  */
 
 import React from 'react';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
@@ -254,7 +255,8 @@ export const performLuxuryVerb = (
       stats.energy = Math.max(0, (stats.energy ?? 0) - verb.energyCost);
     }
     if (outcome.happiness !== 0) {
-      stats.happiness = Math.max(0, Math.min(100, (stats.happiness ?? 0) + outcome.happiness));
+      stats.happiness = Math.max(0, Math.min(100, (stats.happiness ?? 0)
+      + scaledHappinessGain(stats.happiness ?? 0, outcome.happiness)));
     }
     if (outcome.reputation !== 0) {
       stats.reputation = Math.max(0, Math.min(100, (stats.reputation ?? 0) + outcome.reputation));
@@ -323,7 +325,8 @@ export const hostLuxuryEvent = (
     if (!spend) return prev;
 
     const stats = { ...prev.stats, ...(spend.stats ?? {}) };
-    stats.happiness = Math.max(0, Math.min(100, (stats.happiness ?? 0) + outcome.happiness));
+    stats.happiness = Math.max(0, Math.min(100, (stats.happiness ?? 0)
+      + scaledHappinessGain(stats.happiness ?? 0, outcome.happiness)));
     stats.reputation = Math.max(0, Math.min(100, (stats.reputation ?? 0) + outcome.reputation));
 
     // Warm everyone who came. Clamped to 100 so a run of parties can't push a

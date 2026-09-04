@@ -49,7 +49,10 @@ import { queueSave, forceSave } from '@/utils/saveQueue';
 import { isWritableSlot } from '@/utils/slotNumber';
 import { isSaveFromFutureError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
-import { makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
+import { lifeSalt, makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
+// Diminishing returns on happiness GAINS (Program 14). Every positive happiness
+// delta in this file goes through it; decay below is untouched.
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
@@ -142,7 +145,8 @@ import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
-import { resolveTenancyStep } from '@/lib/realEstate/rentals';
+import { resolveTenancyStep, computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { CLOSE_BOND_HAPPINESS_CAP } from '@/lib/social/closeness';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
@@ -893,6 +897,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
  }
  newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
+ // The baseline for the single diminishing-returns application at the end of
+ // this updater (Program 14): happiness AFTER natural decay, not before it.
+ //
+ // The difference matters and the first cut got it wrong. Measuring from the
+ // start of the tick nets the decay in with the gains, so scaling the net
+ // scales the DECAY down too - a week that gained 10 and decayed 3.2 moved
+ // +6.8, and taking a fifth of that credits +1.36 instead of applying the full
+ // -3.2 against a diminished +2. Decay is not a gain and must not diminish;
+ // measuring from here keeps it at full strength and applies the curve to
+ // exactly what the subsystems added.
+ const happinessAfterDecay = newStats.happiness ?? 0;
 
  // Fitness decay: increases the longer you don't visit the gym
  const lastGymVisitWeek = prevState.lastGymVisitWeek || 0;
@@ -1544,6 +1559,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let relationshipHappinessPenalty = 0;
  // Neglect drag accumulates separately so it can be capped as a group.
  let neglectDragTotal = 0;
+ // ...and its mirror: what the people you are close to are worth, capped the
+ // same way (Program 12). Declared beside the drag so the two stay visible as
+ // the pair they are.
+ let closeCircleSupportTotal = 0;
  const newBornChildren: Relationship[] = [];
  let newShowBirthPopup = false;
  let birthMessage = '';
@@ -1578,6 +1597,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const weddingSpouseBefore = newWeddingSpouse;
  const happinessPenaltyBefore = relationshipHappinessPenalty;
  const neglectDragBefore = neglectDragTotal;
+ const closeCircleSupportBefore = closeCircleSupportTotal;
 
  try {
 
@@ -1633,19 +1653,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // newStats AFTER the .map() below.
  const healthResult = applyRelationshipHealth(rel, relIdx, weeklyCtx);
  if (healthResult.happinessPenalty !== 0) {
- // The standing neglect drag is capped ACROSS all relationships, separately
- // from the one-off breakup / disappointed / drift hits. Without the split, a
- // large family all sitting below the threshold would out-punish a failing
- // marriage purely on headcount (see NEGLECT_HAPPINESS_DRAG_CAP).
- if (healthResult.happinessPenalty === NEGLECT_HAPPINESS_DRAG) {
- neglectDragTotal = Math.max(
- NEGLECT_HAPPINESS_DRAG_CAP,
- neglectDragTotal + healthResult.happinessPenalty,
+  // The standing neglect drag is capped ACROSS all relationships, separately
+  // from the one-off breakup / disappointed / drift hits. Without the split, a
+  // large family all sitting below the threshold would out-punish a failing
+  // marriage purely on headcount (see NEGLECT_HAPPINESS_DRAG_CAP).
+  if (healthResult.happinessPenalty === NEGLECT_HAPPINESS_DRAG) {
+   neglectDragTotal = Math.max(
+    NEGLECT_HAPPINESS_DRAG_CAP,
+    neglectDragTotal + healthResult.happinessPenalty,
+   );
+  } else {
+   relationshipHappinessPenalty += healthResult.happinessPenalty;
+  }
+ }
+ // ...and the mirror of that drag: what the people you ARE close to are
+ // worth. Capped across all relationships the same way and for the same
+ // reason - so three close bonds reach the ceiling and the fiftieth
+ // acquaintance is worth what the fourth is, which is nothing (Program 12).
+ closeCircleSupportTotal = Math.min(
+  CLOSE_BOND_HAPPINESS_CAP,
+  closeCircleSupportTotal + healthResult.happinessSupport,
  );
- } else {
- relationshipHappinessPenalty += healthResult.happinessPenalty;
- }
- }
  return healthResult.rel;
  } catch (relEntryErr) {
  // Roll back anything this entry managed to contribute before throwing, so a
@@ -1659,6 +1687,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newWeddingSpouse = weddingSpouseBefore;
  relationshipHappinessPenalty = happinessPenaltyBefore;
  neglectDragTotal = neglectDragBefore;
+ closeCircleSupportTotal = closeCircleSupportBefore;
  // The id read is itself guarded: the entries that reach this catch are by
  // definition malformed, and a throwing getter must not escalate a contained
  // per-entry failure back into a whole-pass one.
@@ -1686,6 +1715,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const npcDepthResult = applyNPCDepthTick({
    relationships: processedRelationships,
    weeksLived: nextWeeksLived,
+   lifeSalt: lifeSalt(prevState),
  }, weeklyCtx);
  // The helper returns a fresh array; replace in place to preserve the
  // legacy mutation-of-the-same-reference contract the downstream blocks
@@ -1706,6 +1736,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  birthMessage = '';
  relationshipHappinessPenalty = 0;
  neglectDragTotal = 0;
+ closeCircleSupportTotal = 0;
  }
 
  // Applied outside the try: a throw mid-pass resets the accumulators above, so
@@ -1713,9 +1744,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // `neglectDragTotal` is already capped as it accumulates; the one-off hits
  // (breakup / disappointed / drift) are not, because each is a single event the
  // player can attribute to a specific person.
+ //
+ // Program 12 added the SUPPORT term. Before it, the only wire between
+ // relationships and wellbeing ran one way: this block could subtract 25 for a
+ // breakup, 10 for a disappointed partner, 8 for a friendship fading and a
+ // standing 3 a week for estrangement, and could not add anything at all. A
+ // nine-cohort controlled run over 250 weeks measured the consequence -
+ // happiness, health and energy byte-identical whether a life held nobody, one
+ // soulmate or fifty acquaintances. Relationships were a pure liability.
+ //
+ // The support term is capped at +3 (`CLOSE_BOND_HAPPINESS_CAP`) against a
+ // natural decay of 4/week, so a maxed circle offsets three quarters of one
+ // stat's drift and nothing else - and it reaches that ceiling at THREE close
+ // bonds, which is what stops fifty acquaintances beating one real friendship.
  const totalRelationshipPenalty = relationshipHappinessPenalty + neglectDragTotal;
- if (totalRelationshipPenalty < 0) {
- newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + totalRelationshipPenalty));
+ const netRelationshipHappiness = totalRelationshipPenalty + closeCircleSupportTotal;
+ if (netRelationshipHappiness !== 0) {
+ newStats.happiness = Math.max(0, Math.min(100, newStats.happiness + netRelationshipHappiness));
  }
 
  // Marriage anniversary grant. Previously stranded in a ContactsApp useEffect
@@ -2775,6 +2820,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (goalsErr) {
  logger.error('[SAVINGS GOALS TICK] failed:', goalsErr);
  }
+ }
+
+ // ── DIMINISHING RETURNS ON THE WEEK'S NET HAPPINESS GAIN (Program 14) ─────
+ //
+ // Applied ONCE, here, on the net movement of the whole tick rather than at
+ // each writer. That is deliberate and it is the second design: the first
+ // scaled four individual call sites, and measurement showed those four carry
+ // between 1 and 3.5 points a week while roughly twenty other writers
+ // (`applyPets`, `applyLuxuryItems`, `applyEducationProgression`,
+ // `applyPregnancyProgression`, the career and education penalties, the travel
+ // and dating actions...) carry the rest. Chasing them one at a time would
+ // have left the next new subsystem free to bypass the curve silently, which
+ // is the failure mode this whole program exists to close.
+ //
+ // Scaling the NET also says the right thing: what faces diminishing returns
+ // is the life's emotional movement over the week, not each individual
+ // contribution to it. A week that gains 10 from events and loses 5 to a
+ // career penalty has moved +5, and +5 is what gets scaled.
+ //
+ // A net-NEGATIVE week passes through untouched. Nothing here makes a bad week
+ // worse; it makes a good week harder to bank once you are already thriving.
+ if (typeof happinessAfterDecay === 'number') {
+   const netHappinessMove = (newStats.happiness ?? 0) - happinessAfterDecay;
+   if (netHappinessMove > 0) {
+     newStats.happiness = clampStat0to100(
+       happinessAfterDecay + scaledHappinessGain(happinessAfterDecay, netHappinessMove),
+     );
+   }
  }
 
  // (3) Favor ledger expiry - wires the previously-unwired contacts favor tick
@@ -5269,7 +5342,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return {
 ...prev,
 ...spend,
- stats: { ...spend.stats, happiness: Math.max(0, Math.min(100, (prev.stats?.happiness ?? 0) + 15)) },
+ stats: { ...spend.stats, happiness: Math.max(0, Math.min(100,
+   (prev.stats?.happiness ?? 0) + scaledHappinessGain(prev.stats?.happiness ?? 0, 15))) },
  relationships: (prev.relationships || []).map(r =>
  r.id === partnerId ? {...r, engagementWeek: prev.weeksLived || 0 }: r
  ),
@@ -5305,25 +5379,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: `You are already with ${committedElsewhere.name}. You can't move in with ${partner.name}.` };
  }
 
- // Check if player owns (and has moved into) or rents any real estate property
- const hasProperty = (currentState.realEstate || []).some(property => {
- const status = 'status' in property ? property.status: undefined;
-
- // Check if player owns the property and has moved in
- // Status must be 'owner' (not 'rented' which means they rented it out)
- const ownsAndLivingIn = property.owned && status === 'owner';
-
- // Check if player rents the property (status is 'rented' and owned is false)
- // This means player is renting it, not that they rented it out to someone else
- const rentsProperty = status === 'rented' &&!property.owned;
-
- return ownsAndLivingIn || rentsProperty;
- });
-
- if (!hasProperty) {
+ /**
+  * "Do you have a home?" - asked with the function the rest of the game asks it
+  * with, so the answer cannot disagree with itself.
+  *
+  * This used to walk `realEstate[]` looking for an owned residence or a
+  * `status: 'rented'` row, and that stopped being the whole truth at v32: a
+  * TENANCY is stored in `state.rental`, deliberately NOT as a `realEstate`
+  * entry ("a tenancy is not a holding" - CLAUDE.md §7, v32, so a rental cannot
+  * inflate net worth or appear in the portfolio as an asset).
+  *
+  * So every renting player was refused with "you need to... rent a property"
+  * while renting one. And because `proposeMarriage` requires `livingTogether`,
+  * that refusal closed the ENTIRE marriage path for anyone who had not bought a
+  * house - which is the taught path: Chapter 2 asks for "a roof over your head"
+  * and prices the $45 shared room, and it reads `computeHousingWellbeing` too.
+  * A player could complete the housing chapter and still be told they had
+  * nowhere to live.
+  */
+ if (computeHousingWellbeing(currentState).homeless) {
  return {
  success: false,
- message: 'You need to own and move into a property, or rent a property before you can move in together. Purchase or rent one from the Real Estate app!'
+ message: 'You need somewhere to live first - rent a place from Market > Housing, or buy a home in the Real Estate app.'
  };
  }
 

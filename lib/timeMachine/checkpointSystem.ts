@@ -199,7 +199,13 @@ export function createCheckpoint(
   const frozen = JSON.parse(JSON.stringify(shallow)) as Partial<GameState>;
 
   return {
-    id: `cp_${state.weeksLived ?? 0}_${Date.now()}`,
+    // Deterministic in the LIFE (Program 14). This was
+    // `cp_<weeksLived>_<Date.now()>`, so replaying the same life produced a
+    // different checkpoint id every time — the last field to diverge when two
+    // identical persona runs were diffed week by week. A checkpoint is minted at
+    // most once per game YEAR, so `weeksLived` alone already identifies it, and
+    // the lineage keeps two lives in the same slot apart.
+    id: `cp_${state.lineageId ?? 'unknown'}_${state.weeksLived ?? 0}`,
     label,
     weeksLived: state.weeksLived ?? 0,
     age: Math.floor(state.date?.age ?? 18),

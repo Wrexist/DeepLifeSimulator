@@ -32,6 +32,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyStatsDelta } from './StatsActions';
 import { applyMoneyDelta } from './MoneyActions';
+import { makeLifeRoll } from '@/utils/seededRoll';
 import {
   rollMatch,
   isCatfish,
@@ -141,8 +142,28 @@ function ensureSpark(prev: GameState): NonNullable<GameState['sparkApp']> {
   };
 }
 
-function genId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+/**
+ * Ids that are a function of the LIFE, not the wall clock (Program 14).
+ *
+ * These were `${prefix}-${Date.now()}-${Math.random()}`, and every one of them
+ * is written into the save: replaying the same life produced a different set of
+ * match and message ids, which is what a deep diff of two identical persona
+ * runs surfaced after the NPC-goal and memory-id fixes. `Math.random()` in an
+ * action module is the same defect CLAUDE.md §4.3 names on the tick.
+ *
+ * A match id is now `spm-<profileId>`, which is not merely deterministic but
+ * CORRECT: a life can hold at most one match per dating profile (the swipe path
+ * and the like-back path both reuse an existing match rather than minting a
+ * second), so the profile IS the identity. `promoteMatchToRelationship` already
+ * relies on that one-match-per-person rule.
+ */
+function matchIdFor(profileId: string): string {
+  return `spm-${profileId}`;
+}
+
+/** A message id unique within its thread: the week it was sent plus its index. */
+function messageIdFor(prefix: string, matchId: string, weeksLived: number, index: number): string {
+  return `${prefix}-${matchId}-w${weeksLived}-${index}`;
 }
 
 function findProfile(profileId: string): DatingProfile | undefined {
@@ -239,7 +260,7 @@ export const swipeOnProfile = (
   // previously read the "last match" from the stale closure gameState, which on
   // the first match was undefined → "Conversation not found", and on later
   // matches opened the wrong chat.
-  const newMatchId = matched ? genId('spm') : undefined;
+  const newMatchId = matched ? matchIdFor(profile.id) : undefined;
 
   setGameState((prev) => {
     const s = ensureSpark(prev);
@@ -460,7 +481,7 @@ export const likeBackFromLikedYou = (
   // If a match already exists for this profile, reuse its id; otherwise mint a
   // fresh one OUTSIDE the updater so we can return it deterministically.
   const existingMatch = sp.matches.find((m) => m.profileId === profileId);
-  const matchId = existingMatch ? existingMatch.id : genId('spm');
+  const matchId = existingMatch ? existingMatch.id : matchIdFor(profileId);
 
   setGameState((prev) => {
     const s = ensureSpark(prev);
@@ -543,6 +564,35 @@ export const dismissLikedYou = (
  * Returning the next state rather than mutating keeps it composable — the
  * conversation path feeds it a state that already carries the charges.
  */
+/**
+ * Is this profile ALREADY somebody in the player's life?
+ *
+ * A promoted match shares its id with the relationship it creates, so "have I
+ * promoted this MATCH?" was the only guard both promotion paths had. That is
+ * not the same question. `unmatch` (reachable from `PartnerProfileScreen`)
+ * removes the match and leaves the relationship standing, so swiping the same
+ * profile again in a later week produces a NEW match id — which walked straight
+ * past the id guard and appended a SECOND relationship for the same person.
+ *
+ * Measured: two records both named "Sarah Johnson", each counting toward
+ * `social_butterfly` (10 friends, 25 gems), `social_celebrity` (25 friends, 75
+ * gems) and `strongRelationshipCount`, which the goal engine reads as social
+ * emphasis. Duplicated social state, gems for a person met once.
+ *
+ * The right key is the PERSON. Relationships created from a Spark match record
+ * the profile's own name, so matching on it catches both the friend path and
+ * the partner path, and it keeps working for a relationship whose match was
+ * unmatched years earlier — which is exactly the case the id guard misses.
+ */
+function profileAlreadyKnown(state: GameState, profileId: string): string | null {
+  const profile = findProfile(profileId);
+  if (!profile) return null;
+  const known = (state.relationships ?? []).some(
+    (r) => r && r.name === profile.name && r.type !== 'parent' && r.type !== 'child',
+  );
+  return known ? profile.name : null;
+}
+
 export function resolveMatchPromotion(
   prev: GameState,
   matchId: string,
@@ -561,6 +611,9 @@ export function resolveMatchPromotion(
   }
   const profile = findProfile(match.profileId);
   if (!profile) return { ok: false, message: 'Profile no longer exists' };
+  // The person, not the match — see `profileAlreadyKnown`.
+  const known = profileAlreadyKnown(prev, match.profileId);
+  if (known) return { ok: false, message: `${known} is already in your contacts.` };
 
   const relationshipId = match.id; // share the id so future ops can find both sides
   const newRelationship = {
@@ -700,6 +753,10 @@ export const promoteMatchToFriend = (
   if ((gameState.relationships ?? []).some((r) => r?.id === relationshipId)) {
     return { success: false, message: 'Already in your contacts' };
   }
+  // ...and already a contact as a PERSON, which the id cannot see once the
+  // original match has been unmatched. See `profileAlreadyKnown`.
+  const knownAs = profileAlreadyKnown(gameState, match.profileId);
+  if (knownAs) return { success: false, message: `${knownAs} is already in your contacts` };
 
   /**
    * The pessimistic capture that used to live here was REMOVED on 2026-08-15.
@@ -721,6 +778,7 @@ export const promoteMatchToFriend = (
     const stillUnpromoted = s.matches.find((m) => m.id === matchId && !m.promoted);
     if (!stillUnpromoted) return prev;
     if ((prev.relationships ?? []).some((r) => r?.id === relationshipId)) return prev;
+    if (profileAlreadyKnown(prev, match.profileId)) return prev;
 
     const newRelationship = {
       id: relationshipId,
@@ -855,13 +913,30 @@ export const playConversationOption = (
   matchId: string,
   optionId: SparkConversationOptionId,
   venueId?: SparkDateVenueId,
-  rand: () => number = Math.random,
+  /**
+   * The outcome and reply-copy draw. Defaults to the LIFE-and-WEEK stream, not
+   * `Math.random` (Program 14).
+   *
+   * `Math.random` was the default and every caller took it, so how a
+   * conversation went - whether the move landed, and which of several replies
+   * came back - was unreproducible: this was the last field to diverge when the
+   * romance persona was replayed, and it is a save-scum reroll besides (a
+   * failed flirt could be retried by reloading). Keyed on the match and the
+   * option, so two different moves in the same week roll independently while
+   * the same move in the same week always answers the same. The cooldown map
+   * (v45) is what re-arms it.
+   */
+  rand?: () => number,
 ): PlayConversationResult => {
   const sp = gameState.sparkApp;
   const match = sp?.matches?.find((m) => m.id === matchId);
   if (!sp || !match) return { success: false, message: 'Match not found' };
   const profile = findProfile(match.profileId);
   if (!profile) return { success: false, message: 'Profile no longer exists' };
+  const seededRand = rand ?? (() => {
+    const stream = makeLifeRoll(gameState, gameState.weeksLived ?? 0);
+    return stream(`spark-move:${matchId}:${optionId}:${venueId ?? ''}`);
+  });
 
   const option = findConversationOption(optionId);
   if (!option) return { success: false, message: 'That is not something you can say' };
@@ -908,7 +983,7 @@ export const playConversationOption = (
       interests: profile.interests,
     },
     appeal: playerAppeal(gameState.stats),
-    rand,
+    rand: seededRand,
   });
   if (!resolution) return { success: false, message: 'Not right now' };
 
@@ -920,8 +995,9 @@ export const playConversationOption = (
     if (!preview.ok) return { success: false, message: preview.message };
   }
 
-  const playerMsgId = genId('spmsg');
-  const npcMsgId = genId('spnpc');
+  const threadLengthBefore = (sp.messages[matchId] ?? []).length;
+  const playerMsgId = messageIdFor('spmsg', matchId, gameState.weeksLived ?? 0, threadLengthBefore);
+  const npcMsgId = messageIdFor('spnpc', matchId, gameState.weeksLived ?? 0, threadLengthBefore + 1);
   const now = Date.now();
 
   setGameState((prev) => {

@@ -19,6 +19,13 @@ import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
+import {
+  currentIntroduction,
+  introductionToRelationship,
+  meetBlockedReason,
+  MEET_ENERGY_COST,
+} from '@/lib/social/meetPeople';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 const log = logger.scope('ContactsActions');
 
@@ -891,4 +898,105 @@ export function raiseRelationship(
   log.info('Relationship bond raised', { contactId });
   const afterScore = Math.min(100, (rel.relationshipScore ?? 0) + Math.max(2, Math.round((100 - (rel.relationshipScore ?? 0)) / 12)));
   return { success: true, message: `You spent real time with ${rel.name} · Bond ${afterScore}/100.` };
+}
+
+// ---------------------------------------------------------------------------
+// Program 11 — meeting somebody new
+// ---------------------------------------------------------------------------
+
+/**
+ * The whole outcome of saying hello, as a PURE function of a state.
+ *
+ * The `resolveMatchPromotion` shape (`SparkActions`), which is the sound fix
+ * CLAUDE.md §4.1 and `updaterResultRatchet.test.ts` both prescribe: every
+ * rejection path is reachable from OUTSIDE the updater, so the reported outcome
+ * never depends on React's batching order, and the updater simply re-runs the
+ * same function against `prev`. No cross-updater variable exists to go stale.
+ */
+export function resolveMeeting(
+  prev: GameState,
+): { ok: true; next: GameState; name: string; relationshipId: string; where: string } | { ok: false; message: string } {
+  const intro = currentIntroduction(prev);
+  if (!intro) {
+    return { ok: false, message: meetBlockedReason(prev) ?? 'Nobody new right now.' };
+  }
+  const blocked = meetBlockedReason(prev);
+  if (blocked) return { ok: false, message: blocked };
+  if ((prev.relationships ?? []).some((r) => r?.id === intro.id)) {
+    return { ok: false, message: `You already know ${intro.name}.` };
+  }
+
+  let next: GameState = prev;
+  if (intro.venue.cost > 0) {
+    const paid = applyMoneyDelta(prev, -intro.venue.cost, `Coffee with ${intro.name}`);
+    // Unreachable in practice - `meetBlockedReason` already refused an
+    // unaffordable venue - but it is the atomic charge, so it decides.
+    if (!paid) return { ok: false, message: `You would need $${intro.venue.cost} to get the coffees in.` };
+    next = { ...next, ...paid };
+  }
+
+  return {
+    ok: true,
+    name: intro.name,
+    where: intro.venue.label,
+    relationshipId: intro.id,
+    next: {
+      ...next,
+      stats: {
+        ...next.stats,
+        energy: clampStatByKey('energy', (next.stats?.energy ?? 0) - MEET_ENERGY_COST),
+      },
+      relationships: [
+        ...(next.relationships ?? []),
+        introductionToRelationship(intro, weeksInThisLife(next)),
+      ],
+    },
+  };
+}
+
+/**
+ * Take the introduction the current week is offering.
+ *
+ * The gap this closes, in one line: before this, the ONLY producers of a
+ * `Relationship` were Spark (tier 2) and the `intro` favour on a travel
+ * business contact (tier 3), so a player below tier 2 could not meet anybody.
+ * `lib/social/meetPeople.ts` carries the full reasoning and the derivation.
+ *
+ * Everything happens in ONE updater re-resolved against `prev` (§4.4): the
+ * energy, the venue's cost and the appended relationship. The idempotence key
+ * is the relationship's own id, which encodes the meeting window - so a
+ * same-batch double tap re-resolves, finds the person already there, and
+ * returns `prev`; no "already met" flag has to be stored anywhere.
+ */
+export function meetSomeone(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message: string; relationshipId?: string } {
+  const preview = resolveMeeting(gameState);
+
+  if (preview.ok) {
+    setGameState((prev) => {
+      // Re-resolved against `prev`, not the snapshot above: a week may have
+      // ticked between the tap and the commit, which would make this a
+      // different person, and a same-batch double tap lands here with the
+      // person already added.
+      const committed = resolveMeeting(prev);
+      if (!committed.ok || committed.relationshipId !== preview.relationshipId) return prev;
+      return committed.next;
+    });
+    log.info('Met someone new', { id: preview.relationshipId, week: weeksInThisLife(gameState) });
+  }
+
+  // ONE return, both branches, read off the pure resolver rather than assumed
+  // from the fact that a dispatch happened. `updaterResultRatchet.test.ts`
+  // counts the opposite shape - an unconditional `return { success: true }`
+  // after an updater that can reject - and it counts it because that shape has
+  // shipped "you bought it" for a purchase that never happened.
+  return preview.ok
+    ? {
+        success: true,
+        message: `You got talking to ${preview.name} ${preview.where}.`,
+        relationshipId: preview.relationshipId,
+      }
+    : { success: false, message: preview.message };
 }

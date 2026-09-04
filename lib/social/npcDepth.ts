@@ -87,9 +87,29 @@ const GOAL_TEMPLATES: Omit<NPCGoal, 'fulfilled' | 'fulfilledWeek'>[] = [
 ];
 
 /**
- * Generate 2-3 personal goals for a new NPC based on their type and personality.
+ * The 2-3 goals an NPC carries, drawn from the pool their type allows.
+ *
+ * `roll` is REQUIRED, not optional (Program 14). This function ran on
+ * `Math.random()` and is called from the WEEKLY TICK, which CLAUDE.md
+ * §4.3 forbids outright - and its output is written into the save, so the
+ * same life replayed produced a different NPC. It was the first field to
+ * diverge when two identical persona runs were diffed week by week, and it
+ * hid for as long as it did because the simulation harness seeds
+ * `Math.random` for its own runs: the draw looked reproducible in a test and
+ * was not reproducible in the app. An optional roll with a `Math.random`
+ * fallback would leave exactly that hiding place open, so there is no
+ * fallback and the one caller must supply the stream.
+ *
+ * The shuffle is a real Fisher-Yates. It was
+ * `pool.sort(() => Math.random() - 0.5)`, which is not a shuffle at all: the
+ * comparator is inconsistent, so the permutation it produces depends on the
+ * engine's sort implementation and is heavily biased toward the input order.
  */
-export function generateNPCGoals(type: Relationship['type'], _personality: string): NPCGoal[] {
+export function generateNPCGoals(
+ type: Relationship['type'],
+ _personality: string,
+ roll: (key: string) => number,
+): NPCGoal[] {
  const pool = GOAL_TEMPLATES.filter(g => {
  // Children don't have career/travel/relationship goals
  if (type === 'child') return g.category === 'family' || g.category === 'lifestyle';
@@ -98,8 +118,14 @@ export function generateNPCGoals(type: Relationship['type'], _personality: strin
  return true;
  });
 
- const shuffled = pool.sort(() => Math.random() - 0.5);
- const count = 2 + (Math.random() < 0.5 ? 1 : 0); // 2-3 goals
+ const shuffled = pool.slice();
+ for (let i = shuffled.length - 1; i > 0; i--) {
+ const j = Math.floor(roll(`goal-shuffle:${i}`) * (i + 1));
+ const swap = shuffled[i];
+ shuffled[i] = shuffled[j];
+ shuffled[j] = swap;
+ }
+ const count = 2 + (roll('goal-count') < 0.5 ? 1 : 0); // 2-3 goals
  return shuffled.slice(0, count).map(g => ({ ...g, fulfilled: false }));
 }
 
@@ -164,20 +190,38 @@ const MAX_MEMORIES = 20;
 /**
  * Add a memory to an NPC. Keeps the most recent MAX_MEMORIES.
  */
+/** FNV-1a over a string, base36. Stable across engines; used only for ids. */
+function shortHash(text: string): string {
+ let h = 0x811c9dc5;
+ for (let i = 0; i < text.length; i++) {
+ h ^= text.charCodeAt(i);
+ h = Math.imul(h, 0x01000193) >>> 0;
+ }
+ return h.toString(36);
+}
+
 export function addMemory(
  existing: NPCMemory[],
  memory: Omit<NPCMemory, 'id'>,
  /**
   * Optional deterministic id factory. The seeded weekly tick threads one in
   * (derived from the weekly roll) so reloads / StrictMode double-invoke produce
-  * byte-identical memory ids. Live actions (Contacts/Dating) omit it and keep
-  * the unique wall-clock + random id so concurrent user actions never collide.
+  * byte-identical memory ids.
   */
  makeId?: () => string
 ): NPCMemory[] {
  const newMemory: NPCMemory = {
  ...memory,
- id: makeId ? makeId() : `mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+ // The fallback is CONTENT-ADDRESSED, not wall-clock (Program 14). It was
+ // `mem_${Date.now()}_${Math.random()}`, justified in a comment as keeping
+ // "concurrent user actions" from colliding — but there is no concurrency
+ // here, and the cost was real: memory ids are written into the save, so the
+ // same life replayed produced a different save. This was the second field to
+ // diverge when two identical persona runs were diffed week by week (the
+ // first was `generateNPCGoals`). Nothing reads a memory id, so a collision
+ // between two byte-identical memories in the same week is harmless, while
+ // determinism is not.
+ id: makeId ? makeId() : `mem_${memory.weeksLived}_${memory.type}_${shortHash(memory.description)}`,
  };
  const updated = [...existing, newMemory];
  // Keep only most recent
@@ -201,18 +245,29 @@ export interface NPCLifeEvent {
  weight: number; // Probability weight
 }
 
+/**
+ * `incomeChange` is in the same unit as `Relationship.income`, which is an
+ * ANNUAL salary (the 52 `DATING_PROFILES` rows it is copied from are annual
+ * figures, and `householdPartnerIncome` divides by `WEEKS_PER_YEAR` to spend
+ * it). These deltas were authored as +200 / +100 / -500 against a field whose
+ * unit was ambiguous, which made "{name} got a promotion at work!" a raise of
+ * $200 a YEAR. Rescaled so the number matches the sentence: a promotion is
+ * +6,000, a bonus +2,500, and losing the job costs 20,000 of annual income —
+ * which is a quarter-share of about $96 a week off the household, rather than
+ * the $2.40 it was.
+ */
 const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  // Positive events
  {
  id: 'got_promotion',
  description: '{name} got a promotion at work!',
- effects: { mood: 'happy', incomeChange: 200, relationshipScoreChange: 2 },
+ effects: { mood: 'happy', incomeChange: 6000, relationshipScoreChange: 2 },
  weight: 8,
  },
  {
  id: 'bonus_at_work',
  description: '{name} received a bonus at work.',
- effects: { mood: 'happy', incomeChange: 100 },
+ effects: { mood: 'happy', incomeChange: 2500 },
  weight: 10,
  },
  {
@@ -262,7 +317,7 @@ const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  {
  id: 'lost_job',
  description: '{name} lost their job unexpectedly.',
- effects: { mood: 'sad', incomeChange: -500, jobChange: 'Unemployed', relationshipScoreChange: -3 },
+ effects: { mood: 'sad', incomeChange: -20000, jobChange: 'Unemployed', relationshipScoreChange: -3 },
  weight: 3,
  },
  {
@@ -625,6 +680,48 @@ function pickFrom(arr: string[], roll: number): string {
 }
 
 /**
+ * How much a free catch-up is still worth, as a bond approaches the ceiling.
+ *
+ * ## The defect this closes
+ *
+ * `Call` cost nothing, was capped at once per contact per week, and paid a FLAT
+ * +3 at every score. Against the only downward pressure in the system (−2 per
+ * fully-ignored want cycle, i.e. −0.5/week) that is a free ratchet: Program 12
+ * measured the CASUAL SOCIAL persona — which calls its contacts once every four
+ * weeks and does nothing else — sitting at an average bond of 100 across 23
+ * relationships by week 250. Every contact anyone ever rang reached the top of
+ * the scale and stayed there, which is why quantity dominated quality and why
+ * the upper half of the scale could not be made to mean anything: everybody was
+ * already at the top of it.
+ *
+ * Every comparable ladder in this repository already diminishes —
+ * `raiseRelationship` pays `(100 − score) / 12` (8 down to 2), `wantBonus` pays
+ * 4/2/1/0 across a cycle, food satiety restores at full / half / quarter. The
+ * free interaction was the one that did not.
+ *
+ * ## The curve
+ *
+ * Full value up to `known` (45), then a linear taper to a quarter at 100. So:
+ *
+ *   - RECOVERY STAYS CHEAP. A neglected friend at 20 recovers at full rate,
+ *     which is the property Program 11 measured and deliberately preserved —
+ *     mistakes must be repairable.
+ *   - `close` (60) is a handful of calls. The goal engine's threshold, the
+ *     Chapter 2 goal and the story line all stay reachable for free.
+ *   - `trusted` (80) is real sustained contact, which is what makes "somebody
+ *     who turns up" something a life earns rather than collects.
+ *   - 100 is not reachable on free calls alone at all. The last stretch belongs
+ *     to the moves that cost something — the paid `raiseRelationship` gesture,
+ *     dates, gifts, and reading what somebody actually wants.
+ */
+export function closenessFalloff(score: number | undefined): number {
+ const n = typeof score === 'number' && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+ if (n <= 45) return 1;
+ // 1.0 at 45 → 0.25 at 100.
+ return 1 - 0.75 * ((n - 45) / 55);
+}
+
+/**
  * Resolve a lightweight relationship interaction (Call / Hang Out / …) into a
  * VARIED outcome: the score delta and the copy both shift with the NPC's mood,
  * their memory of you, and whether the action satisfies their current want.
@@ -726,7 +823,11 @@ export function resolveInteraction(
  }
  }
 
- delta = Math.max(1, Math.round(delta));
+ delta = Math.max(1, Math.round(delta)) * closenessFalloff(rel.relationshipScore);
+ // Floor of 1 AFTER the falloff, but only while there is somewhere to go: a
+ // bond already at 100 gains nothing, or "call once a week forever" would still
+ // ratchet, just more slowly.
+ delta = (rel.relationshipScore ?? 0) >= 100 ? 0 : Math.max(1, Math.round(delta));
  return {
  scoreDelta: delta,
  npcMood: nextMood,
@@ -747,19 +848,31 @@ export function resolveInteraction(
 export function processWeeklyNPCDepth(
  relationships: Relationship[],
  weeksLived: number,
+ /**
+  * `lineageId:generationNumber` for the life being ticked, folded into every
+  * key below (Program 14). Without it this stream was keyed on the week and
+  * the relationship id, and the ids that matter here are SHARED across lives:
+  * `parent1`, `parent2` and the meeting door's `met-w2` are literals, so two
+  * different players' mothers drifted through the same moods in the same
+  * weeks. Optional so a caller that genuinely has no life (a unit test on a
+  * bare array) still works; the tick always passes it.
+  */
+ lifeSalt = '',
 ): { relationships: Relationship[]; notifications: string[] } {
  const notifications: string[] = [];
 
- // Deterministic per-week roll stream (seeded on weeksLived) - the mood drift
- // + want rotation below are reproducible across reloads (no save-scum).
- const weeklyRoll = makeWeeklyRoll(weeksLived);
+ // Deterministic per-week roll stream (seeded on weeksLived AND the life) -
+ // the mood drift + want rotation below are reproducible across reloads (no
+ // save-scum) and differ between two lives living the same week.
+ const weekStream = makeWeeklyRoll(weeksLived);
+ const weeklyRoll = (key: string): number => weekStream(`${lifeSalt}|${key}`);
 
  const updated = relationships.map(rel => {
  let r = { ...rel };
 
  // Initialize depth fields on first encounter
  if (!r.npcGoals) {
- r.npcGoals = generateNPCGoals(r.type, r.personality);
+ r.npcGoals = generateNPCGoals(r.type, r.personality, (k) => weeklyRoll(`goals:${r.id}:${k}`));
  }
  if (!r.npcOpinion) {
  r.npcOpinion = createInitialOpinion(r.type, r.relationshipScore);

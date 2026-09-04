@@ -16,6 +16,7 @@
  *   - 500-week run: memories cap holds, opinion stays bounded, no NaN escapes
  */
 
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 import type { Relationship, NPCOpinion } from '@/contexts/game/types';
 // NPCLifeEvent is exported by the npcDepth module, not by contexts/game/types.
 // Importing it from the wrong place made the name resolve to `any`, so all 27
@@ -293,8 +294,12 @@ describe('NPC depth audit', () => {
   // ── generateNPCGoals ───────────────────────────────────────────────────
   it('generateNPCGoals: every type returns a goal array', () => {
     const types: Relationship['type'][] = ['spouse', 'partner', 'friend', 'child', 'parent'];
+    // The roll is a required argument now (Program 14): this ran on
+    // `Math.random()` from inside the weekly tick, which CLAUDE.md 4.3 forbids.
+    // A fixed stream here also makes the assertions below deterministic.
+    const roll = makeWeeklyRoll(100);
     for (const t of types) {
-      const goals = generateNPCGoals(t, 'caring');
+      const goals = generateNPCGoals(t, 'caring', roll);
       expect(Array.isArray(goals)).toBe(true);
       for (const g of goals) {
         expect(typeof g.id).toBe('string');

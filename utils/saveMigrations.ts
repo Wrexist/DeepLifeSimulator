@@ -1282,6 +1282,41 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 50;
     return state;
   },
+
+  /**
+   * v51 adds `metAt` on `Relationship` - where and when a person entered the
+   * life, stamped once when the relationship is created.
+   *
+   * It exists because the game had nowhere durable to put the one fact a
+   * player most wants back about someone: how they met. `npcMemories` looked
+   * like the place, but `decayMemories` drops anything older than
+   * `MEMORY_TTL_WEEKS` (52) - so an origin written as a memory is guaranteed to
+   * be forgotten in the second year, which is exactly when remembering it
+   * starts to matter. It ships alongside the tier-1 way to meet somebody
+   * (`lib/social/meetPeople.ts`), which is the first producer that has an
+   * origin to record.
+   *
+   * A field on the ELEMENT of a concrete array, so it takes the v34
+   * `grandchildren` / v42 `title` treatment rather than a top-level backfill.
+   *
+   * Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+   * `repairGameState` mirror. A relationship written before this has no record
+   * of where it began and cannot grow one - the week it happened is gone - so
+   * readers fall back to saying nothing, which is exactly what those saves show
+   * today. Writing a value would be worse than useless: it would be a
+   * FABRICATED memory, telling a player they met their spouse somewhere they
+   * did not, on a screen whose whole job is to be the life they remember. The
+   * one honest answer for an existing relationship is silence.
+   *
+   * Numbered 51, not 50. Both this and `shownNotificationIds` above were
+   * authored as v50 on separate branches; that one reached `main` first and
+   * owns the number. One version number must mean one schema shape - the same
+   * call the v46 Spark carve-out records.
+   */
+  51: (state) => {
+    state.version = 51;
+    return state;
+  },
 };
 
 /**

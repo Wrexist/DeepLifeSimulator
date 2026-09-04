@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 50`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 51`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -189,6 +189,88 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   the week alone. Disease occurrence is `DISEASE_BASE_WEEKLY_CHANCE ×
   calculateDiseaseRisk` (`lib/diseases/diseaseGenerator.ts`); the template
   curves only pick WHICH illness. Evidence: `tasks/life-variation-2026-09-02.md`.
+
+  **That rule is machine-checked now (Program 13), because by hand it did not
+  hold.** Program 8 applied the salt per call site, and missed the biggest roll
+  in the game: `lib/events/engine.ts` decided whether an event fires this week
+  and WHICH one on `makeWeeklyRoll`, so every life drew the same number in week
+  N and explored ONE sample of a 365-template pool instead of one per life.
+  Twelve simulated lives reached 33 distinct events; the same twelve on the same
+  seeds now reach 78, and fifty lives reach 108 instead of 30 — with nothing
+  authored and no weight touched. `pickWeighted` was never broken, which is why
+  "the weights are broken" was the wrong diagnosis and why raising one produced
+  no effect: moving a span only changes the answer if it straddles the single
+  fixed point. `__tests__/tooling/weekOnlyRollAudit.test.ts` now makes every
+  `makeWeeklyRoll` call site declare itself SAFE (salt folded into the key) /
+  INTENTIONALLY GLOBAL (the macro economy is one shared world) / NOT
+  LIFE-AFFECTING, so a new week-only roll fails the suite instead of passing
+  review. Evidence: `tasks/event-delivery-2026-09-04.md`.
+- **The tick is DETERMINISTIC, and that is machine-checked (Program 14).** The
+  same life replayed produces the same life, field for field, week for week, and
+  so does a life continued from a saved game. Getting there took seven fixes,
+  every one an unseeded draw or a wall-clock id written into saved state:
+  `generateNPCGoals` called `Math.random()` **on the weekly tick**, and memory
+  ids, the disease-cure rolls, Spark match/message ids, checkpoint ids, the whole
+  Pulse posting path and `playConversationOption`'s default roll were all
+  clock- or `Math.random`-derived. Two guards hold the line:
+  `__tests__/tooling/simulationDeterminismAudit.test.ts` (TIER 1: no
+  `Math.random()` anywhere in the week loop, no allowlist; TIER 2: every
+  tick-reachable `lib/` module with a draw or clock read must be declared with a
+  reason; TIER 3: a repo-wide ratchet on the count of files drawing unseeded
+  randomness) and the `RUN_*`-gated
+  `__tests__/simulation/simulationReproducibility.test.ts` +
+  `saveLoadDeterminism.test.ts`.
+
+  Two rules came out of it. **The harness seeds `Math.random`, so an unseeded
+  draw is invisible to the tests that would catch it** — `earlyGameSim` assigns
+  `Math.random = mulberry32(seed)`, which is why `generateNPCGoals` had passed
+  its unit tests deterministically for its whole life while the shipped app
+  rolled fresh dice every week, and why the guard is static rather than a
+  simulation. And **a comment asserting a safety property is a claim to check**:
+  `checkViralChance` carried "ANTI-EXPLOIT: deterministic hash instead of
+  Math.random() to prevent save/reload abuse" over a hash of `Date.now()`.
+  Evidence: `tasks/simulation-integrity-2026-09-04.md`.
+- **A happiness gain is worth less the happier a life already is.**
+  `lib/economy/happinessGain.ts` is the one place that curve lives (full value
+  below 55, tapering to 0.2 at 100; a LOSS is never scaled). It exists because
+  happiness had one recurring drain and an unbounded number of additive sources,
+  so any life that touched the social or event systems ran a permanent surplus
+  and the 0-100 clamp discarded it — along with every difference between lives.
+  Measured over 150 weeks: the romance persona spent **132 of 149 weeks with
+  happiness moving by exactly zero**, CAREER-OBSESSED and WEALTH MAXIMIZER were
+  identical to the decimal, weeks below 50 were **zero for all six personas**,
+  and a life knocked to 20 happiness converged on the identical trajectory
+  within ~25 weeks. Same answer as `closenessFalloff` (§4.7) and food satiety
+  (v48) — when one ladder in a family of ladders is flat, that is the bug.
+
+  It is applied at FOUR choke points and the choice was made by measurement, not
+  by reading: once per tick on the NET movement measured from AFTER decay (one
+  application covering ~20 weekly writers, including ones not yet written),
+  plus `applyEventStatDeltas`, `applyStatsDelta`, and seven direct writers that
+  bypass all three. The first cut used only the two obvious ones and barely
+  moved the distribution, because those carry 1-3.5 points a week out of a much
+  larger flow. `__tests__/tooling/happinessGainAudit.test.ts` makes a new
+  writer declare itself. Honest limits, in the report's §11: the romance life is
+  still pinned, wealth still buys nothing a career does not, and the bottom half
+  of the scale is still unreachable in ordinary play.
+- **The event pipeline is measured, not read off the code.** Four harnesses,
+  all `RUN_*`-gated and all taking `DUMP=<file>` (jest swallows console output
+  from a backgrounded or `--silent` run):
+  `eventTelemetry.sim` (reach, cross-life overlap, and the same-life
+  byte-identical replay the salt must never break), `eventFunnel.sim`
+  (authored -> eligible -> competing -> selected, probed against the states the
+  tick actually walked), `eventWeightResponse.sim` (the controlled weight
+  experiment: 20x on a mid-weight template moves its delivery share 0.96% ->
+  4.86%), and `eventReachability` (pure, in the normal suite: 17 archetype
+  states screening which gates are satisfiable at all — the
+  `scholarship_opportunity` class of dead gate that no cohort size can find).
+  Two rules that came out of it. A null result from an underpowered probe is
+  not a null effect — the first weight experiment scaled a 0.1-weight template
+  and measured 0 vs 0. And the interruption budget Programs 1-6 won is intact
+  and was checked by DECOMPOSING the scary aggregate: back-to-back event weeks
+  rose 21.3% -> 28.4%, but adjacent weeks where both were independent weighted
+  picks went 29 -> 29; all the growth is multi-week authored arcs finally
+  running to completion.
 - **Retention is measured, not assumed.** `RUN_RETENTION_SIM=1 npx jest
   retentionJourney.sim --silent=false` prints a per-week signal map (new
   decision, promotion, unlock, chapter step, goal change, week-ahead row, life
@@ -241,6 +323,64 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   reads as working protection. `utils/notifications.ts` survived as a no-op stub
   for a while afterwards; nothing ever imported it either, so it is deleted too.
 - Load native modules lazily via `require()` in a try/catch, never at module top level.
+
+### 4.7 What a bond is worth, and the one place it is defined
+
+`lib/social/closeness.ts` is the single definition of what a relationship score
+MEANS — `estranged` 25 · `known` 45 · `close` 60 · `trusted` 80 — and every
+consumer reads it rather than restating a threshold. Two rules came out of
+measuring it (Program 12, `tasks/relationship-depth-2026-09-03.md`):
+
+- **The wire runs BOTH ways.** `applyRelationshipHealth` returns a
+  `happinessSupport` beside its `happinessPenalty`, and the tick caps them the
+  same way (+1 per close bond to a ceiling of +3, mirroring the −1/−3 neglect
+  drag). Before that, relationships could only ever subtract happiness, and a
+  controlled nine-cohort run measured the consequence: happiness, health and
+  energy byte-identical whether a life held nobody, one soulmate or fifty
+  acquaintances. If you add a relationship effect, check which direction the
+  existing wire runs before concluding it is merely weak.
+- **The bond ladder diminishes.** `closenessFalloff` (`lib/social/npcDepth.ts`)
+  makes a free catch-up worth less to somebody you already see — full value to
+  45, a quarter at 100 — because a flat +3 at every score against a −0.5/week
+  decay ratcheted every contact anyone ever rang to 100, which is what made
+  headcount beat depth and left the upper half of the scale meaningless.
+  Consistency buys depth; collecting people does not.
+
+Relationship value is deliberately NOT money: nothing here grants cash on a
+timer, and the one support branch that pays at all is capped at $400, needs real
+arrears, and costs 12 bond.
+
+### 4.8 Other people enter a life through exactly three doors
+
+`Relationship` records are produced by **three** functions and nothing else:
+`promoteMatchToFriend` / `promoteMatchToRelationship` (Spark, **tier 2**), the
+`intro` favour (`resolveNonMoneyFavor`, offered only on a `business` contact, so
+**tier 3**), and `meetSomeone` (`lib/social/meetPeople.ts`, the Contacts app,
+**tier 1**). Before the third existed a player below tier 2 could not meet
+anybody at all, which is why Chapter 2's social goal had to count the seeded
+parents and paid its share of the bundle for a state every life starts in. If
+you add a fourth, say which tier it is reachable at — a social system nobody can
+reach is indistinguishable from one that does not exist.
+
+Two rules that came out of measuring it (Program 11,
+`tasks/social-systems-2026-09-03.md`):
+
+- **`Relationship.income` is an ANNUAL salary.** It is copied from
+  `DATING_PROFILES`, whose 52 rows are annual figures, and
+  `householdPartnerIncome` divides by `WEEKS_PER_YEAR` before spending it. It
+  used to be added straight into the WEEKLY income beside `careerSalary`
+  ($110–$6,000), so one Spark promotion paid up to $62,500 a week forever. Every
+  label that shows it says "/yr".
+- **The social systems are measured on the real tick**, like the economy.
+  `__tests__/helpers/socialPersonas.ts` holds seven personas (LONER … RISK-TAKER)
+  over the `earlyGameSim` harness, with swipes, conversation moves, calls,
+  bonds, dates, gifts and proposals routed through the production action
+  modules. Soak: `RUN_SOCIAL_PERSONAS=1 npx jest socialPersonas --silent=false`
+  (`DUMP=<file>` for JSON); gates in
+  `__tests__/simulation/socialBoundaries.test.ts`. The rule that came out of it:
+  a persona that never reaches a system cannot measure it — Program 10 ran nine
+  economic personas for 250 weeks and never saw the partner-income defect,
+  because not one of them ever got a partner.
 
 ---
 
@@ -382,7 +522,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 50`** — single source of truth in
+- **Canonical `STATE_VERSION = 51`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -725,6 +865,26 @@ including the crash screen.
   Deliberately NOT holding the COOLDOWN clocks that shared that Map: those are
   `Date.now()` stamps, and a persisted wall-clock gate is the farmable shape
   v28/v31/v35/v40/v44 each had to close.
+- **v51 adds `metAt` on `Relationship`** — where and when somebody entered the
+  life (`{ venue, label, week }`, the week being `weeksInThisLife`). A field on
+  the ELEMENT of a concrete array, so it takes the v34 `grandchildren` / v42
+  `title` treatment rather than a top-level backfill. It exists because the game
+  had nowhere DURABLE to put the one fact a player most wants back about
+  somebody: how they met. `npcMemories` looked like the place and is not —
+  `decayMemories` drops anything older than `MEMORY_TTL_WEEKS` (52), so an
+  origin written as a memory is guaranteed to be forgotten in the second year,
+  which is exactly when remembering it starts to matter. Default `undefined`, so
+  a CARVE-OUT: version bumped, NO backfill and no `repairGameState` mirror. A
+  relationship written before this has no record of where it began and cannot
+  grow one — the week it happened is gone — so readers fall back to saying
+  nothing, which is what those saves show today. Writing a value would be worse
+  than useless: it would be a FABRICATED memory, telling a player they met their
+  spouse somewhere they did not, on the screens whose whole job is to be the
+  life they remember. Shipped with the first producer that has an origin to
+  record, the tier-1 meeting door (§4.8).
+  Numbered 51, not 50: `shownNotificationIds` above was authored as v50 on a
+  separate branch and reached `main` first, so it owns the number. One version
+  number must mean one schema shape — the same call v46 records.
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you
@@ -1018,6 +1178,10 @@ replaced with review checklists.
 |---|---|
 | `README.md` | Feature overview, web preview viewports, cloud-save backend contract |
 | `tasks/lessons.md` | Post-mortems and recurring bug patterns — read first |
+| `tasks/social-systems-2026-09-03.md` | The social/relationship/family map, the persona measurements, and §4.8's evidence |
+| `tasks/relationship-depth-2026-09-03.md` | What a bond is WORTH: the controlled cohort experiment, the ladder measurements, and §4.7's evidence |
+| **`tasks/event-delivery-2026-09-04.md`** | **How the world reaches the player: the event pipeline map, the delivery funnel (365 authored -> 78 delivered, from 33), the randomness audit table, the weight-responsiveness experiment, and the interruption-budget decomposition. Read before touching `lib/events/engine.ts` or adding a seeded roll** |
+| **`tasks/simulation-integrity-2026-09-04.md`** | **Why the same life now replays identically: the seven unseeded draws and wall-clock ids, the frozen-clock experiment that disproved the previous report's cause, the happiness equation and source ledger, the saturation root cause, and the new determinism guards. Read before adding a roll, an id, or a happiness gain** |
 | `tasks/todo.md` | Active plan |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |

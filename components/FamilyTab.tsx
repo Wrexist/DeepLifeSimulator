@@ -549,7 +549,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <Text style={styles.progressText}>
  <Text style={{ color: bondColor(score), fontWeight: '700' }}>{score}% bond</Text>
- {person.income ? ` · $${person.income.toLocaleString()}/wk` : ''}
+ {person.income ? ` · $${person.income.toLocaleString()}/yr` : ''}
  </Text>
  </View>
  </View>

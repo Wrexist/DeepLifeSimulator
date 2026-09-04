@@ -618,7 +618,12 @@ function createChildGameState(
   }
   
   // Create FamilyMemberNode for the prestiged character
-  const prestigedCharacterId = `prestige_${prestigeData.totalPrestiges}_${Date.now()}`;
+  // Deterministic in the LIFE, not the wall clock (Program 14). This node is a
+  // permanent entry in the family tree and its id is referenced by the heir's
+  // `parents` array, so a clock-derived id meant the same dynasty replayed with
+  // different edges. The lineage plus the prestige count already identify it:
+  // a lineage passes through prestige N exactly once.
+  const prestigedCharacterId = `prestige_${oldState.lineageId ?? 'unknown'}_${prestigeData.totalPrestiges}`;
   const prestigedCharacter: FamilyMemberNode = {
     id: prestigedCharacterId,
     firstName: oldState.userProfile?.firstName || 'Player',

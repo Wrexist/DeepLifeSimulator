@@ -11,7 +11,7 @@
  *   - the week-ahead surface has something in motion regularly;
  *   - no long stretch without a single signal after the opening weeks.
  */
-import { runPersona, answerPendingEvents, answerLifeMoment, type SimPolicy, type SimWeekContext } from '../helpers/earlyGameSim';
+import { runPersona, answerPendingEvents, answerLifeMoment, meetIfOffered, keepInTouch, type SimPolicy, type SimWeekContext } from '../helpers/earlyGameSim';
 import { PERSONAS } from '../helpers/earlyGamePersonas';
 import { recommendGoals } from '@/lib/goals';
 import { upcomingEvents } from '@/lib/anticipation';
@@ -72,6 +72,28 @@ function instrument(inner: SimPolicy, out: WeekSignals[]): SimPolicy {
   };
 }
 
+/**
+ * The careful persona, plus the two social legs a player who opens Contacts
+ * takes: say hello to whoever is around, and ring the people already in the
+ * phone.
+ *
+ * Added with Program 11, when Chapter 2's social goal stopped being satisfied
+ * by the seeded parents at their starting bond of 50 and became
+ * `ch2_someone_close` (one relationship at 60). Both legs are free and both are
+ * no-ops most weeks - `meetIfOffered` only fires in the week a new person is
+ * around, and `keepInTouch` with `hangOut: false` is the Contacts app's free
+ * Call, once per contact per week. Wrapped here rather than added to the shared
+ * `C careful` persona, which the Program 7 survivability gates measure.
+ */
+function carefulAndSociable(): SimPolicy {
+  const inner = PERSONAS['C careful']();
+  return async (ctx: SimWeekContext) => {
+    await inner(ctx);
+    await meetIfOffered(ctx);
+    await keepInTouch(ctx, { hangOut: false });
+  };
+}
+
 describe('the careful player over 100 weeks has a life that keeps going somewhere', () => {
   const weeks: WeekSignals[] = [];
   let finalChapters: string[] = [];
@@ -81,7 +103,7 @@ describe('the careful player over 100 weeks has a life that keeps going somewher
 
   beforeAll(async () => {
     const r = await runPersona({
-      name: 'C', policy: instrument(PERSONAS['C careful'](), weeks), scenarioId: 'food_courier', seed: 1, weeks: 100,
+      name: 'C', policy: instrument(carefulAndSociable(), weeks), scenarioId: 'food_courier', seed: 1, weeks: 100,
       mutateSeed: (s) => ({ ...s, lineageId: 'life_retention' }),
     });
     died = r.died;
@@ -116,13 +138,29 @@ describe('the careful player over 100 weeks has a life that keeps going somewher
     expect(withUpcoming).toBeGreaterThanOrEqual(20);
   });
 
-  it('after the opening weeks no silent stretch runs longer than five weeks (was ten)', () => {
+  it('after the opening weeks no silent stretch runs longer than six weeks (was ten)', () => {
     let run = 0;
     let longest = 0;
     for (const w of weeks) {
       if (w.week < 10) continue;
       if (w.signals.length === 0) { run++; longest = Math.max(longest, run); } else run = 0;
     }
-    expect(longest).toBeLessThanOrEqual(5);
+    // Six, not the five this asserted from Program 9 until 2026-09-04, and the
+    // reason is worth reading before anyone tightens it back.
+    //
+    // Until Program 13 the weekly event roll was seeded on the WEEK alone, so
+    // every life in the game shared ONE event schedule. "5" was therefore not a
+    // property of the game; it was a property of that single schedule, measured
+    // once. With the roll salted per life, the longest quiet run is a random
+    // variable, and it was measured across five lineages on this exact persona:
+    //
+    //   life_retention 6 | life_a 5 | life_b 3 | life_c 6 | life_d 6
+    //
+    // Six is the typical worst case, not an outlier, and nothing approaches the
+    // ten this replaced. The cohort agrees: across 50 lives x 100 weeks the
+    // MEDIAN gap between event weeks FELL from 4 to 3 while the tail widened,
+    // which is what a per-life draw looks like. Re-pinning to 5 by choosing a
+    // luckier `lineageId` would be fitting the test to the answer.
+    expect(longest).toBeLessThanOrEqual(6);
   });
 });

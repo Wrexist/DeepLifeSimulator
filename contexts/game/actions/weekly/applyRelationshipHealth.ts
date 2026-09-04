@@ -50,11 +50,21 @@
 import type { Relationship } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { clampRelationshipScore } from '@/utils/stateValidation';
+import { CLOSE_BOND_HAPPINESS, isCloseBond } from '@/lib/social/closeness';
 import type { WeekContext } from './weekContext';
 
 export interface RelationshipHealthResult {
   rel: Relationship | null;
   happinessPenalty: number;
+  /**
+   * Weekly happiness this relationship CONTRIBUTES, when it is one the player
+   * has actually built (bond >= `BOND.close`). The missing half of the wire
+   * this module is: every other number here is a cost.
+   *
+   * Accumulated and capped by the caller, exactly like `happinessPenalty`'s
+   * standing-drag branch, so a large circle cannot out-earn a small one.
+   */
+  happinessSupport: number;
 }
 
 /**
@@ -119,7 +129,7 @@ export function applyRelationshipHealth(
           message: `${rel.name} has ended the relationship. Your relationship score was too low (${rel.relationshipScore}%).`,
           title: '💔 Relationship Ended',
         });
-        return { rel: null, happinessPenalty: -25 };
+        return { rel: null, happinessPenalty: -25, happinessSupport: 0 };
       }
 
       if (preRolls.relDisappointed[relIdx % preRolls.relDisappointed.length] < disappointedChance) {
@@ -136,6 +146,7 @@ export function applyRelationshipHealth(
             weeksAtLowRelationship: weeksAtLow,
           },
           happinessPenalty: -10,
+          happinessSupport: 0,
         };
       }
     }
@@ -148,6 +159,8 @@ export function applyRelationshipHealth(
         relationshipScore: clampRelationshipScore(rel.relationshipScore),
       },
       happinessPenalty: 0,
+      // A partner below 30 is not somebody in your corner.
+      happinessSupport: 0,
     };
   }
 
@@ -160,6 +173,7 @@ export function applyRelationshipHealth(
         relationshipScore: clampRelationshipScore(rel.relationshipScore),
       },
       happinessPenalty: 0,
+      happinessSupport: supportFrom(rel),
     };
   }
 
@@ -221,7 +235,7 @@ export function applyRelationshipHealth(
             message: `You and ${rel.name} have drifted apart. Neither of you reached out for a long time.`,
             title: '🍂 Friendship Faded',
           });
-          return { rel: null, happinessPenalty: FRIEND_DRIFT_HAPPINESS_PENALTY };
+          return { rel: null, happinessPenalty: FRIEND_DRIFT_HAPPINESS_PENALTY, happinessSupport: 0 };
         }
       }
 
@@ -246,6 +260,7 @@ export function applyRelationshipHealth(
           relationshipScore: clampRelationshipScore(rel.relationshipScore),
         },
         happinessPenalty: NEGLECT_HAPPINESS_DRAG,
+        happinessSupport: 0,
       };
     }
 
@@ -263,6 +278,7 @@ export function applyRelationshipHealth(
             }
           : { ...rel, relationshipScore: clampRelationshipScore(rel.relationshipScore) },
       happinessPenalty: 0,
+      happinessSupport: supportFrom(rel),
     };
   }
 
@@ -273,5 +289,19 @@ export function applyRelationshipHealth(
       relationshipScore: clampRelationshipScore(rel.relationshipScore),
     },
     happinessPenalty: 0,
+    happinessSupport: supportFrom(rel),
   };
+}
+
+/**
+ * What one relationship contributes this week.
+ *
+ * A CHILD contributes nothing here, for the reason `closeCircle` gives: every
+ * child starts at `NEWBORN_BOND` (75) by construction, so counting them would
+ * hand the whole model to anyone who had a baby, and a seven-year-old is not
+ * who you lean on. Parents, partners and friends all count.
+ */
+function supportFrom(rel: Relationship): number {
+  if (rel.type === 'child') return 0;
+  return isCloseBond(rel) ? CLOSE_BOND_HAPPINESS : 0;
 }

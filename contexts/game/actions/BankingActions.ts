@@ -7,6 +7,7 @@
  * Pure math lives in lib/banking/. This file is the React-aware adapter.
  */
 import React from 'react';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { GameState, BankAccountType, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '../types';
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
@@ -631,7 +632,11 @@ export const contributeToSavingsGoal = (
     }
     if (result.happinessDelta > 0) {
       const h = typeof working.stats.happiness === 'number' && isFinite(working.stats.happiness) ? working.stats.happiness : 0;
-      working = { ...working, stats: { ...working.stats, happiness: Math.max(0, Math.min(100, h + result.happinessDelta)) } };
+      // Program 14: the same diminishing-returns curve every other happiness
+      // gain goes through. This write bypasses `applyStatsDelta`, so it needs
+      // the scaling explicitly.
+      working = { ...working, stats: { ...working.stats,
+        happiness: Math.max(0, Math.min(100, h + scaledHappinessGain(h, result.happinessDelta))) } };
     }
     return working;
   });

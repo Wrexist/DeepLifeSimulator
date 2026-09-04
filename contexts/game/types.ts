@@ -836,6 +836,33 @@ export interface Relationship {
   // ignoring. Additive/optional: absent on old saves (defaults to no want until
   // the next tick assigns one).
   npcWant?: NPCWant;
+  /**
+   * Where and when this person entered the life (v51).
+   *
+   * A bond is a number; where it started is a story. `npcMemories` cannot hold
+   * this — `decayMemories` drops anything older than `MEMORY_TTL_WEEKS` (52),
+   * so the one fact the player most wants back ("we met at work, that first
+   * winter") is the first thing the memory list forgets. This is a permanent
+   * stamp instead, written once when the relationship is created and never
+   * touched again.
+   *
+   * Optional and absent by default: a relationship that arrived before this
+   * existed has no record of its origin and cannot grow one, so readers fall
+   * back to saying nothing rather than inventing a place. See §7 (v51).
+   */
+  metAt?: RelationshipOrigin;
+}
+
+/**
+ * How a relationship began. `venue` is a stable id for consumers that branch on
+ * it; `label` is the player-facing phrase captured at the time, so a later
+ * rewording of a venue cannot retroactively change where somebody remembers
+ * meeting. `week` is `weeksInThisLife`, not the absolute counter (§4.2).
+ */
+export interface RelationshipOrigin {
+  venue: string;
+  label: string;
+  week: number;
 }
 
 /**

@@ -5011,3 +5011,261 @@ apart landed inside it at simulator speed and the second tap was silently
 dropped, which read as "the event stays pending and pays every week". The
 50 ms health-activity guard from Program 7 was the same class. Wait the
 debounce out in the wrapper; a thumb always does.
+
+---
+
+## 2026-09-03 — Program 11: two numbers added together are a claim about their units
+
+`householdPartnerIncome` had been fixed twice — once for a stray `× 7`, once for
+a missing 25% share — and both fixes were about the FORMULA. The defect was in
+the UNIT. `Relationship.income` comes from exactly one place, the 52
+`DATING_PROFILES` rows, and every one of them is an annual salary written as
+such (Student 15,000 · Elementary Teacher 45,000 · CEO & Founder 250,000). A
+quarter of it was added to a WEEKLY total beside a career salary running $110 to
+$6,000. So one Spark promotion paid up to $62,500 a week, forever, from about
+week 13, and the romance persona finished 250 weeks on $3.36M against the
+loner's $53k having taken no economic action at all.
+
+Nothing about the line looked wrong. Both operands were numbers, both were
+"income", and the ratio only becomes visible when you put the two side by side.
+Rule: **when an expression adds two quantities, name their units out loud before
+you check its arithmetic** — and when a value is copied from a data table, read
+three rows of that table and ask what a human would have meant by them. The tell
+here was free: a chef does not earn $62,000 a week.
+
+Second, and the reason it survived three passes of review: **a persona that
+never reaches a system cannot measure it.** Program 10 measured the economy with
+nine economic personas over 250 weeks and never saw this, because not one of
+them ever got a partner. The defect sat in the income line the whole time. A
+sweep is only as wide as the states its actors occupy.
+
+Third: **a permissive check with a comment explaining why is a TODO, not a
+decision.** `ch2_make_friend` counted the seeded parents and said so at length —
+"the permissive count is LOAD-BEARING… making it a real goal means shipping a
+visible tier-1 way to meet someone in the same change". The comment was right
+about the deadlock and right about the fix, and the goal still paid a $2,800
+bundle for a state every life starts in, for as long as nobody did the other
+half. When a comment names the change that would make a check honest, that is a
+work item with a rationale attached.
+
+Fourth, from getting it wrong once in the middle: **tightening a goal is a
+change to who can finish the game, so measure it on the archetype most likely to
+be hurt.** Making the chapter goal require a CHOSEN relationship worked
+perfectly for six personas and froze the whole chapter spine for the LONER —
+an archetype the brief explicitly supports. The fix was to ask for a bond of 60
+with ANYONE, which a player who never meets a soul satisfies by calling their
+mother. Asking for connection rather than collection is both the kinder rule and
+the truer one.
+
+Fifth: **an id-shaped idempotence guard answers the question the id encodes, not
+the question you meant.** Both Spark promotion paths guarded on "have I promoted
+this MATCH?", and `unmatch` — which leaves the relationship standing — is
+exactly the operation that separates a match id from a person. Re-swiping the
+same profile minted a new id and appended a second "Sarah Johnson", both
+counting toward two gem achievements. Before trusting a uniqueness guard, ask
+what can change while the thing it identifies stays the same.
+
+Sixth: **a stale reachability check outlives the schema change that broke it.**
+`moveInTogether` walked `realEstate[]` for a home, which stopped being the whole
+truth at v32 when a tenancy deliberately moved to `state.rental`. Every renting
+player was refused with "you need to … rent a property" while renting one — and
+because proposing requires living together, that one line closed the entire
+marriage path for anyone who had not bought a house. The fix was not a better
+check but the SAME check the rest of the game uses (`computeHousingWellbeing`),
+which is what stops the game telling a player they are housed and homeless in
+the same session.
+
+Seventh, a measurement lesson: **count the KINDS of thing a system produces, not
+how much it produces.** Over 1,750 simulated persona-weeks the social systems
+raised 121 notifications for the friendship persona and every single one was the
+same template family — NPC life-event flavour. Zero breakups, zero drifts, zero
+losses, across seven very different lives including one built to neglect people.
+A system that is busy is not the same as a system that is doing something.
+
+Eighth, a harness lesson that cost a full 280-second run: **`| tail` on a
+background soak throws away the measurement.** Jest prints its console output
+before the summary, so piping to `tail -120` kept the summary and discarded every
+table. Write the whole log to a file and let `DUMP=` carry the data.
+
+---
+
+## 2026-09-03 — Program 12: a system that can only subtract is not a weak system, it is half a system
+
+`applyRelationshipHealth` could take 25 happiness for a breakup, 10 for a
+disappointed partner, 8 for a friendship fading and a standing 1 a week for
+estrangement. It could add nothing. Not "not much" — nothing. Every reviewer who
+looked at relationships saw a rich file full of thresholds and rolls and
+concluded the wiring was thin; it was one-directional, which reads identically
+from the code and completely differently from the measurement.
+
+The measurement that made it undeniable was a CONTROLLED one, and building it
+was most of the value of the program: nine cohorts, same policy, same seed, same
+scenario, differing only in who was in the life and at what bond, with the bonds
+re-stamped weekly so decay could not confound it. Result: happiness, health and
+energy **byte-identical** across a life with nobody, a life with one soulmate
+and a life with fifty acquaintances. Rule: **when you suspect a system is weak,
+hold everything else still and vary only it.** A persona run mixes the effect
+with what the effect cost; a cohort run does not, and "byte-identical" is an
+answer no amount of code reading produces.
+
+Second: **the ladder that never diminishes is the one that breaks every band
+above it.** `Call` was free, capped at once a week, and paid a flat +3 at every
+score against a −0.5/week decay — so every contact anybody ever rang climbed to
+100 and stayed. That is why quantity beat quality, and it is also why no upper
+band could be given a meaning: there was no upper band, everyone was at the top.
+Three sibling systems in the same repo already diminished (`raiseRelationship`
+8→2, `wantBonus` 4/2/1/0, food satiety full/half/quarter). When one ladder in a
+family of ladders is flat, that is the bug, and fixing it is what makes the
+whole scale available.
+
+Third, and I made this mistake myself after writing it down twice: **a persona
+that never answers a modal measures a blocked system.** My story probe reported
+"the support events never fire" across four 250-week lives. They fired fine; the
+persona I built had no `answerPendingEvents` leg, so its `eventLog` was empty —
+250 weeks, zero events of any kind resolved. Programs 9 and 10 each recorded
+this lesson once. It is apparently worth making a third time. Before concluding
+a feature does not fire, check that the harness can see ANY feature fire.
+
+Fourth: **when a tuning experiment shows no effect, do not ship the tuning.**
+Doubling an event's weight from 1.6 to 3.0 produced the same single occurrence,
+in the same week, in all four probe lives. The honest reading is not "3.0 is
+better"; it is "weight is not what is deciding this" — the weekly pick is
+deterministic in the week and not salted per life, so every life draws the same
+event on the same week whatever the weights say. I reverted to the value
+justified by the pool it sits in and wrote the finding down. A number tuned
+against an experiment that did not respond is a number with no reason attached.
+
+Fifth: **check that a new gate is a state the game reaches.** The first cut of
+the crisis events required the player to be ill AND broke. Measured across
+twelve personas over 250 weeks, `ill && broke` occurred in 0 weeks for ten of
+them; `ill && health < 45` occurs 3-10 weeks in every life. An event gated on a
+state nothing produces is decoration — the exact defect Program 11 catalogued in
+`networking_opportunity`, re-created by me one program later. Every gate now has
+a test that builds the state from the fields the tick writes.
+
+
+## 2026-09-04 — Program 13: the biggest roll in the game was on the wrong RNG
+
+First, and it is the whole program: **a rule enforced by hand is a rule nobody
+can check.** CLAUDE.md §4.3 has said since Program 8 that a life-affecting roll
+must never be keyed on the week alone. Program 8 applied `lifeSalt` per call
+site, by hand, and missed the weekly event fire gate and pick in
+`lib/events/engine.ts` — the single biggest roll in the game. Two programs
+later it was still there, because a week-only roll compiles, type-checks,
+passes its own unit tests and looks correct in review. There is now a guard
+(`__tests__/tooling/weekOnlyRollAudit.test.ts`) that makes every `makeWeeklyRoll`
+call site declare itself. If a rule in CLAUDE.md is worth writing down, ask what
+would fail if somebody ignored it. If the answer is "nothing", the rule is a
+wish.
+
+Second: **yesterday's null experiment was today's headline.** Program 12 raised
+an event weight from 1.6 to 3.0, measured no change in four lives, reverted the
+number and wrote down "weight is not what is deciding this". That note is what
+made this program's first hour productive instead of speculative. Recording a
+non-response as a finding — rather than quietly shipping the tuning or quietly
+dropping it — paid for itself completely.
+
+Third: **a null result from an underpowered probe is not evidence of a null
+effect.** My first weight-responsiveness experiment scaled `job_offer` 8x and
+measured 0 deliveries against 0, in ten lives. I nearly wrote that down as "the
+weights still do not respond". `job_offer`'s weight function returns 0.1, the
+bottom of a 107-template pool, so zero deliveries is the EXPECTED result at
+either scale. Re-run on a mid-weight template with a measured base rate:
+0.96% -> 4.86% share. Before reporting that an intervention did nothing, check
+that the measurement could have detected something.
+
+Fourth: **when a diagnostic tool reports a whole subsystem dark, suspect the
+tool.** The reachability screen said all 45 wealth templates were unreachable.
+They gate on `netWorth >= $10M` and my "wealthy" archetype had $8.5M. Earlier it
+had said the entire political, travel, fame and hobby surface was unreachable,
+because I had not built archetypes that opt into those subsystems. The screen
+went 137 -> 183 -> 226 reached and **every jump was my probe, not the game.** A
+measurement that is wrong is indistinguishable from a product that is broken, so
+the screen now carries its own ratchet.
+
+Fifth: **measure the thing you are afraid of breaking, not a proxy for it.** The
+fix made lives see more events, and "more events" is exactly what Programs 1-6
+spent their effort suppressing. The tempting summary — back-to-back event weeks
+rose 21.3% -> 28.4% — reads like a regression. Decomposing it: adjacent weeks
+where BOTH were independent weighted picks went 29 -> 29, unchanged to the unit.
+All the growth was multi-week authored arcs running their consecutive beats,
+which is what those arcs are for. The aggregate said "worse pacing"; the
+decomposition said "stories now finish".
+
+Sixth, again, and it cost 250 seconds twice: **jest console output does not
+survive a backgrounded or `--silent` run.** Every sim harness in this repo now
+takes `DUMP=<file>` and writes its numbers to disk. I re-learned this on the
+funnel run and then walked into it a third time on the reachability screen
+before adding the dump there too.
+
+Seventh: **a test that pins one draw of a random variable is not testing what
+its name says.** Four assertions broke on this change and three of them were of
+that shape — "the secret always wins the pick" (it wins 20 of 24 lineages), "no
+silent stretch runs longer than five weeks" (5, 6, 3, 6, 6 across five
+lineages), "social lives are +8 happiness" (true at the p10, false at the mean
+once everything saturates). None of them was wrong when written; they were
+written in a world where every life drew the same number every week, so a single
+draw WAS the population. Before nudging a bound to get green, ask what the
+assertion would look like measured across a cohort — and if it only holds for one
+seed, it was pinning the seed.
+
+Eighth: **attribute a regression before you touch it.** Every one of those four
+was confirmed by stashing the one-line engine change, re-running the same tests
+and watching them pass on the old code. That took four minutes and it is the
+difference between "my change did this, and here is why the new number is
+right" and "I adjusted a threshold until the suite went green".
+
+
+## 2026-09-04 — Program 14: a hypothesis in a report is not a finding
+
+First: **the cause named in the last report was wrong, and testing it took four
+minutes.** Program 13 recorded that the tick was not reproducible and named
+`Date.now()` as the culprit. Program 14 froze the clock for an entire run and
+the divergence was unchanged. Had I inherited that guess instead of testing it,
+I would have spent the program rewriting timestamps. When a report hands you a
+cause, check whether it was measured or reasoned — and when you write one,
+say which it was. I have marked that sentence in Program 13's report.
+
+Second, and it is the reason the bug survived three programs: **the simulation
+harness seeds `Math.random`, so an unseeded draw is invisible to the very tests
+that would catch it.** `earlyGameSim` assigns `Math.random = mulberry32(seed)`
+for its runs. A probe I installed before calling it recorded ZERO draws, because
+the harness overwrote the probe. Every unit test of `generateNPCGoals` passed,
+deterministically, for as long as the function has existed — while the app it
+ships in rolled fresh dice every week. A test environment that repairs the
+defect under test is worse than no test. That is why the guard that finally
+holds the line is STATIC.
+
+Third: **fix the choke point, not the call site — and measure which one you are
+actually at.** I applied the happiness curve to the two obvious writers,
+re-measured, and found almost nothing had moved: those two carried 1-3.5 points
+a week out of a much larger flow. Three more rounds followed. The lesson is not
+"look harder" — it is that I should have instrumented the flow BEFORE choosing
+where to intervene, which would have shown in one run what four rounds showed
+slowly.
+
+Fourth: **a comment asserting a safety property is a claim to verify.**
+`checkViralChance` carried "ANTI-EXPLOIT: Use deterministic hash instead of
+Math.random() to prevent save/reload abuse. Same inputs at same game state =
+same outcome every time." Its hash input was `Date.now()`. Ten lines below,
+`checkViralChanceFull` did the same job correctly on `weeksLived`. This is the
+same shape as the `notifications` feature flag with zero readers (CLAUDE.md
+4.6) and the coverage gate that could never pass (8): a guard nobody checks
+reads as protection and is not.
+
+Fifth: **when a regression makes an exact-value assertion fail, read what the
+test is NAMED before touching the number.** Six suites went red. One was called
+"clamps stat effects to 100" and asserted `toBe(100)`; the value is now 99.6
+because a gain near the ceiling is worth less. The bound is what it meant; the
+exact 100 was only ever true because gains were free at the top of the scale,
+which is the defect being removed. Two others pinned an arithmetic identity to
+six decimal places across two lives that are now scaled differently. None of
+those was a weakened assertion — but I only get to say that because I read each
+one instead of nudging tolerances until the suite went green.
+
+Sixth: **verify a null result before reporting it, and report it when it holds.**
+Halving the falloff floor moved the persona spread from 12.18 to 12.29 and did
+not move the romance life at all. That is a real answer — the floor is not what
+is holding the ceiling together — so it is recorded in the module rather than
+shipped as a tuning. Program 12 did this with an event weight and it is what
+made Program 13's first hour productive.

@@ -22,6 +22,7 @@
  */
 import type { GameStats } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 /** Keys on `GameStats` that are currencies, not 0-100 stats. */
 export const EVENT_STAT_CURRENCY_KEYS = ['money', 'gems'] as const;
@@ -55,6 +56,15 @@ export function applyEventStatDeltas(
     if (!(key in updatedStats)) return;
     const statKey = key as keyof GameStats;
     const currentVal = (updatedStats[statKey] as number) || 0;
-    updatedStats[statKey] = Math.max(0, Math.min(100, currentVal + value));
+    // Diminishing returns on happiness GAINS (Program 14). This is where the
+    // event catalogue's happiness actually lands, and measurement is what put
+    // the falloff here: the first cut applied it at the two obvious choke
+    // points (`applyStatsDelta` and the four direct writes in the week loop)
+    // and barely moved the distribution, because those carry only 1-3.5 points
+    // a week between them against a 3.2/week decay. Events carry the rest.
+    // Negative deltas are untouched - a bad event hurts exactly as much as it
+    // always did.
+    const delta = statKey === 'happiness' ? scaledHappinessGain(currentVal, value) : value;
+    updatedStats[statKey] = Math.max(0, Math.min(100, currentVal + delta));
   });
 }

@@ -44,6 +44,7 @@ import {
   Ban,
   Gem,
   UserMinus,
+  UserPlus,
   Pin,
   Target,
   X as XIcon,
@@ -55,6 +56,11 @@ import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger, Favor, addFavor } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
+import {
+  currentIntroduction,
+  meetBlockedReason,
+  MEET_ENERGY_COST,
+} from '@/lib/social/meetPeople';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
@@ -65,6 +71,7 @@ import {
   lendMoney,
   recordFavor,
   askNetworkFavor,
+  meetSomeone,
   removeContact as removeContactAction,
   raiseRelationship as raiseRelationshipAction,
   relationshipBondCost,
@@ -256,6 +263,28 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
   const worstAtRisk = personalAtRisk[0];
 
+  /**
+   * Who is around to meet this week, and why not if nobody is.
+   *
+   * Derived, never stored: `currentIntroduction` is a pure function of the life
+   * and the week (`lib/social/meetPeople.ts`), so rendering it every frame costs
+   * nothing and a reload cannot change who is standing there.
+   */
+  const introduction = useMemo(
+    () => currentIntroduction(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      gameState.weeksLived,
+      gameState.lifeStartWeek,
+      gameState.relationships,
+      gameState.currentJob,
+      gameState.educations,
+      gameState.rental,
+      gameState.stats?.fitness,
+    ]
+  );
+  const meetBlocked = introduction ? meetBlockedReason(gameState) : null;
+
   const networkCost = useMemo(
     () => networkContacts.reduce((s, c) => s + (c.costPerWeek ?? 0), 0),
     [networkContacts]
@@ -371,6 +400,21 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     },
     [gameState, setGameState, flash]
   );
+
+  /**
+   * Meet the person this week is offering (Program 11).
+   *
+   * The card this drives is the only tier-1 way anybody new enters a life -
+   * Spark is tier 2 and the network `intro` favour needs a travel contact. It
+   * is deliberately on the PERSONAL tab, above the portfolio: the question
+   * "where do people come from?" should be answered on the screen that lists
+   * the people.
+   */
+  const handleMeet = useCallback(() => {
+    const r = meetSomeone(gameState, setGameState);
+    flash(r.message);
+    if (r.success) showToast(r.message, 'success');
+  }, [gameState, setGameState, flash, showToast]);
 
   const handleRemoveContact = useCallback(
     (rel: Relationship) => {
@@ -721,8 +765,18 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 All real, none of it a decision - so it folds away by default. */}
             <CollapsibleSection id={`contact-about-${c.id}`} title="About them" defaultCollapsed compact>
             <View style={styles.factRow}>
+              {/* Where the story started. `metAt` (v51) is stamped once, when
+                  the relationship is created, and never touched again - unlike
+                  `npcMemories`, which `decayMemories` drops after a year, so
+                  the one fact a player most wants back was the first thing the
+                  game forgot. */}
+              {r.metAt ? <Chip label={`Met ${r.metAt.label} · week ${r.metAt.week}`} tint={accent.success} /> : null}
               {r.job ? <Chip label={`Job · ${r.job}`} /> : null}
-              {r.income ? <Chip label={`Income · $${r.income.toLocaleString()}/wk`} /> : null}
+              {/* "/yr". `Relationship.income` is an annual salary copied from the
+                  Spark profile; it read "/wk" here and in FamilyTab while the
+                  tick added a quarter of it to a WEEKLY total - see
+                  `householdPartnerIncome`. */}
+              {r.income ? <Chip label={`Income · $${r.income.toLocaleString()}/yr`} /> : null}
               {typeof r.datesCount === 'number' && r.datesCount > 0 ? <Chip label={`Dates · ${r.datesCount}`} /> : null}
               {typeof r.giftsReceived === 'number' && r.giftsReceived > 0 ? <Chip label={`Gifts · ${r.giftsReceived}`} /> : null}
               {typeof r.weeklyInteractions === 'number' && r.weeklyInteractions > 0 ? <Chip label={`This week · ${r.weeklyInteractions}`} /> : null}
@@ -1096,6 +1150,61 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   };
 
   // ---- Attention: triage card with one primary action -----------------------
+  /**
+   * "Somebody new" - the tier-1 door into a social life.
+   *
+   * Renders only when there is actually a person around, so it is not a
+   * standing chore: `currentIntroduction` returns null between windows and once
+   * the cap is reached, and the card disappears with it. When somebody IS
+   * around but the player cannot afford the moment, the button stays visible
+   * and says why - a visible gate is a goal, an absent button is a mystery.
+   */
+  const renderMeetCard = () => {
+    if (!introduction) return null;
+    const disabled = !!meetBlocked;
+    return (
+      <View style={cardSurface}>
+        <View style={styles.cardHeader}>
+          <IconBubble color={accent.success} style={styles.bubble44}>
+            <UserPlus size={scale(20)} color={accent.success} />
+          </IconBubble>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={2}>
+              {introduction.venue.invitation}
+            </Text>
+            <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={2}>
+              {introduction.name} · {introduction.job} · {introduction.age}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.triageBtn,
+            {
+              backgroundColor: withAlpha(disabled ? theme.textMuted : accent.success, 0.16),
+              borderColor: withAlpha(disabled ? theme.textMuted : accent.success, 0.34),
+            },
+          ]}
+          onPress={handleMeet}
+          disabled={disabled}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          accessibilityLabel={
+            disabled ? (meetBlocked ?? 'Cannot say hello right now') : `Say hello to ${introduction.name}`
+          }
+        >
+          <UserPlus size={scale(15)} color={disabled ? theme.textMuted : accent.success} />
+          <Text style={[styles.triageBtnText, { color: disabled ? theme.textMuted : accent.success }]} numberOfLines={2}>
+            {disabled
+              ? meetBlocked
+              : `Say hello · ${MEET_ENERGY_COST} energy${introduction.venue.cost > 0 ? ` · $${introduction.venue.cost}` : ''}`}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderTriageCard = (c: ContactView) => {
     const rec = recencyMeta(c.weeksSinceContact, theme);
     const isPersonal = c.kind === 'family' || c.kind === 'partner' || c.kind === 'friend';
@@ -1197,8 +1306,13 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         />
       }
       ListHeaderComponent={
-        personalContacts.length === 0 ? null : (
+        (
+          /* The header no longer suppresses itself at zero contacts: the
+             "meet someone" card has to be reachable exactly when the book is
+             empty. The portfolio hero below still is, because a summary of
+             nothing was the reason for the old blanket suppression. */
           <View style={styles.leadWrap}>
+            {renderMeetCard()}
             {/* The lead slot. "At risk" used to be a number whose only
                 affordance was a tab switch; the worst at-risk contact now
                 opens the tab with the same triage card - and the same
@@ -1214,7 +1328,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 {renderTriageCard(worstAtRisk)}
               </View>
             ) : null}
-            {statsHero('Relationship portfolio', (
+            {personalContacts.length === 0 ? null : statsHero('Relationship portfolio', (
               <>
                 {topPersonal.length > 0 ? (
                   <View style={styles.clusterRow}>

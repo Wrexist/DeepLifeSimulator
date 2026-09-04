@@ -152,9 +152,16 @@ describe('the homeless penalty lands on every stat it claims', () => {
 
     // Happiness is the one that regressed: it travels through a named variable
     // and a downstream fold, where health and energy are written directly.
+    // Precision 2, not 6, and only on happiness. Program 14 made a happiness
+    // GAIN worth less the happier a life already is, so the homeless and rented
+    // weeks are scaled by slightly different multipliers (they sit at different
+    // happiness levels by construction) and the gap comes out at 4.9987 rather
+    // than exactly 5. Health and energy carry no such curve and stay exact
+    // below. The assertion still catches the regression it was written for:
+    // that was a whole missing housing term, not a thousandth of a point.
     expect(happinessDrop(homeless) - happinessDrop(rented)).toBeCloseTo(
       Math.abs(HOMELESS_PENALTY.happiness) + tier.happiness,
-      6,
+      2,
     );
     expect(drop(homeless, 'health') - drop(rented, 'health')).toBeCloseTo(
       Math.abs(HOMELESS_PENALTY.health) + tier.health,

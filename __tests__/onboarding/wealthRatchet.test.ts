@@ -28,6 +28,8 @@ import { FEATURE_UNLOCKS, isFeatureUnlocked, unlockTier } from '@/lib/progress/f
 import { LIFE_CHAPTERS, wealthMark } from '@/lib/progress/lifeChapters';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
+import { meetSomeone } from '@/contexts/game/actions/ContactsActions';
+import { createSetGameStateStub } from '../helpers/setGameStateStub';
 import fs from 'fs';
 import path from 'path';
 
@@ -483,41 +485,59 @@ describe('the ambition reward reads as status too, not as a button', () => {
   });
 });
 
-describe('chapter 2 stays completable at tier 1 - do not "fix" the friend goal', () => {
+describe('chapter 2 stays completable at tier 1, for everyone including a loner', () => {
   /**
-   * `ch2_make_friend` is `relationships.length > 0`, and `initialState` seeds Mom
-   * and Dad, so it reads as already complete on a brand-new life. That looks
-   * exactly like a bug worth tightening - the sibling ambition system tightened
-   * the equivalent check for precisely this reason, with a comment saying so
-   * (`lib/ambitions/catalog.ts`: "Exclude the starting parents ... so 'Make a
-   * Connection' doesn't auto-complete at birth").
+   * This block used to say "do not fix the friend goal" and pinned
+   * `ch2_make_friend` as ALREADY COMPLETE on a fresh life, because the seeded
+   * Mom and Dad satisfied `relationships.length > 0`.
    *
-   * Tightening it HERE would deadlock chapter 2. A chosen (non-family)
-   * relationship has two sources: Spark, which is tier 2, and a network-favour
-   * introduction, which `FAVOR_KIND_BY_CONTACT` only offers on a `business`
-   * contact - personal kinds are excluded on purpose. A player working on
-   * chapter 2 is at tier 1 with two parents and no business contacts, so Spark
-   * would be the only route, and chapter 2 is what UNLOCKS Spark.
+   * The reason was sound and is worth restating: a chosen relationship had
+   * exactly two sources - Spark, which is tier 2, and the network `intro`
+   * favour, which `FAVOR_KIND_BY_CONTACT` offers only on a `business` contact
+   * (tier 3). A player working on chapter 2 sits at tier 1 with two parents and
+   * no business contacts, so tightening the goal would have made chapter 2 need
+   * the app chapter 2 unlocks - rule 3 in `featureUnlocks.ts`, and the deadlock
+   * a player was stranded in on 2026-08-13.
    *
-   * That is rule 3 in `featureUnlocks.ts` - "a chapter's goal must not need an
-   * app that chapter unlocks" - and it is the deadlock a player was stranded in
-   * on 2026-08-13. The permissive check is load-bearing. This test exists to
-   * make the next reader stop.
+   * Program 11 added the third source at TIER 1 (`lib/social/meetPeople.ts`,
+   * surfaced on the Contacts app) — and then measured what requiring it costs:
+   * a LONER, an archetype the brief explicitly supports, never completes
+   * chapter 2 and the chapter spine freezes behind it. So the goal asks for a
+   * bond of 60 with ANYONE, which a player who never meets a soul can satisfy
+   * by calling their mother.
+   *
+   * What has to stay true is the PROPERTY the permissive check was standing in
+   * for, and that is what this block pins now: a tier-1 player must have a
+   * reachable way to satisfy it, without a tier-2 app and without being
+   * required to want a social life. That is a stronger guarantee than "the goal
+   * is pre-ticked", and it fails just as loudly if either route is removed.
    */
   const friendGoal = LIFE_CHAPTERS
     .find((c) => c.id === 'ch2_settling_in')!.goals
-    .find((g) => g.id === 'ch2_make_friend')!;
+    .find((g) => g.id === 'ch2_someone_close')!;
 
-  it('a fresh life satisfies it from the family it starts with', () => {
+  it('is NOT satisfied by the family a life starts with', () => {
     const fresh = createTestGameState({ weeksLived: 1 });
 
     expect((fresh.relationships ?? []).length).toBeGreaterThan(0);
-    expect(friendGoal.checkComplete(fresh)).toBe(true);
+    expect(friendGoal.checkComplete(fresh)).toBe(false);
   });
 
-  it('and the tier-1 player working on chapter 2 cannot reach Spark', () => {
-    // The other half of the argument: if the goal were tightened, THIS is the
-    // state that would have to satisfy it, and it cannot.
+  it('but a LONER can satisfy it without meeting anyone - by calling their mother', () => {
+    const fresh = createTestGameState({ weeksLived: 8 });
+    const mum = (fresh.relationships ?? [])[0];
+    expect(mum?.type).toBe('parent');
+
+    const cared: GameState = {
+      ...fresh,
+      relationships: (fresh.relationships ?? []).map((r) =>
+        r.id === mum.id ? { ...r, relationshipScore: 60 } : r,
+      ),
+    };
+    expect(friendGoal.checkComplete(cared)).toBe(true);
+  });
+
+  it('the tier-1 player working on chapter 2 still cannot reach Spark', () => {
     const workingOnChapter2 = ratchetWealthPeak(withMoney(1_200, {
       weeksLived: 8,
       completedChapters: ['ch1_fresh_start'],
@@ -525,5 +545,33 @@ describe('chapter 2 stays completable at tier 1 - do not "fix" the friend goal',
 
     expect(unlockTier(workingOnChapter2)).toBe(1);
     expect(isFeatureUnlocked(workingOnChapter2, 'app:tinder')).toBe(false);
+  });
+
+  it('but the app carrying the tier-1 door IS open to them', () => {
+    const workingOnChapter2 = ratchetWealthPeak(withMoney(1_200, {
+      weeksLived: 8,
+      completedChapters: ['ch1_fresh_start'],
+    }));
+
+    // `meetSomeone` lives in the Contacts app. If this ever goes above tier 1,
+    // the friend goal needs an app chapter 2 unlocks and rule 3 is broken.
+    expect(isFeatureUnlocked(workingOnChapter2, 'app:contacts')).toBe(true);
+  });
+
+  it('and the tier-1 door puts a real person in reach of it', () => {
+    // The other route, at the tier that used to have none: take the tier-1
+    // state, take the introduction the game offers it, and a chosen
+    // relationship exists - with no hand-written state and no tier-2 app.
+    const base = ratchetWealthPeak(withMoney(1_200, {
+      weeksLived: 8,
+      lifeStartWeek: 0,
+      completedChapters: ['ch1_fresh_start'],
+    }));
+    const stub = createSetGameStateStub(base);
+    const r = meetSomeone(base, stub.setGameState);
+
+    expect(r.success).toBe(true);
+    const met = (stub.current().relationships ?? []).filter((x) => x.type === 'friend');
+    expect(met).toHaveLength(1);
   });
 });

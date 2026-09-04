@@ -2907,12 +2907,20 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('partner with relationshipScore >= 50 contributes 25% of income', () => {
+  /**
+   * `Relationship.income` is an ANNUAL salary - the 52 `DATING_PROFILES` rows it
+   * is copied from are annual figures, so `householdPartnerIncome` divides by
+   * `WEEKS_PER_YEAR` before spending it (Program 11). These fixtures used to
+   * carry 1,000 and 2,000, which read as plausible only while the field was
+   * being spent weekly; they carry catalogue-scale salaries now, and the
+   * assertions state the derivation rather than a magic number.
+   */
+  it('partner with relationshipScore >= 50 contributes a weekly quarter-share of an annual salary', () => {
     const result = computeWeeklyIncome({
       prevState: {
         ...fixtures.midGame,
         relationships: [
-          { id: 'r1', name: 'Pat', type: 'partner', relationshipScore: 80, income: 1000 } as any,
+          { id: 'r1', name: 'Pat', type: 'partner', relationshipScore: 80, income: 52_000 } as any,
         ],
       },
       careerSalary: 0,
@@ -2921,6 +2929,7 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
       weeksLivedNow: 250,
       unlockedBonuses: [],
     });
+    expect(result.partnerIncome).toBe(Math.round((52_000 * 0.25) / 52));
     expect(result).toMatchSnapshot();
   });
 
@@ -2929,8 +2938,8 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
       prevState: {
         ...fixtures.midGame,
         relationships: [
-          { id: 'r1', name: 'Spouse', type: 'spouse', relationshipScore: 75, income: 2000 } as any,
-          { id: 'r2', name: 'Partner', type: 'partner', relationshipScore: 60, income: 500 } as any,
+          { id: 'r1', name: 'Spouse', type: 'spouse', relationshipScore: 75, income: 104_000 } as any,
+          { id: 'r2', name: 'Partner', type: 'partner', relationshipScore: 60, income: 26_000 } as any,
         ],
       },
       careerSalary: 100,
@@ -2939,8 +2948,11 @@ describe('pre-tick equivalence - computeWeeklyIncome', () => {
       weeksLivedNow: 250,
       unlockedBonuses: [],
     });
-    // EXPLOIT FIX: 25% of the top earner only (2000 → 500), not 500 + 125.
-    expect(result.partnerIncome).toBe(500);
+    // EXPLOIT FIX: a quarter of the TOP earner only, not the sum of both.
+    expect(result.partnerIncome).toBe(Math.round((104_000 * 0.25) / 52));
+    expect(result.partnerIncome).toBeLessThan(
+      Math.round((104_000 * 0.25) / 52) + Math.round((26_000 * 0.25) / 52),
+    );
     expect(result).toMatchSnapshot();
   });
 
@@ -3419,7 +3431,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
   it('empty relationships in: empty out, no notifications', () => {
     npcDepth.processWeeklyNPCDepth.mockReturnValue({ relationships: [], notifications: [] });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: [], weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: [], weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
@@ -3432,7 +3444,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     ];
     npcDepth.processWeeklyNPCDepth.mockReturnValue({ relationships: outputRels, notifications: [] });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
@@ -3443,7 +3455,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['Bob got a promotion!'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(1);
     expect(ctx.notifications[0].id).toBe('npc-life-event-100-0');
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
@@ -3456,7 +3468,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['Carol moved to NYC.', 'Carol started yoga.'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(1);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
@@ -3468,7 +3480,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['msg1', 'msg2', 'msg3', 'msg4', 'msg5'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(1);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
@@ -3480,7 +3492,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
       notifications: ['Grace got a dog!'],
     });
     const ctx = depthStubCtx(depthStubStats());
-    applyNPCDepthTick({ relationships: inputRels, weeksLived: 101 }, ctx);
+    applyNPCDepthTick({ relationships: inputRels, weeksLived: 101 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.notifications).toHaveLength(0);
   });
 
@@ -3490,7 +3502,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     });
     const inputRels = [{ id: 'r1', name: 'Eve', type: 'friend', relationshipScore: 50 } as any];
     const ctx = depthStubCtx(depthStubStats());
-    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(result.relationships).toBe(inputRels); // same reference returned
     expect({
       newStats: ctx.newStats,
@@ -3499,11 +3511,16 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     }).toMatchSnapshot();
   });
 
-  it('weeksLived passed through to processWeeklyNPCDepth', () => {
+  it('weeksLived and the life salt are passed through to processWeeklyNPCDepth', () => {
     npcDepth.processWeeklyNPCDepth.mockReturnValue({ relationships: [], notifications: [] });
     const ctx = depthStubCtx(depthStubStats());
-    applyNPCDepthTick({ relationships: [], weeksLived: 1234 }, ctx);
-    expect(npcDepth.processWeeklyNPCDepth).toHaveBeenCalledWith([], 1234);
+    applyNPCDepthTick({ relationships: [], weeksLived: 1234, lifeSalt: 'equiv-fixture' }, ctx);
+    // The salt is the third argument as of Program 14: this stream used to be
+    // keyed on the week and the relationship id alone, and the ids that matter
+    // (`parent1`, `parent2`, the meeting door's `met-w2`) are literals shared
+    // across lives, so two players' NPCs drifted through identical moods in
+    // identical weeks.
+    expect(npcDepth.processWeeklyNPCDepth).toHaveBeenCalledWith([], 1234, 'equiv-fixture');
   });
 
   it('does NOT touch ctx.newStats on any successful path', () => {
@@ -3515,7 +3532,7 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     const stats = depthStubStats({ happiness: 42, money: 9999 });
     const before = { ...stats };
     const ctx = depthStubCtx(stats);
-    applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 , lifeSalt: 'equiv-fixture' }, ctx);
     expect(ctx.newStats).toEqual(before);
   });
 });
@@ -4070,6 +4087,15 @@ describe('pre-tick equivalence - applyRelationshipHealth', () => {
 
   it('friend type: just clamps score, no penalty, no notif', () => {
     const ctx = relhStubCtx(relhStubStats());
+    /**
+     * These seven snapshots gained a `happinessSupport` field in Program 12, and
+     * that is a deliberate shape change rather than a quiet bump: the result
+     * object could previously only carry a PENALTY, which is why a life with
+     * fifty relationships measured byte-identical to a life with none. Read the
+     * updated values as the assertion - support is 1 only for the friend at
+     * 100, and 0 for the breakup, the disappointed partner, the failing partner
+     * and the estranged family member.
+     */
     const rel = { id: 'r1', name: 'Pal', type: 'friend', relationshipScore: 105 } as any;
     const result = applyRelationshipHealth(rel, 0, ctx);
     expect({ result, notifications: ctx.notifications }).toMatchSnapshot();

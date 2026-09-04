@@ -334,7 +334,38 @@ const CARVE_OUTS: CarveOut[] = [
       shownNotificationIds: ['married', 'first_child'],
       version: STATE_VERSION,
     }),
-  },];
+  },
+  {
+    version: 51,
+    path: 'relationships.0.metAt',
+    // Nested inside an ARRAY ELEMENT, like the v34 grandchildren and the v42
+    // career title — the shape the key-by-key merge never sees but the spread
+    // and `repairGameState`'s deep clone both do. Erasing it would not break a
+    // number; it would make the game forget where the player met somebody,
+    // which is the one thing `metAt` exists to hold.
+    value: { venue: 'work', label: 'at work', week: 12 },
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        relationships: [
+          {
+            id: 'met-w2',
+            name: 'Mia Hale',
+            type: 'friend' as const,
+            relationshipScore: 40,
+            personality: 'friendly',
+            gender: 'female' as const,
+            age: 27,
+            job: 'Colleague',
+            metAt: { venue: 'work', label: 'at work', week: 12 },
+          },
+          ...(b.relationships ?? []),
+        ],
+      };
+    },
+  },
+];
 
 /**
  * A save carrying all five v47 political carve-outs. One shape shared by the
@@ -398,7 +429,11 @@ describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(25);
+    //
+    // 26 as of the v50/v51 merge: `shownNotificationIds` and `metAt` were both
+    // authored as v50 on separate branches, so the merged history carries two
+    // carve-outs where each branch had one.
+    expect(CARVE_OUTS).toHaveLength(26);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

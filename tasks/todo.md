@@ -1,3 +1,244 @@
+# Master Program 14 — STAT SEMANTICS + DETERMINISM + DIFFERENTIATION — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 13 (`9fe90c5`).
+Programs 1-13 untouched. Report: `tasks/simulation-integrity-2026-09-04.md`.
+
+**Result.** The simulation is deterministic: the same life replayed produces the
+same life, field for field, week for week, and so does a life continued from a
+saved game. Seven defects, three guards. Happiness had compressed every persona
+into 90-97; it now diminishes as it rises, which cut ceiling-weeks 24-31% and
+widened the median spread 85% — real, measured, and partial (see Phase 11).
+
+## Phase 1 — determinism audit. STATUS: **done** (report 1-2)
+Program 13 named `Date.now()` as the likely cause of the non-reproducible tick.
+**That was a hypothesis and it was wrong**: freezing the clock for a whole run
+changed nothing. The obvious instrumentation failed too — a probe replacing
+`Math.random` recorded ZERO calls, because `earlyGameSim` seeds the global for
+its own runs and overwrote the probe. A draw that is unreproducible in the app
+looks reproducible in a test, which is why the eventual guard is static.
+
+## Phase 2 — isolate the divergence. STATUS: **done** (report 2)
+Seven rounds of "diff two identical runs field by field, fix the first field
+that differs, diff again": `generateNPCGoals` (Math.random ON THE TICK), memory
+ids, the disease-cure rolls, Spark ids, checkpoint ids, the whole Pulse posting
+path, and `playConversationOption`'s default roll. Plus `checkViralChance`,
+which carried an "ANTI-EXPLOIT: deterministic hash instead of Math.random()"
+comment over a hash of `Date.now()`.
+
+## Phase 3 — same-life reproducibility. STATUS: **done** (report 4)
+5 personas x 3 runs x 80 weeks, every field every week. All pass.
+
+## Phase 4 — save/load reproducibility. STATUS: **done** (report 5)
+Continuing from a round-tripped save (through the real `hydrateLoadedState`)
+matches continuing straight through. One documented normalization.
+
+## Phase 5-8 — the happiness equation, ledger, saturation, distribution
+- STATUS: **done** (report 7-9). Root cause is NOT the cap: unbounded linear
+  inflow against one fixed drain, with the clamp discarding the surplus. The
+  romance life spent **132 of 149 weeks with happiness moving by exactly zero**;
+  weeks below 50 were **zero for all six personas**; CAREER-OBSESSED and WEALTH
+  MAXIMIZER were identical to the decimal; and a life knocked to 20 converged on
+  the identical trajectory within ~25 weeks.
+
+## Phase 9-10 — differentiation + second-order. STATUS: **done** (report 6, 13)
+25 lives vary (happiness sd 8.0, net worth sd $6.3k) while repeats do not. No
+happiness->health or happiness->energy loop exists to run away.
+
+## Phase 11 — implementation. STATUS: **done** (report 10-12)
+`lib/economy/happinessGain.ts`, the `closenessFalloff` / food-satiety pattern
+applied to a third flat ladder. Four choke points, chosen by measurement: the
+first cut used the two obvious ones and barely moved the distribution because
+they carry 1-3.5 points a week out of a much larger flow.
+**Did NOT achieve**: romance is still pinned (136/150 weeks at 95+), career and
+wealth are still identical, and weeks below 50 is still zero. Halving the
+falloff floor was tried, measured to buy nothing (12.18 -> 12.29), and reverted.
+
+## Phase 12-14 — long-run, red team, verification. STATUS: **done** (report 16-18)
+Measured to 150 weeks; 250/500 not run. Four save-scum rerolls closed. Six
+suites failed on the first full run and every one was inspected rather than
+adjusted — two were em dashes I introduced, four were exact-value assertions
+that the curve legitimately shifted.
+
+# Master Program 13 — WORLD SIMULATION + EVENT DELIVERY — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 12 (`f405c91`).
+Programs 1-12 untouched. Rule of the program: **measure the pipeline before
+changing it**. Report: `tasks/event-delivery-2026-09-04.md`.
+
+**Result.** The weekly event roll was seeded on the WEEK ALONE, so every life in
+the game drew the same number in week N and explored ONE sample of a
+365-template pool. Twelve lives reached 33 distinct events; the same twelve on
+the same seeds now reach 78, and fifty lives reach 108 instead of 30. Nothing
+authored, no weight tuned, no save field added.
+
+## Phase 1 — pipeline map + the Program 12 lead. STATUS: **done** (report §1-3)
+`lib/events/engine.ts` built its roll with `makeWeeklyRoll`, keys
+`'event-jitter'` / `'event-fire'` / `'event-pick'`. None carried the life salt.
+`pickWeighted` was never broken — there was one sample of the distribution per
+week and it was the same sample in every life, so moving a span only changes the
+answer if it straddles that fixed point. Directly violated CLAUDE.md §4.3.
+
+## Phase 2 — telemetry harness. STATUS: **done** (report §5)
+`eventTelemetry.sim` over 50 lives x 100 weeks. Distinct ids 30 -> 108, exact
+pairwise overlap 28.3% -> 9.4%, same-life replay still byte-identical.
+
+## Phase 3 — reachability. STATUS: **done** (report §7)
+`eventReachability` (pure, in the normal suite): 17 archetype states, 226/365
+reached, its own ratchet. Both jumps while writing it (137 -> 183 -> 226) were
+PROBE bugs, not game bugs.
+
+## Phase 4 — randomness audit. STATUS: **done** (report §8)
+Every `makeWeeklyRoll` call site classified, and the classification is
+machine-checked by `__tests__/tooling/weekOnlyRollAudit.test.ts`. Verified to
+FAIL on a planted violation before being kept.
+
+## Phase 5 — weight responsiveness. STATUS: **done** (report §9)
+20x on `gym_invite`: 0.96% -> 4.86% delivery share, 3 -> 16 deliveries. The first
+attempt probed a 0.1-weight template and measured 0 vs 0 — underpowered, not a
+null effect, and it is documented in the test.
+
+## Phase 6 — the funnel. STATUS: **done** (report §6)
+365 authored / 118 eligible / 107 competing / **33 -> 78 selected**. Eligibility
+and competition did not move at all, which is the signature of a SELECTION
+defect rather than a content or gating one.
+
+## Phase 7 — cross-life variation + same-life replay. STATUS: **done** (§11)
+Both hold simultaneously. Save-scumming a week is still ineffective.
+
+## Phase 8 — life-stage distribution. STATUS: **done, not measured** (§12)
+Structurally sound (all four packs tag via `.map()` at export and the pick
+boosts them). A 100-week `food_courier` cohort cannot reach midlife or
+seniority, so no claim is made.
+
+## Phase 9 — interruption budget. STATUS: **done** (report §10)
+The number that could have been a regression, decomposed: back-to-back event
+weeks 21.3% -> 28.4%, but adjacent weeks where BOTH were independent pool picks
+went **29 -> 29**. All the growth is multi-week authored arcs completing.
+
+## Phase 10 — implementation. STATUS: **done** (report §16)
+Three call sites in `engine.ts`. Plus four measurement harnesses and one static
+guard. Nothing authored, no weight edited.
+
+## Phase 11 — red team. STATUS: **done** (report §14). No new exploit surface.
+
+## Phase 12 — regression. STATUS: **done** (report §15b)
+Four existing gates failed and were ATTRIBUTED (engine stashed, tests re-run,
+all passed on the old code) before being touched. Two happiness margins moved to
+the p10 because the mean now saturates against the ceiling for every persona;
+one pacing bound went 5 -> 6, measured across five lineages (6/5/3/6/6); and the
+rarity test stopped pinning a single lucky draw and now asserts the legendary
+stamp across twelve lineages (the secret wins 20 of 24, not 24 of 24).
+
+## Phase 13 — verification. STATUS: **done** (report §21)
+type-check clean, test-tree types 0, lint 0 errors / 719 warnings (ceiling 719),
+routes clean, full suite green.
+
+## Found and NOT fixed, deliberately (report §15c, §18)
+- The tick is not deterministic across repeated runs in one process (identical
+  event streams, differing happiness). Not `Math.random()` — a probe recorded
+  zero calls — but `Date.now()` is read on the tick path. Predates this program.
+- Happiness saturates at 90-97 for every persona once the catalogue is
+  delivered. A balance question with an owner, not a same-commit tuning pass.
+
+# Master Program 12 — RELATIONSHIP DEPTH + SOCIAL VALUE + CONSEQUENCES — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 11 (`10001ab`).
+Programs 1-11 untouched. Rule of the program: no money printing, no chores, no
+new subsystems - an existing system plus a small state-aware rule. Relationships
+stay OPTIONAL. Report: `tasks/relationship-depth-2026-09-03.md`.
+
+## Phase 1 - what a bond buys. STATUS: **done** (report §3)
+Measured with a controlled cohort experiment, not a code read: nine cohorts,
+same policy, same seed, differing only in who was in the life and at what bond.
+**Happiness, health and energy byte-identical** whether a life held nobody, one
+soulmate or fifty acquaintances. 45 bought nothing; 60 bought a one-off $2,800;
+75, 90 and 100 bought exactly what 60 bought.
+
+ROOT CAUSE 1: the only wire between relationships and wellbeing ran ONE WAY -
+`applyRelationshipHealth` could subtract 25/10/8/1-a-week and could add nothing.
+ROOT CAUSE 2: a free `Call` paid a flat +3 at every score against a -0.5/week
+decay, so any contact anyone ever rang ratcheted to 100 (measured: CASUAL SOCIAL
+at avgBond 100 across 23 relationships). Nothing above the floor could mean
+anything because everybody was already at the ceiling.
+
+## Phase 2 - harness. STATUS: **done** - the §38 set is complete (twelve personas).
+## Phase 3-6 - value / friendship / romance / family. STATUS: **done** (report §3-6).
+## Phase 7-8 - consequence graph + emergent stories. STATUS: **done** (report §8, §14-15).
+## Phase 9 - proposals, split SAFE / OWNER / REJECTED. STATUS: **done** (report §18-20).
+## Phase 10 - implementation. STATUS: **done**, one commit:
+- [x] `lib/social/closeness.ts` - one definition of what a bond means
+      (estranged 25 / known 45 / close 60 / trusted 80) · `closeness.test.ts`.
+- [x] The wire runs both ways: `happinessSupport`, +1 per close bond capped +3,
+      mirroring the neglect drag exactly · `closeness.test.ts`.
+- [x] `closenessFalloff` - a catch-up is worth less to somebody you already see.
+      The root-cause fix for quantity-over-quality · `bondFalloff.test.ts`.
+- [x] `lib/events/friendSupportEvents.ts` - four templates gated on a real
+      crisis AND a trusted bond, bound to the person · `friendSupport.test.ts`.
+- [x] The Happiness breakdown names the circle, from the same function the tick
+      applies, and shows the line at ZERO so the gap is legible.
+- [x] Program 11's partner-income fix re-verified under every §9 state ·
+      `partnerIncomeBounded.test.ts`.
+- [x] Four new gates in `socialBoundaries.test.ts`.
+- [ ] NOT done, owner decisions (report §19): a free Call has no time cost (the
+      one remaining imbalance); the weekly event pick is not life-salted; the
+      support events are delivered by a channel that gives them ~1 appearance
+      per life.
+## Phase 11-13 - red team, regression, verification. STATUS: **done** (report §16-17, §22).
+
+NO SAVE FORMAT CHANGE. `STATE_VERSION` stays at 50.
+
+# Master Program 11 — SOCIAL LIFE + RELATIONSHIPS + FAMILY + EMERGENT STORIES — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 10 (`4eaa778`).
+Programs 1–10 untouched. Rule of the program: map first, measure on the real
+tick, then fix in priority order (broken → hidden → meaningless → missing
+connections → missing entry points → new content). Relationships stay OPTIONAL;
+nothing here may become a weekly maintenance chore. Report:
+`tasks/social-systems-2026-09-03.md`.
+
+## Phase 1 — social system map. STATUS: **done** (report §1).
+## Phase 2 — relationship entry audit. STATUS: **done** (report §2–3)
+Only THREE producers of a `Relationship` existed — `promoteMatchToRelationship`
+and `promoteMatchToFriend` (Spark, **tier 2**) and the `intro` favour, offered
+only on a `business` contact (travel, **tier 3**). A tier-1 player had Mom and
+Dad and no way to meet anybody, which is why `ch2_make_friend` had to count the
+seeded parents and pay its share of the chapter bundle for nothing.
+## Phase 3 — relationship depth audit. STATUS: **done** (report §4–6).
+## Phase 4 — family audit. STATUS: **done** (report §9).
+## Phase 5 — personal history / life moments. STATUS: **done** (report §10).
+## Phase 6 — social persona simulation (real tick). STATUS: **done**
+Seven personas × 250 weeks through the real `nextWeek()` with ten social actions
+routed through the production modules. `__tests__/helpers/socialPersonas.ts`,
+soak `RUN_SOCIAL_PERSONAS=1 npx jest socialPersonas`.
+## Phase 7 — story variation. STATUS: **done** (report §11–12).
+## Phase 8 — discoverability audit. STATUS: **done** (report §14).
+## Phase 9 — exploit red team. STATUS: **done** (report §15) — two live exploits found.
+## Phase 10 — proposals ranked. STATUS: **done** (report §17, seven proposals).
+## Phase 11 — implementation. STATUS: **done**, two commits:
+- [x] Partner income units: an ANNUAL salary was spent WEEKLY, so one Spark
+      promotion paid up to $62,500/wk forever · `householdPartnerIncome` ÷
+      `WEEKS_PER_YEAR` · `partnerIncomeUnits.test.ts`.
+- [x] A tier-1 way to meet somebody · `lib/social/meetPeople.ts` + `meetSomeone`
+      + the Contacts card · `meetPeople.test.ts`.
+- [x] v51 `metAt` — where and when somebody entered the life; surfaced on the
+      Contacts card and in the life story · `carveOutRoundTrip.test.ts`.
+- [x] `ch2_someone_close` — one bond at 60, satisfiable by a loner who calls
+      their mother · `wealthRatchet.test.ts`, `progressionIntegrity.test.ts`.
+- [x] One person, one record (the unmatch → re-swipe duplicate) ·
+      `duplicatePeople.test.ts`.
+- [x] A renter can move in together (and therefore marry) ·
+      `movingInWhileRenting.test.ts`.
+- [x] Three dead verbs deleted from `SocialActionsContext`; lint ceiling 722 → 719.
+- [x] The journal files a lost friendship as a relationship event.
+- [x] Social boundary gates · `__tests__/simulation/socialBoundaries.test.ts`.
+- [ ] NOT done, owner decisions (report §17): the `networking_opportunity`
+      payoff delivering a person; NPC life events as situations; a cap or cost
+      on Spark friend promotion; what a 100 bond should buy; a Home-screen
+      social surface; life moments that name a real relationship; an end state
+      for family estrangement.
+## Phase 12 — gates + report. STATUS: **done** — `tasks/social-systems-2026-09-03.md`,
+lessons appended, CLAUDE.md §7 (v50) and the social note updated.
+
 # Plan — Discord bug triage, round 2 (2026-09-04)
 
 Follow-up to PR #186 (merged). Three screenshots arrived after that landed and

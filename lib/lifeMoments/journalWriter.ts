@@ -65,8 +65,15 @@ function tagsFor(n: WeekNotificationLike): string[] {
   const tags: string[] = ['week'];
   if (/job|work|career|promot|hired|salary|fired/.test(text)) tags.push('career');
   if (/rent|overdue|bill|loan|debt|tax|paid/.test(text)) tags.push('money');
-  if (/married|partner|date|broke up|divorce|relationship/.test(text)) tags.push('relationship');
-  if (/child|baby|heir|family|born/.test(text)) tags.push('family');
+  // "friend", "drifted apart", "estranged" and "strained" were all missing, so
+  // the three things that can actually END or damage a relationship — a
+  // friendship fading, a growing-distant notice, a neglect warning — were filed
+  // as plain 'week' entries and vanished from the Journal's relationship
+  // filter. Measured in Program 11: over 1,750 simulated persona-weeks the only
+  // entries the filter ever showed were NPC life-event flavour.
+  if (/married|partner|date|broke up|divorce|relationship|friend|drifted|estranged|strained/.test(text))
+    tags.push('relationship');
+  if (/child|baby|heir|family|born|grandchild/.test(text)) tags.push('family');
   if (/health|sick|disease|injur|hospital/.test(text)) tags.push('health');
   return tags;
 }

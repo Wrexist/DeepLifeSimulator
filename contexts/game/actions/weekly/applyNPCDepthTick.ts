@@ -36,6 +36,14 @@ type Relationship = NonNullable<GameState['relationships']>[number];
 export interface NPCDepthTickInput {
   relationships: Relationship[];
   weeksLived: number;
+  /**
+   * `lineageId:generationNumber`, folded into every roll this subsystem makes
+   * (Program 14). The stream used to be keyed on the week and the relationship
+   * id alone, and the ids that matter here are literals shared across lives
+   * (`parent1`, `parent2`, the meeting door's `met-w2`), so two players' NPCs
+   * drifted through identical moods in identical weeks.
+   */
+  lifeSalt: string;
 }
 
 export interface NPCDepthTickResult {
@@ -51,7 +59,7 @@ const MAX_NPC_NOTIFICATIONS_PER_WEEK = 1;
 
 export function applyNPCDepthTick(input: NPCDepthTickInput, ctx: WeekContext): NPCDepthTickResult {
   try {
-    const npcResult = npcDepth.processWeeklyNPCDepth(input.relationships, input.weeksLived);
+    const npcResult = npcDepth.processWeeklyNPCDepth(input.relationships, input.weeksLived, input.lifeSalt);
     const npcToastsAllowedThisWeek = input.weeksLived % 2 === 0;
     if (npcResult.notifications.length > 0 && npcToastsAllowedThisWeek) {
       const toShow = npcResult.notifications.slice(0, MAX_NPC_NOTIFICATIONS_PER_WEEK);

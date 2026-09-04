@@ -15,6 +15,7 @@ import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { satietyHint } from '@/lib/economy/foodSatiety';
 import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
 import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
+import { makeLifeRoll } from '@/utils/seededRoll';
 
 /**
  * What a food purchase actually did - the market toast reads THIS rather than
@@ -226,7 +227,12 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     const rewardBonus = ownedItems.reduce((sum, i) => sum + (i.rewardBonus || 0), 0);
     const effectiveRisk = Math.max(0, hack.risk - riskReduction);
 
-    const caught = Math.random() < effectiveRisk;
+    // Seeded on the LIFE and the week, not `Math.random()` (Program 14). An
+    // unseeded draw here is a save-scum reroll: caught by the police, reload,
+    // run the same hack again, walk free - and it is the same defect CLAUDE.md
+    // §4.3 forbids on the tick, one layer out in an action module. Keyed by
+    // hack id so two different hacks in one week roll independently.
+    const caught = makeLifeRoll(state, state.weeksLived || 0)(`hack-caught:${hackId}`) < effectiveRisk;
 
     if (caught) {
       setGameState(prev => {
@@ -312,9 +318,24 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     // Use functional update to check costs and apply effects atomically
     let result: { message: string } | undefined;
 
-    // PRE-ROLLS: Extract random rolls outside updater for React StrictMode safety.
-    // Pre-generate enough cure rolls for up to 10 diseases.
-    const curePreRolls = Array.from({ length: 10 }, () => Math.random());
+    // PRE-ROLLS: extracted outside the updater for React StrictMode safety, so
+    // a double-invoked updater sees the same numbers.
+    //
+    // SEEDED on the life and the week (Program 14). These were ten raw
+    // `Math.random()` draws deciding whether a health activity cures a disease
+    // - an unseeded simulation input whose result is written into the save, so
+    // the same life replayed cured a different set of illnesses. It was the
+    // third field to diverge when two identical persona runs were diffed
+    // (after `generateNPCGoals` and the memory ids), and it is the reason a
+    // "did I get better?" answer could be rerolled by reloading.
+    //
+    // One consequence worth stating: repeating the same activity in the same
+    // game week now gives the SAME answer rather than a fresh chance. That is
+    // the intended behaviour everywhere else in this repository (every seeded
+    // roll is "no save-scum reroll"), and the week is what re-arms it.
+    const cureRollFor = makeLifeRoll(state, state.weeksLived || 0);
+    const curePreRolls = Array.from({ length: 10 }, (_unused, i) =>
+      cureRollFor(`cure:${activityId}:${i}`));
 
     setGameState(prevState => {
       const activity = prevState.healthActivities?.find(a => a.id === activityId);
