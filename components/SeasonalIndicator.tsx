@@ -107,6 +107,12 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
         style={[styles.container, { width: containerSize, height: containerSize, borderRadius }]}
         onPress={() => setShowInfo(true)}
         activeOpacity={0.7}
+        // The modal's close button was labelled; the button that OPENS it was
+        // not, so a screen reader announced the HUD's season control as an
+        // unnamed button. It is also what a UI capture has to find it by.
+        accessibilityRole="button"
+        accessibilityLabel={holiday ? `${holiday.name}, ${config.name} season` : `${config.name} season`}
+        accessibilityHint="Shows the season, the week within it and any active holiday"
       >
         {/* Neutral disc, season colour on the glyph. The saturated gradient
             disc was one more filled circle competing with the HUD's primary
