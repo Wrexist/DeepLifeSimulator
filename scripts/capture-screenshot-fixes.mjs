@@ -5,9 +5,29 @@
  * Runs against the static web export on :8090, the same harness
  * `capture-rich-state.mjs` uses:
  *
- *   npx expo export --platform web --output-dir /tmp/webshots
+ *   export EXPO_PUBLIC_SAVE_HMAC_KEY=<any throwaway string>
+ *   export EXPO_PUBLIC_ENABLE_DEVTOOLS=true EXPO_PUBLIC_BORING_BUILD=true
+ *   npx expo export --platform web --output-dir /tmp/webshots --clear
  *   node scripts/serve-web-export.mjs /tmp/webshots 8090 &
  *   node scripts/capture-screenshot-fixes.mjs
+ *
+ * Two things that each cost a full rebuild to learn:
+ *
+ * 1. WITHOUT `EXPO_PUBLIC_SAVE_HMAC_KEY` the build refuses to start a life at
+ *    all - "Build Configuration Error: this app build is missing required save
+ *    security configuration". It says so in a dialog OVER the main menu, so the
+ *    menu text is still present and a naive wait-for-the-game just times out
+ *    without ever saying why. The script names that case explicitly.
+ *    Any throwaway value works; these captures are local and disposable, and
+ *    the key must NOT be the production one - rotating that invalidates every
+ *    real save (tasks/OWNER-CHECKLIST-v2.8.0.md).
+ *
+ * 2. `--clear` is REQUIRED when you change one of these variables. Metro caches
+ *    transforms, and `EXPO_PUBLIC_*` values are inlined AT TRANSFORM TIME - so
+ *    a re-export with the variable newly set reuses the cached module and
+ *    compiles `process.env.EXPO_PUBLIC_SAVE_HMAC_KEY` to `void 0` again. The
+ *    tell is the output bundle hash coming back byte-identical to the run
+ *    before it.
  *
  * Every shot writes its on-screen TEXT beside it, and the script ASSERTS the
  * thing it is meant to show is actually on screen before it writes the file.
@@ -70,6 +90,25 @@ async function clickText(page, t, { exact = false, wait = 1400, last = false } =
 async function tab(page, index, wait = 2600) {
   await page.mouse.click(Math.round((VIEWPORT.width * (index + 0.5)) / 4), VIEWPORT.height - 25);
   await sleep(wait);
+}
+
+/**
+ * Clear whatever is sitting over the screen before a shot.
+ *
+ * A fresh life opens with a welcome popup and can spawn the ad-reward orb; both
+ * are legitimate UI and both would be the subject of the photograph instead of
+ * the screen it is meant to show.
+ */
+async function dismissOverlays(page) {
+  for (const label of ['Dismiss', 'Close', 'Got it', 'Continue', 'Skip']) {
+    try {
+      const loc = page.locator(`[aria-label="${label}"]`);
+      if (await loc.count()) { await loc.last().click({ timeout: 1500 }); await sleep(800); }
+    } catch { /* nothing to dismiss */ }
+  }
+  for (const t of ['Got it', "Let's go", 'Start playing']) {
+    if ((await allText(page)).includes(t)) await clickText(page, t, { exact: true, wait: 1000 });
+  }
 }
 
 /** The food row this capture is about. */
@@ -159,13 +198,26 @@ async function main() {
 
   // "Play" is the quick start - it skips the setup flow and drops straight in.
   await clickText(page, 'Play', { exact: true, wait: 4000 });
+  // A web export with no EXPO_PUBLIC_SAVE_HMAC_KEY refuses to start a life at
+  // all ("Build Configuration Error ... missing required save security
+  // configuration") - and does it in a dialog OVER the menu, so the menu text
+  // is still there and a naive wait just times out eight times. Name it.
+  if ((await allText(page)).includes('Build Configuration Error')) {
+    throw new Error('export is missing EXPO_PUBLIC_SAVE_HMAC_KEY - re-export with it set');
+  }
   let inGame = false;
   for (let i = 0; i < 8 && !inGame; i++) {
-    inGame = await waitFor(page, 'Next week', 10000);
-    if (!inGame) { await clickText(page, 'Play', { exact: true, wait: 3000 }); }
+    for (const marker of ['Next week', 'Next Week', 'Your Life', 'Net Worth']) {
+      if ((await allText(page)).includes(marker)) { inGame = true; break; }
+    }
+    if (!inGame) { await sleep(4000); await clickText(page, 'Play', { exact: true, wait: 3000 }); }
   }
-  if (!inGame) throw new Error('never reached the game');
+  if (!inGame) {
+    await shot(page, 'debug-stuck-at-menu');
+    throw new Error('never reached the game');
+  }
   await sleep(2500);
+  await dismissOverlays(page);
 
   // ---- 1. The HUD season badge, in January.
   // Was a green Spring leaf in January; must now read Winter.
