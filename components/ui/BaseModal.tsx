@@ -33,6 +33,7 @@ import { X } from 'lucide-react-native';
 import { colors, typography, shadows } from '@/lib/config/theme';
 import { responsiveBorderRadius, responsiveFontSize, responsiveSpacing, scale } from '@/utils/scaling';
 import { useTheme } from '@/hooks/useTheme';
+import AlertHost from '@/components/ui/AlertHost';
 
 /**
  * Spacing, mapped off the theme scale BY VALUE.
@@ -231,6 +232,15 @@ export default function BaseModal({
           </TouchableOpacity>
         </TouchableOpacity>
       </KeyboardAvoidingView>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this one is
+          up - a gameAlert raised from inside the sheet looks like a dead button.
+          Hosting a copy here covers every BaseModal consumer at once (the Spark
+          Premium and Verified Pro upsells raised their cancel confirms from
+          inside a BaseModal with no host and nothing appeared). Hosts unregister
+          when hidden, so a closed sheet never shadows the root.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

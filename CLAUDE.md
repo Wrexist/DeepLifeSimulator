@@ -40,7 +40,7 @@ Codebase size: ~400 files in `lib/`, ~240 components, ~535 test files.
 | `npm run lint` / `lint:errors` / `lint:fix` | ESLint (`lint:errors` = `--quiet`, used by preflight) |
 | `npm run check:routes` | expo-router conflict guard (see §5) |
 | `npm run preflight:quick` | routes + type-check — **run this during development** |
-| `npm run preflight` | `check:routes` + the full preflight script (`--platform ios`, 11 sections) + `lint:errors` + `lint:ratchet` + `check:content` — **required before any release build** |
+| `npm run preflight` | `check:routes` + the full preflight script (`--platform ios`, 11 sections) + `lint:errors` + `lint:ratchet` + `ui:ratchet` + `check:content` + `check:liveops` — seven gates, **required before any release build**. Preflight §4 is a syntax check that defers real bundling: run `expo export` yourself (§9) |
 | `npm run audit:weekly` | Static five-domain audit → `tasks/weekly-audit-<date>.md` |
 | `npm run audit:economy` \| `:stability` \| `:save` \| `:logic` \| `:perf` | Individual audit modules |
 | `npm run discord:validate` / `discord:plan` / `discord:sync` | The Discord server as code (`discord/`). `validate` needs no token or network; `plan` is the dry run; only `sync` writes. See `discord/README.md` |
@@ -477,7 +477,7 @@ Two rules that came out of measuring it (Program 11,
 
 **1. `app/entry.ts` stays dumb.** App initialization only — no imports from
 `@/lib`, `@/contexts`, `@/components`, no complex functions, under 200 lines
-(it is currently 17). Logic belongs in `app/_layout.tsx`. Preflight §3 reports
+(it is currently 32, comments included). Logic belongs in `app/_layout.tsx`. Preflight §3 reports
 violations but only **warns** — it fails the build solely when `entry.ts` is
 missing, so a green preflight is not proof this rule held. Check it by eye.
 
@@ -1182,6 +1182,7 @@ replaced with review checklists.
 | `tasks/relationship-depth-2026-09-03.md` | What a bond is WORTH: the controlled cohort experiment, the ladder measurements, and §4.7's evidence |
 | **`tasks/event-delivery-2026-09-04.md`** | **How the world reaches the player: the event pipeline map, the delivery funnel (365 authored -> 78 delivered, from 33), the randomness audit table, the weight-responsiveness experiment, and the interruption-budget decomposition. Read before touching `lib/events/engine.ts` or adding a seeded roll** |
 | **`tasks/simulation-integrity-2026-09-04.md`** | **Why the same life now replays identically: the seven unseeded draws and wall-clock ids, the frozen-clock experiment that disproved the previous report's cause, the happiness equation and source ledger, the saturation root cause, and the new determinism guards. Read before adding a roll, an id, or a happiness gain** |
+| **`tasks/release-readiness-2026-09-04.md`** | **What can still stop the next update from shipping: the Program 15 forensic audit — baseline, every domain measured on HEAD, the P0-P3 / OWNER / HUMAN table, the fixes, the scorecard and the verdict. Read before cutting a build** |
 | `tasks/todo.md` | Active plan |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |

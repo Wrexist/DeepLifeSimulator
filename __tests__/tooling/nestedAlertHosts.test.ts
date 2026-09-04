@@ -81,6 +81,33 @@ describe('modals that raise gameAlert nest their own AlertHost', () => {
     expect(lastModalClose).toBeGreaterThan(hostAt);
   });
 
+  /**
+   * `BaseModal` is itself a raw RN Modal, so the 22 components built on it are
+   * presented sheets too - and `'<Modal'` does not match `'<BaseModal'`, which
+   * is how the Spark Premium and Verified Pro upsells raised their "cancel
+   * subscription?" confirms from inside a presented sheet with no host and
+   * nothing appeared (found by the 2026-09-04 release audit). One host inside
+   * BaseModal covers every consumer; this pins that it stays there, and that
+   * the consumers it is covering are still being counted.
+   */
+  it('BaseModal hosts its own AlertHost, covering every BaseModal consumer', () => {
+    const src = read('components/ui/BaseModal.tsx');
+    expect(src).toMatch(/import AlertHost from '@\/components\/ui\/AlertHost'/);
+    const hostAt = src.indexOf('<AlertHost />');
+    const lastModalClose = src.lastIndexOf('</Modal>');
+    expect(hostAt).toBeGreaterThan(-1);
+    expect(lastModalClose).toBeGreaterThan(hostAt);
+  });
+
+  it('finds the BaseModal consumers that raise gameAlert (the scan is not vacuous)', () => {
+    const consumers = uiFiles().filter((rel) => {
+      const src = read(rel);
+      return src.includes('<BaseModal') && /\bgameAlert\s*\(/.test(src);
+    });
+    // TravelApp, PetApp, VerifiedProUpsellModal, SparkPremiumUpsellModal today.
+    expect(consumers.length).toBeGreaterThanOrEqual(4);
+  });
+
   it('DeathPopup nests LifeStoryModal too (a sibling Modal cannot present)', () => {
     const src = read('components/DeathPopup.tsx');
     const storyAt = src.indexOf('<LifeStoryModal');

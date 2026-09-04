@@ -1,4 +1,55 @@
-# Active — Playtest screenshot fixes (2026-09-04)
+# Active — Master Program 15: release readiness (2026-09-04)
+
+Branch `claude/deeplife-release-audit-vcs3t8`. Report:
+`tasks/release-readiness-2026-09-04.md`. Verdict **YELLOW**: nothing found
+corrupts a save, loses a purchase or soft-locks; the list below is what can
+still stop the next update.
+
+## RELEASE BLOCKERS (must close before the build)
+- [x] `npm run preflight` was red on main (721 lint warnings vs 719) — fixed at
+      the source, ceiling lowered to 716.
+- [x] 2.12.0 is already on TestFlight (run #71) — `package.json` bumped to 2.13.0.
+- [x] Death screen "N yrs lived" read the absolute counter — `weeksInThisLife`.
+- [x] Spark Premium / Verified Pro cancel confirm raised from a `BaseModal`
+      with no `AlertHost` (dead tap on iOS) — host inside `BaseModal`, guard extended.
+- [x] Seasonal roll keyed on the week alone — `lifeSalt` folded in.
+- [ ] Merge this branch to `main` and cut the build from the merge commit.
+- [ ] Confirm the EAS production env carries `EXPO_PUBLIC_SAVE_HMAC_KEY` and
+      `EXPO_PUBLIC_RC_IOS_KEY` (`eas env:list --environment production`) — a
+      build without the HMAC key cannot start a life, and no CI gate catches it.
+- [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
+
+## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
+- [ ] Sandbox: buy a gem pack, buy the Revival Pack, subscribe, restore, relaunch mid-purchase (iOS + Play).
+- [ ] RevenueCat dashboard: entitlement ids `ads_removed` / `premium`, intro offer on `deeplife_premium_*`.
+- [ ] iOS: open Spark → Upgrade → Cancel subscription and Pulse → Verified Pro → Cancel; the confirm must appear.
+- [ ] iOS: death → Start New Life, death → Revival Pack → return; wedding popup Continue.
+- [ ] VoiceOver pass on Home / Apps / Bank Pro; largest Dynamic Type on the death screen.
+- [ ] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` present in the EAS production env (preflight §10 warns locally).
+- [ ] Decide `EXPO_PUBLIC_ENABLE_ANALYTICS` for production (the self-hosted queue is off without it).
+
+## POST-RELEASE
+- [ ] IAP: persist a pending-consumable-grant record on the RC failure branch; synthetic restore id for MIXED consumables (`GEMS_MEGA`).
+- [ ] Save: stash the fresh-start carry-over AFTER `deleteSaveSlot` succeeds; null-guard the v11/v13/v14 loops.
+- [ ] Live ops: honour a disable-only payload from cache; require a UTC offset in `parseInstant`; document "never change `startsAt` on a correction"; author the Q4 compiled-in on-ramp.
+- [ ] Events: add the interruption-budget / arc-completion decomposition to `eventTelemetry.sim`; consider a pity floor (one seed answered 6 events in 100 weeks).
+- [ ] Modal: clear `showWeddingPopup` in the `!weddingPartnerName` branch; make `AlertHost` defer a queued handler that tears down its own Modal.
+- [ ] Bank Pro: "Week 104" chips print the absolute counter.
+- [ ] `docs/STORE_LISTING.md` "monthly gem drop" → daily, or mark superseded.
+- [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
+
+## OWNER DECISIONS
+- [ ] Holidays: Thanksgiving fires 0/100 years, Christmas / Valentine's / Black Friday ~1. Fixing it lifts the 2000-week event cadence 0.218 → 0.254 past the 0.22 ceiling. Pick: raise the ceiling, lower `CHANCE_PER_SEASON` for windowed templates, or make seasonal events compete for the weekly slot. Four ids pinned in `seasonalEvents.test.ts`.
+- [ ] Happiness: social personas pinned at median 95–98 (117–291 flat weeks of 250–500); CAREER-OBSESSED = WEALTH MAXIMIZER to the decimal; solitary lives now reach the bottom half after 250 weeks. Tuning pass (Program 14 §17), not a mechanism change.
+- [ ] `liveOps.claimedInstanceIds` across prestige: carry it, or document per-life claims.
+- [ ] Chapter gems re-earned every life (~145/life) — once per lineage instead?
+- [ ] Ad orb vitality grant: week-ungated, +100 to three stats, bypasses the happiness curve.
+- [ ] Free Call has no time cost; regular contacts still ratchet to bond 100 by week 250.
+- [ ] WHATS_NEW 2.11.0 "membership no longer switches off offline" is only true when RevenueCat has ever fetched; soften or accept.
+- [ ] `showStatsBar` route gate: the string-matched exclusion list would hide the death screen for a new tab named e.g. `perks`.
+
+---
+# Archive — Playtest screenshot fixes (2026-09-04) (COMPLETE)
 
 Branch `claude/game-problems-xnap1l`. Four TestFlight screenshots, eight defects,
 all traced to source before any change. Owner decisions recorded inline.

@@ -36,6 +36,7 @@ import { MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
@@ -707,7 +708,11 @@ function DeathPopup() {
 
   const vitalDeath = explainVitalDeath(gameState);
   const age = Math.floor(date.age);
-  const weeksLived = gameState.weeksLived || 0;
+  // Weeks in THIS life, not the absolute counter: `weeksLived` is seeded from
+  // the starting age (§4.2), so the raw value read "2 yrs lived" for an age-20
+  // character who died in week one, and "7 yrs" for an age-25 one. Found by
+  // photographing the death flow in the 2026-09-04 release audit.
+  const weeksLived = weeksInThisLife(gameState);
   const yearsLived = Math.floor(weeksLived / WEEKS_PER_YEAR);
 
   // Enhanced death messages
