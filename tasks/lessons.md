@@ -5019,3 +5019,75 @@ them; `ill && health < 45` occurs 3-10 weeks in every life. An event gated on a
 state nothing produces is decoration — the exact defect Program 11 catalogued in
 `networking_opportunity`, re-created by me one program later. Every gate now has
 a test that builds the state from the fields the tick writes.
+
+
+## 2026-09-04 — Program 13: the biggest roll in the game was on the wrong RNG
+
+First, and it is the whole program: **a rule enforced by hand is a rule nobody
+can check.** CLAUDE.md §4.3 has said since Program 8 that a life-affecting roll
+must never be keyed on the week alone. Program 8 applied `lifeSalt` per call
+site, by hand, and missed the weekly event fire gate and pick in
+`lib/events/engine.ts` — the single biggest roll in the game. Two programs
+later it was still there, because a week-only roll compiles, type-checks,
+passes its own unit tests and looks correct in review. There is now a guard
+(`__tests__/tooling/weekOnlyRollAudit.test.ts`) that makes every `makeWeeklyRoll`
+call site declare itself. If a rule in CLAUDE.md is worth writing down, ask what
+would fail if somebody ignored it. If the answer is "nothing", the rule is a
+wish.
+
+Second: **yesterday's null experiment was today's headline.** Program 12 raised
+an event weight from 1.6 to 3.0, measured no change in four lives, reverted the
+number and wrote down "weight is not what is deciding this". That note is what
+made this program's first hour productive instead of speculative. Recording a
+non-response as a finding — rather than quietly shipping the tuning or quietly
+dropping it — paid for itself completely.
+
+Third: **a null result from an underpowered probe is not evidence of a null
+effect.** My first weight-responsiveness experiment scaled `job_offer` 8x and
+measured 0 deliveries against 0, in ten lives. I nearly wrote that down as "the
+weights still do not respond". `job_offer`'s weight function returns 0.1, the
+bottom of a 107-template pool, so zero deliveries is the EXPECTED result at
+either scale. Re-run on a mid-weight template with a measured base rate:
+0.96% -> 4.86% share. Before reporting that an intervention did nothing, check
+that the measurement could have detected something.
+
+Fourth: **when a diagnostic tool reports a whole subsystem dark, suspect the
+tool.** The reachability screen said all 45 wealth templates were unreachable.
+They gate on `netWorth >= $10M` and my "wealthy" archetype had $8.5M. Earlier it
+had said the entire political, travel, fame and hobby surface was unreachable,
+because I had not built archetypes that opt into those subsystems. The screen
+went 137 -> 183 -> 226 reached and **every jump was my probe, not the game.** A
+measurement that is wrong is indistinguishable from a product that is broken, so
+the screen now carries its own ratchet.
+
+Fifth: **measure the thing you are afraid of breaking, not a proxy for it.** The
+fix made lives see more events, and "more events" is exactly what Programs 1-6
+spent their effort suppressing. The tempting summary — back-to-back event weeks
+rose 21.3% -> 28.4% — reads like a regression. Decomposing it: adjacent weeks
+where BOTH were independent weighted picks went 29 -> 29, unchanged to the unit.
+All the growth was multi-week authored arcs running their consecutive beats,
+which is what those arcs are for. The aggregate said "worse pacing"; the
+decomposition said "stories now finish".
+
+Sixth, again, and it cost 250 seconds twice: **jest console output does not
+survive a backgrounded or `--silent` run.** Every sim harness in this repo now
+takes `DUMP=<file>` and writes its numbers to disk. I re-learned this on the
+funnel run and then walked into it a third time on the reachability screen
+before adding the dump there too.
+
+Seventh: **a test that pins one draw of a random variable is not testing what
+its name says.** Four assertions broke on this change and three of them were of
+that shape — "the secret always wins the pick" (it wins 20 of 24 lineages), "no
+silent stretch runs longer than five weeks" (5, 6, 3, 6, 6 across five
+lineages), "social lives are +8 happiness" (true at the p10, false at the mean
+once everything saturates). None of them was wrong when written; they were
+written in a world where every life drew the same number every week, so a single
+draw WAS the population. Before nudging a bound to get green, ask what the
+assertion would look like measured across a cohort — and if it only holds for one
+seed, it was pinning the seed.
+
+Eighth: **attribute a regression before you touch it.** Every one of those four
+was confirmed by stashing the one-line engine change, re-running the same tests
+and watching them pass on the old code. That took four minutes and it is the
+difference between "my change did this, and here is why the new number is
+right" and "I adjusted a threshold until the suite went green".

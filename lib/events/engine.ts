@@ -32,7 +32,7 @@ import {
   POVERTY_MONEY_THRESHOLD,
 } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
-import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { makeLifeRoll } from '@/utils/seededRoll';
 import { payloadRoll, pickSeeded } from './seededPayload';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
@@ -2842,9 +2842,14 @@ const weightPayoffReady = (state: GameState, id: string): boolean => {
  * the same audited, integer-only seeded RNG (`makeWeeklyRoll` → mulberry32
  * finalizer); the numeric salt becomes a distinct key, which the helper keys on
  * collision-free. 2026-08-16 audit H7a.
+ *
+ * AND ON THE LIFE (Program 13): `salt` distinguishes one payoff template from
+ * another, and the life salt distinguishes one player's outcome from another's.
+ * Keyed on the week alone, every life that reached a given payoff in a given
+ * week got the same branch of it.
  */
 const payoffRoll = (state: GameState, salt: number): number =>
-  makeWeeklyRoll(state.weeksLived || 0)(`payoff-${salt}`);
+  makeLifeRoll(state, state.weeksLived || 0)(`payoff-${salt}`);
 
 // Payoff to: tipping a street musician $5 (unlock_event, +5 weeks). A warm,
 // low-stakes callback that rewards a small act of kindness.
@@ -3672,8 +3677,10 @@ export function rollEventChain(state: GameState): WeeklyEvent | null {
     // construction - ECMAScript does not require bit-exact Math.sin, so
     // Hermes and V8 could disagree on which week a chain starts (the same
     // hole H7a closed for the payoff rolls). Routed through the audited
-    // integer-only seeded RNG, salted by chainId so chains roll independently.
-    const roll = makeWeeklyRoll(absoluteWeek)(`chain-start:${chain.chainId}`);
+    // integer-only seeded RNG, salted by chainId so chains roll independently -
+    // and by the LIFE (Program 13), or every life starts the same chain on the
+    // same week, which is the same defect as the weekly pick above.
+    const roll = makeLifeRoll(state, absoluteWeek)(`chain-start:${chain.chainId}`);
     if (roll < chain.triggerChance) {
       return chain.stages[0](state, 0);
     }
@@ -4152,7 +4159,37 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // integer-only seeded RNG (makeWeeklyRoll → mulberry32 finalizer) instead: same
   // week + same key always yields the same, engine-independent roll. Distinct keys
   // stand in for the old numeric seed offsets (+0 jitter, +1 fire gate, +2 pick).
-  const weeklyEventRoll = makeWeeklyRoll(state.weeksLived || 0);
+  //
+  // ── AND ON THE LIFE. `makeLifeRoll`, not `makeWeeklyRoll` (Program 13) ────
+  //
+  // These three keys - the jitter, the fire gate and the PICK - were seeded on
+  // the WEEK ALONE, which made the answer to "does an event fire this week, and
+  // which one" a property of the calendar rather than of the life. CLAUDE.md
+  // §4.3 has said not to do this since Program 8 ("never key a life-affecting
+  // roll on the week alone"); the salt was applied per call site by hand back
+  // then, and the biggest call site in the game was missed.
+  //
+  // What it cost, measured over twelve lives of 150 weeks before the change:
+  // 365 authored pool templates, 118 ever eligible, 107 carrying weight - and
+  // **33 ever delivered**. Ninety-three templates competed for up to 805
+  // life-weeks each and were never once selected, among them nearly the whole
+  // transactional core of the game: `job_offer`, `investment_opportunity`,
+  // `unexpected_bill`, `car_breakdown`, `burglary`, `legal_issue`, `sick_day`,
+  // `lottery_win`, `distant_relative_inheritance`, `car_accident`.
+  //
+  // The mechanism is worth stating exactly, because "the weights are broken" is
+  // the wrong diagnosis and was the one Program 12 reached. `pickWeighted` is a
+  // correct cumulative-weight pick. The defect is that there was only ever ONE
+  // sample of the distribution per week, and it was the SAME sample in every
+  // life, so the pool was never explored - fifty lives drew one number per
+  // week, not fifty. That is also why doubling a weight changed nothing there:
+  // moving one span only changes the answer if it happens to straddle that one
+  // fixed point.
+  //
+  // Same life + same week still gives the same roll, because `lineageId` and
+  // `generationNumber` are persisted state - so replay is preserved and only
+  // the cross-life collision is removed.
+  const weeklyEventRoll = makeLifeRoll(state, state.weeksLived || 0);
 
   // ENGAGEMENT: Phase-based event frequency scaling
   // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.

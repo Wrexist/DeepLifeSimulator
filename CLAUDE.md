@@ -189,6 +189,40 @@ loop. Two rules that recur in `tasks/lessons.md` five times over:
   the week alone. Disease occurrence is `DISEASE_BASE_WEEKLY_CHANCE ×
   calculateDiseaseRisk` (`lib/diseases/diseaseGenerator.ts`); the template
   curves only pick WHICH illness. Evidence: `tasks/life-variation-2026-09-02.md`.
+
+  **That rule is machine-checked now (Program 13), because by hand it did not
+  hold.** Program 8 applied the salt per call site, and missed the biggest roll
+  in the game: `lib/events/engine.ts` decided whether an event fires this week
+  and WHICH one on `makeWeeklyRoll`, so every life drew the same number in week
+  N and explored ONE sample of a 365-template pool instead of one per life.
+  Twelve simulated lives reached 33 distinct events; the same twelve on the same
+  seeds now reach 78, and fifty lives reach 108 instead of 30 — with nothing
+  authored and no weight touched. `pickWeighted` was never broken, which is why
+  "the weights are broken" was the wrong diagnosis and why raising one produced
+  no effect: moving a span only changes the answer if it straddles the single
+  fixed point. `__tests__/tooling/weekOnlyRollAudit.test.ts` now makes every
+  `makeWeeklyRoll` call site declare itself SAFE (salt folded into the key) /
+  INTENTIONALLY GLOBAL (the macro economy is one shared world) / NOT
+  LIFE-AFFECTING, so a new week-only roll fails the suite instead of passing
+  review. Evidence: `tasks/event-delivery-2026-09-04.md`.
+- **The event pipeline is measured, not read off the code.** Four harnesses,
+  all `RUN_*`-gated and all taking `DUMP=<file>` (jest swallows console output
+  from a backgrounded or `--silent` run):
+  `eventTelemetry.sim` (reach, cross-life overlap, and the same-life
+  byte-identical replay the salt must never break), `eventFunnel.sim`
+  (authored -> eligible -> competing -> selected, probed against the states the
+  tick actually walked), `eventWeightResponse.sim` (the controlled weight
+  experiment: 20x on a mid-weight template moves its delivery share 0.96% ->
+  4.86%), and `eventReachability` (pure, in the normal suite: 17 archetype
+  states screening which gates are satisfiable at all — the
+  `scholarship_opportunity` class of dead gate that no cohort size can find).
+  Two rules that came out of it. A null result from an underpowered probe is
+  not a null effect — the first weight experiment scaled a 0.1-weight template
+  and measured 0 vs 0. And the interruption budget Programs 1-6 won is intact
+  and was checked by DECOMPOSING the scary aggregate: back-to-back event weeks
+  rose 21.3% -> 28.4%, but adjacent weeks where both were independent weighted
+  picks went 29 -> 29; all the growth is multi-week authored arcs finally
+  running to completion.
 - **Retention is measured, not assumed.** `RUN_RETENTION_SIM=1 npx jest
   retentionJourney.sim --silent=false` prints a per-week signal map (new
   decision, promotion, unlock, chapter step, goal change, week-ahead row, life
@@ -1075,6 +1109,7 @@ replaced with review checklists.
 | `tasks/lessons.md` | Post-mortems and recurring bug patterns — read first |
 | `tasks/social-systems-2026-09-03.md` | The social/relationship/family map, the persona measurements, and §4.8's evidence |
 | `tasks/relationship-depth-2026-09-03.md` | What a bond is WORTH: the controlled cohort experiment, the ladder measurements, and §4.7's evidence |
+| **`tasks/event-delivery-2026-09-04.md`** | **How the world reaches the player: the event pipeline map, the delivery funnel (365 authored -> 78 delivered, from 33), the randomness audit table, the weight-responsiveness experiment, and the interruption-budget decomposition. Read before touching `lib/events/engine.ts` or adding a seeded roll** |
 | `tasks/todo.md` | Active plan |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |

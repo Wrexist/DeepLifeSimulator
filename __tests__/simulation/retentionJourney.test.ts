@@ -138,13 +138,29 @@ describe('the careful player over 100 weeks has a life that keeps going somewher
     expect(withUpcoming).toBeGreaterThanOrEqual(20);
   });
 
-  it('after the opening weeks no silent stretch runs longer than five weeks (was ten)', () => {
+  it('after the opening weeks no silent stretch runs longer than six weeks (was ten)', () => {
     let run = 0;
     let longest = 0;
     for (const w of weeks) {
       if (w.week < 10) continue;
       if (w.signals.length === 0) { run++; longest = Math.max(longest, run); } else run = 0;
     }
-    expect(longest).toBeLessThanOrEqual(5);
+    // Six, not the five this asserted from Program 9 until 2026-09-04, and the
+    // reason is worth reading before anyone tightens it back.
+    //
+    // Until Program 13 the weekly event roll was seeded on the WEEK alone, so
+    // every life in the game shared ONE event schedule. "5" was therefore not a
+    // property of the game; it was a property of that single schedule, measured
+    // once. With the roll salted per life, the longest quiet run is a random
+    // variable, and it was measured across five lineages on this exact persona:
+    //
+    //   life_retention 6 | life_a 5 | life_b 3 | life_c 6 | life_d 6
+    //
+    // Six is the typical worst case, not an outlier, and nothing approaches the
+    // ten this replaced. The cohort agrees: across 50 lives x 100 weeks the
+    // MEDIAN gap between event weeks FELL from 4 to 3 while the tail widened,
+    // which is what a per-life draw looks like. Re-pinning to 5 by choosing a
+    // luckier `lineageId` would be fitting the test to the answer.
+    expect(longest).toBeLessThanOrEqual(6);
   });
 });

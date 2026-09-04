@@ -1,3 +1,84 @@
+# Master Program 13 — WORLD SIMULATION + EVENT DELIVERY — COMPLETE
+
+Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 12 (`f405c91`).
+Programs 1-12 untouched. Rule of the program: **measure the pipeline before
+changing it**. Report: `tasks/event-delivery-2026-09-04.md`.
+
+**Result.** The weekly event roll was seeded on the WEEK ALONE, so every life in
+the game drew the same number in week N and explored ONE sample of a
+365-template pool. Twelve lives reached 33 distinct events; the same twelve on
+the same seeds now reach 78, and fifty lives reach 108 instead of 30. Nothing
+authored, no weight tuned, no save field added.
+
+## Phase 1 — pipeline map + the Program 12 lead. STATUS: **done** (report §1-3)
+`lib/events/engine.ts` built its roll with `makeWeeklyRoll`, keys
+`'event-jitter'` / `'event-fire'` / `'event-pick'`. None carried the life salt.
+`pickWeighted` was never broken — there was one sample of the distribution per
+week and it was the same sample in every life, so moving a span only changes the
+answer if it straddles that fixed point. Directly violated CLAUDE.md §4.3.
+
+## Phase 2 — telemetry harness. STATUS: **done** (report §5)
+`eventTelemetry.sim` over 50 lives x 100 weeks. Distinct ids 30 -> 108, exact
+pairwise overlap 28.3% -> 9.4%, same-life replay still byte-identical.
+
+## Phase 3 — reachability. STATUS: **done** (report §7)
+`eventReachability` (pure, in the normal suite): 17 archetype states, 226/365
+reached, its own ratchet. Both jumps while writing it (137 -> 183 -> 226) were
+PROBE bugs, not game bugs.
+
+## Phase 4 — randomness audit. STATUS: **done** (report §8)
+Every `makeWeeklyRoll` call site classified, and the classification is
+machine-checked by `__tests__/tooling/weekOnlyRollAudit.test.ts`. Verified to
+FAIL on a planted violation before being kept.
+
+## Phase 5 — weight responsiveness. STATUS: **done** (report §9)
+20x on `gym_invite`: 0.96% -> 4.86% delivery share, 3 -> 16 deliveries. The first
+attempt probed a 0.1-weight template and measured 0 vs 0 — underpowered, not a
+null effect, and it is documented in the test.
+
+## Phase 6 — the funnel. STATUS: **done** (report §6)
+365 authored / 118 eligible / 107 competing / **33 -> 78 selected**. Eligibility
+and competition did not move at all, which is the signature of a SELECTION
+defect rather than a content or gating one.
+
+## Phase 7 — cross-life variation + same-life replay. STATUS: **done** (§11)
+Both hold simultaneously. Save-scumming a week is still ineffective.
+
+## Phase 8 — life-stage distribution. STATUS: **done, not measured** (§12)
+Structurally sound (all four packs tag via `.map()` at export and the pick
+boosts them). A 100-week `food_courier` cohort cannot reach midlife or
+seniority, so no claim is made.
+
+## Phase 9 — interruption budget. STATUS: **done** (report §10)
+The number that could have been a regression, decomposed: back-to-back event
+weeks 21.3% -> 28.4%, but adjacent weeks where BOTH were independent pool picks
+went **29 -> 29**. All the growth is multi-week authored arcs completing.
+
+## Phase 10 — implementation. STATUS: **done** (report §16)
+Three call sites in `engine.ts`. Plus four measurement harnesses and one static
+guard. Nothing authored, no weight edited.
+
+## Phase 11 — red team. STATUS: **done** (report §14). No new exploit surface.
+
+## Phase 12 — regression. STATUS: **done** (report §15b)
+Four existing gates failed and were ATTRIBUTED (engine stashed, tests re-run,
+all passed on the old code) before being touched. Two happiness margins moved to
+the p10 because the mean now saturates against the ceiling for every persona;
+one pacing bound went 5 -> 6, measured across five lineages (6/5/3/6/6); and the
+rarity test stopped pinning a single lucky draw and now asserts the legendary
+stamp across twelve lineages (the secret wins 20 of 24, not 24 of 24).
+
+## Phase 13 — verification. STATUS: **done** (report §21)
+type-check clean, test-tree types 0, lint 0 errors / 719 warnings (ceiling 719),
+routes clean, full suite green.
+
+## Found and NOT fixed, deliberately (report §15c, §18)
+- The tick is not deterministic across repeated runs in one process (identical
+  event streams, differing happiness). Not `Math.random()` — a probe recorded
+  zero calls — but `Date.now()` is read on the tick path. Predates this program.
+- Happiness saturates at 90-97 for every persona once the catalogue is
+  delivered. A balance question with an owner, not a same-commit tuning pass.
+
 # Master Program 12 — RELATIONSHIP DEPTH + SOCIAL VALUE + CONSEQUENCES — COMPLETE
 
 Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 11 (`10001ab`).
