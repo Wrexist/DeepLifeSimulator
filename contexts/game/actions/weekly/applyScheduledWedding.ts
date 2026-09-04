@@ -18,6 +18,9 @@
  *
  * Side effects on `ctx`:
  *   - `ctx.newStats.money` — decremented by `remainingBalance` on execute.
+ *   - `ctx.notifications.push(...)` — on postpone and on expiry. See the note on
+ *     gate 2: both used to be silent, which is what "the wedding is planned but
+ *     never occurs" looks like from the outside.
  *
  * Returns:
  *   - `null` when none of the three gates fire (caller falls through to
@@ -120,6 +123,17 @@ export function applyScheduledWedding(
       logger.info(
         `[WEDDING] Wedding plan for ${rel.name} expired after ${WEEKS_PER_YEAR} weeks. Deposit forfeited.`,
       );
+      // Also silent until now, and this one takes the deposit and 15 points of
+      // relationship with it - the single most expensive thing that can happen
+      // to a player without being told.
+      ctx.notifications.push({
+        id: `wedding-expired-${rel.id}`,
+        title: 'Wedding Called Off',
+        message:
+          `A year past the date and the balance was still unpaid, so the venue cancelled the ` +
+          `wedding to ${rel.name} and kept the deposit. You are still engaged - plan a wedding ` +
+          `you can afford when you are ready.`,
+      });
       return {
         rel: {
           ...rel,
@@ -133,6 +147,31 @@ export function applyScheduledWedding(
     logger.info(
       `[WEDDING] Can't afford wedding for ${rel.name} ($${remainingBalance} needed). Postponed 4 weeks.`,
     );
+    /**
+     * PLAYER REPORT (BBQ, 2026-08-31): "The wedding is planned but never occurs.
+     * Forever engaged... After about a year can re-plan the wedding and it works
+     * as intended."
+     *
+     * That is this branch, seen from outside the code. The postponement was
+     * announced to `logger.info` and to nobody else: the player is told at
+     * planning time that the wedding "happens on its week", the week arrives,
+     * the balance is short by any amount, and the date silently slides four
+     * weeks - over and over, until gate 2's one-year expiry finally clears the
+     * plan and lets them re-plan. Nothing in the game ever said why, so the
+     * feature reads as broken rather than as a bill they have not paid.
+     *
+     * A wedding that does not happen is news. Say so, and say what it costs.
+     */
+    ctx.notifications.push({
+      id: `wedding-postponed-${rel.id}`,
+      title: 'Wedding Postponed',
+      message:
+        `The wedding to ${rel.name} could not go ahead - the venue needed the remaining ` +
+        `$${remainingBalance.toLocaleString()} and you had $${Math.max(0, Math.floor(ctx.newStats.money)).toLocaleString()}. ` +
+        `It is rebooked for 4 weeks' time. The plan is cancelled and the deposit lost if it ` +
+        `still cannot go ahead a year after the original date - you can call off the engagement ` +
+        `or re-plan a cheaper wedding before then.`,
+    });
     return {
       rel: {
         ...rel,
@@ -156,6 +195,13 @@ export function applyScheduledWedding(
     rel.weddingPlanned.scheduledWeek < nextWeeksLived - WEEKS_PER_YEAR
   ) {
     logger.info(`[WEDDING] Stale wedding plan for ${rel.name} cleaned up.`);
+    ctx.notifications.push({
+      id: `wedding-lapsed-${rel.id}`,
+      title: 'Wedding Called Off',
+      message:
+        `The wedding to ${rel.name} was booked more than a year ago and never went ahead, ` +
+        `so the venue released the date. You are still engaged - plan a new one when you are ready.`,
+    });
     return {
       rel: {
         ...rel,

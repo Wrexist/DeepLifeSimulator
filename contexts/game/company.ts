@@ -636,6 +636,86 @@ export function upgradeWarehouse(
   return { success: preview.success, message: preview.message };
 }
 
+/**
+ * Sell EVERY unit of one miner tier in a single transaction.
+ *
+ * PLAYER REPORT (BBQ, 2026-09-01): "Thanks for including a sell option on rigs.
+ * (One at a time is not enough, needs a sell all option)". `sellMiner` sheds one
+ * unit per confirm, so unwinding the 600-rig fleet that prompted the report is
+ * 600 confirms.
+ *
+ * Written as a pure preview/commit resolver rather than the outer-guard shape
+ * `sellMiner` still has, because that shape is what the C-9 ratchet
+ * (`__tests__/refactor/updaterResultRatchet.test.ts`) exists to stop growing:
+ * an unconditional success tail is only honest for the FIRST update of a React
+ * batch. Running the same pure function on the snapshot and again on `prev`
+ * means a stale double-tap refuses on its own evidence and pays once.
+ *
+ * Proceeds go through `applyMoneyDelta` for the same reason the sibling
+ * resolvers do - a whole-tier sale is a large credit, and it must respect the
+ * money ceiling instead of being hand-added onto `stats.money` (M-7).
+ */
+export function resolveSellAllMiners(
+  state: GameState,
+  minerId: string,
+  minerName: string,
+  purchasePrice: number,
+): { state: GameState; success: boolean; message: string } {
+  const wh = state.warehouse;
+  if (!wh) {
+    return { state, success: false, message: 'You need a warehouse to sell miners' };
+  }
+
+  const owned = wh.miners?.[minerId] ?? 0;
+  const count = typeof owned === 'number' && isFinite(owned) && owned > 0 ? Math.floor(owned) : 0;
+  if (count === 0) {
+    return { state, success: false, message: `You don't own any ${minerName}s to sell` };
+  }
+
+  // Same 50% of the catalogue price per unit that `sellMiner` pays, so selling
+  // the fleet in one tap can never beat (or lose to) selling it one at a time.
+  const unitPrice = Math.floor((purchasePrice || 0) * 0.5);
+  const proceeds = unitPrice * count;
+  if (!isFinite(proceeds) || proceeds < 0) {
+    return { state, success: false, message: 'Sale price is unavailable right now' };
+  }
+
+  const salePatch = applyMoneyDelta(state, proceeds, `Sold ${count} x ${minerName}`);
+  if (!salePatch) {
+    return { state, success: false, message: 'Could not credit the sale right now' };
+  }
+
+  // Drop the tier's key rather than writing 0: `minerDurability` and the yield
+  // math both read the count with `|| 0`, and an absent tier is the same shape a
+  // player who never bought one has.
+  const miners = { ...(wh.miners ?? {}) };
+  delete miners[minerId];
+  const minerDurability = { ...(wh.minerDurability ?? {}) };
+  delete minerDurability[minerId];
+
+  return {
+    success: true,
+    message: `Sold all ${count} ${minerName}${count === 1 ? '' : 's'} for $${proceeds.toLocaleString()}.`,
+    state: {
+      ...state,
+      ...salePatch,
+      warehouse: { ...wh, miners, minerDurability },
+    },
+  };
+}
+
+export function sellAllMiners(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  minerId: string,
+  minerName: string,
+  purchasePrice: number,
+): { success: boolean; message?: string } {
+  const preview = resolveSellAllMiners(gameState, minerId, minerName, purchasePrice);
+  setGameState(prev => resolveSellAllMiners(prev, minerId, minerName, purchasePrice).state);
+  return { success: preview.success, message: preview.message };
+}
+
 export function sellMiner(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,

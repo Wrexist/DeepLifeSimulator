@@ -12,6 +12,8 @@
  *   2. Build the static `MINERS_DATA` array (weekly earnings, power, owned).
  *   3. Call `calculateMiningEarnings(warehouse, MINERS_DATA, selectedCrypto, prevCryptos)`.
  *   4. Apply BTC halving: `cryptoEarned *= 0.5^halvingCount`.
+ *   4b. Charge electricity as a share of `hardwareGrossUsd` (the fleet's own
+ *      output, before the per-coin lever and the difficulty divisor).
  *   5. If `cryptoEarned > 0`: add to selected crypto's `owned`, then
  *      optionally deduct auto-repair cost from `autoRepairCryptoId`.
  *   6. Else: still deduct auto-repair cost if configured (mining stalled
@@ -116,6 +118,9 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   const halvingMultiplier = Math.pow(0.5, input.halvingCount);
   result.cryptoEarned = result.cryptoEarned * halvingMultiplier;
   result.totalEarnings = result.totalEarnings * halvingMultiplier;
+  // The electricity basis is halved alongside, so a halving still squeezes the
+  // margin (below) exactly as it always did.
+  result.hardwareGrossUsd = result.hardwareGrossUsd * halvingMultiplier;
 
   // ANTI-EXPLOIT (double-pay fix): warehouse mining is now the ONLY payout for
   // warehouse miners (removed from the cash passive-income path). To keep the same
@@ -136,17 +141,35 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
     const scale = MINING_USD_CAP / result.totalEarnings;
     result.cryptoEarned = result.cryptoEarned * scale;
     result.totalEarnings = MINING_USD_CAP;
+    // The electricity basis is clipped by the same factor, so a capped fleet
+    // still pays the same SHARE of its output for power rather than the same
+    // absolute bill out of a smaller reward.
+    result.hardwareGrossUsd = result.hardwareGrossUsd * scale;
   }
 
   // EXPLOIT FIX (H-2): the weekly electricity cost was computed but never
   // charged, making mining free/infinite profit. Charge it out of the mined
   // crypto (you pay the power bill from what you mine) — this keeps the fix
   // self-contained instead of threading a USD debit through the whole tick.
-  // Electricity is NOT halved, so post-halving mining can become unprofitable,
-  // which is the intended real-world behavior. Big rigs (tiny power %) are
-  // barely affected; small rigs near break-even can net zero.
-  if (result.cryptoEarned > 0 && result.totalEarnings > 0) {
-    const powerCostFraction = result.totalPowerCost / result.totalEarnings;
+  // The bill itself is never halved, so post-halving mining can become
+  // unprofitable, which is the intended real-world behavior. Big rigs (tiny
+  // power %) are barely affected; small rigs near break-even can net zero.
+  //
+  // PLAYER REPORT (BBQ, 2026-09-01): "Mining any currency does not increase
+  // holdings. I have over 600 rigs and they do nothing." The fraction was
+  // `totalPowerCost / totalEarnings`, and `totalEarnings` is the yield AFTER the
+  // per-coin lever and the difficulty divisor - neither of which touches the
+  // power draw. So the lever documented as "XRP lands at ~10% of the BTC USD
+  // yield" was really multiplying the power bill's SHARE by ten: past 100% for
+  // every XRP fleet at every size, at which point the floor below returns
+  // exactly 0, every week, forever. ADA joined it as soon as the automatic
+  // difficulty ramp (x1.1 per period, capped at 2.0) arrived, and no message
+  // anywhere told the player why $50M of hardware had stopped paying.
+  // `hardwareGrossUsd` is the same yield WITHOUT those two levers - what the
+  // rigs physically produce - so the bill is now a property of the hardware and
+  // the levers scale the NET. BTC at difficulty 1 is unchanged to the cent.
+  if (result.cryptoEarned > 0 && result.hardwareGrossUsd > 0) {
+    const powerCostFraction = result.totalPowerCost / result.hardwareGrossUsd;
     const net = result.cryptoEarned * (1 - powerCostFraction);
     result.cryptoEarned = Number.isFinite(net) ? Math.max(0, net) : 0;
   }

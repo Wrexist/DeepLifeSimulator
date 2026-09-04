@@ -13,6 +13,7 @@ import { MarketScreenContent } from './market';
 import { ProgressionScreenContent } from './progression';
 import FamilyTab from '@/components/FamilyTab';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 
 /**
  * Life - the merged personal tab.
@@ -171,6 +172,12 @@ function LifeScreen() {
           onRequestClose={() => setShowFamily(false)}
         >
           <FamilyTab onClose={() => setShowFamily(false)} />
+          {/* iOS presents an RN Modal from the view controller nearest its mount
+              point, so the ROOT AlertHost's dialog cannot present while this Modal
+              covers the screen - the tap that raised it looks dead. This nested
+              host registers on top of the gameAlert stack while this Modal is up.
+              See __tests__/tooling/nestedAlertHosts.test.ts. */}
+          <AlertHost />
         </Modal>
       </View>
     </ErrorBoundary>

@@ -14,26 +14,63 @@
  * to the most recently registered host (utils/gameAlert.ts), so the nested
  * copy takes over exactly while its Modal is up.
  *
- * This suite pins the surfaces known to need it. If you add gameAlert calls
- * to a new full-screen Modal, nest an AlertHost there too and add the file
- * here.
+ * This used to be a HAND-MAINTAINED list of three files, with a comment asking
+ * the next author to remember to extend it. They didn't: a scan on 2026-09-04
+ * found THIRTEEN more surfaces that render a Modal and raise gameAlert from
+ * inside it, including the property "Sell" confirm and the skill tree's
+ * "Unlock" confirm - both reported from the field as buttons that light up and
+ * do nothing. An inventory nobody can forget to update is the only kind worth
+ * having, so the list is DERIVED now: every component that renders a Modal and
+ * calls gameAlert is required to nest a host, and a new one fails here on the
+ * commit that adds it.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
 const ROOT = path.resolve(__dirname, '../..');
 
-/** Surfaces that present a Modal AND raise gameAlert from inside it. */
-const NESTED_HOST_FILES = [
-  'components/DeathPopup.tsx',
-  'components/GemShopModal.tsx',
-  'components/OfferCenterModal.tsx',
-];
+/** The host itself renders the dialog; it obviously does not nest a copy. */
+const EXEMPT = new Set(['components/ui/AlertHost.tsx']);
 
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
+/** Every .tsx under the UI roots, repo-relative, excluding tests. */
+function uiFiles(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name === '__tests__' || entry.name === 'node_modules') continue;
+        walk(rel);
+      } else if (entry.name.endsWith('.tsx') && !entry.name.includes('.test.')) {
+        out.push(rel);
+      }
+    }
+  };
+  for (const root of ['components', 'app', 'src']) walk(root);
+  return out;
+}
+
+/** Files that present a Modal AND raise gameAlert - the surfaces at risk. */
+function surfacesNeedingAHost(): string[] {
+  return uiFiles().filter((rel) => {
+    if (EXEMPT.has(rel)) return false;
+    const src = read(rel);
+    return src.includes('<Modal') && /\bgameAlert\s*\(/.test(src);
+  });
+}
+
 describe('modals that raise gameAlert nest their own AlertHost', () => {
-  it.each(NESTED_HOST_FILES)('%s nests an <AlertHost /> inside its Modal', (rel) => {
+  const surfaces = surfacesNeedingAHost();
+
+  it('finds the surfaces to check (a scan returning nothing would pass vacuously)', () => {
+    // Guards against a refactor that moves the UI out from under these roots
+    // and turns this whole suite into a no-op.
+    expect(surfaces.length).toBeGreaterThanOrEqual(16);
+  });
+
+  it.each(surfaces)('%s nests an <AlertHost /> inside its Modal', (rel) => {
     const src = read(rel);
     expect(src).toMatch(/import AlertHost from '@\/components\/ui\/AlertHost'/);
     const hostAt = src.indexOf('<AlertHost />');

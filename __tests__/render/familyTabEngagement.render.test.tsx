@@ -41,6 +41,16 @@ jest.mock('@/contexts/GameContext', () => ({
   }),
 }));
 
+/**
+ * FamilyTab nests an `<AlertHost />` inside its child Modal so its confirms
+ * present from that Modal's own view controller on iOS (see
+ * `__tests__/tooling/nestedAlertHosts.test.ts`). The host reads the theme through
+ * `useGameSelector`, which needs the real `GameProvider` - and this suite mounts
+ * FamilyTab standalone against a mocked `useGame`. Stub it: it renders null
+ * unless an alert is open, and nothing here is about the host.
+ */
+jest.mock('@/components/ui/AlertHost', () => ({ __esModule: true, default: () => null }));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const FamilyTab = require('@/components/FamilyTab').default;
 

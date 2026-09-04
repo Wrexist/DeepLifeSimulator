@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated, Platform } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
+import AlertHost from '@/components/ui/AlertHost';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
@@ -873,6 +874,12 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
           </TouchableOpacity>
         </Animated.View>
       )}
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

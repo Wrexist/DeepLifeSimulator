@@ -114,6 +114,53 @@ export function updateCommitmentLevel(
 }
 
 /**
+ * Record that the player has just PERFORMED an activity in `area`, raising that
+ * area's commitment level.
+ *
+ * PLAYER REPORT (BBQ, 2026-08-31): "As weeks progress the commitment levels do
+ * not go up. Even after performing activities... This applies to the other two
+ * as well. They do not perform."
+ *
+ * They were right, and for a structural reason. `updateCommitmentLevel` had
+ * exactly ONE caller - practising a hobby (`PursuitActions`) - so `hobbies` was
+ * the only one of the four areas with any way to rise. Career, relationships and
+ * health could only ever DECAY (`decayCommitmentLevels`, run every week on any
+ * area that is neither primary nor secondary), and an area the player HAD
+ * committed to just sat at 0 forever: pinned there, it never paid the level
+ * bonus the modal advertises (a primary focus is worth +30% progress at level 0
+ * and +50% at level 100, so the whole top half of the reward was unreachable).
+ *
+ * Exposed as a state-in/state-out helper - not a raw number - so each of the
+ * four sites is one line and none of them can invent its own shape. Returns the
+ * SAME object identity when nothing changes, so a caller can spread it
+ * unconditionally without churning the state.
+ */
+export function recordCommitmentActivity(
+  commitments: GameState['activityCommitments'],
+  activityArea: CommitmentArea,
+): GameState['activityCommitments'] {
+  if (!commitments) return commitments;
+
+  const isCommitted =
+    commitments.primary === activityArea || commitments.secondary === activityArea;
+  const levels = commitments.commitmentLevels;
+  const current = levels?.[activityArea] ?? 0;
+  const next = updateCommitmentLevel(current, activityArea, isCommitted);
+  if (next === current && levels) return commitments;
+
+  return {
+    ...commitments,
+    commitmentLevels: {
+      career: levels?.career ?? 0,
+      hobbies: levels?.hobbies ?? 0,
+      relationships: levels?.relationships ?? 0,
+      health: levels?.health ?? 0,
+      [activityArea]: next,
+    },
+  };
+}
+
+/**
  * Decay commitment levels for neglected areas
  */
 export function decayCommitmentLevels(

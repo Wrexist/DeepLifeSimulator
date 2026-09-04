@@ -43,6 +43,7 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -883,6 +884,12 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           {renderNodeDetails()}
         </Animated.View>
       </View>
+      {/* iOS presents an RN Modal from the view controller nearest its mount
+          point, so the ROOT AlertHost's dialog cannot present while this Modal
+          covers the screen - the tap that raised it looks dead. This nested
+          host registers on top of the gameAlert stack while this Modal is up.
+          See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      <AlertHost />
     </Modal>
   );
 }

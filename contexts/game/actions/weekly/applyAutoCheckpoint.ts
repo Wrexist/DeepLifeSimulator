@@ -35,12 +35,17 @@ import {
   createCheckpoint,
   addCheckpoint,
 } from '@/lib/timeMachine/checkpointSystem';
-import { decayCommitmentLevels } from '@/lib/commitments/commitmentSystem';
+import { decayCommitmentLevels, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 
 export interface AutoCheckpointInput {
   prevState: GameState;
   newStats: GameStats;
   nextWeeksLived: number;
+  /**
+   * True when the player held (and was able to work) a job this week - the
+   * career equivalent of practising a hobby. See the growth block below.
+   */
+  workedThisWeek?: boolean;
 }
 
 export interface AutoCheckpointResult {
@@ -70,12 +75,28 @@ export function applyAutoCheckpoint(input: AutoCheckpointInput): AutoCheckpointR
   // idempotent under a double-invoked updater (recomputed from prevState each
   // time), and pure arithmetic so the weekly tick stays deterministic. Only areas
   // that are NOT the primary/secondary commitment decay, by 1/wk, floored at 0.
-  const activityCommitments = input.prevState.activityCommitments
+  const decayed = input.prevState.activityCommitments
     ? {
         ...input.prevState.activityCommitments,
         commitmentLevels: decayCommitmentLevels(input.prevState.activityCommitments),
       }
     : undefined;
+  // ---------------------------------------------------------------------------
+  // Weekly activity-commitment GROWTH for the career area.
+  // ---------------------------------------------------------------------------
+  // PLAYER REPORT (BBQ, 2026-08-31): "As weeks progress the commitment levels do
+  // not go up. Even after performing activities." Fix 5a above gave the levels a
+  // way DOWN and Fix 5b gave `hobbies` a way up; career, relationships and health
+  // still had none, so a player who focused on their career watched a bar that
+  // could only ever sit at 0. Working a week is to `career` what practising is to
+  // `hobbies`, and this reducer is already the one weekly writer of the slice, so
+  // growth belongs beside the decay rather than in a second writer that could
+  // disagree with it. Applied AFTER the decay on purpose: an area you are
+  // actively working is not a neglected one, so a week worked nets +1 even when
+  // career is neither the primary nor the secondary focus (+2 when it is).
+  const activityCommitments = input.workedThisWeek
+    ? recordCommitmentActivity(decayed, 'career')
+    : decayed;
   const decayPartial = activityCommitments ? { activityCommitments } : {};
 
   try {
