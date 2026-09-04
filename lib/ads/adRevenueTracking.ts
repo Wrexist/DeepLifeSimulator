@@ -25,7 +25,6 @@
  * `generateRewardVerificationToken` / `pollRewardVerification`, which do not
  * exist in the pinned `react-native-purchases@10.4.4` — see docs/REVENUECAT-SETUP.md.
  */
-import { v4 as uuidv4 } from 'uuid';
 
 /** RevenueCat's `AdMediatorName` — we serve AdMob directly, no mediation layer. */
 export const RC_MEDIATOR_ADMOB = 'AdMob';
@@ -70,13 +69,39 @@ export interface AdMobPaidEvent {
   precision: unknown;
 }
 
+/** Monotonic counter, so two ids minted in the same millisecond still differ. */
+let impressionSeq = 0;
+
 /**
  * Mint an impression id. RevenueCat correlates an impression's events by this
  * value, so one id is generated per ad REQUEST and reused for that ad's whole
  * lifecycle — never per event.
+ *
+ * PLAYER REPORT (BBQ, 2026-08-31, with a screen recording on 2026-09-04): the
+ * app died to a full-screen "App Initialization Error" reading
+ * `crypto.getRandomValues() not supported`. That string is verbatim from
+ * `uuid`'s BROWSER rng, which is the build Metro resolves for React Native
+ * (uuid@11 exports `browser` ahead of `node`), and it throws outright when there
+ * is no `crypto` global — which is exactly the case on Hermes, with no polyfill
+ * shipped. So this function, the only `uuid` caller in the app, threw every
+ * single time it ran. The error screen then blamed the OS ("This may be caused
+ * by an incompatible iOS version"), which is why the report reads as an iOS 26
+ * problem.
+ *
+ * Minted locally instead of adding `react-native-get-random-values`. The
+ * polyfill is a NATIVE module (Hard Rule #4 territory) that has to be imported
+ * before anything touches uuid — a boot-order hazard on the ad path — and this
+ * value does not need what it provides. An impression id is a correlation key:
+ * RevenueCat uses it to stitch one ad's loaded/displayed/revenue events
+ * together. It has to be unique, not unguessable, and nothing reads it back.
+ * Timestamp + counter + a `Math.random` suffix is unique by construction within
+ * the process that mints it, which is the only scope that correlates them.
+ * Removing this call also removes the `uuid` dependency entirely.
  */
 export function newImpressionId(): string {
-  return uuidv4();
+  impressionSeq = (impressionSeq + 1) % Number.MAX_SAFE_INTEGER;
+  const suffix = Math.random().toString(36).slice(2, 10);
+  return `imp-${Date.now().toString(36)}-${impressionSeq.toString(36)}-${suffix}`;
 }
 
 /**

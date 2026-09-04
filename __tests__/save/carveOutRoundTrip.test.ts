@@ -320,7 +320,21 @@ const CARVE_OUTS: CarveOut[] = [
       },
     }),
   },
-];
+  {
+    version: 50,
+    path: 'shownNotificationIds',
+    // The record of which `showOnce` milestones the player has already been
+    // shown. Erasing it on load is the exact bug v50 exists to fix: every
+    // milestone's condition is derived from the save and stays true, so a save
+    // that came back without this list would replay its whole backlog - which is
+    // what the player reported, and what the old in-memory-only record did on
+    // every relaunch.
+    value: ['married', 'first_child'],
+    build: () => createTestGameState({
+      shownNotificationIds: ['married', 'first_child'],
+      version: STATE_VERSION,
+    }),
+  },];
 
 /**
  * A save carrying all five v47 political carve-outs. One shape shared by the
@@ -384,7 +398,7 @@ describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(24);
+    expect(CARVE_OUTS).toHaveLength(25);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

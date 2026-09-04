@@ -4,6 +4,62 @@
 
 ## Patterns to Watch For
 
+### 2026-09-04 — The screenshot the reporter attached was the whole diagnosis, and a test harness that resolves a different build than the device
+
+A second pass on the same Discord reports, after the reporter's screenshots
+arrived. Two of the conclusions from the first pass were wrong, and both were
+wrong in the same way: I had reasoned from the code to a plausible cause instead
+of waiting for the evidence that named the actual one.
+
+- **Read the attachment before theorising.** The "App Initialization Error"
+  report came with a screen recording nobody had watched, and the reporter's own
+  guess ("something to do with achievements or discovery") sent the first pass
+  looking there. The recording contained the literal error string —
+  `crypto.getRandomValues() not supported` — which names the package, the build
+  and the line. Static tracing produced nothing in four attempts; one screenshot
+  ended it. When a report references an artifact, getting the artifact IS the
+  investigation.
+- **A dependency can be correct in Node and broken on device.** `uuid@11` ships
+  `node` and `browser` conditional exports. Jest resolves `node`
+  (`require('crypto')`), Metro resolves `browser` (throws with no `crypto`
+  global). So the call site looked right, the unit test passed, CI was green, and
+  the app died on every launch that served a banner ad. Rule: for a package that
+  branches on export conditions, a Node-run test proves nothing about the RN
+  build. The only assertion that survives the asymmetry is a ban on the import.
+  I checked this rather than assuming: with the old body restored, the "does not
+  depend on a crypto global" test still PASSED, and only the import ban went red.
+  The test comment now says so, because a comment claiming coverage it does not
+  have is worse than no test.
+- **An argument is evaluated before its callee's try/catch.**
+  `trackBannerRevenue` passed `newImpressionId()` as an argument to a method
+  whose body was fully guarded, and `BannerAd` carried a comment saying the call
+  was "fully swallowed inside the service". The one expression that could throw
+  was the one outside the guard, so an ANALYTICS failure became a full-screen
+  crash on every banner refresh. When a function is documented as "never
+  throws", check its arguments too.
+- **The fix that matched the words was not the fix that matched the bug.** Round
+  one read "re-occurring pop ups" as the queued-event modal and shipped a
+  `pendingEvents` dedupe. Real bug, wrong report: the screenshots were toasts,
+  and the cause was that `showOnce` milestone history lived in a `Map` on a
+  module singleton, so it died with the JS runtime while the conditions that earn
+  those milestones (`hasSpouse`, `hasChildren`) live in the save and stay true
+  forever. Any "shown already" record whose lifetime is shorter than the
+  condition that produced it will replay. Match the fix to the artifact, not to
+  the sentence.
+- **A carve-out's "absence resolves" claim has to be checked against the bug it
+  is fixing.** For v50 the tempting default — absent means nothing shown — is
+  precisely the defect, and would have handed every existing save its backlog one
+  final time. Absence has to resolve from state the save already carries (seed
+  from the milestones whose conditions are already met), which is v39's
+  `resolveAvatar` shape. Note also that `[]` and `undefined` had to mean
+  different things here: an empty list is a real answer (a new life) and must
+  still earn its first-child moment.
+- **The ratchets earned their keep again.** `carveOutRoundTrip` failed on the
+  missing v50 row before I thought to add one, and the lint ratchet caught four
+  warnings I introduced — two of them `require()` calls in new tests that the
+  older sibling suites already avoid.
+
+
 ### 2026-09-04 — Discord bug triage: a lever that scales the reward must not scale the cost, and the fix that only reaches three of four areas
 
 Seven player reports from one tester (BBQ), re-verified against `HEAD` rather
