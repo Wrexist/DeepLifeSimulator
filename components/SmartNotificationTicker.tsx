@@ -31,7 +31,7 @@ function getSeason(): NotificationContext['season'] {
 const PRIORITY_RANK: Record<string, number> = { critical: 3, high: 2, medium: 1, low: 0 };
 
 export default function SmartNotificationTicker() {
-  const { gameState } = useGame();
+  const { gameState, setGameState } = useGame();
   const weeksLived = gameState?.weeksLived ?? 0;
   const prevWeekRef = useRef<number | null>(null);
   const stateRef = useRef(gameState);
@@ -68,21 +68,49 @@ export default function SmartNotificationTicker() {
             notificationFrequency: 'medium',
           },
         };
+        /**
+         * PLAYER REPORT (BBQ, 2026-08-31): "There are too many frequent pop ups
+         * of events that have already happened. They pop up every time the game
+         * is refreshed."
+         *
+         * The `showOnce` record lived in a Map on a module singleton, so it died
+         * with the JS runtime while every milestone's condition (`hasSpouse`,
+         * `hasChildren`, `minMoney`) stayed true in the save - and the backlog
+         * re-armed on every launch. It is persisted now (STATE_VERSION 50), and
+         * this is the one place that writes it.
+         *
+         * `resolveShownIds` also seeds a pre-v50 save from the milestones it has
+         * demonstrably already passed, so persisting the resolved set here is
+         * what stops the backlog firing that first time.
+         */
+        const shownBefore = smartNotificationSystem.resolveShownIds(context);
         const eligible = smartNotificationSystem
           .evaluateNotifications(context)
           .filter((n) => n.priority === 'critical' || n.priority === 'high')
           .sort((a, b) => (PRIORITY_RANK[b.priority] ?? 0) - (PRIORITY_RANK[a.priority] ?? 0));
-        if (eligible.length > 0) {
+        const fired = eligible[0];
+        if (fired) {
           // showNotification records the cooldown so the same warning doesn't
           // re-fire every single week.
-          smartNotificationSystem.showNotification(eligible[0], context);
+          smartNotificationSystem.showNotification(fired, context);
         }
+        // Persist the record even when nothing fired: that write is the seed, and
+        // without it a legacy save re-derives (and re-suppresses) it every week
+        // while never actually gaining a record of its own.
+        const nextIds = fired?.showOnce ? [...shownBefore, fired.id] : shownBefore;
+        setGameState((prev) => {
+          // Idempotent under a double-invoked updater: re-checked against `prev`
+          // and deduped, so a repeated run cannot grow the list.
+          const merged = Array.from(new Set([...(prev.shownNotificationIds ?? []), ...nextIds]));
+          if (merged.length === (prev.shownNotificationIds?.length ?? -1)) return prev;
+          return { ...prev, shownNotificationIds: merged };
+        });
       } catch {
         // Never let notification evaluation break the week loop.
       }
     }, 1600);
     return () => clearTimeout(timer);
-  }, [weeksLived]);
+  }, [weeksLived, setGameState]);
 
   return null;
 }

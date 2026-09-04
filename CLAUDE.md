@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 49`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 50`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -382,7 +382,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 49`** — single source of truth in
+- **Canonical `STATE_VERSION = 50`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -705,6 +705,26 @@ including the crash screen.
   a tick that runs twice cannot double-credit, and an existing save loads with
   its events already part-complete. Event WINDOWS are real UTC time and
   everything EARNED is game state — see `docs/LIVEOPS.md`.
+- **v50 adds `shownNotificationIds`** — the ids of `showOnce` smart
+  notifications the player has already been shown
+  (`utils/smartNotifications.ts`). The record used to be a private `Map` on a
+  module singleton: in-memory state that dies with the JS runtime, while every
+  milestone's condition is derived from the save (`hasSpouse`, `hasChildren`,
+  `minMoney`) and stays true forever. So each relaunch re-armed the entire
+  backlog and the weekly ticker replayed it — the "pop ups of events that have
+  already happened" a player reported on 2026-08-31. Default `undefined`, so a
+  CARVE-OUT: version bumped, NO backfill and no `repairGameState` mirror. What
+  makes that safe is NOT that absence means "nothing shown" — it plainly does
+  not, and writing that in would hand every existing save the backlog one last
+  time, which is the bug. Absence RESOLVES: the first evaluation on a save
+  without the field seeds it from the notifications whose conditions are ALREADY
+  satisfied and fires none of them (`earnedShowOnceIds`), the same "absence
+  already resolves" shape as v39's `resolveAvatar`. Note the distinction the
+  carve-out turns on: `[]` is a real answer (a new life, nothing shown yet) and
+  `undefined` is "no record" — so a fresh life still gets its first-child moment.
+  Deliberately NOT holding the COOLDOWN clocks that shared that Map: those are
+  `Date.now()` stamps, and a persisted wall-clock gate is the farmable shape
+  v28/v31/v35/v40/v44 each had to close.
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you

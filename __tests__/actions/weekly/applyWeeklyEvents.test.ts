@@ -14,17 +14,21 @@
 import { applyWeeklyEvents, MAX_PENDING_EVENTS } from '@/contexts/game/actions/weekly/applyWeeklyEvents';
 import * as engine from '@/lib/events/engine';
 import type { GameState } from '@/contexts/game/types';
+import type { WeeklyEvent } from '@/lib/events/engine';
+import { createTestGameState } from '../../helpers/createTestGameState';
 
 /** The reducer only forwards this into the synthetic state it hands the roller. */
 const ECONOMY = {} as GameState['economy'];
 
-const anEvent = (id: string) => ({ id, description: id, choices: [{ id: 'ok', text: 'OK', effects: {} }] });
+const anEvent = (id: string): WeeklyEvent =>
+  ({ id, description: id, choices: [{ id: 'ok', text: 'OK', effects: {} }] }) as WeeklyEvent;
 
-function stateWith(pending: unknown[]): GameState {
-  return { pendingEvents: pending, weeksLived: 100 } as unknown as GameState;
+/** Hard Rule #3: built by the factory, not hand-cast. */
+function stateWith(pending: WeeklyEvent[]): GameState {
+  return { ...createTestGameState(), pendingEvents: pending, weeksLived: 100 };
 }
 
-function run(prevPending: unknown[], rolled: unknown[]) {
+function run(prevPending: WeeklyEvent[], rolled: WeeklyEvent[]) {
   const spy = jest.spyOn(engine, 'rollWeeklyEvents').mockReturnValue(rolled as never);
   try {
     return applyWeeklyEvents({
@@ -53,7 +57,7 @@ describe('applyWeeklyEvents - the pending queue holds each event id once', () =>
   it('keeps the QUEUED copy, not the fresh one', () => {
     // The queued copy may already be stamped, routed to the mail app or carrying
     // an expiry - and it is the one the player has already been shown.
-    const queued = { ...anEvent('jury_summons'), channel: 'mail', generatedAtWeeksLived: 90 };
+    const queued = { ...anEvent('jury_summons'), channel: 'mail' as const, generatedAtWeeksLived: 90 };
     const { updatedPendingEvents } = run([queued], [anEvent('jury_summons')]);
     expect(updatedPendingEvents).toEqual([queued]);
   });

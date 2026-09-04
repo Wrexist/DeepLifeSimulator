@@ -2749,6 +2749,31 @@ export interface GameState {
    * malformed shape to the empty answer rather than throwing inside the hub or
    * the claim updater.
    */
+  /**
+   * Ids of `showOnce` smart notifications the player has already been shown
+   * (STATE_VERSION 50). See `utils/smartNotifications.ts`.
+   *
+   * PLAYER REPORT (BBQ, 2026-08-31): "There are too many frequent pop ups of
+   * events that have already happened. They pop up every time the game is
+   * refreshed. In this manner are they re-occurring."
+   *
+   * The "already shown" record was a private `Map` on a module singleton - pure
+   * in-memory state that dies with the JS runtime. Every `showOnce` milestone
+   * ("Married!", "First Child!", "Millionaire!") is gated on a condition derived
+   * from the save (`hasSpouse`, `hasChildren`, `minMoney`), and those stay true
+   * forever. So on every relaunch the whole backlog was eligible again and the
+   * ticker replayed it, one per week advanced.
+   *
+   * Deliberately NOT holding the COOLDOWN clocks that share that Map. Those are
+   * `Date.now()` stamps, and a persisted wall-clock gate is the farmable shape
+   * v28/v31/v35/v40/v44 each had to close. A cooldown resetting on restart lets
+   * a repeatable warning repeat, which is not what was reported and not worth
+   * putting a device-clock value in the save to fix.
+   *
+   * Per-life, not per-device: a new life should be able to celebrate its first
+   * child again, and living in the save is what gives that for free.
+   */
+  shownNotificationIds?: string[];
   liveOps?: {
     /** Claimed event instance ids (`eventId@startsAt`). The idempotency ledger. */
     claimedInstanceIds?: string[];

@@ -1,3 +1,65 @@
+# Plan — Discord bug triage, round 2 (2026-09-04)
+
+Follow-up to PR #186 (merged). Three screenshots arrived after that landed and
+they change two conclusions.
+
+## What the screenshots proved
+
+- **#5 App Initialization Error — the reporter's own theory was wrong, and the
+  recording names the cause.** It is not achievements or discovery. The error
+  text is `crypto.getRandomValues() not supported`, which is verbatim from
+  `uuid`'s browser `rng.js`. Metro resolves `uuid`'s `browser` export for React
+  Native, Hermes has no `crypto` global, and the repo ships no polyfill - so the
+  single `uuidv4()` call in the codebase throws every time it runs. The screen
+  then blames iOS ("This may be caused by an incompatible iOS version"), which is
+  why the report reads as a version problem.
+- **#3 Re-occurring pop-ups — my merged fix was for a DIFFERENT bug.** The five
+  screenshots are toasts, not queued modal events: "You're now a parent",
+  "Congratulations on getting married", the perfect-week celebration. These are
+  `showOnce` milestones in `utils/smartNotifications.ts`, and the "already shown"
+  record is a private `Map` on a module singleton - pure in-memory state that dies
+  with the JS runtime. Every relaunch re-arms the entire backlog, because every
+  condition (`hasSpouse`, `hasChildren`, `minMoney`) is still true. That is
+  exactly "they pop up every time the game is refreshed". The pendingEvents
+  dedupe I shipped was a real bug; it was not this one.
+
+## Tasks
+
+- [x] 1. Drop the `uuid` dependency. Its one call site mints an ad-impression
+      correlation id, which needs uniqueness, not cryptographic randomness -
+      a far smaller change than adding a native polyfill on the boot path. (#5)
+- [x] 2. `AdMobService.trackBannerRevenue` evaluates `newImpressionId()` as an
+      ARGUMENT, so the throw lands outside the try/catch that `BannerAd` says
+      "fully swallowed inside the service". Make the guard true. (#5)
+- [x] 3. Persist the `showOnce` notification record so a milestone the player has
+      already been told about cannot fire again on the next launch. (#3)
+- [x] 4. Verify: type-check, type-check:tests, lint, routes, save audit, full suite.
+
+All four complete. Verification: type-check clean, type-check:tests clean,
+check:routes OK, lint:errors 0, lint:ratchet 722/722, check:aso and check:content
+OK, `npm run audit:save` clean — its `as GameState` count is 41, two lower than when
+this round started, because the hand-cast state PR #186 introduced in
+`applyWeeklyEvents.test.ts` was routed through `createTestGameState` as well.
+Full suite: 743 suites / 9399 tests green.
+The v50 carve-out row was added after `carveOutRoundTrip` correctly failed for
+its absence.
+
+## Deliberately not doing
+
+- **Settings > Show Tutorial "incomplete"** - the reporter self-resolved it in a
+  follow-up ("The FAQ help button next to settings more than makes up for this").
+  A content gap, not a defect.
+- **A `crypto.getRandomValues` polyfill.** `react-native-get-random-values` is a
+  native module, so it lands under Hard Rule #4 (config-plugin alignment) and has
+  to be imported before anything touches uuid - a boot-order hazard on the ad
+  path. Removing the only uuid call removes the need entirely.
+- **Persisting notification COOLDOWNS.** They are keyed on `Date.now()`, and a
+  persisted wall-clock gate is the farmable shape CLAUDE.md warns about
+  (v28/v31/v35/v40/v44). Only the showOnce set is persisted; a cooldown resetting
+  on restart lets a warning repeat, which is not what was reported.
+
+---
+
 # Plan — Discord bug triage (2026-09-04)
 
 Source: `#bug-reports` triage brief. All 8 current reports from `a.a.a8644` (BBQ),

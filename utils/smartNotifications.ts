@@ -458,6 +458,9 @@ class SmartNotificationSystem {
   public evaluateNotifications(context: NotificationContext): SmartNotification[] {
     const activeNotifications: SmartNotification[] = [];
     const now = Date.now();
+    // Resolved ONCE per evaluation: the save's own record, or the seed derived
+    // from state for a save written before v50. See `resolveShownIds`.
+    const alreadyShown = new Set(this.resolveShownIds(context));
 
     for (const notification of this.notifications) {
       // Check if notification should be shown
@@ -476,7 +479,7 @@ class SmartNotificationSystem {
       }
 
       // Check if already shown (for showOnce notifications)
-      if (notification.showOnce && this.hasBeenShown(notification.id)) {
+      if (notification.showOnce && this.hasBeenShown(notification.id, alreadyShown)) {
         continue;
       }
 
@@ -608,8 +611,36 @@ class SmartNotificationSystem {
     return (now - lastShown) < cooldownMs;
   }
 
-  private hasBeenShown(notificationId: string): boolean {
-    return this.notificationHistory.has(notificationId);
+  private hasBeenShown(notificationId: string, alreadyShown: ReadonlySet<string>): boolean {
+    // Session Map OR the set persisted in the save. The Map still matters within
+    // a session: the state write is asynchronous, so a second evaluation can run
+    // before the appended id has landed.
+    return this.notificationHistory.has(notificationId) || alreadyShown.has(notificationId);
+  }
+
+  /**
+   * Ids of every `showOnce` notification whose conditions are satisfied RIGHT
+   * NOW, ignoring any record of having shown them.
+   *
+   * This is what a save with no `shownNotificationIds` seeds itself from. A save
+   * where `hasSpouse` is true has already been told about the wedding - many
+   * times over, which is the bug being fixed - so deriving the set from the
+   * state is not a guess about the past, it is a reading of it.
+   */
+  public earnedShowOnceIds(context: NotificationContext): string[] {
+    const now = Date.now();
+    return this.notifications
+      .filter((n) => n.showOnce && this.shouldShowNotification(n, context, now))
+      .map((n) => n.id);
+  }
+
+  /**
+   * The set to treat as already-shown for this evaluation: the save's own
+   * record, or - for a save written before v50 - the seed above.
+   */
+  public resolveShownIds(context: NotificationContext): string[] {
+    const stored = context.gameState?.shownNotificationIds;
+    return Array.isArray(stored) ? stored : this.earnedShowOnceIds(context);
   }
 
   private matchesUserPreferences(notification: SmartNotification, preferences: any): boolean {
