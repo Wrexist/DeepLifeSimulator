@@ -84,11 +84,14 @@ jobs:
           git push
 
   github-hype:
-    name: GitHub activity → #future-updates
+    # Quoted: an unquoted `#` starts a YAML comment, so this job had been
+    # rendering in the Actions UI as a bare "GitHub activity →" with nothing
+    # after the arrow ever since it was written.
+    name: 'GitHub activity → #development'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_FUTURE_UPDATES != '' }}
+      HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_DEVELOPMENT != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -103,13 +106,13 @@ jobs:
         run: |
           {
             echo "### ⚠️ GitHub hype poster skipped"
-            echo "\`DISCORD_WEBHOOK_FUTURE_UPDATES\` is not set as a repository secret."
+            echo "\`DISCORD_WEBHOOK_DEVELOPMENT\` is not set as a repository secret."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check + announce
         if: ${{ env.HAS_WEBHOOK == 'true' }}
         env:
-          DISCORD_WEBHOOK_FUTURE_UPDATES: ${{ secrets.DISCORD_WEBHOOK_FUTURE_UPDATES }}
+          DISCORD_WEBHOOK_DEVELOPMENT: ${{ secrets.DISCORD_WEBHOOK_DEVELOPMENT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run notify:github-hype -- ${{ inputs.dryRun && '--dry-run' || '' }}
 
