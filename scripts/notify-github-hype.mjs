@@ -2,9 +2,16 @@
 // scripts/notify-github-hype.mjs
 //
 // Turns recently-merged PRs into one "here's what's new" post in
-// #future-updates. Deliberately NOT one post per PR — a channel that fires on
+// #🛠️・development. Deliberately NOT one post per PR — a channel that fires on
 // every merge trains readers to ignore it. This batches everything merged
 // since the last run into a single structured announcement.
+//
+// It used to target #future-updates, a channel `discord/server.mjs` described
+// as pre-existing and which no longer exists in the guild (2026-09-04). Rather
+// than recreate an empty channel for one automated feed, the posts go to
+// #development, whose topic already covers them: work in progress, things that
+// may never ship. The secret was renamed with it, so the name still says where
+// the posts land.
 //
 // State: discord/state/last-notified-pr.json — the highest merged PR number
 // already posted. The scheduled workflow commits it back with GITHUB_TOKEN.
@@ -12,7 +19,7 @@
 //   node scripts/notify-github-hype.mjs           post if there's anything new
 //   node scripts/notify-github-hype.mjs --dry-run  print, write nothing, don't advance state
 //
-// Needs: DISCORD_WEBHOOK_FUTURE_UPDATES, GITHUB_TOKEN (Actions provides this
+// Needs: DISCORD_WEBHOOK_DEVELOPMENT, GITHUB_TOKEN (Actions provides this
 // automatically; a repo-scoped PAT works too for local runs), GITHUB_REPOSITORY
 // (owner/repo — Actions sets this automatically).
 
@@ -74,9 +81,9 @@ function formatEntry(pr) {
 }
 
 async function postToDiscord(payload) {
-  const webhook = process.env.DISCORD_WEBHOOK_FUTURE_UPDATES;
+  const webhook = process.env.DISCORD_WEBHOOK_DEVELOPMENT;
   if (!webhook) {
-    console.warn('DISCORD_WEBHOOK_FUTURE_UPDATES is not set — printing the post instead of sending it.');
+    console.warn('DISCORD_WEBHOOK_DEVELOPMENT is not set — printing the post instead of sending it.');
     console.log(JSON.stringify(payload, null, 2));
     return;
   }

@@ -345,20 +345,30 @@ export const CATEGORIES = [
         topic: 'This is happening. Major news only — patch detail lives in update-notes.' },
       { key: 'update-notes', name: '🚀・update-notes', type: 'announcement', phase: 'launch', readOnly: true,
         topic: 'Exactly what changed, every release. Posted automatically.' },
-      // Pre-existing channels (created before this file described the server),
+      // Pre-existing channel (created before this file described the server),
       // named by hand rather than via the emoji・key convention above - kept
       // as named so a sync never silently relabels something the owner
-      // already pointed people at. Both are posted to by
-      // scripts/notify-store-release.mjs and scripts/notify-github-hype.mjs
-      // via webhook, on a schedule - see .github/workflows/discord-watchers.yml.
+      // already pointed people at. Posted to by
+      // scripts/notify-store-release.mjs via webhook, on a schedule - see
+      // .github/workflows/discord-watchers.yml.
       { key: 'updates', name: 'updates', type: 'text', phase: 'launch', readOnly: true,
         topic: 'The live App Store / Google Play version, posted the moment it actually changes - not when it is submitted.' },
-      { key: 'future-updates', name: 'future-updates', type: 'text', phase: 'launch', readOnly: true,
-        topic: 'What shipped behind the scenes, batched from merged PRs - the preview before update-notes/updates makes it official.' },
+      // A sibling `future-updates` entry sat here until 2026-09-04, described the
+      // same way. It was not in the guild any more - deleted or renamed at some
+      // point after this file was written - so the definition was a standing
+      // instruction to CREATE an empty channel on the next `sync --apply`, for
+      // one automated feed nobody had asked to separate out. The merged-PR
+      // digest goes to #🛠️・development instead (see its entry below), whose
+      // topic already covers it. Removing the entry does not delete anything:
+      // the sync only ever adds, and `--prune` archives rather than deletes.
       { key: 'this-week', name: '📅・this-week', type: 'text', phase: 'launch', readOnly: true, doc: 'this-week',
         topic: 'The one channel to check on a Monday. What shipped, what is live, what is next.' },
       { key: 'roadmap', name: '🔮・roadmap', type: 'text', phase: 'launch', readOnly: true, doc: 'roadmap',
         topic: 'Where the game is going. Not a promise of dates.' },
+      // Also the target of the merged-PR digest (scripts/notify-github-hype.mjs,
+      // via DISCORD_WEBHOOK_DEVELOPMENT). readOnly does not block that: a webhook
+      // posts as the app, not as a member, so channel role permissions do not
+      // apply to it.
       { key: 'development', name: '🛠️・development', type: 'text', phase: 'growth', readOnly: true,
         topic: 'Work in progress — screenshots, experiments, things that may never ship.' },
       { key: 'polls', name: '🗳️・polls', type: 'text', phase: 'growth', readOnly: true, postableBy: ['veteran'],
