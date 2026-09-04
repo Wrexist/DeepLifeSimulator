@@ -17,6 +17,7 @@
  */
 
 import { shouldTriggerSeasonalEvent, getCurrentSeason } from '@/lib/events/seasonalEvents';
+import { resolveCalendar } from '@/utils/weekCounters';
 import { createTestGameState } from '../helpers/createTestGameState';
 
 const WEEKS_PER_SEASON = 13;
@@ -144,17 +145,164 @@ describe('the dead branch is gone', () => {
   });
 
   it('the season length is stated once, not scattered', () => {
-    expect(src).toMatch(/const WEEKS_PER_SEASON = 13;/);
-    // 13 must not be re-typed inline anywhere in the code.
-    expect(src.match(/\b13\b/g) ?? []).toEqual(['13']);
+    expect(src).toMatch(/export const WEEKS_PER_SEASON = 13;/);
+    // 13 must not be re-typed inline in CODE. Comments are prose and the
+    // HOLIDAY_WEEKS table holds weeks-of-YEAR (Easter's window opens on week
+    // 13), neither of which is the season length - so both are stripped before
+    // counting, leaving only the declaration.
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '')
+      .replace(/const HOLIDAY_WEEKS[\s\S]*?\n\];/, '');
+    expect(code.match(/\b13\b/g) ?? []).toEqual(['13']);
   });
 });
 
-describe('getCurrentSeason is untouched', () => {
-  it('still maps weeks to the four seasons', () => {
-    expect(getCurrentSeason(0).season).toBe('spring');
-    expect(getCurrentSeason(13).season).toBe('summer');
-    expect(getCurrentSeason(26).season).toBe('fall');
-    expect(getCurrentSeason(39).season).toBe('winter');
+/**
+ * The season the badge shows and the month the HUD shows are ONE calendar.
+ *
+ * They were two. `getCurrentSeason` bucketed `weeksLived % 52` into thirteens
+ * and called bucket 0 "spring", while the date card printed January - because a
+ * life ALWAYS starts in January (`computeWeeksLived = (age - 18) * 52` is a
+ * multiple of 52 for every integer starting age, so `weeksLived % 52 === 0` on
+ * week one). Every label sat a full quarter ahead, and every seasonal event
+ * fired a quarter early with it: Spring Festival in January, the beach party in
+ * April, the harvest festival in July.
+ */
+describe('the season agrees with the calendar month', () => {
+  const SEASON_OF_MONTH: Record<number, string> = {
+    1: 'winter', 2: 'winter', 3: 'winter',
+    4: 'spring', 5: 'spring', 6: 'spring',
+    7: 'summer', 8: 'summer', 9: 'summer',
+    10: 'fall', 11: 'fall', 12: 'fall',
+  };
+
+  it('never disagrees, on any week of the year', () => {
+    for (let week = 0; week < 52; week += 1) {
+      const { monthNumber } = resolveCalendar(week);
+      expect(getCurrentSeason(week).season).toBe(SEASON_OF_MONTH[monthNumber]);
+    }
+  });
+
+  it('holds for a life that started at a non-zero age', () => {
+    // age 25 seeds weeksLived at 364; the season must track the month there too.
+    for (let week = 364; week < 364 + 52; week += 1) {
+      const { monthNumber } = resolveCalendar(week);
+      expect(getCurrentSeason(week).season).toBe(SEASON_OF_MONTH[monthNumber]);
+    }
+  });
+
+  it('changes on the quarter boundaries, not somewhere inside a month', () => {
+    expect(getCurrentSeason(0).season).toBe('winter');
+    expect(getCurrentSeason(12).season).toBe('winter');
+    expect(getCurrentSeason(13).season).toBe('spring');
+    expect(getCurrentSeason(25).season).toBe('spring');
+    expect(getCurrentSeason(26).season).toBe('summer');
+    expect(getCurrentSeason(38).season).toBe('summer');
+    expect(getCurrentSeason(39).season).toBe('fall');
+    expect(getCurrentSeason(51).season).toBe('fall');
+  });
+
+  it('weekInSeason stays 0-12 and restarts with the season', () => {
+    for (const boundary of [0, 13, 26, 39]) {
+      expect(getCurrentSeason(boundary).weekInSeason).toBe(0);
+      expect(getCurrentSeason(boundary + 12).weekInSeason).toBe(12);
+    }
+  });
+});
+
+/**
+ * Holidays land in the month they actually happen.
+ *
+ * Only three of the eight did. Easter fired in late January, Independence Day
+ * in early April, Halloween in late August, Thanksgiving and Black Friday in
+ * September - all because the windows were authored in `weekInSeason` against
+ * the mislabelled seasons above.
+ */
+describe('holidays fall in their real months', () => {
+  const monthOf = (week: number) => resolveCalendar(week).monthNumber;
+
+  const firstWeekOf = (holiday: string): number => {
+    for (let week = 0; week < 52; week += 1) {
+      if (getCurrentSeason(week).holiday === holiday) return week;
+    }
+    throw new Error(`${holiday} never fires`);
+  };
+
+  it.each([
+    ['newyear', 1],       // January
+    ['valentines', 2],    // February
+    ['easter', 4],        // April
+    ['independence', 7],  // July
+    ['halloween', 10],    // October
+    ['thanksgiving', 11], // November
+    ['blackfriday', 12],  // the Friday after; week 48 reads as December
+    ['christmas', 12],    // December
+  ])('%s opens in month %i', (holiday, month) => {
+    expect(monthOf(firstWeekOf(holiday as string))).toBe(month);
+  });
+
+  it('every holiday is reachable', () => {
+    const seen = new Set<string>();
+    for (let week = 0; week < 52; week += 1) {
+      const h = getCurrentSeason(week).holiday;
+      if (h) seen.add(h);
+    }
+    expect([...seen].sort()).toEqual([
+      'blackfriday', 'christmas', 'easter', 'halloween',
+      'independence', 'newyear', 'thanksgiving', 'valentines',
+    ]);
+  });
+
+  /**
+   * The clobbering this replaces: `holiday` was assigned by a run of
+   * independent `if` blocks with OVERLAPPING windows, so the last match
+   * silently won. `thanksgiving` (weeks 9-11 of its season) overwrote
+   * `halloween` (8-10) and `blackfriday` (10-12) overwrote both, leaving
+   * Halloween reachable on exactly ONE week of the year instead of three.
+   */
+  it('gives Halloween and Thanksgiving their full windows', () => {
+    const weeksFor = (holiday: string) => {
+      const weeks: number[] = [];
+      for (let week = 0; week < 52; week += 1) {
+        if (getCurrentSeason(week).holiday === holiday) weeks.push(week);
+      }
+      return weeks;
+    };
+    expect(weeksFor('halloween').length).toBeGreaterThan(1);
+    expect(weeksFor('thanksgiving').length).toBeGreaterThan(1);
+  });
+
+  /**
+   * The one template whose theme did NOT survive the relabel.
+   *
+   * `winter_holidays` ("the city is decorated and festive", gifts, family) was
+   * gated on `season === 'winter'`, which under the calendar-aligned seasons is
+   * Jan-Mar - so the relabel would have moved a December event into January and
+   * February. It is gated on the month now, because the month is what the event
+   * was ever about.
+   */
+  it('keeps the holiday-season event in December', () => {
+    const src: string = require('fs').readFileSync(
+      require('path').join(__dirname, '../../lib/events/seasonalEvents.ts'),
+      'utf8'
+    );
+    const template = src.slice(src.indexOf("id: 'winter_holidays'"), src.indexOf('generate:', src.indexOf("id: 'winter_holidays'")));
+    expect(template).toContain('monthNumber');
+    expect(template).toMatch(/month === 12/);
+    expect(template).not.toMatch(/season\.season === 'winter'/);
+  });
+
+  it('no week resolves to two holidays', () => {
+    // A week has one holiday by construction (a single table lookup), so this
+    // pins the table itself: the windows must not overlap.
+    const seenWeeks = new Map<number, string>();
+    for (let week = 0; week < 52; week += 1) {
+      const h = getCurrentSeason(week).holiday;
+      if (h) {
+        expect(seenWeeks.has(week)).toBe(false);
+        seenWeeks.set(week, h);
+      }
+    }
   });
 });

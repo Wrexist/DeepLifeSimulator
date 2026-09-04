@@ -83,6 +83,19 @@ export interface LauncherApp {
   /** Lucide glyph used only when no PNG icon asset exists for the id. */
   icon: ComponentType<{ size?: number; color?: string }>;
   /**
+   * Brand fill for the glyph tile, used ONLY when the id has no PNG in
+   * `appIconAssets`. An app with real artwork ignores this.
+   *
+   * The fallback used to be a neutral grey chip in every case, which reads as
+   * a missing asset rather than an icon — DeepMail sat in a grid of seven
+   * full-bleed icons looking unfinished (screenshot report, 2026-09-04). A
+   * declared brand colour gives an art-less app the same visual weight as the
+   * rest of the grid. Set it only where the app HAS a brand colour to state;
+   * leaving it off keeps the neutral chip, which is the honest look for an app
+   * that has neither art nor an identity yet.
+   */
+  tint?: string;
+  /**
    * Which labelled section the DESKTOP launcher files it under. The fiction:
    * everyday apps live on the phone, specialist software on the computer.
    */
@@ -107,7 +120,9 @@ export const APP_CATALOG: readonly LauncherApp[] = [
   // ── Phone — the everyday apps ─────────────────────────────────────────────
   { id: 'tinder', name: 'Spark', icon: Flame, section: 'phone', onPhone: true, component: SparkApp },
   { id: 'contacts', name: 'Contacts', nameKey: 'computer.contacts', icon: Users, section: 'phone', onPhone: true, component: ContactsApp },
-  { id: 'mail', name: 'DeepMail', icon: Mail, section: 'phone', onPhone: true, component: MailApp },
+  // `tint` is DeepMail's own link blue (components/mobile/Mail/mailPalette.ts)
+  // - it has no PNG icon, so this is what stops it reading as a broken tile.
+  { id: 'mail', name: 'DeepMail', icon: Mail, section: 'phone', onPhone: true, component: MailApp, tint: '#1A73E8' },
   { id: 'social', name: 'Pulse', icon: Activity, section: 'phone', onPhone: true, component: PulseApp },
   { id: 'stocks', name: 'Stocks', nameKey: 'computer.stocks', icon: TrendingUp, section: 'phone', onPhone: true, component: StocksApp },
   { id: 'bank', name: 'Bank', nameKey: 'computer.bank', icon: CreditCard, section: 'phone', onPhone: true, component: BankApp, desktopComponent: AdvancedBankApp },

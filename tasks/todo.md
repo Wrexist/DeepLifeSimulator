@@ -1,3 +1,111 @@
+# Active — Playtest screenshot fixes (2026-09-04)
+
+Branch `claude/game-problems-xnap1l`. Four TestFlight screenshots, eight defects,
+all traced to source before any change. Owner decisions recorded inline.
+
+## Phase 1 — the season/month disagreement. STATUS: **done**
+`getCurrentSeason` labels weeks 0-12 of the year "spring", but every life starts
+in **January** (`computeWeeksLived = (age-18)*52`, always a multiple of 52), so
+every season label sits one quarter ahead of the month the HUD prints beside it.
+February rendered as "Spring Season".
+
+- [x] 1.1 Derive the season from the SAME calendar the HUD shows
+      (`resolveCalendar().monthNumber`), so the two can never disagree again.
+      Owner's call: **Jan-Mar = Winter**, Apr-Jun Spring, Jul-Sep Summer,
+      Oct-Dec Fall. Quarter boundaries already land exactly on weeks 0/13/26/39.
+- [x] 1.2 Fix the knock-on: every seasonal event was firing a quarter early
+      (Spring Festival in January, beach party in April, harvest in July).
+- [x] 1.3 Test: the season must agree with the month for all 52 weeks.
+
+## Phase 2 — holidays land in the wrong month. STATUS: **done**
+Only Valentine's, Christmas and New Year were right. Easter fired in late
+January, Independence Day in April, Halloween in August.
+
+- [x] 2.1 Retime all eight to their real week-of-year (owner: retime all).
+- [x] 2.2 Stop the clobbering: `halloween` was overwritten by `thanksgiving`
+      and then `blackfriday` on the overlapping weeks, so Halloween had a
+      ONE-week window instead of three. Give each a disjoint window.
+- [x] 2.3 Test: each holiday resolves in its real month, and no week resolves
+      to two holidays.
+
+## Phase 3 — SeasonalIndicator display bugs. STATUS: **done**
+- [x] 3.1 Off-by-one: `weeksUntilNext = 13 - weekInSeason` mixes the 0-based
+      index with the `weekInSeason + 1` printed one row above, so "week 8 / 13"
+      claimed the next season was 6 weeks out when it is 5.
+- [x] 3.2 The holiday card is `#F8FAFC` with NO dark-mode override, and
+      `holidayNameDark` is `#F8FAFC` — the holiday name is rendered as white
+      text on a white card and has never been readable in dark mode.
+- [x] 3.3 Four of the eight holidays (easter, independence, thanksgiving,
+      blackfriday) have no icon entry, so `getHolidayInfo` returns null and the
+      card does not render for them at all.
+
+## Phase 4 — Bank Pro's giant empty box. STATUS: **done**
+- [x] 4.1 `SegmentedControl`'s `scrollable` branch returns a horizontal
+      `ScrollView`, whose RN default style is `flexGrow: 1, flexShrink: 1`. As a
+      direct child of the screen's flex column it inflates to half the viewport.
+      Hits Bank Pro and LuxuryApp — the only two `scrollable` callers.
+- [x] 4.2 Test: the scrollable control must not be allowed to grow.
+
+## Phase 5 — the market advertises what it does not pay. STATUS: **done**
+- [x] 5.1 `renderFood` passes the raw catalogue `healthRestore`/`energyRestore`
+      to the chips, so Instant Ramen advertised "+4 Health / +8 Energy" while
+      satiety (v48) was paying +1/+2. Route the chips through
+      `scaledFoodRestore` — the same helper the charge and the toast use.
+      This is the advertised-vs-actual rule v48 exists to enforce.
+- [x] 5.2 Test: the chips equal what `resolveFoodPurchase` applies.
+
+## Phase 6 — toast spam. STATUS: **done**
+- [x] 6.1 Three taps on Buy stacked three identical toasts over the HUD.
+      Collapse a repeat of the message already on screen into a counted single
+      toast instead of pushing a new one.
+- [x] 6.2 Test: N identical messages render one toast.
+
+## Phase 7 — the Apps grid. STATUS: **done**
+- [x] 7.1 Tiles are a fixed `scale(112)` with content anchored to the top,
+      leaving a large dead gap under every label. Size to content while keeping
+      every tile in a row equal (owner flagged the dead space).
+- [x] 7.2 DeepMail has no icon asset and no `mail.webp` exists, so it renders a
+      grey outline glyph beside seven full-bleed icons and reads as unfinished.
+      No matching art to author — give the fallback a real tint so it reads as
+      an app icon rather than a missing one.
+
+## Phase 9 — the one template the relabel broke. STATUS: **done**
+- [x] 9.1 `winter_holidays` ("the city is decorated and festive", gifts, family)
+      was gated on `season === 'winter'`, which is now Jan-Mar - so the relabel
+      would have moved a December event into January. Re-gated on the MONTH,
+      which is what the event was ever about; the season name was a proxy.
+      Every other template improved under the relabel (Spring Festival moved
+      from January to April, the harvest from July to October, winter sports
+      from October to January), so this was the only one to retarget.
+
+## Verification
+- `npx jest __tests__/render __tests__/economy __tests__/tooling lib/events
+  lib/economy utils/__tests__` — 201 suites, 2157 tests, all pass.
+- `npm run lint:errors` clean. `npm run type-check` clean.
+  `npm run type-check:tests` clean (baseline is 0).
+- Two suites went red mid-way and both were mine to answer, not to relax:
+  the owner's zero-em-dash rule for `.tsx` (comments included), and
+  `engine.test.ts`'s event-frequency bound — see Phase 8.
+
+## Phase 8 — the frequency test was under-powered, not violated. STATUS: **done**
+- [x] 8.1 The season relabel turned `engine.test.ts` red at 0.230 vs a 0.22
+      ceiling. MEASURED before touching it: the long-run cadence is 0.215
+      before and 0.218 after, i.e. unchanged within noise, while the single
+      100-week window the test samples swings 0.16-0.23 — and two other
+      windows (weeks 160 and 360) already exceeded 0.22 on untouched code.
+- [x] 8.2 Raised the SAMPLE to 2000 weeks. Bounds left exactly where the owner
+      set them: lowering a gate to get unstuck is what CLAUDE.md 8 forbids.
+      The seasonal share did rise slightly (0.033 -> 0.043 over 2000 weeks)
+      because Halloween and Thanksgiving got their real three-week windows back.
+
+## Out of scope / flagged, not changed
+- The Christmas-in-"Fall" consequence of the Jan-Mar=Winter mapping — see the
+  note in `seasonalEvents.ts`. One constant table away if the owner wants the
+  meteorological (Dec-Feb = Winter) split instead.
+
+---
+# Archive — Master Program 14 (COMPLETE)
+
 # Master Program 14 — STAT SEMANTICS + DETERMINISM + DIFFERENTIATION — COMPLETE
 
 Branch `claude/deep-life-social-systems-xtuu69`, on top of Program 13 (`9fe90c5`).

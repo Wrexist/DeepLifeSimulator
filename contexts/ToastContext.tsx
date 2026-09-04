@@ -6,6 +6,7 @@ import { emailDiagnosticReport } from '@/utils/diagnosticReport';
 import { setToastHandler } from '@/utils/toastBridge';
 import { toastText } from '@/utils/notificationText';
 import { shouldShowToast } from '@/utils/toastPolicy';
+import { enqueueToast, toastDisplayMessage, MAX_VISIBLE_TOASTS } from '@/utils/toastQueue';
 import { GameStoreContext } from '@/contexts/game/useGameSelector';
 import { logger } from '@/utils/logger';
 
@@ -26,6 +27,12 @@ function reportErrorToast(message: string) {
 interface Toast {
   id: string;
   message: string;
+  /**
+   * How many times this message has been raised while it was on screen. 1 for
+   * an ordinary toast; `toastDisplayMessage` appends a "xN" tally above that.
+   * See `utils/toastQueue.ts` for the collapsing rule.
+   */
+  count: number;
   type: 'success' | 'error' | 'warning' | 'info';
   duration?: number;
   position?: 'top' | 'bottom';
@@ -131,6 +138,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       const newToast: Toast = {
         id,
         message: text,
+        count: 1,
         type,
         duration,
         position: resolvedPosition,
@@ -140,14 +148,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
         persistent,
       };
 
-      setToasts((prevToasts) => {
-        // Limit to 3 toasts at a time
-        const updatedToasts = [...prevToasts, newToast];
-        if (updatedToasts.length > 3) {
-          return updatedToasts.slice(-3);
-        }
-        return updatedToasts;
-      });
+      // Collapse a repeat of a message already on screen instead of stacking
+      // an identical pill; cap at MAX_VISIBLE_TOASTS. Reasoning and the cases
+      // that motivated it live in utils/toastQueue.ts.
+      setToasts((prevToasts) => enqueueToast(prevToasts, newToast, MAX_VISIBLE_TOASTS));
     },
     [notificationsEnabled]
   );
@@ -221,7 +225,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
           <ToastNotification
             key={toast.id}
             id={toast.id}
-            message={toast.message}
+            // The tally makes a collapsed repeat legible: three taps read
+            // "Ate Instant Ramen. ... x3" on one pill rather than three
+            // identical pills covering the HUD.
+            message={toastDisplayMessage(toast)}
             type={toast.type}
             duration={toast.duration}
             onDismiss={dismissToast}

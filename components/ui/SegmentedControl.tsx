@@ -117,7 +117,17 @@ export default function SegmentedControl<T extends string>({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={[styles.container, compact && styles.containerCompact, style]}
+        // `styles.scrollSelf` LAST-but-one so a caller's `style` can still win.
+        //
+        // React Native's ScrollView carries `flexGrow: 1, flexShrink: 1` in its
+        // own base style. As a direct child of a screen's flex column that makes
+        // a HORIZONTAL tab bar claim a share of the leftover vertical space and
+        // inflate to hundreds of points tall - Bank Pro rendered its five tabs
+        // floating in the middle of an empty box half the viewport high
+        // (screenshot report, 2026-09-04). The non-scrollable branch is a plain
+        // View and was never affected, which is why only the two `scrollable`
+        // callers (Bank Pro, LuxuryApp) showed it.
+        style={[styles.container, compact && styles.containerCompact, styles.scrollSelf, style]}
         contentContainerStyle={styles.scrollContent}
         accessibilityRole="tablist"
       >
@@ -148,6 +158,15 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     padding: scale(3),
     gap: scale(3),
+  },
+  /**
+   * Hold the horizontal control to its content height. See the note at the
+   * `scrollable` branch: without this the ScrollView's inherited `flexGrow: 1`
+   * lets a tab bar swallow half a screen.
+   */
+  scrollSelf: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   scrollContent: {
     flexDirection: 'row',

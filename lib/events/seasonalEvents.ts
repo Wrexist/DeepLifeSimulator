@@ -4,12 +4,16 @@ import type { GameState } from '@/contexts/game/types';
 // which can resolve to undefined in the production Hermes bundle.
 import type { WeeklyEvent, EventTemplate } from './engine';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+// The one owner of month boundaries — the season is read off the SAME
+// calendar the HUD renders, so a month cannot be Winter on the badge and
+// Spring in an event gate. See SEASON_BY_MONTH.
+import { resolveCalendar } from '@/utils/weekCounters';
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type Holiday = 'valentines' | 'easter' | 'independence' | 'halloween' | 'thanksgiving' | 'blackfriday' | 'christmas' | 'newyear' | null;
 
 /** A season is 13 weeks; four of them make the 52-week game year. */
-const WEEKS_PER_SEASON = 13;
+export const WEEKS_PER_SEASON = 13;
 
 export interface SeasonalEventData {
   season: Season;
@@ -18,60 +22,110 @@ export interface SeasonalEventData {
 }
 
 /**
- * Calculate current season based on weeks lived
- * WEEKS_PER_YEAR weeks = 1 year
- * Each season = 13 weeks
- * TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+ * The season each calendar month belongs to, indexed by `monthNumber - 1`.
+ *
+ * ## The bug this closes
+ *
+ * This file used to name the seasons off its own counter: `weeksLived % 52`
+ * bucketed into thirteens, with bucket 0 called `'spring'`. Nothing tied that
+ * counter to the month the HUD prints, and the two disagreed by a full quarter
+ * for every life — because a life ALWAYS begins in January. `computeWeeksLived`
+ * is `(age - 18) * 52`, a multiple of 52 for every integer starting age, so
+ * `weeksLived % 52 === 0` on week one of every scenario and bucket 0 is
+ * January. A player in February was shown "Spring Season" (screenshot report,
+ * 2026-09-04).
+ *
+ * The knock-on was larger than the label. Every seasonal event fired a quarter
+ * early: Spring Festival in January, the beach party in April, the harvest
+ * festival in July, winter sports in October.
+ *
+ * ## Why this is a table and not arithmetic
+ *
+ * The season is now read off the SAME calendar the HUD renders —
+ * `resolveCalendar`, the one function that owns month boundaries (its own
+ * docblock records the last time two divisors were allowed to disagree about
+ * this calendar). A month cannot be in one season for the badge and another
+ * for the event gate, because there is one lookup and one input.
+ *
+ * The quarters land exactly on weeks 0/13/26/39, because three months is
+ * 13 weeks on the 52/12 divisor — so the 13-week season this file has always
+ * assumed is preserved, not approximated.
+ *
+ * ## The mapping
+ *
+ * Jan-Mar Winter, Apr-Jun Spring, Jul-Sep Summer, Oct-Dec Fall — quarters
+ * anchored to the start of the year (owner's call, 2026-09-04). The tradeoff
+ * is at the far end: December reads as Fall, so Christmas is a Fall holiday.
+ * The alternative is the meteorological split (Dec-Feb Winter), which reads
+ * more naturally in December at the cost of seasons straddling the year
+ * boundary and no longer starting on week 0 of a life. Swapping is this table
+ * and nothing else.
+ */
+const SEASON_BY_MONTH: readonly Season[] = [
+  'winter', 'winter', 'winter', // Jan Feb Mar
+  'spring', 'spring', 'spring', // Apr May Jun
+  'summer', 'summer', 'summer', // Jul Aug Sep
+  'fall', 'fall', 'fall',       // Oct Nov Dec
+];
+
+/**
+ * Which week of the year each holiday occupies, as an inclusive
+ * `[firstWeek, lastWeek]` on the 0-based week-of-year (week 0 is the week
+ * containing Jan 1).
+ *
+ * ## Why these moved
+ *
+ * The windows used to be expressed in `weekInSeason` against the mislabelled
+ * seasons above, and only three of the eight landed in the right month:
+ * Valentine's, Christmas and New Year. Easter fired in late January,
+ * Independence Day in early April, Halloween in late August and Thanksgiving
+ * in September.
+ *
+ * ## Why the windows are disjoint
+ *
+ * The old code assigned `holiday` with a run of independent `if` blocks whose
+ * windows OVERLAPPED, so the last matching one silently won. `thanksgiving`
+ * (weeks 9-11 of its season) overwrote `halloween` (8-10) and `blackfriday`
+ * (10-12) overwrote both — leaving Halloween reachable on exactly ONE week of
+ * the year instead of three, and Thanksgiving on one instead of three. A
+ * disjoint table makes that class of bug unrepresentable: the lookup returns
+ * one answer and there is no assignment order to get wrong.
+ *
+ * Weeks are `Math.floor((dayOfYear - 1) / 7)` for the real date.
+ */
+const HOLIDAY_WEEKS: readonly { holiday: Exclude<Holiday, null>; from: number; to: number }[] = [
+  { holiday: 'newyear', from: 0, to: 0 },        // Jan 1
+  { holiday: 'valentines', from: 6, to: 6 },     // Feb 14
+  { holiday: 'easter', from: 13, to: 14 },       // movable, late Mar - Apr
+  { holiday: 'independence', from: 26, to: 26 }, // Jul 4
+  { holiday: 'halloween', from: 42, to: 43 },    // Oct 31
+  { holiday: 'thanksgiving', from: 46, to: 47 }, // 4th Thursday of November
+  { holiday: 'blackfriday', from: 48, to: 48 },  // the day after
+  { holiday: 'christmas', from: 50, to: 51 },    // Dec 25
+];
+
+/**
+ * Calculate the current season and holiday from the absolute week counter.
+ *
+ * `weeksLived` is ABSOLUTE and seeded from the starting age (CLAUDE.md 4.2), so
+ * `% WEEKS_PER_YEAR` is what places a life in the calendar year — the same
+ * input `resolveCalendar` takes.
  */
 export function getCurrentSeason(weeksLived: number): SeasonalEventData {
-  const weekInYear = weeksLived % WEEKS_PER_YEAR;
+  const weeks =
+    typeof weeksLived === 'number' && isFinite(weeksLived) && weeksLived > 0
+      ? Math.floor(weeksLived)
+      : 0;
+  const weekInYear = weeks % WEEKS_PER_YEAR;
   const weekInSeason = weekInYear % WEEKS_PER_SEASON;
-  
-  let season: Season;
-  let holiday: Holiday = null;
-  
-  if (weekInYear < WEEKS_PER_SEASON) {
-    season = 'spring';
-    // Easter around week 4-5 of spring
-    if (weekInSeason >= 3 && weekInSeason <= 5) {
-      holiday = 'easter';
-    }
-    // Valentine's Day around week 7-8 of spring
-    if (weekInSeason >= 6 && weekInSeason <= 8) {
-      holiday = 'valentines';
-    }
-  } else if (weekInYear < WEEKS_PER_SEASON * 2) {
-    season = 'summer';
-    // Independence Day around week 1-2 of summer
-    if (weekInSeason >= 0 && weekInSeason <= 2) {
-      holiday = 'independence';
-    }
-  } else if (weekInYear < WEEKS_PER_SEASON * 3) {
-    season = 'fall';
-    // Halloween around week 9-10 of fall
-    if (weekInSeason >= 8 && weekInSeason <= 10) {
-      holiday = 'halloween';
-    }
-    // Thanksgiving around week 10-11 of fall
-    if (weekInSeason >= 9 && weekInSeason <= 11) {
-      holiday = 'thanksgiving';
-    }
-    // Black Friday around week 11-12 of fall (right after Thanksgiving)
-    if (weekInSeason >= 10 && weekInSeason <= 12) {
-      holiday = 'blackfriday';
-    }
-  } else {
-    season = 'winter';
-    // Christmas around week 11-12 of winter
-    if (weekInSeason >= 10 && weekInSeason <= 12) {
-      holiday = 'christmas';
-    }
-    // New Year at week 0 of spring (but we check it here)
-    if (weekInYear === 51 || weekInYear === 0) {
-      holiday = 'newyear';
-    }
-  }
-  
+
+  // The month the HUD is showing, from the one function that owns the calendar.
+  const { monthNumber } = resolveCalendar(weeks);
+  const season = SEASON_BY_MONTH[monthNumber - 1] ?? 'winter';
+
+  const match = HOLIDAY_WEEKS.find((h) => weekInYear >= h.from && weekInYear <= h.to);
+  const holiday: Holiday = match ? match.holiday : null;
+
   return { season, holiday, weekInSeason };
 }
 
@@ -364,14 +418,22 @@ const careerFair: EventTemplate = {
 };
 
 // Winter Events
+/**
+ * The generic "holiday season" event - decorations, gifts, family.
+ *
+ * Gated on DECEMBER rather than on the season name. Under the calendar-aligned
+ * seasons (Jan-Mar is Winter) "winter" no longer contains the holiday season,
+ * so a season gate would have fired this in January and February with copy that
+ * says the city is decorated and festive. The month is what this event is
+ * actually about; the season label was only ever a proxy for it.
+ */
 const winterHolidays: EventTemplate = {
   id: 'winter_holidays',
   category: 'relationship',
   weight: 1.0,
   condition: (state) => {
-    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
-    const season = getCurrentSeason(state.weeksLived || 0);
-    return season.season === 'winter' && shouldTriggerSeasonalEvent(state, 'winter_holidays');
+    const month = resolveCalendar(Math.max(0, Math.floor(state.weeksLived || 0))).monthNumber;
+    return month === 12 && shouldTriggerSeasonalEvent(state, 'winter_holidays');
   },
   generate: (state) => {
     const hasFamily = state.family?.children?.length > 0 || state.relationships.some(r => r.type === 'partner');

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
+import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles, Egg, Flag, Utensils, ShoppingBag } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
-import { getCurrentSeason } from '@/lib/events/seasonalEvents';
+import { getCurrentSeason, WEEKS_PER_SEASON } from '@/lib/events/seasonalEvents';
 import { isIPad, touchTargets, fontScale } from '@/utils/scaling';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 
@@ -17,6 +17,17 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
   const [showInfo, setShowInfo] = useState(false);
   const seasonData = getCurrentSeason(weeksLived || 0);
 
+  /**
+   * Weeks left BEFORE the next season starts.
+   *
+   * This was `13 - weekInSeason`, which mixes the 0-based index with the
+   * `weekInSeason + 1` printed one row above it in the same card: on "Week in
+   * Season 8 / 13" it claimed the next season was 6 weeks away when 5 weeks
+   * remain (screenshot report, 2026-09-04). The two lines are derived from one
+   * number and have to agree.
+   */
+  const weeksUntilNext = Math.max(0, WEEKS_PER_SEASON - 1 - seasonData.weekInSeason);
+
   const getSeasonConfig = () => {
     switch (seasonData.season) {
       case 'spring':
@@ -26,7 +37,6 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#10B981', '#059669'],
           name: 'Spring',
           nextSeason: 'Summer',
-          weeksUntilNext: 13 - seasonData.weekInSeason,
         };
       case 'summer':
         return {
@@ -35,7 +45,6 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#F59E0B', '#D97706'],
           name: 'Summer',
           nextSeason: 'Fall',
-          weeksUntilNext: 13 - seasonData.weekInSeason,
         };
       case 'fall':
         return {
@@ -44,7 +53,6 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#EF4444', '#DC2626'],
           name: 'Fall',
           nextSeason: 'Winter',
-          weeksUntilNext: 13 - seasonData.weekInSeason,
         };
       case 'winter':
         return {
@@ -53,7 +61,6 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#3B82F6', '#2563EB'],
           name: 'Winter',
           nextSeason: 'Spring',
-          weeksUntilNext: 13 - seasonData.weekInSeason,
         };
     }
   };
@@ -64,11 +71,19 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
   const getHolidayInfo = () => {
     if (!seasonData.holiday) return null;
     
+    // All eight holidays `getCurrentSeason` can return. Four of them
+    // (easter, independence, thanksgiving, blackfriday) were missing, so the
+    // lookup fell through to null and the holiday card did not render on those
+    // weeks even though the events themselves were firing.
     const holidays = {
-      valentines: { name: "Valentine's Day", icon: Heart, color: '#EC4899' },
-      halloween: { name: 'Halloween', icon: Ghost, color: '#F59E0B' },
-      christmas: { name: 'Christmas', icon: Trees, color: '#10B981' },
       newyear: { name: 'New Year', icon: Sparkles, color: '#3B82F6' },
+      valentines: { name: "Valentine's Day", icon: Heart, color: '#EC4899' },
+      easter: { name: 'Easter', icon: Egg, color: '#A78BFA' },
+      independence: { name: 'Independence Day', icon: Flag, color: '#3B82F6' },
+      halloween: { name: 'Halloween', icon: Ghost, color: '#F59E0B' },
+      thanksgiving: { name: 'Thanksgiving', icon: Utensils, color: '#D97706' },
+      blackfriday: { name: 'Black Friday', icon: ShoppingBag, color: '#94A3B8' },
+      christmas: { name: 'Christmas', icon: Trees, color: '#10B981' },
     };
     
     return holidays[seasonData.holiday as keyof typeof holidays] || null;
@@ -137,7 +152,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
               settings.darkMode && styles.modalContentDark
             ]}>
               {holiday && HolidayIcon && (
-                <View style={styles.holidaySection}>
+                <View style={[styles.holidaySection, settings.darkMode && styles.holidaySectionDark]}>
                   <HolidayIcon size={48} color={holiday.color} style={{ marginBottom: 8 }} />
                   <Text style={[
                     styles.holidayName,
@@ -168,7 +183,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
                       styles.infoValue,
                       settings.darkMode && styles.infoValueDark
                     ]}>
-                      {seasonData.weekInSeason + 1} / 13
+                      {seasonData.weekInSeason + 1} / {WEEKS_PER_SEASON}
                     </Text>
                   </View>
                 </View>
@@ -186,7 +201,9 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
                       styles.infoValue,
                       settings.darkMode && styles.infoValueDark
                     ]}>
-                      {config.nextSeason} in {config.weeksUntilNext} weeks
+                      {weeksUntilNext === 0
+                        ? `${config.nextSeason} next week`
+                        : `${config.nextSeason} in ${weeksUntilNext} week${weeksUntilNext === 1 ? '' : 's'}`}
                     </Text>
                   </View>
                 </View>
@@ -290,6 +307,19 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
+  },
+  /**
+   * The dark-mode fill this card never had.
+   *
+   * `holidaySection` was `#F8FAFC` in BOTH modes while `holidayNameDark` is
+   * `#F8FAFC` - so in dark mode the holiday's name was white text on a white
+   * card and had never once been readable, and the card itself was a glaring
+   * light block in an otherwise dark modal (screenshot report, 2026-09-04).
+   * A style that overrides the text for dark mode but not the surface under it
+   * is the shape to look for.
+   */
+  holidaySectionDark: {
+    backgroundColor: '#334155',
   },
   holidayName: {
     ...tier2,

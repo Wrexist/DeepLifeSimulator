@@ -5269,3 +5269,74 @@ not move the romance life at all. That is a real answer — the floor is not wha
 is holding the ceiling together — so it is recorded in the module rather than
 shipped as a tuning. Program 12 did this with an event weight and it is what
 made Program 13's first hour productive.
+
+---
+
+## 2026-09-04 — Four TestFlight screenshots, eight defects, none of them typed
+
+A player sent four screenshots. Every defect they contained compiled cleanly,
+passed the full suite, and had shipped: they lived in a style object, a lookup
+table, a dependency array and a queue push. Six lessons, all about the same
+blind spot — **the code was self-consistent and wrong about the world.**
+
+First: **when two counters describe the same thing, one of them is already
+lying.** `getCurrentSeason` bucketed `weeksLived % 52` into thirteens and called
+bucket 0 `'spring'`, while the HUD's date card printed January from
+`resolveCalendar`. Nothing connected them, so the season sat a full quarter
+ahead of the month beside it for every life that has ever been played — and
+every seasonal event fired a quarter early with it (Spring Festival in January,
+the beach party in April, the harvest festival in July). This is the SAME defect
+`resolveCalendar` was written to close, in a second file that nobody thought to
+check: its own docblock records `WEEKS_PER_MONTH = 4` and `WEEKS_PER_YEAR = 52`
+disagreeing about the same calendar. Closing it once in `utils/` did not close
+it in `lib/events/`. When you unify a source of truth, grep for the OTHER
+derivations of it — the fix is not done until they read from you.
+
+Second: **a dark-mode override on the text but not the surface under it is
+invisible text, and no test will ever see it.** `holidaySection` was `#F8FAFC`
+in both modes; `holidayNameDark` was `#F8FAFC`. So the holiday's name — the one
+piece of information the card exists to deliver — had been white on white in
+dark mode since the day it was written, and the screenshot showed a heart and a
+subtitle floating on a blank slab. The tell is structural and greppable: a
+`*Dark` variant for a text colour with no `*Dark` variant for its container.
+The new guard asserts the two colours differ rather than asserting either value.
+
+Third: **a ScrollView is a flex child before it is a scroller.** React Native's
+ScrollView carries `flexGrow: 1, flexShrink: 1` in its own base style, so
+`SegmentedControl`'s `scrollable` branch — a HORIZONTAL bar — claimed a share of
+the leftover VERTICAL space of every screen it sat in. Bank Pro rendered five
+tabs floating in an empty box half the viewport high. The non-scrollable branch
+returns a plain View and was never affected, which is exactly why it survived:
+the bug appeared only in the variant with two callers. Adding a `scrollable`
+prop to a shared control changes its layout contract, not just its overflow.
+
+Fourth: **a run of `if`s that all assign the same variable is a silent
+precedence table.** Halloween (weeks 8-10), Thanksgiving (9-11) and Black Friday
+(10-12) each set `holiday`, so the last match won and Halloween was reachable on
+exactly ONE week of the year instead of three. Nothing was wrong with any single
+line. A disjoint lookup table makes the class unrepresentable — there is no
+assignment order to get wrong.
+
+Fifth: **when you add a modifier, re-check every surface that quotes the number
+— not just the ones nearest the change.** v48's satiety curve was correctly
+routed into the charge, the toast and the section hint, and its own docblock
+claims "what is advertised is exactly what is applied". It missed the restore
+chips on the card itself, which is the one surface a player reads BEFORE
+deciding to spend: Instant Ramen advertised +4 health / +8 energy and delivered
++1 / +2. The claim in the comment was true of every surface the author was
+looking at. `renderFood` also read `weeklyFoodPurchases` and `priceIndex`
+without declaring either in its `useCallback` deps, so even the corrected chips
+would have rendered last week's numbers.
+
+Sixth: **a failing test is not automatically a regression — check whether it
+could ever have passed reliably.** The season fix turned
+`engine.test.ts`'s frequency assertion red at 0.230 against a 0.22 ceiling. The
+reflex is to relax the bound. Measuring first showed the true long-run cadence
+was 0.215 before and 0.218 after — unchanged within noise — while the test
+sampled ONE 100-week window whose value swings 0.16 to 0.23, and two other
+windows already exceeded 0.22 on the untouched code. The test was under-powered,
+not violated. The fix was to raise the SAMPLE to 2000 weeks and leave the bounds
+exactly where the owner set them. The mirror image of Program 13's rule about
+underpowered probes: a null result from a weak probe is not a null effect, and a
+FAILURE from a weak probe is not a regression. Measure before you touch a bound
+in either direction.

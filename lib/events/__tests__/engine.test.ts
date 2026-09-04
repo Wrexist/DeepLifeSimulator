@@ -37,9 +37,27 @@ describe('events engine', () => {
   it('respects deterministic weekly event frequency across mid-game weeks', () => {
     // Use distinct absolute weeks so deterministic seeded randomness is exercised.
     // Place the last event well outside the smoothness cooldown (10 > late gap of
-    // 4) so the routine random frequency — not the cooldown — is what's measured.
+    // 4) so the routine random frequency - not the cooldown - is what's measured.
+    //
+    // SAMPLE SIZE (2026-09-04). This ran 100 weeks, which is not enough weeks to
+    // bound a rate whose true value sits within 0.002 of the ceiling. Measured
+    // over 2000 weeks the cadence is ~0.218; measured over 100 it swings 0.16 to
+    // 0.23 purely on which weeks the window happens to cover, and TWO windows
+    // (starting at week 160 and week 360) already exceeded this test's own 0.22
+    // ceiling before anything changed. So a pass meant "this particular draw
+    // landed low", and a fail meant nothing about the frequency gate.
+    //
+    // The bounds are unchanged - they are the owner's cadence range and lowering
+    // a gate to get unstuck is what CLAUDE.md 8 forbids. What changed is that the
+    // sample is now large enough for them to be a statement about the rate rather
+    // than about one draw. It caught nothing when it failed: the season relabel
+    // (Jan-Mar is Winter, so seasonal events stop firing a quarter early) moved
+    // the 2000-week rate 0.215 -> 0.218, while the sampled window moved 0.210 ->
+    // 0.230. The seasonal share rose because Halloween and Thanksgiving got their
+    // real three-week windows back, having been clobbered to one week each by
+    // overlapping holiday assignments.
     let eventsGenerated = 0;
-    const testRuns = 100;
+    const testRuns = 2000;
 
     for (let i = 0; i < testRuns; i++) {
       const weeksLived = 60 + i;
