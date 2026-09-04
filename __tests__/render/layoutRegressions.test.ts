@@ -32,6 +32,22 @@ describe('a horizontal segmented control does not swallow the screen', () => {
     expect(scrollBranch).toContain('styles.scrollSelf');
   });
 
+  /**
+   * `flex: 0` is not portable. Yoga expands it to `flexBasis: auto`; React
+   * Native Web expands it to `flex: 0 1 0%` - basis ZERO - so the slot computes
+   * to 0px wide and every label collapses to its icon. Measured on the web
+   * export: slot width 0, label width 28. The bank's tabs were unreadable on
+   * web while looking correct on device.
+   */
+  it('sizes scrollable segments in longhand, so both platforms agree', () => {
+    for (const style of ['slotScroll', 'tabScroll']) {
+      const block = src.slice(src.indexOf(`${style}: {`), src.indexOf('},', src.indexOf(`${style}: {`)));
+      expect(block).toMatch(/flexBasis:\s*'auto'/);
+      expect(block).toMatch(/flexGrow:\s*0/);
+      expect(block).not.toMatch(/flex:\s*0\s*,/);
+    }
+  });
+
   it('still lets a caller override it', () => {
     // `style` must come after `scrollSelf` in the array, or a caller that
     // genuinely wants a taller control cannot have one.

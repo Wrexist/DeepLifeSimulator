@@ -86,6 +86,108 @@ async function clickText(page, t, { exact = false, wait = 1400, last = false } =
   return ok;
 }
 
+/**
+ * Buy a shop item through its own card's Buy button.
+ *
+ * Same targeting problem as `clickFoodBuy`: the Market lists many rows and a
+ * bare "Buy" click buys whichever one happens to be first.
+ */
+async function buyItem(page, name) {
+  const ok = await page.evaluate((wanted) => {
+    let card = null;
+    for (const el of document.querySelectorAll('div')) {
+      const t = el.textContent || '';
+      if (t.includes(wanted) && /Buy/.test(t)) {
+        if (!card || t.length < (card.textContent || '').length) card = el;
+      }
+    }
+    if (!card) return false;
+    const buy = [...card.querySelectorAll('div,span,button,[role="button"],[tabindex]')]
+      .filter((e) => (e.textContent || '').trim() === 'Buy')
+      .sort((a, b) => (a.textContent || '').length - (b.textContent || '').length)[0];
+    if (!buy) return false;
+    buy.click();
+    return true;
+  }, name);
+  await sleep(2000);
+  // A purchase this size may ask first.
+  for (const confirm of ['Confirm', 'Buy', 'Yes']) {
+    const loc = page.locator(`[aria-label="${confirm}"]`).locator('visible=true');
+    if (await loc.count()) { await loc.last().click({ timeout: 2000 }).catch(() => {}); await sleep(1500); break; }
+  }
+  console.log(ok ? `  -> bought ${JSON.stringify(name)}` : `  x could not buy ${JSON.stringify(name)}`);
+  return ok;
+}
+
+/** Click by accessibility label, preferring the one actually on screen. */
+async function clickAria(page, label, { wait = 1500 } = {}) {
+  const loc = page.locator(`[aria-label="${label}"]`).locator('visible=true');
+  if (!(await loc.count())) { console.log(`  x no visible [aria-label="${label}"]`); return false; }
+  await loc.last().click({ timeout: 3000 }).catch(() => {});
+  await sleep(wait);
+  return true;
+}
+
+/**
+ * Raise the unlock tier through the game's own dev tools, so the grid this
+ * capture is about actually has apps in it.
+ *
+ * Progressive disclosure (lib/progress/featureUnlocks.ts) derives the tier from
+ * chapter progress and a wealth mark, so a FRESH save shows almost nothing:
+ * Spark, Pulse, Stocks and Bank are all still behind the "Locked" shelf, and
+ * Bank Pro does not exist to open. Without this the capture succeeds, writes a
+ * near-empty grid, and looks like the tile fix did nothing.
+ */
+async function grantProgress(page) {
+  await clickAria(page, 'Open Settings', { wait: 2600 });
+  if (!(await waitFor(page, 'Game Dev Tools', 15000))) throw new Error('settings never opened');
+  await clickText(page, 'Game Dev Tools', { wait: 2600 });
+  if (!(await waitFor(page, 'Max All Stats', 15000))) throw new Error('devtools never opened');
+  for (const grant of ['+$1M', 'Grant Top Career', 'Max All Stats']) {
+    await clickText(page, grant, { exact: true, wait: 1100 });
+  }
+  await closeModal(page);
+  await closeModal(page);
+  await sleep(1500);
+}
+
+/**
+ * Close whatever modal is open, and PROVE it closed.
+ *
+ * `page.locator('[aria-label="Close"]').first()` is the trap: react-native-web
+ * keeps every mounted screen and modal in the DOM, so that selector matches a
+ * dozen hidden close buttons and `.first()` picks one of those. Playwright then
+ * waits for a hidden element to become clickable, times out, and the catch
+ * swallows it - leaving the modal open. Every subsequent `page.mouse.click` on
+ * the tab bar lands on the modal's backdrop instead, so the capture walks the
+ * whole script and photographs the same screen six times. `visible=true` is
+ * what makes the selector mean what it reads as.
+ */
+async function closeModal(page) {
+  const before = (await allText(page)).length;
+  const visibleClose = page.locator('[aria-label="Close"]').locator('visible=true');
+  if (await visibleClose.count()) {
+    await visibleClose.first().click({ timeout: 3000 }).catch(() => {});
+    await sleep(1200);
+  }
+  if ((await allText(page)).length >= before) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await sleep(1000);
+  }
+}
+
+/**
+ * Switch tabs and CONFIRM the switch, because a blocked click is silent.
+ */
+async function tabTo(page, index, marker) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await tab(page, index);
+    if ((await allText(page)).includes(marker)) return true;
+    await closeModal(page);
+  }
+  throw new Error(`tab ${index} never showed ${JSON.stringify(marker)} - something is covering the tab bar`);
+}
+
 /** The four-tab bar along the bottom: Home, Work, Apps, Life. */
 async function tab(page, index, wait = 2600) {
   await page.mouse.click(Math.round((VIEWPORT.width * (index + 0.5)) / 4), VIEWPORT.height - 25);
@@ -227,16 +329,30 @@ async function main() {
     await badge.first().click({ timeout: 3000 });
     await sleep(1800);
     await shot(page, '2-season-modal', ['Season', 'Week in Season', 'Next Season']);
-    await clickText(page, 'Close', { wait: 1200 });
-    const closeBtn = page.locator('[aria-label="Close"]');
-    if (await closeBtn.count()) { await closeBtn.first().click({ timeout: 2000 }).catch(() => {}); }
-    await sleep(1200);
+    await closeModal(page);
   } else {
     console.log('  x season badge has no accessibility label - skipping the modal');
   }
 
-  // ---- 2. The Apps grid: tile heights + DeepMail's tinted icon.
-  await tab(page, 2);
+  // ---- 2. Unlock the grid.
+  //
+  // Progressive disclosure (lib/progress/featureUnlocks.ts) derives the unlock
+  // tier from chapter progress and a wealth mark, so a FRESH save shows almost
+  // no apps - Spark, Pulse, Stocks and Bank are all still behind the "Locked"
+  // shelf, and the two screens this capture is about (the full grid, and Bank
+  // Pro) do not exist yet. The player who reported these was well past that.
+  // Devtools is baked in by EXPO_PUBLIC_ENABLE_DEVTOOLS.
+  await grantProgress(page);
+
+  // Bank Pro is the DESKTOP Bank, and app/(tabs)/apps.tsx only renders the
+  // desktop launcher when a computer is actually OWNED - money alone is not
+  // enough. Buy the $5,000 item through the shop's own Buy button.
+  await tabTo(page, 3, 'Market');
+  await clickText(page, 'Market', { exact: true, wait: 2200 });
+  await buyItem(page, 'Computer');
+
+  // ---- 3. The Apps grid: tile heights + DeepMail's tinted icon.
+  await tabTo(page, 2, 'DeepMail');
   await shot(page, '3-apps-grid', ['Spark', 'DeepMail', 'Pulse']);
 
   // ---- 3. Bank Pro: the segmented control that used to eat half the screen.
@@ -247,7 +363,7 @@ async function main() {
   await sleep(2000);
 
   // ---- 4. The market: satiety-scaled chips and one collapsed toast.
-  await tab(page, 3);
+  await tabTo(page, 3, 'Market');
   await clickText(page, 'Market', { exact: true, wait: 2500 });
   // The food list may sit inside a collapsed section on a fresh save.
   if (!(await allText(page)).includes(FOOD)) {
@@ -255,7 +371,7 @@ async function main() {
   }
   if (!(await waitFor(page, FOOD, 15000))) throw new Error('never found the food list');
   await scrollToFood(page);
-  await shot(page, '5-market-fresh', [FOOD, 'RESTORES']);
+  await shot(page, '5-market-fresh', [FOOD, 'Restores']);
   const before = await foodChips(page);
   console.log('  chips before eating:', JSON.stringify(before));
 
@@ -269,7 +385,7 @@ async function main() {
   await scrollToFood(page);
   const after = await foodChips(page);
   console.log('  chips after 7 meals:', JSON.stringify(after));
-  await shot(page, '6-market-after-7-meals', [FOOD, 'RESTORES']);
+  await shot(page, '6-market-after-7-meals', [FOOD, 'Restores']);
 
   // The point of the capture: the advertised numbers actually moved.
   if (before && after && before === after) {

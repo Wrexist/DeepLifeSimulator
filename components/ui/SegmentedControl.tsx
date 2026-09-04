@@ -173,11 +173,34 @@ const styles = StyleSheet.create({
     gap: scale(4),
     paddingRight: scale(4),
   },
+  /**
+   * Content-width segments for the scrollable variant - in LONGHAND, because
+   * `flex: 0` does not mean the same thing on both platforms.
+   *
+   * Yoga (iOS/Android) expands `flex: 0` to `flexBasis: auto`, so the slot
+   * sizes to its content and the labels render at their natural width. React
+   * Native Web expands it to `flex: 0 1 0%` - basis ZERO - so the slot computes
+   * to 0px and every label collapses to the icon (measured: slot width 0,
+   * label width 28). The scrollable bank tabs have therefore been unreadable on
+   * the web preview target while looking correct on device, which is the worst
+   * shape a layout bug can have: it only exists where nobody is looking at it.
+   *
+   * Spelling the three properties out is what the variant's docblock already
+   * says it wants - "segments keep their natural width instead of sharing the
+   * row" - and it means the same thing everywhere.
+   */
   slotScroll: {
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
   tabScroll: {
     paddingHorizontal: scale(12),
+    // `styles.tab` sets `flex: 1` for the SHARED-row variant; a scrolling row
+    // must not share, or the same basis-0% collapse applies one level down.
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
   slot: {
     flex: 1,
