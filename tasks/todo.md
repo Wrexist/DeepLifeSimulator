@@ -16,16 +16,17 @@ still stop the next update.
 - [ ] Merge this branch to `main` and cut the build from the merge commit.
 - [x] HMAC key confirmed present as a GitHub secret and passed to both the
       preflight and the build step (iOS and Android). Blocker closed.
-- [x] RevenueCat keys confirmed ABSENT everywhere. Safe: RevenueCat is off in
-      every build and the app runs on native StoreKit + the self-hosted verify
-      URL, which is set. Retires the "membership offline" P2. See report §18.
-- [ ] **Confirm the receipt-verify deploy accepts SANDBOX** before submitting.
-      TestFlight and App Review purchases are sandbox transactions, and the
-      server accepts them only where `IAP_ALLOW_SANDBOX=true`. If the URL points
-      at the production deploy, every purchase in review is refused and the whole
-      submission comes back with each IAP marked Rejected (report §18.1).
-- [ ] Confirm the verify deploy has no `IAP_SHARED_SECRET` set, since
-      `EXPO_PUBLIC_IAP_VERIFY_TOKEN` is not among the secrets (report §18.2).
+- [x] RevenueCat IS set up — the keys live in the EAS production env store, not
+      in GitHub secrets, which is why preflight could not see them. This audit
+      briefly recorded the opposite; that conclusion is retracted in report §18,
+      along with the sandbox / verify-token / eas.json findings built on it.
+- [x] Preflight now runs inside the EAS production environment
+      (`eas env:exec production "…" --non-interactive`, with an Expo/EAS login
+      step ahead of it) on both local-build workflows, so the RevenueCat and
+      save-signing keys are actually VERIFIED instead of warned about.
+- [ ] **Watch the first workflow run after that change** in the Actions tab.
+      Preflight can now fail loudly where it used to warn, which is the point,
+      but it is a new failure mode (report §18, HUMAN).
 - [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
@@ -48,8 +49,12 @@ still stop the next update.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
-- [ ] RevenueCat or self-hosted? `eas.json` declares `EXPO_PUBLIC_USE_REVENUECAT: "true"` but no RC key exists, so the flag is permanently false and preflight warns on every build. The deployed `server/iap-verify/` says self-hosted; the runbook Part 2a still says fetch an RC key. Setting the flag to `"false"` makes preflight pass cleanly. Adding a key later silently switches the entitlement source (report §18.3).
-- [ ] Android AdMob ids are absent, so an Android build ships with ads unconfigured (report §18.4).
+- [ ] DeepLife+ benefits are cleared on a launch where RevenueCat has never
+      successfully fetched (fresh reinstall offline, or a blocked host) — a
+      deliberate bounded clear, and the RevenueCat SDK's own offline cache
+      normally covers it. Keep it and soften the 2.11.0 release note that says
+      membership never switches off offline, or accept the wording (report §18,
+      restoring §12 finding #1).
 - [ ] Holidays: Thanksgiving fires 0/100 years, Christmas / Valentine's / Black Friday ~1. Fixing it lifts the 2000-week event cadence 0.218 → 0.254 past the 0.22 ceiling. Pick: raise the ceiling, lower `CHANCE_PER_SEASON` for windowed templates, or make seasonal events compete for the weekly slot. Four ids pinned in `seasonalEvents.test.ts`.
 - [ ] Happiness: social personas pinned at median 95–98 (117–291 flat weeks of 250–500); CAREER-OBSESSED = WEALTH MAXIMIZER to the decimal; solitary lives now reach the bottom half after 250 weeks. Tuning pass (Program 14 §17), not a mechanism change.
 - [ ] `liveOps.claimedInstanceIds` across prestige: carry it, or document per-life claims.

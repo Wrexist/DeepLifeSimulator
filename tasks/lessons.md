@@ -5413,3 +5413,42 @@ state is visible and the test flips when it is fixed.
 test.** The 500-week happiness soak ran to completion twice with its numbers
 lost: jest swallows console output from a backgrounded run, and the harness
 wrote its JSON only in the final `it`. Flush after every test.
+
+## 2026-09-05 — "Not configured" and "configured where I cannot look" are the same string
+
+The release audit read the owner's GitHub Actions secret list, found no
+`EXPO_PUBLIC_RC_IOS_KEY`, confirmed no workflow passes one, traced the runtime
+consequences correctly, and concluded RevenueCat was off in every build. It is
+not. The keys live in the **EAS project environment variable store**, which
+`eas.json`'s `"environment": "production"` loads into every build — a third
+config layer, invisible to the repo, to a shell, and to preflight.
+
+Three things worth keeping.
+
+**The tool said so and I read past it.** `scripts/lib/preflightEnv.js` returns
+`'absent'` for a name in neither readable layer and its own docstring calls that
+"unknown, possibly in the EAS project env store"; preflight prints "not
+verifiable locally" and tells you to run `eas env:list --environment production`.
+Every signal was correct and explicit. What went wrong was treating a shelf of
+"cannot tell" warnings as an accumulation of evidence. It is not evidence of
+anything. **A negative result from an instrument that cannot see the thing is
+not a negative result** — the same shape as Program 13's underpowered probe and
+Program 15's own §9 lesson about `flex: 0` on a platform nobody looks at, one
+layer out into the build config.
+
+**Tracing correctly from a false premise produces confident, wrong,
+well-evidenced findings.** Everything downstream of "RC is off" was rigorous and
+worthless: a release-critical sandbox finding, a shared-secret finding, and a
+recommendation to set `USE_REVENUECAT: "false"` that would have switched a
+working RevenueCat build onto the fallback path. The rigour is what made them
+persuasive. Before building a chain on a premise, ask what would have to be true
+for the premise to be false — here, one place I hadn't looked.
+
+**The fix is to give the gate eyes, not to remember harder.** Both local-build
+workflows now run preflight through `eas env:exec production`, so the checks
+that were advisory are real. The obvious-looking alternative — passing
+`${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}` into the preflight env block — would
+have hard-failed the next build, because `describeEnvSource` counts a DECLARED
+empty string as present-and-wrong, and an unset GitHub secret substitutes
+exactly that. The comment saying so was already in the file. Read the guard
+before extending it.

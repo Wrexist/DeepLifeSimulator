@@ -214,7 +214,19 @@ jobs:
       - name: Test
         run: npm test -- --ci
 
-      # Revenue-critical / integrity config gate. This IS blocking — save-signing
+      # eas-cli, so the preflight below can run INSIDE the EAS production
+      # environment. Without it preflight reads only eas.json and this job's
+      # own env block, and the sensitive keys live in neither.
+      - name: Expo/EAS login
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Revenue-critical / integrity config gate. This IS blocking. Every
+      # required name must resolve from EITHER a GitHub Actions repo secret
+      # (the env block below) or the EAS production env store (loaded by the
+      # env:exec wrapper) — save-signing
       # (EXPO_PUBLIC_SAVE_HMAC_KEY), IAP receipt verification, and malformed ad
       # unit IDs all fail the build closed, so a Play upload can never ship with
       # unsigned saves or unverified purchases. The ONLY exception is
@@ -222,8 +234,18 @@ jobs:
       # units* to a warning (they aren't created yet — iOS-only ad launch). Drop
       # that flag once the Android ad units exist to make ads blocking too.
       - name: Preflight (production config)
-        run: node scripts/preflight-check.js --platform android --warn-missing-android-admob
+        # Run INSIDE the EAS production environment (`eas.json` -> build.production.
+        # environment), so the env-store values the build itself will use are
+        # visible here. This is the difference between verifying revenue-critical
+        # config and merely warning about it: `describeEnvSource` reports a name
+        # held only in the store as 'absent', which preflight downgrades to
+        # "not verifiable locally". A 2026-09-05 audit read a shelf of those
+        # warnings and concluded RevenueCat was unconfigured when it had been set
+        # up correctly all along - the keys were simply somewhere the gate could
+        # not look. The env block below still applies; store values layer on top.
+        run: eas env:exec production "node scripts/preflight-check.js --platform android --warn-missing-android-admob" --non-interactive
         env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
           EXPO_PUBLIC_ENABLE_IAP: 'true'
           EXPO_PUBLIC_ENABLE_ATT: 'true'
