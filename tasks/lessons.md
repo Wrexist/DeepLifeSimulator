@@ -5362,3 +5362,54 @@ the fix against 456 without. Same discipline as lesson six, in the opposite
 direction: there I refused to relax a bound before measuring, here I refused to
 claim a regression before measuring. A screenshot is evidence; a screenshot
 plus a toggled property is an experiment.
+
+## 2026-09-04 — Release readiness audit (Program 15)
+
+**The release gate was red on main and nobody saw it.** `npm run preflight`
+failed on `ab61f90` — 721 lint warnings against a 719 ceiling — because the
+test file in the last PR merged with two inline `require()`s and a
+ternary-as-statement, and the PR's own verification ran `lint:errors`
+(errors only) and named suites, not the ratchet. The rule: **the ratchets are
+part of "green", and "green" is `npm run preflight`, not the subset you
+remember.** A PR that reports lint as clean should say which command it ran.
+
+**A screenshot fix is verified by photographing the fix, and photographing it
+finds the next defect.** The eight fixes from four TestFlight screenshots all
+held on a real web export. The same capture, pointed at the death flow,
+found the death screen telling an age-20 character who died in week one
+that they had "lived 2 yrs" — `weeksLived / 52` on the age-seeded counter,
+the fourth instance of the §4.2 class and the first on a screen players
+share. Add the surface you are NOT fixing to the capture; that is where the
+next one is.
+
+**A derived guard is only as wide as its predicate.** `nestedAlertHosts`
+replaced a hand-maintained list with a scan for `'<Modal'` + `gameAlert`,
+exactly so nobody could forget a surface. `'<BaseModal'` does not contain
+`'<Modal'`, so the 22 components built on the shared wrapper were invisible
+to it, and two of them raised a "cancel subscription?" confirm from a place
+iOS cannot present — the same dead-button class the guard was written for.
+When a guard is derived from a substring, list the wrappers that hide it,
+or put the fix in the wrapper so the scan does not need to see through it.
+
+**Program 13's rule has a side channel.** `weekOnlyRollAudit` makes every
+`makeWeeklyRoll` call site declare itself, and it passed — while
+`seasonalEvents.ts` seeded its own `Math.sin` PRNG on `(season, event id)`
+and gave every life of the same starting age the same festival calendar. A
+guard on the primitive you know about says nothing about the primitive you
+do not. TIER 3 of the determinism audit counts files that draw unseeded
+randomness; it should also count files that draw SEEDED randomness without
+the life salt.
+
+**Fixing a dead feature can breach a budget the feature was never counted
+in.** The four starved holidays could be made reachable in ten lines, and
+the 2000-week event cadence went 0.218 → 0.254 past the owner's 0.22 ceiling
+— because seasonal events are appended ahead of the weighted pick, and the
+ceiling was calibrated while half of them were dead. Two owner-authored
+numbers were in conflict; the audit's job was to measure that and hand it
+over, not to pick. The change was reverted and the dead ids pinned, so the
+state is visible and the test flips when it is fixed.
+
+**A `-t` filtered run leaves no record if the dump is written in the last
+test.** The 500-week happiness soak ran to completion twice with its numbers
+lost: jest swallows console output from a backgrounded run, and the harness
+wrote its JSON only in the final `it`. Flush after every test.

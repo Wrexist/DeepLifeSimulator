@@ -45,6 +45,63 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.13.0',
+    date: 'September 2026',
+    headline: 'A calendar that agrees with itself',
+    summary:
+      'The fixes you sent screenshots of, a new way to meet people, and a game that plays the same life the same way every time.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Seasons and holidays',
+        bullets: [
+          'February is winter again, and every holiday lands in its real month.',
+          'The season card is readable in dark mode, and every holiday has one.',
+          'Each life gets its own festival calendar instead of the same one as everybody else.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Screens that looked wrong',
+        bullets: [
+          'Bank Pro no longer opens on a huge empty box.',
+          'The Apps grid lost its dead space, and DeepMail has a proper icon.',
+          'A meal advertises exactly what it restores, even after your seventh of the week.',
+          'Tapping Buy three times shows one message, not three stacked ones.',
+          'The life summary counts the years you actually lived, not your age in weeks.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Meet people without a dating app',
+        bullets: [
+          'The Contacts app introduces someone new from time to time.',
+          'Every relationship remembers where and when it began.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Relationships that mean something',
+        bullets: [
+          "A partner's income is shared week by week, the way a real household works.",
+          'Close friends lift your mood as well as cost you time; neglect still drags it down.',
+          'Catching up with someone you already see every week is worth a little less.',
+          'Happiness is harder to push to the top, so a full life and an empty one feel different.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Bugs you reported',
+        bullets: [
+          'Mining that paid nothing, and confirm buttons that did nothing when tapped.',
+          'A commitment level that could only fall, and a marriage that hid your spouse.',
+          'Milestone pop-ups that replayed every time you opened the game.',
+          'Cancelling Spark Premium or Verified Pro now actually asks you first.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.12.0',
     date: 'September 2026',
     headline: 'Something new to come back to',

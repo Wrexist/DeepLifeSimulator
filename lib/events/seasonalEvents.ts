@@ -8,6 +8,7 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 // calendar the HUD renders, so a month cannot be Winter on the badge and
 // Spring in an event gate. See SEASON_BY_MONTH.
 import { resolveCalendar } from '@/utils/weekCounters';
+import { lifeSalt } from '@/utils/seededRoll';
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type Holiday = 'valentines' | 'easter' | 'independence' | 'halloween' | 'thanksgiving' | 'blackfriday' | 'christmas' | 'newyear' | null;
@@ -208,7 +209,12 @@ export function shouldTriggerSeasonalEvent(
   const weeksLived = Math.max(0, Math.floor(state.weeksLived || 0));
   const current = getCurrentSeason(weeksLived);
   const index = seasonIndex(weeksLived);
-  const key = hashId(eventId);
+  // Keyed on the LIFE as well as the season (CLAUDE.md 4.3): before the salt
+  // every life of the same starting age drew the same festival schedule, the
+  // Program 13 defect surviving in this side channel because the roll here is
+  // a local primitive `weekOnlyRollAudit` cannot see. Same life, same
+  // schedule - the replay guarantee is untouched.
+  const key = hashId(`${lifeSalt(state)}|${eventId}`);
 
   // 1) Does this event happen at all this season? One roll per (event, season),
   //    so the answer is identical on every week of that season.
@@ -219,6 +225,19 @@ export function shouldTriggerSeasonalEvent(
   //    of the season, preserving the "higher chance early in season" intent the
   //    unreachable branch used to express. Squaring pulls the distribution
   //    forward without ever excluding the later weeks.
+  //
+  //    KNOWN, MEASURED, NOT FIXED HERE (2026-09-04 release audit): a template
+  //    whose condition ALSO pins the week - the eight holidays, the four
+  //    mid-season events - only fires when this target week happens to land in
+  //    its range, and the retimed holidays sit at the END of their seasons.
+  //    Over 100 game-years Thanksgiving fires in none, Christmas, Valentine's
+  //    and Black Friday in about one. Drawing the target INSIDE the range
+  //    fixes that in ten lines, but seasonal events are appended ahead of the
+  //    weighted pick, so twelve templates coming alive raised the 2000-week
+  //    event cadence 0.218 -> 0.254 against the owner's 0.22 ceiling
+  //    (`engine.test.ts`). That is the interruption budget against the season
+  //    modal's own "1-2 per season" copy; both are owner-authored, so the
+  //    owner chooses. See tasks/release-readiness-2026-09-04.md 7.
   const roll = seededRandom(index * 104729 + key + 1);
   const targetWeek = Math.min(
     WEEKS_PER_SEASON - 1,

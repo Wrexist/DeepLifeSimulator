@@ -16,8 +16,11 @@
  * tick cannot double-fire.
  */
 
-import { shouldTriggerSeasonalEvent, getCurrentSeason } from '@/lib/events/seasonalEvents';
+import { shouldTriggerSeasonalEvent, getCurrentSeason, seasonalEventTemplates } from '@/lib/events/seasonalEvents';
+import type { EventTemplate } from '@/lib/events/engine';
 import { resolveCalendar } from '@/utils/weekCounters';
+import * as fs from 'fs';
+import * as path from 'path';
 import { createTestGameState } from '../helpers/createTestGameState';
 
 const WEEKS_PER_SEASON = 13;
@@ -117,7 +120,10 @@ describe('it still actually happens', () => {
     let late = 0;
     for (const id of IDS) {
       for (let s = 0; s < 120; s += 1) {
-        for (const w of weeksThatFire(id, s)) (w < WEEKS_PER_SEASON / 2 ? (early += 1) : (late += 1));
+        for (const w of weeksThatFire(id, s)) {
+          if (w < WEEKS_PER_SEASON / 2) early += 1;
+          else late += 1;
+        }
       }
     }
     expect(early).toBeGreaterThan(late);
@@ -125,8 +131,8 @@ describe('it still actually happens', () => {
 });
 
 describe('the dead branch is gone', () => {
-  const raw = require('fs').readFileSync(
-    require('path').join(__dirname, '../../lib/events/seasonalEvents.ts'),
+  const raw = fs.readFileSync(
+    path.join(__dirname, '../../lib/events/seasonalEvents.ts'),
     'utf8'
   );
   // Assert on CODE, not prose. The doc comment names the removed expressions on
@@ -283,8 +289,8 @@ describe('holidays fall in their real months', () => {
    * was ever about.
    */
   it('keeps the holiday-season event in December', () => {
-    const src: string = require('fs').readFileSync(
-      require('path').join(__dirname, '../../lib/events/seasonalEvents.ts'),
+    const src: string = fs.readFileSync(
+      path.join(__dirname, '../../lib/events/seasonalEvents.ts'),
       'utf8'
     );
     const template = src.slice(src.indexOf("id: 'winter_holidays'"), src.indexOf('generate:', src.indexOf("id: 'winter_holidays'")));
@@ -304,5 +310,111 @@ describe('holidays fall in their real months', () => {
         seenWeeks.set(week, h);
       }
     }
+  });
+});
+
+/**
+ * Every seasonal template's REAL condition must be reachable, and the schedule
+ * must belong to the life.
+ *
+ * The month tests above exercise the label (`getCurrentSeason`). They passed
+ * while Thanksgiving fired in zero of a hundred years and Christmas,
+ * Valentine's and Black Friday in one: each holiday's condition ANDs the
+ * holiday gate with `shouldTriggerSeasonalEvent`, whose single target week was
+ * start-biased across the whole season, and the retimed holidays sit at the
+ * end of theirs. The two gates almost never agreed. Found by the 2026-09-04
+ * release audit running the real module over 100 game-years; these tests run
+ * the same thing so the label and the condition cannot drift apart again.
+ *
+ * The second half is CLAUDE.md 4.3: the roll was keyed on the week alone, so
+ * every life of the same starting age saw the same festivals in the same
+ * weeks - the Program 13 defect, surviving in a side channel with its own
+ * PRNG. Two lineages must now differ; the same life must not.
+ */
+describe('every seasonal template fires for a real life, and the schedule is the life\'s own', () => {
+  const YEARS = 100;
+
+  // One state per lineage, re-stamped per week: building a fresh GameState for
+  // each of 19 x 3 x 5200 weeks took six minutes and measured nothing extra.
+  const lives = new Map<string, ReturnType<typeof createTestGameState>>();
+  const lifeAt = (weeksLived: number, lineageId: string) => {
+    let s = lives.get(lineageId);
+    if (!s) {
+      s = createTestGameState();
+      s.lineageId = lineageId;
+      s.generationNumber = 1;
+      lives.set(lineageId, s);
+    }
+    s.weeksLived = weeksLived;
+    return s;
+  };
+
+  /** Weeks (absolute) at which a template's condition is true over `YEARS` years from `start`. */
+  const firingWeeks = (template: EventTemplate, start: number, lineageId: string): number[] => {
+    const out: number[] = [];
+    for (let w = start; w < start + YEARS * 52; w += 1) {
+      if (template.condition?.(lifeAt(w, lineageId))) out.push(w);
+    }
+    return out;
+  };
+
+  const STARTS = [0, 104, 364]; // age 18, 20, 25 - the counter is age-seeded
+
+  /**
+   * OWNER DECISION PENDING (release audit 2026-09-04): the eight holidays and
+   * the four mid-season events pin their week AND draw a start-biased target
+   * week across the whole season, so the two gates rarely agree. Drawing the
+   * target inside the range makes every one reachable but lifts the 2000-week
+   * event cadence 0.218 -> 0.254 past the 0.22 ceiling in `engine.test.ts`
+   * (seasonal events bypass the weighted pick). Until the owner picks between
+   * the cadence ceiling and the "1-2 per season" copy, the dead ones are
+   * PINNED here so the state is visible, and this test flips the day it is
+   * fixed so the pin gets moved rather than forgotten.
+   */
+  const KNOWN_STARVED = new Set(['thanksgiving', 'christmas', 'valentines_day', 'black_friday']);
+
+  it.each(seasonalEventTemplates.filter((t) => !KNOWN_STARVED.has(t.id)).map((t) => [t.id, t] as const))(
+    '%s fires in at least 3 of 100 years at every starting age',
+    (_id, template) => {
+      for (const start of STARTS) {
+        const years = new Set(firingWeeks(template, start, 'life-a').map((w) => Math.floor(w / 52)));
+        expect(`${template.id}@${start}: ${years.size} years`).toMatch(/: ([3-9]|[1-9]\d+) years$/);
+      }
+    },
+  );
+
+  it.each(seasonalEventTemplates.filter((t) => KNOWN_STARVED.has(t.id)).map((t) => [t.id, t] as const))(
+    '%s is KNOWN to fire in under 3 of 100 years (owner decision pending - move it to the live list when fixed)',
+    (_id, template) => {
+      for (const start of STARTS) {
+        const years = new Set(firingWeeks(template, start, 'life-a').map((w) => Math.floor(w / 52)));
+        expect(`${template.id}@${start}: ${years.size} years`).toMatch(/: [0-2] years$/);
+      }
+    },
+  );
+
+  it('holiday and season gates still hold on every firing week', () => {
+    for (const template of seasonalEventTemplates) {
+      for (const w of firingWeeks(template, 104, 'life-a')) {
+        const { holiday, season } = getCurrentSeason(w);
+        if (template.id === 'halloween') expect(holiday).toBe('halloween');
+        if (template.id === 'easter') expect(holiday).toBe('easter');
+        if (template.id === 'new_year') expect(holiday).toBe('newyear');
+        if (template.id === 'spring_festival') expect(season).toBe('spring');
+      }
+    }
+  });
+
+  it('two lineages of the same starting age do not share a schedule', () => {
+    const a = firingWeeks(seasonalEventTemplates[0], 104, 'life-a');
+    const b = firingWeeks(seasonalEventTemplates[0], 104, 'life-b');
+    expect(a.length).toBeGreaterThan(0);
+    expect(a).not.toEqual(b);
+  });
+
+  it('the same life replays the same schedule', () => {
+    const a = firingWeeks(seasonalEventTemplates[3], 104, 'life-a');
+    const b = firingWeeks(seasonalEventTemplates[3], 104, 'life-a');
+    expect(a).toEqual(b);
   });
 });

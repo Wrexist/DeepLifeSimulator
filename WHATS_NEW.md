@@ -1,5 +1,78 @@
 # What's New - DeepLife Simulator
 
+## v2.13.0 - The same life every time, and the fixes you photographed
+
+**Covers:** everything since **v2.12.0** (cut 2026-08-30), up to 2026-09-04.
+**Compatibility:** every existing save loads. The save format moves from
+**v48 to v51** (v49 live-events bookkeeping, v50 the record of milestone
+toasts already shown, v51 where you met each person) - all three are
+carve-outs, so no existing save is rewritten and nothing is invented.
+**Draft:** assembled from the merged pull requests by the 2026-09-04 release
+audit; owner to trim before it goes to the store.
+
+---
+
+### Store "What's New" (copy-paste ready)
+
+```text
+The same life every time, and the fixes you photographed.
+
+- A calendar that agrees with itself. February is winter again, every
+  holiday lands in its real month, and the season card is readable in dark
+  mode.
+- Bank Pro no longer opens on an empty box, the Apps grid lost its dead
+  space, and a meal advertises exactly what it restores.
+- One toast per message. Tapping Buy three times no longer stacks three
+  identical banners over your stats.
+- Meet people without a dating app. The Contacts app introduces someone
+  new, and every relationship remembers where it began.
+- A partner is a household, not a fortune: their income is shared the way a
+  real one is, per week, not per year.
+- Happier lives feel different from lonelier ones: happiness gains taper as
+  you approach the top, so a full social life and an empty one no longer
+  read the same.
+- The milestone pop-ups that replayed on every launch are gone for good.
+- Live events: a fresh calendar, with rewards that cannot be claimed twice.
+```
+
+---
+
+### The detail
+
+**Fixed (from your TestFlight screenshots):** the season label sat one
+quarter ahead of the month; Easter, Independence Day and Halloween fired in
+the wrong month and Halloween had a one-week window; the holiday card was
+white-on-white in dark mode and four holidays had no card at all; Bank Pro's
+tab bar inflated to half the screen; the market's food chips advertised the
+un-satiated restore; identical toasts stacked; the Apps grid anchored short
+labels to tall tiles; DeepMail rendered as a missing icon.
+
+**Fixed (release audit, 2026-09-04):** the death screen counted "years lived"
+from the absolute week counter, so a character who died in week one had
+"lived 2 years"; the Spark Premium and Verified Pro sheets raised their
+"cancel subscription?" confirm from a place iOS cannot present it, so the tap
+looked dead; every life of the same starting age drew the same festival
+schedule.
+
+**Fixed (bug triage):** mining that paid zero, dead confirm buttons, a
+commitment level that could only fall, a marriage that hid the spouse, and the
+launch crash the recording named.
+
+**Simulation:** the same life replayed now produces the same life, week for
+week, and a life continued from a save matches one played straight through.
+
+**Social:** a tier-1 way to meet people, partner income counted per week,
+one person is one record, relationships support happiness as well as drain
+it, and a free catch-up is worth less to somebody you already see weekly.
+
+**Economy:** stock drift states the expectation it compounds at, inheritances
+arrive once, and Chapter 2 asks for a home.
+
+**Analytics and live ops:** the event taxonomy, funnels and experiment system
+are documented in `docs/ANALYTICS.md`; live events run from a published
+calendar with per-event caps, an idempotent claim ledger and a weekly budget.
+
+
 ## v2.11.0 - A fairer store, and a clearer deal
 
 **Covers:** everything since **v2.10.0**, up to 2026-08-26.

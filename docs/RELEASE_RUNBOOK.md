@@ -31,13 +31,13 @@ Verified on this branch:
 
 | Gate | Result |
 |---|---|
-| `npx jest --ci` | 545 suites (544 passed, 1 skipped), **6 989 tests passed**, 0 failed |
+| `npx jest --ci` | 777 suites (760 passed, 17 `RUN_*`-gated soaks skipped), **9 587 tests passed**, 0 failed (2026-09-04) |
 | `npm run type-check` | clean |
 | `type-check:tests:ratchet` | 0 errors, baseline 0 |
-| `check-lint.js` | 0 errors, 919 warnings (ceiling 920) |
+| `check-lint.js` | 0 errors, 716 warnings (ceiling 716) |
 | `check:routes` | 17 routes, no conflicts |
 | `check:aso` | all checks pass |
-| **Real iOS production bundle** | `expo export:embed` succeeds — **3 907 modules** |
+| **Real iOS production bundle** | `expo export --platform ios` succeeds — **3 998 modules**, 13.5 MB Hermes bytecode (2026-09-04) |
 
 > The bundle line matters more than usual. Preflight §4 is a syntax check that
 > explicitly defers real bundling, and this repo has shipped a production-only
@@ -52,23 +52,31 @@ Apple **rejects a duplicate build number at submit**, after you have waited for
 the build. Doing this now costs one minute; forgetting it costs a full cycle.
 
 - [ ] Open `package.json` and raise `version`.
+- [ ] Add the matching entry at the TOP of `lib/config/changelog.ts` (the in-app
+      What's New feed). `__tests__/render/whatsNewFeed.test.ts` pins its first
+      entry to `package.json`, so a bump without an entry fails `npx jest`, not
+      preflight.
 
 ```bash
 grep '"version"' package.json
 ```
 
-Currently `2.9.0`. **If 2.9.0 has already been uploaded to TestFlight, raise it**
-(2.9.1). If you are not sure, raise it anyway — the number only has to climb.
+Read the number off the file rather than off this page — earlier revisions of
+this runbook carried a hard-coded "currently" value that went stale within a
+release. **If the version in the file has already been uploaded to TestFlight,
+raise it.** The Actions tab for `eas-build-local-ios.yml` shows which commit
+each upload was cut from; if you are not sure, raise it anyway — the number
+only has to climb.
 
 That one field is the single source of truth: `app.config.js` derives the
 displayed version and iOS `CFBundleShortVersionString` from it. The iOS build
 number comes from `BUILD_NUMBER` at build time, so there is nothing else to edit.
 
 > 🔴 **Do NOT raise the App Store Connect version record to match.** The store
-> record (1.x) and `package.json` (2.8.x) have been deliberately different since
+> record (1.x) and `package.json` (2.x) have been deliberately different since
 > 1.2.7. Apple never compares them — the only rule is that each store version
 > beats the last released one. But store versions can only ever increase, so
-> setting the record to 2.8.x permanently abandons the 1.x line. CLAUDE.md §9.
+> setting the record to 2.x permanently abandons the 1.x line. CLAUDE.md §9.
 
 ---
 
