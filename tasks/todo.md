@@ -14,9 +14,18 @@ still stop the next update.
       with no `AlertHost` (dead tap on iOS) — host inside `BaseModal`, guard extended.
 - [x] Seasonal roll keyed on the week alone — `lifeSalt` folded in.
 - [ ] Merge this branch to `main` and cut the build from the merge commit.
-- [ ] Confirm the EAS production env carries `EXPO_PUBLIC_SAVE_HMAC_KEY` and
-      `EXPO_PUBLIC_RC_IOS_KEY` (`eas env:list --environment production`) — a
-      build without the HMAC key cannot start a life, and no CI gate catches it.
+- [x] HMAC key confirmed present as a GitHub secret and passed to both the
+      preflight and the build step (iOS and Android). Blocker closed.
+- [x] RevenueCat keys confirmed ABSENT everywhere. Safe: RevenueCat is off in
+      every build and the app runs on native StoreKit + the self-hosted verify
+      URL, which is set. Retires the "membership offline" P2. See report §18.
+- [ ] **Confirm the receipt-verify deploy accepts SANDBOX** before submitting.
+      TestFlight and App Review purchases are sandbox transactions, and the
+      server accepts them only where `IAP_ALLOW_SANDBOX=true`. If the URL points
+      at the production deploy, every purchase in review is refused and the whole
+      submission comes back with each IAP marked Rejected (report §18.1).
+- [ ] Confirm the verify deploy has no `IAP_SHARED_SECRET` set, since
+      `EXPO_PUBLIC_IAP_VERIFY_TOKEN` is not among the secrets (report §18.2).
 - [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
@@ -25,7 +34,7 @@ still stop the next update.
 - [ ] iOS: open Spark → Upgrade → Cancel subscription and Pulse → Verified Pro → Cancel; the confirm must appear.
 - [ ] iOS: death → Start New Life, death → Revival Pack → return; wedding popup Continue.
 - [ ] VoiceOver pass on Home / Apps / Bank Pro; largest Dynamic Type on the death screen.
-- [ ] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` present in the EAS production env (preflight §10 warns locally).
+- [x] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` confirmed present and passed to the build; the preflight warning was local-visibility only.
 - [ ] Decide `EXPO_PUBLIC_ENABLE_ANALYTICS` for production (the self-hosted queue is off without it).
 
 ## POST-RELEASE
@@ -39,6 +48,8 @@ still stop the next update.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
+- [ ] RevenueCat or self-hosted? `eas.json` declares `EXPO_PUBLIC_USE_REVENUECAT: "true"` but no RC key exists, so the flag is permanently false and preflight warns on every build. The deployed `server/iap-verify/` says self-hosted; the runbook Part 2a still says fetch an RC key. Setting the flag to `"false"` makes preflight pass cleanly. Adding a key later silently switches the entitlement source (report §18.3).
+- [ ] Android AdMob ids are absent, so an Android build ships with ads unconfigured (report §18.4).
 - [ ] Holidays: Thanksgiving fires 0/100 years, Christmas / Valentine's / Black Friday ~1. Fixing it lifts the 2000-week event cadence 0.218 → 0.254 past the 0.22 ceiling. Pick: raise the ceiling, lower `CHANCE_PER_SEASON` for windowed templates, or make seasonal events compete for the weekly slot. Four ids pinned in `seasonalEvents.test.ts`.
 - [ ] Happiness: social personas pinned at median 95–98 (117–291 flat weeks of 250–500); CAREER-OBSESSED = WEALTH MAXIMIZER to the decimal; solitary lives now reach the bottom half after 250 weeks. Tuning pass (Program 14 §17), not a mechanism change.
 - [ ] `liveOps.claimedInstanceIds` across prestige: carry it, or document per-life claims.

@@ -471,3 +471,46 @@ Merge this branch, confirm the EAS production env holds the HMAC and
 RevenueCat keys, trim the drafted release notes, and cut 2.13.0 from the
 merge commit. Everything after that is on the RELEASE VERIFICATION list in
 `tasks/todo.md` and needs a device.
+
+## 18. The secret inventory, resolved (2026-09-05)
+
+The owner supplied the full GitHub Actions secret list, which answers §11's two
+open questions and changes one finding. Names only below; no value was read.
+
+**Present and wired:** `EXPO_PUBLIC_SAVE_HMAC_KEY` (passed to BOTH the preflight
+step and the `eas build --local` step, iOS `eas-build-local-ios.yml:147,254` and
+Android `:230,325`), `EXPO_PUBLIC_IAP_VERIFY_URL`, all four iOS AdMob ids,
+`ASC_*`, `EXPO_TOKEN`, `MATCH_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`.
+So the "a build without the HMAC key cannot start a life" blocker is **CLOSED**,
+and §11's "iOS interstitial not configured" was a local-visibility artifact:
+`EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` exists and reaches the build.
+
+**Absent: every RevenueCat key.** `EXPO_PUBLIC_RC_IOS_KEY` /
+`_ANDROID_KEY` / `_API_KEY` are in no secret and referenced by no workflow.
+`eas.json` production nevertheless declares `EXPO_PUBLIC_USE_REVENUECAT: "true"`.
+
+That combination is **safe, and it is not the configuration eas.json describes.**
+`revenueCatService.isEnabled()` ANDs the flag with `!!apiKey()`
+(`services/RevenueCatService.ts:135`), so with no key RevenueCat is off in every
+build and every consumer takes its other branch — `IAPService` the native
+StoreKit path (`:1004, :2115`), `SubscriptionService.hasPremiumAccess` the local
+ledger (`:306-313`), and `SubscriptionReconciler` the NATIVE authority branch
+(`components/SubscriptionReconciler.tsx`, the `isEnabled() ? everFetched() :
+hasAuthoritativeEntitlementSource()` ternary). Native subscription products
+exist (`deeplife_premium_monthly` / `_yearly`), and receipts verify against the
+self-hosted `EXPO_PUBLIC_IAP_VERIFY_URL`, which is set. Run against the repo's
+own resolver, the verdict is `rc-flag-without-key`, whose unverifiable-locally
+branch WARNS rather than fails — so preflight passes and the build ships on the
+self-hosted path.
+
+**This retires an earlier finding.** §12's P2 "membership switches off offline
+when RevenueCat has never fetched" is MOOT in this configuration: that clear
+lives behind the reconciler's RC branch, which is unreachable while RC is
+disabled. It returns the day an RC key is added.
+
+| # | finding | sev | evidence | action |
+|---|---|---|---|---|
+| 18.1 | **TestFlight and App Review purchases are SANDBOX transactions, and the verify server accepts sandbox ONLY where the deploy sets `IAP_ALLOW_SANDBOX=true`** (`server/iap-verify/api/verify.js:78-82`, `environments = IAP_ALLOW_SANDBOX ? [PRODUCTION, SANDBOX] : [PRODUCTION]`). If `EXPO_PUBLIC_IAP_VERIFY_URL` points at the production deploy, every purchase in TestFlight and every one App Review attempts is refused. §9 records the cost: a review failure returns the WHOLE submission with each attached IAP marked Rejected. | **HUMAN, release-critical** | cited; the file's own comment says "point THOSE builds at a staging deploy" | Before submitting: confirm which deploy the URL names and that it allows sandbox, or point the TestFlight build at a staging deploy that does. Never set the flag on the production deploy. |
+| 18.2 | `EXPO_PUBLIC_IAP_VERIFY_TOKEN` is absent from the secret list while three workflows pass it. Optional on BOTH ends — the client sends the header only `if (IAP_VERIFY_TOKEN)` (`IAPService.ts:614`), the server checks only `if (SHARED_SECRET)` (`verify.js:131-134`) — so an unset token is fine **only if the deploy also has no `IAP_SHARED_SECRET`**. If the deploy has one, every call is denied `bad-secret` and every purchase refused. | **HUMAN** | cited | Confirm the deploy's `IAP_SHARED_SECRET` is unset, or add the matching secret. |
+| 18.3 | `eas.json` production declares a RevenueCat flag that cannot be true in any build. Two costs: preflight warns on every build about a condition that is permanent (a gate that always warns trains skimming — §8's own argument), and adding an RC key later to "clear the warning" would silently move the entitlement source from the native ledger to RevenueCat, where an existing subscriber's benefits depend on RC knowing their history. Setting `EXPO_PUBLIC_USE_REVENUECAT: "false"` makes the resolver return `self-hosted` and preflight PASS cleanly. | **OWNER** | `eas.json:13`; resolver run both ways | Decide which path this app is on and make the config say it. The deployed `server/iap-verify/` says self-hosted; `docs/RELEASE_RUNBOOK.md` Part 2a still tells you to fetch an RC key. One of the two is stale. |
+| 18.4 | All four Android AdMob ids (`EXPO_PUBLIC_ADMOB_ANDROID_APP_ID`, `_BANNER_`, `_INTERSTITIAL_`, `_REWARDED_ANDROID`) are absent, so an Android build ships with ads unconfigured. | P3 (not iOS-blocking) | `eas-build-local-android.yml` secret list | Add them before the Play release. |
