@@ -14,9 +14,19 @@ still stop the next update.
       with no `AlertHost` (dead tap on iOS) — host inside `BaseModal`, guard extended.
 - [x] Seasonal roll keyed on the week alone — `lifeSalt` folded in.
 - [ ] Merge this branch to `main` and cut the build from the merge commit.
-- [ ] Confirm the EAS production env carries `EXPO_PUBLIC_SAVE_HMAC_KEY` and
-      `EXPO_PUBLIC_RC_IOS_KEY` (`eas env:list --environment production`) — a
-      build without the HMAC key cannot start a life, and no CI gate catches it.
+- [x] HMAC key confirmed present as a GitHub secret and passed to both the
+      preflight and the build step (iOS and Android). Blocker closed.
+- [x] RevenueCat IS set up — the keys live in the EAS production env store, not
+      in GitHub secrets, which is why preflight could not see them. This audit
+      briefly recorded the opposite; that conclusion is retracted in report §18,
+      along with the sandbox / verify-token / eas.json findings built on it.
+- [x] Preflight now runs inside the EAS production environment
+      (`eas env:exec production "…" --non-interactive`, with an Expo/EAS login
+      step ahead of it) on both local-build workflows, so the RevenueCat and
+      save-signing keys are actually VERIFIED instead of warned about.
+- [ ] **Watch the first workflow run after that change** in the Actions tab.
+      Preflight can now fail loudly where it used to warn, which is the point,
+      but it is a new failure mode (report §18, HUMAN).
 - [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
@@ -25,8 +35,24 @@ still stop the next update.
 - [ ] iOS: open Spark → Upgrade → Cancel subscription and Pulse → Verified Pro → Cancel; the confirm must appear.
 - [ ] iOS: death → Start New Life, death → Revival Pack → return; wedding popup Continue.
 - [ ] VoiceOver pass on Home / Apps / Bank Pro; largest Dynamic Type on the death screen.
-- [ ] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` present in the EAS production env (preflight §10 warns locally).
+- [x] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` confirmed present and passed to the build; the preflight warning was local-visibility only.
 - [ ] Decide `EXPO_PUBLIC_ENABLE_ANALYTICS` for production (the self-hosted queue is off without it).
+
+## PLAYER BUG REPORTS (2026-09-05) — see tasks/player-bug-triage-2026-09-05.md
+- [x] Life Skills modal was unclosable on iOS: the header pushed its own close X
+      off the card, and it was the only exit. Photographed before and after.
+- [x] One lost election permanently barred the political ladder (tenure reads 0
+      once you are out of office, so every rung above Council refused forever).
+- [x] Lobbyists could never be re-hired after an office exit, and vanished from
+      the catalogue.
+- [x] Health commitment progress was advertised and never applied; the health
+      tab and hobbies modal quoted base energy while the actions charged the
+      modified cost.
+- [x] Verified already fixed at HEAD: recurring milestone pop-ups (v50), the
+      marriage/spouse/family-page defects and the forever-engaged wedding
+      (fffe9e9), the dead Unlock button (fffe9e9 + BaseModal host).
+- [ ] Ask the tester to re-verify on 2.13.0 — every report was filed against
+      binary 2.5.8, and several were already fixed in builds they have not seen.
 
 ## POST-RELEASE
 - [ ] IAP: persist a pending-consumable-grant record on the RC failure branch; synthetic restore id for MIXED consumables (`GEMS_MEGA`).
@@ -39,6 +65,22 @@ still stop the next update.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
+- [ ] PAC spending is HALF as efficient as spending cash directly ($10k per
+      approval point vs $5k), while its own comments promise 1.5x. Not visible
+      to the player, so nothing on screen lies — but a player who banks money
+      into the PAC to spend it gets a worse rate. Fix the rate (a 3x buff to a
+      money sink) or the comments, not both.
+- [ ] Party "Standing" drifts toward 50, so above it the score decays 1/week
+      unconditionally and holding the 60-point endorsement needs a favoured
+      bill roughly every 6 weeks from a one-shot pool. Also, the party card
+      says enacting the platform raises standing but never names which
+      categories the party favours — the tester asked for exactly that.
+- [ ] DeepLife+ benefits are cleared on a launch where RevenueCat has never
+      successfully fetched (fresh reinstall offline, or a blocked host) — a
+      deliberate bounded clear, and the RevenueCat SDK's own offline cache
+      normally covers it. Keep it and soften the 2.11.0 release note that says
+      membership never switches off offline, or accept the wording (report §18,
+      restoring §12 finding #1).
 - [ ] Holidays: Thanksgiving fires 0/100 years, Christmas / Valentine's / Black Friday ~1. Fixing it lifts the 2000-week event cadence 0.218 → 0.254 past the 0.22 ceiling. Pick: raise the ceiling, lower `CHANCE_PER_SEASON` for windowed templates, or make seasonal events compete for the weekly slot. Four ids pinned in `seasonalEvents.test.ts`.
 - [ ] Happiness: social personas pinned at median 95–98 (117–291 flat weeks of 250–500); CAREER-OBSESSED = WEALTH MAXIMIZER to the decimal; solitary lives now reach the bottom half after 250 weeks. Tuning pass (Program 14 §17), not a mechanism change.
 - [ ] `liveOps.claimedInstanceIds` across prestige: carry it, or document per-life claims.

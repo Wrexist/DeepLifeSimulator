@@ -40,6 +40,8 @@ import { applyCareerProgress } from '@/contexts/game/actions/weekly/applyCareerP
 import { practicePursuit } from '@/contexts/game/actions/PursuitActions';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { PURSUITS } from '@/lib/pursuits/pursuitMastery';
+import nodeFs from 'fs';
+import nodePath from 'path';
 import type { GameState } from '@/contexts/game/types';
 
 function withCommitments(
@@ -342,5 +344,60 @@ describe('C-1 - every area is wired, not just the one that already was', () => {
     const src = read('lib/commitments/commitmentSystem.ts');
     expect(src).toMatch(/energyCost: \(baseCost: number\) => getEffectiveEnergyCost\(/);
     expect(src).toMatch(/progress: \(baseProgress: number\) => getEffectiveProgressGain\(/);
+  });
+});
+
+/**
+ * The PROGRESS half of the health axis, and the screens that quote a cost.
+ *
+ * C-1 wired health's ENERGY cost and stopped there, so a health primary was
+ * still promised "+30% progress" and given none: measured on the real action,
+ * a walk returned health 3 / fitness 1 identically at no focus, at primary, at
+ * primary level 100, and at neglected. Half of the card's advertised value was
+ * fiction ("This applies to the other two as well. They do not perform",
+ * 2026-08-31).
+ *
+ * The display side is the same rule the v48 food-satiety fix exists to
+ * enforce: what a screen advertises must equal what the action applies. The
+ * health tab and the hobbies modal both quoted the RAW energy cost while their
+ * actions charged the modified one, which not only hid the discount but locked
+ * a player out of an action they could afford.
+ */
+describe('C-1b - health progress is applied, and the screens quote the real cost', () => {
+  const read = (rel: string) =>
+    nodeFs.readFileSync(nodePath.join(__dirname, '..', '..', rel), 'utf8');
+
+  it('a health activity scales its health and fitness gains by the commitment', () => {
+    const src = read('contexts/game/ItemActionsContext.tsx');
+    // One resolver for the whole action, reused for the charge and the gains.
+    expect(src).toMatch(/const healthCommitment = getCommitmentModifiers\(prevState, 'health'\)/);
+    expect(src).toMatch(/healthCommitment\.energyCost\(/);
+    expect(src).toMatch(/healthCommitment\.progress\(activity\.healthGain\)/);
+    expect(src).toMatch(/healthCommitment\.progress\(activity\.fitnessGain\)/);
+  });
+
+  it('and leaves happiness on its own taper, which owns that curve', () => {
+    // CLAUDE.md 4.3: the happiness curve lives in one place. Scaling a
+    // happiness gain here would be a second one.
+    const src = read('contexts/game/ItemActionsContext.tsx');
+    expect(src).not.toMatch(/healthCommitment\.progress\(activity\.happinessGain\)/);
+  });
+
+  it('the health tab gates and previews on the charged energy, not the base', () => {
+    const src = read('app/(tabs)/health.tsx');
+    expect(src).toMatch(/const healthCommitment = getCommitmentModifiers\(gameState, 'health'\)/);
+    expect(src).toMatch(/const energyCostOf = /);
+    // The three places that used to read `activity.energyCost` raw.
+    expect(src).toMatch(/const energyCost = energyCostOf\(activity\)/);
+    expect(src).toMatch(/delta: -energyCostOf\(activity\)/);
+    expect(src).toMatch(/Need \$\{activityEnergy\} energy/);
+  });
+
+  it('the hobbies modal quotes what practising will actually charge', () => {
+    const src = read('components/HobbiesModal.tsx');
+    expect(src).toMatch(/getCommitmentModifiers\(gameState, 'hobbies'\)\.energyCost\(p\.energyCost\)/);
+    // Neither the lock label nor the button may quote the raw figure again.
+    expect(src).not.toMatch(/Need \$\{p\.energyCost\} energy/);
+    expect(src).not.toMatch(/−\$\{p\.energyCost\} energy/);
   });
 });

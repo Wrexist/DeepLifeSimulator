@@ -22,6 +22,7 @@ import {
 import { getThemeColors } from '@/lib/config/theme';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 
 interface HobbiesModalProps {
   visible: boolean;
@@ -76,7 +77,13 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
               const pursuit = getPlayerPursuit(gameState, p.id);
               const practicedThisWeek = gameState.weeklyPursuitPractice?.[p.id] ?? 0;
               const capped = practicedThisWeek >= p.weeklyCap;
-              const tooTired = energy < p.energyCost;
+              // What `practicePursuit` will actually charge: it debits
+              // `getCommitmentModifiers(state, 'hobbies').energyCost(...)`, so
+              // quoting the raw figure both hid the Skills-focus discount and
+              // disagreed with the debit - locking a player out of a practice
+              // they could afford, or charging more than the button promised.
+              const energyCost = getCommitmentModifiers(gameState, 'hobbies').energyCost(p.energyCost);
+              const tooTired = energy < energyCost;
               const disabled = capped || tooTired;
               const atMax = pursuit.level >= MAX_PURSUIT_LEVEL;
               const into = xpIntoLevel(pursuit.xp);
@@ -114,8 +121,8 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
                       {capped
                         ? `Practiced ${p.weeklyCap}/${p.weeklyCap} this week`
                         : tooTired
-                          ? `Need ${p.energyCost} energy`
-                          : `Practice (−${p.energyCost} energy) · ${practicedThisWeek}/${p.weeklyCap}`}
+                          ? `Need ${energyCost} energy`
+                          : `Practice (−${energyCost} energy) · ${practicedThisWeek}/${p.weeklyCap}`}
                     </Text>
                   </TouchableOpacity>
                 </View>

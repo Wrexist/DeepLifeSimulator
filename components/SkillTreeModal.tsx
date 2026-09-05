@@ -824,8 +824,21 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      {/* Tapping the dimmed backdrop closes. `onRequestClose` above is Android
+          back only, so before this the close X was the single exit on iOS and
+          anything that hid it stranded the player in an unclosable sheet. The
+          card claims the responder below, so taps inside it never reach here;
+          the responder system asks children first, so inner controls and the
+          scroller still win. */}
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close Life Skills"
+      >
         <Animated.View
+          onStartShouldSetResponder={() => true}
           style={[
             styles.container,
             settings.darkMode && styles.containerDark,
@@ -835,22 +848,41 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
             },
           ]}
         >
-          {/* Header */}
+          {/* Header.
+              Every child here is allowed to SHRINK except the close button.
+              RN defaults `flexShrink: 0`, so this row previously held three
+              rigid children whose intrinsic widths (title + two stat badges +
+              the 44pt close target) exceeded the card, and `container`'s
+              `overflow: 'hidden'` clipped the last one off the edge - the X.
+              With no pressable backdrop and `onRequestClose` being Android-only,
+              losing the X leaves the modal with NO exit on iOS: the reported
+              "the UI for showing the X does not properly show up... the screen
+              freezes and nothing works" (2026-08-31). Text is capped to one
+              line and to a 1.3 font multiplier so Dynamic Type widens it no
+              further. */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <Brain size={28} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
-              <Text style={[styles.headerTitle, settings.darkMode && styles.textDark]}>
+              <Text
+                style={[styles.headerTitle, settings.darkMode && styles.textDark]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}
+              >
                 Life Skills
               </Text>
             </View>
             <View style={styles.headerStats}>
               <View style={styles.statBadge}>
                 <Star size={14} color="#F59E0B" />
-                <Text style={styles.statBadgeText}>{skillPoints} Points</Text>
+                <Text style={styles.statBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                  {skillPoints} Points
+                </Text>
               </View>
               <View style={styles.statBadge}>
                 <CheckCircle size={14} color="#10B981" />
-                <Text style={styles.statBadgeText}>{unlockedSkills.length} Unlocked</Text>
+                <Text style={styles.statBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                  {unlockedSkills.length} Unlocked
+                </Text>
               </View>
             </View>
             <TouchableOpacity
@@ -883,7 +915,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           {/* Details Panel */}
           {renderNodeDetails()}
         </Animated.View>
-      </View>
+      </TouchableOpacity>
       {/* iOS presents an RN Modal from the view controller nearest its mount
           point, so the ROOT AlertHost's dialog cannot present while this Modal
           covers the screen - the tap that raised it looks dead. This nested
@@ -923,6 +955,13 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Longhand, not `flex: 0`/`flex: 1`: the shorthand expands to a different
+    // basis under Yoga and under react-native-web, which is how a tab row once
+    // collapsed to bare icons on one platform only (tasks/lessons.md,
+    // 2026-09-04). `minWidth: 0` is what actually lets a flex child shrink
+    // below its content width.
+    flexShrink: 1,
+    minWidth: 0,
   },
   headerTitle: {
     fontSize: fontScale(20),
@@ -933,6 +972,8 @@ const styles = StyleSheet.create({
   headerStats: {
     flexDirection: 'row',
     gap: scale(8),
+    flexShrink: 1,
+    minWidth: 0,
   },
   statBadge: {
     flexDirection: 'row',
@@ -941,15 +982,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(10),
     paddingVertical: scale(4),
     borderRadius: scale(12),
+    // The badges are the row's give. Shrinking `headerStats` alone only shrank
+    // the BOX - the rigid badges inside kept their width and ran under the
+    // close X. They ellipsize instead now (their text is `numberOfLines={1}`).
+    flexShrink: 1,
+    minWidth: 0,
   },
   statBadgeText: {
     fontSize: fontScale(12),
     fontWeight: '600',
     color: '#3B82F6',
     marginLeft: scale(4),
+    flexShrink: 1,
+    minWidth: 0,
   },
   closeButton: {
     padding: scale(8),
+    // The one child that must never shrink or be pushed out: it is the modal's
+    // only exit on iOS.
+    flexShrink: 0,
   },
   categoryTabs: {
     maxHeight: scale(60),

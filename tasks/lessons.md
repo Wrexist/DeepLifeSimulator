@@ -5413,3 +5413,88 @@ state is visible and the test flips when it is fixed.
 test.** The 500-week happiness soak ran to completion twice with its numbers
 lost: jest swallows console output from a backgrounded run, and the harness
 wrote its JSON only in the final `it`. Flush after every test.
+
+## 2026-09-05 — "Not configured" and "configured where I cannot look" are the same string
+
+The release audit read the owner's GitHub Actions secret list, found no
+`EXPO_PUBLIC_RC_IOS_KEY`, confirmed no workflow passes one, traced the runtime
+consequences correctly, and concluded RevenueCat was off in every build. It is
+not. The keys live in the **EAS project environment variable store**, which
+`eas.json`'s `"environment": "production"` loads into every build — a third
+config layer, invisible to the repo, to a shell, and to preflight.
+
+Three things worth keeping.
+
+**The tool said so and I read past it.** `scripts/lib/preflightEnv.js` returns
+`'absent'` for a name in neither readable layer and its own docstring calls that
+"unknown, possibly in the EAS project env store"; preflight prints "not
+verifiable locally" and tells you to run `eas env:list --environment production`.
+Every signal was correct and explicit. What went wrong was treating a shelf of
+"cannot tell" warnings as an accumulation of evidence. It is not evidence of
+anything. **A negative result from an instrument that cannot see the thing is
+not a negative result** — the same shape as Program 13's underpowered probe and
+Program 15's own §9 lesson about `flex: 0` on a platform nobody looks at, one
+layer out into the build config.
+
+**Tracing correctly from a false premise produces confident, wrong,
+well-evidenced findings.** Everything downstream of "RC is off" was rigorous and
+worthless: a release-critical sandbox finding, a shared-secret finding, and a
+recommendation to set `USE_REVENUECAT: "false"` that would have switched a
+working RevenueCat build onto the fallback path. The rigour is what made them
+persuasive. Before building a chain on a premise, ask what would have to be true
+for the premise to be false — here, one place I hadn't looked.
+
+**The fix is to give the gate eyes, not to remember harder.** Both local-build
+workflows now run preflight through `eas env:exec production`, so the checks
+that were advisory are real. The obvious-looking alternative — passing
+`${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}` into the preflight env block — would
+have hard-failed the next build, because `describeEnvSource` counts a DECLARED
+empty string as present-and-wrong, and an unset GitHub secret substitutes
+exactly that. The comment saying so was already in the file. Read the guard
+before extending it.
+
+## 2026-09-05 — Triaging player reports against a build the player has never run
+
+Five reports, all filed against binary 2.5.8 while HEAD was 2.13.0. Two were
+already fixed, three were not, and the sorting was the whole job. Four things
+worth keeping.
+
+**A report's three sentences can be one defect, and the boring one is the
+symptom.** "The unlock button does not work. The UI for showing the X does not
+properly show up. When leaving the page the screen freezes." That reads as
+three bugs of descending importance. It is one bug of ascending importance: the
+header row pushed its own close X off the card, and because the X was the ONLY
+exit — `onRequestClose` is Android-back, the backdrop was a plain View — losing
+it sealed the player inside the sheet. The "freeze" was not a hang. It was a
+modal with no door. **When a reporter describes a layout glitch and a freeze in
+the same breath, check whether the glitch removed the exit.**
+
+**Photograph it.** The static case was strong — three children, RN's default
+`flexShrink: 0`, a fixed-width card, `overflow: 'hidden'` — but strong
+arithmetic is what over-graded findings are made of, and my first DOM
+measurement confidently reported the close button "inside by 18px" because it
+had walked up to the wrong element. The screenshot settled it in one look: the
+header ended at "0 Unlocked" and there was no X. Then the fix, re-photographed,
+put it back. Same discipline as the Bank Pro fix: a screenshot is evidence, a
+screenshot before and after is an experiment.
+
+**A gate that can never pass is a lock, not a requirement.** `runForOffice`
+refused a voted-out ex-official with "you need 208 more weeks in your current
+position" — a position they no longer hold, measured by a counter that reads
+zero precisely because they left. One lost election ended the political career
+for good, while the loss notification said "win back the seat by running
+again". The tell is a requirement measured against a value that the state
+transition being complained about has pinned to a constant. Two other gates in
+the same report had the same shape: a lobbyist "already hired" test that never
+looked at `active`, so retiring the roster made it permanently un-hireable.
+**Ask of every refusal: can the player do anything that changes this answer?**
+
+**Half a fix reads exactly like a whole one from the commit message.** An
+earlier pass fixed the Activity Commitment LEVELS and said so convincingly. The
+energy discount was wired for health; the progress bonus was not, so the card
+kept advertising "+30% progress" that never reached a stat, and both screens
+kept quoting base energy while the actions charged the modified cost. The
+report's second and third sentences named exactly that, and were read as
+already covered because the first sentence was. **When checking whether a
+report is fixed, check each claim against the code, not the report against the
+commit.**

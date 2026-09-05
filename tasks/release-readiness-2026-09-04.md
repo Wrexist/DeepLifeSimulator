@@ -467,7 +467,100 @@ The runbook's Part 1 now says so.
 
 ## Next step
 
-Merge this branch, confirm the EAS production env holds the HMAC and
-RevenueCat keys, trim the drafted release notes, and cut 2.13.0 from the
-merge commit. Everything after that is on the RELEASE VERIFICATION list in
-`tasks/todo.md` and needs a device.
+Merge this branch, trim the drafted release notes, and cut 2.13.0 from the
+merge commit. The key question this section used to end on — whether the EAS
+production env holds the HMAC and RevenueCat keys — is now answered by the
+build itself: §18 moves preflight inside that environment, so the first run
+after the merge either passes having verified them or fails naming the one it
+could not find. Watch that run. Everything after it is on the RELEASE
+VERIFICATION list in `tasks/todo.md` and needs a device.
+
+## 18. The secret inventory — a wrong conclusion, corrected (2026-09-05)
+
+**The first version of this section was wrong, and the way it was wrong is the
+most useful thing in it.** It read the owner's GitHub Actions secret list, found
+no `EXPO_PUBLIC_RC_IOS_KEY`, confirmed no workflow passes one, and concluded
+"RevenueCat is off in every build." The owner corrected it: RevenueCat is set
+up. It is, and the keys were simply somewhere this audit could not look.
+
+**The mechanism.** `eas.json`'s production profile carries
+`"environment": "production"`, so `eas build` — `--local` included — resolves
+that EAS environment's variable store on top of the profile `env`. Sensitive
+values like the RevenueCat key live THERE, not in GitHub secrets and not in
+`eas.json`. `scripts/lib/preflightEnv.js` says so in as many words: its
+`describeEnvSource` returns `'absent'` for a name in neither readable layer, and
+the docstring calls that "unknown, possibly in the EAS project env store."
+Preflight then downgrades those checks to "not verifiable locally" and prints
+`Confirm with: eas env:list --environment production`.
+
+So the honest reading of a local preflight run was always "cannot tell." This
+audit read a shelf of those warnings as evidence of absence. **A gate that
+cannot see a value reports the same thing whether the value is missing or
+merely elsewhere; only one of those is a finding.**
+
+The repo had already written this down. `__tests__/tooling/preflightEnvResolution.test.ts:196`
+is named *"and the RC key / verify URL genuinely are store-only (hence WARN,
+not FAIL)"* — a passing test, in the suite this audit ran green, stating the
+exact fact the audit then got wrong. It was never read.
+
+### What this retracts
+
+| retracted | why |
+|---|---|
+| "RevenueCat is off in every build" | False. With the key present, `isEnabled()` is true and RevenueCat drives purchases and entitlements. |
+| 18.1 — TestFlight/App Review sandbox receipts refused | Moot on the RevenueCat path. `IAPService.ts:1000-1004` states it: "RC verifies the receipt server-side and finishes the transaction itself, so we skip the expo-iap purchase + self-hosted verify + finishTransaction." The self-hosted server's `IAP_ALLOW_SANDBOX` rule never runs for a purchase. It stays true only as a property of the fallback path, which is not the shipping path. |
+| 18.2 — missing `EXPO_PUBLIC_IAP_VERIFY_TOKEN` | Moot for the same reason, and it was already optional on both ends. |
+| 18.3 — "eas.json declares a flag that cannot be true" | False, and the recommendation it carried (set `USE_REVENUECAT: "false"`) would have been an actively harmful change: it would have switched a working RevenueCat build onto the self-hosted path. Struck. |
+| 18.4 — Android AdMob ids absent | Over-graded. Deliberate and documented in the workflow itself: `--warn-missing-android-admob` "downgrades missing Android AdMob ad units to a warning (they aren't created yet — iOS-only ad launch)." Not a defect. |
+
+### What this restores
+
+§12's finding #1 is **live again, not moot**. With RevenueCat enabled, the
+reconciler's authority is `revenueCatService.entitlementsEverFetched()`
+(`components/SubscriptionReconciler.tsx`), so a launch where RevenueCat has
+never successfully fetched — fresh reinstall offline, or a blocked host —
+clears `deepLifePlusActivated` and with it the member gem drop, the salary
+bonus and the discount, until the next successful fetch. It is a deliberate
+bounded clear (the alternative was an unbounded free tier) and the RevenueCat
+SDK normally serves a cached `customerInfo` offline, so the ordinary offline
+case is covered by the SDK's cache rather than by this code. **P2 / OWNER**, as
+originally graded: keep the bounded clear and soften the 2.11.0 release note,
+or accept the wording.
+
+### What was fixed
+
+`eas-build-local-ios.yml` and `eas-build-local-android.yml` now run preflight
+INSIDE the EAS production environment:
+
+```
+eas env:exec production "node scripts/preflight-check.js --platform ios" --non-interactive
+```
+
+with an `Expo/EAS login` step ahead of it (the repo's existing
+`expo/expo-github-action@v8` + `EXPO_TOKEN` pattern) so eas-cli authenticates
+non-interactively. Verified: the command signature is
+`eas env:exec ENVIRONMENT BASH_COMMAND [--non-interactive]`; all eleven
+workflows parse; the iOS verify job's step order is login (9) then preflight
+(10). The GitHub-secret env blocks are unchanged and still apply — store values
+layer on top of them.
+
+This turns the revenue-critical checks from advisory into real. Preflight §9
+can now FAIL a build whose RevenueCat key is genuinely missing instead of
+shrugging, and §8 can verify the save-signing key the same way. It also removes
+the standing shelf of warnings that made this audit misread the configuration,
+which is §8's own argument about gates that cannot pass: one that always warns
+trains you to skim it.
+
+**Deliberately NOT done:** wiring `EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets... }}`
+into the preflight env block, the obvious-looking fix. `describeEnvSource`
+treats a DECLARED-but-empty value as present-and-wrong, and its comment says
+exactly why: "it is precisely what GitHub Actions substitutes for a
+`${{ secrets.X }}` that was never configured... an empty one there means
+misconfigured and must keep its hard failure." Since the RevenueCat key is not
+a GitHub secret, that edit would have hard-failed the next build.
+
+**HUMAN:** the first run of either workflow after this change confirms the
+env:exec wrapper in the Actions tab. If the EAS `production` environment is not
+where the RevenueCat key lives, preflight will now say so out loud rather than
+warn — which is the point, but it is a louder failure mode than before, so
+watch the first run.

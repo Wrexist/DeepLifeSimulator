@@ -325,7 +325,35 @@ export const runForOffice = (
       const previousOfficeName = POLITICAL_CAREER.levels[previousLevelIndex]?.name || requirements.previousLevel;
       return { success: false, message: `You must first serve as ${previousOfficeName} before running for this office.` };
     }
-    if ('minWeeksInPrevious' in requirements && requirements.minWeeksInPrevious && weeksInCurrentLevel < requirements.minWeeksInPrevious) {
+    /**
+     * A player who has LEFT office already served their time, and the counter
+     * that would prove it is frozen.
+     *
+     * `weeksInCurrentLevel` is `career.accepted ? … : 0`, and losing a
+     * re-election sets `accepted: false` (GameActionsContext, the office-exit
+     * block). So for a voted-out ex-official this gate compares 0 against 52 /
+     * 104 / 208 / 260 forever: not "not yet", but "never". That made ONE lost
+     * election end the political track permanently - while the loss
+     * notification told the player to "win back the seat by running again" -
+     * and the only re-entry was Council, which resets `level` to 0. Reported
+     * 2026-08-21: "going from State Representative to Governor... automatically
+     * puts you back as a Citizen", tried twice with high approval (the seat is
+     * contested at exactly the tenure Governor unlocks, and the roll is
+     * life-and-week seeded, so a reload reproduces the same loss).
+     *
+     * `career.level` is deliberately preserved at its peak across the exit, so
+     * it is the surviving record that the rung WAS held - the check just above
+     * already requires it. Time served at a level the player no longer holds
+     * cannot be re-accrued, so requiring it of them is a lock, not a gate.
+     */
+    const servedPreviousLevel =
+      !career.accepted && previousLevelIndex >= 0 && (career.level ?? 0) >= previousLevelIndex;
+    if (
+      'minWeeksInPrevious' in requirements
+      && requirements.minWeeksInPrevious
+      && !servedPreviousLevel
+      && weeksInCurrentLevel < requirements.minWeeksInPrevious
+    ) {
       const weeksNeeded = requirements.minWeeksInPrevious - weeksInCurrentLevel;
       return { success: false, message: `You need ${weeksNeeded} more weeks in your current position before running for this office.` };
     }
@@ -925,8 +953,18 @@ export const hireLobbyist = (
     return { success: false, message: 'Lobbyist not found' };
   }
 
-  // Check if already hired
-  if (politics.lobbyists.some(l => l.id === lobbyistId)) {
+  /**
+   * Already hired means already hired AND STILL WORKING FOR YOU.
+   *
+   * `applyOfficeExit` retires every lobbyist to `active: false` but keeps the
+   * rows, so an id-only test read a retired roster as a hired one: after any
+   * office exit, every lobbyist the player had ever engaged became permanently
+   * un-hireable ("Lobbyist that are inactive from a previous election remain
+   * inactive and cannot be re-hired", 2026-08-21). `fireLobbyist` would have
+   * cleared the row but has no call site anywhere in the app, so there was no
+   * way out from inside the game.
+   */
+  if (politics.lobbyists.some(l => l.id === lobbyistId && l.active !== false)) {
     return { success: false, message: 'This lobbyist is already hired' };
   }
 
@@ -959,7 +997,9 @@ export const hireLobbyist = (
   // update of a React batch - so a legitimate spend that was not first reported
   // "you cannot afford ..." for money it had just spent (2026-08-15).
   setGameState(prev => {
-    if ((prev.politics?.lobbyists || []).some((l) => l?.id === newLobbyist.id)) return prev;
+    // Same active-aware test as the outer guard: a RETIRED row must not read as
+    // hired, or re-hiring is refused inside the updater after passing outside it.
+    if ((prev.politics?.lobbyists || []).some((l) => l?.id === newLobbyist.id && l?.active !== false)) return prev;
     const spend = applyMoneyDelta(prev, -lobbyist.cost, `Hire lobbyist: ${lobbyist.name}`);
     if (!spend) return prev;
     return {
@@ -976,7 +1016,13 @@ export const hireLobbyist = (
         alliances: [],
         campaignFunds: 0,
       },
-      lobbyists: [...(prev.politics?.lobbyists || []), newLobbyist],
+      // REPLACE a retired row rather than appending beside it, so re-hiring the
+      // same person cannot leave two entries with one id (which `fireLobbyist`
+      // would then only half-remove, and whose influence would double-count).
+      lobbyists: [
+        ...(prev.politics?.lobbyists || []).filter((l) => l?.id !== newLobbyist.id),
+        newLobbyist,
+      ],
       policyInfluence: Math.min(100, (prev.politics?.policyInfluence || 0) + lobbyist.influence),
     },
     };
