@@ -1274,7 +1274,11 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   // Hire-lobbyist picker - the full catalog minus already-hired, each with cost,
   // specialty, effect, and affordability-gated Hire. Delegates to hireLobbyist.
   const renderHireLobbyist = () => {
-    const hiredIds = lobbyists.map((l) => l.id);
+    // Only CURRENTLY engaged lobbyists are "hired". A retired row (every
+    // lobbyist is retired to `active: false` on an office exit) otherwise
+    // removed that person from the catalogue permanently, so a returning
+    // official could never rebuild the roster they lost.
+    const hiredIds = lobbyists.filter((l) => l.active !== false).map((l) => l.id);
     const available = getAvailableLobbyists(hiredIds);
     return (
       <View style={{ gap: responsiveSpacing.lg }}>

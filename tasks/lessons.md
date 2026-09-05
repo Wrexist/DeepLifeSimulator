@@ -5452,3 +5452,49 @@ have hard-failed the next build, because `describeEnvSource` counts a DECLARED
 empty string as present-and-wrong, and an unset GitHub secret substitutes
 exactly that. The comment saying so was already in the file. Read the guard
 before extending it.
+
+## 2026-09-05 — Triaging player reports against a build the player has never run
+
+Five reports, all filed against binary 2.5.8 while HEAD was 2.13.0. Two were
+already fixed, three were not, and the sorting was the whole job. Four things
+worth keeping.
+
+**A report's three sentences can be one defect, and the boring one is the
+symptom.** "The unlock button does not work. The UI for showing the X does not
+properly show up. When leaving the page the screen freezes." That reads as
+three bugs of descending importance. It is one bug of ascending importance: the
+header row pushed its own close X off the card, and because the X was the ONLY
+exit — `onRequestClose` is Android-back, the backdrop was a plain View — losing
+it sealed the player inside the sheet. The "freeze" was not a hang. It was a
+modal with no door. **When a reporter describes a layout glitch and a freeze in
+the same breath, check whether the glitch removed the exit.**
+
+**Photograph it.** The static case was strong — three children, RN's default
+`flexShrink: 0`, a fixed-width card, `overflow: 'hidden'` — but strong
+arithmetic is what over-graded findings are made of, and my first DOM
+measurement confidently reported the close button "inside by 18px" because it
+had walked up to the wrong element. The screenshot settled it in one look: the
+header ended at "0 Unlocked" and there was no X. Then the fix, re-photographed,
+put it back. Same discipline as the Bank Pro fix: a screenshot is evidence, a
+screenshot before and after is an experiment.
+
+**A gate that can never pass is a lock, not a requirement.** `runForOffice`
+refused a voted-out ex-official with "you need 208 more weeks in your current
+position" — a position they no longer hold, measured by a counter that reads
+zero precisely because they left. One lost election ended the political career
+for good, while the loss notification said "win back the seat by running
+again". The tell is a requirement measured against a value that the state
+transition being complained about has pinned to a constant. Two other gates in
+the same report had the same shape: a lobbyist "already hired" test that never
+looked at `active`, so retiring the roster made it permanently un-hireable.
+**Ask of every refusal: can the player do anything that changes this answer?**
+
+**Half a fix reads exactly like a whole one from the commit message.** An
+earlier pass fixed the Activity Commitment LEVELS and said so convincingly. The
+energy discount was wired for health; the progress bonus was not, so the card
+kept advertising "+30% progress" that never reached a stat, and both screens
+kept quoting base energy while the actions charged the modified cost. The
+report's second and third sentences named exactly that, and were read as
+already covered because the first sentence was. **When checking whether a
+report is fixed, check each claim against the code, not the report against the
+commit.**

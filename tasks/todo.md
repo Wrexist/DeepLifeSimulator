@@ -38,6 +38,22 @@ still stop the next update.
 - [x] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` confirmed present and passed to the build; the preflight warning was local-visibility only.
 - [ ] Decide `EXPO_PUBLIC_ENABLE_ANALYTICS` for production (the self-hosted queue is off without it).
 
+## PLAYER BUG REPORTS (2026-09-05) — see tasks/player-bug-triage-2026-09-05.md
+- [x] Life Skills modal was unclosable on iOS: the header pushed its own close X
+      off the card, and it was the only exit. Photographed before and after.
+- [x] One lost election permanently barred the political ladder (tenure reads 0
+      once you are out of office, so every rung above Council refused forever).
+- [x] Lobbyists could never be re-hired after an office exit, and vanished from
+      the catalogue.
+- [x] Health commitment progress was advertised and never applied; the health
+      tab and hobbies modal quoted base energy while the actions charged the
+      modified cost.
+- [x] Verified already fixed at HEAD: recurring milestone pop-ups (v50), the
+      marriage/spouse/family-page defects and the forever-engaged wedding
+      (fffe9e9), the dead Unlock button (fffe9e9 + BaseModal host).
+- [ ] Ask the tester to re-verify on 2.13.0 — every report was filed against
+      binary 2.5.8, and several were already fixed in builds they have not seen.
+
 ## POST-RELEASE
 - [ ] IAP: persist a pending-consumable-grant record on the RC failure branch; synthetic restore id for MIXED consumables (`GEMS_MEGA`).
 - [ ] Save: stash the fresh-start carry-over AFTER `deleteSaveSlot` succeeds; null-guard the v11/v13/v14 loops.
@@ -49,6 +65,16 @@ still stop the next update.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
+- [ ] PAC spending is HALF as efficient as spending cash directly ($10k per
+      approval point vs $5k), while its own comments promise 1.5x. Not visible
+      to the player, so nothing on screen lies — but a player who banks money
+      into the PAC to spend it gets a worse rate. Fix the rate (a 3x buff to a
+      money sink) or the comments, not both.
+- [ ] Party "Standing" drifts toward 50, so above it the score decays 1/week
+      unconditionally and holding the 60-point endorsement needs a favoured
+      bill roughly every 6 weeks from a one-shot pool. Also, the party card
+      says enacting the platform raises standing but never names which
+      categories the party favours — the tester asked for exactly that.
 - [ ] DeepLife+ benefits are cleared on a launch where RevenueCat has never
       successfully fetched (fresh reinstall offline, or a blocked host) — a
       deliberate bounded clear, and the RevenueCat SDK's own offline cache

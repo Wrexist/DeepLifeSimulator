@@ -71,3 +71,50 @@ describe('SkillTreeModal - the detail panel', () => {
     expect(style('container')).toMatch(/height: screenHeight \* 0\.9/);
   });
 });
+
+/**
+ * The header must never push its own close button off the card.
+ *
+ * Reported 2026-08-31: "the UI for showing the X does not properly show up on
+ * the screen. When leaving the page the screen freezes and nothing works."
+ * Both halves are one defect. The header is a fixed-width row holding the
+ * title, two stat badges and the close target; RN defaults `flexShrink: 0`, so
+ * all of them were rigid, their intrinsic widths exceeded the card, and
+ * `container`'s `overflow: 'hidden'` clipped the last child — the X — off the
+ * edge. Photographed at 390pt before the fix: no X in the header at all.
+ *
+ * Losing it is a soft-lock rather than a cosmetic bug, because it was the ONLY
+ * exit: `onRequestClose` is the Android back gesture, and the backdrop was a
+ * plain View. On iOS the player was sealed inside the sheet.
+ *
+ * So this pins both halves — the row can give, and there is a second way out.
+ */
+describe('SkillTreeModal - the header keeps its close button', () => {
+  it('lets the title and the stat badges shrink', () => {
+    for (const name of ['headerContent', 'headerStats', 'statBadge', 'statBadgeText']) {
+      expect(`${name}: ${style(name)}`).toMatch(/flexShrink: 1/);
+      expect(`${name}: ${style(name)}`).toMatch(/minWidth: 0/);
+    }
+  });
+
+  it('and never lets the close button be the one that gives', () => {
+    expect(style('closeButton')).toMatch(/flexShrink: 0/);
+  });
+
+  it('caps the header text to one line so Dynamic Type cannot widen it', () => {
+    // Three texts live in the header: the title and the two badge labels.
+    // Anchored on CODE, not on the comments — `CODE` has them stripped.
+    const header = /<View style=\{styles\.header\}>[\s\S]*?styles\.closeButton/.exec(CODE);
+    expect(header).not.toBeNull();
+    const block = (header as RegExpExecArray)[0];
+    expect(block.match(/numberOfLines=\{1\}/g)).toHaveLength(3);
+    expect(block.match(/maxFontSizeMultiplier=\{1\.3\}/g)).toHaveLength(3);
+  });
+
+  it('gives the sheet a second exit, so no header regression can strand a player', () => {
+    // The backdrop closes, and the card claims the responder so taps inside it
+    // do not fall through to it.
+    expect(CODE).toMatch(/style=\{styles\.overlay\}[\s\S]{0,200}onPress=\{onClose\}/);
+    expect(CODE).toMatch(/onStartShouldSetResponder=\{\(\) => true\}/);
+  });
+});

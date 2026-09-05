@@ -18,6 +18,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import GymCard from '@/components/health/GymCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
+import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
@@ -138,8 +139,28 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   const priceOf = (activity: HealthActivity) =>
     policyAdjustedActivityPrice(gameState, activity.id, activity.price);
 
+  /**
+   * The energy side of the same rule, and for the same reason.
+   *
+   * `performHealthActivity` charges `getCommitmentModifiers(state, 'health')
+   * .energyCost(...)`, so an Activity Commitment moves what a walk actually
+   * costs. This screen quoted the RAW figure, which made the discount
+   * invisible and, worse, disagreed with the charge in both directions: a
+   * player with 4 energy and health as their primary focus was shown
+   * "Need 5 energy" and locked out of an action that would have cost them 4,
+   * while a player who had deprioritised health was quoted 5 and debited 6.
+   * Reported as "there is no -20% energy consumption. It still base of 20
+   * energy" (2026-08-31). Same shape as `priceOf` above.
+   */
+  const healthCommitment = getCommitmentModifiers(gameState, 'health');
+  const energyCostOf = (activity: HealthActivity) => {
+    const base = activity.energyCost || 0;
+    // A restore (negative cost) is not a charge; leave it alone.
+    return base > 0 ? healthCommitment.energyCost(base) : base;
+  };
+
   const canPerformActivity = (activity: HealthActivity) => {
-    const energyCost = activity.energyCost || 0;
+    const energyCost = energyCostOf(activity);
     const hasEnoughEnergy = energyCost <= 0 || (gameState.stats?.energy ?? 0) >= energyCost;
     const hasEnoughMoney = (gameState.stats?.money ?? 0) >= priceOf(activity);
     return hasEnoughMoney && hasEnoughEnergy;
@@ -147,12 +168,15 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
   const buildActivityDeltas = (activity: HealthActivity): HealthDelta[] => {
     const out: HealthDelta[] = [];
-    if (activity.healthGain) out.push({ stat: 'health', delta: activity.healthGain });
+    // Gains carry the commitment's progress side, which is what the action
+    // applies - see the C-1 note in ItemActionsContext. `happinessGain` is
+    // raw there too, so it is raw here.
+    if (activity.healthGain) out.push({ stat: 'health', delta: healthCommitment.progress(activity.healthGain) });
     if (activity.happinessGain) out.push({ stat: 'happiness', delta: activity.happinessGain });
-    if (activity.fitnessGain) out.push({ stat: 'fitness', delta: activity.fitnessGain });
+    if (activity.fitnessGain) out.push({ stat: 'fitness', delta: healthCommitment.progress(activity.fitnessGain) });
     if (typeof activity.energyCost === 'number' && activity.energyCost !== 0) {
       // energyCost positive means it costs energy; negative means it restores energy.
-      out.push({ stat: 'energy', delta: -activity.energyCost });
+      out.push({ stat: 'energy', delta: -energyCostOf(activity) });
     }
     return out;
   };
@@ -205,10 +229,11 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const deltas = buildActivityDeltas(activity);
     const activityPrice = priceOf(activity);
     const locked = !canPerformActivity(activity);
+    const activityEnergy = energyCostOf(activity);
     const lockReason = !canAfford(activityPrice)
       ? `Need $${activityPrice}`
-      : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
-        ? `Need ${activity.energyCost} energy`
+      : activityEnergy > 0 && (gameState.stats?.energy ?? 0) < activityEnergy
+        ? `Need ${activityEnergy} energy`
         : undefined;
     const isCureActivity = CURE_IDS.has(activity.id);
     const description = isCureActivity

@@ -409,8 +409,8 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
        * Resolved from `prevState` so the gate and the debit below use the
        * same figure.
        */
-      const energyCost = getCommitmentModifiers(prevState, 'health')
-        .energyCost(activity.energyCost || 0);
+      const healthCommitment = getCommitmentModifiers(prevState, 'health');
+      const energyCost = healthCommitment.energyCost(activity.energyCost || 0);
       if (prevState.stats.energy < energyCost) {
         processingActivities.current.delete(activityId);
         result = { message: 'Not enough energy for this activity' };
@@ -441,10 +441,27 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       updatedStats.happiness = newHappiness;
       actualChanges.happiness = newHappiness - currentHappiness;
 
+      /**
+       * C-1, the other half. The energy side of the health commitment was
+       * wired above; the PROGRESS side was not, so the modal promised a health
+       * primary "+30% progress" and a neglected health axis "-15%" and neither
+       * ever reached a stat. Measured before this: a walk returned health 3 /
+       * fitness 1 identically at no focus, at primary, at primary level 100
+       * and at neglected - the whole 0-100 level bar bought nothing a player
+       * could see ("This applies to the other two as well. They do not
+       * perform", 2026-08-31).
+       *
+       * Scaled here are the HEALTH-domain outcomes, matching how every other
+       * area applies its own metric - relationships scale the relationship
+       * boost, hobbies their XP. `happinessGain` is deliberately left raw: it
+       * is cross-domain and already passes through the happiness taper
+       * (CLAUDE.md 4.3), which must stay the one place that curve lives.
+       */
       // Add health if applicable
       if (activity.healthGain) {
         const currentHealth = prevState.stats.health;
-        const newHealth = clampStatByKey('health', currentHealth + activity.healthGain);
+        const healthGain = healthCommitment.progress(activity.healthGain);
+        const newHealth = clampStatByKey('health', currentHealth + healthGain);
         updatedStats.health = newHealth;
         actualChanges.health = newHealth - currentHealth;
       }
@@ -452,7 +469,8 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       // Add fitness if applicable (Program 8: the walk and yoga build it).
       if (activity.fitnessGain) {
         const currentFitness = Number.isFinite(prevState.stats.fitness) ? prevState.stats.fitness : 0;
-        const newFitness = clampStatByKey('fitness', currentFitness + activity.fitnessGain);
+        const fitnessGain = healthCommitment.progress(activity.fitnessGain);
+        const newFitness = clampStatByKey('fitness', currentFitness + fitnessGain);
         updatedStats.fitness = newFitness;
         actualChanges.fitness = newFitness - currentFitness;
       }
