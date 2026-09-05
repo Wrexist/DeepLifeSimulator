@@ -135,3 +135,11 @@ screenshots/appstore-2026/*
 # Carry live role and channel ids, plus any per-member permission overwrites,
 # so they are operational state rather than something to review in a diff.
 discord/backups/
+
+# Throwaway probes written while investigating a bug report — a probe exists to
+# REPRODUCE a defect, so it is usually red on purpose. `jest.config.js` matches
+# every `__tests__/**/*.ts`, so one left behind here would join the suite and
+# turn CI red for a file nobody meant to ship. Promote a probe that earns its
+# keep into a real regression test under the domain it belongs to; never commit
+# it from here.
+__tests__/scratch_probe/
