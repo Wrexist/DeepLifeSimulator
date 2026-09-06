@@ -248,6 +248,11 @@ async function main() {
 
     say(`\n${C.bold}Live listing${C.off}`);
     say(`  version record read: ${target ? `${target.attributes?.versionString} (${versionStateOf(target)})` : C.yellow + 'none editable' + C.off}`);
+    // A diff against a version Apple already has reads like a to-do list, and
+    // it is not one: none of it can be written until the version comes back.
+    if (target && !EDITABLE_STATES.has(versionStateOf(target))) {
+      say(`  ${C.yellow}NOT EDITABLE${C.off} — ${versionStateOf(target)}. The differences below are what the repo would say, not what is about to happen.`);
+    }
     say(`  app record read:     ${appInfoPlan.action === 'use' ? appInfoPlan.state : C.yellow + appInfoPlan.reason + C.off}`);
 
     reportOps('Would change on the version', planLocalizations({
