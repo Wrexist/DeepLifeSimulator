@@ -38,7 +38,7 @@ App: **DeepLife Simulator** · package/bundle `com.deeplife.simulator` · v2.5.9
 > There's no script — only the economy, your choices, and the compounding math
 > of a life well (or badly) lived.
 >
-> **DeepLife+** unlocks an ad-free experience, exclusive perks, and a monthly gem
+> **DeepLife+** unlocks an ad-free experience, exclusive perks, and a daily gem
 > drop. Prefer to play free? The whole game is yours — DeepLife+ is optional.
 >
 > Download DeepLife Simulator and find out how far you can get.
@@ -100,7 +100,7 @@ Category: **Games ▸ Simulation**. Tags: life sim, tycoon, economy, business.
 > ekonomin, dina val och matematiken bakom ett liv.
 >
 > **DeepLife+** låser upp en annonsfri upplevelse, exklusiva förmåner och ett
-> månatligt gem-tillskott. Vill du spela gratis? Hela spelet är ditt — DeepLife+
+> dagligt gem-tillskott. Vill du spela gratis? Hela spelet är ditt — DeepLife+
 > är valfritt.
 >
 > Ladda ner DeepLife Simulator och se hur långt du kan nå.

@@ -322,6 +322,49 @@ export function isLiveSession(ch: GamingStreamingState | null | undefined): bool
   return !!ch?.currentStream?.live;
 }
 
+/**
+ * When this JS runtime began.
+ *
+ * Deliberately module state and NOT part of `GameState`: it must die with the
+ * runtime, which is exactly what tells a live session that survived an app kill
+ * apart from one the player merely tabbed away from. Captured at import, which
+ * is always before any session this runtime creates - going live has to call
+ * `startLiveStream` from this module, so the module is loaded first.
+ */
+const RUNTIME_STARTED_AT_MS = Date.now();
+
+/**
+ * Is this live session one THIS app launch started?
+ *
+ * `GamingStreamingApp` finalizes a live session it finds on mount, because a
+ * session that survived an app kill would otherwise stream forever. The trouble
+ * is that a remount looks identical whether the app was killed or the player
+ * switched tabs for two seconds - so tabbing away from a broadcast ENDED it,
+ * which is the "it never goes all the way through on its own" a tester
+ * reported. This is the missing distinction.
+ *
+ * `startedAtMs` is already stamped on every session by `startLiveStream`, so
+ * nothing is added to the save format and no migration is needed. A session
+ * with no marker at all (written before that field existed) keeps the old
+ * behaviour and is treated as stale, which is the safe direction: finalizing
+ * pays out what accrued, where resuming a genuinely dead session would stream
+ * against an app launch that is long gone.
+ *
+ * The comparison is wall-clock, so a clock scrubbed BACKWARDS mid-session can
+ * make our own session look older than the runtime and finalize it early. That
+ * is a degradation, not an exploit - an early finalize pays less, never more -
+ * and it is bounded by the same per-tick accrual as any other stream.
+ */
+export function isLiveSessionFromThisRuntime(
+  ch: GamingStreamingState | null | undefined
+): boolean {
+  const session = ch?.currentStream;
+  if (!session?.live) return false;
+  const startedAt = session.startedAtMs;
+  if (typeof startedAt !== 'number' || !Number.isFinite(startedAt)) return false;
+  return startedAt >= RUNTIME_STARTED_AT_MS;
+}
+
 export interface StartLiveResult {
   success: boolean;
   message: string;

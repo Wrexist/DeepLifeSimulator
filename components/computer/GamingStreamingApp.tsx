@@ -71,6 +71,7 @@ import {
   LIVE_ENERGY_DRAIN_PER_SEC,
   LIVE_MIN_ENERGY,
   LIVE_TICK_MS,
+  isLiveSessionFromThisRuntime,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
@@ -368,12 +369,22 @@ export default function GamingStreamingApp({ onBack }: Props) {
   }, [isLiveNow, setGameState, handleStopStream, saveGame]);
 
   // Safety: if a live session survived a save/reload (app closed mid-stream),
-  // resolve it once on mount instead of letting it stream forever.
+  // resolve it once on mount instead of letting it stream forever - but ONLY
+  // when it really did come from a previous app launch.
+  //
+  // This used to finalize ANY live session it found on mount, and a remount is
+  // indistinguishable from a relaunch by inspection: the player switching to
+  // another tab for two seconds unmounts this screen exactly as an app kill
+  // does. So tabbing away ENDED the broadcast, and coming back showed a stream
+  // that "never goes all the way through on its own" (tester report, 2026-09-06).
+  // `isLiveSessionFromThisRuntime` supplies the missing distinction from the
+  // session's existing `startedAtMs`; nothing is added to the save format.
   const resolvedStaleRef = useRef(false);
   useEffect(() => {
     if (resolvedStaleRef.current) return;
     resolvedStaleRef.current = true;
-    if (gameStateRef.current.gamingStreaming?.currentStream?.live) {
+    const ch = gameStateRef.current.gamingStreaming;
+    if (ch?.currentStream?.live && !isLiveSessionFromThisRuntime(ch)) {
       const r = finalizeLiveStream(
         gameStateRef.current,
         setGameState,
