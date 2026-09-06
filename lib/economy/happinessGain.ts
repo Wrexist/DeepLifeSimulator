@@ -88,6 +88,62 @@ export const HAPPINESS_FULL_VALUE_BELOW = 55;
 export const HAPPINESS_GAIN_FLOOR = 0.2;
 
 /**
+ * ── Why lowering this floor further cannot work (measured 2026-09-06) ──────
+ *
+ * The note above records that halving the floor to 0.1 bought almost nothing,
+ * and reads it as "the floor is not what is holding the top of the scale
+ * together". That is right, and the reason is structural rather than a matter
+ * of finding a better number - which makes the whole family of "taper harder"
+ * fixes a dead end, so it is worth stating before someone spends another
+ * program on it:
+ *
+ *   The tick scales the week's NET movement, measured AFTER decay
+ *   (`GameActionsContext` ~2845, and deliberately so - see the comment there).
+ *   **Scaling a positive number cannot make it negative.** Any life whose
+ *   weekly inflow survives the taper at all still moves UP every week, until
+ *   it reaches the cap and stays there. The taper changes how FAST a life
+ *   climbs; it cannot stop it arriving, at any floor above zero.
+ *
+ * An equilibrium below 100 needs an outflow that GROWS with the stat, so the
+ * two curves have somewhere to meet. That half is missing: gains taper, decay
+ * is flat, and the only fixed point in the system is the ceiling.
+ *
+ * ── The obvious fix was tried, and it fails a more important gate ──────────
+ *
+ * A quadratic `happinessDecayMultiplier` (1.0 up to 70, 2.0 at 100), applied
+ * in the tick and mirrored into `vitalDrift` so the recap stayed honest, was
+ * measured over 150 weeks against the same three personas:
+ *
+ *   persona             mean        median      flat wks     weeks >=95
+ *   LONER              81.9->75.6   85->81      49->38       52->0
+ *   CASUAL SOCIAL      93.7->89.2   97->94      83->69       98->44
+ *   ROMANCE-FOCUSED    92.7->89.6   95->92      98->96      106->0
+ *
+ * It does what it was aimed at - the ceiling stops being where lives live -
+ * and it still must not ship, for two reasons that are worth more than the
+ * result:
+ *
+ *   1. `earlyGameSurvivability` goes RED: the average player stops surviving
+ *      to week 20 in every one of the five scenarios. A drain aimed at
+ *      thriving lives lands hardest on new ones, because a week-one character
+ *      sits at 100 by construction rather than by achievement. Riding the
+ *      existing grace ramp softens it but does not clear the gate. This is the
+ *      same shape `statDecay.ts`'s header records as the reason the old 2.0
+ *      wealth ceiling had to go.
+ *   2. It moves the pin rather than removing it. ROMANCE-FOCUSED goes from 98
+ *      flat weeks to 96 - it simply found the new equilibrium and sat on it.
+ *      **Flatness and ceiling-pinning are two different problems.** An
+ *      equilibrium is by definition a place where movement stops, so no choice
+ *      of fixed point produces week-to-week variation. That needs variance in
+ *      the inflow, which is a content and event question, not a curve one.
+ *
+ * So: the ceiling can be lowered by adding a level-dependent drain, at a cost
+ * to the early game that has to be paid for separately (a later ramp start, a
+ * threshold above 70, or excluding the first N weeks outright, each measured
+ * against `earlyGameSurvivability`). The flatness cannot be fixed here at all.
+ */
+
+/**
  * How much of a POSITIVE happiness delta actually lands, given where happiness
  * already is. Returns 1.0 up to `HAPPINESS_FULL_VALUE_BELOW`, then falls
  * smoothly to `HAPPINESS_GAIN_FLOOR` at 100.

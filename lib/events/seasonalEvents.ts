@@ -176,7 +176,34 @@ export function getCurrentSeason(weeksLived: number): SeasonalEventData {
  * season, a 22% per-event chance lands the pool near that intent without any
  * single event feeling scripted.
  */
-const CHANCE_PER_SEASON = 0.22;
+const CHANCE_PER_SEASON = 0.16;
+
+/**
+ * The same roll, for a template whose caller has ALREADY pinned the week.
+ *
+ * Lower than `CHANCE_PER_SEASON` on purpose. A week-pinned template used to
+ * need its holiday week and an independently drawn target week to coincide,
+ * which is why Thanksgiving fired in 0 years of 100 and Christmas,
+ * Valentine's and Black Friday in about 1. Dropping the coincidence makes
+ * them reachable — but at the full 22% it also lifts the 2000-week event
+ * cadence past the 0.22 ceiling `engine.test.ts` guards, because seasonal
+ * events are appended AHEAD of the weighted pick and twelve templates coming
+ * alive all spend from the same interruption budget.
+ *
+ * So the budget is REDISTRIBUTED rather than raised. Measured against
+ * `engine.test.ts`'s 2000-week bound: holiday 0.10 with the general pool
+ * still at 0.22 gives 0.231, and 0.08/0.19 gives 0.222 - both over. 0.06 for
+ * the holidays with the general pool at 0.16 comes in under, and every
+ * template still clears the "at least 3 years in 100, at all three starting
+ * ages" bar in `__tests__/economy/seasonalEvents.test.ts`.
+ *
+ * The trade, stated plainly: generic seasonal events (a spring festival, a
+ * beach party) get rarer so that the ones a player recognises can appear at
+ * all. Thanksgiving fired in 0 years of 100 before this; Christmas,
+ * Valentine's and Black Friday in about 1. The interruption count the owner
+ * set is unchanged - only what fills it.
+ */
+const HOLIDAY_CHANCE_PER_SEASON = 0.06;
 
 /** Deterministic [0,1) from an integer seed. Same primitive the old code used. */
 function seededRandom(seed: number): number {
@@ -204,7 +231,14 @@ function seasonIndex(weeksLived: number): number {
 
 export function shouldTriggerSeasonalEvent(
   state: GameState,
-  eventId: string
+  eventId: string,
+  /**
+   * Set by a template whose own `condition` already fixes the week - every
+   * holiday does (`season.holiday === 'christmas' && ...`). Such a template
+   * must NOT also have to match a separately drawn target week: requiring two
+   * independent gates to agree is what starved the holidays.
+   */
+  options?: { weekPinned?: boolean }
 ): boolean {
   const weeksLived = Math.max(0, Math.floor(state.weeksLived || 0));
   const current = getCurrentSeason(weeksLived);
@@ -218,26 +252,24 @@ export function shouldTriggerSeasonalEvent(
 
   // 1) Does this event happen at all this season? One roll per (event, season),
   //    so the answer is identical on every week of that season.
-  const occurs = seededRandom(index * 7919 + key) < CHANCE_PER_SEASON;
+  const weekPinned = options?.weekPinned === true;
+  const occurs =
+    seededRandom(index * 7919 + key) <
+    (weekPinned ? HOLIDAY_CHANCE_PER_SEASON : CHANCE_PER_SEASON);
   if (!occurs) return false;
+
+  // A week-pinned template's caller has already chosen the week, so the season
+  // roll is the whole decision. Drawing a target week here and demanding the
+  // two agree is the coincidence that made Thanksgiving unreachable.
+  if (weekPinned) return true;
 
   // 2) If it does, which single week does it land on? Biased toward the start
   //    of the season, preserving the "higher chance early in season" intent the
   //    unreachable branch used to express. Squaring pulls the distribution
   //    forward without ever excluding the later weeks.
   //
-  //    KNOWN, MEASURED, NOT FIXED HERE (2026-09-04 release audit): a template
-  //    whose condition ALSO pins the week - the eight holidays, the four
-  //    mid-season events - only fires when this target week happens to land in
-  //    its range, and the retimed holidays sit at the END of their seasons.
-  //    Over 100 game-years Thanksgiving fires in none, Christmas, Valentine's
-  //    and Black Friday in about one. Drawing the target INSIDE the range
-  //    fixes that in ten lines, but seasonal events are appended ahead of the
-  //    weighted pick, so twelve templates coming alive raised the 2000-week
-  //    event cadence 0.218 -> 0.254 against the owner's 0.22 ceiling
-  //    (`engine.test.ts`). That is the interruption budget against the season
-  //    modal's own "1-2 per season" copy; both are owner-authored, so the
-  //    owner chooses. See tasks/release-readiness-2026-09-04.md 7.
+  //    Templates that pin their own week short-circuit above, so this draw
+  //    now only places the UNPINNED seasonal events.
   const roll = seededRandom(index * 104729 + key + 1);
   const targetWeek = Math.min(
     WEEKS_PER_SEASON - 1,
@@ -489,7 +521,7 @@ const newYear: EventTemplate = {
   condition: (state) => {
     // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'newyear' && shouldTriggerSeasonalEvent(state, 'new_year');
+    return season.holiday === 'newyear' && shouldTriggerSeasonalEvent(state, 'new_year', { weekPinned: true });
   },
   generate: () => ({
     id: 'new_year',
@@ -522,7 +554,7 @@ const valentinesDay: EventTemplate = {
   condition: (state) => {
     // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'valentines' && shouldTriggerSeasonalEvent(state, 'valentines_day');
+    return season.holiday === 'valentines' && shouldTriggerSeasonalEvent(state, 'valentines_day', { weekPinned: true });
   },
   generate: (state) => {
     const hasPartner = state.relationships.some(r => r.type === 'partner');
@@ -580,7 +612,7 @@ const halloween: EventTemplate = {
   condition: (state) => {
     // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'halloween' && shouldTriggerSeasonalEvent(state, 'halloween');
+    return season.holiday === 'halloween' && shouldTriggerSeasonalEvent(state, 'halloween', { weekPinned: true });
   },
   generate: () => ({
     id: 'halloween',
@@ -613,7 +645,7 @@ const christmas: EventTemplate = {
   condition: (state) => {
     // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'christmas' && shouldTriggerSeasonalEvent(state, 'christmas');
+    return season.holiday === 'christmas' && shouldTriggerSeasonalEvent(state, 'christmas', { weekPinned: true });
   },
   generate: (state) => {
     const hasFamily = state.family?.children?.length > 0 || state.relationships.some(r => r.type === 'partner');
@@ -651,7 +683,7 @@ const easter: EventTemplate = {
   weight: 1.0,
   condition: (state) => {
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'easter' && shouldTriggerSeasonalEvent(state, 'easter');
+    return season.holiday === 'easter' && shouldTriggerSeasonalEvent(state, 'easter', { weekPinned: true });
   },
   generate: () => ({
     id: 'easter',
@@ -682,7 +714,7 @@ const independenceDay: EventTemplate = {
   weight: 1.0,
   condition: (state) => {
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'independence' && shouldTriggerSeasonalEvent(state, 'independence_day');
+    return season.holiday === 'independence' && shouldTriggerSeasonalEvent(state, 'independence_day', { weekPinned: true });
   },
   generate: () => ({
     id: 'independence_day',
@@ -721,7 +753,7 @@ const thanksgiving: EventTemplate = {
   weight: 1.0,
   condition: (state) => {
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'thanksgiving' && shouldTriggerSeasonalEvent(state, 'thanksgiving');
+    return season.holiday === 'thanksgiving' && shouldTriggerSeasonalEvent(state, 'thanksgiving', { weekPinned: true });
   },
   generate: (state) => {
     const hasFamily = state.family?.children?.length > 0 || state.relationships.some(r => r.type === 'partner' || r.type === 'parent' || r.type === 'child');
@@ -765,7 +797,7 @@ const blackFriday: EventTemplate = {
   weight: 1.0,
   condition: (state) => {
     const season = getCurrentSeason(state.weeksLived || 0);
-    return season.holiday === 'blackfriday' && shouldTriggerSeasonalEvent(state, 'black_friday');
+    return season.holiday === 'blackfriday' && shouldTriggerSeasonalEvent(state, 'black_friday', { weekPinned: true });
   },
   generate: () => ({
     id: 'black_friday',

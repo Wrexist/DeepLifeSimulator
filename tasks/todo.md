@@ -167,11 +167,11 @@ macOS/Xcode/eas-cli/Apple credentials, all verified).
       whole gap continuously, and remote MERGES with it rather than replacing
       it. The card is never empty. No remote event was authored: doing so only
       to make the calendar look busy is what the program forbids.
-- [ ] PAC spending is HALF as efficient as spending cash directly ($10k per
-      approval point vs $5k), while its own comments promise 1.5x. Not visible
-      to the player, so nothing on screen lies — but a player who banks money
-      into the PAC to spend it gets a worse rate. Fix the rate (a 3x buff to a
-      money sink) or the comments, not both.
+- [x] **PAC efficiency — FIXED (2026-09-06).** Direct spend buys a point per
+      $5,000; the PAC bought one per $10,000 while two comments promised 1.5x
+      BETTER. The caps settle it as a slip: `min(15)` vs `min(10)` is already
+      exactly 1.5x, so only the divisor was wrong. Derived from the
+      relationship now; four tests pin it.
 - [ ] Party "Standing" drifts toward 50, so above it the score decays 1/week
       unconditionally and holding the 60-point endorsement needs a favoured
       bill roughly every 6 weeks from a one-shot pool. Also, the party card
@@ -183,11 +183,36 @@ macOS/Xcode/eas-cli/Apple credentials, all verified).
       normally covers it. Keep it and soften the 2.11.0 release note that says
       membership never switches off offline, or accept the wording (report §18,
       restoring §12 finding #1).
-- [ ] Holidays: Thanksgiving fires 0/100 years, Christmas / Valentine's / Black Friday ~1. Fixing it lifts the 2000-week event cadence 0.218 → 0.254 past the 0.22 ceiling. Pick: raise the ceiling, lower `CHANCE_PER_SEASON` for windowed templates, or make seasonal events compete for the weekly slot. Four ids pinned in `seasonalEvents.test.ts`.
-- [ ] Happiness: social personas pinned at median 95–98 (117–291 flat weeks of 250–500); CAREER-OBSESSED = WEALTH MAXIMIZER to the decimal; solitary lives now reach the bottom half after 250 weeks. Tuning pass (Program 14 §17), not a mechanism change.
+- [x] **Starved holidays — FIXED (2026-09-06).** A holiday pinned its own week
+      AND had to match a separately drawn target week; week-pinned templates
+      now skip the second draw. The cadence ceiling was HELD rather than
+      raised, by redistributing: measured 0.10/0.22 -> 0.231, 0.08/0.19 ->
+      0.222, 0.06/0.16 -> passes. Every template now fires in >=3 of 100 years
+      at all three starting ages. Generic seasonal events get rarer so the
+      recognisable ones can appear at all.
+- [ ] Happiness saturation. **Root cause found and the obvious fix disproved
+      (2026-09-06, recorded in `lib/economy/happinessGain.ts`).** The tick
+      scales the week's NET movement measured AFTER decay, and scaling a
+      positive number cannot make it negative — so any life whose inflow
+      survives the taper climbs to the cap at ANY floor above zero. Lowering
+      the floor is a dead end, structurally. Adding a level-dependent decay
+      ramp (1.0 to 70, 2.0 at 100) DOES clear the ceiling — weeks at >=95 went
+      52/98/106 to 0/44/0 over 150 weeks — but it turns
+      `earlyGameSurvivability` red in all five scenarios (a week-one character
+      is at 100 by construction, so a drain aimed at thriving lives lands on
+      new ones), and it only MOVES the pin: ROMANCE-FOCUSED went 98 flat weeks
+      to 96. Flatness and ceiling-pinning are different problems; an
+      equilibrium is where movement stops. Needs its own program with the full
+      soak battery, and the early-game cost paid for explicitly.
 - [ ] `liveOps.claimedInstanceIds` across prestige: carry it, or document per-life claims.
 - [ ] Chapter gems re-earned every life (~145/life) — once per lineage instead?
 - [ ] Ad orb vitality grant: week-ungated, +100 to three stats, bypasses the happiness curve.
+- [ ] The social personas cannot measure wealth. `CAREER-OBSESSED` and
+      `WEALTH MAXIMIZER` differ by one `deposit()` — a ledger move with no stat
+      effect — and no persona buys property, luxury, a vehicle, enrols or
+      starts a company. "Wealth buys nothing a career does" was a statement
+      about the harness, not the game, and is retracted. A spending persona
+      would make the question answerable for the first time.
 - [ ] Free Call has no time cost; regular contacts still ratchet to bond 100 by week 250.
 - [ ] WHATS_NEW 2.11.0 "membership no longer switches off offline" is only true when RevenueCat has ever fetched; soften or accept.
 - [ ] `showStatsBar` route gate: the string-matched exclusion list would hide the death screen for a new tab named e.g. `perks`.

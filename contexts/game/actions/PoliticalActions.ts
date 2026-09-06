@@ -13,6 +13,7 @@ import { getPolicyById } from '@/lib/politics/policies';
 import { getLobbyistById, policyDiscountFraction } from '@/lib/politics/lobbyists';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getNextElectionWeek } from '@/lib/politics/elections';
+import { DIRECT_USD_PER_APPROVAL_POINT } from '@/lib/politics/pac';
 import type { Dispatch, SetStateAction } from 'react';
 import { CAMPAIGN_MINIMUM_AMOUNT } from '@/lib/config/gameConstants';
 
@@ -889,7 +890,10 @@ export const campaign = (
   // Increase approval rating (diminishing returns)
   // Any real spend must buy at least +1 approval (capped at 10). The old
   // floor(amount/5000) granted 0 for a $500–$4,999 spend - money gone, no effect.
-  const approvalGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 5000))) : 0;
+  const approvalGain =
+    amount > 0
+      ? Math.min(10, Math.max(1, Math.round(amount / DIRECT_USD_PER_APPROVAL_POINT)))
+      : 0;
 
   // ECON-3: reject rather than floor - see `lobby` above.
   // The outer guards above are the reported outcome; the `return prev` below is
