@@ -15,9 +15,8 @@ the newest iOS build is run #71 (2.12.0, 2026-09-04).
 secrets, the log lines that mean success, the failure signatures, and the device
 gates. Written because the build cannot be run from the agent container (no
 macOS/Xcode/eas-cli/Apple credentials, all verified).
-- [ ] **Merge this branch to `main`.** `origin/main` is `47595f5`; all 71 iOS
-      runs were cut from `main`, so dispatching today builds WITHOUT the two
-      Program 16 fixes (restore ledger id, self-clearing wedding flag).
+- [x] **Merged.** `origin/main` is `07e22e7` (PR #193), tree identical to the
+      CI-green `780ead4`. Both Program 16 fixes are on `main`; D4 is closed.
 - [ ] Dispatch `eas-build-local-ios.yml` with version **2.13.0**, submit on.
 - [ ] **Watch that run** — first since preflight moved inside
       `eas env:exec production`; a missing RC or HMAC key now FAILS by name.
@@ -66,7 +65,8 @@ macOS/Xcode/eas-cli/Apple credentials, all verified).
       tab. Preflight can now fail loudly where it used to warn, which is the
       point, but it is a new failure mode (report §18, HUMAN). **Confirmed still
       pending: run #71 predates the change, so no run has exercised it.**
-- [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
+- [x] Superseded — see "OWNER: trim the store block" above. The FACTUAL error in
+      that entry (a claimed v48→v51 save-format move) is corrected and merged.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
 - [ ] Program 17 confirmed none of these can be done from a Linux container:
@@ -142,8 +142,20 @@ macOS/Xcode/eas-cli/Apple credentials, all verified).
       (a pending-action QUEUE, always deferred) would run handler #1 up to 350 ms
       late — potentially after the player has answered alert #2 — reordering two
       real decisions to close a hazard with no known caller.**
-- [ ] Bank Pro: "Week 104" chips print the absolute counter.
-- [ ] `docs/STORE_LISTING.md` "monthly gem drop" → daily, or mark superseded.
+- [ ] Bank Pro: "Week 104" chips print the absolute counter — real, and more
+      delicate than one function swap. SIX sites across
+      `components/computer/AdvancedBankApp.tsx` (449 statement chip, 1041
+      `openedWeek`, 1175 `inq.weeksLived`) and `components/mobile/BankApp.tsx`
+      (373 `lockUntilWeek`, 415, 617). They are currently INTERNALLY CONSISTENT
+      — all one absolute scale — so converting only the display would break
+      comparisons between them unless every site subtracts the same
+      `lifeStartWeek` baseline, with a clamp for any week that predates the
+      current life. Display-only, pre-v43 saves unaffected (`weeksInThisLife`
+      falls back to the raw counter). P3.
+- [x] `docs/STORE_LISTING.md` "monthly gem drop" → **daily**, in the English copy
+      AND the Swedish translation ("månatligt" → "dagligt"), which carried the
+      same error. The code grants 250 gems DAILY
+      (`SubscriptionActions.ts:256,386`).
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
