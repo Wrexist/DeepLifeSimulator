@@ -31,11 +31,23 @@ UI by hand, once per locale. That is the copy-paste this removes.
       `marketing/aso/README.md`, `WHATS_NEW.md`, CLAUDE.md §13, and a
       `retarget` input on `.github/workflows/asc-release.yml`.
 
-**OWNER, one question only Apple can answer:** whether the 1.5.0 record was ever
-created. `npm run asc:status` prints it. If a 1.5.0 draft is open, the plan will
-say so and offer `--retarget`; if 1.5.0 is live, 1.6.0 is created clean. The
-What's New is written to be correct either way - this release first, then a
-short catch-up section for the avatar/Spark work in case it never shipped.
+**Answered, by asking Apple (2026-09-06, four read-only workflow runs):** 18
+version records exist. 1.5.0 is live, so the avatar/Spark work shipped and the
+catch-up section is a catch-up. **1.5.5 is WAITING_FOR_REVIEW**, which blocks
+every write - a version Apple has is not editable, and App Store Connect will
+not open 1.6.0 beside it. The app-level copy (name, subtitle, privacy URL) is
+already IN SYNC with this repo: the rename shipped.
+
+So the listing push is ready and correctly refuses to run. **BLOCKED until
+1.5.5 leaves review**, then `mode: plan` -> `mode: apply` opens and fills 1.6.0.
+
+Two things the read turned up, both now in `metadata.mjs`:
+- The live keyword field spends its last 16 characters on `tycoon,life sim`.
+  Both are already indexed by the app NAME, and Apple matches across fields, so
+  they buy nothing - pushing this repo's 84-character field is a fix even
+  though the count goes down.
+- The live `marketingUrl` is `features.html`, not the site root. Adopted, not
+  overwritten: it is the owner's existing choice.
 
 **Still typed by hand, deliberately:** the five IAP display-name renames
 (product records, not listing copy - a rename changes a live purchase sheet)

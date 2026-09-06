@@ -28,11 +28,16 @@ The store copy is deliberately not identical to the prose below. It leads with
 this release, then carries a short "if it has been a while" section for players
 returning after a gap.
 
-Checked against App Store Connect on 2026-09-06: **1.5.0 (the avatar/Spark
-work) is live**, so those bullets are a catch-up for lapsed players, not a
-first announcement. **1.5.5 is WAITING_FOR_REVIEW**, so no new metadata can be
-written until it clears - a version Apple has is not editable, and no new one
-can be opened beside it.
+Read off App Store Connect on 2026-09-06, not assumed:
+
+- **1.5.0 (the avatar/Spark work) is live**, so the catch-up bullets are a
+  catch-up for lapsed players, not a first announcement.
+- **1.5.5 is WAITING_FOR_REVIEW** and already carries its own 1109-character
+  release notes. Nothing can be written until it clears: a version Apple has is
+  not editable, and no new one can be opened beside it.
+- The app is **already named "Deep Life Simulator: Tycoon"** and the subtitle
+  already matches this repo, so the rename the runbook treats as an open
+  decision has in fact shipped.
 
 ---
 

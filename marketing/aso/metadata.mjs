@@ -112,6 +112,15 @@ If it has been a while since you played, these landed recently too:
    * runs with no network (see CLAIMS). Ranking for a phrase needs every token
    * in it indexed, which is why `games` had to come off the wasted list.
    *
+   * The LIVE field on 1.5.5 fills all 100 characters by appending
+   * `tycoon,life sim` — and both are wasted, which is what this rule is for.
+   * The app is named "Deep Life Simulator: Tycoon" (confirmed against App
+   * Store Connect on 2026-09-06), so `tycoon`, `life` and `sim` are all
+   * indexed by the NAME already, and Apple matches across fields. Those 16
+   * characters buy nothing, and "life sim" additionally spends one on a space.
+   * Pushing this field is therefore a fix, not a regression, even though the
+   * character count goes DOWN.
+   *
    * 16 characters are deliberately left unspent rather than filled with more
    * guesses — that is the habit that produced the five dead terms. Next
    * candidates to price in the same panel before spending them: business,
@@ -207,7 +216,11 @@ A life runs for decades and every week is a decision you make. Most people start
    */
   urls: {
     support: 'https://wrexist.github.io/DeepLifeSimulator/support.html',
-    marketing: 'https://wrexist.github.io/DeepLifeSimulator/',
+    // features.html, not the site root, because that is what the live listing
+    // already points at. A status read on 2026-09-06 found it there; adopting
+    // the owner's existing choice beats overwriting it with a default nobody
+    // asked for, and the features page is the better landing anyway.
+    marketing: 'https://wrexist.github.io/DeepLifeSimulator/features.html',
     privacyPolicy: 'https://wrexist.github.io/DeepLifeSimulator/privacy.html',
   },
 
