@@ -73,10 +73,42 @@ export function raiseDirty(
 }
 
 /**
+ * What a dollar of direct campaign spending buys, in approval points.
+ *
+ * Lives here, next to the PAC rate it is compared against, because the two
+ * numbers only mean anything relative to each other. `runCampaignSpending`
+ * imports it rather than restating it — that restatement is exactly how the
+ * two drifted apart (see `PAC_EFFICIENCY_MULTIPLIER`).
+ */
+export const DIRECT_USD_PER_APPROVAL_POINT = 5_000;
+
+/**
+ * How much better the PAC is than spending cash directly.
+ *
+ * This file has always DOCUMENTED 1.5x, in two places — the docstring below
+ * and `PoliticalActions.lobby`'s "More efficient than the legacy campaign
+ * action (1.5x approval per $)". The code did the opposite: a hard-coded
+ * `spent / 10_000` against direct spending's `amount / 5_000`, so the PAC was
+ * HALF as efficient, a 3x gap from the stated intent. A player who banked
+ * money into the PAC to spend it got the worse deal, and nothing on screen
+ * said so — which is why it survived: the mismatch was invisible from inside
+ * the game and only two comments ever claimed otherwise.
+ *
+ * Derived rather than hard-coded now, so the relationship cannot drift again:
+ * change either number and the other follows.
+ */
+export const PAC_EFFICIENCY_MULTIPLIER = 1.5;
+
+/** $3,333 per approval point — 1.5x the reach of the same dollar spent directly. */
+export const PAC_USD_PER_APPROVAL_POINT =
+  DIRECT_USD_PER_APPROVAL_POINT / PAC_EFFICIENCY_MULTIPLIER;
+
+/**
  * Spend from the PAC. Pulls from the clean bucket first, then dirty.
  *
  * Spending from PAC is MORE EFFICIENT than the legacy `campaign` action:
- * $1 PAC → 1.5 approval points (vs. ~1 for direct spend).
+ * 1.5 approval points per dollar of direct spend's rate — the advantage the
+ * PAC exists to offer, and the reason to bank into it at all.
  *
  * Returns the new PAC state, the approval bump, and the USD actually spent.
  */
@@ -90,7 +122,7 @@ export function spendPAC(
   // Pull from clean first.
   const fromClean = Math.min(safe(pac.cleanUSD), spent);
   const fromDirty = spent - fromClean;
-  const approvalGain = Math.min(15, spent / 10_000); // diminishing returns capped at +15
+  const approvalGain = Math.min(15, spent / PAC_USD_PER_APPROVAL_POINT); // diminishing returns capped at +15
   return {
     pac: {
       ...pac,

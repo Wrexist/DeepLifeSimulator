@@ -359,36 +359,26 @@ describe('every seasonal template fires for a real life, and the schedule is the
   };
 
   const STARTS = [0, 104, 364]; // age 18, 20, 25 - the counter is age-seeded
-
   /**
-   * OWNER DECISION PENDING (release audit 2026-09-04): the eight holidays and
-   * the four mid-season events pin their week AND draw a start-biased target
-   * week across the whole season, so the two gates rarely agree. Drawing the
-   * target inside the range makes every one reachable but lifts the 2000-week
-   * event cadence 0.218 -> 0.254 past the 0.22 ceiling in `engine.test.ts`
-   * (seasonal events bypass the weighted pick). Until the owner picks between
-   * the cadence ceiling and the "1-2 per season" copy, the dead ones are
-   * PINNED here so the state is visible, and this test flips the day it is
-   * fixed so the pin gets moved rather than forgotten.
+   * RESOLVED 2026-09-06. Every seasonal template now fires for a real life,
+   * including the four this block used to pin as starved.
+   *
+   * The eight holidays pinned their own week AND had to match a separately
+   * drawn, start-biased target week, so the two gates rarely agreed:
+   * Thanksgiving fired in 0 years of 100, and Christmas, Valentine's and Black
+   * Friday in about 1. A week-pinned template now short-circuits that second
+   * draw (`shouldTriggerSeasonalEvent`'s `weekPinned`), and the interruption
+   * budget is held by giving those templates a LOWER per-season chance instead
+   * of raising the ceiling - the 2000-week cadence bound in `engine.test.ts`
+   * is unchanged. The pin was written to flip the day it was fixed; this is
+   * that move.
    */
-  const KNOWN_STARVED = new Set(['thanksgiving', 'christmas', 'valentines_day', 'black_friday']);
-
-  it.each(seasonalEventTemplates.filter((t) => !KNOWN_STARVED.has(t.id)).map((t) => [t.id, t] as const))(
+  it.each(seasonalEventTemplates.map((t) => [t.id, t] as const))(
     '%s fires in at least 3 of 100 years at every starting age',
     (_id, template) => {
       for (const start of STARTS) {
         const years = new Set(firingWeeks(template, start, 'life-a').map((w) => Math.floor(w / 52)));
         expect(`${template.id}@${start}: ${years.size} years`).toMatch(/: ([3-9]|[1-9]\d+) years$/);
-      }
-    },
-  );
-
-  it.each(seasonalEventTemplates.filter((t) => KNOWN_STARVED.has(t.id)).map((t) => [t.id, t] as const))(
-    '%s is KNOWN to fire in under 3 of 100 years (owner decision pending - move it to the live list when fixed)',
-    (_id, template) => {
-      for (const start of STARTS) {
-        const years = new Set(firingWeeks(template, start, 'life-a').map((w) => Math.floor(w / 52)));
-        expect(`${template.id}@${start}: ${years.size} years`).toMatch(/: [0-2] years$/);
       }
     },
   );

@@ -1,4 +1,13 @@
-import { INITIAL_PAC, raiseClean, raiseDirty, spendPAC, totalPAC } from '../pac';
+import {
+  DIRECT_USD_PER_APPROVAL_POINT,
+  INITIAL_PAC,
+  PAC_EFFICIENCY_MULTIPLIER,
+  PAC_USD_PER_APPROVAL_POINT,
+  raiseClean,
+  raiseDirty,
+  spendPAC,
+  totalPAC,
+} from '../pac';
 
 describe('PAC raises', () => {
   it('clean raise adds to cleanUSD only', () => {
@@ -67,5 +76,55 @@ describe('spendPAC', () => {
 describe('totalPAC', () => {
   it('sums both buckets', () => {
     expect(totalPAC({ cleanUSD: 100, dirtyUSD: 200, lifetimeDirtyUSD: 200 })).toBe(300);
+  });
+});
+
+/**
+ * The PAC's whole reason to exist is that it beats spending cash directly.
+ *
+ * It documented that advantage in two places — this module's `spendPAC`
+ * docstring and `PoliticalActions.lobby` — and implemented the opposite: a
+ * hard-coded `spent / 10_000` against direct spending's `amount / 5_000`, so
+ * banking money into the PAC to spend it bought HALF the approval of just
+ * spending it. Nothing on screen said so, which is why it survived.
+ *
+ * The caps were the tell: `Math.min(15, …)` for the PAC against
+ * `Math.min(10, …)` for direct spend is already exactly 1.5x, so the ceiling
+ * encoded the intended advantage all along and only the rate was wrong.
+ *
+ * These pin the RELATIONSHIP rather than either number, so tuning one without
+ * the other fails here instead of silently re-opening the gap.
+ */
+describe('PAC efficiency against direct campaign spending', () => {
+  /** Mirrors `runCampaignSpending` in contexts/game/actions/PoliticalActions.ts. */
+  const directApproval = (usd: number) =>
+    usd > 0 ? Math.min(10, Math.max(1, Math.round(usd / DIRECT_USD_PER_APPROVAL_POINT))) : 0;
+
+  it('is exactly the documented 1.5x per dollar', () => {
+    expect(PAC_EFFICIENCY_MULTIPLIER).toBe(1.5);
+    expect(PAC_USD_PER_APPROVAL_POINT).toBeCloseTo(DIRECT_USD_PER_APPROVAL_POINT / 1.5, 6);
+  });
+
+  it('buys MORE approval than the same dollar spent directly', () => {
+    // The regression this exists for: before the fix a $10k PAC spend bought
+    // +1 where direct bought +2.
+    for (const usd of [10_000, 20_000, 30_000]) {
+      const pac = spendPAC({ ...INITIAL_PAC, cleanUSD: usd }, usd).approvalGain;
+      expect(pac).toBeGreaterThan(directApproval(usd));
+    }
+  });
+
+  it('the caps carry the same 1.5x, so the advantage holds at the ceiling too', () => {
+    const bigSpend = 1_000_000;
+    const pacCap = spendPAC({ ...INITIAL_PAC, cleanUSD: bigSpend }, bigSpend).approvalGain;
+    expect(pacCap).toBe(15);
+    expect(directApproval(bigSpend)).toBe(10);
+    expect(pacCap / directApproval(bigSpend)).toBeCloseTo(PAC_EFFICIENCY_MULTIPLIER, 6);
+  });
+
+  it('spends no more than the PAC holds, however efficient it is', () => {
+    const r = spendPAC({ ...INITIAL_PAC, cleanUSD: 5_000 }, 999_999);
+    expect(r.spentUSD).toBe(5_000);
+    expect(r.pac.cleanUSD).toBe(0);
   });
 });
