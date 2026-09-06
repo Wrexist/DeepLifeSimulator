@@ -5498,3 +5498,54 @@ report's second and third sentences named exactly that, and were read as
 already covered because the first sentence was. **When checking whether a
 report is fixed, check each claim against the code, not the report against the
 commit.**
+
+## 2026-09-06 — Closing an audit's blockers, and three ways a finding can be wrong about itself
+
+Master Program 16 took Program 15's release-readiness report and re-proved every
+P0/P1 on the merged head before touching anything. All five P1s were already
+fixed and merged; the work that remained was in the grades, not the code. Four
+things worth keeping.
+
+**Re-prove before you re-fix, and expect the answer to be "already done".** The
+first hour found that `origin/main` was byte-identical to the audit branch, that
+the version bump was still valid because no build had been cut since, and that
+the full suite was green at 9 621 tests. Three of the listed blockers closed on
+observation alone. An audit's todo list ages the moment its branch merges;
+reading `git log` and the Actions API first is cheaper than re-fixing something.
+
+**A rule named for one product is a rule applied to one product.** The native
+restore loop defused `REVIVAL_PACK` with a synthetic ledger id and a comment
+that states the general shape exactly right — recording the real transaction id
+from an `entitlementsOnly` restore "would mark an UNFULFILLED pack purchase as
+done and stop the store redelivering it". The very next branch handed the real
+id to every MIXED consumable. The author had seen the class and fixed the
+instance. **When a comment explains a rule in general terms, check whether the
+code applies it in general terms** — and the fix is a named predicate the tests
+can walk the catalogue against, not a second special case.
+
+**Reachability is a claim about the player, not about the code.** The same
+finding was graded "needs a save-I/O failure mid-purchase", which sounds rare.
+The actual trigger is *the player tapping Restore Purchases because their gems
+did not arrive* — the exact action the failure message tells them to take. The
+recovery path was what destroyed the retry. When grading, finish the sentence:
+not "what has to go wrong", but "what does the player do next".
+
+**An audit's recommended fix is a hypothesis, and some of them move the risk
+the wrong way.** The report asked for the fresh-start carry-over to be stashed
+AFTER `deleteSaveSlot` succeeds, so a rejected delete could not leave a pending
+record beside a surviving slot. Doing it would convert "a soft currency could
+be applied twice" into "a paid entitlement is destroyed", at the same single
+await — the slot holding the purchases is already gone by then. It was left
+alone, and the reason is now written next to the item. **Before implementing a
+finding's suggested remedy, ask which direction it moves the failure; a report
+is evidence about the defect, not authority about the fix.**
+
+**A renderer that declines to draw must release what its flag is holding.**
+`WeddingPopup` returns `null` when the partner name is missing and is the only
+thing that clears `showWeddingPopup` — a flag which, while raised, suppresses
+the life-moment modal, the weekly event modal, the home popups, the ad orb, the
+promo and the interstitial gate. Not a frozen screen; a game that quietly stops
+interrupting you, forever, with no visible cause. The same shape as the Life
+Skills sheet whose only exit was clipped off the card (2026-09-05), one level
+further in: there the door was drawn off screen, here nothing was drawn at all.
+

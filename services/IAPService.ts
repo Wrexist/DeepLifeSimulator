@@ -360,6 +360,36 @@ function isNonIdempotentGrant(productId: string): boolean {
   );
 }
 
+/**
+ * The ledger id a NATIVE restore is allowed to record for `productId`.
+ *
+ * `applyBenefit` records whatever id it is handed, and `setupPurchaseListener`
+ * dedups store REDELIVERY on the real store transaction id and then finishes
+ * the transaction. So recording the real id from an `entitlementsOnly` restore
+ * closes an UNFULFILLED purchase without ever granting its quantities.
+ *
+ * That is only a problem for a MIXED product - a consumable that also carries
+ * permanent entitlements, which is why the restore loop does not skip it. The
+ * $99.99 Mega Pack is the live example: 40,000 gems plus four perks and four
+ * banking unlocks. A player whose grant failed (app killed mid-purchase, save
+ * unwritable) taps Restore Purchases precisely BECAUSE the gems never arrived;
+ * the restore gives them the perks, records the real txid, and the redelivery
+ * that would have paid the gems is then suppressed by our own ledger entry.
+ * Paid once, received half, retry destroyed by the recovery action.
+ *
+ * A synthetic id can never collide with a store transaction id, so the real
+ * transaction stays open and the store retry survives. REVIVAL_PACK already
+ * took this treatment by hand (`native_restore:revival_pack`, handled ahead of
+ * this) - the shape was named there and applied to one product; this is the
+ * same rule for the class.
+ *
+ * Everything else - a plain non-consumable boolean - keeps the real id: that
+ * grant genuinely landed in full, so recording it is correct.
+ */
+export function nativeRestoreLedgerId(productId: string, storeTransactionId: string): string {
+  return isConsumableProduct(productId) ? `native_restore:${productId}` : storeTransactionId;
+}
+
 export class IAPService {
   private state: IAPState = {
     isConnected: false,
@@ -2275,10 +2305,17 @@ export class IAPService {
           // restore able to repair a wiped entitlement. Subscriptions and the
           // revival pack are both handled above, so everything here is either a
           // permanent boolean or a mixed consumable restored entitlements-only.
+          //
+          // The MIXED half records a SYNTHETIC ledger id, never the store's -
+          // see `nativeRestoreLedgerId` for why recording the real one closes
+          // an unfulfilled purchase. Deliberately not gated on that synthetic
+          // id, unlike the pack above: the permanent half must repair a wipe on
+          // every tap and the dropped quantities make the re-apply a no-op,
+          // which is the same call the RevenueCat loop makes.
           if (
             await this.applyBenefit(
               purchase.productId,
-              transactionId,
+              nativeRestoreLedgerId(purchase.productId, transactionId),
               isConsumableProduct(purchase.productId),
             )
           ) restoredCount++;

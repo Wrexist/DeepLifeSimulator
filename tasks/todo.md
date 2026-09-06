@@ -1,19 +1,26 @@
-# Active — Master Program 15: release readiness (2026-09-04)
+# Active — Master Program 16: release blocker closure (2026-09-06)
 
-Branch `claude/deeplife-release-audit-vcs3t8`. Report:
-`tasks/release-readiness-2026-09-04.md`. Verdict **YELLOW**: nothing found
-corrupts a save, loses a purchase or soft-locks; the list below is what can
-still stop the next update.
+Branch `claude/deeplife-release-blockers-7wcdpg`, on `main` at `47595f5`.
+Report: `tasks/release-blocker-closure-2026-09-06.md`. Input:
+`tasks/release-readiness-2026-09-04.md` (Program 15).
+
+Verdict **YELLOW — every code-side release blocker is closed; what remains is
+device verification and two owner calls.** P0: 0 before, 0 after. P1: 5 before,
+5 closed (all by Program 15, all re-proved here on the merged head). Two P2s
+were closed here; the rest of the P2/P3 list is unchanged and below.
 
 ## RELEASE BLOCKERS (must close before the build)
 - [x] `npm run preflight` was red on main (721 lint warnings vs 719) — fixed at
-      the source, ceiling lowered to 716.
+      the source, ceiling lowered to 716. **Re-measured on HEAD: 0 errors, 716/716.**
 - [x] 2.12.0 is already on TestFlight (run #71) — `package.json` bumped to 2.13.0.
+      **Still valid: the Actions API shows run #71 (2026-09-04) is the newest iOS
+      build, so 2.13.0 is unshipped and needs no second bump.**
 - [x] Death screen "N yrs lived" read the absolute counter — `weeksInThisLife`.
 - [x] Spark Premium / Verified Pro cancel confirm raised from a `BaseModal`
       with no `AlertHost` (dead tap on iOS) — host inside `BaseModal`, guard extended.
 - [x] Seasonal roll keyed on the week alone — `lifeSalt` folded in.
-- [ ] Merge this branch to `main` and cut the build from the merge commit.
+- [x] Merge the audit branch to `main` — done; `origin/main == 47595f5`, which is
+      this branch's base. The build is cut from here.
 - [x] HMAC key confirmed present as a GitHub secret and passed to both the
       preflight and the build step (iOS and Android). Blocker closed.
 - [x] RevenueCat IS set up — the keys live in the EAS production env store, not
@@ -24,9 +31,21 @@ still stop the next update.
       (`eas env:exec production "…" --non-interactive`, with an Expo/EAS login
       step ahead of it) on both local-build workflows, so the RevenueCat and
       save-signing keys are actually VERIFIED instead of warned about.
-- [ ] **Watch the first workflow run after that change** in the Actions tab.
-      Preflight can now fail loudly where it used to warn, which is the point,
-      but it is a new failure mode (report §18, HUMAN).
+- [x] **Native restore recorded the REAL store transaction id for a MIXED
+      consumable** (Mega Pack: 40 000 gems + permanent entitlements). The
+      listener dedups store REDELIVERY on that id and finishes the transaction,
+      so a Restore tap after a failed grant closed the retry and the gems were
+      gone — and tapping Restore is exactly what the failure message tells the
+      player to do. Fixed with `nativeRestoreLedgerId`; the RevenueCat path
+      (the shipping one) was already correct, so this hardens the fallback.
+- [x] **`WeddingPopup` could raise a flag nothing could lower** — it returns
+      `null` with no partner name and is the only thing that clears
+      `showWeddingPopup`, which suppresses every interrupting surface in the
+      game while set. The renderer that declines now releases the flag.
+- [ ] **Watch the first workflow run after the `env:exec` change** in the Actions
+      tab. Preflight can now fail loudly where it used to warn, which is the
+      point, but it is a new failure mode (report §18, HUMAN). **Confirmed still
+      pending: run #71 predates the change, so no run has exercised it.**
 - [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
@@ -55,11 +74,30 @@ still stop the next update.
       binary 2.5.8, and several were already fixed in builds they have not seen.
 
 ## POST-RELEASE
-- [ ] IAP: persist a pending-consumable-grant record on the RC failure branch; synthetic restore id for MIXED consumables (`GEMS_MEGA`).
-- [ ] Save: stash the fresh-start carry-over AFTER `deleteSaveSlot` succeeds; null-guard the v11/v13/v14 loops.
+- [ ] IAP: persist a pending-consumable-grant record on the RC failure branch, so
+      a charged pack whose grant fails has an in-app retry. **(The synthetic
+      restore id for MIXED consumables is done — Program 16 §3.1.)**
+- [ ] Save: null-guard the v11/v13/v14 loops. **Re-proved (Program 16 §4.2): it
+      does NOT throw out of `runMigrations` and the save stays loadable — the
+      chain halts at the last good version and `hydrateLoadedState` repairs. What
+      the original finding missed is that it never recovers either: the hydrated
+      state keeps `version: 10`, repair does not strip the `null`, and every
+      later load fails the same migration identically. Such a save plays on
+      permanently un-migrated. Still no known producer of a `null` element.**
+- [ ] Save: the fresh-start carry-over ordering. **Do NOT simply move the stash
+      after `deleteSaveSlot` (Program 16 §4.1): that converts "a soft currency
+      could be applied twice" into "a paid entitlement is destroyed" at the same
+      single await. If it is fixed, it needs a two-phase record — write pending,
+      delete, mark committed — that a later new-life build reconciles.**
 - [ ] Live ops: honour a disable-only payload from cache; require a UTC offset in `parseInstant`; document "never change `startsAt` on a correction"; author the Q4 compiled-in on-ramp.
 - [ ] Events: add the interruption-budget / arc-completion decomposition to `eventTelemetry.sim`; consider a pity floor (one seed answered 6 events in 100 weeks).
-- [ ] Modal: clear `showWeddingPopup` in the `!weddingPartnerName` branch; make `AlertHost` defer a queued handler that tears down its own Modal.
+- [x] Modal: clear `showWeddingPopup` in the `!weddingPartnerName` branch — done
+      (Program 16 §3.2).
+- [ ] Modal: make `AlertHost` defer a queued handler that tears down its own
+      Modal. **Analysed and deliberately left (Program 16 §4.3): the obvious fix
+      (a pending-action QUEUE, always deferred) would run handler #1 up to 350 ms
+      late — potentially after the player has answered alert #2 — reordering two
+      real decisions to close a hazard with no known caller.**
 - [ ] Bank Pro: "Week 104" chips print the absolute counter.
 - [ ] `docs/STORE_LISTING.md` "monthly gem drop" → daily, or mark superseded.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
