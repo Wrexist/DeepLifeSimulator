@@ -172,6 +172,11 @@ only ever increase. If the target does not beat the highest RELEASED version, it
 refuses and names the number it found. `--retarget` is a convenience, not an
 exemption: renumbering a draft is checked against the same rule.
 
+**It will not open a version while one is with Apple.** A version in review,
+accepted, pending release or processing is one App Store Connect will not add
+alongside — it does not even show "+ Version". Found on the real account: 1.5.0
+live, 1.5.5 `WAITING_FOR_REVIEW`, and the plan happily reported CREATE 1.6.0.
+
 **It will not create a SECOND editable version.** App Store Connect holds one at
 a time, so asking for 1.6.0 while a 1.5.0 draft is open is a 409 from Apple and
 a trip to the UI. The plan refuses first and names both ways out: release

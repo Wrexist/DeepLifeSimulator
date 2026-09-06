@@ -186,6 +186,27 @@ describe('planning the version record', () => {
     expect(plan.reason).toMatch(/--retarget/);
   });
 
+  it('REFUSES to open a version while one is with Apple', () => {
+    // Found on a real account: 1.5.0 live, 1.5.5 WAITING_FOR_REVIEW. The plan
+    // reported CREATE 1.6.0, which App Store Connect would have refused — it
+    // does not even offer "+ Version" while a submission is in review.
+    const plan = R.planVersionRecord({
+      versions: [version('1.5.0', 'READY_FOR_DISTRIBUTION'), version('1.5.5', 'WAITING_FOR_REVIEW')],
+      versionString: '1.6.0',
+    });
+    expect(plan.action).toBe('refuse');
+    expect(plan.reason).toMatch(/1\.5\.5 is WAITING_FOR_REVIEW/);
+  });
+
+  it('refuses for every state where Apple still has the version', () => {
+    const blocked: string[] = [];
+    for (const state of ['READY_FOR_REVIEW', 'WAITING_FOR_REVIEW', 'IN_REVIEW', 'ACCEPTED', 'PENDING_DEVELOPER_RELEASE', 'PROCESSING_FOR_DISTRIBUTION']) {
+      const plan = R.planVersionRecord({ versions: [version('1.5.5', state)], versionString: '1.9.0' });
+      if (plan.action !== 'refuse') blocked.push(state);
+    }
+    expect(blocked).toEqual([]);
+  });
+
   it('renumbers that draft when asked explicitly', () => {
     const draft = version('1.5.0', 'PREPARE_FOR_SUBMISSION');
     const plan = R.planVersionRecord({

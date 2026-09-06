@@ -204,6 +204,29 @@ export function restrictListing(listing, fields) {
 }
 
 /**
+ * States where Apple HAS the version and has not finished with it.
+ *
+ * A version in any of these is neither editable nor done, and App Store Connect
+ * will not open a new version alongside it — the "+ Version" button is not
+ * there. Creating one anyway is a 409, which is why this set exists separately
+ * from RELEASED_STATES: the two answer different questions. RELEASED_STATES
+ * asks "what number must I beat"; this asks "may I open a new one at all".
+ * A state can honestly be in both — a version pending release is both a floor
+ * to clear and a reason not to start another.
+ */
+export const IN_FLIGHT_STATES = new Set([
+  'READY_FOR_REVIEW',
+  'WAITING_FOR_EXPORT_COMPLIANCE',
+  'WAITING_FOR_REVIEW',
+  'IN_REVIEW',
+  'ACCEPTED',
+  'PENDING_APPLE_RELEASE',
+  'PENDING_DEVELOPER_RELEASE',
+  'PROCESSING_FOR_APP_STORE',
+  'PROCESSING_FOR_DISTRIBUTION',
+]);
+
+/**
  * Compares two store version strings numerically, component by component.
  * Returns <0, 0 or >0.
  *
@@ -315,6 +338,22 @@ export function planVersionRecord({ versions, versionString, retarget = false })
       reason:
         `Version ${versionString} does not beat the highest version that has reached the store (${highest}). ` +
         `App Store version numbers can only climb; pick a number above ${highest}.`,
+    };
+  }
+
+  // Apple will not open a new version while one is with review. This is the
+  // same shape as the open-draft refusal below and was found the same way: a
+  // plan run reported CREATE 1.6.0 against an account whose 1.5.5 was
+  // WAITING_FOR_REVIEW, which Apple would have answered with a 409.
+  const inFlight = (versions ?? []).find((v) => IN_FLIGHT_STATES.has(stateOf(v)));
+  if (inFlight) {
+    return {
+      action: 'refuse',
+      reason:
+        `Version ${stringOf(inFlight)} is ${stateOf(inFlight)}, so App Store Connect will not open ` +
+        `${versionString} alongside it. Wait for it to be released or removed from review, or — if ` +
+        `${stringOf(inFlight)} is the release you meant — leave the metadata for it alone, because a ` +
+        `version with Apple is not editable.`,
     };
   }
 
