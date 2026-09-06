@@ -18,6 +18,7 @@
 //   --apply            actually write. Without it every mutation is printed only.
 //   --submit           submit for review. Requires --apply. See the note below.
 //   --retarget         renumber an existing editable draft to --version.
+//   --only <fields>    write only these fields, e.g. --only whatsNew
 //   --build <number>   attach this CFBundleVersion to the version record.
 //   --platform <IOS>   default IOS.
 //   --json             machine-readable plan on stdout.
@@ -57,6 +58,8 @@ import {
   planAppInfo,
   planLocalizations,
   planVersionRecord,
+  restrictListing,
+  versionStateOf,
   reviewSubmissionCreatePayload,
   reviewSubmissionItemCreatePayload,
   reviewSubmissionSubmitPayload,
@@ -154,6 +157,7 @@ async function main() {
   const apply = has('--apply');
   const submit = has('--submit');
   const retarget = has('--retarget');
+  const only = (valueOf('--only') ?? '').split(',').map((f) => f.trim()).filter(Boolean);
   const statusOnly = has('--status');
 
   if (!versionString) {
@@ -177,24 +181,46 @@ async function main() {
 
   const client = new AscClient({ credentials, dryRun: !apply });
 
-  const desired = desiredListing(APPLE);
-  const locales = Object.keys(desired.versionLocalizations);
-  if (locales.length === 0) {
+  const full = desiredListing(APPLE);
+  if (Object.keys(full.versionLocalizations).length === 0) {
     die('marketing/aso/metadata.mjs declares no shipped locale — there is no listing to publish.');
+  }
+
+  // --only narrows what is written. Not every change is a release: release
+  // notes ship with every build, while the app NAME costs a review cycle, so
+  // sending both because you wanted one is how an unrelated decision rides
+  // along with a routine push.
+  const { listing: desired, unknown } = restrictListing(full, only);
+  if (unknown.length) {
+    die(
+      `--only names ${unknown.length === 1 ? 'a field that does' : 'fields that do'} not exist: ${unknown.join(', ')}.\n` +
+        `  Valid: ${[...MANAGED_VERSION_FIELDS, ...MANAGED_APP_INFO_FIELDS].join(', ')}`,
+    );
+  }
+  const locales = Object.keys(desired.versionLocalizations);
+  if (locales.length === 0 && Object.keys(desired.appInfoLocalizations).length === 0) {
+    die(`--only ${only.join(',')} matched no field the metadata declares — nothing to write.`);
   }
 
   say(`${C.bold}App Store Connect · app ${appId} · version record ${versionString} (${platform})${C.off}`);
   say(`${C.dim}Mode: ${apply ? 'APPLY — writes will be performed' : 'PLAN — nothing will be written'}${C.off}`);
-  say(`${C.dim}Locales: ${locales.join(', ')}${C.off}\n`);
+  say(`${C.dim}Locales: ${locales.join(', ')}${C.off}`);
+  if (only.length) say(`${C.yellow}Fields: ${only.join(', ')} only — every other field is left as Apple has it${C.off}`);
+  say('');
 
   // ---- 1 · what Apple has now -------------------------------------------
+  // No `fields[appStoreVersions]` on purpose. A sparse fieldset names Apple's
+  // attributes, and Apple renames them: asking for `appStoreVersionState` — the
+  // deprecated ENUM's name, which was never an attribute — answered every run
+  // with `HTTP 400: not a valid field name` before the plan printed a line.
+  // Taking the default attribute set costs a few hundred bytes and cannot be
+  // invalidated by a rename.
   const versions = await client.getAll(
-    `/v1/apps/${appId}/appStoreVersions?filter[platform]=${encodeURIComponent(platform)}` +
-      '&fields[appStoreVersions]=versionString,appStoreVersionState,createdDate&limit=200',
+    `/v1/apps/${appId}/appStoreVersions?filter[platform]=${encodeURIComponent(platform)}&limit=200`,
   );
   say(`${C.bold}Existing versions${C.off} (${versions.length})`);
   for (const v of versions.slice(0, 8)) {
-    say(`  ${String(v.attributes?.versionString).padEnd(10)} ${v.attributes?.appStoreVersionState ?? '?'}`);
+    say(`  ${String(v.attributes?.versionString).padEnd(10)} ${versionStateOf(v) ?? '?'}`);
   }
   if (versions.length > 8) say(`  ${C.dim}… and ${versions.length - 8} more${C.off}`);
 
@@ -203,8 +229,8 @@ async function main() {
     // opening a browser: what does the store page SAY right now, and how does
     // it differ from the repo? So it reads both resources and diffs them.
     const target = versions.find((v) => v.attributes?.versionString === versionString)
-      ?? versions.find((v) => EDITABLE_STATES.has(v.attributes?.appStoreVersionState));
-    const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?fields[appInfos]=state,appStoreState&limit=50`);
+      ?? versions.find((v) => EDITABLE_STATES.has(versionStateOf(v)));
+    const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=50`);
     const appInfoPlan = planAppInfo(appInfos);
 
     const versionLocs = await readLocalizations(client, {
@@ -221,7 +247,7 @@ async function main() {
     });
 
     say(`\n${C.bold}Live listing${C.off}`);
-    say(`  version record read: ${target ? `${target.attributes?.versionString} (${target.attributes?.appStoreVersionState})` : C.yellow + 'none editable' + C.off}`);
+    say(`  version record read: ${target ? `${target.attributes?.versionString} (${versionStateOf(target)})` : C.yellow + 'none editable' + C.off}`);
     say(`  app record read:     ${appInfoPlan.action === 'use' ? appInfoPlan.state : C.yellow + appInfoPlan.reason + C.off}`);
 
     reportOps('Would change on the version', planLocalizations({
@@ -305,9 +331,18 @@ async function main() {
   // the app's editable appInfo record, which only exists while a version is
   // being prepared — so this is read AFTER the version record above, not
   // alongside it.
-  const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?fields[appInfos]=state,appStoreState&limit=50`);
-  const appInfoPlan = planAppInfo(appInfos);
-  if (appInfoPlan.action === 'refuse') {
+  const appInfos = Object.keys(desired.appInfoLocalizations).length > 0
+    ? await client.getAll(`/v1/apps/${appId}/appInfos?limit=50`)
+    : null;
+  const appInfoPlan = appInfos === null
+    // --only left nothing for the app record. Reading it anyway would report a
+    // refusal ("no editable appInfo") for work nobody asked to do.
+    ? { action: 'skip' }
+    : planAppInfo(appInfos);
+  if (appInfoPlan.action === 'skip') {
+    say(`\n${C.bold}Name · subtitle · privacy URL${C.off} ${C.dim}(appInfoLocalizations)${C.off}`);
+    say(`  ${C.dim}NOT IN SCOPE — excluded by --only${C.off}`);
+  } else if (appInfoPlan.action === 'refuse') {
     if (!apply && versionPlan.action === 'create') {
       // Dry run against a version that does not exist yet: Apple opens the
       // editable app record together with the version, so there is genuinely

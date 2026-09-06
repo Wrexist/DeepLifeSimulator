@@ -30,10 +30,14 @@ beforeAll(async () => {
   C = await import('../../scripts/lib/ascClient.mjs');
 });
 
-const version = (versionString: string, appStoreVersionState: string, id = versionString) => ({
+// `appVersionState` is the attribute Apple actually returns. These fixtures
+// used to say `appStoreVersionState`, which is the deprecated ENUM's name and
+// has never been a field — the same wrong belief the code held, so the suite
+// was green while every real run failed on the first read with HTTP 400.
+const version = (versionString: string, appVersionState: string, id = versionString) => ({
   id,
   type: 'appStoreVersions',
-  attributes: { versionString, appStoreVersionState },
+  attributes: { versionString, appVersionState },
 });
 
 describe('version ordering', () => {
@@ -55,6 +59,31 @@ describe('version ordering', () => {
     expect(R.isValidVersionString('1.5.0-beta')).toBe(false);
     expect(R.isValidVersionString('v1.5.0')).toBe(false);
     expect(R.isValidVersionString('')).toBe(false);
+  });
+});
+
+describe('reading a version\'s state, which Apple has renamed', () => {
+  it('reads appVersionState, the attribute that actually exists', () => {
+    expect(R.versionStateOf({ attributes: { appVersionState: 'PREPARE_FOR_SUBMISSION' } })).toBe('PREPARE_FOR_SUBMISSION');
+  });
+
+  it('still reads the deprecated appStoreState an older record can carry', () => {
+    expect(R.versionStateOf({ attributes: { appStoreState: 'READY_FOR_SALE' } })).toBe('READY_FOR_SALE');
+  });
+
+  it('does NOT read appStoreVersionState - it is an enum name, not a field', () => {
+    // Asking Apple for it by name in a sparse fieldset is an HTTP 400 on the
+    // first read, which is exactly how this shipped.
+    expect(R.versionStateOf({ attributes: { appStoreVersionState: 'READY_FOR_SALE' } })).toBeNull();
+  });
+
+  it('counts both spellings of the renamed released states', () => {
+    // READY_FOR_SALE -> READY_FOR_DISTRIBUTION and
+    // PROCESSING_FOR_APP_STORE -> PROCESSING_FOR_DISTRIBUTION. Reading only the
+    // modern spelling under-reads the floor, which is how a number walks back.
+    for (const state of ['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION', 'PROCESSING_FOR_APP_STORE', 'PROCESSING_FOR_DISTRIBUTION', 'ACCEPTED']) {
+      expect(`${state}: ${R.RELEASED_STATES.has(state)}`).toBe(`${state}: true`);
+    }
   });
 });
 
@@ -96,7 +125,7 @@ describe('planning the version record', () => {
       versionString: '1.4.0',
     });
     expect(plan.action).toBe('refuse');
-    expect(plan.reason).toMatch(/does not beat the highest released version \(1\.5\.0\)/);
+    expect(plan.reason).toMatch(/does not beat the highest version that has reached the store \(1\.5\.0\)/);
   });
 
   it('REFUSES an equal number - climbing means strictly greater', () => {
@@ -177,7 +206,7 @@ describe('planning the version record', () => {
       retarget: true,
     });
     expect(plan.action).toBe('refuse');
-    expect(plan.reason).toMatch(/does not beat the highest released version/);
+    expect(plan.reason).toMatch(/does not beat the highest version that has reached the store/);
   });
 });
 
@@ -274,9 +303,40 @@ describe('deriving the listing from the metadata', () => {
   it('omits a field the metadata does not declare rather than blanking it', () => {
     // An empty string is a real value to Apple. Sending one for a field the
     // repo has no opinion about would erase whatever is in the UI today.
-    const bare = R.desiredListing({ name: 'X', urls: {} });
-    expect(bare.versionLocalizations['en-US']).toEqual({});
-    expect(bare.appInfoLocalizations['en-US']).toEqual({ name: 'X' });
+    expect(R.desiredListing({ name: 'X', urls: {} })).toEqual({
+      versionLocalizations: { 'en-US': {} },
+      appInfoLocalizations: { 'en-US': { name: 'X' } },
+    });
+  });
+});
+
+describe('narrowing what gets written', () => {
+  const listing = {
+    versionLocalizations: { 'en-US': { whatsNew: 'notes', description: 'desc' }, 'es-MX': { whatsNew: 'novedades' } },
+    appInfoLocalizations: { 'en-US': { name: 'X', subtitle: 'Y' }, 'es-MX': { name: 'X' } },
+  };
+
+  it('keeps only the named fields, across both resources', () => {
+    const { listing: narrowed } = R.restrictListing(listing, ['whatsNew']);
+    expect(narrowed.versionLocalizations).toEqual({ 'en-US': { whatsNew: 'notes' }, 'es-MX': { whatsNew: 'novedades' } });
+  });
+
+  it('DROPS a locale left with nothing rather than sending it empty', () => {
+    // A create carrying only a locale would make an empty listing; an update
+    // carrying nothing is a request that changes nothing.
+    const { listing: narrowed } = R.restrictListing(listing, ['whatsNew']);
+    expect(narrowed.appInfoLocalizations).toEqual({});
+  });
+
+  it('reports an unrecognised field instead of quietly writing nothing', () => {
+    // `--only whatsnew` narrowing to zero fields and reporting success is the
+    // worst outcome available here.
+    expect(R.restrictListing(listing, ['whatsnew']).unknown).toEqual(['whatsnew']);
+    expect(R.restrictListing(listing, ['whatsNew']).unknown).toEqual([]);
+  });
+
+  it('is a no-op when no fields are named - a release writes the whole listing', () => {
+    expect(R.restrictListing(listing, []).listing).toBe(listing);
   });
 });
 
@@ -320,7 +380,7 @@ describe('planning the localization writes', () => {
       desiredByLocale: { 'en-US': { subtitle: 'Careers, crime, crypto, heirs' } },
     });
     expect(ops[0]).toMatchObject({ op: 'update' });
-    expect(ops[0].changes[0]).toEqual({ field: 'subtitle', from: null, to: 'Careers, crime, crypto, heirs' });
+    expect(ops[0].changes).toEqual([{ field: 'subtitle', from: null, to: 'Careers, crime, crypto, heirs' }]);
   });
 
   it('leaves a locale it does not manage alone rather than deleting it', () => {

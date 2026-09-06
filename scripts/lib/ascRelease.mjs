@@ -27,13 +27,19 @@ export const EDITABLE_STATES = new Set([
 ]);
 
 /**
- * States that mean a version reached (or is reaching) the public store. These
- * are what a new version number has to beat — Apple's only real rule about the
- * version record is that it climbs past the last RELEASED one.
+ * States that mean a version reached, or is on its way to, the public store.
+ * These are what a new version number has to beat — Apple's only real rule
+ * about the version record is that it climbs past the last one that counts.
  *
- * READY_FOR_SALE is the historical name and READY_FOR_DISTRIBUTION the current
- * one; both appear on live apps depending on when the version shipped, so both
- * are listed rather than assuming the account has been migrated.
+ * Apple renamed several of these when `AppStoreVersionState` was deprecated in
+ * favour of `AppVersionState`: READY_FOR_SALE became READY_FOR_DISTRIBUTION and
+ * PROCESSING_FOR_APP_STORE became PROCESSING_FOR_DISTRIBUTION. Both spellings
+ * are listed because an account can return either depending on when the version
+ * shipped, and reading only the modern one would silently under-read the floor
+ * — which is the failure that lets a number walk backwards.
+ *
+ * ACCEPTED is here deliberately: it has passed review and is going live, so the
+ * number is spoken for even though nothing is public yet.
  */
 export const RELEASED_STATES = new Set([
   'READY_FOR_SALE',
@@ -41,6 +47,8 @@ export const RELEASED_STATES = new Set([
   'PENDING_APPLE_RELEASE',
   'PENDING_DEVELOPER_RELEASE',
   'PROCESSING_FOR_APP_STORE',
+  'PROCESSING_FOR_DISTRIBUTION',
+  'ACCEPTED',
   'REPLACED_WITH_NEW_VERSION',
   'REMOVED_FROM_SALE',
   'DEVELOPER_REMOVED_FROM_SALE',
@@ -76,6 +84,14 @@ export function keywordField(keywords) {
   return (keywords ?? []).join(',');
 }
 
+/**
+ * Attributes to write, keyed by locale then by field. Named so the maps this
+ * module hands back are typed rather than inferred as `{}`, which makes every
+ * `listing.versionLocalizations['en-US']` in a test an implicit-any error.
+ *
+ * @typedef {Record<string, Record<string, string>>} LocalizedAttributes
+ */
+
 /** Drops undefined/null entries. See MANAGED_VERSION_FIELDS on why that matters. */
 function defined(object) {
   return Object.fromEntries(Object.entries(object ?? {}).filter(([, v]) => v !== undefined && v !== null));
@@ -94,10 +110,15 @@ function defined(object) {
  * - The app NAME is the brand and is deliberately not translated, but Apple
  *   requires a name on every appInfo localization it creates. The en-US name
  *   carries into each locale unless that locale states its own.
+ *
+ * @param {Record<string, any>} APPLE the APPLE export of marketing/aso/metadata.mjs
+ * @returns {{ versionLocalizations: LocalizedAttributes, appInfoLocalizations: LocalizedAttributes }}
  */
 export function desiredListing(APPLE) {
   const urls = APPLE?.urls ?? {};
+  /** @type {LocalizedAttributes} */
   const versionLocalizations = {};
+  /** @type {LocalizedAttributes} */
   const appInfoLocalizations = {};
 
   const add = (locale, source, fallback = {}) => {
@@ -134,6 +155,55 @@ export function desiredListing(APPLE) {
 }
 
 /**
+ * Narrows a desired listing to a subset of fields.
+ *
+ * The listing is written as ONE thing by default, which is right for a release
+ * — but not every change is a release. Release notes go out with every build;
+ * the app NAME is a decision that costs a review cycle and dilutes a brand, and
+ * promotional text is the one field Apple lets you change any time. Sending all
+ * three because you wanted one of them is how an unrelated decision rides along
+ * with a routine push.
+ *
+ * A locale left with no fields at all is dropped rather than sent empty: a
+ * create with only a `locale` attribute would make an empty listing, and an
+ * update with nothing in it is a request that changes nothing.
+ *
+ * Returns { listing, unknown } — an unrecognised field name is reported rather
+ * than silently narrowing to nothing, because "--only whatsnew" quietly writing
+ * zero fields and reporting success is the worst outcome available.
+ *
+ * @param {{ versionLocalizations: LocalizedAttributes, appInfoLocalizations: LocalizedAttributes }} listing
+ * @param {string[]} [fields]
+ * @returns {{ listing: { versionLocalizations: LocalizedAttributes, appInfoLocalizations: LocalizedAttributes }, unknown: string[] }}
+ */
+export function restrictListing(listing, fields) {
+  const wanted = (fields ?? []).map((f) => String(f).trim()).filter(Boolean);
+  if (wanted.length === 0) return { listing, unknown: [] };
+
+  const known = new Set([...MANAGED_VERSION_FIELDS, ...MANAGED_APP_INFO_FIELDS]);
+  const unknown = wanted.filter((f) => !known.has(f));
+  const keep = new Set(wanted);
+
+  const narrow = (byLocale) => {
+    /** @type {LocalizedAttributes} */
+    const out = {};
+    for (const [locale, attributes] of Object.entries(byLocale ?? {})) {
+      const kept = Object.fromEntries(Object.entries(attributes).filter(([field]) => keep.has(field)));
+      if (Object.keys(kept).length > 0) out[locale] = kept;
+    }
+    return out;
+  };
+
+  return {
+    listing: {
+      versionLocalizations: narrow(listing.versionLocalizations),
+      appInfoLocalizations: narrow(listing.appInfoLocalizations),
+    },
+    unknown,
+  };
+}
+
+/**
  * Compares two store version strings numerically, component by component.
  * Returns <0, 0 or >0.
  *
@@ -157,7 +227,18 @@ export function isValidVersionString(v) {
   return /^\d+(\.\d+){0,2}$/.test(String(v ?? ''));
 }
 
-const stateOf = (v) => v?.attributes?.appStoreVersionState ?? v?.attributes?.appVersionState ?? null;
+/**
+ * A version's state. `appVersionState` is the current attribute and
+ * `appStoreState` the deprecated one an older record can still carry.
+ *
+ * There is NO `appStoreVersionState` attribute and there never was — that is
+ * the name of the deprecated enum TYPE, not of a field. This function used to
+ * read it first, and the sparse fieldset on the request asked Apple for it by
+ * name, which answers with `HTTP 400: 'appStoreVersionState' is not a valid
+ * field name` on the very first read. The `??` fallback hid it here while the
+ * request made every real run fail.
+ */
+const stateOf = (v) => v?.attributes?.appVersionState ?? v?.attributes?.appStoreState ?? null;
 const stringOf = (v) => v?.attributes?.versionString ?? null;
 
 /**
@@ -166,6 +247,9 @@ const stringOf = (v) => v?.attributes?.versionString ?? null;
  * spellings at once, so both are read rather than assuming a migration.
  */
 export const appInfoStateOf = (a) => a?.attributes?.state ?? a?.attributes?.appStoreState ?? null;
+
+/** Exposed so the CLI and its tests read a version's state exactly one way. */
+export const versionStateOf = stateOf;
 
 /** The highest version that has reached the public store, or null. */
 export function highestReleasedVersion(versions) {
@@ -229,7 +313,7 @@ export function planVersionRecord({ versions, versionString, retarget = false })
     return {
       action: 'refuse',
       reason:
-        `Version ${versionString} does not beat the highest released version (${highest}). ` +
+        `Version ${versionString} does not beat the highest version that has reached the store (${highest}). ` +
         `App Store version numbers can only climb; pick a number above ${highest}.`,
     };
   }

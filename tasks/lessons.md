@@ -5587,3 +5587,26 @@ draining the queue needs a production API added for a test's benefit, days
 before a release — but it is written down, which is the part that matters. The
 same reasoning as CLAUDE.md section 8: a gate whose red means nothing trains
 you to skim it.
+
+**A fixture invented from the same belief as the code cannot test that belief.**
+`scripts/asc-release.mjs` asked Apple for
+`fields[appStoreVersions]=versionString,appStoreVersionState,createdDate` and
+got `HTTP 400: 'appStoreVersionState' is not a valid field name` on the first
+read of every run it has ever made - the automation had never once reached
+Apple. `appStoreVersionState` is the name of the deprecated ENUM; the attribute
+is `appVersionState` (`appStoreState` on older records). The reader hid it with
+`appStoreVersionState ?? appVersionState`, and the 50-test suite around it was
+green because every fixture in it was hand-written with the same phantom key.
+Tests written from the same head as the code confirm the head, not the world.
+Two things now stand in for the credentials the container does not have: the
+attribute names were read off Apple's documentation JSON
+(`.../appstoreversion/attributes-data.dictionary.json`) rather than recalled,
+and `__tests__/tooling/fixtures/ascFakeApi.mjs` returns that exact 400 for any
+request naming a renameable fieldset. **Where a fixture stands in for a system
+you cannot call, make it reproduce the system's refusals, not just its
+successes** - and prefer asking for no sparse fieldset at all, since a default
+attribute set costs a few hundred bytes and cannot be invalidated by a rename.
+The same defect sat in `scripts/notify-store-release.mjs`, which additionally
+matched only `READY_FOR_SALE` - renamed to `READY_FOR_DISTRIBUTION` - so it
+would have found nothing even had the request parsed. **When a wrong constant
+is found, grep for it: it was copied.**

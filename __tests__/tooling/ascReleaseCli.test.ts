@@ -77,6 +77,32 @@ describe('asc-release, planned against a fake App Store Connect', () => {
     expect(output).toMatch(/Nothing was written/);
   });
 
+  it('asks Apple for no sparse fieldset it could rename out from under us', () => {
+    // The fake API answers `fields[appStoreVersions]=…` with the real HTTP 400
+    // Apple returns. A green run here IS the assertion: the released version
+    // and the open draft were both read, one carrying the deprecated spelling
+    // and one the modern one.
+    expect(output).toMatch(/1\.3\.5\s+READY_FOR_SALE/);
+    expect(output).toMatch(/1\.6\.0\s+PREPARE_FOR_SUBMISSION/);
+    expect(output).not.toMatch(/not a valid field name/);
+  });
+
+  it('--only narrows the run to the named field and nothing else', () => {
+    // Release notes ship with every build; the app NAME costs a review cycle.
+    // Sending both because you wanted one is how an unrelated decision rides
+    // along with a routine push.
+    const notes = runPlan(['--only', 'whatsNew']);
+    expect(notes).toMatch(/Planned writes \(2\)/);
+    expect(notes).toMatch(/appStoreVersionLocalizations/);
+    expect(notes).toMatch(/NOT IN SCOPE — excluded by --only/);
+    expect(notes).not.toMatch(/PATCH \/v1\/appInfoLocalizations/);
+    expect(notes).not.toMatch(/keywords:/);
+  });
+
+  it('refuses a misspelled --only field rather than writing nothing quietly', () => {
+    expect(() => runPlan(['--only', 'whatsnew'])).toThrow(/does not exist/);
+  });
+
   it('reports the plan as data too, for a workflow to read', () => {
     const json = JSON.parse(runPlan(['--json']));
     expect(json.applied).toBe(false);

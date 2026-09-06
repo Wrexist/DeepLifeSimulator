@@ -31,6 +31,7 @@ import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
 import { AscClient, loadCredentials } from './lib/ascClient.mjs';
+import { RELEASED_STATES, versionStateOf } from './lib/ascRelease.mjs';
 import { renderReleasePost } from '../discord/copy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -71,11 +72,15 @@ async function fetchLiveAppStoreVersion() {
     return null;
   }
   const client = new AscClient({ credentials, dryRun: true });
+  // No sparse fieldset, and the state is read through the shared helper. This
+  // asked Apple for `appStoreVersionState` — the deprecated ENUM's name, never
+  // an attribute — and got `HTTP 400: not a valid field name` every time. It
+  // then matched only READY_FOR_SALE, which Apple renamed to
+  // READY_FOR_DISTRIBUTION, so it would have found nothing even had it parsed.
   const versions = await client.getAll(
-    `/v1/apps/${appId}/appStoreVersions?filter[platform]=IOS` +
-      '&fields[appStoreVersions]=versionString,appStoreVersionState,createdDate&limit=200',
+    `/v1/apps/${appId}/appStoreVersions?filter[platform]=IOS&limit=200`,
   );
-  const live = versions.find((v) => v.attributes?.appStoreVersionState === 'READY_FOR_SALE');
+  const live = versions.find((v) => RELEASED_STATES.has(versionStateOf(v)));
   return live?.attributes?.versionString ?? null;
 }
 

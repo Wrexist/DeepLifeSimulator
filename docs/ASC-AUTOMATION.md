@@ -108,6 +108,7 @@ Nothing was written. Re-run with --apply to perform this plan.
 | `--build 1234` | attach that `CFBundleVersion` to the version record |
 | `--submit` | submit for review. **Requires `--apply`.** |
 | `--retarget` | renumber an existing editable draft to `--version` (see below) |
+| `--only whatsNew` | write only these fields, comma-separated. See below |
 | `--json` | machine-readable plan on stdout |
 
 ## Where the copy lives
@@ -133,6 +134,23 @@ Keep the three descriptions of a release in step, in the same commit:
 | `marketing/aso/metadata.mjs` | the App Store product page |
 | `lib/config/changelog.ts` | the in-app What's New feed |
 | `WHATS_NEW.md` | the prose write-up, and why |
+
+## Sending one field, not the listing
+
+```bash
+npm run asc:release -- --only whatsNew --apply
+```
+
+Not every change is a release. Release notes ship with every build; the app
+NAME costs a review cycle and dilutes a brand; promotional text is the one
+field Apple lets you change any time, with no review at all. Sending all three
+because you wanted one of them is how an unrelated decision rides along with a
+routine push, so `--only` narrows the run and reports the rest as `NOT IN
+SCOPE`.
+
+Valid names are exactly the fields in the table at the top. A misspelling
+(`--only whatsnew`) is refused rather than quietly narrowing to nothing and
+reporting success.
 
 ## What it will not do
 
@@ -185,6 +203,31 @@ one-way door that abandons the 1.x line.
 has already finished processing.
 
 ## Notes on the API
+
+**Do not name attributes in a sparse fieldset unless you need to.** The reads
+here fetch `appStoreVersions` and `appInfos` with no `fields[…]` parameter, and
+that is deliberate. The script previously asked for
+`fields[appStoreVersions]=versionString,appStoreVersionState,createdDate` and
+Apple answered every single run with
+
+```
+HTTP 400: A parameter has an invalid value: 'appStoreVersionState' is not a valid field name
+```
+
+before the plan printed a line. `appStoreVersionState` is the name of the
+deprecated *enum type*; the attribute is `appVersionState`, with `appStoreState`
+as the deprecated one older records still carry. The reader had a `??` fallback
+across both, so the mistake was invisible in code review and in the tests —
+whose fixtures were written from the same wrong belief. The default attribute
+set costs a few hundred bytes and cannot be invalidated by a rename. The fake
+API in `__tests__/tooling/fixtures/ascFakeApi.mjs` now returns that exact 400
+for any request that names one of those fieldsets.
+
+The same rename runs through the state values: `READY_FOR_SALE` became
+`READY_FOR_DISTRIBUTION` and `PROCESSING_FOR_APP_STORE` became
+`PROCESSING_FOR_DISTRIBUTION`. `RELEASED_STATES` lists both spellings, because
+reading only the modern one under-reads the version floor — which is precisely
+how a store version number walks backwards.
 
 `whatsNew` is an attribute of `appStoreVersionLocalizations`. `appStoreVersions`
 has no `releaseNotes` field, despite plausible-looking documentation summaries

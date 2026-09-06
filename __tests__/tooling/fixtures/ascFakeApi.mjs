@@ -19,17 +19,42 @@ const json = (body) => ({
   text: async () => JSON.stringify(body),
 });
 
+/** Apple's own answer to a sparse fieldset naming an attribute it does not have. */
+const invalidField = (name) => ({
+  status: 400,
+  ok: false,
+  text: async () =>
+    JSON.stringify({
+      errors: [{ title: 'A parameter has an invalid value', detail: `'${name}' is not a valid field name` }],
+    }),
+});
+
 const VERSION_ID = 'ver-1';
 const APP_INFO_ID = 'info-editable';
 
 globalThis.fetch = async (url) => {
   const path = String(url);
 
+  // Apple renames attributes, and a sparse fieldset names them. Asking for
+  // `appStoreVersionState` — the deprecated ENUM's name, never a field — is an
+  // HTTP 400 before the plan prints a line, which is how the release script
+  // shipped and why no run of it ever reached Apple. Reproduced here so a
+  // fieldset that comes back reintroducing the class fails the suite instead.
+  if (path.includes('appStoreVersionState')) return invalidField('appStoreVersionState');
+  if (path.includes('fields[appStoreVersions]') || path.includes('fields%5BappStoreVersions%5D')) {
+    return invalidField('fields[appStoreVersions] — do not name renameable attributes');
+  }
+  if (path.includes('fields[appInfos]') || path.includes('fields%5BappInfos%5D')) {
+    return invalidField('fields[appInfos] — do not name renameable attributes');
+  }
+
   if (path.includes('/appStoreVersions?filter[platform]') || path.includes('/appStoreVersions?filter%5Bplatform%5D')) {
     return json({
       data: [
-        { id: 'ver-old', type: 'appStoreVersions', attributes: { versionString: '1.3.5', appStoreVersionState: 'READY_FOR_SALE' } },
-        { id: VERSION_ID, type: 'appStoreVersions', attributes: { versionString: '1.6.0', appStoreVersionState: 'PREPARE_FOR_SUBMISSION' } },
+        // The modern spelling on one and the deprecated one on the other, which
+        // is what a real account that has shipped over the rename returns.
+        { id: 'ver-old', type: 'appStoreVersions', attributes: { versionString: '1.3.5', appStoreState: 'READY_FOR_SALE' } },
+        { id: VERSION_ID, type: 'appStoreVersions', attributes: { versionString: '1.6.0', appVersionState: 'PREPARE_FOR_SUBMISSION' } },
       ],
       links: {},
     });
