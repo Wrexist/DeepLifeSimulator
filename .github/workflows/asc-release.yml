@@ -28,11 +28,12 @@ on:
         default: plan
         type: choice
         options:
+          - status                   # read-only: what Apple has right now
           - plan                     # read-only: show what would change
           - apply                    # create/fill the version record
           - apply-and-submit         # ...and submit for App Review
       version:
-        description: 'Store version record (blank = APPLE.storeVersion from metadata.mjs)'
+        description: 'Store version record to act on, or read in status mode (blank = APPLE.storeVersion)'
         required: false
         type: string
       build:
@@ -112,6 +113,7 @@ jobs:
           [ -n "${{ inputs.only }}" ]    && ARGS="$ARGS --only ${{ inputs.only }}"
           [ "${{ inputs.retarget }}" = "true" ] && ARGS="$ARGS --retarget"
           case "${{ inputs.mode }}" in
+            status)           ARGS="$ARGS --status" ;;
             apply)            ARGS="$ARGS --apply" ;;
             apply-and-submit) ARGS="$ARGS --apply --submit" ;;
           esac
