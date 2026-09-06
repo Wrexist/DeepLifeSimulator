@@ -2,13 +2,16 @@
 
 ## v2.13.0 - The same life every time, and the fixes you photographed
 
-**Covers:** everything since **v2.12.0** (cut 2026-08-30), up to 2026-09-04.
-**Compatibility:** every existing save loads. The save format moves from
-**v48 to v51** (v49 live-events bookkeeping, v50 the record of milestone
-toasts already shown, v51 where you met each person) - all three are
-carve-outs, so no existing save is rewritten and nothing is invented.
+**Covers:** everything since **v2.12.0** (cut 2026-08-30), up to 2026-09-06.
+**Compatibility:** every existing save loads. The save format is **v51, and
+2.13.0 does not move it** - v49 (live-events bookkeeping) shipped with the
+2.12.0 cut, and v50 (the record of milestone toasts already shown) and v51
+(where you met each person) both landed before the 2.12.0 build that is on
+TestFlight today. All three are carve-outs, so no existing save is rewritten
+and nothing is invented.
 **Draft:** assembled from the merged pull requests by the 2026-09-04 release
-audit; owner to trim before it goes to the store.
+audit; owner to trim before it goes to the store. The store block below is
+copy, not fact-checked prose - trim it, do not extend it.
 
 ---
 

@@ -1,19 +1,46 @@
-# Active — Master Program 15: release readiness (2026-09-04)
+# Active — Master Program 17: 2.13.0 release candidate validation (2026-09-06)
 
-Branch `claude/deeplife-release-audit-vcs3t8`. Report:
-`tasks/release-readiness-2026-09-04.md`. Verdict **YELLOW**: nothing found
-corrupts a save, loses a purchase or soft-locks; the list below is what can
-still stop the next update.
+RC `175efc4` on `claude/deeplife-release-blockers-7wcdpg`. Report:
+`tasks/release-candidate-validation-2026-09-06.md`. Inputs: Program 16's
+closure report, Program 15's forensic audit.
 
-## RELEASE BLOCKERS (must close before the build)
+Verdict **YELLOW — no known P0/P1 in the code; every remaining gate needs a
+device or an owner.** All gates re-proved on this SHA (762 suites / 9 629
+tests, preflight EXIT 0, iOS bundle 3 998 modules / 13.5 MB). A browser pass at
+three iPhone widths ran 24 checks with 0 failures. **No 2.13.0 binary exists** —
+the newest iOS build is run #71 (2.12.0, 2026-09-04).
+
+## BEFORE THE BUILD
+**Execution packet: `docs/RELEASE-2.13.0-EXECUTION-PACKET.md`** — branch, inputs,
+secrets, the log lines that mean success, the failure signatures, and the device
+gates. Written because the build cannot be run from the agent container (no
+macOS/Xcode/eas-cli/Apple credentials, all verified).
+- [ ] **Merge this branch to `main`.** `origin/main` is `47595f5`; all 71 iOS
+      runs were cut from `main`, so dispatching today builds WITHOUT the two
+      Program 16 fixes (restore ledger id, self-clearing wedding flag).
+- [ ] Dispatch `eas-build-local-ios.yml` with version **2.13.0**, submit on.
+- [ ] **Watch that run** — first since preflight moved inside
+      `eas env:exec production`; a missing RC or HMAC key now FAILS by name.
+- [x] `WHATS_NEW.md` v2.13.0: the FACTUAL line was wrong and is corrected — it
+      claimed the save format "moves from v48 to v51". It does not move at all:
+      v49 shipped with the 2.12.0 cut (`a3796e7`), and v50/v51 both landed
+      before the 2.12.0 binary now on TestFlight (`d845b9e`, run #71). Marketing
+      copy untouched.
+- [ ] **OWNER: trim the store block** in `WHATS_NEW.md` before submission. Eight
+      bullets is long for a What's New; the facts around it are now correct.
+
+## RELEASE BLOCKERS — closed by Programs 15/16, re-proved on 175efc4
 - [x] `npm run preflight` was red on main (721 lint warnings vs 719) — fixed at
-      the source, ceiling lowered to 716.
+      the source, ceiling lowered to 716. **Re-measured on HEAD: 0 errors, 716/716.**
 - [x] 2.12.0 is already on TestFlight (run #71) — `package.json` bumped to 2.13.0.
+      **Still valid: the Actions API shows run #71 (2026-09-04) is the newest iOS
+      build, so 2.13.0 is unshipped and needs no second bump.**
 - [x] Death screen "N yrs lived" read the absolute counter — `weeksInThisLife`.
 - [x] Spark Premium / Verified Pro cancel confirm raised from a `BaseModal`
       with no `AlertHost` (dead tap on iOS) — host inside `BaseModal`, guard extended.
 - [x] Seasonal roll keyed on the week alone — `lifeSalt` folded in.
-- [ ] Merge this branch to `main` and cut the build from the merge commit.
+- [x] Merge the audit branch to `main` — done; `origin/main == 47595f5`, which is
+      this branch's base. The build is cut from here.
 - [x] HMAC key confirmed present as a GitHub secret and passed to both the
       preflight and the build step (iOS and Android). Blocker closed.
 - [x] RevenueCat IS set up — the keys live in the EAS production env store, not
@@ -24,19 +51,46 @@ still stop the next update.
       (`eas env:exec production "…" --non-interactive`, with an Expo/EAS login
       step ahead of it) on both local-build workflows, so the RevenueCat and
       save-signing keys are actually VERIFIED instead of warned about.
-- [ ] **Watch the first workflow run after that change** in the Actions tab.
-      Preflight can now fail loudly where it used to warn, which is the point,
-      but it is a new failure mode (report §18, HUMAN).
+- [x] **Native restore recorded the REAL store transaction id for a MIXED
+      consumable** (Mega Pack: 40 000 gems + permanent entitlements). The
+      listener dedups store REDELIVERY on that id and finishes the transaction,
+      so a Restore tap after a failed grant closed the retry and the gems were
+      gone — and tapping Restore is exactly what the failure message tells the
+      player to do. Fixed with `nativeRestoreLedgerId`; the RevenueCat path
+      (the shipping one) was already correct, so this hardens the fallback.
+- [x] **`WeddingPopup` could raise a flag nothing could lower** — it returns
+      `null` with no partner name and is the only thing that clears
+      `showWeddingPopup`, which suppresses every interrupting surface in the
+      game while set. The renderer that declines now releases the flag.
+- [ ] **Watch the first workflow run after the `env:exec` change** in the Actions
+      tab. Preflight can now fail loudly where it used to warn, which is the
+      point, but it is a new failure mode (report §18, HUMAN). **Confirmed still
+      pending: run #71 predates the change, so no run has exercised it.**
 - [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
+- [ ] Program 17 confirmed none of these can be done from a Linux container:
+      no macOS, no Xcode, no eas-cli, no Apple credentials. They are the
+      remaining gate. What Program 17 DID prove on a real rendered build:
+      startup (73 ms to first screen, 0 startup failures), cold-launch save
+      continuity, death → "N wks lived" correct → Start New Life, revive,
+      0 px overflow at 430/390/360, rapid-tap and modal-churn safety,
+      season/month/holiday agreement in both colour schemes.
 - [ ] Sandbox: buy a gem pack, buy the Revival Pack, subscribe, restore, relaunch mid-purchase (iOS + Play).
 - [ ] RevenueCat dashboard: entitlement ids `ads_removed` / `premium`, intro offer on `deeplife_premium_*`.
 - [ ] iOS: open Spark → Upgrade → Cancel subscription and Pulse → Verified Pro → Cancel; the confirm must appear.
 - [ ] iOS: death → Start New Life, death → Revival Pack → return; wedding popup Continue.
 - [ ] VoiceOver pass on Home / Apps / Bank Pro; largest Dynamic Type on the death screen.
 - [x] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` confirmed present and passed to the build; the preflight warning was local-visibility only.
-- [ ] Decide `EXPO_PUBLIC_ENABLE_ANALYTICS` for production (the self-hosted queue is off without it).
+- [x] **`EXPO_PUBLIC_ENABLE_ANALYTICS` — RESOLVED, leave it UNSET.** Not an open
+      decision: preflight §9b hard-FAILS on `ENABLE_ANALYTICS=true` with no
+      `EXPO_PUBLIC_ANALYTICS_URL` ("strictly worse than disabled, because it
+      looks instrumented"), and no analytics URL is configured anywhere in the
+      repo. Production sets `EXPO_PUBLIC_ENABLE_FIREBASE=true`, so §9b passes
+      and `app/_layout.tsx:1150` (`if (enableTelemetry || enableFirebase)`)
+      inits analytics and sets consent, delivering the whole product funnel via
+      Firebase. Only the self-hosted HTTP queue stays off, deliberately.
+      Turning the flag on today would fail the build.
 
 ## PLAYER BUG REPORTS (2026-09-05) — see tasks/player-bug-triage-2026-09-05.md
 - [x] Life Skills modal was unclosable on iOS: the header pushed its own close X
@@ -55,16 +109,52 @@ still stop the next update.
       binary 2.5.8, and several were already fixed in builds they have not seen.
 
 ## POST-RELEASE
-- [ ] IAP: persist a pending-consumable-grant record on the RC failure branch; synthetic restore id for MIXED consumables (`GEMS_MEGA`).
-- [ ] Save: stash the fresh-start carry-over AFTER `deleteSaveSlot` succeeds; null-guard the v11/v13/v14 loops.
+- [ ] The `RUN_*` determinism soaks exit 1 although every assertion passes: the
+      soak leaves an in-flight `SaveQueue` promise and its dynamic `import()`
+      throws once Jest tears the environment down (`utils/saveQueue.ts:305,423`).
+      Pre-existing and test-only. Draining the queue needs a production API
+      that has no release reason, so it was left; the assertions are the
+      signal, the exit code is not (Program 17 D1).
+- [ ] Confirm on device whether the 8 interactive elements measuring under
+      44 pt by DOM rect are really under-sized — `hitSlop` is invisible to that
+      measurement (Program 17 D2).
+- [ ] IAP: persist a pending-consumable-grant record on the RC failure branch, so
+      a charged pack whose grant fails has an in-app retry. **(The synthetic
+      restore id for MIXED consumables is done — Program 16 §3.1.)**
+- [ ] Save: null-guard the v11/v13/v14 loops. **Re-proved (Program 16 §4.2): it
+      does NOT throw out of `runMigrations` and the save stays loadable — the
+      chain halts at the last good version and `hydrateLoadedState` repairs. What
+      the original finding missed is that it never recovers either: the hydrated
+      state keeps `version: 10`, repair does not strip the `null`, and every
+      later load fails the same migration identically. Such a save plays on
+      permanently un-migrated. Still no known producer of a `null` element.**
+- [ ] Save: the fresh-start carry-over ordering. **Do NOT simply move the stash
+      after `deleteSaveSlot` (Program 16 §4.1): that converts "a soft currency
+      could be applied twice" into "a paid entitlement is destroyed" at the same
+      single await. If it is fixed, it needs a two-phase record — write pending,
+      delete, mark committed — that a later new-life build reconciles.**
 - [ ] Live ops: honour a disable-only payload from cache; require a UTC offset in `parseInstant`; document "never change `startsAt` on a correction"; author the Q4 compiled-in on-ramp.
 - [ ] Events: add the interruption-budget / arc-completion decomposition to `eventTelemetry.sim`; consider a pity floor (one seed answered 6 events in 100 weeks).
-- [ ] Modal: clear `showWeddingPopup` in the `!weddingPartnerName` branch; make `AlertHost` defer a queued handler that tears down its own Modal.
+- [x] Modal: clear `showWeddingPopup` in the `!weddingPartnerName` branch — done
+      (Program 16 §3.2).
+- [ ] Modal: make `AlertHost` defer a queued handler that tears down its own
+      Modal. **Analysed and deliberately left (Program 16 §4.3): the obvious fix
+      (a pending-action QUEUE, always deferred) would run handler #1 up to 350 ms
+      late — potentially after the player has answered alert #2 — reordering two
+      real decisions to close a hazard with no known caller.**
 - [ ] Bank Pro: "Week 104" chips print the absolute counter.
 - [ ] `docs/STORE_LISTING.md` "monthly gem drop" → daily, or mark superseded.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
+- [x] **D3 live ops — ACCEPTED, no change made.** Measured on 2026-09-06: walking
+      one day at a time from today to the first remote event (2026-11-02) there
+      are **zero days with no active event**. `welcome_back_footing` runs to
+      2027-08-01, `first_rungs` to 2026-10-26, `autumn_reserve` opens 2026-09-07
+      and `autumn_foundations` 2026-10-12 — the compiled-in floor covers the
+      whole gap continuously, and remote MERGES with it rather than replacing
+      it. The card is never empty. No remote event was authored: doing so only
+      to make the calendar look busy is what the program forbids.
 - [ ] PAC spending is HALF as efficient as spending cash directly ($10k per
       approval point vs $5k), while its own comments promise 1.5x. Not visible
       to the player, so nothing on screen lies — but a player who banks money

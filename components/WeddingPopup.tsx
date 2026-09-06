@@ -60,6 +60,34 @@ export default function WeddingPopup() {
     };
   }, [showWeddingPopup, fadeAnim, scaleAnim, slideAnim, heartPulseAnim, sparkleAnim, confettiAnim]);
 
+  /**
+   * A raised flag must always have something that can lower it.
+   *
+   * This component is the ONLY writer that clears `showWeddingPopup`, and it
+   * declines to render whenever `weddingPartnerName` is missing - so that
+   * combination is a flag nobody can ever turn off. Nothing draws, and the
+   * flag keeps suppressing every interrupting surface in the game for the
+   * rest of the life: the life-moment and weekly-event modals
+   * (`app/(tabs)/_layout.tsx`), the home feed's popups (`home.tsx`
+   * `blockingModalUp`), the ad orb and the premium promo, plus the
+   * interstitial gate in `TopStatsBar`. The tick writes the flag and the name
+   * in one object, so the pairing holds today; what makes this worth the four
+   * lines is that the failure is silent and permanent, and the renderer that
+   * declines is the only place that can release what it was holding.
+   *
+   * Re-checked against `prev` inside the updater (CLAUDE.md 4.4) so a
+   * concurrent write that supplies the name wins instead of being clobbered.
+   */
+  const unrenderable = showWeddingPopup && !weddingPartnerName;
+  useEffect(() => {
+    if (!unrenderable) return;
+    setGameState((prev) =>
+      prev.showWeddingPopup && !prev.weddingPartnerName
+        ? { ...prev, showWeddingPopup: false }
+        : prev,
+    );
+  }, [unrenderable, setGameState]);
+
   const closePopup = () => {
     // Animate out
     Animated.parallel([
