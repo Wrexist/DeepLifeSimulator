@@ -229,23 +229,47 @@ eas build --platform ios --profile production
 
 ---
 
-## Part 5 · App Store Connect — metadata (10 min)
+## Part 5 · App Store Connect — metadata (3 min)
 
-Print the exact copy. **This command is the authority** — every character count
-is measured as it prints, so nothing here can drift out of date:
+**Nothing in this part is typed into App Store Connect.** The listing lives in
+`marketing/aso/metadata.mjs`, is validated by `npm run check:aso`, and is
+pushed:
 
 ```bash
-npm run aso
+npm run asc:status          # what Apple has now, and what would change
+npm run asc:release         # the full plan — writes NOTHING
+npm run asc:release:apply   # perform it
 ```
 
-Leave that terminal open and copy from it. The reasoning behind each field is in
-[`../marketing/aso/README.md`](../marketing/aso/README.md).
+Or, with the API key already in place: GitHub → **Actions** → **App Store
+Connect — release** → mode `plan`, read the summary, then re-run with `apply`.
 
-Go to **App Store Connect → your app → the new version**.
+One pass covers, for **en-US and es-MX**: the version record, What's New, the
+description, the keyword field, the promotional text, the support and marketing
+URLs, and — on the app record, which is a different Apple resource — the name,
+subtitle and privacy policy URL.
+
+- [ ] `npm run asc:release` and read the plan. Every write it would perform is
+      listed; a field whose value already matches is reported `UNCHANGED` and
+      not written.
+- [ ] `npm run asc:release:apply`.
+
+> If the plan refuses with *"an editable version record already exists"*, that
+> is App Store Connect's one-editable-version rule, not a bug. Either release
+> against the number it names (`--version 1.5.0`) or renumber that draft
+> (`--retarget`), which still has to clear the climb rule.
+
+`npm run aso` still prints the paste-ready block with live character counts. It
+is now a way to eyeball a field, not the procedure.
+
+Everything below is the reasoning behind the copy, and the one decision in this
+part. Change any of it by editing `marketing/aso/metadata.mjs` and re-running
+the push — never in the console, or the repo and the store disagree and nothing
+tells you which is live.
 
 ### 5a · Name 🔴 — this is a decision
 
-- [ ] Change the app name to:
+The pushed name is:
 
 ```
 Deep Life Simulator: Tycoon
@@ -257,18 +281,17 @@ in the listing were empty.
 
 **The trade-off, stated plainly:** this needs a review cycle and slightly dilutes
 a brand that already ranks for "deep life". It is the only item in this runbook
-that feels irreversible. If you would rather not, skip it — everything else still
-works. Then edit `marketing/aso/metadata.mjs`: set `name` back to
+that feels irreversible. If you would rather not, edit
+`marketing/aso/metadata.mjs` **before** the push: set `name` back to
 `Deep Life Simulator`, move `tycoon` into the `keywords` array and remove
-`money` to stay under 100. `npm run check:aso` will confirm it still fits.
+`money` to stay under 100. `npm run check:aso` will confirm it still fits, and
+everything else in this part still works.
 
 > The on-device app name stays `DeepLife Simulator` (`app.config.js`). That is
 > deliberate — changing it would relabel the home-screen icon, which is a
 > product decision, not an ASO one. Apple does not require the two to match.
 
-### 5b · Subtitle 🔴
-
-- [ ] Set the subtitle to:
+### 5b · Subtitle 🟡
 
 ```
 Careers, crime, crypto, heirs
@@ -279,19 +302,12 @@ to read well, not a tagline slot. The previous one spent eight of its thirty
 characters re-indexing "life" and "sim", both already in the app name and
 therefore already indexed.
 
-### 5c · Keywords 🔴
+### 5c · Keywords 🟡
 
-- [ ] Copy the `[Apple · Keywords]` block from `npm run aso`, exactly, including
-      the lack of spaces after the commas.
-
-Read from the generated block rather than pasted here, because this field
-changes whenever a term is re-priced and a hand-copied duplicate goes stale
-silently — which it already did once, between the first version of this runbook
-and the popularity data that replaced five of its terms.
-
-A space after a comma costs a character and buys nothing. No term repeats the
-name or subtitle — Apple matches **across** those fields, so a second copy of a
-word is a slot thrown away.
+The field is built from the `keywords` array and joined with no spaces after the
+commas — a space costs a character and buys nothing. No term repeats the name or
+subtitle: Apple matches **across** those fields, so a second copy of a word is a
+slot thrown away, and `check:aso` fails on one.
 
 > 🟡 The field deliberately runs **under** 100 characters. The unspent room is
 > there because every term in it now has a measured popularity score, and
@@ -305,14 +321,11 @@ word is a slot thrown away.
 
 ### 5d · Promotional text 🟡
 
-- [ ] Copy the `[Apple · Promotional text]` block from `npm run aso`.
-
-This is the **only field that updates without a review cycle**. Use it later for
-seasonal hooks without shipping a build.
+This is the **only field that updates without a review cycle**. Change it in
+`metadata.mjs` and run `npm run asc:release:apply` on its own for a seasonal
+hook, with no build.
 
 ### 5e · Description 🟡
-
-- [ ] Copy the `[Apple · Description]` block from `npm run aso`.
 
 Apple does **not** index this field — it is pure conversion. Only the first three
 lines show before the "more" tap, which is why the hook is front-loaded.
@@ -324,6 +337,16 @@ lines show before the "more" tap, which is why the hook is front-loaded.
 > back. Do not re-add them by hand — a player who installs on a promise the app
 > breaks leaves a one-star review, and rating feeds the ranking this whole
 > section exists to raise.
+
+### 5f · The three links 🟡
+
+Support, marketing and privacy are `APPLE.urls` in `metadata.mjs` and go out
+with the same push. The privacy link is pinned to `PRIVACY_POLICY_URL` in
+`lib/config/appConfig.ts` — the page the app itself opens from Settings — and
+`check:aso` fails if the two ever differ, because two spellings of the same
+promise is how one of them goes stale. A link into this repo's own
+`support-site/` is checked against the file tree too, so a deleted page fails
+the audit rather than the listing.
 
 ---
 
@@ -367,29 +390,20 @@ is in [`store-screenshot-design.md`](./store-screenshot-design.md).
 
 ---
 
-## Part 7 · Add the Spanish (Mexico) localisation 🟡 (10 min)
+## Part 7 · The Spanish (Mexico) localisation 🟡 (0 min — already pushed)
 
-**This is the single highest-leverage item in the runbook.** The US storefront
-indexes an app's es-MX metadata *alongside* its en-US metadata, so this is
-effectively a second 100-character keyword field aimed at the same US searchers —
-while also serving Spanish-speaking users properly.
+**This is the single highest-leverage item in the runbook**, and Part 5 already
+did it: `asc-release` creates and fills es-MX alongside en-US, subtitle,
+keywords, description, promotional text and What's New together. There is
+nothing to add in the language dropdown.
 
-In App Store Connect, **the version → the language dropdown → add Spanish (Mexico)**.
+Why it is worth having: the US storefront indexes an app's es-MX metadata
+*alongside* its en-US metadata, so this is effectively a second 100-character
+keyword field aimed at the same US searchers — while also serving
+Spanish-speaking users properly.
 
-- [ ] Subtitle:
-
-```
-Carrera, crimen, cripto, lujo
-```
-
-- [ ] Keywords:
-
-```
-simulador,vida,millonario,riqueza,imperio,dinero,negocio,bolsa,citas,familia,herencia,magnate,carcel
-```
-
-- [ ] Description and promotional text: copy the `es-MX` blocks from
-      `npm run aso`.
+- [ ] Confirm the plan in Part 5 listed `es-MX` (as `CREATE` the first time,
+      `UNCHANGED` on later runs).
 
 > 🟡 Two honest caveats. Apple does not document the cross-locale indexing, so
 > treat it as well-established practice rather than a guarantee — confirm it with
@@ -398,9 +412,11 @@ simulador,vida,millonario,riqueza,imperio,dinero,negocio,bolsa,citas,familia,her
 > experience for everyone it reaches, which is why the description is translated
 > too and `check:aso` fails if it is missing.
 
-**English (U.K.) is deliberately skipped.** UK, Australian, Canadian and Irish
-storefronts fall back to en-US when it is absent, so unlike es-MX it adds nothing
-unless the terms genuinely differ for those markets.
+**English (U.K.) is deliberately skipped**, and the script will not create it.
+UK, Australian, Canadian and Irish storefronts fall back to en-US when it is
+absent, so unlike es-MX it adds nothing unless the terms genuinely differ for
+those markets. It is `shipped: false` in the metadata, which is the one place
+that decision lives.
 
 ---
 
@@ -409,6 +425,12 @@ unless the terms genuinely differ for those markets.
 Apple **indexes IAP display names**. Ours currently say "100 Gems" and "Starter
 Pack" — no search value at all. Each rename below still accurately describes what
 is sold, which Apple requires.
+
+**This is the one part of the listing that is still typed by hand.** IAP display
+names are product records rather than listing copy — a rename changes what
+appears on a live purchase sheet — so they are deliberately outside what
+`asc-release` writes. `APPLE.iapRenames` in `metadata.mjs` is the list; length
+is audited, the edit is yours.
 
 In **App Store Connect → Features → In-App Purchases**, edit the *display name*:
 

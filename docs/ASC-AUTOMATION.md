@@ -1,10 +1,33 @@
 # App Store Connect automation
 
-Creates the App Store version record for a release and fills its **What's New**
-from the repo, so the store copy is written once and sent to Apple verbatim.
+Writes the **whole App Store product page** from the repo — name, subtitle,
+keyword field, description, promotional text, What's New and the support /
+marketing / privacy links — for every locale the repo ships. The copy is
+written once, validated by `npm run check:aso`, and sent to Apple verbatim.
 
-Replaces the step in `docs/RELEASE_RUNBOOK.md` where release notes were retyped
-into the App Store Connect UI, once per locale.
+Replaces the part of `docs/RELEASE_RUNBOOK.md` where the whole listing was
+printed by `npm run aso` and typed into the App Store Connect UI, field by
+field, once per locale.
+
+## What lands where
+
+A listing is split across two App Store Connect resources, and the split is not
+where you would guess. Anything that can differ per RELEASE belongs to the
+version; anything that belongs to the APP does not.
+
+| Field | Resource | Notes |
+|---|---|---|
+| Description · Keywords · Promotional text · What's New | `appStoreVersionLocalizations` | per version, per locale |
+| Support URL · Marketing URL | `appStoreVersionLocalizations` | per version — Apple requires support |
+| **Name · Subtitle · Privacy policy URL** | `appInfoLocalizations` | per APP, on its *editable* record |
+
+Getting that split wrong is a 4xx from Apple rather than a wrong value anyone
+could see, which is why the resource each field lands on is pinned by
+`__tests__/tooling/ascReleaseCli.test.ts` against a fake API.
+
+Not written by this script: **IAP display names** (product records, not listing
+copy — a rename changes a live purchase sheet), screenshots, pricing, age
+ratings, and anything else in `metadata.mjs` that is not in the table above.
 
 ---
 
@@ -33,32 +56,46 @@ node scripts/next-build-number.mjs --selftest
 ## Use
 
 ```bash
-npm run asc:status          # what Apple has right now — read-only
+npm run asc:status          # what Apple has right now, and what would change — read-only
 npm run asc:release         # plan the release — writes NOTHING
 npm run asc:release:apply   # perform the plan
 ```
 
-A normal release is: read the plan, then apply it.
+A normal release is: read the plan, then apply it. `asc:status` answers the
+question the runbook used to answer by opening a browser — it reads the live
+listing and diffs it against the repo without writing anything.
 
 ```
 $ npm run asc:release
 
-App Store Connect · app 6749675615 · version record 1.5.0 (IOS)
+App Store Connect · app 6749675615 · version record 1.6.0 (IOS)
 Mode: PLAN — nothing will be written
+Locales: en-US, es-MX
 
-Existing versions (1)
+Existing versions (2)
   1.3.5      READY_FOR_SALE
+  1.6.0      PREPARE_FOR_SUBMISSION
 
-CREATE version record 1.5.0 (beats released 1.3.5)
+REUSE  version record 1.6.0 (state PREPARE_FOR_SUBMISSION)
 
-What's New
-  CREATE    en-US  New faces, real conversations, and nothing left locked.
-  CREATE    es-MX  Caras nuevas, conversaciones de verdad y nada que te deje fuera.
+Description · keywords · promo · What's New · URLs (appStoreVersionLocalizations)
+  UPDATE    en-US
+      keywords: old,keywords → mafia,prison,stock,invest,empire,dating,…
+      whatsNew: 11 chars → 2075 chars · The same life every time, and the fixes…
+      supportUrl: https://old.example/support → https://wrexist.github.io/…
+  CREATE    es-MX
+      description: unset → 1715 chars · Toda vida empieza igual: sin dinero,…
 
-Planned writes (3)
-  POST /v1/appStoreVersions
+Name · subtitle · privacy URL (appInfoLocalizations)
+  UPDATE    en-US
+      name: Deep Life Simulator → Deep Life Simulator: Tycoon
+      subtitle: Rags to riches money life sim → Careers, crime, crypto, heirs
+
+Planned writes (4)
+  PATCH /v1/appStoreVersionLocalizations/vloc-en
   POST /v1/appStoreVersionLocalizations
-  POST /v1/appStoreVersionLocalizations
+  PATCH /v1/appInfoLocalizations/iloc-en
+  POST /v1/appInfoLocalizations
 
 Nothing was written. Re-run with --apply to perform this plan.
 ```
@@ -70,14 +107,21 @@ Nothing was written. Re-run with --apply to perform this plan.
 | `--version 1.6.0` | override the record to create (default: `APPLE.storeVersion`) |
 | `--build 1234` | attach that `CFBundleVersion` to the version record |
 | `--submit` | submit for review. **Requires `--apply`.** |
+| `--retarget` | renumber an existing editable draft to `--version` (see below) |
 | `--json` | machine-readable plan on stdout |
 
 ## Where the copy lives
 
-`marketing/aso/metadata.mjs` — `APPLE.storeVersion`, `APPLE.whatsNew`, and
-`APPLE.localized['es-MX'].whatsNew`. `npm run check:aso` validates them (4000
-chars, and a shipped locale missing its release notes is an error, since its
-store page would otherwise show English notes under translated copy).
+`marketing/aso/metadata.mjs`, all of it — `storeVersion`, `name`, `subtitle`,
+`keywords`, `description`, `promotionalText`, `whatsNew`, `urls`, and the same
+fields again under `localized['es-MX']`. `npm run check:aso` validates every
+character count, the cross-field keyword rules, the URLs (https, present, and
+pinned to the app's own `PRIVACY_POLICY_URL`), and refuses a shipped locale
+missing its release notes, since its store page would otherwise show English
+notes under translated copy.
+
+`scripts/lib/ascRelease.mjs`'s `desiredListing()` is the one function that turns
+that file into per-locale attributes. The CLI never decides what the copy is.
 
 Locales marked `shipped: false` (en-GB) are never created — those storefronts
 already fall back to en-US.
@@ -107,7 +151,26 @@ and `INVALID_BINARY` are editable. Anything else stops the run.
 
 **It will not create a version that does not climb.** Store version numbers can
 only ever increase. If the target does not beat the highest RELEASED version, it
-refuses and names the number it found.
+refuses and names the number it found. `--retarget` is a convenience, not an
+exemption: renumbering a draft is checked against the same rule.
+
+**It will not create a SECOND editable version.** App Store Connect holds one at
+a time, so asking for 1.6.0 while a 1.5.0 draft is open is a 409 from Apple and
+a trip to the UI. The plan refuses first and names both ways out: release
+against the number it found (`--version 1.5.0`), or renumber that draft
+(`--retarget`).
+
+**It will not write to a live app record.** Name and subtitle can only be
+changed on the *editable* `appInfo`. If none exists — no version is being
+prepared — it says so rather than picking the live one.
+
+**It will not blank a field it has no opinion about.** A field absent from
+`metadata.mjs` is omitted from the payload, never sent as an empty string,
+which to Apple is a real value that would erase whatever is there.
+
+**It will not write a field that already matches.** A locale whose stored
+attributes equal the intended ones produces no request at all, so a second run
+is a genuine no-op.
 
 **It will not delete a locale it does not manage.** A localization present on
 the version but absent from `metadata.mjs` is reported and left alone.

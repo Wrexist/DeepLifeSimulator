@@ -10,33 +10,24 @@
 TestFlight today. All three are carve-outs, so no existing save is rewritten
 and nothing is invented.
 **Draft:** assembled from the merged pull requests by the 2026-09-04 release
-audit; owner to trim before it goes to the store. The store block below is
-copy, not fact-checked prose - trim it, do not extend it.
+audit. The store copy derived from it now lives in `marketing/aso/metadata.mjs`
+and is trimmed to eight bullets plus a catch-up section; trim it there, do not
+extend it.
 
 ---
 
-### Store "What's New" (copy-paste ready)
+### Store "What's New"
 
-```text
-The same life every time, and the fixes you photographed.
+**It lives in `marketing/aso/metadata.mjs` (`APPLE.whatsNew`), and it is pushed
+rather than pasted**: `npm run asc:release` plans it, `npm run
+asc:release:apply` sends it, in en-US and es-MX together. There is no copy of
+it here on purpose: two copies of the same release notes is one copy that goes
+stale, and the one Apple reads should be the one the audit measures.
 
-- A calendar that agrees with itself. February is winter again, every
-  holiday lands in its real month, and the season card is readable in dark
-  mode.
-- Bank Pro no longer opens on an empty box, the Apps grid lost its dead
-  space, and a meal advertises exactly what it restores.
-- One toast per message. Tapping Buy three times no longer stacks three
-  identical banners over your stats.
-- Meet people without a dating app. The Contacts app introduces someone
-  new, and every relationship remembers where it began.
-- A partner is a household, not a fortune: their income is shared the way a
-  real one is, per week, not per year.
-- Happier lives feel different from lonelier ones: happiness gains taper as
-  you approach the top, so a full social life and an empty one no longer
-  read the same.
-- The milestone pop-ups that replayed on every launch are gone for good.
-- Live events: a fresh calendar, with rewards that cannot be claimed twice.
-```
+The store copy is deliberately not identical to the prose below. It leads with
+this release, then carries a short "if it has been a while" section, because the
+last store record (1.5.0, the avatar/Spark work) may never have reached the
+public store, and `npm run asc:status` is what settles that.
 
 ---
 

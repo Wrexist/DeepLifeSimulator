@@ -143,59 +143,256 @@ describe('planning the version record', () => {
   it('refuses a malformed version string before it reaches Apple', () => {
     expect(R.planVersionRecord({ versions: [], versionString: '2.9.0-rc1' }).action).toBe('refuse');
   });
+
+  it('REFUSES to create a second record while a draft is open, and names the way out', () => {
+    // App Store Connect holds one editable version at a time, so this create
+    // is a 409 from Apple and a trip to the UI. Refusing with the number it
+    // found is the difference between a plan and a failed write.
+    const plan = R.planVersionRecord({
+      versions: [version('1.3.5', 'READY_FOR_SALE'), version('1.5.0', 'PREPARE_FOR_SUBMISSION')],
+      versionString: '1.6.0',
+    });
+    expect(plan.action).toBe('refuse');
+    expect(plan.reason).toMatch(/--version 1\.5\.0/);
+    expect(plan.reason).toMatch(/--retarget/);
+  });
+
+  it('renumbers that draft when asked explicitly', () => {
+    const draft = version('1.5.0', 'PREPARE_FOR_SUBMISSION');
+    const plan = R.planVersionRecord({
+      versions: [version('1.3.5', 'READY_FOR_SALE'), draft],
+      versionString: '1.6.0',
+      retarget: true,
+    });
+    expect(plan).toMatchObject({ action: 'retarget', from: '1.5.0', to: '1.6.0' });
+    expect(plan.version).toBe(draft);
+  });
+
+  it('still refuses a retarget that walks the number backwards', () => {
+    // --retarget is a convenience, not an exemption: the climb rule is the one
+    // thing about a store version number that cannot be undone.
+    const plan = R.planVersionRecord({
+      versions: [version('1.5.0', 'READY_FOR_SALE'), version('1.6.0', 'PREPARE_FOR_SUBMISSION')],
+      versionString: '1.4.0',
+      retarget: true,
+    });
+    expect(plan.action).toBe('refuse');
+    expect(plan.reason).toMatch(/does not beat the highest released version/);
+  });
 });
 
-describe('planning the What\'s New writes', () => {
-  const loc = (locale: string, whatsNew: string, id = locale) => ({
+describe('the metadata this repo actually ships', () => {
+  // The unit tests above run on fixtures. This one runs on the real file, so
+  // a listing that would be written half-empty fails here rather than at Apple.
+  it('produces every field Apple needs, for every shipped locale', async () => {
+    const { APPLE } = await import('../../marketing/aso/metadata.mjs');
+    const { versionLocalizations, appInfoLocalizations } = R.desiredListing(APPLE);
+
+    // Reported as a list so a failure names every gap at once. A locale that
+    // reaches Apple missing a description is a store page with a blank on it.
+    const missing: string[] = [];
+    for (const locale of Object.keys(versionLocalizations)) {
+      for (const field of ['description', 'keywords', 'promotionalText', 'whatsNew', 'supportUrl']) {
+        if (!versionLocalizations[locale][field]) missing.push(`${locale}.${field}`);
+      }
+      for (const field of ['name', 'subtitle', 'privacyPolicyUrl']) {
+        if (!appInfoLocalizations[locale][field]) missing.push(`${locale}.${field}`);
+      }
+    }
+    expect(missing).toEqual([]);
+    expect(Object.keys(versionLocalizations).length).toBeGreaterThan(0);
+  });
+
+  it('does not ship the reference-only en-GB locale', async () => {
+    // Present in the metadata for the reasoning, never created at Apple.
+    const { APPLE } = await import('../../marketing/aso/metadata.mjs');
+    expect(APPLE.localized['en-GB'].shipped).toBe(false);
+    expect(Object.keys(R.desiredListing(APPLE).versionLocalizations)).not.toContain('en-GB');
+  });
+});
+
+describe('deriving the listing from the metadata', () => {
+  const APPLE = {
+    name: 'Deep Life Simulator: Tycoon',
+    subtitle: 'Careers, crime, crypto, heirs',
+    keywords: ['mafia', 'prison'],
+    description: 'English description',
+    promotionalText: 'English promo',
+    whatsNew: 'English notes',
+    urls: {
+      support: 'https://example.test/support.html',
+      marketing: 'https://example.test/',
+      privacyPolicy: 'https://example.test/privacy.html',
+    },
+    localized: {
+      'es-MX': {
+        subtitle: 'Carrera, crimen, cripto, lujo',
+        keywords: ['simulador', 'vida'],
+        description: 'Descripción',
+        promotionalText: 'Promo',
+        whatsNew: 'Novedades',
+      },
+      'en-GB': { shipped: false, subtitle: 'Careers, crime, crypto, heirs', keywords: ['mafia'] },
+    },
+  };
+
+  it('splits the listing across the two resources Apple actually uses', () => {
+    // The split is not intuitive: the support and marketing URLs are per
+    // VERSION, the privacy URL is per APP, and writing either to the wrong
+    // resource is a 4xx rather than a wrong value you could spot.
+    const { versionLocalizations, appInfoLocalizations } = R.desiredListing(APPLE);
+
+    expect(Object.keys(versionLocalizations['en-US']).sort()).toEqual([
+      'description', 'keywords', 'marketingUrl', 'promotionalText', 'supportUrl', 'whatsNew',
+    ]);
+    expect(Object.keys(appInfoLocalizations['en-US']).sort()).toEqual([
+      'name', 'privacyPolicyUrl', 'subtitle',
+    ]);
+  });
+
+  it('joins the keyword array into the single field Apple stores', () => {
+    expect(R.desiredListing(APPLE).versionLocalizations['en-US'].keywords).toBe('mafia,prison');
+    expect(R.keywordField(['a', 'b'])).toBe('a,b');
+  });
+
+  it('carries the untranslated app name into every locale, because Apple requires one', () => {
+    // The brand is deliberately not translated, but an appInfo localization
+    // cannot be created without a name, so es-MX inherits en-US's.
+    const { appInfoLocalizations } = R.desiredListing(APPLE);
+    expect(appInfoLocalizations['es-MX'].name).toBe('Deep Life Simulator: Tycoon');
+    expect(appInfoLocalizations['es-MX'].subtitle).toBe('Carrera, crimen, cripto, lujo');
+  });
+
+  it('never creates a locale marked shipped: false', () => {
+    // en-GB storefronts fall back to en-US already; creating it would produce
+    // a second identical listing to maintain forever.
+    const listing = R.desiredListing(APPLE);
+    expect(Object.keys(listing.versionLocalizations)).toEqual(['en-US', 'es-MX']);
+    expect(Object.keys(listing.appInfoLocalizations)).toEqual(['en-US', 'es-MX']);
+  });
+
+  it('omits a field the metadata does not declare rather than blanking it', () => {
+    // An empty string is a real value to Apple. Sending one for a field the
+    // repo has no opinion about would erase whatever is in the UI today.
+    const bare = R.desiredListing({ name: 'X', urls: {} });
+    expect(bare.versionLocalizations['en-US']).toEqual({});
+    expect(bare.appInfoLocalizations['en-US']).toEqual({ name: 'X' });
+  });
+});
+
+describe('planning the localization writes', () => {
+  const loc = (locale: string, attributes: Record<string, string>, id = locale) => ({
     id,
-    attributes: { locale, whatsNew },
+    attributes: { locale, ...attributes },
   });
 
   it('creates a locale that does not exist yet', () => {
     const ops = R.planLocalizations({
       existingLocalizations: [],
-      whatsNewByLocale: { 'en-US': 'Fresh notes' },
+      desiredByLocale: { 'en-US': { whatsNew: 'Fresh notes' } },
     });
-    expect(ops).toEqual([{ op: 'create', locale: 'en-US', whatsNew: 'Fresh notes' }]);
+    expect(ops[0]).toMatchObject({ op: 'create', locale: 'en-US', attributes: { whatsNew: 'Fresh notes' } });
   });
 
-  it('updates a locale whose text differs', () => {
+  it('updates ONLY the fields that differ', () => {
+    // A PATCH carrying an unchanged description would re-stamp a field nobody
+    // edited, and buries the change that matters in a plan nobody reads twice.
     const ops = R.planLocalizations({
-      existingLocalizations: [loc('en-US', 'Old notes')],
-      whatsNewByLocale: { 'en-US': 'New notes' },
+      existingLocalizations: [loc('en-US', { whatsNew: 'Old notes', description: 'Same' })],
+      desiredByLocale: { 'en-US': { whatsNew: 'New notes', description: 'Same' } },
     });
-    expect(ops[0]).toMatchObject({ op: 'update', locale: 'en-US', id: 'en-US', whatsNew: 'New notes' });
+    expect(ops[0]).toMatchObject({ op: 'update', id: 'en-US', attributes: { whatsNew: 'New notes' } });
+    expect(ops[0].attributes).not.toHaveProperty('description');
+    expect(ops[0].changes).toEqual([{ field: 'whatsNew', from: 'Old notes', to: 'New notes' }]);
   });
 
-  it('is IDEMPOTENT - identical text produces no write at all', () => {
+  it('is IDEMPOTENT - identical copy produces no write at all', () => {
     const ops = R.planLocalizations({
-      existingLocalizations: [loc('en-US', 'Same notes')],
-      whatsNewByLocale: { 'en-US': 'Same notes' },
+      existingLocalizations: [loc('en-US', { whatsNew: 'Same', keywords: 'a,b' })],
+      desiredByLocale: { 'en-US': { whatsNew: 'Same', keywords: 'a,b' } },
     });
     expect(ops).toEqual([{ op: 'unchanged', locale: 'en-US', id: 'en-US' }]);
-    expect(ops.some((o) => o.op === 'update' || o.op === 'create')).toBe(false);
+  });
+
+  it('treats a field Apple reports as absent the same as an empty one', () => {
+    const ops = R.planLocalizations({
+      existingLocalizations: [loc('en-US', {})],
+      desiredByLocale: { 'en-US': { subtitle: 'Careers, crime, crypto, heirs' } },
+    });
+    expect(ops[0]).toMatchObject({ op: 'update' });
+    expect(ops[0].changes[0]).toEqual({ field: 'subtitle', from: null, to: 'Careers, crime, crypto, heirs' });
   });
 
   it('leaves a locale it does not manage alone rather than deleting it', () => {
     // Someone may have added a listing in the App Store Connect UI. This script
     // owns the locales the repo declares and nothing else.
     const ops = R.planLocalizations({
-      existingLocalizations: [loc('fr-FR', 'Notes françaises')],
-      whatsNewByLocale: { 'en-US': 'English notes' },
+      existingLocalizations: [loc('fr-FR', { whatsNew: 'Notes françaises' })],
+      desiredByLocale: { 'en-US': { whatsNew: 'English notes' } },
     });
     expect(ops).toContainEqual({ op: 'skip-unmanaged', locale: 'fr-FR' });
   });
 });
 
+describe('choosing which app record carries the name', () => {
+  const info = (state: string, id = state) => ({ id, attributes: { state } });
+
+  it('picks the editable record, not the live one', () => {
+    // Writing the name onto the live appInfo is not something Apple permits;
+    // picking the wrong record is a 409 at best.
+    const plan = R.planAppInfo([info('READY_FOR_DISTRIBUTION', 'live'), info('PREPARE_FOR_SUBMISSION', 'draft')]);
+    expect(plan.action).toBe('use');
+    expect(plan.appInfo.id).toBe('draft');
+  });
+
+  it('reads the legacy appStoreState spelling too', () => {
+    const plan = R.planAppInfo([{ id: 'old', attributes: { appStoreState: 'PREPARE_FOR_SUBMISSION' } }]);
+    expect(plan.action).toBe('use');
+  });
+
+  it('REFUSES when nothing is editable rather than writing to a live listing', () => {
+    const plan = R.planAppInfo([info('READY_FOR_DISTRIBUTION')]);
+    expect(plan.action).toBe('refuse');
+    expect(plan.reason).toMatch(/No editable appInfo/);
+  });
+});
+
 describe('payload shapes match Apple\'s documented schemas', () => {
-  it('puts whatsNew on the LOCALIZATION, which is where it lives', () => {
-    const body = R.localizationCreatePayload({ versionId: '42', locale: 'es-MX', whatsNew: 'Novedades' });
+  it('puts the release copy on the VERSION localization, which is where it lives', () => {
+    const body = R.versionLocalizationCreatePayload({
+      versionId: '42',
+      locale: 'es-MX',
+      attributes: { whatsNew: 'Novedades', keywords: 'a,b', supportUrl: 'https://example.test/s' },
+    });
     expect(body).toEqual({
       data: {
         type: 'appStoreVersionLocalizations',
-        attributes: { locale: 'es-MX', whatsNew: 'Novedades' },
+        attributes: { locale: 'es-MX', whatsNew: 'Novedades', keywords: 'a,b', supportUrl: 'https://example.test/s' },
         relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: '42' } } },
       },
+    });
+  });
+
+  it('puts the name, subtitle and privacy URL on the APP INFO localization', () => {
+    const body = R.appInfoLocalizationCreatePayload({
+      appInfoId: '7',
+      locale: 'en-US',
+      attributes: { name: 'Deep Life Simulator: Tycoon', subtitle: 'Careers, crime, crypto, heirs' },
+    });
+    expect(body.data.type).toBe('appInfoLocalizations');
+    expect(body.data.relationships.appInfo.data).toEqual({ type: 'appInfos', id: '7' });
+    expect(body.data.attributes.locale).toBe('en-US');
+  });
+
+  it('drops undefined attributes instead of sending them as empty values', () => {
+    const body = R.appInfoLocalizationUpdatePayload({ id: '1', attributes: { name: 'X', subtitle: undefined } });
+    expect(body.data.attributes).toEqual({ name: 'X' });
+  });
+
+  it('renumbers a draft through the version attribute, not by recreating it', () => {
+    const body = R.versionRenumberPayload({ versionId: 'v1', versionString: '1.6.0' });
+    expect(body).toEqual({
+      data: { type: 'appStoreVersions', id: 'v1', attributes: { versionString: '1.6.0' } },
     });
   });
 

@@ -3,6 +3,15 @@
 // The decisions and payloads behind `scripts/asc-release.mjs`, kept pure so
 // they can be tested without credentials or a network. The CLI is the shell:
 // everything that decides whether a write is SAFE lives here.
+//
+// A store listing is split across TWO App Store Connect resources, and the
+// split is not where you would guess. Anything that can differ per RELEASE
+// lives on `appStoreVersionLocalizations` (description, keywords, promotional
+// text, What's New, the support and marketing URLs). Anything that belongs to
+// the APP rather than to one of its versions lives on `appInfoLocalizations`
+// (name, subtitle, privacy policy URL). Writing the whole listing therefore
+// means planning against both, which is why every planner here is written
+// once and used twice.
 
 /**
  * States in which App Store Connect still lets you edit a version's metadata.
@@ -38,6 +47,93 @@ export const RELEASED_STATES = new Set([
 ]);
 
 /**
+ * The fields this repo owns on each resource, in the order they are reported.
+ *
+ * A field NOT listed here is Apple's or the owner's — `privacyChoicesUrl`,
+ * age ratings, pricing — and is never read, written or diffed. A field listed
+ * here but absent from `metadata.mjs` is still not written: the planner omits
+ * undefined rather than sending an empty string, because an empty string is a
+ * real value to Apple and would blank a field that someone filled in the UI.
+ */
+export const MANAGED_VERSION_FIELDS = [
+  'description',
+  'keywords',
+  'promotionalText',
+  'whatsNew',
+  'supportUrl',
+  'marketingUrl',
+];
+
+export const MANAGED_APP_INFO_FIELDS = ['name', 'subtitle', 'privacyPolicyUrl'];
+
+/**
+ * Apple's keyword field is ONE string, comma-separated with no spaces — a
+ * space after a comma costs a character and buys nothing. `metadata.mjs` keeps
+ * the terms as an array so they can be counted, deduplicated and diffed
+ * individually; this is the one place that becomes the wire format.
+ */
+export function keywordField(keywords) {
+  return (keywords ?? []).join(',');
+}
+
+/** Drops undefined/null entries. See MANAGED_VERSION_FIELDS on why that matters. */
+function defined(object) {
+  return Object.fromEntries(Object.entries(object ?? {}).filter(([, v]) => v !== undefined && v !== null));
+}
+
+/**
+ * Turns `marketing/aso/metadata.mjs` into the exact attributes each locale
+ * should carry on each resource. Pure, so a test can assert the mapping
+ * without a network — and so the CLI never decides what the copy IS.
+ *
+ * Two rules are encoded here rather than left to the caller:
+ *
+ * - A locale marked `shipped: false` (en-GB) is not part of the listing at
+ *   all. Those storefronts already fall back to en-US, so creating it would
+ *   produce a second identical listing to maintain forever.
+ * - The app NAME is the brand and is deliberately not translated, but Apple
+ *   requires a name on every appInfo localization it creates. The en-US name
+ *   carries into each locale unless that locale states its own.
+ */
+export function desiredListing(APPLE) {
+  const urls = APPLE?.urls ?? {};
+  const versionLocalizations = {};
+  const appInfoLocalizations = {};
+
+  const add = (locale, source, fallback = {}) => {
+    versionLocalizations[locale] = defined({
+      description: source.description,
+      keywords: source.keywords ? keywordField(source.keywords) : undefined,
+      promotionalText: source.promotionalText,
+      whatsNew: source.whatsNew,
+      supportUrl: source.supportUrl ?? fallback.supportUrl,
+      marketingUrl: source.marketingUrl ?? fallback.marketingUrl,
+    });
+    appInfoLocalizations[locale] = defined({
+      name: source.name ?? fallback.name,
+      subtitle: source.subtitle,
+      privacyPolicyUrl: source.privacyPolicyUrl ?? fallback.privacyPolicyUrl,
+    });
+  };
+
+  const shared = {
+    name: APPLE?.name,
+    supportUrl: urls.support,
+    marketingUrl: urls.marketing,
+    privacyPolicyUrl: urls.privacyPolicy,
+  };
+
+  add('en-US', APPLE ?? {}, shared);
+
+  for (const [locale, loc] of Object.entries(APPLE?.localized ?? {})) {
+    if (loc?.shipped === false) continue;
+    add(locale, loc ?? {}, shared);
+  }
+
+  return { versionLocalizations, appInfoLocalizations };
+}
+
+/**
  * Compares two store version strings numerically, component by component.
  * Returns <0, 0 or >0.
  *
@@ -64,6 +160,13 @@ export function isValidVersionString(v) {
 const stateOf = (v) => v?.attributes?.appStoreVersionState ?? v?.attributes?.appVersionState ?? null;
 const stringOf = (v) => v?.attributes?.versionString ?? null;
 
+/**
+ * An appInfo's editability. `state` is the current attribute and
+ * `appStoreState` the one older records carry; an account can hold both
+ * spellings at once, so both are read rather than assuming a migration.
+ */
+export const appInfoStateOf = (a) => a?.attributes?.state ?? a?.attributes?.appStoreState ?? null;
+
 /** The highest version that has reached the public store, or null. */
 export function highestReleasedVersion(versions) {
   let best = null;
@@ -87,10 +190,19 @@ export function findVersion(versions, versionString) {
  * Returns one of:
  *   { action: 'create' }                     — no such record yet
  *   { action: 'reuse', version }             — exists and is still editable
+ *   { action: 'retarget', version, from }    — an editable record exists under
+ *                                              a DIFFERENT number; renumber it
  *   { action: 'refuse', reason }             — exists but must not be touched,
  *                                              or the number does not climb
+ *
+ * The retarget case is the one that is not obvious. App Store Connect holds at
+ * most ONE editable version per platform, so asking to create 1.6.0 while a
+ * 1.5.0 draft is open is not a new record — it is a 409 from Apple and a trip
+ * to the UI to fix by hand, which is the thing this script exists to remove.
+ * Renumbering that draft is a single documented PATCH, and it still has to
+ * clear the climb rule, so it cannot be used to walk a number backwards.
  */
-export function planVersionRecord({ versions, versionString }) {
+export function planVersionRecord({ versions, versionString, retarget = false }) {
   if (!isValidVersionString(versionString)) {
     return { action: 'refuse', reason: `"${versionString}" is not a valid App Store version string (digits and dots only).` };
   }
@@ -122,40 +234,109 @@ export function planVersionRecord({ versions, versionString }) {
     };
   }
 
+  const openDraft = (versions ?? []).find((v) => EDITABLE_STATES.has(stateOf(v)));
+  if (openDraft) {
+    const from = stringOf(openDraft);
+    if (!retarget) {
+      return {
+        action: 'refuse',
+        reason:
+          `An editable version record already exists (${from}, ${stateOf(openDraft)}), and App Store Connect allows ` +
+          `only one at a time — creating ${versionString} would be rejected by Apple. Either release against ${from} ` +
+          `(--version ${from}) or renumber that draft to ${versionString} (--retarget).`,
+      };
+    }
+    return { action: 'retarget', version: openDraft, from, to: versionString, state: stateOf(openDraft), highestReleased: highest };
+  }
+
   return { action: 'create', highestReleased: highest };
 }
 
 /**
- * Decides, per locale, whether What's New needs writing.
+ * Decides which appInfo record carries the editable name and subtitle.
  *
- * Idempotence lives here: a locale whose stored text already equals the
- * intended text produces no operation at all, so a second run is a no-op
- * rather than a redundant PATCH.
+ * An app has one appInfo per lifecycle state: the live one, and — once a
+ * version is being prepared — an editable one. Writing the name onto the live
+ * record is not a thing Apple permits, so picking the wrong one is a 409 at
+ * best and an edit to a public listing at worst.
  */
-export function planLocalizations({ existingLocalizations, whatsNewByLocale }) {
+export function planAppInfo(appInfos) {
+  const list = appInfos ?? [];
+  if (list.length === 0) {
+    return { action: 'refuse', reason: 'App Store Connect returned no appInfo records for this app, so there is nowhere to write the name and subtitle.' };
+  }
+  const editable = list.find((a) => EDITABLE_STATES.has(appInfoStateOf(a)));
+  if (!editable) {
+    return {
+      action: 'refuse',
+      reason:
+        `No editable appInfo (states: ${list.map((a) => appInfoStateOf(a) ?? '?').join(', ')}). ` +
+        `The name, subtitle and privacy URL can only be changed while a version is being prepared for submission.`,
+    };
+  }
+  return { action: 'use', appInfo: editable, state: appInfoStateOf(editable) };
+}
+
+/**
+ * Decides, per locale, which FIELDS need writing on a localization.
+ *
+ * One planner for both resources: `appStoreVersionLocalizations` and
+ * `appInfoLocalizations` differ only in which attributes they carry and which
+ * endpoint they are posted to, and duplicating this logic is how the two
+ * halves of a listing drift apart.
+ *
+ * Idempotence lives here: a locale whose stored attributes already equal the
+ * intended ones produces no operation at all, so a second run is a no-op
+ * rather than a redundant PATCH — which matters because a PATCH that changes
+ * nothing still resets the field's "edited" state in App Store Connect.
+ */
+export function planLocalizations({ existingLocalizations, desiredByLocale }) {
   const ops = [];
   const byLocale = new Map(
-    (existingLocalizations ?? []).map((l) => [l?.attributes?.locale, l]),
+    (existingLocalizations ?? [])
+      .filter((l) => l?.attributes?.locale)
+      .map((l) => [l.attributes.locale, l]),
   );
 
-  for (const [locale, whatsNew] of Object.entries(whatsNewByLocale ?? {})) {
+  for (const [locale, wanted] of Object.entries(desiredByLocale ?? {})) {
+    const attributes = defined(wanted);
     const existing = byLocale.get(locale);
+
     if (!existing) {
-      ops.push({ op: 'create', locale, whatsNew });
+      ops.push({
+        op: 'create',
+        locale,
+        attributes,
+        changes: Object.entries(attributes).map(([field, to]) => ({ field, from: null, to })),
+      });
       continue;
     }
-    if ((existing.attributes?.whatsNew ?? '') === whatsNew) {
+
+    const changes = [];
+    for (const [field, to] of Object.entries(attributes)) {
+      const from = existing.attributes?.[field] ?? null;
+      if ((from ?? '') !== to) changes.push({ field, from, to });
+    }
+
+    if (changes.length === 0) {
       ops.push({ op: 'unchanged', locale, id: existing.id });
       continue;
     }
-    ops.push({ op: 'update', locale, id: existing.id, whatsNew, previous: existing.attributes?.whatsNew ?? '' });
+
+    ops.push({
+      op: 'update',
+      locale,
+      id: existing.id,
+      attributes: Object.fromEntries(changes.map((c) => [c.field, c.to])),
+      changes,
+    });
   }
 
-  // A locale that exists on the version but has no copy here is left alone.
+  // A locale that exists on the listing but has no copy here is left alone.
   // This script owns the locales the repo declares; it does not get to delete
   // a listing someone added in the App Store Connect UI.
   for (const [locale] of byLocale) {
-    if (!(locale in (whatsNewByLocale ?? {}))) {
+    if (!(locale in (desiredByLocale ?? {}))) {
       ops.push({ op: 'skip-unmanaged', locale });
     }
   }
@@ -165,8 +346,10 @@ export function planLocalizations({ existingLocalizations, whatsNewByLocale }) {
 
 // ---------------------------------------------------------------------------
 // Payload builders. Shapes verified against Apple's documentation JSON, not
-// from memory — `whatsNew` is an attribute of appStoreVersionLocalizations and
-// there is no `releaseNotes` on appStoreVersions.
+// from memory — `whatsNew`, `description`, `keywords`, `promotionalText`,
+// `supportUrl` and `marketingUrl` are attributes of
+// appStoreVersionLocalizations; `name`, `subtitle` and `privacyPolicyUrl` are
+// attributes of appInfoLocalizations; and there is no `releaseNotes` anywhere.
 // ---------------------------------------------------------------------------
 
 /**
@@ -191,11 +374,18 @@ export function versionCreatePayload({ appId, versionString, platform = 'IOS', c
   };
 }
 
-export function localizationCreatePayload({ versionId, locale, whatsNew }) {
+/** Renumbers an existing editable version record. See planVersionRecord. */
+export function versionRenumberPayload({ versionId, versionString }) {
+  return {
+    data: { type: 'appStoreVersions', id: String(versionId), attributes: { versionString } },
+  };
+}
+
+export function versionLocalizationCreatePayload({ versionId, locale, attributes }) {
   return {
     data: {
       type: 'appStoreVersionLocalizations',
-      attributes: { locale, whatsNew },
+      attributes: { locale, ...defined(attributes) },
       relationships: {
         appStoreVersion: { data: { type: 'appStoreVersions', id: String(versionId) } },
       },
@@ -203,9 +393,27 @@ export function localizationCreatePayload({ versionId, locale, whatsNew }) {
   };
 }
 
-export function localizationUpdatePayload({ id, whatsNew }) {
+export function versionLocalizationUpdatePayload({ id, attributes }) {
   return {
-    data: { type: 'appStoreVersionLocalizations', id: String(id), attributes: { whatsNew } },
+    data: { type: 'appStoreVersionLocalizations', id: String(id), attributes: defined(attributes) },
+  };
+}
+
+export function appInfoLocalizationCreatePayload({ appInfoId, locale, attributes }) {
+  return {
+    data: {
+      type: 'appInfoLocalizations',
+      attributes: { locale, ...defined(attributes) },
+      relationships: {
+        appInfo: { data: { type: 'appInfos', id: String(appInfoId) } },
+      },
+    },
+  };
+}
+
+export function appInfoLocalizationUpdatePayload({ id, attributes }) {
+  return {
+    data: { type: 'appInfoLocalizations', id: String(id), attributes: defined(attributes) },
   };
 }
 

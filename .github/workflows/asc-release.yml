@@ -1,6 +1,8 @@
 name: App Store Connect — release
 
-# One-click release of the App Store version record and its "What's New".
+# One-click release of the App Store product page: the version record, the
+# name, subtitle, keyword field, description, promotional text, What's New and
+# the support / marketing / privacy links, for every locale the repo ships.
 #
 # Runs HERE rather than on a laptop because the App Store Connect API key
 # already lives here as repo secrets (the iOS build workflows use the same
@@ -14,8 +16,8 @@ name: App Store Connect — release
 # Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8
 #          (Settings ▸ Secrets ▸ Actions — already configured)
 #
-# The copy it sends comes from marketing/aso/metadata.mjs. See
-# docs/ASC-AUTOMATION.md.
+# The copy it sends comes from marketing/aso/metadata.mjs — all of it, which is
+# why `check:aso` runs before Apple is touched. See docs/ASC-AUTOMATION.md.
 
 on:
   workflow_dispatch:
@@ -37,6 +39,11 @@ on:
         description: 'Build number (CFBundleVersion) to attach — optional'
         required: false
         type: string
+      retarget:
+        description: 'Renumber an existing editable draft to the version above (only if the plan asked for it)'
+        required: false
+        default: false
+        type: boolean
       confirm_submit:
         description: 'Type SUBMIT to confirm — required only for apply-and-submit'
         required: false
@@ -98,6 +105,7 @@ jobs:
           ARGS=""
           [ -n "${{ inputs.version }}" ] && ARGS="$ARGS --version ${{ inputs.version }}"
           [ -n "${{ inputs.build }}" ]   && ARGS="$ARGS --build ${{ inputs.build }}"
+          [ "${{ inputs.retarget }}" = "true" ] && ARGS="$ARGS --retarget"
           case "${{ inputs.mode }}" in
             apply)            ARGS="$ARGS --apply" ;;
             apply-and-submit) ARGS="$ARGS --apply --submit" ;;

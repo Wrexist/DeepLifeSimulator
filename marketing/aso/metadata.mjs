@@ -30,8 +30,15 @@ export const APPLE = {
    * store numbers can only ever climb. See CLAUDE.md §9.
    *
    * `scripts/asc-release.mjs` reads this as the record to create and fill.
+   *
+   * 1.6.0 rather than 1.5.0 because 1.5.0 was the record drafted for the
+   * avatar/Spark release. App Store Connect holds at most ONE editable version
+   * at a time, so if that draft is still open the script does not create a
+   * second one — it reports the number it found and offers `--retarget`, which
+   * renumbers the open draft under the same climb rule. Which of the two
+   * happened is a question only Apple can answer: run `npm run asc:status`.
    */
-  storeVersion: '1.5.0',
+  storeVersion: '1.6.0',
 
   /**
    * The "What's New" for `storeVersion`, 4000 chars max.
@@ -44,17 +51,23 @@ export const APPLE = {
    * described for three audiences, and a reader who finds them disagreeing
    * cannot tell which one is the lie.
    */
-  whatsNew: `New faces, real conversations, and nothing left locked.
+  whatsNew: `The same life every time, and the fixes you sent screenshots of.
 
-• Character creation, rebuilt. Your face is now built from features you choose rather than picked from a gallery of portraits, and it ages with you instead of being swapped for a stranger's at each age band. Children look like children, and they inherit their parents' features.
+• A calendar that agrees with itself. February is winter again, every holiday lands in the month it belongs to, and the season card is readable in dark mode. Each life now gets its own festival calendar instead of everyone drawing the same one.
+• Meet people without a dating app. The Contacts app introduces someone new, and every relationship remembers where and when it began.
+• A partner is a household, not a fortune. Their income is shared the way a real one is — per week, not per year.
+• A happier life feels different from a lonelier one. Happiness gains taper as you approach the top, so a full social life and an empty one no longer read the same.
+• One toast per message. Tapping Buy three times no longer stacks three identical banners over your stats.
+• Bank Pro no longer opens on an empty box, the Apps grid lost its dead space, and a meal advertises exactly what it restores.
+• The milestone pop-ups that replayed every time you opened the game are gone for good.
+• Live events run on a fresh calendar, with rewards that cannot be claimed twice.
+
+If it has been a while since you played, these landed recently too:
+
+• Character creation, rebuilt. Your face is built from features you choose rather than picked from a gallery of portraits, and it ages with you instead of being swapped for a stranger's at each age band. Children look like children, and they inherit their parents' features.
 • Spark chats are a real conversation. Break the ice, compliment, joke, flirt, ask them out for coffee, dinner or something reckless, or ask them to go steady. Every match keeps its own rapport, so a relationship is built rather than announced — and any match you'd rather not date can become a friend instead.
-• Fixed a trap that could lock you out of the game. Buying a house or a company could take away the very app that manages it, and two life chapters asked for apps those same chapters were the only way to unlock. Progress only ever goes up now.
-• Your starting age no longer breaks the early game. Beginner luck, the early grace period, the first-month events and the week-count goals were all measured against your age instead of your life, so anyone who didn't start at 18 lost them — and Chapter 1 opened two-thirds done.
-• The dark web sells gear. The tool shop had no way in, which left 18 of the 19 street jobs locked behind tools nobody could buy. Deliveries now hand over the item you paid for, and listings rotate instead of freezing for weeks.
-• The money you're shown is the money you're charged. Weekly Expenses and the Budget tab left out rent, income tax and student loan payments; the Net Worth breakdown didn't add up to the Net Worth above it. Both add up now.
-• Friends are real. Only your first Spark match could ever become a contact, network contacts had no action at all, and neglecting people cost nothing. All three are fixed — and a neglected friend can now drift out of your life.
-• Six more money fixes: a false "Need $10,000" on family business actions, a double-tap that could buy a vehicle twice or duplicate coins in a swap, savings with no way to pay into it, buy-outs that added no revenue, ad rewards that offered a property millionaire $50, and a poverty scholarship that promised free education and delivered respect.
-• Faster and clearer. About six seconds off a cold start, a death screen that scrolls, food/gym/housing cards that show what they do to each stat, a Life Goals list that fits on a page, and a Contacts app that stays smooth in a long life.`,
+• The money you're shown is the money you're charged. Weekly Expenses, the Budget tab and the Net Worth breakdown all add up now.
+• The dark web sells gear again, so the street jobs behind those tools are reachable, and friendships are real: neglect one and they can drift out of your life.`,
 
   /**
    * 30 chars. The highest-weighted field there is.
@@ -174,6 +187,32 @@ HOW IT TREATS YOU
 A life runs for decades and every week is a decision you make. Most people start a second one.`,
 
   /**
+   * The three links on the product page.
+   *
+   * They were the last part of the listing that lived nowhere: not in this
+   * file, not in the audit, not in the release script — only in the App Store
+   * Connect UI, where nothing in the repo could check them and a dead one
+   * would be found by a reviewer or a player rather than by us.
+   *
+   * `privacyPolicy` MUST equal `PRIVACY_POLICY_URL` in `lib/config/appConfig.ts`,
+   * which is the link the app itself opens from Settings. Two spellings of the
+   * same promise is how one of them goes stale; `check:aso` pins them together
+   * and fails if they diverge. The support site is this repo's own
+   * `support-site/`, deployed by `.github/workflows/deploy-support-site.yml`,
+   * so a page named here is a page in the tree — deleting `support.html` and
+   * leaving the link is a broken listing, and the audit says so.
+   *
+   * `supportUrl` and `marketingUrl` are per-VERSION fields at Apple and
+   * `privacyPolicyUrl` is a per-APP one; `asc-release.mjs` writes each to the
+   * resource that actually carries it.
+   */
+  urls: {
+    support: 'https://wrexist.github.io/DeepLifeSimulator/support.html',
+    marketing: 'https://wrexist.github.io/DeepLifeSimulator/',
+    privacyPolicy: 'https://wrexist.github.io/DeepLifeSimulator/privacy.html',
+  },
+
+  /**
    * A SECOND keyword field, indexed in the same storefront.
    *
    * The US storefront indexes an app's English (U.S.) metadata AND its
@@ -205,17 +244,23 @@ A life runs for decades and every week is a decision you make. Most people start
       // Mirrors APPLE.whatsNew. Kept in the register of the description above
       // — this locale is a real translation, not machine output, and a
       // machine-shaped release note next to hand-written copy reads as one.
-      whatsNew: `Caras nuevas, conversaciones de verdad y nada que te deje fuera.
+      whatsNew: `La misma vida cada vez, y los arreglos que nos mandaste en captura.
+
+• Un calendario que cuadra consigo mismo. Febrero vuelve a ser invierno, cada fiesta cae en el mes que le toca y la tarjeta de temporada se lee en modo oscuro. Cada vida tiene ya su propio calendario de fiestas en vez de repetir el de todos.
+• Conoce gente sin app de citas. La app de Contactos te presenta a alguien nuevo, y cada relación recuerda dónde y cuándo empezó.
+• Una pareja es un hogar, no una fortuna. Sus ingresos se comparten como los de verdad: por semana, no por año.
+• Una vida feliz se siente distinta de una vida sola. La felicidad rinde menos según te acercas al tope, así que una vida social llena y una vacía ya no se leen igual.
+• Un aviso por mensaje. Tocar Comprar tres veces ya no apila tres banners idénticos sobre tus estadísticas.
+• Bank Pro ya no abre en una caja vacía, la cuadrícula de apps perdió su hueco muerto y una comida anuncia exactamente lo que restaura.
+• Los avisos de logros que se repetían cada vez que abrías el juego se acabaron.
+• Los eventos en vivo estrenan calendario, con recompensas que no se pueden reclamar dos veces.
+
+Si hacía tiempo que no jugabas, esto llegó hace poco:
 
 • Creación de personaje, rehecha. Tu cara se construye a partir de rasgos que eliges, en vez de elegirse en una galería de retratos, y envejece contigo en lugar de cambiarse por la de un desconocido en cada etapa. Los niños parecen niños y heredan los rasgos de sus padres.
 • Los chats de Spark son una conversación real. Rompe el hielo, halaga, bromea, coquetea, invita a un café, a cenar o a algo temerario, o pide formalizar. Cada match tiene su propia complicidad, así que una relación se construye en vez de anunciarse; y con quien no quieras salir, puedes quedar como amigos.
-• Arreglado un fallo que podía dejarte fuera del juego. Comprar una casa o una empresa podía quitarte la app que la gestiona, y dos capítulos pedían apps que solo esos mismos capítulos desbloqueaban. Ahora el progreso solo sube.
-• Tu edad inicial ya no rompe el principio. La suerte de novato, el periodo de gracia, los eventos del primer mes y las metas por semanas se medían contra tu edad y no contra tu vida, así que quien no empezaba a los 18 los perdía. El capítulo 1 empezaba con dos tercios hechos.
-• La dark web ya vende equipo. La tienda de herramientas no tenía puerta de entrada, lo que dejaba 18 de los 19 trabajos callejeros bloqueados. Los envíos entregan lo que pagaste y los anuncios rotan en vez de congelarse durante semanas.
-• El dinero que ves es el que te cobran. Los gastos semanales y la pestaña de presupuesto omitían el alquiler, los impuestos y los préstamos estudiantiles; el desglose de patrimonio no cuadraba con la cifra de arriba. Ya cuadran.
-• Las amistades son reales. Solo tu primer match de Spark podía volverse contacto, los contactos de red no tenían ninguna acción y descuidar a la gente no costaba nada. Las tres cosas están arregladas, y a un amigo desatendido puedes perderlo.
-• Seis arreglos más de dinero: un falso "Necesitas $10,000" en el negocio familiar, un doble toque que podía comprar un vehículo dos veces o duplicar monedas en un intercambio, ahorros sin forma de ingresar dinero, adquisiciones que no sumaban ingresos, recompensas por anuncio que ofrecían $50 a un millonario y una beca que prometía estudios gratis y daba reputación.
-• Más rápido y más claro. Unos seis segundos menos al abrir, una pantalla de muerte que se desplaza bien, tarjetas de comida, gimnasio y vivienda que muestran su efecto en cada estadística, una lista de metas que cabe en una pantalla y una app de contactos fluida en vidas largas.`,
+• El dinero que ves es el que te cobran. Los gastos semanales, la pestaña de presupuesto y el desglose de patrimonio ya cuadran.
+• La dark web vuelve a vender equipo, así que los trabajos de calle que lo necesitaban son alcanzables, y las amistades son reales: si descuidas a alguien, puedes perderlo.`,
 
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
 Lo que pasa después depende solo de ti.

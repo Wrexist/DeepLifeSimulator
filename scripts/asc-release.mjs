@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // scripts/asc-release.mjs
 //
-// Creates the App Store Connect version record for a release and fills its
-// "What's New" from marketing/aso/metadata.mjs — so the store copy is written
-// once, in the repo, validated by `npm run check:aso`, and sent to Apple
-// verbatim. Retyping it into the App Store Connect UI is what this replaces.
+// Writes the WHOLE App Store product page from marketing/aso/metadata.mjs —
+// name, subtitle, keyword field, description, promotional text, What's New and
+// the support / marketing / privacy links — for every locale the repo ships.
+// The copy is written once, in the repo, validated by `npm run check:aso`, and
+// sent to Apple verbatim. Retyping any of it into the App Store Connect UI is
+// what this replaces.
 //
-//   npm run asc:status                  what Apple currently has
+//   npm run asc:status                  what Apple has now, field by field
 //   npm run asc:release                 plan the release (writes NOTHING)
 //   npm run asc:release:apply           perform the plan
 //   node scripts/asc-release.mjs --apply --submit    ...and submit for review
@@ -15,9 +17,16 @@
 //   --version <x.y.z>  store version record to create/fill. Default: STORE_VERSION.
 //   --apply            actually write. Without it every mutation is printed only.
 //   --submit           submit for review. Requires --apply. See the note below.
+//   --retarget         renumber an existing editable draft to --version.
 //   --build <number>   attach this CFBundleVersion to the version record.
 //   --platform <IOS>   default IOS.
 //   --json             machine-readable plan on stdout.
+//
+// A listing is split across two resources and the split is not where you would
+// guess: description, keywords, promotional text, What's New and the support
+// and marketing URLs belong to the VERSION, while the name, subtitle and
+// privacy policy URL belong to the APP. Both are planned here, and the plan
+// names which resource each write lands on.
 //
 // Two numbers, deliberately different (CLAUDE.md §9): the STORE version record
 // is the 1.x line users see; package.json's version is the BINARY. This script
@@ -38,15 +47,23 @@ import {
   missingCredentialNames,
 } from './lib/ascClient.mjs';
 import {
-  planVersionRecord,
-  planLocalizations,
-  versionCreatePayload,
-  localizationCreatePayload,
-  localizationUpdatePayload,
+  EDITABLE_STATES,
+  MANAGED_APP_INFO_FIELDS,
+  MANAGED_VERSION_FIELDS,
+  appInfoLocalizationCreatePayload,
+  appInfoLocalizationUpdatePayload,
   attachBuildPayload,
+  desiredListing,
+  planAppInfo,
+  planLocalizations,
+  planVersionRecord,
   reviewSubmissionCreatePayload,
   reviewSubmissionItemCreatePayload,
   reviewSubmissionSubmitPayload,
+  versionCreatePayload,
+  versionLocalizationCreatePayload,
+  versionLocalizationUpdatePayload,
+  versionRenumberPayload,
 } from './lib/ascRelease.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -83,23 +100,49 @@ function readAscAppId() {
 }
 
 /**
- * The locales this repo actually ships, mapped to their What's New text.
- * `shipped: false` locales (en-GB) are reference-only and deliberately not
- * created — those storefronts fall back to en-US already.
+ * Fields long enough that printing them whole would bury the plan. For these
+ * the diff reports the length and the opening line; for everything else it
+ * reports the values, because a wrong subtitle is only visible as a subtitle.
  */
-function whatsNewByLocale(APPLE) {
-  const out = {};
-  if (APPLE.whatsNew) out['en-US'] = APPLE.whatsNew;
-  for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
-    if (loc?.shipped === false) continue;
-    if (loc?.whatsNew) out[locale] = loc.whatsNew;
-  }
-  return out;
+const LONG_FIELDS = new Set(['description', 'whatsNew']);
+
+function preview(text, width = 72) {
+  const firstLine = String(text ?? '').split('\n').find((l) => l.trim()) ?? '';
+  return firstLine.length > width ? `${firstLine.slice(0, width - 1)}…` : firstLine;
 }
 
-function preview(text, width = 88) {
-  const firstLine = String(text).split('\n').find((l) => l.trim()) ?? '';
-  return firstLine.length > width ? `${firstLine.slice(0, width - 1)}…` : firstLine;
+function renderChange({ field, from, to }) {
+  if (LONG_FIELDS.has(field)) {
+    const was = from === null ? 'unset' : `${[...String(from)].length} chars`;
+    return `${field}: ${was} → ${[...String(to)].length} chars · ${preview(to)}`;
+  }
+  const was = from === null || from === '' ? '(unset)' : String(from);
+  return from === null || from === '' ? `${field}: ${to}` : `${field}: ${was} → ${to}`;
+}
+
+function reportOps(label, ops, resource) {
+  say(`\n${C.bold}${label}${C.off} ${C.dim}(${resource})${C.off}`);
+  for (const op of ops) {
+    if (op.op === 'unchanged') {
+      say(`  ${C.dim}UNCHANGED${C.off} ${op.locale}`);
+      continue;
+    }
+    if (op.op === 'skip-unmanaged') {
+      say(`  ${C.yellow}SKIP${C.off}      ${op.locale} ${C.dim}— present on the listing, not declared in metadata.mjs${C.off}`);
+      continue;
+    }
+    say(`  ${C.green}${op.op === 'create' ? 'CREATE' : 'UPDATE'}${C.off}    ${op.locale}`);
+    for (const change of op.changes) say(`      ${C.dim}${renderChange(change)}${C.off}`);
+  }
+}
+
+/** Reads every localization of a resource, with only the fields this repo owns. */
+async function readLocalizations(client, { parentType, parentId, childType, fields }) {
+  if (!parentId) return [];
+  return client.getAll(
+    `/v1/${parentType}/${parentId}/${childType}` +
+      `?fields[${childType}]=locale,${fields.join(',')}&limit=200`,
+  );
 }
 
 async function main() {
@@ -110,6 +153,8 @@ async function main() {
   const buildNumber = valueOf('--build');
   const apply = has('--apply');
   const submit = has('--submit');
+  const retarget = has('--retarget');
+  const statusOnly = has('--status');
 
   if (!versionString) {
     die('No version given and marketing/aso/metadata.mjs declares no storeVersion. Pass --version <x.y.z>.');
@@ -132,13 +177,15 @@ async function main() {
 
   const client = new AscClient({ credentials, dryRun: !apply });
 
-  const copy = whatsNewByLocale(APPLE);
-  if (Object.keys(copy).length === 0) {
-    die('marketing/aso/metadata.mjs declares no whatsNew copy for any shipped locale — nothing to publish.');
+  const desired = desiredListing(APPLE);
+  const locales = Object.keys(desired.versionLocalizations);
+  if (locales.length === 0) {
+    die('marketing/aso/metadata.mjs declares no shipped locale — there is no listing to publish.');
   }
 
   say(`${C.bold}App Store Connect · app ${appId} · version record ${versionString} (${platform})${C.off}`);
-  say(`${C.dim}Mode: ${apply ? 'APPLY — writes will be performed' : 'PLAN — nothing will be written'}${C.off}\n`);
+  say(`${C.dim}Mode: ${apply ? 'APPLY — writes will be performed' : 'PLAN — nothing will be written'}${C.off}`);
+  say(`${C.dim}Locales: ${locales.join(', ')}${C.off}\n`);
 
   // ---- 1 · what Apple has now -------------------------------------------
   const versions = await client.getAll(
@@ -150,14 +197,46 @@ async function main() {
     say(`  ${String(v.attributes?.versionString).padEnd(10)} ${v.attributes?.appStoreVersionState ?? '?'}`);
   }
   if (versions.length > 8) say(`  ${C.dim}… and ${versions.length - 8} more${C.off}`);
-  say('');
 
-  if (has('--status')) {
+  if (statusOnly) {
+    // Status answers the question the release runbook used to answer by
+    // opening a browser: what does the store page SAY right now, and how does
+    // it differ from the repo? So it reads both resources and diffs them.
+    const target = versions.find((v) => v.attributes?.versionString === versionString)
+      ?? versions.find((v) => EDITABLE_STATES.has(v.attributes?.appStoreVersionState));
+    const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?fields[appInfos]=state,appStoreState&limit=50`);
+    const appInfoPlan = planAppInfo(appInfos);
+
+    const versionLocs = await readLocalizations(client, {
+      parentType: 'appStoreVersions',
+      parentId: target?.id,
+      childType: 'appStoreVersionLocalizations',
+      fields: MANAGED_VERSION_FIELDS,
+    });
+    const appInfoLocs = await readLocalizations(client, {
+      parentType: 'appInfos',
+      parentId: appInfoPlan.action === 'use' ? appInfoPlan.appInfo.id : null,
+      childType: 'appInfoLocalizations',
+      fields: MANAGED_APP_INFO_FIELDS,
+    });
+
+    say(`\n${C.bold}Live listing${C.off}`);
+    say(`  version record read: ${target ? `${target.attributes?.versionString} (${target.attributes?.appStoreVersionState})` : C.yellow + 'none editable' + C.off}`);
+    say(`  app record read:     ${appInfoPlan.action === 'use' ? appInfoPlan.state : C.yellow + appInfoPlan.reason + C.off}`);
+
+    reportOps('Would change on the version', planLocalizations({
+      existingLocalizations: versionLocs, desiredByLocale: desired.versionLocalizations,
+    }), 'appStoreVersionLocalizations');
+    reportOps('Would change on the app', planLocalizations({
+      existingLocalizations: appInfoLocs, desiredByLocale: desired.appInfoLocalizations,
+    }), 'appInfoLocalizations');
+    say(`\n${C.dim}Read-only. Run \`npm run asc:release\` for the full plan.${C.off}`);
     process.exit(0);
   }
+  say('');
 
   // ---- 2 · the version record -------------------------------------------
-  const versionPlan = planVersionRecord({ versions, versionString });
+  const versionPlan = planVersionRecord({ versions, versionString, retarget });
   if (versionPlan.action === 'refuse') {
     die(versionPlan.reason);
   }
@@ -175,57 +254,103 @@ async function main() {
     });
     const created = await client.post('/v1/appStoreVersions', payload);
     versionId = created?.data?.id ?? null;
+  } else if (versionPlan.action === 'retarget') {
+    say(`${C.green}RENUMBER${C.off} the open draft ${versionPlan.from} → ${versionString} ${C.dim}(state ${versionPlan.state})${C.off}`);
+    await client.patch(`/v1/appStoreVersions/${versionId}`, versionRenumberPayload({ versionId, versionString }));
   } else {
     say(`${C.dim}REUSE${C.off}  version record ${versionString} (state ${versionPlan.state})`);
   }
 
-  // ---- 3 · What's New, per shipped locale --------------------------------
+  // ---- 3 · the copy that belongs to the VERSION --------------------------
   // In a plan run against a not-yet-created version there is nothing to read,
   // so every managed locale is reported as a create. That is the truth of what
   // would happen, not a guess.
-  const existingLocalizations = versionId
-    ? await client.getAll(
-        `/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations` +
-          '?fields[appStoreVersionLocalizations]=locale,whatsNew&limit=200',
-      )
-    : [];
+  const existingVersionLocs = await readLocalizations(client, {
+    parentType: 'appStoreVersions',
+    parentId: versionId,
+    childType: 'appStoreVersionLocalizations',
+    fields: MANAGED_VERSION_FIELDS,
+  });
 
-  const localizationOps = planLocalizations({ existingLocalizations, whatsNewByLocale: copy });
+  const versionOps = planLocalizations({
+    existingLocalizations: existingVersionLocs,
+    desiredByLocale: desired.versionLocalizations,
+  });
+  reportOps('Description · keywords · promo · What\'s New · URLs', versionOps, 'appStoreVersionLocalizations');
 
-  say(`\n${C.bold}What's New${C.off}`);
-  for (const op of localizationOps) {
-    if (op.op === 'unchanged') {
-      say(`  ${C.dim}UNCHANGED${C.off} ${op.locale}`);
-      continue;
-    }
-    if (op.op === 'skip-unmanaged') {
-      say(`  ${C.yellow}SKIP${C.off}      ${op.locale} ${C.dim}— present on the version, not declared in metadata.mjs${C.off}`);
-      continue;
-    }
-    say(`  ${C.green}${op.op === 'create' ? 'CREATE' : 'UPDATE'}${C.off}    ${op.locale}  ${C.dim}${preview(op.whatsNew)}${C.off}`);
-
+  for (const op of versionOps) {
     if (op.op === 'create') {
       // Planning a version that does not exist yet: there is no id to
       // reference, but the write still HAPPENS on apply, so it is recorded
       // against a placeholder. Dropping it would make the plan claim one write
-      // and then perform three — a plan that under-reports is worse than none.
+      // and then perform several — a plan that under-reports is worse than none.
       await client.post(
         '/v1/appStoreVersionLocalizations',
-        localizationCreatePayload({
+        versionLocalizationCreatePayload({
           versionId: versionId ?? '<id of the version created above>',
           locale: op.locale,
-          whatsNew: op.whatsNew,
+          attributes: op.attributes,
         }),
       );
-    } else {
+    } else if (op.op === 'update') {
       await client.patch(
         `/v1/appStoreVersionLocalizations/${op.id}`,
-        localizationUpdatePayload({ id: op.id, whatsNew: op.whatsNew }),
+        versionLocalizationUpdatePayload({ id: op.id, attributes: op.attributes }),
       );
     }
   }
 
-  // ---- 4 · optional build attachment -------------------------------------
+  // ---- 4 · the copy that belongs to the APP ------------------------------
+  // Name, subtitle and privacy policy URL are not version fields. They live on
+  // the app's editable appInfo record, which only exists while a version is
+  // being prepared — so this is read AFTER the version record above, not
+  // alongside it.
+  const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?fields[appInfos]=state,appStoreState&limit=50`);
+  const appInfoPlan = planAppInfo(appInfos);
+  if (appInfoPlan.action === 'refuse') {
+    if (!apply && versionPlan.action === 'create') {
+      // Dry run against a version that does not exist yet: Apple opens the
+      // editable app record together with the version, so there is genuinely
+      // nothing to read. Say so rather than inventing a diff.
+      say(`\n${C.bold}Name · subtitle · privacy URL${C.off} ${C.dim}(appInfoLocalizations)${C.off}`);
+      say(`  ${C.yellow}DEFERRED${C.off}  ${appInfoPlan.reason}`);
+      say(`  ${C.dim}These are planned against the editable app record that appears with the version.${C.off}`);
+    } else {
+      die(appInfoPlan.reason);
+    }
+  } else {
+    const existingAppInfoLocs = await readLocalizations(client, {
+      parentType: 'appInfos',
+      parentId: appInfoPlan.appInfo.id,
+      childType: 'appInfoLocalizations',
+      fields: MANAGED_APP_INFO_FIELDS,
+    });
+    const appInfoOps = planLocalizations({
+      existingLocalizations: existingAppInfoLocs,
+      desiredByLocale: desired.appInfoLocalizations,
+    });
+    reportOps('Name · subtitle · privacy URL', appInfoOps, 'appInfoLocalizations');
+
+    for (const op of appInfoOps) {
+      if (op.op === 'create') {
+        await client.post(
+          '/v1/appInfoLocalizations',
+          appInfoLocalizationCreatePayload({
+            appInfoId: appInfoPlan.appInfo.id,
+            locale: op.locale,
+            attributes: op.attributes,
+          }),
+        );
+      } else if (op.op === 'update') {
+        await client.patch(
+          `/v1/appInfoLocalizations/${op.id}`,
+          appInfoLocalizationUpdatePayload({ id: op.id, attributes: op.attributes }),
+        );
+      }
+    }
+  }
+
+  // ---- 5 · optional build attachment -------------------------------------
   if (buildNumber) {
     const builds = await client.getAll(
       `/v1/builds?filter[app]=${appId}&filter[version]=${encodeURIComponent(buildNumber)}` +
@@ -241,7 +366,7 @@ async function main() {
     }
   }
 
-  // ---- 5 · optional submission -------------------------------------------
+  // ---- 6 · optional submission -------------------------------------------
   if (submit) {
     say(`\n${C.bold}Review submission${C.off}`);
     const created = await client.post('/v1/reviewSubmissions', reviewSubmissionCreatePayload({ appId, platform }));
@@ -259,7 +384,7 @@ async function main() {
     }
   }
 
-  // ---- 6 · report ---------------------------------------------------------
+  // ---- 7 · report ---------------------------------------------------------
   if (!apply) {
     say(`\n${C.bold}Planned writes${C.off} (${client.plannedWrites.length})`);
     for (const w of client.plannedWrites) say(`  ${w.method} ${w.path}`);
@@ -269,6 +394,10 @@ async function main() {
   }
 
   if (JSON_OUT) {
+    const strip = (ops) => ops.map(({ attributes, changes, ...rest }) => ({
+      ...rest,
+      fields: (changes ?? []).map((c) => c.field),
+    }));
     process.stdout.write(
       `${JSON.stringify(
         {
@@ -278,7 +407,7 @@ async function main() {
           applied: apply,
           submitted: submit,
           versionAction: versionPlan.action,
-          localizations: localizationOps.map(({ whatsNew, previous, ...rest }) => rest),
+          localizations: strip(versionOps),
           plannedWrites: client.plannedWrites.map(({ method, path: p }) => ({ method, path: p })),
         },
         null,

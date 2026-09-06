@@ -15,7 +15,12 @@
  * Run: node scripts/check-aso.mjs        (audit)
  *      node scripts/check-aso.mjs --emit (audit, then print paste-ready copy)
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { APPLE, CLAIMS, EXCLUSIONS, PLAY } from '../marketing/aso/metadata.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const LIMITS = {
   appleName: 30,
@@ -95,6 +100,60 @@ if (!APPLE.storeVersion) {
 }
 if (!APPLE.whatsNew) fail('APPLE.whatsNew is unset — the release has no store release notes.');
 else checkLimit("Apple What's New", APPLE.whatsNew, LIMITS.appleWhatsNew);
+
+// ── The three links on the product page ────────────────────────────────────
+// `scripts/asc-release.mjs` writes these to Apple, so a wrong one here is a
+// wrong one on the store page — and unlike the copy, nobody proof-reads a URL.
+// Three things are checked, and the second is the one that matters most: the
+// privacy link the LISTING shows must be the privacy link the APP opens from
+// Settings. Two spellings of the same promise is how one of them goes stale.
+const URL_FIELDS = [
+  ['support', 'supportUrl (per version)'],
+  ['marketing', 'marketingUrl (per version)'],
+  ['privacyPolicy', 'privacyPolicyUrl (per app)'],
+];
+const urls = APPLE.urls ?? {};
+for (const [key, label] of URL_FIELDS) {
+  const value = urls[key];
+  if (!value) {
+    // Apple requires support and privacy; marketing is genuinely optional, so
+    // only its absence is a note rather than a failure.
+    if (key === 'marketing') note(`APPLE.urls.${key} is unset — optional at Apple, so nothing is written for it.`);
+    else fail(`APPLE.urls.${key} is unset. Apple requires ${label} on every listing.`);
+    continue;
+  }
+  if (!/^https:\/\/[^\s]+$/.test(value)) fail(`APPLE.urls.${key} is not an https URL: ${value}`);
+  note(`${label}: ${value}`);
+}
+
+// Parity with the app itself. `lib/config/appConfig.ts` is what a player taps
+// in Settings; the listing must point at the same page.
+const APP_CONFIG = path.join(ROOT, 'lib/config/appConfig.ts');
+const appConfigSource = fs.existsSync(APP_CONFIG) ? fs.readFileSync(APP_CONFIG, 'utf8') : '';
+const inAppPrivacy = appConfigSource.match(/PRIVACY_POLICY_URL\s*=\s*'([^']+)'/)?.[1] ?? null;
+if (!inAppPrivacy) {
+  warn('Could not read PRIVACY_POLICY_URL from lib/config/appConfig.ts — the listing/app parity check did not run.');
+} else if (urls.privacyPolicy && inAppPrivacy !== urls.privacyPolicy) {
+  fail(
+    `Privacy policy URL differs between the listing and the app:\n` +
+    `      listing (metadata.mjs):     ${urls.privacyPolicy}\n` +
+    `      app (lib/config/appConfig): ${inAppPrivacy}`,
+  );
+}
+
+// A link into this repo's own support site is checkable without a network:
+// the page either exists in support-site/ or the listing points at a 404.
+const SITE_BASE = 'https://wrexist.github.io/DeepLifeSimulator/';
+for (const [key] of URL_FIELDS) {
+  const value = urls[key];
+  if (!value || !value.startsWith(SITE_BASE)) continue;
+  const rest = value.slice(SITE_BASE.length) || 'index.html';
+  if (rest.includes('/')) continue; // a sub-directory, not a page in support-site/
+  if (!fs.existsSync(path.join(ROOT, 'support-site', rest))) {
+    fail(`APPLE.urls.${key} points at ${rest}, which does not exist in support-site/ — the listing would link to a 404.`);
+  }
+}
+
 checkLimit('Play title', PLAY.title, LIMITS.playTitle);
 checkLimit('Play short description', PLAY.shortDescription, LIMITS.playShort);
 checkLimit('Play long description', PLAY.longDescription, LIMITS.playLong);

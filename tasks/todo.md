@@ -1,3 +1,48 @@
+# Active — App Store metadata: the whole listing, pushed rather than pasted (2026-09-06)
+
+The release automation only ever sent TWO things to Apple: the version record
+and its "What's New". Everything else on the product page — name, subtitle,
+keyword field, description, promotional text, the support/marketing/privacy
+URLs — was printed by `check:aso --emit` and typed into the App Store Connect
+UI by hand, once per locale. That is the copy-paste this removes.
+
+- [x] 1. `marketing/aso/metadata.mjs`: store version 1.5.0 → 1.6.0, What's New
+      rewritten for the release actually shipping (binary 2.13.0), and
+      `APPLE.urls` — support, marketing and privacy — which were never in the
+      file at all.
+- [x] 2. `scripts/lib/ascRelease.mjs`: `desiredListing()` derives the full
+      listing from the metadata; one planner covers BOTH resources Apple splits
+      a listing across (`appStoreVersionLocalizations` =
+      description/keywords/promo/notes/URLs, `appInfoLocalizations` =
+      name/subtitle/privacy URL); ops now carry field-level diffs.
+- [x] 3. Retarget: an editable draft carrying a DIFFERENT number is named in
+      the refusal and renumbered with `--retarget`, under the same climb rule.
+      App Store Connect allows one editable version at a time, so the old
+      behaviour was a guaranteed 409 and a trip to the UI.
+- [x] 4. `scripts/asc-release.mjs`: both resources, a per-field diff, and
+      `--status` that reads the live listing and diffs it against the repo.
+- [x] 5. `scripts/check-aso.mjs`: the URLs are validated (https, present, page
+      exists in `support-site/`) and the privacy one is pinned to
+      `PRIVACY_POLICY_URL` in `lib/config/appConfig.ts`.
+- [x] 6. Tests: `ascRelease.test.ts` (50) plus `ascReleaseCli.test.ts`, which
+      runs the CLI against a fake App Store Connect and pins which resource
+      each field lands on — the one thing reading the code cannot settle.
+- [x] 7. Docs: `docs/ASC-AUTOMATION.md`, `docs/RELEASE_RUNBOOK.md` Parts 5/7/8,
+      `marketing/aso/README.md`, `WHATS_NEW.md`, CLAUDE.md §13, and a
+      `retarget` input on `.github/workflows/asc-release.yml`.
+
+**OWNER, one question only Apple can answer:** whether the 1.5.0 record was ever
+created. `npm run asc:status` prints it. If a 1.5.0 draft is open, the plan will
+say so and offer `--retarget`; if 1.5.0 is live, 1.6.0 is created clean. The
+What's New is written to be correct either way - this release first, then a
+short catch-up section for the avatar/Spark work in case it never shipped.
+
+**Still typed by hand, deliberately:** the five IAP display-name renames
+(product records, not listing copy - a rename changes a live purchase sheet)
+and the screenshots.
+
+---
+
 # Active — Master Program 17: 2.13.0 release candidate validation (2026-09-06)
 
 RC `175efc4` on `claude/deeplife-release-blockers-7wcdpg`. Report:

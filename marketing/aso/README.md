@@ -6,11 +6,17 @@ than claimed.
 
 ```bash
 node scripts/check-aso.mjs           # audit
-node scripts/check-aso.mjs --emit    # audit, then print every field to paste
+node scripts/check-aso.mjs --emit    # audit, then print every field
 ```
 
-The emitted block is what goes into App Store Connect and Play Console. Do not
-retype it — every count in the header is measured at the moment of printing.
+**Nothing here is pasted into App Store Connect any more.** The Apple listing is
+pushed from this file — `npm run asc:release` to plan it, `npm run
+asc:release:apply` to perform it, or the *App Store Connect — release* workflow
+in Actions. See [`../../docs/ASC-AUTOMATION.md`](../../docs/ASC-AUTOMATION.md).
+
+The emitted block is still what goes into the **Play Console**, which has no
+automation here, and a useful way to eyeball an Apple field before pushing it.
+Every count in its header is measured at the moment of printing.
 
 ---
 
@@ -148,10 +154,18 @@ Anything added later that sounds like a promise belongs there with its evidence.
 
 ## Field-by-field ownership
 
-| Field | Where it lives | Changes need a review cycle? |
-|---|---|---|
-| Name, subtitle, keywords | `metadata.mjs` → App Store Connect | Yes |
-| Description | `metadata.mjs` | Yes |
-| Promotional text | `metadata.mjs` | **No** — the only field you can change any time |
-| What's New | `WHATS_NEW.md` | Ships with the build |
-| Screenshots | `screenshots/appstore-2026/` | Yes. See `docs/store-screenshot-design.md` |
+| Field | Where it lives | How it reaches Apple | Review cycle? |
+|---|---|---|---|
+| Name, subtitle | `metadata.mjs` → `APPLE.name` / `.subtitle` | `asc:release` → `appInfoLocalizations` | Yes |
+| Keywords | `metadata.mjs` → `APPLE.keywords` | `asc:release` → `appStoreVersionLocalizations` | Yes |
+| Description | `metadata.mjs` | `asc:release` | Yes |
+| Promotional text | `metadata.mjs` | `asc:release` | **No** — the only field you can change any time |
+| What's New | `metadata.mjs` → `APPLE.whatsNew` (prose in `WHATS_NEW.md`) | `asc:release` | Ships with the build |
+| Support / marketing / privacy URLs | `metadata.mjs` → `APPLE.urls` | `asc:release` (privacy on the app record) | Yes |
+| IAP display names | `metadata.mjs` → `APPLE.iapRenames` | **by hand** — product records, not listing copy | Yes |
+| Screenshots | `screenshots/appstore-2026/` | by hand | Yes. See `docs/store-screenshot-design.md` |
+| Play listing | `metadata.mjs` → `PLAY` | `--emit`, then the Play Console | — |
+
+The privacy URL is pinned to `PRIVACY_POLICY_URL` in `lib/config/appConfig.ts`
+— the page the app itself opens from Settings — and the audit fails if the two
+diverge. Two spellings of the same promise is how one of them goes stale.
