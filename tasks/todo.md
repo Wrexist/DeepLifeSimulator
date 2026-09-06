@@ -1,15 +1,25 @@
-# Active — Master Program 16: release blocker closure (2026-09-06)
+# Active — Master Program 17: 2.13.0 release candidate validation (2026-09-06)
 
-Branch `claude/deeplife-release-blockers-7wcdpg`, on `main` at `47595f5`.
-Report: `tasks/release-blocker-closure-2026-09-06.md`. Input:
-`tasks/release-readiness-2026-09-04.md` (Program 15).
+RC `175efc4` on `claude/deeplife-release-blockers-7wcdpg`. Report:
+`tasks/release-candidate-validation-2026-09-06.md`. Inputs: Program 16's
+closure report, Program 15's forensic audit.
 
-Verdict **YELLOW — every code-side release blocker is closed; what remains is
-device verification and two owner calls.** P0: 0 before, 0 after. P1: 5 before,
-5 closed (all by Program 15, all re-proved here on the merged head). Two P2s
-were closed here; the rest of the P2/P3 list is unchanged and below.
+Verdict **YELLOW — no known P0/P1 in the code; every remaining gate needs a
+device or an owner.** All gates re-proved on this SHA (762 suites / 9 629
+tests, preflight EXIT 0, iOS bundle 3 998 modules / 13.5 MB). A browser pass at
+three iPhone widths ran 24 checks with 0 failures. **No 2.13.0 binary exists** —
+the newest iOS build is run #71 (2.12.0, 2026-09-04).
 
-## RELEASE BLOCKERS (must close before the build)
+## BEFORE THE BUILD
+- [ ] **Merge this branch to `main`.** `origin/main` is `47595f5`; all 71 iOS
+      runs were cut from `main`, so dispatching today builds WITHOUT the two
+      Program 16 fixes (restore ledger id, self-clearing wedding flag).
+- [ ] Dispatch `eas-build-local-ios.yml` with version **2.13.0**, submit on.
+- [ ] **Watch that run** — first since preflight moved inside
+      `eas env:exec production`; a missing RC or HMAC key now FAILS by name.
+- [ ] Trim the drafted v2.13.0 `WHATS_NEW.md` entry before store submission.
+
+## RELEASE BLOCKERS — closed by Programs 15/16, re-proved on 175efc4
 - [x] `npm run preflight` was red on main (721 lint warnings vs 719) — fixed at
       the source, ceiling lowered to 716. **Re-measured on HEAD: 0 errors, 716/716.**
 - [x] 2.12.0 is already on TestFlight (run #71) — `package.json` bumped to 2.13.0.
@@ -49,6 +59,13 @@ were closed here; the rest of the P2/P3 list is unchanged and below.
 - [ ] Trim the drafted v2.13.0 entry in `WHATS_NEW.md` before it goes to the store.
 
 ## RELEASE VERIFICATION (device / dashboard — cannot be done from the repo)
+- [ ] Program 17 confirmed none of these can be done from a Linux container:
+      no macOS, no Xcode, no eas-cli, no Apple credentials. They are the
+      remaining gate. What Program 17 DID prove on a real rendered build:
+      startup (73 ms to first screen, 0 startup failures), cold-launch save
+      continuity, death → "N wks lived" correct → Start New Life, revive,
+      0 px overflow at 430/390/360, rapid-tap and modal-churn safety,
+      season/month/holiday agreement in both colour schemes.
 - [ ] Sandbox: buy a gem pack, buy the Revival Pack, subscribe, restore, relaunch mid-purchase (iOS + Play).
 - [ ] RevenueCat dashboard: entitlement ids `ads_removed` / `premium`, intro offer on `deeplife_premium_*`.
 - [ ] iOS: open Spark → Upgrade → Cancel subscription and Pulse → Verified Pro → Cancel; the confirm must appear.
@@ -74,6 +91,15 @@ were closed here; the rest of the P2/P3 list is unchanged and below.
       binary 2.5.8, and several were already fixed in builds they have not seen.
 
 ## POST-RELEASE
+- [ ] The `RUN_*` determinism soaks exit 1 although every assertion passes: the
+      soak leaves an in-flight `SaveQueue` promise and its dynamic `import()`
+      throws once Jest tears the environment down (`utils/saveQueue.ts:305,423`).
+      Pre-existing and test-only. Draining the queue needs a production API
+      that has no release reason, so it was left; the assertions are the
+      signal, the exit code is not (Program 17 D1).
+- [ ] Confirm on device whether the 8 interactive elements measuring under
+      44 pt by DOM rect are really under-sized — `hitSlop` is invisible to that
+      measurement (Program 17 D2).
 - [ ] IAP: persist a pending-consumable-grant record on the RC failure branch, so
       a charged pack whose grant fails has an in-app retry. **(The synthetic
       restore id for MIXED consumables is done — Program 16 §3.1.)**
@@ -103,6 +129,10 @@ were closed here; the rest of the P2/P3 list is unchanged and below.
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
+- [ ] No REMOTE live event is open until 2026-11-02 (57 days). Not a defect:
+      remote MERGES with the compiled-in catalogue, which has two events active
+      today, so the card is not empty. But the Sep–Oct window rests entirely on
+      the compiled-in floor and `first_rungs` expires 2026-10-26 (Program 17 D3).
 - [ ] PAC spending is HALF as efficient as spending cash directly ($10k per
       approval point vs $5k), while its own comments promise 1.5x. Not visible
       to the player, so nothing on screen lies — but a player who banks money

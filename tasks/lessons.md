@@ -5549,3 +5549,41 @@ interrupting you, forever, with no visible cause. The same shape as the Life
 Skills sheet whose only exit was clipped off the card (2026-09-05), one level
 further in: there the door was drawn off screen, here nothing was drawn at all.
 
+## 2026-09-06 — Validating a release candidate you cannot build
+
+Program 17 was asked to prove 2.13.0 on real iOS. The container is Linux with
+no Xcode, no eas-cli and no Apple credentials, so the honest answer to half the
+program was NOT EXECUTED. Three things worth keeping from the half that could
+be done.
+
+**A browser can manufacture a P0 that does not exist.** The first save/load run
+reported catastrophic progress loss: age 20 / $1,567 before, age 18 / $200
+after. The save was intact the whole time. `page.reload()` is not a relaunch —
+expo-router mirrors the route into the web URL, so reloading lands on `/home`
+and deep-links straight past the menu and past the load. iOS has no URL to
+restore. Navigating to `/` instead resumed the life exactly, and the menu even
+showed "Continue · <name> · 20 yrs · $1,567". **Before grading a device finding
+from a browser, ask which of the two platforms the behaviour belongs to.** The
+same run reported "2 of 4 tabs are identical" for the same class of reason:
+react-native-web keeps every mounted screen in the DOM, so all four tabs share
+an innerText prefix. Checking the route gives 4/4.
+
+**Look for what already covers the claim before writing a new test.** Phase 4
+asked for proof that all 19 in-phone apps stay reachable. Progressive
+disclosure gates them by chapter tier, so a browser pass on a fresh life can
+only ever see three — and fighting the modal stack to grant six chapters would
+have produced a worse proof than the one already in the repo:
+`featureUnlocks.test.ts` sweeps every entry in `FEATURE_UNLOCKS` at the last
+chapter, and again for a veteran, a prestiged player and an heir. The right
+move was to cite it, not to reproduce it badly.
+
+**A green assertion set and a green exit code are different claims.** Both
+determinism soaks print "5 passed" / "3 passed" and then exit 1, because the
+simulated `saveGame()` leaves an in-flight `SaveQueue` whose dynamic `import()`
+throws once Jest tears the environment down. Nothing is wrong with the
+simulation and nothing is wrong with the product; what is wrong is that a real
+future failure would look identical from the exit code. It was left alone —
+draining the queue needs a production API added for a test's benefit, days
+before a release — but it is written down, which is the part that matters. The
+same reasoning as CLAUDE.md section 8: a gate whose red means nothing trains
+you to skim it.
