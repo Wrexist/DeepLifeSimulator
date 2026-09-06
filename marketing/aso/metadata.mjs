@@ -31,12 +31,11 @@ export const APPLE = {
    *
    * `scripts/asc-release.mjs` reads this as the record to create and fill.
    *
-   * 1.6.0 rather than 1.5.0 because 1.5.0 was the record drafted for the
-   * avatar/Spark release. App Store Connect holds at most ONE editable version
-   * at a time, so if that draft is still open the script does not create a
-   * second one — it reports the number it found and offers `--retarget`, which
-   * renumbers the open draft under the same climb rule. Which of the two
-   * happened is a question only Apple can answer: run `npm run asc:status`.
+   * Measured against the real account on 2026-09-06, not assumed: 18 version
+   * records exist, 1.5.0 (the avatar/Spark release) is READY_FOR_DISTRIBUTION
+   * — it shipped — and 1.5.5 is WAITING_FOR_REVIEW. So 1.6.0 is the next free
+   * number, and the script will refuse to open it until 1.5.5 clears review,
+   * because App Store Connect will not add a version alongside one Apple has.
    */
   storeVersion: '1.6.0',
 
