@@ -11,6 +11,10 @@ three iPhone widths ran 24 checks with 0 failures. **No 2.13.0 binary exists** â
 the newest iOS build is run #71 (2.12.0, 2026-09-04).
 
 ## BEFORE THE BUILD
+**Execution packet: `docs/RELEASE-2.13.0-EXECUTION-PACKET.md`** â€” branch, inputs,
+secrets, the log lines that mean success, the failure signatures, and the device
+gates. Written because the build cannot be run from the agent container (no
+macOS/Xcode/eas-cli/Apple credentials, all verified).
 - [ ] **Merge this branch to `main`.** `origin/main` is `47595f5`; all 71 iOS
       runs were cut from `main`, so dispatching today builds WITHOUT the two
       Program 16 fixes (restore ledger id, self-clearing wedding flag).
