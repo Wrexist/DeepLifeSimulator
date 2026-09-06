@@ -17,7 +17,13 @@ the newest iOS build is run #71 (2.12.0, 2026-09-04).
 - [ ] Dispatch `eas-build-local-ios.yml` with version **2.13.0**, submit on.
 - [ ] **Watch that run** — first since preflight moved inside
       `eas env:exec production`; a missing RC or HMAC key now FAILS by name.
-- [ ] Trim the drafted v2.13.0 `WHATS_NEW.md` entry before store submission.
+- [x] `WHATS_NEW.md` v2.13.0: the FACTUAL line was wrong and is corrected — it
+      claimed the save format "moves from v48 to v51". It does not move at all:
+      v49 shipped with the 2.12.0 cut (`a3796e7`), and v50/v51 both landed
+      before the 2.12.0 binary now on TestFlight (`d845b9e`, run #71). Marketing
+      copy untouched.
+- [ ] **OWNER: trim the store block** in `WHATS_NEW.md` before submission. Eight
+      bullets is long for a What's New; the facts around it are now correct.
 
 ## RELEASE BLOCKERS — closed by Programs 15/16, re-proved on 175efc4
 - [x] `npm run preflight` was red on main (721 lint warnings vs 719) — fixed at
@@ -72,7 +78,15 @@ the newest iOS build is run #71 (2.12.0, 2026-09-04).
 - [ ] iOS: death → Start New Life, death → Revival Pack → return; wedding popup Continue.
 - [ ] VoiceOver pass on Home / Apps / Bank Pro; largest Dynamic Type on the death screen.
 - [x] `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` confirmed present and passed to the build; the preflight warning was local-visibility only.
-- [ ] Decide `EXPO_PUBLIC_ENABLE_ANALYTICS` for production (the self-hosted queue is off without it).
+- [x] **`EXPO_PUBLIC_ENABLE_ANALYTICS` — RESOLVED, leave it UNSET.** Not an open
+      decision: preflight §9b hard-FAILS on `ENABLE_ANALYTICS=true` with no
+      `EXPO_PUBLIC_ANALYTICS_URL` ("strictly worse than disabled, because it
+      looks instrumented"), and no analytics URL is configured anywhere in the
+      repo. Production sets `EXPO_PUBLIC_ENABLE_FIREBASE=true`, so §9b passes
+      and `app/_layout.tsx:1150` (`if (enableTelemetry || enableFirebase)`)
+      inits analytics and sets consent, delivering the whole product funnel via
+      Firebase. Only the self-hosted HTTP queue stays off, deliberately.
+      Turning the flag on today would fail the build.
 
 ## PLAYER BUG REPORTS (2026-09-05) — see tasks/player-bug-triage-2026-09-05.md
 - [x] Life Skills modal was unclosable on iOS: the header pushed its own close X
@@ -129,10 +143,14 @@ the newest iOS build is run #71 (2.12.0, 2026-09-04).
 - [ ] Hack caught-roll: fold an attempt index into the key before any UI is wired.
 
 ## OWNER DECISIONS
-- [ ] No REMOTE live event is open until 2026-11-02 (57 days). Not a defect:
-      remote MERGES with the compiled-in catalogue, which has two events active
-      today, so the card is not empty. But the Sep–Oct window rests entirely on
-      the compiled-in floor and `first_rungs` expires 2026-10-26 (Program 17 D3).
+- [x] **D3 live ops — ACCEPTED, no change made.** Measured on 2026-09-06: walking
+      one day at a time from today to the first remote event (2026-11-02) there
+      are **zero days with no active event**. `welcome_back_footing` runs to
+      2027-08-01, `first_rungs` to 2026-10-26, `autumn_reserve` opens 2026-09-07
+      and `autumn_foundations` 2026-10-12 — the compiled-in floor covers the
+      whole gap continuously, and remote MERGES with it rather than replacing
+      it. The card is never empty. No remote event was authored: doing so only
+      to make the calendar look busy is what the program forbids.
 - [ ] PAC spending is HALF as efficient as spending cash directly ($10k per
       approval point vs $5k), while its own comments promise 1.5x. Not visible
       to the player, so nothing on screen lies — but a player who banks money
