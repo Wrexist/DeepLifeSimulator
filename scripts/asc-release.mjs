@@ -50,6 +50,7 @@ import {
 import {
   EDITABLE_STATES,
   MANAGED_APP_INFO_FIELDS,
+  appInfoStateOf,
   MANAGED_VERSION_FIELDS,
   appInfoLocalizationCreatePayload,
   appInfoLocalizationUpdatePayload,
@@ -239,9 +240,14 @@ async function main() {
       childType: 'appStoreVersionLocalizations',
       fields: MANAGED_VERSION_FIELDS,
     });
+    // When nothing is editable there is still a LIVE app record, and reading it
+    // is the whole point of a status run: the name and subtitle on the store
+    // page right now are what a keyword decision turns on — a term already in
+    // the name is a slot the keyword field is wasting. Read-only either way.
+    const appInfoForRead = appInfoPlan.action === 'use' ? appInfoPlan.appInfo : appInfos[0] ?? null;
     const appInfoLocs = await readLocalizations(client, {
       parentType: 'appInfos',
-      parentId: appInfoPlan.action === 'use' ? appInfoPlan.appInfo.id : null,
+      parentId: appInfoForRead?.id ?? null,
       childType: 'appInfoLocalizations',
       fields: MANAGED_APP_INFO_FIELDS,
     });
@@ -253,7 +259,12 @@ async function main() {
     if (target && !EDITABLE_STATES.has(versionStateOf(target))) {
       say(`  ${C.yellow}NOT EDITABLE${C.off} — ${versionStateOf(target)}. The differences below are what the repo would say, not what is about to happen.`);
     }
-    say(`  app record read:     ${appInfoPlan.action === 'use' ? appInfoPlan.state : C.yellow + appInfoPlan.reason + C.off}`);
+    say(`  app record read:     ${appInfoPlan.action === 'use'
+      ? appInfoPlan.state
+      : `${C.yellow}${appInfoStateOf(appInfoForRead) ?? 'none'} (live, not editable)${C.off} — ${appInfoPlan.reason}`}`);
+    for (const l of appInfoLocs) {
+      say(`    ${C.dim}on the store now · ${l.attributes?.locale}: "${l.attributes?.name}" / "${l.attributes?.subtitle ?? ''}"${C.off}`);
+    }
 
     reportOps('Would change on the version', planLocalizations({
       existingLocalizations: versionLocs, desiredByLocale: desired.versionLocalizations,
