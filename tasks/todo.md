@@ -1,4 +1,48 @@
-# Active — Master Program 17: 2.13.0 release candidate validation (2026-09-06)
+# Active — Program 18: purchase and save safety (2026-09-07)
+
+User authorized implementation of merged PR #196. Base: `1824b9c`, whose
+runtime is identical to `cc60c2e`. The roadmap is a queue of hypotheses, not a
+verified defect list. This first slice implements reproduced trust failures.
+
+- [x] Review #196 and #195 against current source and release evidence.
+- [x] Verify iOS run #72 (`34054920090`): production preflight, native build and
+      IPA upload succeeded on `cc60c2e`; TestFlight submission was started but
+      the submission watcher was skipped. Device acceptance is still unproved.
+- [x] Make purchase fulfillment respect a `false` save result.
+- [x] Separate pending reservations from completed transactions. Retain pending
+      on every incomplete outcome and persist quantity receipts with the grant.
+- [x] Preserve the checkpoint sidecar during purchase/restore disk writes and
+      hold the save mutex across the full disk read-modify-write.
+- [x] Let legacy v11/v13/v14 migrations pass malformed array entries while
+      preserving valid careers, brand deals and loans, then reach schema 51.
+- [x] Assess police fines before collecting cash, carrying unpaid fines into
+      the existing arrears path. Prove liquid/illiquid conservation.
+- [x] Review a durable RevenueCat recovery design and state any remaining
+      finished-transaction recovery gap explicitly.
+- [x] Run focused regression tests, source/test type checks, full suite,
+      relevant stress/save/startup gates, clean lint ratchet and preflight.
+- [x] Record findings, tested behavior, release identity and remaining device
+      gates, and prepare a focused draft PR. Do not treat #196's later phases as done.
+
+Validation: 766 suites / 9,658 tests / 308 snapshots passed, 17 suites and
+32 tests skipped, exit 0. The full run retains a known socialBoundaries teardown
+warning; the focused purchase/checkpoint run exits cleanly (32 tests). Preflight
+exits 0 with zero lint errors and 716/716 warnings. Static weekly audit exits 0
+with three existing warning groups. See the audit report for exact limitations.
+
+### Next gates and implementation slices
+
+- [ ] Verify IAP changes with the SDK on TestFlight before merging, per the PR
+      template. Include purchase, forced save failure, relaunch and Restore.
+- [ ] Implement complete slot-bound RevenueCat grant recovery and truthful
+      consumable-failure guidance. Pending IDs are not a replay journal.
+- [ ] Repair repeated journal event identity and preserve live-event claims
+      across prestige/heir transitions with explicit continuity rules.
+- [ ] Continue the ranked feature work in the audit report after trust gates.
+
+## Historical Program 17 status (superseded where noted above)
+
+# Master Program 17: 2.13.0 release candidate validation (2026-09-06)
 
 RC `175efc4` on `claude/deeplife-release-blockers-7wcdpg`. Report:
 `tasks/release-candidate-validation-2026-09-06.md`. Inputs: Program 16's

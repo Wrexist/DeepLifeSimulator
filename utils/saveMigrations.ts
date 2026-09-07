@@ -58,6 +58,12 @@ export const CURRENT_STATE_VERSION = STATE_VERSION;
 // migration registration will (correctly) halt the chain at load time.
 const NO_OP_MIGRATION_VERSIONS = new Set<number>([2, 3, 4, 5, 6, 7, 8, 9]);
 
+// Raw legacy arrays can contain invalid entries. Keep every real record while
+// discarding values that cannot hold one, so one bad neighbor cannot stop the
+// version ladder on every subsequent load.
+const isLegacyRecord = (entry: unknown): entry is Record<string, unknown> =>
+  entry !== null && typeof entry === 'object' && !Array.isArray(entry);
+
 const migrations: Record<number, (state: any) => any> = {
   // Version 10: Initial production release — all v10 defaults are handled by repairGameState()
   10: (state) => {
@@ -94,6 +100,7 @@ const migrations: Record<number, (state: any) => any> = {
 
     // Career startedWeeksLived — backfill for existing careers
     if (Array.isArray(state.careers)) {
+      state.careers = state.careers.filter(isLegacyRecord);
       for (const career of state.careers) {
         if (career.startedWeeksLived === undefined) {
           // Best guess: assume they started at the beginning
@@ -189,7 +196,7 @@ const migrations: Record<number, (state: any) => any> = {
     // Upgrade legacy activeBrandDeals[] with new optional fields. Never strip
     // existing fields — only add defaults for missing ones.
     if (Array.isArray(sm.activeBrandDeals)) {
-      sm.activeBrandDeals = sm.activeBrandDeals.map((d: any) => ({
+      sm.activeBrandDeals = sm.activeBrandDeals.filter(isLegacyRecord).map((d: any) => ({
         ...d,
         postsRequired: d.postsRequired ?? 1,
         postsDelivered: d.postsDelivered ?? 0,
@@ -276,6 +283,7 @@ const migrations: Record<number, (state: any) => any> = {
 
     // Backfill new optional Loan tracking fields so credit score has data to work with.
     if (Array.isArray(state.loans)) {
+      state.loans = state.loans.filter(isLegacyRecord);
       for (const loan of state.loans) {
         if (loan.onTimePayments === undefined) loan.onTimePayments = 0;
         if (loan.latePayments === undefined) loan.latePayments = 0;

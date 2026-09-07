@@ -10,12 +10,13 @@
  *      that scales 5%/level above 4 (capped at 30%). On hit:
  *        - Jail for `min(4, ceil(wantedLevel/3))` weeks.
  *        - -15 happiness.
- *        - Fine: 5% of cash (capped at current cash → can never go negative).
+ *        - Wealth-based fine, collecting cash and carrying unpaid debt.
  *        - Push notification + log.
  *
  * Side effects (mutations of `ctx`):
  *   - `ctx.newStats.happiness` — `-15` on encounter (floored at 0).
- *   - `ctx.newStats.money`     — `-5%` fine on encounter (floored at 0).
+ *   - `ctx.newStats.money`     — cash paid toward the fine (floored at 0).
+ *   - `ctx.deferredCharges`   — unpaid fine, carried into arrears.
  *   - `ctx.notifications.push(...)` — encounter notification.
  *
  * Returns the two scalars the downstream blocks consume:
@@ -49,17 +50,15 @@ const MAX_FINE_RATE = 0.05;
 /**
  * Price one police encounter.
  *
- * Two bounds, both load-bearing:
- *  - the RATE is capped, so a high wanted level cannot confiscate an estate;
- *  - the CHARGE is capped by cash on hand, so an illiquid player is never driven
- *    to a negative balance (which nothing downstream in this game supports).
+ * The assessment caps the RATE, not the debt, so emptying the wallet cannot
+ * erase a wealth-based fine. `chargeOrDefer` separately limits collection to
+ * available cash and carries the shortfall without making cash negative.
  *
  * The floor keeps the old behaviour meaningful for an early-game player whose
  * net worth is basically their wallet.
  */
 export function computePoliceFine(cash: number, netWorth: number | undefined, wantedLevel: number): number {
   const safeCash = typeof cash === 'number' && isFinite(cash) && cash > 0 ? cash : 0;
-  if (safeCash <= 0) return 0;
   const safeNetWorth =
     typeof netWorth === 'number' && isFinite(netWorth) && netWorth > 0 ? netWorth : safeCash;
   const rate = Math.min(MAX_FINE_RATE, Math.max(0, wantedLevel - 4) * FINE_RATE_PER_WANTED_LEVEL);
@@ -67,7 +66,7 @@ export function computePoliceFine(cash: number, netWorth: number | undefined, wa
   // Never less than the old flat-5%-of-cash charge, so this can only tighten
   // the consequence, never loosen it for the player it already applied to.
   const cashBased = Math.round(safeCash * 0.05);
-  return Math.min(safeCash, Math.max(cashBased, wealthBased));
+  return Math.max(cashBased, wealthBased);
 }
 
 export interface CrimeTickResult {
@@ -98,9 +97,9 @@ export function applyCrimeTick(input: CrimeTickInput, ctx: WeekContext): CrimeTi
       // wealthy: a player holding $10M in property, stocks and companies but
       // $2 000 in cash paid a $100 fine and lost four weeks. The court does not
       // care which pocket the money is in. Pricing on net worth and capping the
-      // rate keeps it meaningful at the top without being able to wipe out a
-      // player whose wealth is illiquid — the charge is still bounded by cash on
-      // hand, so it can never drive the balance negative.
+      // rate bounds the assessment. Cash collection and any unpaid remainder
+      // are handled together below, so moving wealth into assets cannot forgive
+      // the fine and the wallet still never goes negative.
       const fine = computePoliceFine(ctx.newStats.money, input.netWorth, newWantedLevel);
       // A fine you cannot pay is still owed — see chargeOrDefer.
       chargeOrDefer(ctx, fine);

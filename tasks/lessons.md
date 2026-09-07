@@ -5587,3 +5587,41 @@ draining the queue needs a production API added for a test's benefit, days
 before a release — but it is written down, which is the part that matters. The
 same reasoning as CLAUDE.md section 8: a gate whose red means nothing trains
 you to skim it.
+
+
+## 2026-09-07 — Pending payment is not completed payment
+
+A `Promise<boolean>` save that resolves `false` has failed. The IAP handler
+previously treated any resolution as success, causing disk fulfillment to skip
+the quantity grant. Test the real handler's save result, not only a service
+mock that always means what the caller assumes.
+
+Writing a transaction ID before its grant cannot use the fulfilled ledger. A
+crash would turn that reservation into permanent suppression of an unpaid
+grant. Keep pending and completed identities separate, and write quantity
+identity in the same save as quantity delivery. Retain pending on all incomplete
+outcomes: a failed immediate save may still leave a live grant that a later
+autosave persists, and load can promote its receipt into the historical ledger.
+Test that sequence as well as the simpler throw-before-grant case. Pending IDs
+alone are not a recovery journal, especially when the store SDK has already
+finished the transaction.
+
+A disk-only writer must reconstruct sidecar-backed state before resaving it.
+The cold IAP path read only the main envelope, so its next force-save could
+replace real rewind checkpoints with an empty sidecar. Hold the save mutex
+across both the read and write, using the existing under-lock force-save mode
+to avoid recursive acquisition.
+
+## 2026-09-07 — Assess liability before collecting it
+
+The police fine was capped by wallet cash before reaching `chargeOrDefer`.
+That erased liability for an illiquid wealthy character instead of deferring
+it. Compute the assessed amount from the intended rule first, then let the
+shared collector divide it into paid cash and arrears. Prove conservation for
+zero, partial and sufficient liquidity, while keeping the wallet nonnegative.
+
+Legacy migration arrays also need element guards. A valid array can contain
+null or primitive entries from old or malformed JSON. Filter non-record entries
+without discarding valid neighbors, and prove the migration reaches the current
+version and stays there after reload. A synthetic corrupt fixture demonstrates
+a recovery weakness, not a measured customer incident.

@@ -33,6 +33,7 @@ const IAP_VERIFY_URL = process.env.EXPO_PUBLIC_IAP_VERIFY_URL;
 const IAP_VERIFY_TOKEN = process.env.EXPO_PUBLIC_IAP_VERIFY_TOKEN;
 const IAP_VERIFY_TIMEOUT_MS = 8000;
 const PROCESSED_IAP_TRANSACTIONS_KEY = 'iap_processed_transactions';
+const PENDING_IAP_TRANSACTIONS_KEY = 'iap_pending_transactions';
 const MAX_PROCESSED_IAP_TRANSACTIONS = 2000;
 const ENTITLEMENTS_UNREADABLE_KEY = 'entitlements_unreadable_at';
 const TRUSTED_PERMANENT_PERKS_KEY = 'permanent_perks_v2';
@@ -706,27 +707,47 @@ export class IAPService {
     transactionId?: string,
   ): Promise<boolean> {
     if (!transactionId) return false;
+    // loadGame merges same-envelope receipt markers into the historical
+    // ledger. A pending ID still means disk-only obligations need retry even
+    // when the quantity marker was recovered from a successful live save.
+    const pendingRaw = await safeGetItem(PENDING_IAP_TRANSACTIONS_KEY);
+    if (pendingRaw) {
+      try {
+        const pending: unknown = JSON.parse(pendingRaw);
+        if (Array.isArray(pending) && pending.includes(transactionId)) return false;
+      } catch { /* A malformed pending record is not proof of fulfillment. */ }
+    }
     const transactions = await this.loadProcessedTransactions();
     return transactions.has(transactionId);
   }
 
-  /**
-   * Undo a reservation when the grant it was taken for did not land.
-   *
-   * Without this, reserve-then-grant would recreate the very bug MON-6 fixed:
-   * a purchase that applied nothing would sit in the ledger as fulfilled, and
-   * every future retry would be suppressed. Best-effort - a failed release just
-   * means the grant needs a manual Restore, which is strictly better than a
-   * duplicated one.
-   */
+  /** Pending is never fulfillment. A crash before granting remains retryable. */
+  private async reserveTransaction(transactionId: string): Promise<boolean> {
+    try {
+      const raw = await safeGetItem(PENDING_IAP_TRANSACTIONS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return false;
+      const pending = new Set(parsed.filter((id): id is string => typeof id === 'string'));
+      pending.add(transactionId);
+      return await safeSetItem(PENDING_IAP_TRANSACTIONS_KEY,
+        JSON.stringify([...pending].slice(-MAX_PROCESSED_IAP_TRANSACTIONS)));
+    } catch {
+      return false;
+    }
+  }
+
   private async releaseTransactionReservation(transactionId?: string): Promise<void> {
     if (!transactionId) return;
     try {
-      const transactions = await this.loadProcessedTransactions();
-      if (!transactions.delete(transactionId)) return;
-      await this.saveProcessedTransactions(transactions);
+      const raw = await safeGetItem(PENDING_IAP_TRANSACTIONS_KEY);
+      const pending: unknown = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(pending)) return;
+      await safeSetItem(PENDING_IAP_TRANSACTIONS_KEY,
+        JSON.stringify(pending.filter(id => id !== transactionId)));
     } catch (error) {
-      logger.error('[IAP] Failed to release a transaction reservation', { transactionId, error });
+      // A stale pending id cannot suppress delivery: only the completed ledger
+      // and a receipt marker written atomically with the quantities do that.
+      logger.warn('[IAP] Could not clear pending transaction', { transactionId, error });
     }
   }
 
@@ -1594,6 +1615,23 @@ export class IAPService {
     transactionId?: string,
     options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean },
   ): Promise<boolean> {
+    // The lock covers the READ as well as the write. Locking forceSave alone
+    // allows an autosave to land between them and be overwritten by our stale
+    // snapshot, including its receipt markers.
+    const { saveLoadMutex } = await import('@/utils/saveLoadMutex');
+    const token = await saveLoadMutex.acquire('save');
+    try {
+      return await this.applyBenefitToDiskLocked(purchase, transactionId, options);
+    } finally {
+      saveLoadMutex.release(token);
+    }
+  }
+
+  private async applyBenefitToDiskLocked(
+    purchase: any,
+    transactionId?: string,
+    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean },
+  ): Promise<boolean> {
     const config = getProductConfig(purchase.productId);
     // Subscriptions have no one-time PRODUCT_CONFIG (they live in
     // SUBSCRIPTION_CONFIGS) but DO need disk fulfillment - the Verified-Pro
@@ -1655,6 +1693,11 @@ export class IAPService {
       }
 
       gameState = JSON.parse(decoded.data);
+      if (gameState && typeof gameState === 'object' && gameState.checkpoints === undefined) {
+        const { readCheckpointSidecar, filterCheckpointsForState } = await import('@/utils/checkpointSidecar');
+        const checkpoints = await readCheckpointSidecar(slotToUse);
+        if (checkpoints) gameState.checkpoints = filterCheckpointsForState(checkpoints, gameState);
+      }
       if (!gameState || typeof gameState !== 'object') {
         logger.error('Invalid game state structure in IAPService');
         return false;
@@ -1673,6 +1716,10 @@ export class IAPService {
       return false;
     }
 
+    const quantitiesAlreadyPersisted = !options?.entitlementsOnly && !!transactionId &&
+      Array.isArray(gameState.processedIAPTransactions) &&
+      gameState.processedIAPTransactions.includes(transactionId);
+
     // Apply all config benefits via the single shared helper (same logic the
     // in-memory applyProductToState path uses - they can no longer drift).
     // SKIP when the in-memory updater already applied + persisted them: this
@@ -1683,7 +1730,7 @@ export class IAPService {
     if (config) {
       if (!options?.skipBenefitReapply) {
         applyProductBenefitsToState(gameState, config, purchase.productId, {
-          entitlementsOnly: options?.entitlementsOnly,
+          entitlementsOnly: options?.entitlementsOnly || quantitiesAlreadyPersisted,
         });
       }
 
@@ -1716,6 +1763,7 @@ export class IAPService {
     // and can still arrive through Restore/history, but they are deliberately
     // NOT in the live catalog.
     if (
+      !quantitiesAlreadyPersisted &&
       typeof purchase.productId === 'string' &&
       (isSubscriptionProduct(purchase.productId) ||
         /^deeplife\.premium\.(monthly|yearly)$/i.test(purchase.productId))
@@ -1791,7 +1839,7 @@ export class IAPService {
     // + double-buffer path as every other save.
     try {
       const { forceSave } = await import('@/utils/saveQueue');
-      await forceSave(slotToUse, gameState);
+      await forceSave(slotToUse, gameState, false);
 
       // Deliberately NOT re-stamping `currentSlot` here. An entitlement grant is
       // not a slot switch; writing the marker made a background purchase
@@ -2370,12 +2418,12 @@ export class IAPService {
 
   // Hook for in-memory state updates
   private stateUpdater:
-    | ((productId: string, opts?: { entitlementsOnly?: boolean }) => Promise<boolean>)
+    | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string }) => Promise<boolean>)
     | null = null;
 
   public setStateUpdater(
     updater:
-      | ((productId: string, opts?: { entitlementsOnly?: boolean }) => Promise<boolean>)
+      | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string }) => Promise<boolean>)
       | null,
   ) {
     this.stateUpdater = updater;
@@ -2395,25 +2443,12 @@ export class IAPService {
      */
     entitlementsOnly = false,
   ): Promise<boolean> {
-    // 0. RESERVE BEFORE GRANTING, for grants that cannot safely happen twice.
-    //
-    // The ledger write used to happen only AFTER the grant, and its result was
-    // discarded - so a rejected write meant the grant landed with no record of
-    // it, and a later Restore or store replay re-applied it. For a
-    // non-idempotent product (a banked revive, a subscription term) that is a
-    // duplicated grant; recording FIRST turns the same failure into a refusal,
-    // which is recoverable - the transaction stays unfinished and the store
-    // redelivers it. Idempotent entitlement flags keep the original order,
-    // because re-applying one is exactly how a restore repairs a wiped
-    // entitlement. 2026-07-30 audit SAVE-3.
-    // An `entitlementsOnly` grant is idempotent BY CONSTRUCTION - every
-    // quantity (gems, money, pills, the banked revive charge) is dropped and
-    // only boolean flags land - so it needs no reservation, and reserving it
-    // would write a ledger entry claiming a non-idempotent grant happened when
-    // it deliberately did not.
+    // A pending reservation checks durable storage before a non-idempotent
+    // grant, but is NEVER read as fulfilled. Receipt markers in the state
+    // provide replay protection across a crash between grant and ledger writes.
     const needsReservation =
-      transactionId != null && isNonIdempotentGrant(productId) && !entitlementsOnly;
-    if (needsReservation && !(await this.markTransactionProcessed(transactionId))) {
+      transactionId != null && (isNonIdempotentGrant(productId) || isConsumableProduct(productId)) && !entitlementsOnly;
+    if (needsReservation && !(await this.reserveTransaction(transactionId))) {
       logger.error('[IAP] Could not record the dedupe ledger; refusing a non-idempotent grant', {
         productId,
         transactionId,
@@ -2429,7 +2464,7 @@ export class IAPService {
     let inMemoryApplied = false;
     if (this.stateUpdater) {
       try {
-        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly })) === true;
+        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly, transactionId })) === true;
         logger.info(` Benefit applied via in-memory updater: ${productId}`);
       } catch (error) {
         logger.error('Error in state updater:', error);
@@ -2441,6 +2476,10 @@ export class IAPService {
     //    transaction ledger). Re-apply the additive config benefits ONLY when
     //    the in-memory path did not already apply + persist them.
     logger.info(`Applying benefit to disk: ${productId}`);
+    // Keep pending on EVERY incomplete outcome. Even a false live-updater
+    // result can leave quantities in memory that a later autosave persists.
+    // The pending ID keeps disk-only work retryable if load promotes that
+    // receipt marker into the completed history before fulfillment finishes.
     const diskApplied = await this.applyBenefitToDisk({ productId }, transactionId, {
       skipBenefitReapply: inMemoryApplied,
       entitlementsOnly,
@@ -2454,25 +2493,25 @@ export class IAPService {
     // the player had paid and could never receive it. Leaving it unmarked is
     // what lets a later launch, with a slot loaded, complete the grant.
     // 2026-07-30 audit MON-6.
-    const applied = inMemoryApplied || diskApplied;
+    // Disk-only obligations (cross-slot perks and subscriptions) must finish
+    // too. A durable live grant alone cannot declare those concerns fulfilled.
+    const applied = diskApplied;
     if (!applied) {
-      // Release the reservation taken in step 0, or the retry path this branch
-      // exists to preserve would be suppressed by our own ledger entry.
-      if (needsReservation) await this.releaseTransactionReservation(transactionId);
-      logger.error('Purchase applied nothing - leaving transaction unprocessed for retry', {
+      logger.error('Purchase fulfillment incomplete - leaving transaction unprocessed for retry', {
         productId,
         transactionId,
       });
       return false;
     }
 
-    if (transactionId && !needsReservation && !(await this.markTransactionProcessed(transactionId))) {
-      // The grant DID land, so we do not undo it - but the ledger has no record,
-      // which for an idempotent entitlement only risks a harmless re-apply.
-      logger.error('[IAP] Grant applied but the dedupe ledger write was rejected', {
-        productId,
-        transactionId,
-      });
+    if (transactionId) {
+      if (await this.markTransactionProcessed(transactionId)) {
+        if (needsReservation) await this.releaseTransactionReservation(transactionId);
+      } else {
+        // A retry uses the same-envelope receipt marker, so even a lost
+        // completed-ledger write cannot add the quantities again.
+        logger.error('[IAP] Grant persisted but completed ledger write was rejected', { productId, transactionId });
+      }
     }
     return true;
   }
@@ -2485,12 +2524,23 @@ export class IAPService {
   public applyProductToState(
     gameState: GameState,
     productId: string,
-    opts: { entitlementsOnly?: boolean } = {},
+    opts: { entitlementsOnly?: boolean; transactionId?: string } = {},
   ): boolean {
     const config = getProductConfig(productId);
     if (!config) return false;
 
-    applyProductBenefitsToState(gameState, config, productId, opts);
+    // The receipt marker and quantities travel in the SAME state update/save.
+    // An unsuccessful save leaves both live, so a later autosave and store
+    // retry cannot add the purchase again. Restores still repair flags freely.
+    const recorded = Array.isArray(gameState.processedIAPTransactions) ? gameState.processedIAPTransactions : [];
+    const alreadyApplied = !!opts.transactionId && recorded.includes(opts.transactionId);
+    applyProductBenefitsToState(gameState, config, productId, {
+      entitlementsOnly: opts.entitlementsOnly || alreadyApplied,
+    });
+    if (!opts.entitlementsOnly && opts.transactionId && !recorded.includes(opts.transactionId)) {
+      gameState.processedIAPTransactions = [...recorded, opts.transactionId]
+        .slice(-MAX_PROCESSED_IAP_TRANSACTIONS);
+    }
     return true;
   }
 }

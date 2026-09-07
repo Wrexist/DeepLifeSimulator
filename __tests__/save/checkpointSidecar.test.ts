@@ -1,3 +1,6 @@
+import { safeSetItem } from '@/utils/safeStorage';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
+import { iapService } from '@/services/IAPService';
 /**
  * Checkpoint sidecar (2026-08-26 perf pass) — the slot payload no longer
  * carries `checkpoints`; they live in a per-slot signed envelope written only
@@ -283,4 +286,17 @@ describe('lifecycle', () => {
     await persistCheckpointSidecar(2, [makeCheckpoint(52, undefined)]);
     expect(store.has(checkpointSidecarKey(2))).toBe(true);
   });
+});
+
+it('cold IAP disk fulfillment preserves existing checkpoint sidecar', async () => {
+  const state = createTestGameState();
+  state.weeksLived = 104;
+  state.checkpoints = [makeCheckpoint(52, state.lifeStartWeek)];
+  await forceSave(2,state);
+  await safeSetItem('currentSlot','2');
+  expect((await readCheckpointSidecar(2))?.length).toBe(1);
+  iapService.setStateUpdater(null);
+  const service = iapService as unknown as { applyBenefit: (product: string, transaction: string) => Promise<boolean> };
+  expect(await service.applyBenefit(IAP_PRODUCTS.GEMS_500,'audit-cp')).toBe(true);
+  expect(await readCheckpointSidecar(2)).toEqual(state.checkpoints);
 });

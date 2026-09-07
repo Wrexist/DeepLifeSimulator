@@ -72,7 +72,9 @@ export function IAPHandler() {
                             // skip the additive disk re-apply and the paid
                             // consumable was silently never credited. `applied`
                             // is only true when the benefit actually landed.
-                            .then(() => resolve(applied))
+                            // saveGame resolves false on write failure, so a
+                            // resolved promise alone is not a durable grant.
+                            .then(saved => resolve(applied && saved === true))
                             .catch(e => {
                                 logger.error('IAPHandler: Save failed', e);
                                 resolve(false);
