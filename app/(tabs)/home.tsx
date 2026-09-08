@@ -16,6 +16,7 @@ import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
 import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
 import IdentityCard from '@/components/IdentityCard';
+import HomeScene from '@/components/home/HomeScene';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
@@ -659,28 +660,12 @@ function HomeScreenContent() {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled={true}
       >
-        {/* No hero strip: the HUD's date box directly above this screen already
-            shows month, week and age - one fact, one surface. */}
-
-        {/*
-          The first-session coach, at the TOP of the feed rather than pinned to
-          the bottom. Two reasons, and the first was found by looking:
-          absolutely positioned at `bottom: 0` it rendered BEHIND the tab bar
-          and a new player never saw it at all.
-
-          The second is the better argument anyway - this is the one thing on
-          screen telling a new player what to do, and it belongs where the eye
-          lands. The card a player used to meet first was a passive profile
-          (name, age, "Unemployed") with nothing actionable on it.
-
-          Mounted UNCONDITIONALLY: it owns its own gating from live game state,
-          so it cannot ask for something already done and retires itself once
-          the player has been paid. It is also the ONLY teaching surface now -
-          the modal tutorial and the FirstWeekGuide are retired (the latter was
-          dead by construction: gated on a device-wide flag the tutorial set
-          first in a 500ms race).
-        */}
-        <FirstSessionCoach />
+        {/* Environment and guidance share the first slot. The coach still owns
+            its state gates and the real Work → week → paid teaching loop. */}
+        <HomeScene>
+          <FirstSessionCoach />
+        </HomeScene>
+        <LastWeekRecap />
 
         <FadeInUp delay={0}>
           {/* The prestige badge on the card opens the shop this screen already
@@ -711,9 +696,6 @@ function HomeScreenContent() {
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
         <SectionGroup label="This week" collapsibleId="home.thisWeek">
-        <FadeInUp delay={30}>
-          <LastWeekRecap />
-        </FadeInUp>
 
         {/* A tip that did not win the lead slot (prestige did) still shows -
             it is the only surface that names the fix for a failing vital. The

@@ -4,6 +4,14 @@
 
 ## Patterns to Watch For
 
+### 2026-09-08 — Immersion needs a coherent game asset style
+
+The owner rejected photographic generated environment plates as too visibly AI-generated.
+For this redesign, author modular Three.js geometry and export transparent renders
+plus editable models. Keep scenery inside the game coherent with the interface;
+cinematic marketing art is not an approved in-game art direction.
+
+
 ### 2026-09-04 — The screenshot the reporter attached was the whole diagnosis, and a test harness that resolves a different build than the device
 
 A second pass on the same Discord reports, after the reporter's screenshots

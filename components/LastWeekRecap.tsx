@@ -8,6 +8,7 @@ import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { scale, fontScale } from '@/utils/scaling';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /**
  * Compact, NON-BLOCKING weekly recap shown on the home dashboard.
@@ -24,6 +25,7 @@ const DRIFT_WORTH_NAMING = 3;
 function LastWeekRecap() {
   const { isDark } = useTheme();
   const router = useRouter();
+  const reduced = useReducedMotion();
   // The projection is derived inside the selector and flattened to primitives,
   // so the card re-renders only when the ANSWER changes, not on every state
   // mutation (CLAUDE.md §4.1).
@@ -62,8 +64,10 @@ function LastWeekRecap() {
   const fb = useFeedback();
   const lastWeekRef = useRef<number | null>(null);
   useEffect(() => {
+    if (reduced) { scaleAnim.stopAnimation(); scaleAnim.setValue(1); }
     if (!wr || weeksLived < 1 || lastWeekRef.current === weeksLived) return;
     lastWeekRef.current = weeksLived;
+    if (reduced) { scaleAnim.setValue(1); return; }
     scaleAnim.setValue(0.96);
     Animated.spring(scaleAnim, {
       toValue: 1,
@@ -73,7 +77,7 @@ function LastWeekRecap() {
     }).start();
     if (lucky > 0) fb.haptic('success');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weeksLived]);
+  }, [weeksLived, reduced]);
 
   // Nothing to show until the player has actually advanced a week with a result.
   // The Settings "Week Summary" switch used to gate the (removed) blocking
@@ -103,7 +107,7 @@ function LastWeekRecap() {
   if (!moneyMoved && careerProgress === 0 && pendingEvents === 0 && !wr.cliffhangerTeaser) return null;
 
   const positive = net >= 0;
-  const netColor = positive ? '#34D399' : '#F87171';
+  const netColor = positive ? (isDark ? '#5EEAD4' : '#0F766E') : (isDark ? '#FCA5A5' : '#B91C1C');
   const fmt = (n: number) => `$${Math.abs(Math.round(n)).toLocaleString()}`;
   const subColor = isDark ? 'rgba(226, 232, 240, 0.6)' : 'rgba(15, 23, 42, 0.55)';
 
@@ -116,7 +120,7 @@ function LastWeekRecap() {
       ]}
     >
       <View style={styles.topRow}>
-        <Text style={[styles.label, { color: subColor }]}>LAST WEEK</Text>
+        <Text style={[styles.label, { color: subColor }]}>YOUR WEEK, LIVED</Text>
         {moneyMoved ? (
           <View style={styles.netCluster}>
             {positive ? (
@@ -134,17 +138,14 @@ function LastWeekRecap() {
         )}
       </View>
 
+      {moneyMoved && (
+        <Text style={[styles.story, { color: isDark ? '#E2E8F0' : '#253A3D' }]}>
+          {income > 0 ? `${fmt(income)} came in.` : 'No income this week.'}
+          {expenses > 0 ? ` ${fmt(expenses)} went to expenses.` : ''}
+          {' '}{net === 0 ? 'Your cash held steady.' : `Your cash ${net > 0 ? 'grew' : 'fell'} by ${fmt(net)}.`}
+        </Text>
+      )}
       <View style={styles.chipRow}>
-        {income > 0 && (
-          <Text style={[styles.chip, { color: subColor }]}>
-            Income <Text style={styles.chipPos}>+{fmt(income)}</Text>
-          </Text>
-        )}
-        {expenses > 0 && (
-          <Text style={[styles.chip, { color: subColor }]}>
-            Expenses <Text style={styles.chipNeg}>-{fmt(expenses)}</Text>
-          </Text>
-        )}
         {lucky > 0 && (
           <View style={styles.badge}>
             <Sparkles size={scale(11)} color="#FBBF24" />
@@ -233,9 +234,9 @@ function LastWeekRecap() {
 const styles = StyleSheet.create({
   card: {
     marginVertical: scale(6),
-    paddingVertical: scale(10),
+    paddingVertical: scale(14),
     paddingHorizontal: scale(14),
-    borderRadius: scale(14),
+    borderRadius: scale(18),
     borderWidth: StyleSheet.hairlineWidth,
     gap: scale(8),
   },
@@ -247,10 +248,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.65)',
     borderColor: 'rgba(15, 23, 42, 0.08)',
   },
+  story: { fontSize: fontScale(13), lineHeight: fontScale(20) },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: scale(8),
   },
   label: {
     fontSize: fontScale(10),

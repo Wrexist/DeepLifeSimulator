@@ -180,7 +180,7 @@ export default function FirstSessionCoach() {
   }, [step, reduced, enter]);
 
   // ── Attention pulse on the call to action ───────────────────────────────
-  // A slow 1.0 → 1.04 breath, not a bounce. The point is to be findable in
+  // Two slow 1.0 → 1.04 breaths, then settle. The point is to be findable in
   // peripheral vision, not to demand a tap - a card that jumps reads as an ad.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -189,7 +189,8 @@ export default function FirstSessionCoach() {
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
+      ]),
+      { iterations: 2 },
     );
     loop.start();
     return () => loop.stop();
@@ -229,14 +230,14 @@ export default function FirstSessionCoach() {
   const copy = {
     'find-work': {
       Icon: Briefcase,
-      tone: accent.info,
-      title: 'You need work',
-      body: 'No job means no money coming in. Pick one up in the Work tab.',
+      tone: '#137E78',
+      title: 'Your next chapter starts here',
+      body: 'Find work, earn your first wage, and make room for the life you want.',
       cta: 'Find a job',
     },
     advance: {
       Icon: CalendarCheck,
-      tone: accent.success,
+      tone: '#137E78',
       title: 'Hired. Now live a week',
       body: 'Tap the green arrow up top. Your wage lands at the end of the week.',
       cta: 'Got it',
@@ -255,10 +256,11 @@ export default function FirstSessionCoach() {
   }[step];
 
   const { Icon, tone, title, body, cta } = copy;
+  const ctaForeground = step === 'paid' ? '#172A2E' : '#FFFFFF';
 
   return (
     <Animated.View style={[styles.wrap, { opacity: enter, transform: [{ translateY }] }]}>
-      <View style={[styles.card, { backgroundColor: c.surfaceElevated, borderColor: tone }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceElevated, borderColor: c.border }]}>
         <View style={styles.row}>
           <View style={[styles.badge, { backgroundColor: tone + '22', borderColor: tone + '55' }]}>
             <Icon size={scale(18)} color={tone} />
@@ -277,8 +279,8 @@ export default function FirstSessionCoach() {
             accessibilityLabel={cta}
             style={[styles.cta, { backgroundColor: tone }]}
           >
-            <Text style={styles.ctaText}>{cta}</Text>
-            <ArrowRight size={scale(16)} color="#FFFFFF" />
+            <Text style={[styles.ctaText, { color: ctaForeground }]}>{cta}</Text>
+            <ArrowRight size={scale(16)} color={ctaForeground} />
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -291,16 +293,16 @@ const styles = StyleSheet.create({
   // bar and was invisible to the player it exists for - found by screenshot,
   // not by reasoning about the layout.
   wrap: {
-    marginBottom: responsiveSpacing.md,
+    marginBottom: 0,
   },
   card: {
-    borderRadius: scale(16),
+    borderRadius: scale(20),
     borderWidth: 1,
     padding: responsiveSpacing.md,
     gap: scale(12),
     // Lifts it off the screen behind without a coloured stripe (Hard Rule #7).
     shadowColor: '#000',
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.12,
     shadowRadius: scale(18),
     shadowOffset: { width: 0, height: scale(8) },
     elevation: 8,
@@ -322,7 +324,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: scale(8),
-    paddingVertical: scale(11),
+    paddingVertical: scale(13),
+    minHeight: 44,
     borderRadius: scale(12),
   },
   ctaText: { color: '#FFFFFF', fontSize: fontScale(15), fontWeight: '700' },
