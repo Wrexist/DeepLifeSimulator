@@ -1,0 +1,365 @@
+[
+  {
+    "id": "01-your-life",
+    "group": "main",
+    "title": [
+      "One life.",
+      "Your rules."
+    ],
+    "sub": "Careers. Money. Love. What comes next?",
+    "category": "LIFE SIMULATION",
+    "accent": "#A5DFFF",
+    "shot": "30-early-home",
+    "mode": "full",
+    "checks": [
+      "You need work",
+      "Unemployed",
+      "$ 1,500"
+    ],
+    "details": [
+      "Start your story",
+      "Choose a direction",
+      "Build a life that is yours"
+    ]
+  },
+  {
+    "id": "02-build-an-empire",
+    "group": "main",
+    "title": [
+      "Build your",
+      "own empire."
+    ],
+    "sub": "Start a business. Make it your future.",
+    "category": "BUSINESS",
+    "accent": "#FFE19C",
+    "shot": "17-x-company",
+    "mode": "business",
+    "checks": [
+      "EMPIRE SNAPSHOT",
+      "8,000",
+      "Your companies"
+    ],
+    "details": [
+      "Found a company",
+      "Set your direction",
+      "Grow your weekly revenue"
+    ]
+  },
+  {
+    "id": "03-find-love",
+    "group": "main",
+    "title": [
+      "Find your",
+      "kind of love."
+    ],
+    "sub": "Meet someone. See where it goes.",
+    "category": "DATING",
+    "accent": "#FFB8D8",
+    "shot": "05-app-spark",
+    "mode": "full",
+    "checks": [
+      "Sarah Johnson",
+      "30 swipes left"
+    ],
+    "details": [
+      "Meet your matches",
+      "Discover shared interests",
+      "Choose who to pursue"
+    ]
+  },
+  {
+    "id": "04-make-your-choice",
+    "group": "main",
+    "title": [
+      "Your choices.",
+      "Your story."
+    ],
+    "sub": "Money, happiness or reputation?",
+    "category": "CHOICES",
+    "accent": "#FFC7AD",
+    "shot": "32-event-decision",
+    "mode": "event",
+    "checks": [
+      "Choice Effects",
+      "Embrace the feeling",
+      "Reputation +15"
+    ],
+    "details": [
+      "Read the situation",
+      "Weigh the effects",
+      "Make the call"
+    ]
+  },
+  {
+    "id": "05-climb-the-ladder",
+    "group": "main",
+    "title": [
+      "Climb the",
+      "career ladder."
+    ],
+    "sub": "Earn your qualifications. Find your path.",
+    "category": "CAREERS + EDUCATION",
+    "accent": "#A4E7D9",
+    "shot": "02-work",
+    "secondary": "28-app-education-earned",
+    "mode": "career",
+    "checks": [
+      "Engineering Manager",
+      "Top of the ladder"
+    ],
+    "details": [
+      "Earn qualifications",
+      "Choose your career",
+      "Reach the top of the ladder"
+    ]
+  },
+  {
+    "id": "06-play-the-markets",
+    "group": "main",
+    "title": [
+      "Make your",
+      "money move."
+    ],
+    "sub": "Trade stocks. Follow the sectors.",
+    "category": "INVESTING",
+    "accent": "#C8C4FF",
+    "shot": "07-app-stocks",
+    "mode": "focus",
+    "checks": [
+      "Sector rotation",
+      "All stocks"
+    ],
+    "details": [
+      "Track the market",
+      "Read sector trends",
+      "Build your portfolio"
+    ]
+  },
+  {
+    "id": "07-enter-the-dark-web",
+    "group": "main",
+    "title": [
+      "Take the",
+      "darker path."
+    ],
+    "sub": "Work the dark web. Watch your heat.",
+    "category": "CRIME + RISK",
+    "accent": "#A2EAC2",
+    "shot": "18-x-darkweb",
+    "mode": "focus",
+    "checks": [
+      "market@onion",
+      "heat",
+      "balance"
+    ],
+    "details": [
+      "Explore the marketplace",
+      "Build your operation",
+      "Manage your heat"
+    ]
+  },
+  {
+    "id": "08-own-the-city",
+    "group": "main",
+    "title": [
+      "From rent",
+      "to real estate."
+    ],
+    "sub": "Buy properties. Build your portfolio.",
+    "category": "PROPERTY",
+    "accent": "#D5CCFF",
+    "shot": "33-x-realestate-portfolio",
+    "mode": "focus",
+    "checks": [
+      "Your properties",
+      "Studio Apartment",
+      "Duplex"
+    ],
+    "details": [
+      "Buy your first property",
+      "Grow a portfolio",
+      "Build equity over time"
+    ]
+  },
+  {
+    "id": "09-drive-the-dream",
+    "group": "main",
+    "title": [
+      "Drive the",
+      "dream."
+    ],
+    "sub": "Earn the car. Make it yours.",
+    "category": "CARS + LIFESTYLE",
+    "accent": "#B6E9FF",
+    "shot": "34-x-garage-owned",
+    "mode": "focus",
+    "checks": [
+      "Exotic Supercar",
+      "Your Vehicles"
+    ],
+    "details": [
+      "Get your licence",
+      "Choose your next car",
+      "Look after your garage"
+    ]
+  },
+  {
+    "id": "10-build-a-family",
+    "group": "main",
+    "title": [
+      "More to life",
+      "than money."
+    ],
+    "sub": "Fall in love. Raise a family. Stay close.",
+    "category": "FAMILY + RELATIONSHIPS",
+    "accent": "#FFD4BB",
+    "shot": "09-app-contacts",
+    "mode": "full",
+    "checks": [
+      "Spouse",
+      "Baby Sam",
+      "Child"
+    ],
+    "details": [
+      "Build relationships",
+      "Raise your children",
+      "Care for your inner circle"
+    ]
+  },
+  {
+    "id": "11-live-well",
+    "group": "alternatives",
+    "title": [
+      "A good life",
+      "takes balance."
+    ],
+    "sub": "Make time for health and happiness.",
+    "category": "HEALTH",
+    "accent": "#ACEACA",
+    "shot": "11-life",
+    "mode": "health",
+    "checks": [
+      "Your Vitals",
+      "Walk in Park"
+    ],
+    "details": [
+      "Watch your vital stats",
+      "Choose healthy activities",
+      "Balance your weekly energy"
+    ]
+  },
+  {
+    "id": "12-see-the-world",
+    "group": "alternatives",
+    "title": [
+      "Where will",
+      "life take you?"
+    ],
+    "sub": "Pick a destination. Plan your escape.",
+    "category": "TRAVEL",
+    "accent": "#B8E5FF",
+    "shot": "24-x-travel",
+    "mode": "focus",
+    "checks": [
+      "Destinations",
+      "Paris",
+      "Tokyo",
+      "Bali"
+    ],
+    "details": [
+      "Choose a destination",
+      "Get your passport",
+      "Plan your next trip"
+    ]
+  },
+  {
+    "id": "13-create-something",
+    "group": "alternatives",
+    "title": [
+      "Your channel.",
+      "Your chance."
+    ],
+    "sub": "Go live. Start building an audience.",
+    "category": "CREATOR LIFE",
+    "accent": "#E0BAFF",
+    "shot": "25-x-streaming",
+    "mode": "focus",
+    "checks": [
+      "Your Channel",
+      "Go Live",
+      "Stream health"
+    ],
+    "details": [
+      "Start a channel",
+      "Improve your setup",
+      "Go live and find your audience"
+    ]
+  },
+  {
+    "id": "14-trade-crypto",
+    "group": "alternatives",
+    "title": [
+      "Read the risk.",
+      "Make the trade."
+    ],
+    "sub": "Explore a changing crypto market.",
+    "category": "CRYPTO",
+    "accent": "#F7D49B",
+    "shot": "19-x-crypto",
+    "mode": "focus",
+    "checks": [
+      "Crypto",
+      "Bitcoin",
+      "Ethereum"
+    ],
+    "details": [
+      "Follow crypto prices",
+      "Study market movements",
+      "Choose your trades"
+    ]
+  },
+  {
+    "id": "15-collect-the-extraordinary",
+    "group": "alternatives",
+    "title": [
+      "Collect the",
+      "extraordinary."
+    ],
+    "sub": "Turn your fortune into a collection.",
+    "category": "LUXURY",
+    "accent": "#FFE3A8",
+    "shot": "29-x-luxury-collection",
+    "mode": "focus",
+    "checks": [
+      "Collection (2)",
+      "2 / 6 collectibles"
+    ],
+    "details": [
+      "Acquire rare pieces",
+      "Build your collection",
+      "Reach collection milestones"
+    ]
+  },
+  {
+    "id": "16-start-again",
+    "group": "alternatives",
+    "title": [
+      "Start again.",
+      "Go further."
+    ],
+    "sub": "Prestige. Earn permanent bonuses.",
+    "category": "PRESTIGE",
+    "accent": "#FDE6A9",
+    "shot": "01-home-goals",
+    "mode": "prestige",
+    "checks": [
+      "Prestige System",
+      "permanent bonuses"
+    ],
+    "details": [
+      "Reach the prestige goal",
+      "Earn permanent bonuses",
+      "Begin your next life"
+    ]
+  }
+]
