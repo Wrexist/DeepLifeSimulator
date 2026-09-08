@@ -1,0 +1,12 @@
+{
+  "name": "deeplife-store-screenshots",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "preview": "node previews.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.4"
+  }
+}

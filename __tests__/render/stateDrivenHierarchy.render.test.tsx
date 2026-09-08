@@ -105,12 +105,12 @@ describe('state-driven hierarchy - Market', () => {
 });
 
 describe('state-driven hierarchy - Home', () => {
-  it('nothing urgent: the goal ladder leads', () => {
+  it('nothing urgent: the combined coaching and goal card leads', () => {
     const { json, unmount } = renderSeeded(<Home />, (s) => ({
       ...s,
       stats: { ...s.stats, health: 90, happiness: 90, energy: 90, money: 1500 },
     }));
-    expect(json).toContain('What matters now');
+    expect(json).toContain('Your goals');
     expect(json).not.toContain('Health is low');
     unmount();
   });
@@ -120,7 +120,7 @@ describe('state-driven hierarchy - Home', () => {
       ...s,
       stats: { ...s.stats, health: 10, happiness: 90, energy: 90, money: 1500 },
     }));
-    before(json, 'Health is low', 'What matters now');
+    before(json, 'Health is low', 'Your goals');
     unmount();
   });
 });
@@ -173,8 +173,8 @@ describe('dominance collisions - one lead, deterministic', () => {
     expect(json).not.toContain('Low energy');
     expect(json).not.toContain('Running low on cash');
     // and the tip sits above the goal ladder, which still renders once.
-    before(json, 'Health is low', 'What matters now');
-    expect(count(json, 'What matters now')).toBe(1);
+    before(json, 'Health is low', 'Your goals');
+    expect(count(json, 'Your goals')).toBe(1);
     unmount();
   });
 
@@ -212,7 +212,7 @@ describe('quiet state - identity, direction, progress, no invented urgency', () 
     }));
     expect(json).not.toContain('Health is low');
     expect(json).not.toContain('Running low on cash');
-    expect(json).toContain('What matters now');
+    expect(json).toContain('Your goals');
     expect(json).toContain('Net Worth');
     unmount();
   });
@@ -248,7 +248,7 @@ describe('extremes', () => {
       stats: { ...s.stats, health: 90, happiness: 90, energy: 90, money: -500 },
     }));
     expect(json).toContain('Running low on cash');
-    expect(count(json, 'What matters now')).toBe(1);
+    expect(count(json, 'Your goals')).toBe(1);
     unmount();
   });
 });

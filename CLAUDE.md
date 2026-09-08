@@ -1143,7 +1143,10 @@ diverges from the plan, stop and re-plan.
 each step. Keep diffs small and focused — touch only what the task needs.
 
 **Bug fixing.** Investigate and fix autonomously: read logs, trace the error, fix the
-root cause. Fix failing CI without being told how.
+root cause. Fix failing CI without being told how. After every PR push, inspect
+GitHub checks for the latest commit, read failing logs, fix causes and verify the
+new run. Local passes alone do not make a PR complete. Report pending checks or
+external blockers explicitly; never disable or weaken a gate to get green.
 
 **Learning.** Read `tasks/lessons.md` at the start of a session and append to it after
 any correction — what went wrong, the pattern, the rule. It is the highest-value file

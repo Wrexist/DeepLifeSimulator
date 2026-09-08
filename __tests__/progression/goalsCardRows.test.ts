@@ -3,10 +3,8 @@
  * checklist cards (2026-09-01 UI audit, blueprint §2 item 2 / §10).
  *
  * `buildGoalRows` is the pure priority ladder the card slices its top three
- * from: chapter goal → weekly challenge objective → live event → ambition
- * milestone → scenario condition → catalogue recommendation. These pin the
- * ordering and the claimable-live-event override, because a wrong order here
- * silently demotes the objective the player should see first.
+ * from: actionable recommendation → chosen ambition → chapter, with secondary
+ * challenges and events available in the full details.
  */
 import { buildGoalRows } from '@/components/GoalsCard';
 import { getWeeklyChallengeIdForWeek } from '@/lib/challenges/weeklyChallenges';
@@ -42,20 +40,31 @@ describe('buildGoalRows', () => {
     expect(buildGoalRows(undefined, [])).toEqual([]);
   });
 
-  it('leads with the active chapter goal and pins the catalogue row second', () => {
+  it('leads with an actionable recommendation followed by chapter progress', () => {
     const rows = buildGoalRows(createTestGameState(), []);
     expect(rows.length).toBeGreaterThan(1);
     // A fresh life sits in chapter 1 with unfinished goals.
-    expect(rows[0].system).toBe('chapter');
-    // The situational recommendation is the ONLY row with a destination, so it
-    // is pinned second: with three slots and five passive ladders ahead of it,
-    // a fresh life never saw "Get your health back up" while sliding to zero
-    // (Program 6 walkthrough).
-    expect(rows[1].system).toBe('catalogue');
-    expect(rows[1].route).toBeTruthy();
+    expect(rows[0].system).toBe('catalogue');
+    expect(rows[1].system).toBe('chapter');
+    expect(rows[0].route).toBeTruthy();
     for (const row of rows) {
       if (row.system !== 'catalogue') expect(row.route).toBeUndefined();
     }
+  });
+
+  it('shows a single pending application as awaiting review, not one of three applications', () => {
+    const state = createTestGameState({ currentJob: undefined });
+    const pending = { ...state, careers: [{ ...state.careers[0], applied: true, accepted: false }] };
+    const row = buildGoalRows(pending, []).find(r => r.id === 'catalogue:now_get_hired');
+    expect(row?.fraction).toBe('Application under review');
+    expect(row?.progress).toBe(0.5);
+  });
+
+  it('keeps the selected ambition visible even when challenges and events compete', () => {
+    const state = createTestGameState({ ambitionId: 'business_empire' });
+    const rows = buildGoalRows(state, [fakeEvent('active')]);
+    expect(rows.slice(0, 3).map(r => r.system)).toEqual(['catalogue', 'ambition', 'chapter']);
+    expect(rows[1].title).toBeTruthy();
   });
 
   it('the routed recommendation survives a full feed (chapter + challenge + live event)', () => {
@@ -97,8 +106,8 @@ describe('buildGoalRows', () => {
     const chapter = systems.indexOf('chapter');
     const challenge = systems.indexOf('challenge');
     const catalogue = systems.indexOf('catalogue');
-    expect(chapter).toBe(0);
-    expect(catalogue).toBe(1);
+    expect(chapter).toBe(1);
+    expect(catalogue).toBe(0);
     expect(challenge).toBeGreaterThan(catalogue);
   });
 

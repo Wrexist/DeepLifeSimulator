@@ -1,3 +1,29 @@
+# Current scope after resolving PR #200 against #201
+
+The accepted compact Home layout and combined coaching/goal card from #201 take
+precedence over this PR's older scene integration. Home remains as it is on main,
+including pending-application guidance, wage-based completion, the compact HUD,
+and the existing recap position. Its static constants import fix is retained.
+
+The 18 authored models, transparent renders, viewer, housing selector and tested
+HomeScene component remain available as an asset package. HomeScene is not mounted
+on Home. Earlier screenshots below document the superseded integration and are
+not the current app layout. The existing PR recap presentation and reduced-motion
+fix remain in the usual This week section. The conflict resolution adds no new UI design.
+
+Both branches' task history is retained. Conflict-resolution verification:
+
+- 20 targeted Jest suites / 195 tests passed, including startup, Home hierarchy,
+  first-session walkthroughs, compact HUD, housing and recap completeness.
+- App and test TypeScript checks and route checks passed.
+- Full ESLint: zero errors. Lint ratchet: 714 warnings, ceiling 715. UI ratchet passed.
+- Production-mode Expo web export passed using a local-only preview signing key.
+- Remote CI will be checked on the pushed merge commit.
+
+The original implementation report follows.
+
+---
+
 # Immersive Home and modular 3D assets
 
 The owner rejected photographic generated art for the game and requested

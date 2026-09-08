@@ -20,7 +20,10 @@ interactive viewer, not a gameplay screenshot.
 
 The three Home renders are additionally encoded as transparent WebP files in
 `../../assets/images/home/` and used by `components/home/HomeScene.tsx`.
-Other props and business scenes are ready for subsequent screen integration.
+After resolving #200 against the accepted Home cleanup in #201, HomeScene is
+not mounted on Home. The previous Home integration screenshots under review/
+are historical. All environments, props and business scenes are available for
+subsequent screen integration.
 Three.js is isolated to the asset toolchain. The mobile app still renders local
 images with React Native and does not gain a WebGL/native module dependency.
 

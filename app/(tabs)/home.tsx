@@ -16,7 +16,6 @@ import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
 import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
 import IdentityCard from '@/components/IdentityCard';
-import HomeScene from '@/components/home/HomeScene';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
@@ -38,7 +37,6 @@ import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
 import GoalsCard from '@/components/GoalsCard';
 import { ContextualTip, useContextualTip, type ContextualTipType } from '@/components/ContextualTip';
-import FirstSessionCoach from '@/components/FirstSessionCoach';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
@@ -658,18 +656,10 @@ function HomeScreenContent() {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled={true}
       >
-        {/* Environment and guidance share the first slot. The coach still owns
-            its state gates and the real Work → week → paid teaching loop. */}
-        <HomeScene>
-          <FirstSessionCoach />
-        </HomeScene>
-        <LastWeekRecap />
+        {/* No hero strip: the HUD's date box directly above this screen already
+            shows month, week and age - one fact, one surface. */}
 
-        <FadeInUp delay={0}>
-          {/* The prestige badge on the card opens the shop this screen already
-              mounts below, instead of its previous empty onPress. */}
-          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
-        </FadeInUp>
+        {/* GoalsCard owns first-session guidance and the goal hierarchy together. */}
 
         {/* No crown upsell here any more: the HUD's store button and the gem
             chip's + are the store entries. Four concurrent paywall
@@ -691,9 +681,18 @@ function HomeScreenContent() {
           {lead === 'goals' && <FadeInUp delay={20}>{goalsBlock}</FadeInUp>}
         </View>
 
+        <FadeInUp delay={0}>
+          {/* The prestige badge on the card opens the shop this screen already
+              mounts below, instead of its previous empty onPress. */}
+          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
+        </FadeInUp>
+
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
         <SectionGroup label="This week" collapsibleId="home.thisWeek">
+        <FadeInUp delay={30}>
+          <LastWeekRecap />
+        </FadeInUp>
 
         {/* A tip that did not win the lead slot (prestige did) still shows -
             it is the only surface that names the fix for a failing vital. The

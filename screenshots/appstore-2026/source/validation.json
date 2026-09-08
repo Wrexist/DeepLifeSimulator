@@ -1,0 +1,476 @@
+{
+  "exports": [
+    {
+      "file": "iphone-6.9/01-your-life.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "cf5bc75f4c9ca6a422712d542f687889094193e99ac2890cec4c483a6d51bb11"
+    },
+    {
+      "file": "iphone-6.9/02-build-an-empire.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "0bc543b7ad343d9d28894067f974d96656109f50416506a6327d387fccf199db"
+    },
+    {
+      "file": "iphone-6.9/03-find-love.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "4c4eaf1502f0e2c7933cde69984c90feb67b7f204bb488bf618122566c7b4b0e"
+    },
+    {
+      "file": "iphone-6.9/04-make-your-choice.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "d48d836cfe7cd94dc0a4ab14d4005e5cb83baef6ad8e492682c83711d3cfff57"
+    },
+    {
+      "file": "iphone-6.9/05-climb-the-ladder.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "63a74702dd66861698826c14643ed2d4ad39ed61fbd0371cc26d2a311cda59fd"
+    },
+    {
+      "file": "iphone-6.9/06-play-the-markets.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "290ed43baf7eded2860adf6ddb641f3a754ea961746df20529cfd3f6ccc6b901"
+    },
+    {
+      "file": "iphone-6.9/07-enter-the-dark-web.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "bf504a2c62b2f3a146bc69416d85fdb276f2d00529b49f0169f995bbe4df23c7"
+    },
+    {
+      "file": "iphone-6.9/08-own-the-city.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "6c0b23ba9b1f3cf7210781e242feba8f732bd7fa619dead92a11993427f9774d"
+    },
+    {
+      "file": "iphone-6.9/09-drive-the-dream.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "b02cfcf212d71f418c47ddc5807e2c91dd2ecc3e583b2a715ac6f9d2c5bf6d7c"
+    },
+    {
+      "file": "iphone-6.9/10-build-a-family.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "a9e5d874ae9ca0ccba513b56cc88dc78e4bcbd2b50f31c13556297ed5505368a"
+    },
+    {
+      "file": "iphone-6.5/01-your-life.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "888b59ec92e25cefd8ce4530b8db1530d2973e768aa1ed0835c9b287037c7886"
+    },
+    {
+      "file": "iphone-6.5/02-build-an-empire.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "898ad6551ee39da5d19305f40231da82b2cff43446534a3a2080d97d222a533f"
+    },
+    {
+      "file": "iphone-6.5/03-find-love.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "49abd218bec612b68526776c209ece72246c2c216f64457ccbc5b871c24f5532"
+    },
+    {
+      "file": "iphone-6.5/04-make-your-choice.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "ba836cfb421b94d57ac53087d94015d273945c60507cbbaa94863e15929957b9"
+    },
+    {
+      "file": "iphone-6.5/05-climb-the-ladder.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "175c026bb8e185e619be53faf267dcfb3b13e314fdc6ba18944b4cb5aacbb23d"
+    },
+    {
+      "file": "iphone-6.5/06-play-the-markets.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "ba4197a96442d3de7ccb3007fd89208c949dab70a244e136fb13a2e294b9edb7"
+    },
+    {
+      "file": "iphone-6.5/07-enter-the-dark-web.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "f88224433309521aa623f21b57e601a9abde27d2e66de4a396bf4a7598988bed"
+    },
+    {
+      "file": "iphone-6.5/08-own-the-city.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "b37352e2eca2e1e29b9f595310e58bcbe646b2dbdaa562184676d241392e7534"
+    },
+    {
+      "file": "iphone-6.5/09-drive-the-dream.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "608c64bb21a04b5b63529a147017dc7a518c06b157848afd2550160914d65923"
+    },
+    {
+      "file": "iphone-6.5/10-build-a-family.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "4ed6d60af653fbd9de19e35e7d4554c2b5f2afd76e744bc1b3cdd26e0fa01924"
+    },
+    {
+      "file": "ipad-13/01-your-life.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "87836591f8360ef1e1c2c644535a7c695b24e71bcae94747fbe54797b3e8e83f"
+    },
+    {
+      "file": "ipad-13/02-build-an-empire.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "49017abf29f53738231330af735924319f25a1ced5478b40c087262529dec209"
+    },
+    {
+      "file": "ipad-13/03-find-love.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "8c57561619f54849430097a6c907fe9a7da54f89fbffae9810496632dd034b31"
+    },
+    {
+      "file": "ipad-13/04-make-your-choice.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "3ae3f819f4d36501ed1e05798b2b8c2efec8b0b6e8fcc50af84f5538758d6baa"
+    },
+    {
+      "file": "ipad-13/05-climb-the-ladder.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "bc76525ba0c4a05aede4da12d4cbc48322dc03b54a382dfe12059cb85a69b2b9"
+    },
+    {
+      "file": "ipad-13/06-play-the-markets.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "e73c398569324500e53b1773de605f54eb351f5af7f72e045d912f8aac8c4ae5"
+    },
+    {
+      "file": "ipad-13/07-enter-the-dark-web.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "3eaefd62d533dd8670bac8043bb502f5942101b2591f5d309338860c8bb6d8dc"
+    },
+    {
+      "file": "ipad-13/08-own-the-city.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "d69e7de39438fcaacd46ac452415b06c3017cddb2797ae2fc1f23302104705d7"
+    },
+    {
+      "file": "ipad-13/09-drive-the-dream.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "2c1d4244796961901eaa23898eb1b91f7e69a501cec2bda8080483d5e9e64989"
+    },
+    {
+      "file": "ipad-13/10-build-a-family.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "a8ccf542aa3729694eb6d31c142444f246d4b568bd6dae144d7f6e387788229d"
+    },
+    {
+      "file": "alternatives/iphone-6.9/11-live-well.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "cec746bbaed5c965fa766f050700dbcda68a378869e3f5ef9fbd856031a9cbf8"
+    },
+    {
+      "file": "alternatives/iphone-6.9/12-see-the-world.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "897fbd92a014e52dafef91e68d8d5868ad530958d49c02d58898086b0048e225"
+    },
+    {
+      "file": "alternatives/iphone-6.9/13-create-something.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "a899b4aac3c33e3381b5afb244e3d10265251c0a1d023601ebbd75c722d367a7"
+    },
+    {
+      "file": "alternatives/iphone-6.9/14-trade-crypto.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "cfdd116b3b7aee93c657212726a5a81a8f18db3ae65fc8b5764a01c05d815c96"
+    },
+    {
+      "file": "alternatives/iphone-6.9/15-collect-the-extraordinary.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "dc3aa346ad899685c5c14c4545efc0d133693ef86c95e6893273808afc7ecf40"
+    },
+    {
+      "file": "alternatives/iphone-6.9/16-start-again.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "3f4b46b2926fecc7403fcd0016c5e6e71a4e6d8dc7adaa3e8e491a24ed57d384"
+    },
+    {
+      "file": "alternatives/iphone-6.5/11-live-well.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "f44551ac34b2b542521256c41c687bbb28471169e46587d70811f78b5519a903"
+    },
+    {
+      "file": "alternatives/iphone-6.5/12-see-the-world.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "e7fafa734eb5fb90a9bbe4d8c4773742283608ab2bba2fd7d9c3aa829f6aae3f"
+    },
+    {
+      "file": "alternatives/iphone-6.5/13-create-something.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "0e511f8c081639c9f3fa9eb43e8725da05844ea9e98cc886cdaba2ace6047cf9"
+    },
+    {
+      "file": "alternatives/iphone-6.5/14-trade-crypto.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "93832bb2e2ab74f467714da754bf7b1cdc93e4849e34f83c08328c3879c2ee28"
+    },
+    {
+      "file": "alternatives/iphone-6.5/15-collect-the-extraordinary.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "39404bf023fbc50f2303245cdad41ac768240ffc89f3202138b6a48c5a775de9"
+    },
+    {
+      "file": "alternatives/iphone-6.5/16-start-again.png",
+      "dimensions": [
+        1284,
+        2778
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "e61d8a881485cefa08912f0fa3be7a0f0bc7999b7b092b3fc4cbccadccf9bfa9"
+    },
+    {
+      "file": "alternatives/ipad-13/11-live-well.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "72ec2054271469c5f894d2a4722d41ca9e7320e6da56f369917f43ff6b202ecc"
+    },
+    {
+      "file": "alternatives/ipad-13/12-see-the-world.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "09664a514adc37af8162e2399234f4dd980e23c73f20821c538b5b0469614ff4"
+    },
+    {
+      "file": "alternatives/ipad-13/13-create-something.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "b6d18a810b7973bd47487a0cc7bbecbdf8adaac1e80e7f578ab49f9e6406fec4"
+    },
+    {
+      "file": "alternatives/ipad-13/14-trade-crypto.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "3ca925f2cb0eaaf0c80c08e2002aa2fb9c2b7c937733ed6e27adc7c220aa789f"
+    },
+    {
+      "file": "alternatives/ipad-13/15-collect-the-extraordinary.png",
+      "dimensions": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "decoded": true,
+      "sha256": "8a1e62a4016ee93906764e1dace1a34485ca2c11ac2e54fdddebbdb62f1d658e"
+    }
+  ],
+  "source_captures_unchanged": true,
+  "native_ios_build_parity": "Not verified in this task"
+}

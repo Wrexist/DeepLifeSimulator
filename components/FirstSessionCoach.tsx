@@ -20,8 +20,9 @@
  * state, and it walks the player through the first real loop:
  *
  *     no job  →  "Find your first job"      (opens the Work tab)
+ *     pending →  "Application under review" (opens Work to review it)
  *     hired   →  "Live a week and get paid" (points at the advance button)
- *     paid    →  "You earned $N this week"  (the payoff, then it retires)
+ *     paid    →  "Your first paid week"  (the payoff, then it retires)
  *
  * Deriving each step from state rather than from a step counter matters: the
  * coach can never ask for something already done, can never get out of sync
@@ -58,13 +59,19 @@ const COACH_BASELINE_KEY = '@deep_life_first_session_coach_baseline';
 
 const log = logger.scope('FirstSessionCoach');
 
-export default function FirstSessionCoach() {
+interface FirstSessionCoachProps {
+  embedded?: boolean;
+  children?: (coach: React.ReactNode, step: CoachStep) => React.ReactNode;
+}
+
+export default function FirstSessionCoach({ embedded = false, children }: FirstSessionCoachProps = {}) {
   const router = useRouter();
   const reduced = useReducedMotion();
 
   const currentJob = useGameSelector((s) => s?.currentJob, shallowEqual);
   const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
   const incomeEarned = useGameSelector((s) => s?.weekResult?.incomeEarned ?? 0);
+  const hasPendingApplication = useGameSelector((s) => (s?.careers ?? []).some((career) => career?.applied && !career.accepted));
   const darkMode = useGameSelector((s) => s?.settings?.darkMode !== false);
   const weeksWorked = useGameSelector((s) => s?.lifetimeStatistics?.totalWeeksWorked ?? 0);
 
@@ -147,10 +154,11 @@ export default function FirstSessionCoach() {
         establishedLife,
         baseline,
         weeksLived,
-        incomeEarned,
+        hasWorkedForPay: weeksWorked > 0,
+        hasPendingApplication,
         hasJob: Boolean(currentJob),
       }),
-    [dismissed, establishedLife, baseline, weeksLived, incomeEarned, currentJob]
+    [dismissed, establishedLife, baseline, weeksLived, weeksWorked, hasPendingApplication, currentJob]
   );
 
   const retire = useCallback(() => {
@@ -180,7 +188,7 @@ export default function FirstSessionCoach() {
   }, [step, reduced, enter]);
 
   // ── Attention pulse on the call to action ───────────────────────────────
-  // Two slow 1.0 → 1.04 breaths, then settle. The point is to be findable in
+  // A slow 1.0 → 1.04 breath, not a bounce. The point is to be findable in
   // peripheral vision, not to demand a tap - a card that jumps reads as an ad.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -190,7 +198,7 @@ export default function FirstSessionCoach() {
         Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
-      { iterations: 2 },
+      { iterations: 2 }
     );
     loop.start();
     return () => loop.stop();
@@ -206,7 +214,7 @@ export default function FirstSessionCoach() {
 
   const onAction = useCallback(() => {
     haptic.light();
-    if (step === 'find-work') {
+    if (step === 'find-work' || step === 'pending') {
       router.push('/(tabs)/work');
       return;
     }
@@ -220,8 +228,7 @@ export default function FirstSessionCoach() {
     if (step === 'advance') setAdvanceAcked(true);
   }, [step, router, retire]);
 
-  if (!step) return null;
-  if (step === 'advance' && advanceAcked) return null;
+  if (!step || (step === 'advance' && advanceAcked)) return children ? children(null, null) : null;
 
   const c = getThemeColors(darkMode);
   const translateY = enter.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
@@ -230,14 +237,21 @@ export default function FirstSessionCoach() {
   const copy = {
     'find-work': {
       Icon: Briefcase,
-      tone: '#137E78',
-      title: 'Your next chapter starts here',
-      body: 'Find work, earn your first wage, and make room for the life you want.',
+      tone: accent.info,
+      title: 'Choose your first job',
+      body: 'Compare weekly pay and requirements in Work, then apply for a job that fits.',
       cta: 'Find a job',
+    },
+    pending: {
+      Icon: Briefcase,
+      tone: accent.info,
+      title: 'Application under review',
+      body: 'Advance a week to hear back. A reply can take up to two weeks.',
+      cta: 'View application',
     },
     advance: {
       Icon: CalendarCheck,
-      tone: '#137E78',
+      tone: accent.success,
       title: 'Hired. Now live a week',
       body: 'Tap the green arrow up top. Your wage lands at the end of the week.',
       cta: 'Got it',
@@ -245,22 +259,18 @@ export default function FirstSessionCoach() {
     paid: {
       Icon: PartyPopper,
       tone: accent.gold,
-      title: `You earned ${formatMoney(incomeEarned)}`,
-      // The second loop, named once, at the moment its first evidence is on
-      // screen (the rings have just dropped for the first time). Nothing else
-      // in the first session says that the vitals fall or where the free
-      // fixes are - the walkthrough died of that silence on week 13.
-      body: "That's the loop: work, live a week, get paid. Health and happiness slip a little each week; Life → Health tops them up for free.",
+      title: 'Your first paid week',
+      // The week total includes passive income and bonuses as well as wages.
+      body: `Total income this week: ${formatMoney(incomeEarned)}. Check your health and happiness before choosing what to do next.`,
       cta: 'Start playing',
     },
   }[step];
 
   const { Icon, tone, title, body, cta } = copy;
-  const ctaForeground = step === 'paid' ? '#172A2E' : '#FFFFFF';
 
-  return (
-    <Animated.View style={[styles.wrap, { opacity: enter, transform: [{ translateY }] }]}>
-      <View style={[styles.card, { backgroundColor: c.surfaceElevated, borderColor: c.border }]}>
+  const content = (
+    <Animated.View style={[!embedded && styles.wrap, { opacity: enter, transform: [{ translateY }] }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceElevated, borderColor: tone }, embedded && styles.embedded]}>
         <View style={styles.row}>
           <View style={[styles.badge, { backgroundColor: tone + '22', borderColor: tone + '55' }]}>
             <Icon size={scale(18)} color={tone} />
@@ -279,13 +289,14 @@ export default function FirstSessionCoach() {
             accessibilityLabel={cta}
             style={[styles.cta, { backgroundColor: tone }]}
           >
-            <Text style={[styles.ctaText, { color: ctaForeground }]}>{cta}</Text>
-            <ArrowRight size={scale(16)} color={ctaForeground} />
+            <Text style={[styles.ctaText, { color: step === 'paid' ? '#172033' : '#FFFFFF' }]}>{cta}</Text>
+            <ArrowRight size={scale(16)} color={step === 'paid' ? '#172033' : '#FFFFFF'} />
           </TouchableOpacity>
         </Animated.View>
       </View>
     </Animated.View>
   );
+  return children ? children(content, step) : content;
 }
 
 const styles = StyleSheet.create({
@@ -293,20 +304,21 @@ const styles = StyleSheet.create({
   // bar and was invisible to the player it exists for - found by screenshot,
   // not by reasoning about the layout.
   wrap: {
-    marginBottom: 0,
+    marginBottom: responsiveSpacing.md,
   },
   card: {
-    borderRadius: scale(20),
+    borderRadius: scale(16),
     borderWidth: 1,
     padding: responsiveSpacing.md,
     gap: scale(12),
     // Lifts it off the screen behind without a coloured stripe (Hard Rule #7).
     shadowColor: '#000',
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.35,
     shadowRadius: scale(18),
     shadowOffset: { width: 0, height: scale(8) },
     elevation: 8,
   },
+  embedded: { padding: 0, borderWidth: 0, backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: scale(12) },
   badge: {
     width: scale(38),
@@ -324,8 +336,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: scale(8),
-    paddingVertical: scale(13),
     minHeight: 44,
+    paddingVertical: scale(11),
     borderRadius: scale(12),
   },
   ctaText: { color: '#FFFFFF', fontSize: fontScale(15), fontWeight: '700' },

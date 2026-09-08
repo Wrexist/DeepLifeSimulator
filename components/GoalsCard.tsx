@@ -17,6 +17,7 @@
  * carries; every other system's detail lives on this same screen, so those
  * rows open the disclosure instead of inventing a destination.
  */
+import FirstSessionCoach from '@/components/FirstSessionCoach';
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -93,11 +94,10 @@ const SYSTEM_META: Record<GoalRowSystem, { color: string; Icon: typeof Target }>
 
 /**
  * The priority ladder, most immediate first:
- * chapter goal → weekly challenge objective → live event → ambition milestone
- * → scenario condition → top catalogue recommendation.
+ * actionable recommendation → chosen ambition → chapter → weekly challenge
+ * → live event → scenario.
  *
- * A claimable live event jumps its slot's content to the claim itself - it is
- * the only thing in the band the player can act on RIGHT NOW.
+ * A claimable live event takes the live-event slot ahead of an active event.
  *
  * Pure: everything comes from `state` plus the already-resolved live events
  * (resolution needs the wall clock and the frozen session, which belong to
@@ -110,7 +110,36 @@ export function buildGoalRows(
   if (!state) return [];
   const rows: GoalsCardRow[] = [];
 
-  // 1. Life Chapter - the tutorial/unlock spine, so it leads.
+  // Lead with a useful destination, then the goal the player chose.
+  const recommended = recommendGoals(state)[0];
+  if (recommended) {
+    rows.push({
+      id: `catalogue:${recommended.id}`,
+      system: 'catalogue',
+      title: recommended.title,
+      progress: recommended.progress,
+      fraction: recommended.progressLabel,
+      route: recommended.route,
+    });
+  }
+
+  // The selected ambition - the lifelong aim; fully-reached ambitions have nothing to do
+  //    (the tick pays them), so only an incomplete milestone earns a row.
+  const ambition = getAmbitionCompletion(state);
+  if (ambition && !ambition.alreadyClaimed) {
+    const next = ambition.milestones.find((m) => !m.complete);
+    if (next) {
+      rows.push({
+        id: `ambition:${next.id}`,
+        system: 'ambition',
+        title: next.title,
+        progress: next.progress,
+        fraction: `${ambition.reachedCount}/${ambition.totalCount} milestones`,
+      });
+    }
+  }
+
+  // The chapter keeps the wider progression visible after the next action and personal aim.
   const chapter = getActiveChapter(state);
   if (chapter) {
     const progress = getChapterProgress(chapter, state);
@@ -124,24 +153,6 @@ export function buildGoalRows(
         fraction: `${progress.completedGoals}/${progress.totalGoals} goals`,
       });
     }
-  }
-
-  // 2. The situational recommendation - the ONLY row with its own destination,
-  //    so it is pinned second. It used to come last, after the challenge, the
-  //    live event, the ambition and the scenario, and with three slots that
-  //    meant a fresh life NEVER saw it: "Get your health back up" (<60) and
-  //    "Do something you enjoy" (<45) were computed every week and shown on
-  //    none of them while the character slid to zero (Program 6 walkthrough).
-  const recommended = recommendGoals(state)[0];
-  if (recommended) {
-    rows.push({
-      id: `catalogue:${recommended.id}`,
-      system: 'catalogue',
-      title: recommended.title,
-      progress: recommended.progress,
-      fraction: recommended.progressLabel,
-      route: recommended.route,
-    });
   }
 
   // 3. Weekly challenge - rotates on game weeks, but it is the shortest ladder.
@@ -195,22 +206,6 @@ export function buildGoalRows(
         fraction: /\$/.test(next.label)
           ? `${compactMoney(next.current)} / ${compactMoney(next.target)}`
           : `${met}/${active.objectives.length} objectives`,
-      });
-    }
-  }
-
-  // 4. Ambition - the lifelong aim; fully-reached ambitions have nothing to do
-  //    (the tick pays them), so only an incomplete milestone earns a row.
-  const ambition = getAmbitionCompletion(state);
-  if (ambition && !ambition.alreadyClaimed) {
-    const next = ambition.milestones.find((m) => !m.complete);
-    if (next) {
-      rows.push({
-        id: `ambition:${next.id}`,
-        system: 'ambition',
-        title: next.title,
-        progress: next.progress,
-        fraction: `${ambition.reachedCount}/${ambition.totalCount} milestones`,
       });
     }
   }
@@ -321,11 +316,11 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
   // session, so a second consumer costs nothing.
   const { events } = useLiveOps();
 
-  const rows = useMemo(() => buildGoalRows(state, events).slice(0, MAX_ROWS), [state, events]);
+  const rows = useMemo(() => buildGoalRows(state, events), [state, events]);
 
   // A fresh save before any system has an objective sees nothing - the same
   // self-nulling contract as every card this one summarizes.
-  if (rows.length === 0) return null;
+
 
   const pressFor = (row: GoalsCardRow) =>
     row.route
@@ -335,25 +330,37 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
           )
       : onShowDetails;
 
-  const [leadRow, ...nextRows] = rows;
-
   return (
-    <Card>
-      {/* No crest header: the lead row's own crest is the card's crest, so
-          the title would only have competed with the objective it names. */}
-      <Text style={styles.kicker} accessibilityRole="header">
-        What matters now
-      </Text>
-      <Row row={leadRow} lead onPress={pressFor(leadRow)} />
-      {nextRows.length > 0 && (
-        <View style={styles.next}>
-          <Text style={styles.nextKicker}>Next</Text>
-          {nextRows.map((row) => (
-            <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />
-          ))}
-        </View>
-      )}
-    </Card>
+    <FirstSessionCoach embedded>
+      {(coach) => {
+        // The coach owns the immediate action. Do not repeat it in either
+        // the catalogue or chapter lane. Keep only personal/chapter goals
+        // below it, rather than filling spare slots with promotional events.
+        const visibleRows = coach
+          ? rows.filter(row => (row.system === 'ambition' || row.system === 'chapter') && row.id !== 'chapter:ch1_get_job').slice(0, 2)
+          : rows.slice(0, MAX_ROWS);
+        if (!coach && visibleRows.length === 0) return null;
+        const [leadRow, ...nextRows] = visibleRows;
+        return (
+          <Card>
+            {coach ? <>
+              {coach}
+              {visibleRows.length > 0 && <View style={styles.next}>
+                <Text style={styles.nextKicker}>Your goals</Text>
+                {visibleRows.map(row => <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />)}
+              </View>}
+            </> : <>
+              <Text style={styles.kicker} accessibilityRole="header">What matters now</Text>
+              <Row row={leadRow} lead onPress={pressFor(leadRow)} />
+              {nextRows.length > 0 && <View style={styles.next}>
+                <Text style={styles.nextKicker}>Next</Text>
+                {nextRows.map(row => <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />)}
+              </View>}
+            </>}
+          </Card>
+        );
+      }}
+    </FirstSessionCoach>
   );
 }
 
