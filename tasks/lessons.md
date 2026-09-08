@@ -5713,3 +5713,7 @@ Moving the coach above the goals card repeated "Choose your first job" and
 inside the goal card and let its actual visibility choose the lead. Suppress
 both catalogue and chapter duplicates while it is active. Review the whole
 viewport, not each card in isolation, and include screenshots with visual fixes.
+
+## 2026-09-08 — Verify remote CI before completion
+
+Targeted local passes missed two stale first-session walkthrough fixtures. Seed paid-work history explicitly and mount components only after the scenario state is seeded. After pushing, inspect GitHub checks on the actual latest commit and read failures before reporting completion. Never equate local validation with a green remote PR.

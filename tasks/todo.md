@@ -1,3 +1,9 @@
+# Active: PR CI recovery
+
+- [x] Read failed job logs and reproduce first-session fixture failures.
+- [x] Correct paid-work fixtures and seed-before-mount behavior.
+- [ ] Push the focused correction and verify remote CI.
+
 # Active: Compact shared status bar
 
 - [x] Group utility controls, live metrics and date/advance into compact rows.
