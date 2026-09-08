@@ -5704,3 +5704,12 @@ Total weekly income includes bonuses and passive income. It cannot prove that a
 player received a first wage. Use the existing paid-work counter, and test the
 component with passive income, a pending application, and a newly accepted job
 before the first salary tick. Show chosen ambitions before secondary ladders.
+
+
+## 2026-09-08 — One owner for the next action
+
+Moving the coach above the goals card repeated "Choose your first job" and
+"Get hired". The user correctly rejected this as confusing. Compose the coach
+inside the goal card and let its actual visibility choose the lead. Suppress
+both catalogue and chapter duplicates while it is active. Review the whole
+viewport, not each card in isolation, and include screenshots with visual fixes.

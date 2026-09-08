@@ -1,3 +1,9 @@
+# Active: Remove duplicate Home guidance
+
+- [x] Compose coaching and goals in one card with one immediate action.
+- [x] Test active, pending, hired, dismissed and established-life rendering.
+- [x] Inspect real screenshots and prepare the PR update with before/after evidence.
+
 # Active: Home first decisions (2026-09-08)
 
 Based on main a70df9f. User rejected decorative buildings on Home and approved

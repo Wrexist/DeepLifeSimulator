@@ -59,7 +59,12 @@ const COACH_BASELINE_KEY = '@deep_life_first_session_coach_baseline';
 
 const log = logger.scope('FirstSessionCoach');
 
-export default function FirstSessionCoach() {
+interface FirstSessionCoachProps {
+  embedded?: boolean;
+  children?: (coach: React.ReactNode, step: CoachStep) => React.ReactNode;
+}
+
+export default function FirstSessionCoach({ embedded = false, children }: FirstSessionCoachProps = {}) {
   const router = useRouter();
   const reduced = useReducedMotion();
 
@@ -223,8 +228,7 @@ export default function FirstSessionCoach() {
     if (step === 'advance') setAdvanceAcked(true);
   }, [step, router, retire]);
 
-  if (!step) return null;
-  if (step === 'advance' && advanceAcked) return null;
+  if (!step || (step === 'advance' && advanceAcked)) return children ? children(null, null) : null;
 
   const c = getThemeColors(darkMode);
   const translateY = enter.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
@@ -264,9 +268,9 @@ export default function FirstSessionCoach() {
 
   const { Icon, tone, title, body, cta } = copy;
 
-  return (
-    <Animated.View style={[styles.wrap, { opacity: enter, transform: [{ translateY }] }]}>
-      <View style={[styles.card, { backgroundColor: c.surfaceElevated, borderColor: tone }]}>
+  const content = (
+    <Animated.View style={[!embedded && styles.wrap, { opacity: enter, transform: [{ translateY }] }]}>
+      <View style={[styles.card, { backgroundColor: c.surfaceElevated, borderColor: tone }, embedded && styles.embedded]}>
         <View style={styles.row}>
           <View style={[styles.badge, { backgroundColor: tone + '22', borderColor: tone + '55' }]}>
             <Icon size={scale(18)} color={tone} />
@@ -292,6 +296,7 @@ export default function FirstSessionCoach() {
       </View>
     </Animated.View>
   );
+  return children ? children(content, step) : content;
 }
 
 const styles = StyleSheet.create({
@@ -313,6 +318,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: scale(8) },
     elevation: 8,
   },
+  embedded: { padding: 0, borderWidth: 0, backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: scale(12) },
   badge: {
     width: scale(38),

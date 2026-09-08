@@ -37,7 +37,6 @@ import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
 import GoalsCard from '@/components/GoalsCard';
 import { ContextualTip, useContextualTip, type ContextualTipType } from '@/components/ContextualTip';
-import FirstSessionCoach from '@/components/FirstSessionCoach';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
@@ -662,25 +661,7 @@ function HomeScreenContent() {
         {/* No hero strip: the HUD's date box directly above this screen already
             shows month, week and age - one fact, one surface. */}
 
-        {/*
-          The first-session coach, at the TOP of the feed rather than pinned to
-          the bottom. Two reasons, and the first was found by looking:
-          absolutely positioned at `bottom: 0` it rendered BEHIND the tab bar
-          and a new player never saw it at all.
-
-          The second is the better argument anyway - this is the one thing on
-          screen telling a new player what to do, and it belongs where the eye
-          lands. The card a player used to meet first was a passive profile
-          (name, age, "Unemployed") with nothing actionable on it.
-
-          Mounted UNCONDITIONALLY: it owns its own gating from live game state,
-          so it cannot ask for something already done and retires itself once
-          the player has been paid. It is also the ONLY teaching surface now -
-          the modal tutorial and the FirstWeekGuide are retired (the latter was
-          dead by construction: gated on a device-wide flag the tutorial set
-          first in a 500ms race).
-        */}
-        <FirstSessionCoach />
+        {/* GoalsCard owns first-session guidance and the goal hierarchy together. */}
 
         {/* No crown upsell here any more: the HUD's store button and the gem
             chip's + are the store entries. Four concurrent paywall

@@ -28,7 +28,7 @@ const src = fs.readFileSync(
   'utf8'
 );
 const homeSrc = fs.readFileSync(
-  path.join(process.cwd(), 'app', '(tabs)', 'home.tsx'),
+  path.join(process.cwd(), 'components', 'GoalsCard.tsx'),
   'utf8'
 );
 
@@ -187,8 +187,8 @@ describe('it is mounted where it can actually run', () => {
   it('mounts unconditionally, not behind the tutorial flag', () => {
     // `FirstWeekGuide` is gated on `!hasCompletedTutorial`, and driving the
     // shipped build showed it never rendered. The coach must not inherit that.
-    expect(homeSrc).toMatch(/<FirstSessionCoach \/>/);
-    const at = homeSrc.indexOf('<FirstSessionCoach />');
+    expect(homeSrc).toMatch(/<FirstSessionCoach embedded>/);
+    const at = homeSrc.indexOf('<FirstSessionCoach embedded>');
     const line = homeSrc.slice(homeSrc.lastIndexOf('\n', at), at);
     expect(line).not.toMatch(/hasCompletedTutorial|&&/);
   });

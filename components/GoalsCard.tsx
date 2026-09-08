@@ -17,6 +17,7 @@
  * carries; every other system's detail lives on this same screen, so those
  * rows open the disclosure instead of inventing a destination.
  */
+import FirstSessionCoach from '@/components/FirstSessionCoach';
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -315,11 +316,11 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
   // session, so a second consumer costs nothing.
   const { events } = useLiveOps();
 
-  const rows = useMemo(() => buildGoalRows(state, events).slice(0, MAX_ROWS), [state, events]);
+  const rows = useMemo(() => buildGoalRows(state, events), [state, events]);
 
   // A fresh save before any system has an objective sees nothing - the same
   // self-nulling contract as every card this one summarizes.
-  if (rows.length === 0) return null;
+
 
   const pressFor = (row: GoalsCardRow) =>
     row.route
@@ -329,25 +330,37 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
           )
       : onShowDetails;
 
-  const [leadRow, ...nextRows] = rows;
-
   return (
-    <Card>
-      {/* No crest header: the lead row's own crest is the card's crest, so
-          the title would only have competed with the objective it names. */}
-      <Text style={styles.kicker} accessibilityRole="header">
-        What matters now
-      </Text>
-      <Row row={leadRow} lead onPress={pressFor(leadRow)} />
-      {nextRows.length > 0 && (
-        <View style={styles.next}>
-          <Text style={styles.nextKicker}>Next</Text>
-          {nextRows.map((row) => (
-            <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />
-          ))}
-        </View>
-      )}
-    </Card>
+    <FirstSessionCoach embedded>
+      {(coach) => {
+        // The coach owns the immediate action. Do not repeat it in either
+        // the catalogue or chapter lane. Keep only personal/chapter goals
+        // below it, rather than filling spare slots with promotional events.
+        const visibleRows = coach
+          ? rows.filter(row => (row.system === 'ambition' || row.system === 'chapter') && row.id !== 'chapter:ch1_get_job').slice(0, 2)
+          : rows.slice(0, MAX_ROWS);
+        if (!coach && visibleRows.length === 0) return null;
+        const [leadRow, ...nextRows] = visibleRows;
+        return (
+          <Card>
+            {coach ? <>
+              {coach}
+              {visibleRows.length > 0 && <View style={styles.next}>
+                <Text style={styles.nextKicker}>Your goals</Text>
+                {visibleRows.map(row => <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />)}
+              </View>}
+            </> : <>
+              <Text style={styles.kicker} accessibilityRole="header">What matters now</Text>
+              <Row row={leadRow} lead onPress={pressFor(leadRow)} />
+              {nextRows.length > 0 && <View style={styles.next}>
+                <Text style={styles.nextKicker}>Next</Text>
+                {nextRows.map(row => <Row key={row.id} row={row} lead={false} onPress={pressFor(row)} />)}
+              </View>}
+            </>}
+          </Card>
+        );
+      }}
+    </FirstSessionCoach>
   );
 }
 
