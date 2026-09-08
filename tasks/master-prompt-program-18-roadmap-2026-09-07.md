@@ -17,6 +17,13 @@
 > Submission completion and physical-device validation remain unverified.
 > Newly reproduced purchase/save faults must close before a new release.
 
+> **Continuation, 2026-09-08:** PR #197 now adds same-install purchase-intent
+> recovery, recurring journal identity, and live-event claim/budget continuity
+> across prestige/heir transitions. The achievement objective also uses the
+> canonical earned-achievement reader. See
+> `tasks/program-18-continuity-and-recovery-2026-09-08.md` for tested boundaries
+> and remaining native, reinstall and subscription recovery work.
+
 > This is the next executable master prompt, not a promise that every idea below
 > is already approved. Give it to the implementation agent after the 2.13.0
 > release gates are closed. Work from evidence, preserve saves and paid benefits,

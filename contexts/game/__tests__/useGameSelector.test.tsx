@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { GameStateProvider, useGameState } from '../GameStateContext';
-import { useGameSelector, useSetGameState, shallowEqual } from '../useGameSelector';
+import { useGameSelector, useSetGameState, useCurrentSlotGetter, shallowEqual } from '../useGameSelector';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import type { GameState } from '../types';
 
@@ -25,6 +25,39 @@ function Probe() {
 describe('useGameSelector', () => {
   afterEach(() => {
     setState = null;
+  });
+
+  it('keeps a stable slot getter fresh before a batched slot switch commits', () => {
+    const renders = jest.fn();
+    const readSlot: { current: (() => number | null) | null } = { current: null };
+    const selectSlot: { current: ((slot: number) => void) | null } = { current: null };
+    function SlotReader() {
+      readSlot.current = useCurrentSlotGetter();
+      renders();
+      return null;
+    }
+    function SlotController() {
+      selectSlot.current = useGameState().setCurrentSlot;
+      return null;
+    }
+    let root: ReturnType<typeof TestRenderer.create>;
+    act(() => {
+      root = TestRenderer.create(
+        <GameStateProvider initialState={createTestGameState()} initialSlot={2}>
+          <Probe /><SlotController /><SlotReader />
+        </GameStateProvider>,
+      );
+    });
+    const getter = readSlot.current!;
+    expect(getter()).toBe(2);
+    act(() => {
+      selectSlot.current!(3);
+      expect(getter()).toBe(3);
+      setState!(prev => ({ ...prev, weeksLived: prev.weeksLived + 1 }));
+    });
+    expect(readSlot.current).toBe(getter);
+    expect(renders).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
   });
 
   it('re-renders only when the selected slice changes', () => {

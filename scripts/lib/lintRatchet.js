@@ -176,7 +176,9 @@ const MAX_ERRORS = 0;
 // 721 - the seasonal-events test merged with two inline `require()`s and a
 // ternary-as-statement, so `npm run preflight` was red on main. Fixed at the
 // source and the ceiling lowered to the measured count, per the ratchet rule.
-const MAX_WARNINGS = 716;
+// 715 on 2026-09-08: the purchase handler no longer imports unused React.
+// Lock in the measured reduction while adding the Program 18 recovery path.
+const MAX_WARNINGS = 715;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

@@ -19,6 +19,7 @@ import { track } from '@/lib/analytics';
 import { revenueCatService } from '@/services/RevenueCatService';
 import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { PURSUITS, XP_PER_LEVEL, MAX_PURSUIT_LEVEL, levelFromXp } from '@/lib/pursuits/pursuitMastery';
+import { readPendingRcGrant, writePendingRcGrant, clearPendingRcGrant, resolvePendingReceipt, purchaseLife, matchesPurchaseTarget, type PurchaseTarget, type PendingRcGrant } from '@/utils/revenueCatRecovery';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
@@ -409,6 +410,117 @@ export class IAPService {
   private isInitializing: boolean = false;
   private hasInitialized: boolean = false;
   private listenerRegistered: boolean = false;
+  private recoveryQueue: Promise<unknown> = Promise.resolve();
+  private rcPurchaseInFlight = false;
+  private purchaseContext: (() => { slot: number | null; state: GameState }) | null = null;
+
+  private serializeRecovery<T>(work: () => Promise<T>): Promise<T> {
+    const result = this.recoveryQueue.then(work, work);
+    this.recoveryQueue = result.catch(() => undefined);
+    return result;
+  }
+
+  /** Startup, loaded-life registration, and explicit Restore retry only this install's intent. */
+  public recoverPendingRevenueCatPurchase(): Promise<boolean> {
+    return this.serializeRecovery(async () => {
+      try {
+        if (!revenueCatService.isEnabled()) return false;
+        const pending = await readPendingRcGrant();
+        return pending ? await this.recoverRcIntent(pending) : false;
+      } catch (error) {
+        logger.warn('[IAP] Pending purchase retained for retry', { error });
+        return false;
+      }
+    });
+  }
+
+  private async recoverRcIntent(pending: PendingRcGrant): Promise<boolean> {
+    const receipts = await revenueCatService.getRecoveryReceiptSnapshot();
+    if (!receipts) return false;
+    const transactionId = resolvePendingReceipt(pending, receipts);
+    if (!transactionId) return false;
+    if (await this.isTransactionProcessed(transactionId)) {
+      await clearPendingRcGrant();
+      return true;
+    }
+    // Completed receipts need only cleanup, even after the original life ended.
+    // A NEW grant remains strictly bound to its original loaded character.
+    const context = this.purchaseContext?.();
+    if (!context || !matchesPurchaseTarget(pending.target, context.slot, context.state)) return false;
+    // Save the real receipt before granting. After a kill, do not guess another receipt.
+    await writePendingRcGrant({ ...pending, transactionId });
+    if (!(await this.applyBenefit(pending.productId, transactionId, false, pending.target))) return false;
+    await clearPendingRcGrant();
+    return true;
+  }
+
+  private purchaseRecoverableRcProduct(productId: string): Promise<PurchaseResult> {
+    // Do not turn overlapping taps into a queue of future store sheets.
+    // React may not have painted the button's disabled state yet.
+    if (this.rcPurchaseInFlight) {
+      return Promise.resolve({ success: false, message: 'A purchase is already in progress. Please wait for it to finish.' });
+    }
+    this.rcPurchaseInFlight = true;
+    return this.serializeRecovery(async () => {
+      const unresolved = 'A purchase is awaiting recovery. Load the original character and tap Restore Purchases. If it remains pending, contact support before buying again.';
+      try {
+        const old = await readPendingRcGrant();
+        if (old) {
+          const recovered = await this.recoverRcIntent(old);
+          // Never issue a new charge on a tap that recovered the previous purchase.
+          return recovered
+            ? { success: false, message: 'Your previous purchase was recovered. No new purchase was made. Tap the item again if you want to buy it.' }
+            : { success: false, message: unresolved };
+        }
+        const context = this.purchaseContext?.();
+        const life = context && purchaseLife(context.state);
+        if (!context || !life || context.slot === null || context.slot < 1 || context.slot > 3) {
+          return { success: false, message: 'Load and save your character before purchasing.' };
+        }
+        const target = { slot: context.slot, life };
+        const receipts = await revenueCatService.getRecoveryReceiptSnapshot();
+        if (!receipts) return { success: false, message: 'We could not verify purchase history. Please reconnect and try again.' };
+        // Verify the target exists durably, before opening a sheet that can charge.
+        const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
+        const raw = await readSaveSlot(target.slot);
+        const decoded = raw && decodePersistedSaveEnvelope(raw, { allowLegacy: shouldAllowUnsignedLegacySaves() });
+        if (!decoded || !decoded.valid || typeof decoded.data !== 'string' ||
+            purchaseLife(JSON.parse(decoded.data)) !== life) {
+          return { success: false, message: 'Save your character successfully before purchasing.' };
+        }
+        const pending: PendingRcGrant = {
+          version: 1, productId, target, customerId: receipts.customerId,
+          baseline: receipts.transactions.map(t => t.id), baselineDate: receipts.requestDate,
+        };
+        await writePendingRcGrant(pending);
+        const latest = this.purchaseContext?.();
+        if (!latest || !matchesPurchaseTarget(target, latest.slot, latest.state)) {
+          await clearPendingRcGrant();
+          return { success: false, message: 'Character changed. Please try again from your current character.' };
+        }
+        const result = await revenueCatService.purchaseProduct(productId);
+        if (result.cancelled || result.notCharged) {
+          await clearPendingRcGrant();
+          return { success: false, cancelled: result.cancelled, message: result.message || 'Purchase was cancelled' };
+        }
+        // Network errors and missing receipts are UNKNOWN, not proof of no charge.
+        if (!result.success) return { success: false, message: unresolved };
+        if (typeof result.transactionId === 'string' && result.transactionId.trim()) {
+          pending.transactionId = result.transactionId;
+          await writePendingRcGrant(pending);
+        }
+        const granted = await this.recoverRcIntent(pending);
+        return granted
+          ? { success: true, message: 'Purchase successful!', productId, transactionId: pending.transactionId }
+          : { success: false, message: unresolved, productId, transactionId: pending.transactionId };
+      } catch (error) {
+        logger.warn('[IAP] Purchase recovery unavailable', { error });
+        return { success: false, message: 'Purchase could not be completed safely. Tap Restore Purchases before trying again, or contact support if it remains pending.' };
+      }
+    }).finally(() => {
+      this.rcPurchaseInFlight = false;
+    });
+  }
 
   private static sanitizePermanentPerkList(perks: unknown): string[] {
     if (!Array.isArray(perks)) return [];
@@ -1058,6 +1170,11 @@ export class IAPService {
           this.setState({ isLoading: false });
           return { success: false, message: `Product configuration not found for ${productId}. Please check iapConfig.ts` };
         }
+        if (!isSubscriptionProduct(productId)) {
+          const result = await this.purchaseRecoverableRcProduct(productId);
+          this.setState({ isLoading: false });
+          return result;
+        }
         const rc = await revenueCatService.purchaseProduct(productId);
         if (rc.cancelled) {
           this.setState({ isLoading: false });
@@ -1067,7 +1184,11 @@ export class IAPService {
           this.setState({ isLoading: false });
           return { success: false, message: rc.message || 'Purchase could not be completed.' };
         }
-        const transactionId = rc.transactionId || `${productId}:rc:${Date.now()}`;
+        const transactionId = rc.transactionId;
+        if (!transactionId) {
+          this.setState({ isLoading: false });
+          return { success: false, message: 'Subscription receipt is unavailable. Tap Restore Purchases to refresh your subscription access.' };
+        }
         // Same in-memory lock + persisted ledger the native path uses;
         // applyBenefit marks the transaction processed at its end.
         // `applyBenefit` returns false when the grant did not land (no game
@@ -1613,7 +1734,7 @@ export class IAPService {
   private async applyBenefitToDisk(
     purchase: any,
     transactionId?: string,
-    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean },
+    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean; target?: PurchaseTarget },
   ): Promise<boolean> {
     // The lock covers the READ as well as the write. Locking forceSave alone
     // allows an autosave to land between them and be overwritten by our stale
@@ -1630,8 +1751,12 @@ export class IAPService {
   private async applyBenefitToDiskLocked(
     purchase: any,
     transactionId?: string,
-    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean },
+    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean; target?: PurchaseTarget },
   ): Promise<boolean> {
+    if (options?.target) {
+      const context = this.purchaseContext?.();
+      if (!context || !matchesPurchaseTarget(options.target, context.slot, context.state)) return false;
+    }
     const config = getProductConfig(purchase.productId);
     // Subscriptions have no one-time PRODUCT_CONFIG (they live in
     // SUBSCRIPTION_CONFIGS) but DO need disk fulfillment - the Verified-Pro
@@ -1655,7 +1780,7 @@ export class IAPService {
     // leave the transaction unmarked so it is retried on a later launch, when a
     // slot has actually been loaded. 2026-07-30 audit MON-8.
     const { isWritableSlot } = await import('@/utils/slotNumber');
-    const slotToUse = [parsedCurrentSlot, parsedLastSlot].find(isWritableSlot);
+    const slotToUse = options?.target?.slot ?? [parsedCurrentSlot, parsedLastSlot].find(isWritableSlot);
     if (slotToUse === undefined) {
       logger.warn('Cannot apply purchase to disk: no valid save slot is known', {
         productId: purchase.productId,
@@ -1693,6 +1818,7 @@ export class IAPService {
       }
 
       gameState = JSON.parse(decoded.data);
+      if (options?.target && purchaseLife(gameState) !== options.target.life) return false;
       if (gameState && typeof gameState === 'object' && gameState.checkpoints === undefined) {
         const { readCheckpointSidecar, filterCheckpointsForState } = await import('@/utils/checkpointSidecar');
         const checkpoints = await readCheckpointSidecar(slotToUse);
@@ -2192,7 +2318,7 @@ export class IAPService {
       // permanent perks not represented by an entitlement are also restored.
       if (revenueCatService.isEnabled()) {
         const restoredIds = await revenueCatService.restoreProductIds();
-        let restoredCount = 0;
+        let restoredCount = await this.recoverPendingRevenueCatPurchase() ? 1 : 0;
         for (const productId of restoredIds) {
           // Never restore consumables (gems / money) - prevents re-granting them.
           // A consumable can still carry PERMANENT entitlements - the $99.99
@@ -2418,15 +2544,17 @@ export class IAPService {
 
   // Hook for in-memory state updates
   private stateUpdater:
-    | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string }) => Promise<boolean>)
+    | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string; target?: PurchaseTarget }) => Promise<boolean>)
     | null = null;
 
   public setStateUpdater(
     updater:
-      | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string }) => Promise<boolean>)
+      | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string; target?: PurchaseTarget }) => Promise<boolean>)
       | null,
+    context?: (() => { slot: number | null; state: GameState }) | null,
   ) {
     this.stateUpdater = updater;
+    this.purchaseContext = context ?? null;
   }
 
   // Apply benefit (handles both in-memory and disk)
@@ -2442,6 +2570,7 @@ export class IAPService {
      * bug this exists to fix.
      */
     entitlementsOnly = false,
+    target?: PurchaseTarget,
   ): Promise<boolean> {
     // A pending reservation checks durable storage before a non-idempotent
     // grant, but is NEVER read as fulfilled. Receipt markers in the state
@@ -2464,7 +2593,7 @@ export class IAPService {
     let inMemoryApplied = false;
     if (this.stateUpdater) {
       try {
-        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly, transactionId })) === true;
+        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly, transactionId, target })) === true;
         logger.info(` Benefit applied via in-memory updater: ${productId}`);
       } catch (error) {
         logger.error('Error in state updater:', error);
@@ -2480,9 +2609,14 @@ export class IAPService {
     // result can leave quantities in memory that a later autosave persists.
     // The pending ID keeps disk-only work retryable if load promotes that
     // receipt marker into the completed history before fulfillment finishes.
+    if (target) {
+      const current = this.purchaseContext?.();
+      if (!current || !matchesPurchaseTarget(target, current.slot, current.state)) return false;
+    }
     const diskApplied = await this.applyBenefitToDisk({ productId }, transactionId, {
       skipBenefitReapply: inMemoryApplied,
       entitlementsOnly,
+      target,
     });
 
     // 3. Mark the transaction processed ONLY if a grant actually landed.

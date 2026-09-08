@@ -1,3 +1,26 @@
+# Active: Program 18 continuation (2026-09-08)
+
+User authorized continuing the remaining work. PR #197 remains open and its
+remote CI passed. Continue on its branch, preserving the tested first slice.
+
+- [x] Refresh main/PR status and inspect actual RevenueCat SDK receipt support.
+- [x] Implement same-install, slot/life-bound purchase intent recovery with
+      verified transaction history. Never replay arbitrary historical consumables.
+- [x] Correct failed-purchase guidance and prove failed writes/crash replay,
+      account/slot/life mismatch, duplicate delivery and ambiguous receipt cases.
+- [x] Repair journal identity for repeated events and same-week distinct events,
+      while preserving updater replay and legacy journal compatibility.
+- [x] Preserve live-event claim history and real-time reward budgets across
+      prestige and heir transitions, with transition/claim regression tests.
+- [x] Validate focused and repository gates, review cross-system interactions,
+      update the audit with exact boundaries, and prepare publication to PR #197.
+
+Native SDK testing remains a release gate. Reinstallation/account recovery is
+not equivalent to replaying a pending intent in the same installation. Broader
+feature phases remain sequenced after trust and continuity fixes.
+
+## Previous completed slice
+
 # Active — Program 18: purchase and save safety (2026-09-07)
 
 User authorized implementation of merged PR #196. Base: `1824b9c`, whose
@@ -34,9 +57,11 @@ with three existing warning groups. See the audit report for exact limitations.
 
 - [ ] Verify IAP changes with the SDK on TestFlight before merging, per the PR
       template. Include purchase, forced save failure, relaunch and Restore.
-- [ ] Implement complete slot-bound RevenueCat grant recovery and truthful
-      consumable-failure guidance. Pending IDs are not a replay journal.
-- [ ] Repair repeated journal event identity and preserve live-event claims
+- [x] Implement same-install slot/life-bound non-subscription purchase recovery
+      and truthful failure guidance. The continuation report lists its boundaries.
+- [ ] Establish reinstall/cross-device recovery and resolve subscription-specific
+      local bonuses after lost callbacks, with an explicit server/identity policy.
+- [x] Repair repeated journal event identity and preserve live-event claims
       across prestige/heir transitions with explicit continuity rules.
 - [ ] Continue the ranked feature work in the audit report after trust gates.
 

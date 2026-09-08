@@ -5625,3 +5625,39 @@ null or primitive entries from old or malformed JSON. Filter non-record entries
 without discarding valid neighbors, and prove the migration reaches the current
 version and stays there after reload. A synthetic corrupt fixture demonstrates
 a recovery weakness, not a measured customer incident.
+
+
+## 2026-09-08 — Receipt recovery needs an identity before the store sheet
+
+A completed store transaction cannot rely on callback redelivery. Persist the
+product, original slot/life, customer identity and receipt baseline before the
+store can charge. Reconcile a real transaction, never a timestamp fallback or
+every historical consumable. Keep unknown outcomes pending, but distinguish
+confirmed cancellation and failure before invoking the store from uncertainty
+after invoking it. A successful recovery of an older product is not success
+for the newly requested product. Callers often apply success semantics to the
+requested SKU without examining the returned product ID.
+
+Cleanup is not delivery. If the benefit and completed ledger are durable but
+clearing the recovery journal fails, a later generation must still be able to
+clear the completed record. Verify receipt/account and completion before
+requiring the original life. Original slot/life matching remains mandatory for
+any new grant. Otherwise a harmless cleanup failure becomes a permanent shop
+lock as soon as the old character is replaced.
+
+## 2026-09-08 — Repeated events and cross-life rewards need different identities
+
+Notification IDs are not necessarily occurrence IDs. Births and education
+completions reuse IDs, so journal identity must also distinguish the week and
+the event. Deterministic occurrence identity retains updater replay safety.
+Recognize legacy entries by the same week and content during the transition.
+
+Live-event claims and real-time reward budgets belong to the lineage, while
+notification cooldown weeks belong to the current life. Carry the former
+through the shared dynasty transition and reset the latter. Test a real claim
+through all three transition routes and reload before retrying it.
+
+Trace the actual writer before changing a stale achievement reader. Replacing
+`.unlocked` with the typed `.completed` would still read a deprecated array.
+The existing earned-achievement helper evaluates the real progress conditions
+and claim store, which is the behavior the live-event objective needs.

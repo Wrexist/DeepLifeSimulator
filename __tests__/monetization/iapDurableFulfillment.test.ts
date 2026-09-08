@@ -3,16 +3,18 @@ import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { IAPHandler } from '@/components/IAPHandler';
+import { purchaseLife, type PurchaseTarget } from '@/utils/revenueCatRecovery';
 import { forceSave } from '@/utils/saveQueue';
 
 let mockLive: GameState;
+let mockSlot = 1;
 let mockDisk: GameState;
 const mockStorage = new Map<string,string>();
 const mockSaveGame = jest.fn<Promise<boolean>, []>(async () => false);
-type PrivateIAP = { applyBenefit: (productId: string, transactionId: string) => Promise<boolean>; isTransactionProcessed: (id: string) => Promise<boolean> };
+type PrivateIAP = { applyBenefit: (productId: string, transactionId: string, entitlementsOnly?: boolean, target?: PurchaseTarget) => Promise<boolean>; isTransactionProcessed: (id: string) => Promise<boolean> };
 const service = iapService as unknown as PrivateIAP;
 jest.mock('react', () => ({ ...jest.requireActual('react'), useEffect: (effect: () => void) => effect() }));
-jest.mock('@/contexts/game/useGameSelector', () => ({ useSetGameState: () => (update: (state: GameState) => GameState) => { mockLive = update(mockLive); } }));
+jest.mock('@/contexts/game/useGameSelector', () => ({ useGameStateGetter: () => () => mockLive, useCurrentSlotGetter: () => () => mockSlot, useGameSelector: (select: (state: GameState) => unknown) => select(mockLive), useSetGameState: () => (update: (state: GameState) => GameState) => { mockLive = update(mockLive); } }));
 jest.mock('@/contexts/game/GameActionsContext', () => ({ useGameActions: () => ({ saveGame: mockSaveGame }) }));
 jest.mock('@/utils/safeStorage', () => ({
   safeGetItem: jest.fn(async (key: string) => key === 'currentSlot' ? '1' : mockStorage.get(key) ?? null),
@@ -26,9 +28,11 @@ jest.mock('@/utils/saveValidation', () => ({
 }));
 beforeEach(() => {
   mockStorage.clear();
+  mockSlot = 1;
   mockLive=createTestGameState(); mockLive.stats.gems=0;
   mockDisk=structuredClone(mockLive);
   iapService.setStateUpdater(null);
+  mockSaveGame.mockClear();
   mockSaveGame.mockImplementation(async () => false);
   (forceSave as jest.Mock).mockImplementation(async (_slot:number,state: GameState) => { mockDisk=state; });
 });
@@ -105,4 +109,27 @@ it('an entitlements-only live restore does not mark the skipped quantities as gr
     { transactionId: 'restore-without-quantities', entitlementsOnly: true })).toBe(true);
   expect(state.processedIAPTransactions ?? []).not.toContain('restore-without-quantities');
   expect(state.revivalPack).not.toBe(true);
+});
+
+it('real handler rejects a bound purchase when another slot is active at reducer execution', async () => {
+  IAPHandler();
+  const target = { slot: 2, life: purchaseLife(mockLive)! };
+  expect(await service.applyBenefit(IAP_PRODUCTS.GEMS_500, 'wrong-slot', false, target)).toBe(false);
+  expect(mockLive.stats.gems).toBe(0);
+  expect(mockDisk.stats.gems).toBe(0);
+});
+it('real handler does not save its delayed purchase into a newly selected slot', async () => {
+  jest.useFakeTimers();
+  IAPHandler();
+  const target = { slot: 1, life: purchaseLife(mockLive)! };
+  const fulfillment = service.applyBenefit(IAP_PRODUCTS.GEMS_500, 'switch-before-save', false, target);
+  // The live reducer runs after the asynchronous reservation, before its 100ms save.
+  await jest.advanceTimersByTimeAsync(0);
+  expect(mockLive.stats.gems).toBeGreaterThan(0);
+  mockSlot = 2;
+  await jest.advanceTimersByTimeAsync(100);
+  jest.useRealTimers();
+  expect(await fulfillment).toBe(false);
+  expect(mockSaveGame).not.toHaveBeenCalled();
+  expect(mockDisk.stats.gems).toBe(0);
 });

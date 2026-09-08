@@ -32,7 +32,7 @@ describe('recording a week', () => {
     const out = appendWeekToJournal([], [note('arrears-312'), note('promoted-312', 'Promoted')], 312);
 
     expect(out).toHaveLength(2);
-    expect(out[0].id).toBe('arrears-312');
+    expect(out[0].id).toContain('arrears-312');
     expect(out[0].atWeek).toBe(312);
     expect(out[0].title).toBe('Bills Overdue');
     expect(out[0].details).toBe('You came up short.');
@@ -50,11 +50,45 @@ describe('recording a week', () => {
     const week1 = appendWeekToJournal([], [note('arrears-1')], 1);
     const week2 = appendWeekToJournal(week1, [note('arrears-2')], 2);
 
-    expect(week2.map((e) => e.id)).toEqual(['arrears-1', 'arrears-2']);
+    expect(week2.map((e) => e.atWeek)).toEqual([1, 2]);
   });
 });
 
 describe('idempotence - a StrictMode double-invoke must not double-append', () => {
+  it('records recurring births in different weeks even when their text is identical', () => {
+    const birth = note('birth-announcement', 'A Baby Is Born!', 'Welcome Sam!');
+    const first = appendWeekToJournal([], [birth], 120);
+    const second = appendWeekToJournal(first, [birth], 180);
+    expect(second).toHaveLength(2);
+    expect(new Set(second.map((entry) => entry.id)).size).toBe(2);
+    expect(appendWeekToJournal(second, [birth], 180)).toBe(second);
+  });
+
+  it('records distinct same-week graduations and dedupes their replay', () => {
+    const notes = [
+      note('education-complete', 'Graduation', 'Completed Medicine'),
+      note('education-complete', 'Graduation', 'Completed Engineering'),
+    ];
+    const once = appendWeekToJournal([], notes, 208);
+    expect(once).toHaveLength(2);
+    expect(new Set(once.map((entry) => entry.id)).size).toBe(2);
+    expect(appendWeekToJournal(once, [...notes].reverse(), 208)).toBe(once);
+  });
+
+  it('recognizes a legacy same-week entry without dropping a different graduation', () => {
+    const legacy: JournalEntry[] = [{ id: 'education-complete', atWeek: 208,
+      title: 'Graduation', details: 'Completed Medicine', tags: ['week'] }];
+    const notes = [
+      note('education-complete', 'Graduation', 'Completed Medicine'),
+      note('education-complete', 'Graduation', 'Completed Engineering'),
+    ];
+    expect(appendWeekToJournal(legacy, [notes[0]], 208)).toBe(legacy);
+    const next = appendWeekToJournal(legacy, notes, 208);
+    expect(next).toHaveLength(2);
+    expect(next[0]).toBe(legacy[0]);
+    expect(appendWeekToJournal(next, notes, 208)).toBe(next);
+  });
+
   it('running the same week twice produces the same journal', () => {
     const notes = [note('arrears-312'), note('tenancy-312', 'Evicted')];
 
@@ -105,7 +139,7 @@ describe('bounds and robustness', () => {
     }
 
     expect(journal).toHaveLength(MAX_JOURNAL_ENTRIES);
-    expect(journal[journal.length - 1].id).toBe(`e-${MAX_JOURNAL_ENTRIES + 19}`);
+    expect(journal[journal.length - 1].atWeek).toBe(MAX_JOURNAL_ENTRIES + 19);
   });
 
   it('matches the pruner in saveQueue', () => {

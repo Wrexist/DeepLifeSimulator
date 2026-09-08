@@ -5,6 +5,10 @@ Audit runtime: `cc60c2e28436afb9724e14536886d0cd2fd3338a`.
 Implementation base: `1824b9c4148340d8a66d253ed90ceb58dc883f1b`.
 The only difference between these bases is the roadmap added by merged PR #196.
 
+Continuation: `tasks/program-18-continuity-and-recovery-2026-09-08.md` records
+the subsequent fixes for STORY-1, CLAIM-1 and same-install PAY-3 recovery. The
+table below retains the first-slice disposition for historical context.
+
 ## Verdict
 
 DeepLife has enough breadth for a substantial life simulator. The immediate

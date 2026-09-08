@@ -24,6 +24,7 @@ import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
 import { appToStoreProductId, storeToAppProductId } from '@/lib/subscription/revenueCatProductMap';
 import { isSubscriptionProduct } from '@/utils/iapConfig';
+import type { ReceiptSnapshot } from '@/utils/revenueCatRecovery';
 import type { StoreProductLike } from '@/lib/subscription/planPricing';
 import type {
   RcAdEventPayload,
@@ -61,6 +62,8 @@ export interface RcPurchaseResult {
   transactionId?: string;
   /** True when the user cancelled the store sheet (not a real error). */
   cancelled?: boolean;
+  /** The store charging API was never invoked. Safe to discard a local intent. */
+  notCharged?: boolean;
   message?: string;
 }
 
@@ -239,6 +242,33 @@ class RevenueCatService {
     }
   }
 
+  /** Fresh verified non-subscription receipts, never the product ownership list. */
+  async getRecoveryReceiptSnapshot(): Promise<ReceiptSnapshot | null> {
+    if (!(await this.configure())) return null;
+    try {
+      const sdk = loadPurchases();
+      await sdk.invalidateCustomerInfoCache();
+      const info = await sdk.getCustomerInfo();
+      if (typeof info?.originalAppUserId !== 'string' || !info.originalAppUserId ||
+          !Array.isArray(info.nonSubscriptionTransactions)) return null;
+      const requestDate = Date.parse(info.requestDate);
+      // Invalidation can still yield cached information offline. Refuse a stale baseline.
+      if (!Number.isFinite(requestDate) || Math.abs(Date.now() - requestDate) > 5 * 60 * 1000) return null;
+      const transactions: ReceiptSnapshot['transactions'] = [];
+      for (const receipt of info.nonSubscriptionTransactions) {
+        if (typeof receipt?.transactionIdentifier !== 'string' || !receipt.transactionIdentifier ||
+            typeof receipt?.productIdentifier !== 'string' || !receipt.productIdentifier ||
+            !Number.isFinite(Date.parse(receipt.purchaseDate))) return null;
+        transactions.push({ id: receipt.transactionIdentifier, productId: storeToAppProductId(receipt.productIdentifier), purchaseDate: Date.parse(receipt.purchaseDate) });
+      }
+      this.cacheFrom(info);
+      return { customerId: info.originalAppUserId, requestDate, transactions };
+    } catch (error) {
+      log.warn('Purchase recovery receipts unavailable', { error });
+      return null;
+    }
+  }
+
   /** Current entitlements (all false if disabled / on any error). */
   async getEntitlements(): Promise<RcEntitlements> {
     if (!(await this.configure())) return { adsRemoved: false, premium: false };
@@ -332,7 +362,7 @@ class RevenueCatService {
   /** Purchase a package from an offering (subscriptions / lifetime). */
 
   async purchasePackage(pkg: any): Promise<RcPurchaseResult> {
-    if (!(await this.configure())) return { success: false, message: 'Store unavailable.' };
+    if (!(await this.configure())) return { success: false, notCharged: true, message: 'Store unavailable.' };
     try {
       const { customerInfo, transaction } = await loadPurchases().purchasePackage(pkg);
       return {
@@ -347,7 +377,8 @@ class RevenueCatService {
 
   /** Purchase a product by id — subscriptions, consumables, or non-consumables. */
   async purchaseProduct(productId: string): Promise<RcPurchaseResult> {
-    if (!(await this.configure())) return { success: false, message: 'Store unavailable.' };
+    if (!(await this.configure())) return { success: false, notCharged: true, message: 'Store unavailable.' };
+    let storeInvoked = false;
     try {
       // Translate the internal app id to the store product id at the RC boundary.
       const storeId = appToStoreProductId(productId);
@@ -370,6 +401,7 @@ class RevenueCatService {
         );
         if (pkg) {
           // purchasePackage already handles the configure guard internally.
+          storeInvoked = true;
           return await this.purchasePackage(pkg);
         }
         // Fallback: product isn't in the current offering — fetch directly.
@@ -377,7 +409,8 @@ class RevenueCatService {
         const subProducts = subCategory
           ? await P.getProducts([storeId], subCategory)
           : await P.getProducts([storeId]);
-        if (!subProducts?.length) return { success: false, message: 'Product not found.' };
+        if (!subProducts?.length) return { success: false, notCharged: true, message: 'Product not found.' };
+        storeInvoked = true;
         const { customerInfo, transaction } = await P.purchaseStoreProduct(subProducts[0]);
         return {
           success: true,
@@ -394,7 +427,8 @@ class RevenueCatService {
       const products = nonSub
         ? await P.getProducts([storeId], nonSub)
         : await P.getProducts([storeId]);
-      if (!products?.length) return { success: false, message: 'Product not found.' };
+      if (!products?.length) return { success: false, notCharged: true, message: 'Product not found.' };
+      storeInvoked = true;
       const { customerInfo, transaction } = await P.purchaseStoreProduct(products[0]);
       return {
         success: true,
@@ -402,7 +436,7 @@ class RevenueCatService {
         transactionId: transaction?.transactionIdentifier,
       };
     } catch (error) {
-      return this.mapPurchaseError(error);
+      return { ...this.mapPurchaseError(error), notCharged: !storeInvoked };
     }
   }
 
