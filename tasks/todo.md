@@ -1,3 +1,19 @@
+# Active: Home first decisions (2026-09-08)
+
+Based on main a70df9f. User rejected decorative buildings on Home and approved
+starting the gameplay-first redesign. Keep this first PR focused on guidance
+and goal visibility. HUD compaction and connected story arcs are later slices.
+
+- [x] Use paid-work history instead of total income for the first-wage coach.
+- [x] Distinguish pending applications from unemployment and accepted jobs.
+      Correct the goal catalogue: one pending application, then hiring.
+- [x] Lead Home with next action and selected ambition before profile details.
+- [x] Verify rendered state changes, startup, types, lint and mobile web flow.
+      Evidence and remaining layout issues: docs/reviews/home-first-decisions.
+- [ ] Publish a separate PR with screenshots and explicit native-test limits.
+
+## Previous work
+
 # Active: Program 18 cash-flow correctness (2026-09-08)
 
 This continuation is based on `52c16cf` in open PR #199. Main remains `686adb1`.

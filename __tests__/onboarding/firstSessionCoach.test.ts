@@ -46,7 +46,8 @@ function step(o: {
   dismissed: boolean;
   weeksLived: number;
   baseline?: number | null;
-  incomeEarned: number;
+  hasWorkedForPay?: boolean;
+  hasPendingApplication?: boolean;
   hasJob: boolean;
   establishedLife?: boolean;
 }): string | null {
@@ -55,13 +56,14 @@ function step(o: {
     establishedLife: o.establishedLife ?? false,
     baseline: o.baseline === undefined ? o.weeksLived : o.baseline,
     weeksLived: o.weeksLived,
-    incomeEarned: o.incomeEarned,
+    hasWorkedForPay: o.hasWorkedForPay ?? false,
+    hasPendingApplication: o.hasPendingApplication ?? false,
     hasJob: o.hasJob,
   });
 }
 
 describe('the coach always asks for the RIGHT next thing', () => {
-  const base = { dismissed: false, weeksLived: 0, incomeEarned: 0, hasJob: false };
+  const base = { dismissed: false, weeksLived: 0, hasWorkedForPay: false, hasJob: false };
 
   it('opens by pointing an unemployed player at work', () => {
     expect(step(base)).toBe('find-work');
@@ -69,6 +71,16 @@ describe('the coach always asks for the RIGHT next thing', () => {
 
   it('switches to "live a week" the moment they are hired', () => {
     expect(step({ ...base, hasJob: true })).toBe('advance');
+  });
+
+  it('keeps a pending applicant informed instead of asking for another application', () => {
+    expect(step({ ...base, hasPendingApplication: true })).toBe('pending');
+    expect(step({ ...base, hasPendingApplication: true, hasJob: true })).toBe('advance');
+  });
+
+  it('does not confuse having a job with having received a wage', () => {
+    expect(step({ ...base, hasJob: true, hasWorkedForPay: false })).toBe('advance');
+    expect(step({ ...base, hasJob: false, hasWorkedForPay: false })).toBe('find-work');
   });
 
   it('never tells a hired player to find a job', () => {
@@ -79,19 +91,19 @@ describe('the coach always asks for the RIGHT next thing', () => {
     }
   });
 
-  it('pays off as soon as money actually arrives', () => {
-    expect(step({ ...base, hasJob: true, weeksLived: 2, incomeEarned: 110 })).toBe('paid');
+  it('pays off only after a paid work week', () => {
+    expect(step({ ...base, hasJob: true, weeksLived: 2, hasWorkedForPay: true })).toBe('paid');
   });
 
   it('shows the payoff even for a player who never used the coach', () => {
     // Someone who found work on their own still deserves the "that's the loop"
     // moment — it is the reward, not a reward for obedience.
-    expect(step({ ...base, hasJob: false, incomeEarned: 60 })).toBe('paid');
+    expect(step({ ...base, hasJob: false, hasWorkedForPay: true })).toBe('paid');
   });
 });
 
 describe('the coach knows when to leave', () => {
-  const base = { dismissed: false, weeksLived: 0, incomeEarned: 0, hasJob: false };
+  const base = { dismissed: false, weeksLived: 0, hasWorkedForPay: false, hasJob: false };
 
   it('stays silent once dismissed', () => {
     expect(step({ ...base, dismissed: true })).toBeNull();
@@ -144,7 +156,7 @@ describe('the coach knows when to leave', () => {
 });
 
 describe('the coach never greets an established player', () => {
-  const base = { dismissed: false, weeksLived: 0, incomeEarned: 0, hasJob: false };
+  const base = { dismissed: false, weeksLived: 0, hasWorkedForPay: false, hasJob: false };
 
   it('stays silent for a life that has already worked', () => {
     // THE UPGRADE BUG. An existing save carries NEITHER coach key, so the
@@ -159,7 +171,7 @@ describe('the coach never greets an established player', () => {
     // job. `hasJob: false` is true of a brand-new life AND of a long career
     // that ended, so employment alone cannot tell them apart.
     expect(step({ ...base, establishedLife: true, hasJob: false })).toBeNull();
-    expect(step({ ...base, establishedLife: true, hasJob: true, incomeEarned: 5000 })).toBeNull();
+    expect(step({ ...base, establishedLife: true, hasJob: true, hasWorkedForPay: true })).toBeNull();
   });
 
   it('still pays off a NEW player the week they are first paid', () => {
@@ -167,7 +179,7 @@ describe('the coach never greets an established player', () => {
     // `totalWeeksWorked`, which flips from 0 the instant the first wage lands.
     // Reading it live would delete the reward for reaching the goal — the one
     // moment the whole card exists to deliver.
-    expect(step({ ...base, establishedLife: false, hasJob: true, incomeEarned: 110 })).toBe('paid');
+    expect(step({ ...base, establishedLife: false, hasJob: true, hasWorkedForPay: true })).toBe('paid');
   });
 });
 

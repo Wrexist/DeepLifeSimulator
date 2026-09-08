@@ -20,8 +20,9 @@
  * state, and it walks the player through the first real loop:
  *
  *     no job  →  "Find your first job"      (opens the Work tab)
+ *     pending →  "Application under review" (opens Work to review it)
  *     hired   →  "Live a week and get paid" (points at the advance button)
- *     paid    →  "You earned $N this week"  (the payoff, then it retires)
+ *     paid    →  "Your first paid week"  (the payoff, then it retires)
  *
  * Deriving each step from state rather than from a step counter matters: the
  * coach can never ask for something already done, can never get out of sync
@@ -65,6 +66,7 @@ export default function FirstSessionCoach() {
   const currentJob = useGameSelector((s) => s?.currentJob, shallowEqual);
   const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
   const incomeEarned = useGameSelector((s) => s?.weekResult?.incomeEarned ?? 0);
+  const hasPendingApplication = useGameSelector((s) => (s?.careers ?? []).some((career) => career?.applied && !career.accepted));
   const darkMode = useGameSelector((s) => s?.settings?.darkMode !== false);
   const weeksWorked = useGameSelector((s) => s?.lifetimeStatistics?.totalWeeksWorked ?? 0);
 
@@ -147,10 +149,11 @@ export default function FirstSessionCoach() {
         establishedLife,
         baseline,
         weeksLived,
-        incomeEarned,
+        hasWorkedForPay: weeksWorked > 0,
+        hasPendingApplication,
         hasJob: Boolean(currentJob),
       }),
-    [dismissed, establishedLife, baseline, weeksLived, incomeEarned, currentJob]
+    [dismissed, establishedLife, baseline, weeksLived, weeksWorked, hasPendingApplication, currentJob]
   );
 
   const retire = useCallback(() => {
@@ -189,7 +192,8 @@ export default function FirstSessionCoach() {
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
+      ]),
+      { iterations: 2 }
     );
     loop.start();
     return () => loop.stop();
@@ -205,7 +209,7 @@ export default function FirstSessionCoach() {
 
   const onAction = useCallback(() => {
     haptic.light();
-    if (step === 'find-work') {
+    if (step === 'find-work' || step === 'pending') {
       router.push('/(tabs)/work');
       return;
     }
@@ -230,9 +234,16 @@ export default function FirstSessionCoach() {
     'find-work': {
       Icon: Briefcase,
       tone: accent.info,
-      title: 'You need work',
-      body: 'No job means no money coming in. Pick one up in the Work tab.',
+      title: 'Choose your first job',
+      body: 'Compare weekly pay and requirements in Work, then apply for a job that fits.',
       cta: 'Find a job',
+    },
+    pending: {
+      Icon: Briefcase,
+      tone: accent.info,
+      title: 'Application under review',
+      body: 'Advance a week to hear back. A reply can take up to two weeks.',
+      cta: 'View application',
     },
     advance: {
       Icon: CalendarCheck,
@@ -244,12 +255,9 @@ export default function FirstSessionCoach() {
     paid: {
       Icon: PartyPopper,
       tone: accent.gold,
-      title: `You earned ${formatMoney(incomeEarned)}`,
-      // The second loop, named once, at the moment its first evidence is on
-      // screen (the rings have just dropped for the first time). Nothing else
-      // in the first session says that the vitals fall or where the free
-      // fixes are - the walkthrough died of that silence on week 13.
-      body: "That's the loop: work, live a week, get paid. Health and happiness slip a little each week; Life → Health tops them up for free.",
+      title: 'Your first paid week',
+      // The week total includes passive income and bonuses as well as wages.
+      body: `Total income this week: ${formatMoney(incomeEarned)}. Check your health and happiness before choosing what to do next.`,
       cta: 'Start playing',
     },
   }[step];
@@ -277,8 +285,8 @@ export default function FirstSessionCoach() {
             accessibilityLabel={cta}
             style={[styles.cta, { backgroundColor: tone }]}
           >
-            <Text style={styles.ctaText}>{cta}</Text>
-            <ArrowRight size={scale(16)} color="#FFFFFF" />
+            <Text style={[styles.ctaText, { color: step === 'paid' ? '#172033' : '#FFFFFF' }]}>{cta}</Text>
+            <ArrowRight size={scale(16)} color={step === 'paid' ? '#172033' : '#FFFFFF'} />
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -322,6 +330,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: scale(8),
+    minHeight: 44,
     paddingVertical: scale(11),
     borderRadius: scale(12),
   },

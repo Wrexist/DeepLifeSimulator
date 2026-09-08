@@ -134,10 +134,10 @@ describe('"Perfect Week!" is not handed to a life that has not played one', () =
 });
 
 describe('the coach still asks for the right next thing (unchanged contract)', () => {
-  const base = { dismissed: false, establishedLife: false, baseline: null, weeksLived: AGE_20, incomeEarned: 0 };
+  const base = { dismissed: false, establishedLife: false, baseline: null, weeksLived: AGE_20, hasWorkedForPay: false, hasPendingApplication: false };
   it('find work → live a week → paid', () => {
     expect(resolveCoachStep({ ...base, hasJob: false })).toBe('find-work');
     expect(resolveCoachStep({ ...base, hasJob: true })).toBe('advance');
-    expect(resolveCoachStep({ ...base, hasJob: true, weeksLived: AGE_20 + 1, incomeEarned: 142 })).toBe('paid');
+    expect(resolveCoachStep({ ...base, hasJob: true, weeksLived: AGE_20 + 1, hasWorkedForPay: true })).toBe('paid');
   });
 });

@@ -682,12 +682,6 @@ function HomeScreenContent() {
         */}
         <FirstSessionCoach />
 
-        <FadeInUp delay={0}>
-          {/* The prestige badge on the card opens the shop this screen already
-              mounts below, instead of its previous empty onPress. */}
-          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
-        </FadeInUp>
-
         {/* No crown upsell here any more: the HUD's store button and the gem
             chip's + are the store entries. Four concurrent paywall
             affordances on one screen was the audit's monetization finding. */}
@@ -707,6 +701,12 @@ function HomeScreenContent() {
           )}
           {lead === 'goals' && <FadeInUp delay={20}>{goalsBlock}</FadeInUp>}
         </View>
+
+        <FadeInUp delay={0}>
+          {/* The prestige badge on the card opens the shop this screen already
+              mounts below, instead of its previous empty onPress. */}
+          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
+        </FadeInUp>
 
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
