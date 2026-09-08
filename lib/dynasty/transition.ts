@@ -20,6 +20,7 @@ import type { GameState } from '@/contexts/game/types';
 import { applyVaultToNewLife } from './vault';
 import { applyTrialEffectsToNewLife, settleTrials } from './trials';
 import { endowmentIds, pendingTrialIds, seatWingIds, vaultItemIds } from './state';
+import { readLiveOpsState } from '@/lib/liveops/state';
 
 /**
  * Carry lineage state onto a freshly-built life, settle the Trials the old life
@@ -34,6 +35,17 @@ import { endowmentIds, pendingTrialIds, seatWingIds, vaultItemIds } from './stat
  * rely on.
  */
 export function applyDynastyTransition(oldState: GameState, newState: GameState): GameState {
+  // Live-event payouts belong to the lineage. Neither prestige nor becoming
+  // an heir reopens an event instance or refunds its real-time weekly budget.
+  // The reader copies nested arrays/entries so the ended life stays immutable.
+  if (oldState.liveOps) {
+    const liveOps = readLiveOpsState(oldState);
+    newState.liveOps = { ...liveOps, lastSeenWeek: {} };
+    // Seen-instance badges persist, but cooldown weeks are relative to the
+    // ended life. Carrying them would suppress unrelated future appearances
+    // when the new life eventually reaches that same week number.
+  }
+
   // ── Legacy Contracts ─────────────────────────────────────────────────────
   // Claimed ids are lineage data. See the header for what happened while they
   // were not carried.

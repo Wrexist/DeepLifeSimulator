@@ -27,6 +27,8 @@ export interface GameStore {
   subscribe: (onStoreChange: () => void) => () => void;
   /** Read the current GameState synchronously (always up to date). */
   getSnapshot: () => GameState;
+  /** Latest explicitly selected slot, also updated before a slot switch commits. */
+  getSlotSnapshot: () => number | null;
   /** Stable setter (identical to useGameState().setGameState) — write access
    *  without subscribing to state, so callers don't re-render on every change. */
   setGameState: (update: GameState | ((prev: GameState) => GameState)) => void;
@@ -111,6 +113,15 @@ export function useGameStateGetter(): () => GameState {
     throw new Error('useGameStateGetter must be used within a GameProvider');
   }
   return store.getSnapshot;
+}
+
+/** Read slot identity inside delayed work without capturing a render's slot. */
+export function useCurrentSlotGetter(): GameStore['getSlotSnapshot'] {
+  const store = useContext(GameStoreContext);
+  if (!store) {
+    throw new Error('useCurrentSlotGetter must be used within a GameProvider');
+  }
+  return store.getSlotSnapshot;
 }
 
 /** Shallow-equality helper for selectors that return arrays/objects of primitives. */

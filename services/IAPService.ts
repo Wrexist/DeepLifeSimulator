@@ -19,6 +19,7 @@ import { track } from '@/lib/analytics';
 import { revenueCatService } from '@/services/RevenueCatService';
 import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { PURSUITS, XP_PER_LEVEL, MAX_PURSUIT_LEVEL, levelFromXp } from '@/lib/pursuits/pursuitMastery';
+import { readPendingRcGrant, writePendingRcGrant, clearPendingRcGrant, resolvePendingReceipt, purchaseLife, matchesPurchaseTarget, type PurchaseTarget, type PendingRcGrant } from '@/utils/revenueCatRecovery';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
@@ -33,6 +34,7 @@ const IAP_VERIFY_URL = process.env.EXPO_PUBLIC_IAP_VERIFY_URL;
 const IAP_VERIFY_TOKEN = process.env.EXPO_PUBLIC_IAP_VERIFY_TOKEN;
 const IAP_VERIFY_TIMEOUT_MS = 8000;
 const PROCESSED_IAP_TRANSACTIONS_KEY = 'iap_processed_transactions';
+const PENDING_IAP_TRANSACTIONS_KEY = 'iap_pending_transactions';
 const MAX_PROCESSED_IAP_TRANSACTIONS = 2000;
 const ENTITLEMENTS_UNREADABLE_KEY = 'entitlements_unreadable_at';
 const TRUSTED_PERMANENT_PERKS_KEY = 'permanent_perks_v2';
@@ -408,6 +410,117 @@ export class IAPService {
   private isInitializing: boolean = false;
   private hasInitialized: boolean = false;
   private listenerRegistered: boolean = false;
+  private recoveryQueue: Promise<unknown> = Promise.resolve();
+  private rcPurchaseInFlight = false;
+  private purchaseContext: (() => { slot: number | null; state: GameState }) | null = null;
+
+  private serializeRecovery<T>(work: () => Promise<T>): Promise<T> {
+    const result = this.recoveryQueue.then(work, work);
+    this.recoveryQueue = result.catch(() => undefined);
+    return result;
+  }
+
+  /** Startup, loaded-life registration, and explicit Restore retry only this install's intent. */
+  public recoverPendingRevenueCatPurchase(): Promise<boolean> {
+    return this.serializeRecovery(async () => {
+      try {
+        if (!revenueCatService.isEnabled()) return false;
+        const pending = await readPendingRcGrant();
+        return pending ? await this.recoverRcIntent(pending) : false;
+      } catch (error) {
+        logger.warn('[IAP] Pending purchase retained for retry', { error });
+        return false;
+      }
+    });
+  }
+
+  private async recoverRcIntent(pending: PendingRcGrant): Promise<boolean> {
+    const receipts = await revenueCatService.getRecoveryReceiptSnapshot();
+    if (!receipts) return false;
+    const transactionId = resolvePendingReceipt(pending, receipts);
+    if (!transactionId) return false;
+    if (await this.isTransactionProcessed(transactionId)) {
+      await clearPendingRcGrant();
+      return true;
+    }
+    // Completed receipts need only cleanup, even after the original life ended.
+    // A NEW grant remains strictly bound to its original loaded character.
+    const context = this.purchaseContext?.();
+    if (!context || !matchesPurchaseTarget(pending.target, context.slot, context.state)) return false;
+    // Save the real receipt before granting. After a kill, do not guess another receipt.
+    await writePendingRcGrant({ ...pending, transactionId });
+    if (!(await this.applyBenefit(pending.productId, transactionId, false, pending.target))) return false;
+    await clearPendingRcGrant();
+    return true;
+  }
+
+  private purchaseRecoverableRcProduct(productId: string): Promise<PurchaseResult> {
+    // Do not turn overlapping taps into a queue of future store sheets.
+    // React may not have painted the button's disabled state yet.
+    if (this.rcPurchaseInFlight) {
+      return Promise.resolve({ success: false, message: 'A purchase is already in progress. Please wait for it to finish.' });
+    }
+    this.rcPurchaseInFlight = true;
+    return this.serializeRecovery(async () => {
+      const unresolved = 'A purchase is awaiting recovery. Load the original character and tap Restore Purchases. If it remains pending, contact support before buying again.';
+      try {
+        const old = await readPendingRcGrant();
+        if (old) {
+          const recovered = await this.recoverRcIntent(old);
+          // Never issue a new charge on a tap that recovered the previous purchase.
+          return recovered
+            ? { success: false, message: 'Your previous purchase was recovered. No new purchase was made. Tap the item again if you want to buy it.' }
+            : { success: false, message: unresolved };
+        }
+        const context = this.purchaseContext?.();
+        const life = context && purchaseLife(context.state);
+        if (!context || !life || context.slot === null || context.slot < 1 || context.slot > 3) {
+          return { success: false, message: 'Load and save your character before purchasing.' };
+        }
+        const target = { slot: context.slot, life };
+        const receipts = await revenueCatService.getRecoveryReceiptSnapshot();
+        if (!receipts) return { success: false, message: 'We could not verify purchase history. Please reconnect and try again.' };
+        // Verify the target exists durably, before opening a sheet that can charge.
+        const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
+        const raw = await readSaveSlot(target.slot);
+        const decoded = raw && decodePersistedSaveEnvelope(raw, { allowLegacy: shouldAllowUnsignedLegacySaves() });
+        if (!decoded || !decoded.valid || typeof decoded.data !== 'string' ||
+            purchaseLife(JSON.parse(decoded.data)) !== life) {
+          return { success: false, message: 'Save your character successfully before purchasing.' };
+        }
+        const pending: PendingRcGrant = {
+          version: 1, productId, target, customerId: receipts.customerId,
+          baseline: receipts.transactions.map(t => t.id), baselineDate: receipts.requestDate,
+        };
+        await writePendingRcGrant(pending);
+        const latest = this.purchaseContext?.();
+        if (!latest || !matchesPurchaseTarget(target, latest.slot, latest.state)) {
+          await clearPendingRcGrant();
+          return { success: false, message: 'Character changed. Please try again from your current character.' };
+        }
+        const result = await revenueCatService.purchaseProduct(productId);
+        if (result.cancelled || result.notCharged) {
+          await clearPendingRcGrant();
+          return { success: false, cancelled: result.cancelled, message: result.message || 'Purchase was cancelled' };
+        }
+        // Network errors and missing receipts are UNKNOWN, not proof of no charge.
+        if (!result.success) return { success: false, message: unresolved };
+        if (typeof result.transactionId === 'string' && result.transactionId.trim()) {
+          pending.transactionId = result.transactionId;
+          await writePendingRcGrant(pending);
+        }
+        const granted = await this.recoverRcIntent(pending);
+        return granted
+          ? { success: true, message: 'Purchase successful!', productId, transactionId: pending.transactionId }
+          : { success: false, message: unresolved, productId, transactionId: pending.transactionId };
+      } catch (error) {
+        logger.warn('[IAP] Purchase recovery unavailable', { error });
+        return { success: false, message: 'Purchase could not be completed safely. Tap Restore Purchases before trying again, or contact support if it remains pending.' };
+      }
+    }).finally(() => {
+      this.rcPurchaseInFlight = false;
+    });
+  }
 
   private static sanitizePermanentPerkList(perks: unknown): string[] {
     if (!Array.isArray(perks)) return [];
@@ -706,27 +819,47 @@ export class IAPService {
     transactionId?: string,
   ): Promise<boolean> {
     if (!transactionId) return false;
+    // loadGame merges same-envelope receipt markers into the historical
+    // ledger. A pending ID still means disk-only obligations need retry even
+    // when the quantity marker was recovered from a successful live save.
+    const pendingRaw = await safeGetItem(PENDING_IAP_TRANSACTIONS_KEY);
+    if (pendingRaw) {
+      try {
+        const pending: unknown = JSON.parse(pendingRaw);
+        if (Array.isArray(pending) && pending.includes(transactionId)) return false;
+      } catch { /* A malformed pending record is not proof of fulfillment. */ }
+    }
     const transactions = await this.loadProcessedTransactions();
     return transactions.has(transactionId);
   }
 
-  /**
-   * Undo a reservation when the grant it was taken for did not land.
-   *
-   * Without this, reserve-then-grant would recreate the very bug MON-6 fixed:
-   * a purchase that applied nothing would sit in the ledger as fulfilled, and
-   * every future retry would be suppressed. Best-effort - a failed release just
-   * means the grant needs a manual Restore, which is strictly better than a
-   * duplicated one.
-   */
+  /** Pending is never fulfillment. A crash before granting remains retryable. */
+  private async reserveTransaction(transactionId: string): Promise<boolean> {
+    try {
+      const raw = await safeGetItem(PENDING_IAP_TRANSACTIONS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return false;
+      const pending = new Set(parsed.filter((id): id is string => typeof id === 'string'));
+      pending.add(transactionId);
+      return await safeSetItem(PENDING_IAP_TRANSACTIONS_KEY,
+        JSON.stringify([...pending].slice(-MAX_PROCESSED_IAP_TRANSACTIONS)));
+    } catch {
+      return false;
+    }
+  }
+
   private async releaseTransactionReservation(transactionId?: string): Promise<void> {
     if (!transactionId) return;
     try {
-      const transactions = await this.loadProcessedTransactions();
-      if (!transactions.delete(transactionId)) return;
-      await this.saveProcessedTransactions(transactions);
+      const raw = await safeGetItem(PENDING_IAP_TRANSACTIONS_KEY);
+      const pending: unknown = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(pending)) return;
+      await safeSetItem(PENDING_IAP_TRANSACTIONS_KEY,
+        JSON.stringify(pending.filter(id => id !== transactionId)));
     } catch (error) {
-      logger.error('[IAP] Failed to release a transaction reservation', { transactionId, error });
+      // A stale pending id cannot suppress delivery: only the completed ledger
+      // and a receipt marker written atomically with the quantities do that.
+      logger.warn('[IAP] Could not clear pending transaction', { transactionId, error });
     }
   }
 
@@ -1037,6 +1170,11 @@ export class IAPService {
           this.setState({ isLoading: false });
           return { success: false, message: `Product configuration not found for ${productId}. Please check iapConfig.ts` };
         }
+        if (!isSubscriptionProduct(productId)) {
+          const result = await this.purchaseRecoverableRcProduct(productId);
+          this.setState({ isLoading: false });
+          return result;
+        }
         const rc = await revenueCatService.purchaseProduct(productId);
         if (rc.cancelled) {
           this.setState({ isLoading: false });
@@ -1046,7 +1184,11 @@ export class IAPService {
           this.setState({ isLoading: false });
           return { success: false, message: rc.message || 'Purchase could not be completed.' };
         }
-        const transactionId = rc.transactionId || `${productId}:rc:${Date.now()}`;
+        const transactionId = rc.transactionId;
+        if (!transactionId) {
+          this.setState({ isLoading: false });
+          return { success: false, message: 'Subscription receipt is unavailable. Tap Restore Purchases to refresh your subscription access.' };
+        }
         // Same in-memory lock + persisted ledger the native path uses;
         // applyBenefit marks the transaction processed at its end.
         // `applyBenefit` returns false when the grant did not land (no game
@@ -1592,8 +1734,29 @@ export class IAPService {
   private async applyBenefitToDisk(
     purchase: any,
     transactionId?: string,
-    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean },
+    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean; target?: PurchaseTarget },
   ): Promise<boolean> {
+    // The lock covers the READ as well as the write. Locking forceSave alone
+    // allows an autosave to land between them and be overwritten by our stale
+    // snapshot, including its receipt markers.
+    const { saveLoadMutex } = await import('@/utils/saveLoadMutex');
+    const token = await saveLoadMutex.acquire('save');
+    try {
+      return await this.applyBenefitToDiskLocked(purchase, transactionId, options);
+    } finally {
+      saveLoadMutex.release(token);
+    }
+  }
+
+  private async applyBenefitToDiskLocked(
+    purchase: any,
+    transactionId?: string,
+    options?: { skipBenefitReapply?: boolean; entitlementsOnly?: boolean; target?: PurchaseTarget },
+  ): Promise<boolean> {
+    if (options?.target) {
+      const context = this.purchaseContext?.();
+      if (!context || !matchesPurchaseTarget(options.target, context.slot, context.state)) return false;
+    }
     const config = getProductConfig(purchase.productId);
     // Subscriptions have no one-time PRODUCT_CONFIG (they live in
     // SUBSCRIPTION_CONFIGS) but DO need disk fulfillment - the Verified-Pro
@@ -1617,7 +1780,7 @@ export class IAPService {
     // leave the transaction unmarked so it is retried on a later launch, when a
     // slot has actually been loaded. 2026-07-30 audit MON-8.
     const { isWritableSlot } = await import('@/utils/slotNumber');
-    const slotToUse = [parsedCurrentSlot, parsedLastSlot].find(isWritableSlot);
+    const slotToUse = options?.target?.slot ?? [parsedCurrentSlot, parsedLastSlot].find(isWritableSlot);
     if (slotToUse === undefined) {
       logger.warn('Cannot apply purchase to disk: no valid save slot is known', {
         productId: purchase.productId,
@@ -1655,6 +1818,12 @@ export class IAPService {
       }
 
       gameState = JSON.parse(decoded.data);
+      if (options?.target && purchaseLife(gameState) !== options.target.life) return false;
+      if (gameState && typeof gameState === 'object' && gameState.checkpoints === undefined) {
+        const { readCheckpointSidecar, filterCheckpointsForState } = await import('@/utils/checkpointSidecar');
+        const checkpoints = await readCheckpointSidecar(slotToUse);
+        if (checkpoints) gameState.checkpoints = filterCheckpointsForState(checkpoints, gameState);
+      }
       if (!gameState || typeof gameState !== 'object') {
         logger.error('Invalid game state structure in IAPService');
         return false;
@@ -1673,6 +1842,10 @@ export class IAPService {
       return false;
     }
 
+    const quantitiesAlreadyPersisted = !options?.entitlementsOnly && !!transactionId &&
+      Array.isArray(gameState.processedIAPTransactions) &&
+      gameState.processedIAPTransactions.includes(transactionId);
+
     // Apply all config benefits via the single shared helper (same logic the
     // in-memory applyProductToState path uses - they can no longer drift).
     // SKIP when the in-memory updater already applied + persisted them: this
@@ -1683,7 +1856,7 @@ export class IAPService {
     if (config) {
       if (!options?.skipBenefitReapply) {
         applyProductBenefitsToState(gameState, config, purchase.productId, {
-          entitlementsOnly: options?.entitlementsOnly,
+          entitlementsOnly: options?.entitlementsOnly || quantitiesAlreadyPersisted,
         });
       }
 
@@ -1716,6 +1889,7 @@ export class IAPService {
     // and can still arrive through Restore/history, but they are deliberately
     // NOT in the live catalog.
     if (
+      !quantitiesAlreadyPersisted &&
       typeof purchase.productId === 'string' &&
       (isSubscriptionProduct(purchase.productId) ||
         /^deeplife\.premium\.(monthly|yearly)$/i.test(purchase.productId))
@@ -1791,7 +1965,7 @@ export class IAPService {
     // + double-buffer path as every other save.
     try {
       const { forceSave } = await import('@/utils/saveQueue');
-      await forceSave(slotToUse, gameState);
+      await forceSave(slotToUse, gameState, false);
 
       // Deliberately NOT re-stamping `currentSlot` here. An entitlement grant is
       // not a slot switch; writing the marker made a background purchase
@@ -2144,7 +2318,7 @@ export class IAPService {
       // permanent perks not represented by an entitlement are also restored.
       if (revenueCatService.isEnabled()) {
         const restoredIds = await revenueCatService.restoreProductIds();
-        let restoredCount = 0;
+        let restoredCount = await this.recoverPendingRevenueCatPurchase() ? 1 : 0;
         for (const productId of restoredIds) {
           // Never restore consumables (gems / money) - prevents re-granting them.
           // A consumable can still carry PERMANENT entitlements - the $99.99
@@ -2370,15 +2544,17 @@ export class IAPService {
 
   // Hook for in-memory state updates
   private stateUpdater:
-    | ((productId: string, opts?: { entitlementsOnly?: boolean }) => Promise<boolean>)
+    | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string; target?: PurchaseTarget }) => Promise<boolean>)
     | null = null;
 
   public setStateUpdater(
     updater:
-      | ((productId: string, opts?: { entitlementsOnly?: boolean }) => Promise<boolean>)
+      | ((productId: string, opts?: { entitlementsOnly?: boolean; transactionId?: string; target?: PurchaseTarget }) => Promise<boolean>)
       | null,
+    context?: (() => { slot: number | null; state: GameState }) | null,
   ) {
     this.stateUpdater = updater;
+    this.purchaseContext = context ?? null;
   }
 
   // Apply benefit (handles both in-memory and disk)
@@ -2394,26 +2570,14 @@ export class IAPService {
      * bug this exists to fix.
      */
     entitlementsOnly = false,
+    target?: PurchaseTarget,
   ): Promise<boolean> {
-    // 0. RESERVE BEFORE GRANTING, for grants that cannot safely happen twice.
-    //
-    // The ledger write used to happen only AFTER the grant, and its result was
-    // discarded - so a rejected write meant the grant landed with no record of
-    // it, and a later Restore or store replay re-applied it. For a
-    // non-idempotent product (a banked revive, a subscription term) that is a
-    // duplicated grant; recording FIRST turns the same failure into a refusal,
-    // which is recoverable - the transaction stays unfinished and the store
-    // redelivers it. Idempotent entitlement flags keep the original order,
-    // because re-applying one is exactly how a restore repairs a wiped
-    // entitlement. 2026-07-30 audit SAVE-3.
-    // An `entitlementsOnly` grant is idempotent BY CONSTRUCTION - every
-    // quantity (gems, money, pills, the banked revive charge) is dropped and
-    // only boolean flags land - so it needs no reservation, and reserving it
-    // would write a ledger entry claiming a non-idempotent grant happened when
-    // it deliberately did not.
+    // A pending reservation checks durable storage before a non-idempotent
+    // grant, but is NEVER read as fulfilled. Receipt markers in the state
+    // provide replay protection across a crash between grant and ledger writes.
     const needsReservation =
-      transactionId != null && isNonIdempotentGrant(productId) && !entitlementsOnly;
-    if (needsReservation && !(await this.markTransactionProcessed(transactionId))) {
+      transactionId != null && (isNonIdempotentGrant(productId) || isConsumableProduct(productId)) && !entitlementsOnly;
+    if (needsReservation && !(await this.reserveTransaction(transactionId))) {
       logger.error('[IAP] Could not record the dedupe ledger; refusing a non-idempotent grant', {
         productId,
         transactionId,
@@ -2429,7 +2593,7 @@ export class IAPService {
     let inMemoryApplied = false;
     if (this.stateUpdater) {
       try {
-        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly })) === true;
+        inMemoryApplied = (await this.stateUpdater(productId, { entitlementsOnly, transactionId, target })) === true;
         logger.info(` Benefit applied via in-memory updater: ${productId}`);
       } catch (error) {
         logger.error('Error in state updater:', error);
@@ -2441,9 +2605,18 @@ export class IAPService {
     //    transaction ledger). Re-apply the additive config benefits ONLY when
     //    the in-memory path did not already apply + persist them.
     logger.info(`Applying benefit to disk: ${productId}`);
+    // Keep pending on EVERY incomplete outcome. Even a false live-updater
+    // result can leave quantities in memory that a later autosave persists.
+    // The pending ID keeps disk-only work retryable if load promotes that
+    // receipt marker into the completed history before fulfillment finishes.
+    if (target) {
+      const current = this.purchaseContext?.();
+      if (!current || !matchesPurchaseTarget(target, current.slot, current.state)) return false;
+    }
     const diskApplied = await this.applyBenefitToDisk({ productId }, transactionId, {
       skipBenefitReapply: inMemoryApplied,
       entitlementsOnly,
+      target,
     });
 
     // 3. Mark the transaction processed ONLY if a grant actually landed.
@@ -2454,25 +2627,25 @@ export class IAPService {
     // the player had paid and could never receive it. Leaving it unmarked is
     // what lets a later launch, with a slot loaded, complete the grant.
     // 2026-07-30 audit MON-6.
-    const applied = inMemoryApplied || diskApplied;
+    // Disk-only obligations (cross-slot perks and subscriptions) must finish
+    // too. A durable live grant alone cannot declare those concerns fulfilled.
+    const applied = diskApplied;
     if (!applied) {
-      // Release the reservation taken in step 0, or the retry path this branch
-      // exists to preserve would be suppressed by our own ledger entry.
-      if (needsReservation) await this.releaseTransactionReservation(transactionId);
-      logger.error('Purchase applied nothing - leaving transaction unprocessed for retry', {
+      logger.error('Purchase fulfillment incomplete - leaving transaction unprocessed for retry', {
         productId,
         transactionId,
       });
       return false;
     }
 
-    if (transactionId && !needsReservation && !(await this.markTransactionProcessed(transactionId))) {
-      // The grant DID land, so we do not undo it - but the ledger has no record,
-      // which for an idempotent entitlement only risks a harmless re-apply.
-      logger.error('[IAP] Grant applied but the dedupe ledger write was rejected', {
-        productId,
-        transactionId,
-      });
+    if (transactionId) {
+      if (await this.markTransactionProcessed(transactionId)) {
+        if (needsReservation) await this.releaseTransactionReservation(transactionId);
+      } else {
+        // A retry uses the same-envelope receipt marker, so even a lost
+        // completed-ledger write cannot add the quantities again.
+        logger.error('[IAP] Grant persisted but completed ledger write was rejected', { productId, transactionId });
+      }
     }
     return true;
   }
@@ -2485,12 +2658,23 @@ export class IAPService {
   public applyProductToState(
     gameState: GameState,
     productId: string,
-    opts: { entitlementsOnly?: boolean } = {},
+    opts: { entitlementsOnly?: boolean; transactionId?: string } = {},
   ): boolean {
     const config = getProductConfig(productId);
     if (!config) return false;
 
-    applyProductBenefitsToState(gameState, config, productId, opts);
+    // The receipt marker and quantities travel in the SAME state update/save.
+    // An unsuccessful save leaves both live, so a later autosave and store
+    // retry cannot add the purchase again. Restores still repair flags freely.
+    const recorded = Array.isArray(gameState.processedIAPTransactions) ? gameState.processedIAPTransactions : [];
+    const alreadyApplied = !!opts.transactionId && recorded.includes(opts.transactionId);
+    applyProductBenefitsToState(gameState, config, productId, {
+      entitlementsOnly: opts.entitlementsOnly || alreadyApplied,
+    });
+    if (!opts.entitlementsOnly && opts.transactionId && !recorded.includes(opts.transactionId)) {
+      gameState.processedIAPTransactions = [...recorded, opts.transactionId]
+        .slice(-MAX_PROCESSED_IAP_TRANSACTIONS);
+    }
     return true;
   }
 }

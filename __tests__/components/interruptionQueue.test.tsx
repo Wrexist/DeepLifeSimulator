@@ -221,6 +221,7 @@ describe('InterruptionContext', () => {
         return () => listeners.delete(fn);
       },
       getSnapshot: () => ({ weeksLived: week } as any),
+      getSlotSnapshot: () => 1,
       setGameState: () => {},
     };
     const advanceWeek = () => {

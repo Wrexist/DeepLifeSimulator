@@ -5587,3 +5587,77 @@ draining the queue needs a production API added for a test's benefit, days
 before a release — but it is written down, which is the part that matters. The
 same reasoning as CLAUDE.md section 8: a gate whose red means nothing trains
 you to skim it.
+
+
+## 2026-09-07 — Pending payment is not completed payment
+
+A `Promise<boolean>` save that resolves `false` has failed. The IAP handler
+previously treated any resolution as success, causing disk fulfillment to skip
+the quantity grant. Test the real handler's save result, not only a service
+mock that always means what the caller assumes.
+
+Writing a transaction ID before its grant cannot use the fulfilled ledger. A
+crash would turn that reservation into permanent suppression of an unpaid
+grant. Keep pending and completed identities separate, and write quantity
+identity in the same save as quantity delivery. Retain pending on all incomplete
+outcomes: a failed immediate save may still leave a live grant that a later
+autosave persists, and load can promote its receipt into the historical ledger.
+Test that sequence as well as the simpler throw-before-grant case. Pending IDs
+alone are not a recovery journal, especially when the store SDK has already
+finished the transaction.
+
+A disk-only writer must reconstruct sidecar-backed state before resaving it.
+The cold IAP path read only the main envelope, so its next force-save could
+replace real rewind checkpoints with an empty sidecar. Hold the save mutex
+across both the read and write, using the existing under-lock force-save mode
+to avoid recursive acquisition.
+
+## 2026-09-07 — Assess liability before collecting it
+
+The police fine was capped by wallet cash before reaching `chargeOrDefer`.
+That erased liability for an illiquid wealthy character instead of deferring
+it. Compute the assessed amount from the intended rule first, then let the
+shared collector divide it into paid cash and arrears. Prove conservation for
+zero, partial and sufficient liquidity, while keeping the wallet nonnegative.
+
+Legacy migration arrays also need element guards. A valid array can contain
+null or primitive entries from old or malformed JSON. Filter non-record entries
+without discarding valid neighbors, and prove the migration reaches the current
+version and stays there after reload. A synthetic corrupt fixture demonstrates
+a recovery weakness, not a measured customer incident.
+
+
+## 2026-09-08 — Receipt recovery needs an identity before the store sheet
+
+A completed store transaction cannot rely on callback redelivery. Persist the
+product, original slot/life, customer identity and receipt baseline before the
+store can charge. Reconcile a real transaction, never a timestamp fallback or
+every historical consumable. Keep unknown outcomes pending, but distinguish
+confirmed cancellation and failure before invoking the store from uncertainty
+after invoking it. A successful recovery of an older product is not success
+for the newly requested product. Callers often apply success semantics to the
+requested SKU without examining the returned product ID.
+
+Cleanup is not delivery. If the benefit and completed ledger are durable but
+clearing the recovery journal fails, a later generation must still be able to
+clear the completed record. Verify receipt/account and completion before
+requiring the original life. Original slot/life matching remains mandatory for
+any new grant. Otherwise a harmless cleanup failure becomes a permanent shop
+lock as soon as the old character is replaced.
+
+## 2026-09-08 — Repeated events and cross-life rewards need different identities
+
+Notification IDs are not necessarily occurrence IDs. Births and education
+completions reuse IDs, so journal identity must also distinguish the week and
+the event. Deterministic occurrence identity retains updater replay safety.
+Recognize legacy entries by the same week and content during the transition.
+
+Live-event claims and real-time reward budgets belong to the lineage, while
+notification cooldown weeks belong to the current life. Carry the former
+through the shared dynasty transition and reset the latter. Test a real claim
+through all three transition routes and reload before retrying it.
+
+Trace the actual writer before changing a stale achievement reader. Replacing
+`.unlocked` with the typed `.completed` would still read a deprecated array.
+The existing earned-achievement helper evaluates the real progress conditions
+and claim store, which is the behavior the live-event objective needs.

@@ -17,10 +17,10 @@
  *
  * This runs INSIDE the week updater, and React 19 StrictMode / concurrent
  * rendering can invoke an updater twice — the `R10-2` dedupe on the notification
- * flush exists for exactly that reason. So entries are keyed by the
- * notification id (which already encodes the week, e.g. `arrears-312`) and
- * appended only when that key is absent. A double-invoked updater produces the
- * same journal as a single one.
+ * flush exists for exactly that reason. Notification ids are often reused
+ * (birth-announcement, education-complete). Identity includes the week and
+ * event text so recurring events and different same-week graduations survive,
+ * while replaying the same notifications adds nothing.
  */
 
 import type { JournalEntry } from '@/contexts/game/types';
@@ -94,16 +94,26 @@ export function appendWeekToJournal(
 
   const seen = new Set(current.map((e) => e?.id).filter(Boolean) as string[]);
   const additions: JournalEntry[] = [];
+  const week = Number.isFinite(atWeek) ? Math.floor(atWeek) : 0;
 
   for (const n of notifications) {
     if (!isWorthRecording(n)) continue;
-    if (seen.has(n.id)) continue;
-    seen.add(n.id);
+    const title = (n.title || 'This week').trim();
+    const details = (n.message || '').trim();
+    // An encoded tuple avoids delimiter/hash collisions and remains stable
+    // across StrictMode retries, JSON reloads and reordered notification lists.
+    const id = `week-event:${JSON.stringify([week, n.id, title, details])}`;
+    if (seen.has(id)) continue;
+    // Old saves used the raw notification id. Recognize only the matching
+    // same-week event, never let an old birth suppress a later child's birth.
+    if (current.some((entry) => entry?.id === n.id && entry.atWeek === week &&
+      entry.title === title && (entry.details || '') === details)) continue;
+    seen.add(id);
     additions.push({
-      id: n.id,
-      atWeek: Number.isFinite(atWeek) ? Math.floor(atWeek) : 0,
-      title: (n.title || 'This week').trim(),
-      details: (n.message || '').trim(),
+      id,
+      atWeek: week,
+      title,
+      details,
       tags: tagsFor(n),
     });
   }

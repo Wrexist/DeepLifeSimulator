@@ -55,6 +55,21 @@ describe('weeks_this_life', () => {
 });
 
 describe('evaluateObjective', () => {
+  it('counts a real earned achievement before collecting it and only once afterwards', () => {
+    const before = createTestGameState({ streetJobsCompleted: 0, claimedProgressAchievements: [] });
+    const initial = evaluateObjective('achievements_unlocked', 999, before)!.current;
+    const earned = { ...before, streetJobsCompleted: 1 };
+    expect(evaluateObjective('achievements_unlocked', initial + 1, earned))
+      .toMatchObject({ current: initial + 1, met: true });
+    const claimed = { ...earned, claimedProgressAchievements: ['beginner_first_gig'] };
+    expect(evaluateObjective('achievements_unlocked', initial + 1, claimed))
+      .toMatchObject({ current: initial + 1, met: true });
+    // A recorded claim stays earned even if the original progress is absent.
+    expect(evaluateObjective('achievements_unlocked', initial + 1,
+      { ...before, claimedProgressAchievements: claimed.claimedProgressAchievements }))
+      .toMatchObject({ current: initial + 1, met: true });
+  });
+
   it('reports met when the target is reached', () => {
     const base = createTestGameState();
     const state = { ...base, stats: { ...base.stats, reputation: 60 } } as GameState;

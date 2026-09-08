@@ -24,6 +24,7 @@
  * their device clock forward a month has not earned anything.
  */
 import { netWorth } from '@/lib/progress/achievements';
+import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import type { GameState } from '@/contexts/game/types';
 import type { LiveObjectiveDefinition } from './types';
@@ -142,7 +143,9 @@ export const LIVE_OBJECTIVES: readonly LiveObjectiveDefinition[] = [
   {
     id: 'achievements_unlocked',
     label: 'Unlock {target} achievements',
-    read: (s) => arr(s.achievements).filter((a) => !!(a as { unlocked?: boolean })?.unlocked).length,
+    // Match the live achievement screen and scenario reader. The legacy
+    // achievements array is not the progress store used by normal play.
+    read: (s) => getSatisfiedAchievementIds(s).length,
   },
 ];
 

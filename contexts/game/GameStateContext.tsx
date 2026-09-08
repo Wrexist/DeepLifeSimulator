@@ -42,6 +42,10 @@ export function GameStateProvider({
 }: GameStateProviderProps) {
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [currentSlot, setCurrentSlot] = useState<number>(initialSlot);
+  // Slot selection is an imperative event. Publish it immediately so a delayed
+  // purchase cannot mutate the previous slot while React batches the switch.
+  // GameState itself remains commit-published through the selector mirror.
+  const selectedSlotRef = useRef<number>(initialSlot);
 
   // --- Selector channel (Sprint 2) -----------------------------------------
   // An external-store mirror of `gameState` so `useGameSelector` consumers can
@@ -76,6 +80,7 @@ export function GameStateProvider({
         };
       },
       getSnapshot: () => mirrorRef.current!.state,
+      getSlotSnapshot: () => selectedSlotRef.current,
       setGameState: (update) => setterRef.current(update),
     };
   }
@@ -122,6 +127,7 @@ export function GameStateProvider({
 
   const setCurrentSlotSafe = useCallback((slot: number) => {
     const normalizedSlot = slot >= 1 && slot <= 3 ? slot : 1;
+    selectedSlotRef.current = normalizedSlot;
     setCurrentSlot(normalizedSlot);
     // Keep both keys in sync for legacy consumers.
     void safeSetItem('currentSlot', String(normalizedSlot));
@@ -305,4 +311,3 @@ export function GameStateProvider({
     </GameStoreContext.Provider>
   );
 }
-

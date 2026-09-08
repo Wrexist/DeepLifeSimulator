@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import type { GameState } from '@/contexts/game/types';
 // BUGFIX: importing from `@/contexts/GameContext` re-routes through the
 // `contexts/game/index.ts` barrel which in turn imports `GameProvider` which
 // imports this file - a require cycle that left `useGame` undefined during
 // onboarding boot and crashed `<Stack>` with "Element type is invalid".
 // Pulling the hooks directly from the leaf context modules breaks the cycle.
-import { useSetGameState } from '@/contexts/game/useGameSelector';
+import { useSetGameState, useGameStateGetter, useCurrentSlotGetter, useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { iapService } from '@/services/IAPService';
+import { matchesPurchaseTarget, purchaseLife } from '@/utils/revenueCatRecovery';
 import { logger } from '@/utils/logger';
 
 export function IAPHandler() {
@@ -16,6 +17,9 @@ export function IAPHandler() {
     // regression in CLAUDE.md §4.1. `useSetGameState` is the same setter with
     // no subscription.
     const setGameState = useSetGameState();
+    const getState = useGameStateGetter();
+    const getSlot = useCurrentSlotGetter();
+    const life = useGameSelector(state => purchaseLife(state));
     const { saveGame } = useGameActions();
 
     useEffect(() => {
@@ -27,7 +31,7 @@ export function IAPHandler() {
 
             return new Promise<boolean>((resolve) => {
                 setGameState(prevState => {
-                    if (!prevState) {
+                    if (!prevState || (opts?.target && !matchesPurchaseTarget(opts.target, getSlot(), prevState))) {
                         resolve(false);
                         return prevState;
                     }
@@ -62,6 +66,10 @@ export function IAPHandler() {
 
                     // Save after React commits the state, then resolve
                     setTimeout(() => {
+                        if (opts?.target && !matchesPurchaseTarget(opts.target, getSlot(), getState())) {
+                            resolve(false);
+                            return;
+                        }
                         logger.info('IAPHandler: Triggering force save');
                         saveGame(true)
                             // Resolve with the ACTUAL apply result, not an
@@ -72,7 +80,9 @@ export function IAPHandler() {
                             // skip the additive disk re-apply and the paid
                             // consumable was silently never credited. `applied`
                             // is only true when the benefit actually landed.
-                            .then(() => resolve(applied))
+                            // saveGame resolves false on write failure, so a
+                            // resolved promise alone is not a durable grant.
+                            .then(saved => resolve(applied && saved === true))
                             .catch(e => {
                                 logger.error('IAPHandler: Save failed', e);
                                 resolve(false);
@@ -82,13 +92,14 @@ export function IAPHandler() {
                     return newState;
                 });
             });
-        });
+        }, () => ({ slot: getSlot(), state: getState() }));
+        void iapService.recoverPendingRevenueCatPurchase();
 
         return () => {
             logger.info('IAPHandler: Unregistering state updater');
             iapService.setStateUpdater(null);
         };
-    }, [setGameState, saveGame]);
+    }, [setGameState, saveGame, getState, getSlot, life]);
 
     return null;
 }
