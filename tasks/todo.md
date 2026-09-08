@@ -1,3 +1,9 @@
+# Active: Compact shared status bar
+
+- [x] Group utility controls, live metrics and date/advance into compact rows.
+- [x] Preserve breakdowns, quick actions, store and guarded week advancement.
+- [x] Verify startup, HUD behavior, types and real screenshots; update PR #201.
+
 # Active: Remove duplicate Home guidance
 
 - [x] Compose coaching and goals in one card with one immediate action.

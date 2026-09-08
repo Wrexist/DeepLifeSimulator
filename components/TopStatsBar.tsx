@@ -10,10 +10,7 @@ import { View,
 import {
  responsivePadding,
  responsiveFontSize,
- responsiveSpacing,
  scale,
- isSmallDevice,
- isIPad,
  isAndroidXLarge,
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
@@ -30,6 +27,7 @@ import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
 import {
+ MoreHorizontal,
  Wallet,
  Gem,
  Plus,
@@ -93,6 +91,7 @@ function TopStatsBarComponent() {
 
  // Single modal state - only one modal open at a time, reduces re-renders
  type ModalName = 'settings'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'gemsBreakdown'| null;
+ const [showHudTools, setShowHudTools] = useState(false);
  const [openModal, setOpenModal] = useState<ModalName>(null);
  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
  const closeModal = useCallback(() => setOpenModal(null), []);
@@ -406,7 +405,7 @@ function TopStatsBarComponent() {
 
  // Standardized breakpoint for small devices (covers iPhone SE and Android small devices)
  const SMALL_DEVICE_BREAKPOINT = 360;
- const isVerySmallDevice = isSmallDevice() && width < SMALL_DEVICE_BREAKPOINT;
+ const isVerySmallDevice = width < SMALL_DEVICE_BREAKPOINT;
 
  // Don't render if no game state or if we're in onboarding
  if (!stats ||!userProfile) return null;
@@ -416,13 +415,11 @@ function TopStatsBarComponent() {
  const containerPadding = isVerySmallDevice
  ? responsivePadding.horizontal * 0.7 // Reduced from 0.8
 : responsivePadding.horizontal * 1.2;
- const containerMinHeight = isIPad()
- ? scale(200)
-: (isVerySmallDevice ? scale(140): scale(160));
  const containerStyle = [
  styles.container,
  darkMode && styles.containerDark,
- { paddingHorizontal: containerPadding, minHeight: containerMinHeight }
+ styles.compactContainer,
+ { paddingHorizontal: containerPadding }
  ];
  const iconColor = darkMode ? '#E2E8F0': '#0F172A';
 
@@ -454,9 +451,10 @@ function TopStatsBarComponent() {
  };
 
  return (
- <View style={containerStyle}>
- {/* Left: generation badge + controls + stats */}
- <View style={[styles.leftSection, { minWidth: 0 }]}>
+ <View testID="game-status-bar" style={containerStyle}>
+ {/* Compact utilities, currencies and vitals. */}
+ <View style={styles.compactContent}>
+ <View style={styles.utilityRow}>
  <View style={styles.generationRow}>
  <Text maxFontSizeMultiplier={1.3} style={[styles.generationBadge, darkMode && styles.generationBadgeDark]}>
  Gen {generationNumber ?? 1}
@@ -475,8 +473,109 @@ function TopStatsBarComponent() {
  </View>
  )}
  </View>
- <View style={styles.leftIconRow}>
- {/* Same quiet circular button as Help/Settings beside it (the old big blue
+ {/* Currency breakdowns and gem store access. */}
+ <View style={[styles.moneyRow, styles.compactMoneyRow]}>
+ <View style={[styles.leftMoneySection, { flexWrap: isVerySmallDevice ?'wrap': 'nowrap'}]}>
+ <TouchableOpacity
+ style={styles.currencyTouchable}
+ onPress={() => {
+ buttonPress();
+ setOpenModal('moneyBreakdown');
+ }}
+ activeOpacity={0.7}
+ accessibilityLabel={ACCESSIBILITY_HINTS.GAME_ELEMENTS.MONEY}
+ accessibilityRole="button"
+ accessibilityHint="Tap to see your cash, savings and investments"
+ >
+ <View
+ style={[
+ styles.moneyChip,
+ styles.moneyChipCash,
+ isVerySmallDevice && {
+ paddingHorizontal: scale(6),
+ minWidth: scale(55)
+ }
+ ]}
+ >
+ <Wallet size={14} color={STAT_IDENTITY.money.color} style={styles.chipIcon} />
+ <View style={styles.chipTextContainer}>
+ <AnimatedMoney
+ value={stats?.money ?? 0}
+ style={styles.chipText}
+ duration={300}
+ />
+ </View>
+ </View>
+ </TouchableOpacity>
+
+ <TouchableOpacity
+ style={styles.currencyTouchable}
+ onPress={() => {
+ buttonPress();
+ setOpenModal('gemsBreakdown');
+ }}
+ activeOpacity={0.7}
+ accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}`}
+ accessibilityRole="button"
+ accessibilityHint="Tap to see your gem breakdown. Use the plus button to buy gems."
+ >
+ <View
+ style={[
+ styles.moneyChip,
+ styles.moneyChipQuiet,
+ isVerySmallDevice && {
+ paddingHorizontal: scale(6),
+ minWidth: scale(55)
+ }
+ ]}
+ >
+ <Gem size={14} color="#A5B4FC" style={styles.chipIcon} />
+ <View style={styles.chipTextContainer}>
+ <Text maxFontSizeMultiplier={1.3}
+ style={styles.chipText}
+ numberOfLines={1}
+ adjustsFontSizeToFit={true}
+ minimumFontScale={0.7}
+ >
+ {formatGems(stats?.gems ?? 0)}
+ </Text>
+ </View>
+ {/* The + is the ONE store affordance on the chip. Tap-on-chip used to open
+     the STORE while every sibling chip's tap opened a breakdown - the only
+     gesture inversion in the HUD, and a monetization tap wired to the
+     primary gesture of a stat readout. Now: chip = breakdown, + = buy. */}
+ <TouchableOpacity
+ onPress={() => {
+ buttonPress();
+ openStore('gems');
+ }}
+ hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+ accessibilityLabel="Buy gems"
+ accessibilityRole="button"
+ accessibilityHint="Opens the gem store"
+ style={styles.gemChipPlus}
+ >
+ <Plus size={12} color="#FFFFFF" />
+ </TouchableOpacity>
+ </View>
+ </TouchableOpacity>
+ </View>
+ </View>
+ <TouchableOpacity
+ onPress={() => setShowHudTools(value => !value)}
+ style={[styles.iconButton, { marginRight: 0 }]}
+ accessibilityRole="button"
+ accessibilityLabel="More controls"
+ accessibilityState={{ expanded: showHudTools }}
+ >
+ <View style={[styles.iconButtonGradient, { backgroundColor: controlButtonFill }]}>
+ <MoreHorizontal size={22} color={iconColor} />
+ </View>
+ </TouchableOpacity>
+
+ </View>
+ {showHudTools && ( <View style={[styles.leftIconRow, { marginBottom: 0 }]}>
+ {/* Same quiet circular button as Settings beside it (the old big blue
      "Shop" pill dominated the HUD - owner feedback); the blue storefront
      glyph keeps it findable without shouting. */}
  {/* Gold, with a slow shine. It keeps the EXACT footprint of the grey
@@ -504,8 +603,9 @@ function TopStatsBarComponent() {
  <SeasonalIndicator size={22} />
  </View>
  </View>
-
- <View style={styles.vitalsRingRow}>
+)}
+ <View style={styles.metricsRow}>
+ <View style={[styles.vitalsRingRow, styles.compactVitals]}>
  {progressStats.map(({ key, icon: Icon, gradient, max, quickActions, value }) => {
  const ringColor = gradient[0];
  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
@@ -521,7 +621,7 @@ function TopStatsBarComponent() {
  return (
  <View key={key} style={styles.vitalRingCell}>
  <TouchableOpacity
- style={styles.vitalRingTouchable}
+ style={[styles.vitalRingTouchable, styles.compactVitalTouchable]}
  onLongPress={() => setShowQuickActions(showQuickActions === key ? null: key)}
  onPress={() => {
  if (key === 'energy') {
@@ -543,15 +643,15 @@ function TopStatsBarComponent() {
  <View style={styles.vitalRingWrap}>
  <ProgressRing
  value={pct}
- size={40}
- strokeWidth={5}
+ size={24}
+ strokeWidth={3}
  ambient={false}
  showPill={false}
  accentColor={ringColor}
  trackColor="rgba(148,163,184,0.18)"
  label={`${statLabel} level`}
  >
- <Icon size={16} color={ringColor} />
+ <Icon size={12} color={ringColor} />
  </ProgressRing>
  {/* Disease badge - corner of the health ring */}
  {key ==='health'&& hasDiseases && (
@@ -625,95 +725,10 @@ function TopStatsBarComponent() {
  })}
  </View>
 
- {/* Money, Bank, Gems - NEW CHIP STYLES */}
- <View style={styles.moneyRow}>
- <View style={[styles.leftMoneySection, { flexWrap: isVerySmallDevice ?'wrap': 'nowrap'}]}>
- <TouchableOpacity
- onPress={() => {
- buttonPress();
- setOpenModal('moneyBreakdown');
- }}
- activeOpacity={0.7}
- accessibilityLabel={ACCESSIBILITY_HINTS.GAME_ELEMENTS.MONEY}
- accessibilityRole="button"
- accessibilityHint="Tap to see your cash, savings and investments"
- >
- <View
- style={[
- styles.moneyChip,
- styles.moneyChipCash,
- isVerySmallDevice && {
- paddingHorizontal: scale(6),
- minWidth: scale(55)
- }
- ]}
- >
- <Wallet size={14} color={STAT_IDENTITY.money.color} style={styles.chipIcon} />
- <View style={styles.chipTextContainer}>
- <AnimatedMoney
- value={stats?.money ?? 0}
- style={styles.chipText}
- duration={300}
- />
- </View>
- </View>
- </TouchableOpacity>
-
- <TouchableOpacity
- onPress={() => {
- buttonPress();
- setOpenModal('gemsBreakdown');
- }}
- activeOpacity={0.7}
- accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}`}
- accessibilityRole="button"
- accessibilityHint="Tap to see your gem breakdown. Use the plus button to buy gems."
- >
- <View
- style={[
- styles.moneyChip,
- styles.moneyChipQuiet,
- isVerySmallDevice && {
- paddingHorizontal: scale(6),
- minWidth: scale(55)
- }
- ]}
- >
- <Gem size={14} color="#A5B4FC" style={styles.chipIcon} />
- <View style={styles.chipTextContainer}>
- <Text maxFontSizeMultiplier={1.3}
- style={styles.chipText}
- numberOfLines={1}
- adjustsFontSizeToFit={true}
- minimumFontScale={0.7}
- >
- {formatGems(stats?.gems ?? 0)}
- </Text>
- </View>
- {/* The + is the ONE store affordance on the chip. Tap-on-chip used to open
-     the STORE while every sibling chip's tap opened a breakdown - the only
-     gesture inversion in the HUD, and a monetization tap wired to the
-     primary gesture of a stat readout. Now: chip = breakdown, + = buy. */}
- <TouchableOpacity
- onPress={() => {
- buttonPress();
- openStore('gems');
- }}
- hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
- accessibilityLabel="Buy gems"
- accessibilityRole="button"
- accessibilityHint="Opens the gem store"
- style={styles.gemChipPlus}
- >
- <Plus size={12} color="#FFFFFF" />
- </TouchableOpacity>
- </View>
- </TouchableOpacity>
- </View>
- </View>
  </View>
 
-  {/* Right: date + next week */}
+ </View>
+  {/* Date and advancement share the full width below the metrics. */}
  <RightSide date={date} />
  {/* Modals - single openModal state controls visibility. Each is lazy and
      only mounted while open, then wrapped in Suspense so the chunk can load. */}
@@ -833,99 +848,16 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  return <View style={styles.rightSection} />;
  }
 
- // Calculate responsive date box dimensions with better constraints
- // Use the same breakpoint as the main component
- const SMALL_DEVICE_BREAKPOINT = 360;
- const isVerySmallDevice = isSmallDevice() && width < SMALL_DEVICE_BREAKPOINT;
-
- const containerPadding = responsivePadding.horizontal * 1.2 * 2;
- // More conservative left section width to prevent overlap
- const leftSectionMinWidth = isVerySmallDevice
- ? width * 0.62 // Reduced from 0.65
-: width * 0.56; // Reduced from 0.58 to give right section more room on large devices
- const availableRightWidth = Math.max(
- scale(80),
- width - containerPadding - leftSectionMinWidth
- );
-
- // Handle extra large devices (iPhone 15 Pro Max, large Android phones) - limit date box size
- const maxDateBoxWidth = isIPad()
- ? scale(170)
-: isExtraLargeDevice
- ? scale(95) // Extra large phones (iPhone 17 Pro Max etc) - give date box enough room
-: isVerySmallDevice
- ? scale(85) // Reduced from 90
-: scale(105); // Reduced from 110 to 105 for better fit
-
- const dateBoxWidthRaw = isIPad()
- ? scale(170)
-: isExtraLargeDevice
- ? Math.min(maxDateBoxWidth, Math.max(scale(75), availableRightWidth * 0.65)) // More conservative for large screens (reduced from 0.7)
-: isVerySmallDevice
- ? Math.min(scale(85), Math.max(scale(65), availableRightWidth * 0.85)) // More conservative
-: Math.min(maxDateBoxWidth, Math.max(scale(80), availableRightWidth * 0.8)); // Reduced from 0.85
-
- // Hard clamp to right column width to prevent overflow on wide/tall phones.
- const rightSectionMaxWidth = isVerySmallDevice
- ? width * 0.38 // Ensure it doesn't exceed available space
-: width * 0.44; // Increased from 0.42 to prevent overlap on large devices
- const rightSectionWidth = Math.max(
- scale(85),
- Math.min(rightSectionMaxWidth, availableRightWidth)
- );
-
- const dateBoxWidth = Math.min(dateBoxWidthRaw, rightSectionWidth);
- const dateBoxMaxWidth = Math.min(maxDateBoxWidth, rightSectionWidth);
- // The column the date box and the Next week button share. The date box's
- // own width is capped conservatively (85-105pt) while the button has to
- // hold a scaled word plus an arrow, so the pair takes the room the right
- // column actually has, up to a cap - which also stops "January" from
- // needing to shrink. Both keep one width so the column stays one shape.
- const actionWidth = Math.max(dateBoxWidth, Math.min(rightSectionWidth, scale(124)));
-
- const dateBoxHeight = isIPad()
- ? scale(140)
-: isExtraLargeDevice
- ? scale(95) // Slightly smaller height for large screens
-: isVerySmallDevice
- ? scale(80) // Extra small height
-: isSmallDevice()
- ? scale(90)
-: scale(100);
- const dateBoxMinHeight = isIPad()
- ? scale(140)
-: isExtraLargeDevice
- ? scale(90)
-: (isVerySmallDevice ? scale(75): scale(85));
-
- // Calculate responsive margin for right section
- const rightSectionMargin = isVerySmallDevice
- ? responsiveSpacing.sm // Smaller margin on very small devices
-: responsiveSpacing.md; // Medium margin otherwise
+ const actionWidth = Math.min(scale(124), width * 0.4);
 
  return (
- <View style={[styles.rightSection, {
- marginLeft: rightSectionMargin,
- width: rightSectionWidth,
- maxWidth: rightSectionWidth
- }]}>
- <View
- style={[
- styles.dateOuter,
- styles.dateOuterNeutral,
- {
- width: actionWidth,
- maxWidth: Math.max(dateBoxMaxWidth, actionWidth),
- height: dateBoxHeight,
- minHeight: dateBoxMinHeight,
- }
- ] as any}
- >
- <View style={styles.dateInner}>
+ <View style={styles.compactDateRow}>
+ <View style={styles.compactDateInfo}>
+ <View style={styles.compactDateInner}>
  <View style={styles.dateHeader}>
  <Text maxFontSizeMultiplier={1.3}
  style={[
- styles.yearText,
+ styles.compactDateText,
  isExtraLargeDevice && {
  fontSize: responsiveFontSize.base,
  lineHeight: scale(18),
@@ -936,7 +868,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  </View>
  <Text maxFontSizeMultiplier={1.3}
  style={[
- styles.monthText,
+ styles.compactDateText,
  isExtraLargeDevice && {
  fontSize: responsiveFontSize.sm,
  lineHeight: scale(15),
@@ -956,7 +888,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  })()}
  </Text>
  <Text maxFontSizeMultiplier={1.3} style={[
- styles.ageText,
+ styles.compactDateText,
  isExtraLargeDevice && {
  fontSize: responsiveFontSize.xs,
  lineHeight: scale(13),
