@@ -1,3 +1,5 @@
+> Current campaign: [September 2026 immersive edition](../screenshots/appstore-2026/README.md). The design below documents the earlier compositor.
+
 # Store screenshots — what read as AI, and the system that replaced it
 
 The 2026 set was rebuilt from real gameplay captures and was still rejected as

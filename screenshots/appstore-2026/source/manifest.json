@@ -1,0 +1,378 @@
+[
+  {
+    "file": "iphone-6.9/02-build-an-empire.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "02.png",
+    "capture": "17-x-company.png",
+    "headline": "Build your own empire."
+  },
+  {
+    "file": "iphone-6.5/02-build-an-empire.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "02.png",
+    "capture": "17-x-company.png",
+    "headline": "Build your own empire."
+  },
+  {
+    "file": "ipad-13/02-build-an-empire.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "02.png",
+    "capture": "17-x-company.png",
+    "headline": "Build your own empire."
+  },
+  {
+    "file": "iphone-6.9/03-find-love.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "03.png",
+    "capture": "05-app-spark.png",
+    "headline": "Find your kind of love."
+  },
+  {
+    "file": "iphone-6.5/03-find-love.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "03.png",
+    "capture": "05-app-spark.png",
+    "headline": "Find your kind of love."
+  },
+  {
+    "file": "ipad-13/03-find-love.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "03.png",
+    "capture": "05-app-spark.png",
+    "headline": "Find your kind of love."
+  },
+  {
+    "file": "iphone-6.9/04-make-your-choice.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "04.png",
+    "capture": "32-event-decision.png",
+    "headline": "Your choices. Your story."
+  },
+  {
+    "file": "iphone-6.5/04-make-your-choice.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "04.png",
+    "capture": "32-event-decision.png",
+    "headline": "Your choices. Your story."
+  },
+  {
+    "file": "ipad-13/04-make-your-choice.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "04.png",
+    "capture": "32-event-decision.png",
+    "headline": "Your choices. Your story."
+  },
+  {
+    "file": "alternatives/iphone-6.9/11-live-well.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "11.png",
+    "capture": "11-life.png",
+    "headline": "A good life takes balance."
+  },
+  {
+    "file": "alternatives/iphone-6.5/11-live-well.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "11.png",
+    "capture": "11-life.png",
+    "headline": "A good life takes balance."
+  },
+  {
+    "file": "alternatives/ipad-13/11-live-well.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "11.png",
+    "capture": "11-life.png",
+    "headline": "A good life takes balance."
+  },
+  {
+    "file": "alternatives/iphone-6.9/15-collect-the-extraordinary.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "15.png",
+    "capture": "29-x-luxury-collection.png",
+    "headline": "Collect the extraordinary."
+  },
+  {
+    "file": "alternatives/iphone-6.5/15-collect-the-extraordinary.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "15.png",
+    "capture": "29-x-luxury-collection.png",
+    "headline": "Collect the extraordinary."
+  },
+  {
+    "file": "alternatives/ipad-13/15-collect-the-extraordinary.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "15.png",
+    "capture": "29-x-luxury-collection.png",
+    "headline": "Collect the extraordinary."
+  },
+  {
+    "file": "alternatives/iphone-6.9/16-start-again.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "16.png",
+    "capture": "01-home-goals.png",
+    "headline": "Start again. Go further."
+  },
+  {
+    "file": "alternatives/iphone-6.5/16-start-again.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "16.png",
+    "capture": "01-home-goals.png",
+    "headline": "Start again. Go further."
+  },
+  {
+    "file": "iphone-6.9/01-your-life.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "01.png",
+    "capture": "30-early-home.png",
+    "headline": "One life. Your rules."
+  },
+  {
+    "file": "iphone-6.5/01-your-life.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "01.png",
+    "capture": "30-early-home.png",
+    "headline": "One life. Your rules."
+  },
+  {
+    "file": "ipad-13/01-your-life.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "01.png",
+    "capture": "30-early-home.png",
+    "headline": "One life. Your rules."
+  },
+  {
+    "file": "iphone-6.9/05-climb-the-ladder.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "05.png",
+    "capture": "02-work.png",
+    "headline": "Climb the career ladder."
+  },
+  {
+    "file": "iphone-6.5/05-climb-the-ladder.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "05.png",
+    "capture": "02-work.png",
+    "headline": "Climb the career ladder."
+  },
+  {
+    "file": "ipad-13/05-climb-the-ladder.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "05.png",
+    "capture": "02-work.png",
+    "headline": "Climb the career ladder."
+  },
+  {
+    "file": "iphone-6.9/07-enter-the-dark-web.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "07.png",
+    "capture": "18-x-darkweb.png",
+    "headline": "Take the darker path."
+  },
+  {
+    "file": "iphone-6.5/07-enter-the-dark-web.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "07.png",
+    "capture": "18-x-darkweb.png",
+    "headline": "Take the darker path."
+  },
+  {
+    "file": "ipad-13/07-enter-the-dark-web.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "07.png",
+    "capture": "18-x-darkweb.png",
+    "headline": "Take the darker path."
+  },
+  {
+    "file": "iphone-6.9/08-own-the-city.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "08.png",
+    "capture": "33-x-realestate-portfolio.png",
+    "headline": "From rent to real estate."
+  },
+  {
+    "file": "iphone-6.5/08-own-the-city.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "08.png",
+    "capture": "33-x-realestate-portfolio.png",
+    "headline": "From rent to real estate."
+  },
+  {
+    "file": "ipad-13/08-own-the-city.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "08.png",
+    "capture": "33-x-realestate-portfolio.png",
+    "headline": "From rent to real estate."
+  },
+  {
+    "file": "iphone-6.9/09-drive-the-dream.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "09.png",
+    "capture": "34-x-garage-owned.png",
+    "headline": "Drive the dream."
+  },
+  {
+    "file": "iphone-6.5/09-drive-the-dream.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "09.png",
+    "capture": "34-x-garage-owned.png",
+    "headline": "Drive the dream."
+  },
+  {
+    "file": "ipad-13/09-drive-the-dream.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "09.png",
+    "capture": "34-x-garage-owned.png",
+    "headline": "Drive the dream."
+  },
+  {
+    "file": "iphone-6.9/10-build-a-family.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "10.png",
+    "capture": "09-app-contacts.png",
+    "headline": "More to life than money."
+  },
+  {
+    "file": "iphone-6.5/10-build-a-family.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "10.png",
+    "capture": "09-app-contacts.png",
+    "headline": "More to life than money."
+  },
+  {
+    "file": "ipad-13/10-build-a-family.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "10.png",
+    "capture": "09-app-contacts.png",
+    "headline": "More to life than money."
+  },
+  {
+    "file": "alternatives/iphone-6.9/12-see-the-world.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "12.png",
+    "capture": "24-x-travel.png",
+    "headline": "Where will life take you?"
+  },
+  {
+    "file": "alternatives/iphone-6.5/12-see-the-world.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "12.png",
+    "capture": "24-x-travel.png",
+    "headline": "Where will life take you?"
+  },
+  {
+    "file": "alternatives/ipad-13/12-see-the-world.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "12.png",
+    "capture": "24-x-travel.png",
+    "headline": "Where will life take you?"
+  },
+  {
+    "file": "alternatives/iphone-6.9/13-create-something.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "13.png",
+    "capture": "25-x-streaming.png",
+    "headline": "Your channel. Your chance."
+  },
+  {
+    "file": "alternatives/iphone-6.5/13-create-something.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "13.png",
+    "capture": "25-x-streaming.png",
+    "headline": "Your channel. Your chance."
+  },
+  {
+    "file": "alternatives/ipad-13/13-create-something.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "13.png",
+    "capture": "25-x-streaming.png",
+    "headline": "Your channel. Your chance."
+  },
+  {
+    "file": "alternatives/iphone-6.9/14-trade-crypto.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "14.png",
+    "capture": "19-x-crypto.png",
+    "headline": "Read the risk. Make the trade."
+  },
+  {
+    "file": "alternatives/iphone-6.5/14-trade-crypto.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "14.png",
+    "capture": "19-x-crypto.png",
+    "headline": "Read the risk. Make the trade."
+  },
+  {
+    "file": "alternatives/ipad-13/14-trade-crypto.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "14.png",
+    "capture": "19-x-crypto.png",
+    "headline": "Read the risk. Make the trade."
+  },
+  {
+    "file": "iphone-6.9/06-play-the-markets.png",
+    "width": 1320,
+    "height": 2868,
+    "art": "06.png",
+    "capture": "07-app-stocks.png",
+    "headline": "Make your money move."
+  },
+  {
+    "file": "iphone-6.5/06-play-the-markets.png",
+    "width": 1284,
+    "height": 2778,
+    "art": "06.png",
+    "capture": "07-app-stocks.png",
+    "headline": "Make your money move."
+  },
+  {
+    "file": "ipad-13/06-play-the-markets.png",
+    "width": 2064,
+    "height": 2752,
+    "art": "06.png",
+    "capture": "07-app-stocks.png",
+    "headline": "Make your money move."
+  }
+]

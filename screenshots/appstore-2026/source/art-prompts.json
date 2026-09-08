@@ -1,0 +1,108 @@
+{
+  "generator": "Built-in image generation",
+  "base_prompt": "Use case: ads-marketing. Create premium 3D rendered cinematic key art BACKGROUND for Deep Life Simulator App Store screenshot. A tall portrait composition, approximately 1320 by 2868. Absolutely NO text, NO letters, NO logos, NO user interface, NO phone or tablet, NO frames. Formal, refined, premium computer-graphics advertising craft. Physically based materials, rich specular highlights, atmospheric depth, realistic contact shadows, sharp hero objects, graceful depth of field. Deep midnight navy with elegant champagne rim lighting, restrained saturation, no cartoony emoji icons, no plastic toy look.\nCRITICAL COMPOSITION: top 0–21% mostly dark atmospheric negative space for a large headline later. Place the visually striking 3D hero vignette within 23–48% of the canvas height. The LOWER HALF will be covered by a large rectangular real gameplay screenshot, so the main hero MUST be fully visible in the UPPER MIDDLE, at about 35% height. Continue the environment all the way to bottom, framing lower left/right edges with foreground depth, but keep center-bottom quiet. Not a blank studio backdrop, a living world. No hard horizontal divisions. Environmental storytelling, elegant cinematic lighting.",
+  "scenes": [
+    {
+      "id": "01",
+      "prompt": "A breathtaking aspirational miniature city block in realistic 3D architectural diorama style: a modest warm-lit brick apartment on the left transitions naturally into a luminous glass penthouse tower on the right. A small generic yellow sports car on the street, miniature street trees, human-scale lit windows, damp midnight streets catching golden reflections. Camera looking slightly down at the entire neighborhood, rich depth. A visual story of a life growing from humble beginnings into possibility. Reference 1 is the game's yellow sports car design, reference 2 its wealth theme, reference 3 its luxury interiors. Use these as subject/material cues only, invent this new beautifully integrated city scene.",
+      "references": [
+        "assets/images/Vehicles/exotic_supercar_final.webp",
+        "assets/images/Scenarios/Rags to Riches_final.webp",
+        "assets/images/luxury/trophy_penthouse.webp"
+      ],
+      "generated_file": "01.png"
+    },
+    {
+      "id": "02",
+      "prompt": "An architectural model of an ambitious modern business headquarters rising from a walnut executive desk, three exquisitely detailed glass towers stepping upward, a brushed brass fountain pen and elegant leather folio resting near the model. Behind, immense office windows reveal a softly defocused living city at blue hour. Golden sunrise glints from the building edges. Corporate ambition, architectural precision, formal business prestige. The miniature architectural towers should be the hero, large in the upper middle composition.",
+      "references": [],
+      "generated_file": "02.png"
+    },
+    {
+      "id": "03",
+      "prompt": "A romantic evening terrace overlooking a lively city at dusk. A beautiful sculptural pair of interlocking polished rose-gold heart forms suspended just above a small round dark marble café table, two porcelain coffee cups, a single subtle rose and a candle. The heart sculpture is sophisticated luxury 3D product art, not a cartoon emoji. Warm rose and amber practical lighting, distant window bokeh, a sense of intimate human connection and life. Hero table and hearts in the upper middle at 35% height, not at bottom. Deep plum midnight atmosphere.",
+      "references": [],
+      "generated_file": "03.png"
+    },
+    {
+      "id": "04",
+      "prompt": "An exquisite sculptural 3D branching staircase on a dark marble plinth, two elegant routes rise toward two illuminated open doorways: one warm champagne, one cool muted teal. Doors represent choices and possible futures. Distant city visible through airy architectural arches, a few windblown leaves, subtle fog and cinematic depth. A single central staircase splits gracefully into two destinations, premium architectural conceptual advertising. Place all staircase and doors at 26–46% of image height, so they remain visible above the lower gameplay panel.",
+      "references": [],
+      "generated_file": "04.png"
+    },
+    {
+      "id": "05",
+      "prompt": "A beautifully styled high-end 3D still life for education and career success. A dark navy graduation cap with a champagne tassel, an embossed leather briefcase, rolled cream diploma tied with a ribbon, all arranged on an elegant walnut desk. The items have luxurious realistic materials and precise geometry. An expansive contemporary office with a rising city skyline at dawn beyond the windows. Top is dark quiet office atmosphere. Hero cap and briefcase form an unmistakable clear silhouette in upper-middle 28–45% of image. No legible writing on diploma.",
+      "references": [],
+      "generated_file": "05.png"
+    },
+    {
+      "id": "06",
+      "prompt": "A beautiful 3D glass and brushed-metal financial sculpture: five tall translucent emerald crystal columns of varying heights, integrated into a real dark walnut trading desk with a few realistic stacks of softly gleaming brass coins. This is sculptural symbolic artwork, no graph labels, no arrows, no screens, no numbers. A sophisticated nighttime financial district and a blue-hour sky beyond huge windows. Elegant emerald and champagne reflections, formal sophisticated investment aesthetic. Hero sculpture in upper middle 28–46% of image height.",
+      "references": [],
+      "generated_file": "06.png"
+    },
+    {
+      "id": "07",
+      "prompt": "A tense cinematic 3D dark-web hacker workspace, an open anodized black laptop with a blank very dark green glowing screen, a small elegant black hardware security key and coiled braided cable, a metal desk. Rain streaks on the window behind, cyberpunk city alley lights in restrained emerald and teal, deep shadows with clear specular edges. No hooded person, no masks, no guns, no neon text, no letters, no terminal code. The hero laptop and security hardware occupy upper-middle 27–46% of the poster; lower half extends the room with soft environmental reflections.",
+      "references": [],
+      "generated_file": "07.png"
+    },
+    {
+      "id": "08",
+      "prompt": "An exquisitely rendered 3D architectural diorama of residential property ownership: a warm brick duplex, a stylish medium-rise apartment building and an elegant glass luxury condominium stand together on a neatly landscaped stone model platform. A single beautiful brass house key in foreground of the model, miniature illuminated gardens, natural trees and pathways, cool lavender dusk with warm window glow, cinematic property advertising. The whole model is at 26–48% image height. Lower half a quiet dark marble surface with blurred leafy foreground edges.",
+      "references": [],
+      "generated_file": "08.png"
+    },
+    {
+      "id": "09",
+      "prompt": "A premium automotive 3D hero render of the yellow exotic supercar in the reference image. Preserve its basic yellow low-slung coupe shape, black roof glass and dark wheels, with no visible brand badge. Dynamic low front three-quarter camera on a wet midnight city boulevard, elegant gold and white motion-blurred light trails behind the stationary sharply rendered car, dramatic reflections on rain-slick asphalt. Car must be beautifully lit and entirely visible centered at 34–45% of tall image height, leaving dark night sky at top and dark reflective road on bottom half for a later UI overlay.",
+      "references": [
+        "assets/images/Vehicles/exotic_supercar_final.webp"
+      ],
+      "generated_file": "09.png"
+    },
+    {
+      "id": "10",
+      "prompt": "A warm sophisticated 3D lifestyle vignette of family life: an open dollhouse-style architectural model of a cozy modern family home, with softly lit living room, kitchen, sofa, tiny children's wooden toys and books, a small garden and bicycles outside. Two adult and two child miniature human figures enjoying the home together in a natural warm scene, no detailed faces required. This is a premium architectural cutaway model, beautifully tangible and finely detailed, not cheap plastic or simplistic emoji. Evening amber interior light contrasts soft midnight blue surroundings, depth of field. Entire home miniature in upper middle 24–48% image height. Lower half a dark polished table and softly defocused foreground plants.",
+      "references": [],
+      "generated_file": "10.png"
+    },
+    {
+      "id": "11",
+      "prompt": "A peaceful premium 3D product still life: a finely textured white athletic sneaker, brushed-steel reusable water bottle, folded sage-green towel and smooth stone, on a bench overlooking a green city park at morning sunrise. Dew on grass and leaves, soft rays through trees, sense of fresh air and personal wellbeing. Restrained sage, midnight teal shadows and warm sunrise palette. The large clear athletic hero objects occupy upper middle 27–46% of the poster, lower half a softly lit pathway fading into depth. No logos.",
+      "references": [],
+      "generated_file": "11.png"
+    },
+    {
+      "id": "12",
+      "prompt": "An elegant travel 3D diorama: a luminous globe made of frosted ocean-blue glass with brushed brass continents, a graceful small white passenger airplane curving beside it, and a dark leather travel bag resting on a marble ledge. Beautiful ocean vista and sunset clouds in background. Sophisticated travel campaign art with rich materials and cinematic depth, no flags or text, no brand logo. The globe and plane occupy upper-middle 25–46% of the tall poster, lower half shows a quiet terrace surface with tropical shadow patterns.",
+      "references": [],
+      "generated_file": "12.png"
+    },
+    {
+      "id": "13",
+      "prompt": "A beautifully rendered professional content creator setup, premium black studio microphone on a precise metallic boom arm and large over-ear headphones on a sculptural stand, an elegant small studio camera nearby. Muted violet and warm gold rim lights create photographic depth in a sophisticated dark recording room. No computer screen, no text, no logos, no game characters. The hero microphone and headphones occupy upper middle 27–46% height, lower half continues the polished dark desktop with soft controlled reflections. Professional, alive, atmospheric.",
+      "references": [],
+      "generated_file": "13.png"
+    },
+    {
+      "id": "14",
+      "prompt": "A premium macro-style 3D sculpture of digital finance: three beautifully machined gold and dark titanium crypto coins, one with a recognizable engraved Bitcoin B symbol and one with an Ethereum geometric diamond emblem, standing upright beside a small stack of coins on a polished obsidian desk. Discreet luminous circuit pathways reflect in the surface. Moody warm gold and deep midnight navy, softly defocused city windows behind. No price charts, no text or numbers beyond coin symbols. Hero coins large, detailed, centered at 27–46% height, lower half dark reflected desk.",
+      "references": [],
+      "generated_file": "14.png"
+    },
+    {
+      "id": "15",
+      "prompt": "An exquisite luxury 3D product campaign still life: an unbranded platinum mechanical wristwatch with dark dial and a brilliant-cut loose diamond, presented on two staggered black marble display plinths. Exquisite metal machining, diamond caustics, sapphire glass reflections, amber rim lighting and dark velvet gallery surroundings. Refined, formal luxury editorial photography quality. No logos and no readable dial numerals. Hero watch and diamond occupy upper middle 27–46% height, lower half continues the luxurious gallery atmosphere with polished surface and dark bokeh.",
+      "references": [],
+      "generated_file": "15.png"
+    },
+    {
+      "id": "16",
+      "prompt": "A poetic premium 3D sculpture representing another life and a new beginning: a tall elegant hourglass of clear crystal and brushed champagne metal, golden sand flowing inside. Behind it, a tiny illuminated modern city rises through blue morning mist, sunrise on the horizon, restrained sparks of warm dust around the hourglass. Not fantasy magic, instead sophisticated conceptual luxury game advertising. The entire hourglass and city appear in upper middle 23–47% image height. Lower half has a dark polished stone pedestal surface with beautiful atmospheric shadows.",
+      "references": [],
+      "generated_file": "16.png"
+    }
+  ]
+}

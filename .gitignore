@@ -143,3 +143,8 @@ discord/backups/
 # keep into a real regression test under the domain it belongs to; never commit
 # it from here.
 __tests__/scratch_probe/
+
+# Current immersive App Store source art, alternative exports and review sheets.
+!screenshots/appstore-2026/alternatives/
+!screenshots/appstore-2026/source/
+!screenshots/appstore-2026/DeepLife-Immersive-*.png

@@ -1445,3 +1445,9 @@ Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.
   to look at; the return loop should be worth returning to on its own.
 - **No server-authoritative validation.** Caps, ledger and budget are enforced
   against the player's own save, so the blast radius is their own save.
+
+## App Store immersive screenshots — 2026-09-08
+
+- [x] Integrate the approved 47 exports and 16 artwork plates into the canonical store folders, reusing existing captures.
+- [x] Update the screenshot rebuild entry points and upload documentation. Verify images and a repository-path rebuild.
+- [x] Prepare an isolated branch and reviewable PR description with previews and the native iOS capture parity limitation.
