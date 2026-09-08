@@ -9,6 +9,7 @@
 import React from 'react';
 import { GameState, Loan } from '../types';
 import { logger } from '@/utils/logger';
+import { isPlayerBlocked } from './_guards';
 import {
   applyStudySession,
   enroll as enrollPure,
@@ -126,11 +127,23 @@ export function quoteEnrollment(
   waiverRemainingUSD: number;
   /** Cash on hand. */
   cash: number;
+  cashAfterTuition: number;
   /** Can the player pay up-front? */
   canAffordCash: boolean;
   /** Suggested student-loan amount if they go that route. */
   suggestedLoanAmount: number;
   weeksReductionFromPolitics: number;
+  weeksReduction: number;
+  adjustedDuration: number;
+  blockedReason?: string;
+  loan: null | {
+    principal: number;
+    rateAPR: number;
+    termWeeks: number;
+    weeklyPayment: number;
+    totalRepaid: number;
+    totalInterest: number;
+  };
 } {
   const cash = state.stats?.money ?? 0;
   const perks = politicsEducationPerks(state);
@@ -146,7 +159,30 @@ export function quoteEnrollment(
     // The poverty-recovery scholarship, if one is banked and unspent.
     awardScholarshipUSD: tuitionWaiver(state),
   });
+  const politicsReduction = politicsAprReduction(state);
+  // Preserve the existing anti-arbitrage floor and use this offer at commit too.
+  const aprFloor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
+  const rateAPR = Math.max(aprFloor, 0.06 - politicsReduction);
+  const principal = scholarship.netCostUSD;
+  const weeklyPayment = calculatePeriodicPayment(principal, rateAPR, STUDENT_LOAN_TERM_WEEKS);
+  const totalRepaid = weeklyPayment * STUDENT_LOAN_TERM_WEEKS;
+  const safeDuration = Number.isFinite(template.duration) && template.duration > 0 ? template.duration : 0;
+  const skillReduction = getLifeSkillModifiers(state).educationTimeReductionPct;
+  const weeksReduction = perks.weeksReduction + Math.floor(safeDuration * Math.max(0, Math.min(0.4, skillReduction)));
+  const existing = (state.educations ?? []).find(e => e.id === template.id);
+  const blockedReason = isPlayerBlocked(state)
+    ? 'This life has ended.'
+    : existing
+      ? existing.completed ? 'You have already completed this program.' : 'You are already enrolled in this program.'
+      : undefined;
   return {
+    blockedReason,
+    weeksReduction,
+    adjustedDuration: Math.max(1, Math.max(1, safeDuration) - weeksReduction),
+    loan: principal > 0 ? {
+      principal, rateAPR, termWeeks: STUDENT_LOAN_TERM_WEEKS, weeklyPayment,
+      totalRepaid, totalInterest: Math.max(0, totalRepaid - principal),
+    } : null,
     cost: template.cost,
     netCost: scholarship.netCostUSD,
     scholarship,
@@ -154,6 +190,7 @@ export function quoteEnrollment(
     waiverSpentUSD: scholarship.breakdown.awardUSD,
     waiverRemainingUSD: Math.max(0, tuitionWaiver(state) - scholarship.breakdown.awardUSD),
     cash,
+    cashAfterTuition: cash - scholarship.netCostUSD,
     canAffordCash: cash >= scholarship.netCostUSD,
     suggestedLoanAmount: scholarship.netCostUSD,
     weeksReductionFromPolitics: perks.weeksReduction,
@@ -190,6 +227,8 @@ export const enrollInProgram = (
       cost: spec.cost,
       duration: spec.duration,
     });
+    // Recheck against the updater's latest state, even if the modal was stale.
+    if (quote.blockedReason) return prev;
     const cash = prev.stats?.money ?? 0;
     const netCost = quote.netCost;
 
@@ -200,17 +239,8 @@ export const enrollInProgram = (
 
     // Build new loan if mode === 'loan' AND netCost > 0.
     let newLoans = prev.loans ?? [];
-    if (spec.mode === 'loan' && netCost > 0) {
-      const politicsReduction = politicsAprReduction(prev);
-      const aprAdjustment = -politicsReduction;
-      const baseAPR = 0.06; // student loan baseline 6%
-      // R3-M2 completion: this site was missed. A student loan does not hand
-      // the player cash, but it frees the cash that would have paid tuition -
-      // so a 2.5% student loan funding a 5.5% CD is the same risk-free carry
-      // the floor exists to close.
-      const studentAprFloor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
-      const offeredAPR = Math.max(studentAprFloor, baseAPR + aprAdjustment);
-      const weeklyPayment = calculatePeriodicPayment(netCost, offeredAPR, STUDENT_LOAN_TERM_WEEKS);
+    if (spec.mode === 'loan' && quote.loan) {
+      const { rateAPR: offeredAPR, weeklyPayment, termWeeks } = quote.loan;
       const loan: Loan = {
         id: `loan-student-${prev.weeksLived}-${loanIdSuffix}`,
         name: `Student Loan: ${spec.name}`,
@@ -219,8 +249,8 @@ export const enrollInProgram = (
         rateAPR: offeredAPR,
         originalAPR: offeredAPR,
         interestRate: offeredAPR,
-        termWeeks: STUDENT_LOAN_TERM_WEEKS,
-        weeksRemaining: STUDENT_LOAN_TERM_WEEKS,
+        termWeeks,
+        weeksRemaining: termWeeks,
         weeklyPayment,
         startWeek: prev.weeksLived,
         autoPay: true,
@@ -250,13 +280,6 @@ export const enrollInProgram = (
     // completion stat-bonus loop, and the detail "Classes" section.
     const classes = mapClassIdsToEnrolled(spec.templateId, spec.classIds ?? []);
 
-    // Life Skills: Quick Learner (-10%) / Polymath (-15%) cut education time.
-    // Applied at enrollment as a bounded reduction in program weeks (on top of
-    // any political weeksReduction), so the fewer-weeks effect is deterministic.
-    const eduTimeReductionPct = getLifeSkillModifiers(prev).educationTimeReductionPct;
-    const safeDuration = typeof spec.duration === 'number' && isFinite(spec.duration) && spec.duration > 0 ? spec.duration : 0;
-    const lifeSkillWeeksReduction = Math.floor(safeDuration * Math.max(0, Math.min(0.4, eduTimeReductionPct)));
-
     const result = enrollPure(prev.educations ?? [], {
       templateId: spec.templateId,
       name: spec.name,
@@ -264,7 +287,7 @@ export const enrollInProgram = (
       cost: spec.cost,
       duration: spec.duration,
       startedWeek: prev.weeksLived,
-      weeksReduction: quote.weeksReductionFromPolitics + lifeSkillWeeksReduction,
+      weeksReduction: quote.weeksReduction,
       classes,
     });
 

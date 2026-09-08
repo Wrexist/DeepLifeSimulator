@@ -5661,3 +5661,18 @@ Trace the actual writer before changing a stale achievement reader. Replacing
 `.unlocked` with the typed `.completed` would still read a deprecated array.
 The existing earned-achievement helper evaluates the real progress conditions
 and claim store, which is the behavior the live-event objective needs.
+
+
+## 2026-09-08 — Enrollment quotes must survive confirmation
+
+A catalogue filter does not protect an action. Education hid enrolled programs
+from browsing but its action appended them without checking the latest state.
+Two confirmations therefore created two charges or two loans with duplicate
+program IDs. Check identity and the existing dead-player guard inside the same
+updater that creates debt. Preserve deliberate re-enrollment after withdrawal.
+
+A loan preview needs the repayment schedule actually consumed at commit.
+Extract the existing calculation into the quote and make the action consume
+it, then compare the quote against the real weekly repayment implementation.
+Do not call a post-tuition wallet balance a complete post-bills forecast, and
+do not attribute a combined scholarship/policy/award discount to GPA alone.

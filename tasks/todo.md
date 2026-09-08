@@ -1,3 +1,24 @@
+# Active: Program 18 education cost clarity (2026-09-08)
+
+PR #197 is merged at `686adb1`. Continue from that main on a new branch.
+Player problem: enrollment hides immediate weekly loan obligations, total
+repayment and the cash left after tuition. Repeated confirmation can charge
+for the same program twice because the action has no enrollment identity gate.
+
+- [x] Reproduce duplicate cash/loan enrollment and stale modal acceptance.
+- [x] Quote actual loan terms and adjusted duration through the same reader
+      consumed by enrollment. Show upfront cash, weekly payment, total interest,
+      immediate repayment and debt remaining after withdrawal.
+- [x] Reject duplicate, completed and dead-life enrollment inside the updater.
+- [x] Test quote/action/weekly repayment agreement, render interactions and
+      stress/type/lint gates. Browser access blocked locally, so visual acceptance remains unverified.
+- [x] Document limits and prepare a separate PR. No native build or release.
+
+A full income-versus-bills forecast and changes to student-loan deferment
+remain later work. This slice explains existing terms without changing rates.
+
+## Previous completed continuation
+
 # Active: Program 18 continuation (2026-09-08)
 
 User authorized continuing the remaining work. PR #197 remains open and its

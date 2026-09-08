@@ -24,6 +24,11 @@
 > `tasks/program-18-continuity-and-recovery-2026-09-08.md` for tested boundaries
 > and remaining native, reinstall and subscription recovery work.
 
+> **Education continuation, 2026-09-08:** after #197 merged, the next slice
+> adds actual loan-cost disclosure, adjusted study duration and atomic
+> enrollment guards. See `tasks/program-18-education-costs-2026-09-08.md`.
+> The full post-bills forecast and student-loan deferment remain open.
+
 > This is the next executable master prompt, not a promise that every idea below
 > is already approved. Give it to the implementation agent after the 2.13.0
 > release gates are closed. Work from evidence, preserve saves and paid benefits,
