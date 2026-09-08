@@ -33,9 +33,10 @@
  * totals in the day-summary log line.
  */
 
+import { getWeeklyLoanPayment } from '@/lib/banking/loanPayment';
 import type { Loan } from '@/contexts/game/types';
 import { LOAN_MISSED_PAYMENT_PENALTY } from '@/lib/economy/constants';
-import { WEEKS_PER_YEAR, BANKRUPTCY_FLOOR } from '@/lib/config/gameConstants';
+import { BANKRUPTCY_FLOOR } from '@/lib/config/gameConstants';
 
 export interface LoanAutopayInput {
   /** Loans BEFORE the tick. May be undefined / empty / contain invalid entries. */
@@ -72,31 +73,8 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
   let totalLoanInterest = 0;
 
   const processedLoans: (Loan | null)[] = (input.prevLoans || []).map((loan) => {
-    const remaining = typeof loan.remaining === 'number' && isFinite(loan.remaining)
-      ? Math.max(0, loan.remaining)
-      : 0;
+    const { remaining, remainingWithInterest, weeksRemaining, paymentDue } = getWeeklyLoanPayment(loan);
     if (remaining <= 0) return null;
-
-    // Prefer interestRate (preserves existing behavior, incl. legit 0% loans);
-    // fall back to the canonical rateAPR only when interestRate is missing/NaN
-    // so a loan created with only rateAPR set doesn't silently autopay at 0%.
-    const aprRaw = typeof loan.interestRate === 'number' && isFinite(loan.interestRate)
-      ? loan.interestRate
-      : (typeof loan.rateAPR === 'number' && isFinite(loan.rateAPR) ? loan.rateAPR : 0);
-    const aprDecimal = aprRaw > 1 ? aprRaw / 100 : Math.max(0, aprRaw);
-    const weeklyRate = aprDecimal / WEEKS_PER_YEAR;
-    const remainingWithInterest = Math.max(0, remaining * (1 + weeklyRate));
-
-    const weeksRemaining = typeof loan.weeksRemaining === 'number' && isFinite(loan.weeksRemaining)
-      ? Math.max(0, Math.floor(loan.weeksRemaining))
-      : 0;
-    const fallbackPayment = weeksRemaining > 0
-      ? Math.max(remainingWithInterest / weeksRemaining, remainingWithInterest * 0.001)
-      : remainingWithInterest;
-    const configuredPayment = typeof loan.weeklyPayment === 'number' && isFinite(loan.weeklyPayment) && loan.weeklyPayment > 0
-      ? loan.weeklyPayment
-      : fallbackPayment;
-    const paymentDue = Math.min(remainingWithInterest, Math.max(0, configuredPayment));
 
     // ANTI-EXPLOIT: Bankruptcy protection — don't auto-pay if it would drain cash
     // below the floor. Prevents soft-lock where player can't afford job applications.

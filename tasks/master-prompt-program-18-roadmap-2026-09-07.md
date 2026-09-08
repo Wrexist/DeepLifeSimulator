@@ -29,6 +29,12 @@
 > enrollment guards. See `tasks/program-18-education-costs-2026-09-08.md`.
 > The full post-bills forecast and student-loan deferment remain open.
 
+> **Cash-flow continuation, 2026-09-08:** the next #199 increment fixes
+> scheduled-loan projections, missing/stale home-card inputs, pension income
+> and loan detail identity/APR. See
+> `tasks/program-18-cashflow-correctness-2026-09-08.md` for the remaining
+> housing, non-cash and arrears forecast contracts.
+
 > This is the next executable master prompt, not a promise that every idea below
 > is already approved. Give it to the implementation agent after the 2.13.0
 > release gates are closed. Work from evidence, preserve saves and paid benefits,

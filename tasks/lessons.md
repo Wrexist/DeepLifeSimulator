@@ -5676,3 +5676,19 @@ Extract the existing calculation into the quote and make the action consume
 it, then compare the quote against the real weekly repayment implementation.
 Do not call a post-tuition wallet balance a complete post-bills forecast, and
 do not attribute a combined scholarship/policy/award discount to GPA alone.
+
+
+## 2026-09-08 — A selector projection must include the helper's inputs
+
+A component's shallow-equal state selection is not safe merely because every
+field read directly in its JSX is present. IdentityCard called salary, expenses,
+net-worth and passive-income helpers with a partial object missing rental,
+paid boosts, debts, luxury, pets and other inputs. Those helpers calculated
+valid numbers for a different life. The cached result could then stay frozen
+because the dependency list omitted the field that actually changed. Verify
+real component updates, not just the pure helper on a complete factory state.
+
+Loan totals and individual rows also need the collector's payoff cap and APR
+normalization. A nominal installment is not the last amount owed. A display
+name is not identity: two deliberately re-enrolled student loans can have the
+same name, so looking up the first by name shows the wrong remaining balance.

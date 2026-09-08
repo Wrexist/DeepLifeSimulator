@@ -1,3 +1,19 @@
+# Active: Program 18 cash-flow correctness (2026-09-08)
+
+This continuation is based on `52c16cf` in open PR #199. Main remains `686adb1`.
+The next forecast work exposed prerequisite defects in the existing card.
+
+- [x] Match loan payment forecasts and itemized rows to weekly amortization,
+      including final payments, paid-off loans, missing payments and APR units.
+- [x] Restore omitted economy/asset inputs in the home-card selector and update
+      cached projections when those inputs change.
+- [x] Verify before/after regressions, relevant stress/type/lint/bundle gates,
+      and publish the continuation in #199 with remaining forecast limits.
+
+No student-loan deferment or new economy balance rule is implied by this fix.
+
+## Previous education slice
+
 # Active: Program 18 education cost clarity (2026-09-08)
 
 PR #197 is merged at `686adb1`. Continue from that main on a new branch.
