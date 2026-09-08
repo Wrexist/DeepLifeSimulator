@@ -56,7 +56,7 @@ import {
   type InviteOfferRecord,
 } from '@/utils/communityInvitePrompt';
 import { DISCORD_URL } from '@/lib/config/appConfig';
-import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
+import { discordJoinRewardMoney, DAILY_LOGIN_REWARDS, LOGIN_STREAK_GRACE_HOURS } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { applyWelcomeBackBonus, welcomeBackClaimed, refreshSessionClock } from '@/utils/welcomeBackBonus';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
@@ -272,8 +272,6 @@ function HomeScreenContent() {
       return undefined;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DAILY_LOGIN_REWARDS, LOGIN_STREAK_GRACE_HOURS } = require('@/lib/config/gameConstants');
     const currentStreak = gameState.loginStreak || 0;
     const lastLogin = gameState.lastLoginDate;
 
