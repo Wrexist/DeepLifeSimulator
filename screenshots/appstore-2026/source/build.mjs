@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {readFileSync,writeFileSync,mkdirSync,renameSync,existsSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
