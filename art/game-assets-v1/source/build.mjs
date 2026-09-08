@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {chromium} from 'playwright';
 import sharp from 'sharp';
 import fs from 'node:fs/promises';

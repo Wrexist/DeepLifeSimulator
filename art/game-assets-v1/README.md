@@ -68,3 +68,7 @@ existing avatar system until a complete compatible 3D character pipeline exists.
 The geometry and compositions were authored for this project in this change.
 No third-party asset license is attached. Three.js, Playwright and Sharp remain
 separate tooling dependencies with their own licenses in the locked packages.
+
+## CI dependency installation
+
+The EAS Update and Preflight workflows install this isolated toolchain with its own npm lockfile before linting. Root npm ci alone does not install nested packages. The builder imports Buffer from node:buffer explicitly. This fixes the unresolved-import and no-undef failures without excluding art source from lint or adding native dependencies to the app.
