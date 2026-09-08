@@ -83,8 +83,8 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
 
   if (!template) return null;
 
-  const canCash = quote ? quote.canAffordCash : false;
-  const canLoan = quote ? quote.netCost > 0 : false;
+  const canCash = !!quote && !quote.blockedReason && quote.canAffordCash;
+  const canLoan = !!quote?.loan && !quote.blockedReason;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -104,7 +104,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: theme.text }]}>{template.name}</Text>
               <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-                {formatMoney(template.cost)} · {template.duration}w
+                {formatMoney(template.cost)} · {quote?.adjustedDuration ?? template.duration}w of study
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
@@ -145,14 +145,95 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                     <GraduationCap size={scale(13)} color={accent.success} />
                     <Text style={[styles.eligibilityText, { color: accent.success }]}>
                       {quote.scholarship.eligibility === 'full'
-                        ? 'Full ride - your GPA earned you this'
+                        ? 'Tuition fully covered by aid'
                         : quote.scholarship.eligibility === 'half'
-                          ? 'Half-off - your record speaks for itself'
+                          ? 'At least half your tuition covered'
                           : 'Partial aid awarded'}
                     </Text>
                   </View>
                 )}
               </View>
+            )}
+
+            <View style={styles.segRow}>
+              <TouchableOpacity
+                accessibilityRole="radio"
+                accessibilityLabel="Pay cash"
+                accessibilityState={{ checked: mode === 'cash', disabled: !canCash }}
+                onPress={() => setMode('cash')}
+                disabled={!canCash}
+                style={[
+                  styles.segBtn,
+                  {
+                    borderColor: mode === 'cash' && canCash ? accent.success : theme.border,
+                    backgroundColor: mode === 'cash' && canCash ? accent.success : theme.surfaceElevated,
+                    opacity: canCash ? 1 : 0.45,
+                  },
+                ]}
+              >
+                <Text style={[styles.segText, { color: mode === 'cash' && canCash ? 'white' : theme.text }]}>
+                  Pay cash
+                </Text>
+                <Text style={[styles.segSub, { color: mode === 'cash' && canCash ? 'white' : theme.textMuted }]}>
+                  Cash on hand: {formatMoney(quote?.cash ?? 0)}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="radio"
+                accessibilityLabel="Student loan"
+                accessibilityState={{ checked: mode === 'loan', disabled: !canLoan }}
+                onPress={() => setMode('loan')}
+                disabled={!canLoan}
+                style={[
+                  styles.segBtn,
+                  {
+                    borderColor: mode === 'loan' && canLoan ? accent.info : theme.border,
+                    backgroundColor: mode === 'loan' && canLoan ? accent.info : theme.surfaceElevated,
+                    opacity: canLoan ? 1 : 0.45,
+                  },
+                ]}
+              >
+                <Text style={[styles.segText, { color: mode === 'loan' && canLoan ? 'white' : theme.text }]}>
+                  Student loan
+                </Text>
+                <Text style={[styles.segSub, { color: mode === 'loan' && canLoan ? 'white' : theme.textMuted }]}>
+                  {quote?.loan ? `${quote.loan.termWeeks} weeks · ${(quote.loan.rateAPR * 100).toFixed(2)}% APR` : 'No loan needed'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!canCash && !quote?.blockedReason && mode === 'cash' && quote && (
+              <View style={[styles.errorRow, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
+                <AlertCircle size={scale(14)} color={accent.danger} />
+                <Text style={[styles.errorText, { color: accent.danger }]}>
+                  Need {formatMoney(quote.netCost - quote.cash)} more cash to enroll.
+                </Text>
+              </View>
+            )}
+
+            {quote && !quote.blockedReason && (mode === 'loan' ? quote.loan && (
+              <View style={[styles.quoteCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                <Row theme={theme} label="Weekly payment" value={`~${formatMoney(quote.loan.weeklyPayment)}/wk`} highlight />
+                <Row theme={theme} label="Amount borrowed" value={formatMoney(quote.loan.principal)} />
+                <Row theme={theme} label="Total interest" value={`~${formatMoney(quote.loan.totalInterest)}`} />
+                <Row theme={theme} label="Total repaid" value={`~${formatMoney(quote.loan.totalRepaid)}`} />
+                <Text style={[styles.body, { color: theme.textSecondary }]}>
+                  Payments start next game week, while you study. Totals assume all {quote.loan.termWeeks} payments are made on time at this rate. Missed payments can increase your debt.
+                </Text>
+                <Text style={[styles.body, { color: theme.textSecondary }]}>
+                  The loan pays tuition directly. Your {formatMoney(quote.cash)} cash stays available for living costs. Pausing or withdrawing does not cancel the loan.
+                </Text>
+              </View>
+            ) : quote.canAffordCash && (
+              <View style={[styles.quoteCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                <Row theme={theme} label="Cash after tuition" value={formatMoney(quote.cashAfterTuition)} highlight />
+                <Text style={[styles.body, { color: theme.textSecondary }]}>
+                  Keep enough for food, bills and existing loans. Tuition is not refunded if you withdraw.
+                </Text>
+              </View>
+            ))}
+            {quote?.blockedReason && (
+              <Text accessibilityRole="alert" style={[styles.body, { color: accent.danger }]}>{quote.blockedReason}</Text>
             )}
 
             {offered.length > 0 && (
@@ -212,61 +293,16 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                 </Text>
               </View>
             )}
-
-            <View style={styles.segRow}>
-              <TouchableOpacity
-                onPress={() => setMode('cash')}
-                disabled={!canCash}
-                style={[
-                  styles.segBtn,
-                  {
-                    borderColor: mode === 'cash' && canCash ? accent.success : theme.border,
-                    backgroundColor: mode === 'cash' && canCash ? accent.success : theme.surfaceElevated,
-                    opacity: canCash ? 1 : 0.45,
-                  },
-                ]}
-              >
-                <Text style={[styles.segText, { color: mode === 'cash' && canCash ? 'white' : theme.text }]}>
-                  Pay cash
-                </Text>
-                <Text style={[styles.segSub, { color: mode === 'cash' && canCash ? 'white' : theme.textMuted }]}>
-                  Cash on hand: {formatMoney(quote?.cash ?? 0)}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setMode('loan')}
-                disabled={!canLoan}
-                style={[
-                  styles.segBtn,
-                  {
-                    borderColor: mode === 'loan' && canLoan ? accent.info : theme.border,
-                    backgroundColor: mode === 'loan' && canLoan ? accent.info : theme.surfaceElevated,
-                    opacity: canLoan ? 1 : 0.45,
-                  },
-                ]}
-              >
-                <Text style={[styles.segText, { color: mode === 'loan' && canLoan ? 'white' : theme.text }]}>
-                  Student loan
-                </Text>
-                <Text style={[styles.segSub, { color: mode === 'loan' && canLoan ? 'white' : theme.textMuted }]}>
-                  10-year, ~6% APR
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {!canCash && mode === 'cash' && quote && (
-              <View style={[styles.errorRow, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                <AlertCircle size={scale(14)} color={accent.danger} />
-                <Text style={[styles.errorText, { color: accent.danger }]}>
-                  Need {formatMoney(quote.netCost - quote.cash)} more cash to enroll.
-                </Text>
-              </View>
-            )}
           </ScrollView>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={mode === 'cash' ? `Enroll and pay ${formatMoney(quote?.netCost ?? 0)}` : 'Enroll with student loan'}
+            accessibilityState={{ disabled: mode === 'cash' ? !canCash : !canLoan }}
             disabled={mode === 'cash' ? !canCash : !canLoan}
-            onPress={() => onConfirm(mode, resolvedClassIds())}
+            onPress={() => {
+              if (mode === 'cash' ? canCash : canLoan) onConfirm(mode, resolvedClassIds());
+            }}
             style={[
               styles.confirm,
               {
@@ -348,9 +384,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 4,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  rowLabel: { fontSize: responsiveFontSize.sm },
-  rowValue: { fontSize: responsiveFontSize.sm },
+  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: responsiveSpacing.xs },
+  rowLabel: { fontSize: responsiveFontSize.sm, flexShrink: 1 },
+  rowValue: { fontSize: responsiveFontSize.sm, flexShrink: 1 },
   eligibilityText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
   eligibilityRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5), marginTop: scale(4) },
   classHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
@@ -377,6 +413,7 @@ const styles = StyleSheet.create({
   classHint: { fontSize: responsiveFontSize.xs, fontStyle: 'italic' },
   segRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
   segBtn: {
+    ...minTouchTargetStyle,
     flex: 1,
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.lg,
@@ -394,6 +431,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '600' },
   confirm: {
+    ...minTouchTargetStyle,
     paddingVertical: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.lg,
     alignItems: 'center',

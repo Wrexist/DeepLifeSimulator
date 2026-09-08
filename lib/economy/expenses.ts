@@ -9,26 +9,8 @@ import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
 import { PET_WEEKLY_FOOD_COST } from '@/lib/pets/lifecycle';
 import { totalSubscriptionWeeklyCharge } from '@/lib/subscription/billing';
+import { getWeeklyLoanPayment } from '@/lib/banking/loanPayment';
 import { logger } from '@/utils/logger';
-
-// Type guard helpers for Loan properties. Field-only intersections (not `Loan & ...`)
-// so the FALSE branch doesn't narrow to `never` — Loan declares these fields
-// as required, but at runtime corrupted save data can still violate that.
-function hasLoanRemaining(loan: unknown): loan is { remaining: number } {
-  return typeof loan === 'object' && loan !== null && 'remaining' in loan && typeof (loan as { remaining?: unknown }).remaining === 'number' && isFinite((loan as { remaining: number }).remaining) && (loan as { remaining: number }).remaining >= 0;
-}
-
-function hasLoanPrincipal(loan: unknown): loan is { principal: number } {
-  return typeof loan === 'object' && loan !== null && 'principal' in loan && typeof (loan as { principal?: unknown }).principal === 'number' && isFinite((loan as { principal: number }).principal) && (loan as { principal: number }).principal >= 0;
-}
-
-function hasLoanWeeksRemaining(loan: unknown): loan is { weeksRemaining: number } {
-  return typeof loan === 'object' && loan !== null && 'weeksRemaining' in loan && typeof (loan as { weeksRemaining?: unknown }).weeksRemaining === 'number' && isFinite((loan as { weeksRemaining: number }).weeksRemaining) && (loan as { weeksRemaining: number }).weeksRemaining > 0;
-}
-
-function hasLoanTermWeeks(loan: unknown): loan is { termWeeks: number } {
-  return typeof loan === 'object' && loan !== null && 'termWeeks' in loan && typeof (loan as { termWeeks?: unknown }).termWeeks === 'number' && isFinite((loan as { termWeeks: number }).termWeeks) && (loan as { termWeeks: number }).termWeeks > 0;
-}
 
 export interface ExpenseBreakdown {
   upkeep: number;
@@ -104,42 +86,9 @@ export function calcWeeklyExpenses(
     // the economy program: understandable, predictable).
     const propertyTax = portfolioPropertyTaxWeekly(realEstate);
     const loans = Array.isArray(state.loans) ? state.loans : [];
-    // BUG FIX: Calculate loan payments, but also ensure minimum payment for loans with zero weeklyPayment
-    // For loans with 0 weeklyPayment (long terms), calculate minimum payment based on remaining debt
-    const loanPayments = loans.reduce((sum, l) => {
-      if (!l) return sum; // Skip invalid loans
-      
-      // CRITICAL: Validate weeklyPayment before using
-      const weeklyPayment = typeof l.weeklyPayment === 'number' && isFinite(l.weeklyPayment) && l.weeklyPayment >= 0 ? l.weeklyPayment : 0;
-      if (weeklyPayment > 0) {
-        return sum + weeklyPayment;
-      } else {
-        // For loans with 0 weeklyPayment, calculate minimum payment to ensure debt is paid
-        // Use remaining debt (or principal if remaining not set) divided by remaining weeks.
-        // Guards are called as plain functions; the chained ternary used to narrow `l`
-        // to `never` because Loan declares these fields as required, so we read the
-        // fields directly through `unknown` casts after the guard returns true.
-        const loanData = l as unknown;
-        const remaining = hasLoanRemaining(loanData)
-          ? loanData.remaining
-          : (hasLoanPrincipal(loanData) ? loanData.principal : 0);
-        if (remaining <= 0) return sum; // Skip fully paid or corrupted loans
-        const weeksRemaining = hasLoanWeeksRemaining(loanData)
-          ? loanData.weeksRemaining
-          : (hasLoanTermWeeks(loanData) ? loanData.termWeeks : 520);
+    // Scheduled obligations remain visible when cash is too low to collect.
+    const loanPayments = loans.reduce((sum, loan) => sum + getWeeklyLoanPayment(loan).paymentDue, 0);
 
-        // CRITICAL: Validate before division to prevent division by zero
-        if (remaining > 0 && weeksRemaining > 0 && isFinite(remaining) && isFinite(weeksRemaining)) {
-          // Minimum payment: at least 0.1% of remaining debt per week
-          const minPayment = Math.max(remaining / weeksRemaining, remaining * 0.001);
-          if (isFinite(minPayment) && minPayment > 0) {
-            return sum + minPayment;
-          }
-        }
-        return sum;
-      }
-    }, 0);
-  
   // Mining power costs — WAREHOUSE rigs only (2026-08-25 economy audit).
   //
   // This block used to display company rigs at $0.20/unit/DAY and warehouse

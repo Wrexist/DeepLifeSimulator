@@ -1,3 +1,40 @@
+# Active: Program 18 cash-flow correctness (2026-09-08)
+
+This continuation is based on `52c16cf` in open PR #199. Main remains `686adb1`.
+The next forecast work exposed prerequisite defects in the existing card.
+
+- [x] Match loan payment forecasts and itemized rows to weekly amortization,
+      including final payments, paid-off loans, missing payments and APR units.
+- [x] Restore omitted economy/asset inputs in the home-card selector and update
+      cached projections when those inputs change.
+- [x] Verify before/after regressions, relevant stress/type/lint/bundle gates,
+      and publish the continuation in #199 with remaining forecast limits.
+
+No student-loan deferment or new economy balance rule is implied by this fix.
+
+## Previous education slice
+
+# Active: Program 18 education cost clarity (2026-09-08)
+
+PR #197 is merged at `686adb1`. Continue from that main on a new branch.
+Player problem: enrollment hides immediate weekly loan obligations, total
+repayment and the cash left after tuition. Repeated confirmation can charge
+for the same program twice because the action has no enrollment identity gate.
+
+- [x] Reproduce duplicate cash/loan enrollment and stale modal acceptance.
+- [x] Quote actual loan terms and adjusted duration through the same reader
+      consumed by enrollment. Show upfront cash, weekly payment, total interest,
+      immediate repayment and debt remaining after withdrawal.
+- [x] Reject duplicate, completed and dead-life enrollment inside the updater.
+- [x] Test quote/action/weekly repayment agreement, render interactions and
+      stress/type/lint gates. Browser access blocked locally, so visual acceptance remains unverified.
+- [x] Document limits and prepare a separate PR. No native build or release.
+
+A full income-versus-bills forecast and changes to student-loan deferment
+remain later work. This slice explains existing terms without changing rates.
+
+## Previous completed continuation
+
 # Active: Program 18 continuation (2026-09-08)
 
 User authorized continuing the remaining work. PR #197 remains open and its

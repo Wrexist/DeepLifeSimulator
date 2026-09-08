@@ -14,11 +14,13 @@ import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { MINER_POWER_UNITS, minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
 import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import type { GameState , Loan } from '@/contexts/game/types';
+import type { GameState } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { householdPartnerIncome, computeWeeklyIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
+import { getRetirementIncomeWeekly } from '@/lib/retirement/pension';
+import { getWeeklyLoanPayment } from '@/lib/banking/loanPayment';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getTotalLuxuryYield } from '@/lib/luxury/operations';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
@@ -36,23 +38,6 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
-
-// Type guard helpers for Loan properties
-function hasLoanName(loan: Loan | unknown): loan is Loan & { name: string } {
-  return typeof loan === 'object' && loan !== null && 'name' in loan && typeof (loan as { name?: unknown }).name === 'string';
-}
-
-function hasLoanRemaining(loan: Loan | unknown): loan is Loan & { remaining: number } {
-  return typeof loan === 'object' && loan !== null && 'remaining' in loan && typeof (loan as { remaining?: unknown }).remaining === 'number' && isFinite((loan as { remaining: number }).remaining) && (loan as { remaining: number }).remaining >= 0;
-}
-
-function hasLoanPrincipal(loan: Loan | unknown): loan is Loan & { principal: number } {
-  return typeof loan === 'object' && loan !== null && 'principal' in loan && typeof (loan as { principal?: unknown }).principal === 'number' && isFinite((loan as { principal: number }).principal) && (loan as { principal: number }).principal >= 0;
-}
-
-function hasLoanInterestRate(loan: Loan | unknown): loan is Loan & { interestRate: number } {
-  return typeof loan === 'object' && loan !== null && 'interestRate' in loan && typeof (loan as { interestRate?: unknown }).interestRate === 'number' && isFinite((loan as { interestRate: number }).interestRate);
-}
 
 // Using the utility function from utils/characterImages.ts
 
@@ -177,6 +162,27 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
       week: s?.week,
       weeksLived: s?.weeksLived,
       version: s?.version,
+      // Economy helpers also need these inputs. Omitting a field is not a
+      // subscription optimization: it makes the helper see an incomplete save.
+      rental: s?.rental,
+      educations: s?.educations,
+      pets: s?.pets,
+      luxuryItems: s?.luxuryItems,
+      luxuryHoldings: s?.luxuryHoldings,
+      sparkApp: s?.sparkApp,
+      goldUpgrades: s?.goldUpgrades,
+      unlockedLifeSkills: s?.unlockedLifeSkills,
+      lifeStartWeek: s?.lifeStartWeek,
+      jailWeeks: s?.jailWeeks,
+      banking: s?.banking,
+      cryptos: s?.cryptos,
+      overdueBalance: s?.overdueBalance,
+      darkWeb: s?.darkWeb,
+      familyBusinesses: s?.familyBusinesses,
+      hustleApp: s?.hustleApp,
+      isRetired: s?.isRetired,
+      pensionWeekly: s?.pensionWeekly,
+      lifetimeStatistics: s?.lifetimeStatistics,
     }),
     shallowEqual
   ) as unknown as GameState;
@@ -268,27 +274,8 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // It also guards the level index the way `job` (line ~153) does: a
   // stale/migrated save can carry a `level` out of bounds for `levels`, which
   // used to crash the home tab with `.salary of undefined`.
-  const jobPay = useMemo(
-    () => paidWeeklyCareerSalary(gameState),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      gameState.careers, gameState.currentJob, gameState.jailWeeks, gameState.politics,
-      gameState.goldUpgrades, gameState.perks, gameState.unlockedLifeSkills, gameState.settings,
-    ]
-  );
-
-
-  // calcWeeklyPassiveIncome walks owned properties + companies. Only re-run
-  // when those arrays actually change, not on every unrelated gameState
-  // mutation (otherwise the home tab recomputes on every stat decay tick).
-  const passiveInfo = useMemo(
-    () => calcWeeklyPassiveIncome(gameState),
-    // Key on the actual asset arrays that drive passive income, NOT stats.money
-    // (which changes every decay tick and is not an input to passive income) -
-    // otherwise this walk re-runs every tick on the home tab.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
-  );
+  const jobPay = useMemo(() => paidWeeklyCareerSalary(gameState), [gameState]);
+  const passiveInfo = useMemo(() => calcWeeklyPassiveIncome(gameState), [gameState]);
   // Office pay is credited by `calcWeeklyPassiveIncome`, but a player in office
   // looks for it under Job Income, not under Passive. Move it across rather
   // than counting it twice - and take the figure from `breakdown.political`
@@ -344,32 +331,24 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // displayed-vs-applied item). Luxury yield stays OUTSIDE the multiplied base,
   // exactly as the tick adds it. Pulse earnings are left at 0: a projection
   // can't know next week's impressions, and omitting them only understates.
+  const retirementIncome = getRetirementIncomeWeekly(gameState);
   const projectedIncome = useMemo(() => {
     const projected = computeWeeklyIncome({
       prevState: gameState,
       careerSalary: jobPay.fromPayroll,
       passiveIncome: passiveInfo.total,
       pulseEarnings: 0,
+      retirementIncome,
       weeksLivedNow: gameState.weeksLived || 0,
       unlockedBonuses: gameState.prestige?.unlockedBonuses || [],
       economyIncomeMultiplier: gameState.economy?.economyEvents?.modifiers?.incomeMultiplier,
     }).totalIncome;
     return projected + luxuryYield;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    jobPay, passiveInfo, luxuryYield, gameState.weeksLived, gameState.prestige,
-    gameState.goldUpgrades, gameState.perks, gameState.relationships,
-    gameState.economy, gameState.lifeStartWeek,
-  ]);
+  }, [gameState, jobPay, passiveInfo, luxuryYield, retirementIncome]);
 
   const expenseInfo = useMemo(
     () => calcWeeklyExpenses(gameState, projectedIncome),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      gameState.realEstate, gameState.vehicles, gameState.loans,
-      gameState.rental, gameState.educations, gameState.unlockedLifeSkills,
-      projectedIncome,
-    ]
+    [gameState, projectedIncome]
   );
 
   const expenses = expenseInfo.total;
@@ -813,6 +792,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               Job Income: {formatMoney(jobIncome)}
             </Text>
           </View>
+          {retirementIncome > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={scale(18)} color="#10B981" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Retirement Pension: {formatMoney(retirementIncome)}
+              </Text>
+            </View>
+          )}
           {partnerIncome > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <DollarSign size={scale(18)} color="#10B981" />
@@ -1058,45 +1045,23 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 </Text>
               </View>
               {(() => {
-                const loanExpenses: { name: string; cost: number }[] = [];
-                const loans: Loan[] = gameState.loans || [];
-                
-                loans.forEach(loan => {
-                  if (!loan) return;
-                  const weeklyPayment = typeof loan.weeklyPayment === 'number' && isFinite(loan.weeklyPayment) && loan.weeklyPayment >= 0 ? loan.weeklyPayment : 0;
-                  
-                  if (weeklyPayment > 0) {
-                    loanExpenses.push({
-                      name: hasLoanName(loan) ? loan.name : `Loan #${loanExpenses.length + 1}`,
-                      cost: weeklyPayment,
-                    });
-                  } else {
-                    // For loans with 0 weeklyPayment, calculate minimum payment
-                    const remaining = loan.remaining || loan.principal || 0;
-                    const weeksRemaining = loan.weeksRemaining || loan.termWeeks || 520;
-                    
-                    if (remaining > 0 && weeksRemaining > 0 && isFinite(remaining) && isFinite(weeksRemaining)) {
-                      const minPayment = Math.max(remaining / weeksRemaining, remaining * 0.001);
-                      if (isFinite(minPayment) && minPayment > 0) {
-                        loanExpenses.push({
-                          name: hasLoanName(loan) ? loan.name : `Loan #${loanExpenses.length + 1}`,
-                          cost: minPayment,
-                        });
-                      }
-                    }
-                  }
+                const loanExpenses = (gameState.loans || []).flatMap((loan, index) => {
+                  const terms = getWeeklyLoanPayment(loan);
+                  return terms.paymentDue > 0 ? [{
+                    id: loan.id,
+                    name: loan.name || `Loan #${index + 1}`,
+                    cost: terms.paymentDue,
+                    remaining: terms.remaining,
+                    interestRate: terms.aprDecimal * 100,
+                  }] : [];
                 });
-                
+
                 return loanExpenses.length > 0 ? (
                   <View style={styles.modalSubSection}>
                     {loanExpenses.map((loan, idx) => {
-                      const loanData = loans.find(l => (hasLoanName(l) ? l.name : `Loan #${idx + 1}`) === loan.name);
-                      const principal = loanData && hasLoanPrincipal(loanData) ? loanData.principal : 0;
-                      const remaining = loanData && hasLoanRemaining(loanData) ? loanData.remaining : principal;
-                      const interestRate = loanData && hasLoanInterestRate(loanData) ? loanData.interestRate : 0;
-                      
+                      const { remaining, interestRate } = loan;
                       return (
-                        <View key={idx} style={[styles.modalSubItem, isDarkMode && styles.modalSubItemDark]}>
+                        <View key={`${loan.id}-${idx}`} style={[styles.modalSubItem, isDarkMode && styles.modalSubItemDark]}>
                           <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                             • {loan.name}: {formatMoney(loan.cost)}/week
                           </Text>
