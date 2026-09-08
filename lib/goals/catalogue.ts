@@ -105,21 +105,14 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     rationale: 'A steady wage is what every other plan is funded by.',
     route: '/(tabs)/work',
     isEligible: (s) => !s.currentJob,
-    // Measured in APPLICATIONS SENT, not in "do you have a job".
-    //
-    // The obvious measure - `currentJob ? 1 : 0` - is pinned at 0 across the
-    // entire region where the goal is visible, because the goal stops being
-    // eligible the instant it would read 1. That is the deleted goal system's
-    // defect exactly: a bar that cannot move while you are looking at it.
-    // Applications in flight is a number that actually rises as the player
-    // works on this, and it reaches the target on the week they are accepted.
-    measure: (s) => {
-      const applied = (s.careers ?? []).filter((c) => c?.applied && !c?.accepted).length;
-      return { current: Math.min(3, applied), target: 3 };
-    },
+    // Only one application can be pending. Track the two real stages rather
+    // than asking for three simultaneous applications the action rejects.
+    measure: (s) => ({
+      current: s.currentJob ? 2 : (s.careers ?? []).some((c) => c?.applied && !c.accepted) ? 1 : 0,
+      target: 2,
+    }),
     priority: () => 100,
-    format: (c, t) =>
-      c <= 0 ? 'No applications sent' : `${Math.round(c)} / ${Math.round(t)} applications out`,
+    format: (c) => c >= 2 ? 'Hired' : c >= 1 ? 'Application under review' : 'Choose a job in Work',
     achievementLevel: (s) => (s.currentJob ? 1 : 0),
   },
   {

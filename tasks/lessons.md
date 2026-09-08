@@ -5692,3 +5692,28 @@ Loan totals and individual rows also need the collector's payoff cap and APR
 normalization. A nominal installment is not the last amount owed. A display
 name is not identity: two deliberately re-enrolled student loans can have the
 same name, so looking up the first by name shows the wrong remaining balance.
+
+
+## 2026-09-08 — Follow the active gameplay task and verify semantic state
+
+The user rejected decorative buildings on Home. Repeating an older image-format
+request interrupted the approved gameplay redesign. Resolve the latest active
+objective before acting on older attachments. Art needs a gameplay purpose.
+
+Total weekly income includes bonuses and passive income. It cannot prove that a
+player received a first wage. Use the existing paid-work counter, and test the
+component with passive income, a pending application, and a newly accepted job
+before the first salary tick. Show chosen ambitions before secondary ladders.
+
+
+## 2026-09-08 — One owner for the next action
+
+Moving the coach above the goals card repeated "Choose your first job" and
+"Get hired". The user correctly rejected this as confusing. Compose the coach
+inside the goal card and let its actual visibility choose the lead. Suppress
+both catalogue and chapter duplicates while it is active. Review the whole
+viewport, not each card in isolation, and include screenshots with visual fixes.
+
+## 2026-09-08 — Verify remote CI before completion
+
+Targeted local passes missed two stale first-session walkthrough fixtures. Seed paid-work history explicitly and mount components only after the scenario state is seeded. After pushing, inspect GitHub checks on the actual latest commit and read failures before reporting completion. Never equate local validation with a green remote PR.

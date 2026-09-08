@@ -6,7 +6,7 @@
  * doing and why), the crisis tip (what to do and where), and the quiet state.
  * Every case is a moment from the walkthrough in tasks/todo.md.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { act } from 'react-test-renderer';
 import { renderWithProviders } from '../render/helpers/renderWithProviders';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
@@ -28,11 +28,13 @@ const AGE_20 = 104;
 
 function Seed({ mutate, children }: { mutate: (s: GameState) => GameState; children: React.ReactNode }) {
   const setGameState = useSetGameState();
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     setGameState(mutate);
+    setReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  return <>{children}</>;
+  return ready ? <>{children}</> : null;
 }
 
 /** Prints one state field into the tree so a render test can read it back. */
@@ -115,12 +117,13 @@ describe('the coach closes the loop', () => {
 
     // The wage lands on the next tick.
     act(() => {
-      setWorld!((s) => ({ ...s, weeksLived: AGE_20 + 1, weekResult: { incomeEarned: 142, netChange: 142 } }));
+      setWorld!((s) => ({ ...s, weeksLived: AGE_20 + 1, lifetimeStatistics: { ...s.lifetimeStatistics!, totalWeeksWorked: 1 }, weekResult: { incomeEarned: 142, netChange: 142 } }));
     });
     act(() => {});
     const after = json();
-    expect(after).toContain('You earned $142');
-    expect(after).toMatch(/Life → Health tops them up for free/);
+    expect(after).toContain('Your first paid week');
+    expect(after).toContain('Total income this week: $142');
+    expect(after).toContain('Check your health and happiness');
     unmount();
   });
 });
@@ -264,6 +267,7 @@ describe('Home, week 8 of the walkthrough: three problems, one lead, one routed 
         careers: (s.careers ?? []).map((c) =>
           c.id === 'fast_food' ? { ...c, applied: true, accepted: true, level: 0, progress: 100 } : c,
         ),
+        lifetimeStatistics: { ...s.lifetimeStatistics!, totalWeeksWorked: 7 },
         stats: { ...s.stats, money: 3_314, health: 52, happiness: 17, energy: 90 },
       })),
     );

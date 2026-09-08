@@ -11,7 +11,7 @@
  * stay silent, and only once all of them pass does the live state pick a step.
  */
 
-export type CoachStep = 'find-work' | 'advance' | 'paid' | null;
+export type CoachStep = 'find-work' | 'pending' | 'advance' | 'paid' | null;
 
 /**
  * How many weeks the coach stays available, counted FROM WHEN IT FIRST APPEARED
@@ -47,7 +47,8 @@ export interface CoachStepInput {
   /** `weeksLived` when the coach first appeared. Null until read or written. */
   baseline: number | null;
   weeksLived: number;
-  incomeEarned: number;
+  hasWorkedForPay: boolean;
+  hasPendingApplication: boolean;
   hasJob: boolean;
 }
 
@@ -63,7 +64,8 @@ export function resolveCoachStep(o: CoachStepInput): CoachStep {
   // MAX_COACH_WEEKS. A null baseline means "not anchored yet", which must not
   // hide the card.
   if (o.baseline !== null && o.weeksLived - o.baseline > MAX_COACH_WEEKS) return null;
-  if (o.incomeEarned > 0) return 'paid';
-  if (!o.hasJob) return 'find-work';
-  return 'advance';
+  if (o.hasWorkedForPay) return 'paid';
+  if (o.hasJob) return 'advance';
+  if (o.hasPendingApplication) return 'pending';
+  return 'find-work';
 }
