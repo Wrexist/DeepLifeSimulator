@@ -1,8 +1,8 @@
 # Deep Life Simulator — Immersive App Store edition
 
-Rebuilt 8 September 2026 following feedback on the flat blue edition.
+Rebuilt 8 September 2026 following feedback on the flat blue edition, then refocused on player aspiration and progression rather than menu-by-menu feature coverage.
 
-The new direction combines cinematic 3D-style artwork, atmospheric environments, warm metallic lighting, ivory typography and gently angled gameplay panels. Each theme has its own scene. The interface is composited from actual repository captures, with no generated interface text or invented game statistics.
+The campaign now sells the fantasy of the game first: start with little, build a career, create wealth, form relationships, take risks, own property, unlock lifestyle rewards, build a family and carry progress into future lives. Cinematic 3D-style artwork frames real gameplay captures, with no generated interface text or invented game statistics.
 
 ## Package contents
 
@@ -16,26 +16,28 @@ The new direction combines cinematic 3D-style artwork, atmospheric environments,
 
 ## Recommended sequence
 
-| Image | Feature | 3D artwork |
-| --- | --- | --- |
-| 01 | Begin a life | Modest apartment and illuminated penthouse |
-| 02 | Start and grow a company | Architectural headquarters model |
-| 03 | Dating | Interlocking rose-gold hearts on a terrace |
-| 04 | Decisions and consequences | A branching staircase and two doors |
-| 05 | Careers and education | Graduation cap, diploma and briefcase |
-| 06 | Stock investing | Emerald glass columns and coins |
-| 07 | Dark web and risk | Rainy city, laptop and security hardware |
-| 08 | Property ownership | Residential architectural models and a key |
-| 09 | Car ownership | The game's yellow supercar interpreted in a new scene |
-| 10 | Family and relationships | A warm architectural cutaway of a family home |
-| 11 | Health | Athletic equipment in a morning park |
-| 12 | Travel | Glass globe and airplane |
-| 13 | Creator life | Microphone, camera and headphones |
-| 14 | Crypto | Machined digital-currency coins |
-| 15 | Luxury collections | A watch and diamond on marble |
-| 16 | Prestige | Crystal hourglass above a city |
+The first five frames are intentionally outcome-led rather than feature-led. They should communicate what the player can become before the set starts explaining individual systems.
 
-The series covers the main life, relationship, work and wealth systems, with alternatives for other prominent activities. It does not attempt to document every submenu.
+| Image | Player promise | Gameplay proof |
+| --- | --- | --- |
+| 01 | Start with little and build the life you want | Early-life Home state |
+| 02 | Turn ambition into an empire | Company ownership and revenue |
+| 03 | Build a life worth sharing | Dating and relationship systems |
+| 04 | Every choice changes your future | Event choices and visible effects |
+| 05 | Become more than you started as | Education and career progression |
+| 06 | Make your money work for you | Stock investing |
+| 07 | Take risks and live with the outcome | Dark web, heat and risk |
+| 08 | Turn income into ownership | Real-estate portfolio |
+| 09 | Earn the lifestyle you imagined | Vehicle ownership |
+| 10 | Build more than a bank balance | Family and relationships |
+| 11 | Keep health and happiness in balance | Vitals and activities |
+| 12 | Build a life that takes you places | Travel |
+| 13 | Build an audience and become somebody | Creator/streaming life |
+| 14 | Chase opportunity while respecting risk | Crypto |
+| 15 | Turn success into something rare | Luxury collections |
+| 16 | Carry your legacy into the next life | Prestige and permanent bonuses |
+
+The series is designed to answer three questions in order: **What can I become? What can I do? Why will I keep playing?** It does not attempt to document every submenu.
 
 ## Source and release check
 
@@ -60,13 +62,11 @@ For a selective revision, use `node screenshots/appstore-2026/source/build.mjs -
 
 ## Research basis
 
-The visual revision retains the earlier review of the [live product page](https://apps.apple.com/us/app/deep-life-simulator-tycoon/id6749675615), repository screenshots and game systems. It changes the art direction in response to feedback.
+The visual revision retains the earlier review of the live product page, repository screenshots and game systems. It changes the art direction in response to feedback.
 
-Apple recommends introducing core features early and allows up to ten screenshots per set. The initial images should work independently in search results. [Apple product page guidance](https://developer.apple.com/app-store/product-page/)
+Apple recommends introducing core features early and allows up to ten screenshots per set. The initial images should work independently in search results. Export dimensions follow Apple's accepted screenshot sizes, and every screenshot must accurately represent the app in use.
 
-Export dimensions follow the accepted sizes in [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/). Screenshots must accurately represent the app in use. [App Review Guidelines, accurate metadata](https://developer.apple.com/app-store/review/guidelines/#accurate-metadata)
-
-The new visual direction is a design proposal, with no measured conversion result yet. [Product Page Optimization](https://developer.apple.com/app-store/product-page-optimization/) provides a way to compare it against the current set.
+The new visual direction is a design proposal, with no measured conversion result yet. Product Page Optimization should be used to compare it against the current store set rather than assuming the new campaign wins by taste alone.
 
 The existing `scripts/generate-appstore-2026-set.mjs` and `scripts/generate-appstore-2026-ipad.mjs` entry points also rebuild this edition. The earlier `scripts/lib/storeFrameSystem.mjs` is retained for historical tooling and is not the current campaign compositor. The new capture assertions are in `source/storyboard.json`.
 
