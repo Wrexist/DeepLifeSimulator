@@ -2,7 +2,7 @@
 
 - [x] Identify the conflicting base/head revisions and enumerate conflict files.
 - [x] Merge current `main`, preserve both valid lesson entries, and remove all markers.
-- [ ] Run focused validation, commit, push, and verify GitHub mergeability/checks.
+- [x] Run focused validation, commit, push, and verify GitHub mergeability; remote checks started.
 
 ---
 
