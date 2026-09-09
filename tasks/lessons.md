@@ -4,6 +4,14 @@
 
 ## Patterns to Watch For
 
+### 2026-09-08 — Immersion needs a coherent game asset style
+
+The owner rejected photographic generated environment plates as too visibly AI-generated.
+For this redesign, author modular Three.js geometry and export transparent renders
+plus editable models. Keep scenery inside the game coherent with the interface;
+cinematic marketing art is not an approved in-game art direction.
+
+
 ### 2026-09-04 — The screenshot the reporter attached was the whole diagnosis, and a test harness that resolves a different build than the device
 
 A second pass on the same Discord reports, after the reporter's screenshots
@@ -5717,3 +5725,12 @@ viewport, not each card in isolation, and include screenshots with visual fixes.
 ## 2026-09-08 — Verify remote CI before completion
 
 Targeted local passes missed two stale first-session walkthrough fixtures. Seed paid-work history explicitly and mount components only after the scenario state is seeded. After pushing, inspect GitHub checks on the actual latest commit and read failures before reporting completion. Never equate local validation with a green remote PR.
+
+
+## 2026-09-08 — A clean merge can still restore rejected UI
+
+Resolve overlapping screen work against the accepted newer product decisions.
+Combining an older standalone coach with the newer GoalsCard-embedded coach would
+restore duplicate job guidance. Preserve the complete newer Home hierarchy and
+keep the asset pack separate. Check automatically merged neighboring sections too,
+including the identity card and recap positions, not only conflict markers.

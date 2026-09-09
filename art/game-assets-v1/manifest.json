@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "generator": "Three.js 0.185.1, authored geometry in source/models.mjs",
+  "license": "Project-owned original geometry. Three.js MIT license applies to the tooling dependency, not a stock asset pack.",
+  "coordinates": "metres, Y-up, front +Z",
+  "textures": 0,
+  "validation": "GLB v2 header and length; round-trip GLTFLoader import; software WebGL render; transparent alpha and non-empty pixel coverage. Not a native device performance measurement.",
+  "assets": [
+    {
+      "id": "city",
+      "model": "models/city.glb",
+      "render": "renders/city.png",
+      "modelBytes": 382816,
+      "renderBytes": 99483,
+      "renderSha256": "864c85acc32f80f1f3c17e4a6f635296efcda525640042da2d3e004b19570dd3",
+      "sha256": "f9eb53abf1359b0cced7210287f987e9b3efe2a200cde2f955c324b5f1c3ecec",
+      "triangles": 9408,
+      "meshes": 34,
+      "boundsMetres": [
+        4.199999809265137,
+        3.079999998062849,
+        3.200000047683716
+      ],
+      "transparentFraction": 0.736,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "room",
+      "model": "models/room.glb",
+      "render": "renders/room.png",
+      "modelBytes": 889272,
+      "renderBytes": 138101,
+      "renderSha256": "28b9c49098f45e53d783c48aa30df00e943ed1b3ddee92f8c60c1513063589f0",
+      "sha256": "75c5d23d90ab4acb23598ce3668aab7cd8d86bc214a9d4f4df178ff867fb2174",
+      "triangles": 12232,
+      "meshes": 56,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "home",
+      "model": "models/home.glb",
+      "render": "renders/home.png",
+      "modelBytes": 708268,
+      "renderBytes": 144867,
+      "renderSha256": "e155f4de68b8a16780b6ecb458305d98f8550faf0491a1d7e9bda067a84f5496",
+      "sha256": "824e9d7b77178b57b0f1105a1e0f7eeb14fa91a0b25f69cde81cb1fa2dc268a0",
+      "triangles": 11212,
+      "meshes": 50,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "sofa",
+      "model": "models/sofa.glb",
+      "render": "renders/sofa.png",
+      "modelBytes": 183728,
+      "renderBytes": 79615,
+      "renderSha256": "afe60ce23b0d3b832cb0b1ee4c3504ccdc307c0c9bf6f48dd62d39db45545139",
+      "sha256": "e2d6c3f44fe5e1ee185d3acfa9a7947857347f84030c1f1976b13a8ed6eb1ae8",
+      "triangles": 2956,
+      "meshes": 13,
+      "boundsMetres": [
+        2.160000002980232,
+        1.0299999928474428,
+        0.8799999991059304
+      ],
+      "transparentFraction": 0.833,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "bed",
+      "model": "models/bed.glb",
+      "render": "renders/bed.png",
+      "modelBytes": 183364,
+      "renderBytes": 81144,
+      "renderSha256": "6a25f5bbf6daf43c52d19a1cf70f9c1fb42146f9509685aee10b86cddc59eb85",
+      "sha256": "30c9d27ec32910e2c202acd2efccc7356838f9fbdd0a8d776bd185465a3f215e",
+      "triangles": 2056,
+      "meshes": 10,
+      "boundsMetres": [
+        1.2400000095367432,
+        1.0850000029802322,
+        2.1399999526143074
+      ],
+      "transparentFraction": 0.819,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "desk",
+      "model": "models/desk.glb",
+      "render": "renders/desk.png",
+      "modelBytes": 202708,
+      "renderBytes": 69740,
+      "renderSha256": "fb3cec669f013fcba201e1035956307464362d7252bd1a7862bf9574e634ef94",
+      "sha256": "80183070e6aae2417ca3f0e4b6906e1c3518bd3b6301fdfc1afd3b72d9256363",
+      "triangles": 2912,
+      "meshes": 16,
+      "boundsMetres": [
+        1.5,
+        1.2174999967217444,
+        0.800000011920929
+      ],
+      "transparentFraction": 0.862,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "chair",
+      "model": "models/chair.glb",
+      "render": "renders/chair.png",
+      "modelBytes": 64576,
+      "renderBytes": 43635,
+      "renderSha256": "ad8f955d63be58445a0fdafe56637e83d12fb2efa0054c937c9329721ef5b961",
+      "sha256": "38914b90cbf62e9b8aedaa5c98f735d408c4e0f875bbe0827c6af06de067b176",
+      "triangles": 856,
+      "meshes": 6,
+      "boundsMetres": [
+        0.5,
+        0.9250000029802322,
+        0.5125000004470348
+      ],
+      "transparentFraction": 0.844,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "plant",
+      "model": "models/plant.glb",
+      "render": "renders/plant.png",
+      "modelBytes": 25360,
+      "renderBytes": 99573,
+      "renderSha256": "061bec82ca10eff7576f841a0b1c7ae31c8ce3e85a848ffca1dd34da19d44d0d",
+      "sha256": "aa24ddb600b45f9915c7a14d4c22d5533866e674a234b5664a890faae8a08bf4",
+      "triangles": 2208,
+      "meshes": 10,
+      "boundsMetres": [
+        0.7540751258719609,
+        1.1784025806318086,
+        0.7537500732555642
+      ],
+      "transparentFraction": 0.894,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "laptop",
+      "model": "models/laptop.glb",
+      "render": "renders/laptop.png",
+      "modelBytes": 119500,
+      "renderBytes": 91733,
+      "renderSha256": "d58ed44e8021cf946a27e3bad5b138304c65962f2d892aab52e3b13b3531a248",
+      "sha256": "551203f8b6c3cdd0beaba0b075960525d51bf2da0caaa667df10be5ea7afb39e",
+      "triangles": 1800,
+      "meshes": 6,
+      "boundsMetres": [
+        0.5199999809265137,
+        0.35792259709132723,
+        0.350271503110831
+      ],
+      "transparentFraction": 0.741,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "lamp",
+      "model": "models/lamp.glb",
+      "render": "renders/lamp.png",
+      "modelBytes": 19044,
+      "renderBytes": 30390,
+      "renderSha256": "3fa4a8bfc97d97a9b53b91c62769dbff8d0fb901c5c4b7b283c2809b93904e68",
+      "sha256": "76e03536bfa317828c3cf769649c1351f1a0c0495ff70486ceada236e403765c",
+      "triangles": 256,
+      "meshes": 4,
+      "boundsMetres": [
+        0.36000001430511475,
+        0.5700000031292438,
+        0.36000001430511475
+      ],
+      "transparentFraction": 0.882,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "coffee-table",
+      "model": "models/coffee-table.glb",
+      "render": "renders/coffee-table.png",
+      "modelBytes": 109684,
+      "renderBytes": 60977,
+      "renderSha256": "ac9e34854ba28b4fe3784a84da1455eac351e791f59584d4f7b15f25e089ece7",
+      "sha256": "502b099af937129bbc4a978840d0b6904eae36075188be89cb3a0aa9de35ebbb",
+      "triangles": 1604,
+      "meshes": 9,
+      "boundsMetres": [
+        1.100000023841858,
+        0.5510000072419643,
+        0.7200000286102295
+      ],
+      "transparentFraction": 0.863,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "keys",
+      "model": "models/keys.glb",
+      "render": "renders/keys.png",
+      "modelBytes": 81124,
+      "renderBytes": 111586,
+      "renderSha256": "6b2d5511f52450ed37f5696ee8c11f797125789804cb9c345848055abd421f6d",
+      "sha256": "a49d09681980eaef39929521c29a77ab9b0a26e59b74518ab547efecafc4742f",
+      "triangles": 2352,
+      "meshes": 7,
+      "boundsMetres": [
+        0.5653872166541927,
+        0.8123008707032875,
+        0.08600000090897084
+      ],
+      "transparentFraction": 0.944,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "briefcase",
+      "model": "models/briefcase.glb",
+      "render": "renders/briefcase.png",
+      "modelBytes": 100156,
+      "renderBytes": 79222,
+      "renderSha256": "8a26bba04a573eaf2ee36da74db2e5306e1b4552381654896ce02b69d92726d8",
+      "sha256": "5709ea259f92c1b6ff98f188cb58919549d87ecd31fc552486c2b11667711d77",
+      "triangles": 1284,
+      "meshes": 4,
+      "boundsMetres": [
+        0.8399999737739563,
+        0.7419999986886978,
+        0.2575000022724271
+      ],
+      "transparentFraction": 0.806,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "business-factory",
+      "model": "models/business-factory.glb",
+      "render": "renders/business-factory.png",
+      "modelBytes": 392624,
+      "renderBytes": 124236,
+      "renderSha256": "e8e20290a7f37cd68d780ac4e1aba28db0754de90c2506af1837d8becde6ed1a",
+      "sha256": "b52789486ef5518034283598a4519a8b4b7539dbb6dab0c413a1c9ff46b8a617",
+      "triangles": 7432,
+      "meshes": 40,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "business-ai",
+      "model": "models/business-ai.glb",
+      "render": "renders/business-ai.png",
+      "modelBytes": 527052,
+      "renderBytes": 116979,
+      "renderSha256": "062521a9de9e9070b032efd1efcd30302197aefcdf4cbb1d6cc670191d48f5e0",
+      "sha256": "eb5991048cf9ce782c56137ce0fc7ccf0d98298b2776fa0f6d2b18548ff94724",
+      "triangles": 14260,
+      "meshes": 63,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "business-restaurant",
+      "model": "models/business-restaurant.glb",
+      "render": "renders/business-restaurant.png",
+      "modelBytes": 455632,
+      "renderBytes": 113770,
+      "renderSha256": "9d2a2f2a52666f9823aae7b0f40282d15f2eb8125a5c27c1f46e9c6eff2152c0",
+      "sha256": "7ff3fdda252a9fe85467894b442a85b4568ac63288dfd6232acccc228b273533",
+      "triangles": 7776,
+      "meshes": 38,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "business-realestate",
+      "model": "models/business-realestate.glb",
+      "render": "renders/business-realestate.png",
+      "modelBytes": 947444,
+      "renderBytes": 115735,
+      "renderSha256": "5797d5d6fdbfffbe57671faf105a043047cdfc01f773aedd559685b8cd23c1d5",
+      "sha256": "1db7fae16ddfbe742de585467c64614c92a2a35a8ca6052e2bad7387b053b14c",
+      "triangles": 18984,
+      "meshes": 78,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "business-bank",
+      "model": "models/business-bank.glb",
+      "render": "renders/business-bank.png",
+      "modelBytes": 486280,
+      "renderBytes": 107737,
+      "renderSha256": "cd6197c94f72d4a23ca7b7b9ceccefc144bff04117d46aaf80b6ef2d0c1fbe84",
+      "sha256": "a9c4c8e23df8569be01f4d7c1e1269e99874fe259874d6c75afdf4abee8ec9b9",
+      "triangles": 8056,
+      "meshes": 30,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    }
+  ]
+}

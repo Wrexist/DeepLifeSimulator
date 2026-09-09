@@ -1446,8 +1446,26 @@ Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.
 - **No server-authoritative validation.** Caps, ledger and budget are enforced
   against the player's own save, so the blast radius is their own save.
 
+
+## Immersive Home slice — 2026-09-08
+
+- [x] Inspect current Home, housing, first-session coach, and concurrent PRs.
+- [x] Add compact housing-aware environment art and an integrated first-job guide without changing saved appearance or simulation rules.
+- [x] Bring the existing weekly outcome directly below the scene and retain all identity/details and goal access.
+- [x] Verify housing transitions, startup, types, lint, and rendered mobile layouts. See tasks/immersive-home-review.md.
+- [x] Push the focused PR: https://github.com/Wrexist/DeepLifeSimulator/pull/200
+
+- [x] Replace the rejected photographic pack with authored Three.js meshes, transparent renders, and a reusable model viewer.
 ## App Store immersive screenshots — 2026-09-08
 
 - [x] Integrate the approved 47 exports and 16 artwork plates into the canonical store folders, reusing existing captures.
 - [x] Update the screenshot rebuild entry points and upload documentation. Verify images and a repository-path rebuild.
 - [x] Prepare an isolated branch and reviewable PR description with previews and the native iOS capture parity limitation.
+
+
+## PR #200 conflict resolution — 2026-09-08
+
+- [x] Compare both branches against their common ancestor and identify conflicts.
+- [x] Preserve main's compact Home and single coaching/goal surface, keep the reusable asset pack and static import fix, and retain both task histories.
+- [x] Run startup, Home/coaching/asset tests, type checks and lint ratchets (20 suites / 195 tests passed, both type trees clean, zero lint errors, ratchets passed).
+- [ ] Push a non-force merge commit and verify latest GitHub checks and mergeability.
