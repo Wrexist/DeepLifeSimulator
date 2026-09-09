@@ -1179,7 +1179,7 @@ replaced with review checklists.
 
 | File | Contents |
 |---|---|
-| `README.md` | Feature overview, web preview viewports, cloud-save backend contract |
+| `README.md` | Project entry point, current work links and repository map |
 | `tasks/lessons.md` | Post-mortems and recurring bug patterns — read first |
 | `tasks/social-systems-2026-09-03.md` | The social/relationship/family map, the persona measurements, and §4.8's evidence |
 | `tasks/relationship-depth-2026-09-03.md` | What a bond is WORTH: the controlled cohort experiment, the ladder measurements, and §4.7's evidence |

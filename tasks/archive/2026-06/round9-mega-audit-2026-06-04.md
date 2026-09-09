@@ -204,7 +204,7 @@ is unreferenced. **Fix:** delete it (clears 6 TS errors, zero behavior change).
   `<Stack>` (web-only, gate with `Platform.OS==='web'`); `restoreFromBackup` writes legacy key only,
   not double-buffer (`saveValidation.ts:1321`); work.tsx ships debug counters in empty-state (`work.tsx:960`);
   StocksApp market vs holdings price divergence; BTC halving countdown is a dead indicator;
-  privacy policy says "AdMob disabled" while prod ships it enabled (`UPDATED_PRIVACY_POLICY.md:31`);
+  privacy policy says "AdMob disabled" while prod ships it enabled (`docs/archive/privacy-policy-2025-10-20.md:31`);
   accessibility labels missing on IdentityCard tappable rows.
 
 ---

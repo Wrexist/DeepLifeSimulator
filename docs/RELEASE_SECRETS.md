@@ -197,5 +197,5 @@ To create it once:
 > future run of this workflow can upload automatically. The workflow's Play
 > **track** is chosen per-run (default `internal`).
 >
-> Keep `UPDATED_PRIVACY_POLICY.md` and the Play Data Safety form in sync with the
+> Keep `support-site/privacy.html` and the Play Data Safety form in sync with the
 > shipped `EXPO_PUBLIC_ENABLE_ADMOB` + Android `AD_ID` permission.

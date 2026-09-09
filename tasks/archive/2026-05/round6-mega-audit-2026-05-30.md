@@ -249,7 +249,7 @@ These claims were filed by the audit agents but contradicted by direct reading o
 
 ### First batch (initial audit commit)
 1. **C-1** — `work.tsx` 12 unguarded array accesses → `(arr || []).find(…)`.
-2. ~~**C-2** — `computer.tsx` + `mobile.tsx` → `React.lazy()` for all 25 sub-app imports.~~ **REVERTED 2026-05-30**: the production iOS Hermes bundle crashed at first launch with `Element type is invalid: ... but got: undefined` in the root navigator. expo-router's boot-time screen scan walks the lazy wrappers in a way Hermes can't unwrap. Restored eager imports. Added [__tests__/startup/screenImports.test.ts](../__tests__/startup/screenImports.test.ts) to assert no `React.lazy(() => import(…))` in `(tabs)/` screens so this regression can't recur. The startup-perf win is queued as a future PR using a different mechanism (deferred `require()` inside `useEffect` after mount, behind an error boundary).
+2. ~~**C-2** — `computer.tsx` + `mobile.tsx` → `React.lazy()` for all 25 sub-app imports.~~ **REVERTED 2026-05-30**: the production iOS Hermes bundle crashed at first launch with `Element type is invalid: ... but got: undefined` in the root navigator. expo-router's boot-time screen scan walks the lazy wrappers in a way Hermes can't unwrap. Restored eager imports. Added [__tests__/startup/screenImports.test.ts](../../../__tests__/startup/screenImports.test.ts) to assert no `React.lazy(() => import(…))` in `(tabs)/` screens so this regression can't recur. The startup-perf win is queued as a future PR using a different mechanism (deferred `require()` inside `useEffect` after mount, behind an error boundary).
 3. **C-3** — ProGuard rules expanded.
 4. **C-4** — `android/app/build.gradle` versionCode/versionName synced to package.json.
 

@@ -1,7 +1,7 @@
 # DeepLife Simulator — Master Execution Plan
 
 **Date:** 2026-06-19
-**Companion to:** `tasks/retention-and-content-strategy-2026-06-19.md` (the "why")
+**Companion to:** `tasks/archive/2026-06/retention-and-content-strategy-2026-06-19.md` (the "why")
 **This doc:** the "how" — every initiative broken into phases with tasks, files,
 dependencies, acceptance criteria, verification, and risks.
 **Status:** Proposal for review — nothing built yet.

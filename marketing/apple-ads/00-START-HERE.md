@@ -82,7 +82,7 @@ most expensive mistake available to you.
 **Check now:** App Store Connect → your app → Ratings & Reviews.
 
 The last number recorded in this repo is **2.3 stars from 8 reviews**
-(`Deep_Life_Simulator_Marketing_Plan.md`, March 2026) — months old, so do not
+(`marketing/archive/Deep_Life_Simulator_Marketing_Plan.md`, March 2026) — months old, so do not
 trust it. Look up today's number and write it down:
 
 > Live rating: `______` from `______` reviews · checked on `__________`
@@ -102,7 +102,7 @@ the rating and leave. You still pay for every one of those taps. Advertising a
 2.3-star app is paying full price for a third of the results.
 
 Getting to 4.0+ is worth more than every optimization in this folder combined.
-Phase 1 of `Deep_Life_Simulator_Marketing_Plan.md` covers how.
+Phase 1 of `marketing/archive/Deep_Life_Simulator_Marketing_Plan.md` covers how.
 
 ### Gate 2 — Which name is actually live?
 

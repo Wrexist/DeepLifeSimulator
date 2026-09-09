@@ -95,7 +95,7 @@ Cohort size = installs whose **first** `retention_day` had `dayIndex = 0`.
 
 Filter `anchorEstimated = true` out of **both** numerator and denominator.
 
-The benchmarks in `tasks/retention-and-content-strategy-2026-06-19.md`
+The benchmarks in `tasks/archive/2026-06/retention-and-content-strategy-2026-06-19.md`
 (D1 ≈ 26%, D7 ≈ 10%, D30 < 4%; top casual D1 35%+, D7 12%+) are **classic
 day-N**. Compare like with like.
 

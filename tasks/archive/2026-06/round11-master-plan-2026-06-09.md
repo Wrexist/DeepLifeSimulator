@@ -3,7 +3,7 @@
 Five parallel deep-dive audits (type-safety, performance/memory, monetization,
 architecture/decomposition, UX/design-system+a11y). This is the complete findings
 catalogue and a sequenced plan to fix everything. Companion to
-`tasks/round11-roadmap-2026-06-09.md` (the tier overview) — this is the detail.
+`tasks/archive/2026-06/round11-roadmap-2026-06-09.md` (the tier overview) — this is the detail.
 
 ## Verified baseline (run 2026-06-09 on `claude/app-audit-roadmap-f5ukvy`)
 
@@ -32,7 +32,7 @@ Severity: **P0** release/revenue/store blocker · **P1** high (exploit/broken/co
 | MON-4 | P1 | **Remove-Ads not honored after relaunch.** `BannerAd` gates on in-memory `iapService.hasPurchased()`, not persisted `settings.adsRemoved`/`lifetimePremium`. Ads can reappear for payers. | `BannerAd.tsx:32-33` |
 | MON-5 | P1 | **Android serves personalized ads with no consent.** `isTrackingAllowed()` returns `true` unconditionally on Android → AdMob requests personalized ads, no UMP/GDPR flow. | `trackingTransparency.ts:197-199` |
 | MON-6 | P1 | **AdMob ships test ad unit IDs** by default (real IDs unset). Preflight §10 blocks prod, but the 6 EAS secrets aren't configured. | `AdMobService.ts:102-122` |
-| MON-7 | P1 | **Privacy policy says ads "currently disabled"** while prod ships them enabled — App Store privacy-label mismatch. | `UPDATED_PRIVACY_POLICY.md:31,152` |
+| MON-7 | P1 | **Privacy policy says ads "currently disabled"** while prod ships them enabled — App Store privacy-label mismatch. | `docs/archive/privacy-policy-2025-10-20.md:31,152` |
 | MON-8 | P2 | Dead duplicate reads: `goldUpgrades.work_boost/fast_learner/mindset` are read but never written (IAP writes `perks.*`). Vestigial OR-branches. | `MoneyActionsContext.tsx:161-170` |
 | MON-9 | P2 | **Three divergent entitlement-apply paths** (`applyBenefitToDisk`, `applyProductToState`, `ShopModal.applyPurchaseBenefits`) — drift risk. Consolidate to one. | IAPService + ShopModal |
 | MON-10 | P2 | `EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS` tamper hatch (preflight-blocked in prod; keep unset). | `IAPService.ts:28-30` |
@@ -150,7 +150,7 @@ batches) and the `as any[]` income loops. Replace `{} as any` fallbacks (TS-5) w
 
 **1.3 (Dev, MON-4/5/6/7) — AdMob + compliance:** gate `BannerAd` on persisted `adsRemoved`/
 `lifetimePremium`; integrate Google UMP consent for Android/EU; set the 6 ad-unit EAS secrets;
-update `UPDATED_PRIVACY_POLICY.md` + App Store privacy labels to match shipped ad state.
+update `docs/archive/privacy-policy-2025-10-20.md` + App Store privacy labels to match shipped ad state.
 
 **Gate:** `as any` count down to style-casts only; UMP consent verified on Android; `npm test` green.
 

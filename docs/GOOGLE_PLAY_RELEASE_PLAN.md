@@ -348,7 +348,7 @@ The questionnaire is a legal declaration. This game contains:
 only decision you actually make is to answer honestly. Given the crime content,
 expect it to land at the mature end (ESRB Teen or Mature; PEGI 12–16), which is
 consistent with the 18+ target audience and the 17+ posture in
-`UPDATED_PRIVACY_POLICY.md`. **Do not soften answers to chase a lower rating** — a
+`support-site/privacy.html`. **Do not soften answers to chase a lower rating** — a
 misdeclared rating is a suspension risk, and a higher rating costs you nothing when
 you are targeting 18+ anyway. If the questionnaire returns something that looks
 wrong, re-read your answers rather than re-running it until you like the result.

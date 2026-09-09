@@ -43,10 +43,10 @@ There are TWO version numbers and they are deliberately different.
 Do NOT set the App Store Connect record to 2.9.0 "to match". Store version
 numbers can only ever increase, so that is a one-way door that permanently
 abandons the 1.x line. Apple never compares the two. CLAUDE.md §9 explains
-this; docs/LAUNCH-v2.8.0-STEP-BY-STEP.md notes that two committed docs
+this; docs/archive/releases/LAUNCH-v2.8.0-STEP-BY-STEP.md notes that two committed docs
 disagreed about whether the next record was 1.4.0 or 1.5.0 — the owner has
 settled it: it is 1.5.0. Correct CLAUDE.md §9 and
-docs/RELEASE-2.7.0-SUBMISSION.md so they agree, and say so in the PR.
+docs/archive/releases/RELEASE-2.7.0-SUBMISSION.md so they agree, and say so in the PR.
 
 ## Phase 1 — Make `npm run preflight` pass (this is the only real blocker)
 
@@ -139,7 +139,7 @@ PATH A — credentials available. Automate it.
 
 PATH B — no credentials. Produce the checklist instead.
   Write docs/RELEASE-1.5.0-SUBMISSION.md following the shape of the existing
-  docs/RELEASE-2.7.0-SUBMISSION.md and docs/LAUNCH-v2.8.0-STEP-BY-STEP.md:
+  docs/archive/releases/RELEASE-2.7.0-SUBMISSION.md and docs/archive/releases/LAUNCH-v2.8.0-STEP-BY-STEP.md:
   every App Store Connect field with its exact final value, in the order the
   UI presents them, so it can be worked top to bottom without a decision.
   Include the en-US and es-MX What's New text in full, ready to paste.
@@ -181,7 +181,7 @@ trivial. Report them, do not silently fix them:
     number you actually achieved
   - the store copy for 2.9.0 lives in marketing/aso/metadata.mjs for both
     shipped locales and check:aso validates it
-  - CLAUDE.md §9 and docs/RELEASE-2.7.0-SUBMISSION.md agree that the next
+  - CLAUDE.md §9 and docs/archive/releases/RELEASE-2.7.0-SUBMISSION.md agree that the next
     store record is 1.5.0
   - either scripts/asc-version.mjs exists and has been run in read-only mode
     against the real app, or docs/RELEASE-1.5.0-SUBMISSION.md is complete

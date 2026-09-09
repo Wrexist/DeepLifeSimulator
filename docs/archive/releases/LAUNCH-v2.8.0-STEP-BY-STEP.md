@@ -148,7 +148,7 @@ Set the App Store Connect **version record**, which is a different number from
 the binary. Two committed docs disagree about what it should be:
 
 - `CLAUDE.md` §9 says 1.3.5 is live and **1.4.0** is next.
-- `docs/RELEASE-2.7.0-SUBMISSION.md` says next is **1.5.0**.
+- `docs/archive/releases/RELEASE-2.7.0-SUBMISSION.md` says next is **1.5.0**.
 
 They disagree because 2.7.0 may or may not have actually been submitted. **Look
 at App Store Connect and pick the next number above your last *released*
@@ -258,7 +258,7 @@ removed — it arrives when it means something.
 
 I did not ship it because **it changes what every existing player sees**, not
 just new ones. That is a product call, not a correctness one. Ranked
-cheapest-first in `tasks/review-response-2026-08-10.md` §3.
+cheapest-first in `tasks/archive/2026-08/review-response-2026-08-10.md` §3.
 
 Say the word and I will build it.
 

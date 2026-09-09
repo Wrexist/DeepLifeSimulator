@@ -1,3 +1,5 @@
+> Reference copy moved from the repository root. Verify current product IDs, quantities and localized store prices before applying it; this is not a live catalog export.
+
 # Complete IAP Localization List for DeepLife Simulator
 
 This document contains all In-App Purchases (IAPs) that need localization in App Store Connect (iOS) and Google Play Console (Android).

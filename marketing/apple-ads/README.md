@@ -33,7 +33,7 @@ placements (Today tab, Search tab, Product Pages) beyond Search Results.
 | 6 | [`06-optimization-playbook.md`](06-optimization-playbook.md) | Daily/weekly/monthly rules — exact thresholds, no judgement calls |
 | 7 | [`07-geo-and-budget-plan.md`](07-geo-and-budget-plan.md) | Country tiers, 90-day budget phasing, scale triggers |
 
-Bulk-upload lists live in [`keywords/`](keywords/) and [`negatives/`](negatives/)
+Bulk-upload lists live in [`keywords/`](keywords) and [`negatives/`](negatives)
 as CSV.
 
 ---
@@ -74,7 +74,7 @@ structure above leads with brand and long-tail exact keywords instead of buying
 Apple Ads sends traffic to your **product page**. The page converts, not the ad.
 
 1. **Rating ≥ 4.0 with 30+ reviews.** The last figure recorded in this repo is
-   **2.3★ / 8 reviews** (`Deep_Life_Simulator_Marketing_Plan.md`, Mar 2026).
+   **2.3★ / 8 reviews** (`marketing/archive/Deep_Life_Simulator_Marketing_Plan.md`, Mar 2026).
    That figure is stale by construction — **re-check the live number in App
    Store Connect immediately before enabling spend** and record what you saw.
    Paid traffic into a 2.3★ page converts at a fraction of benchmark, so you pay

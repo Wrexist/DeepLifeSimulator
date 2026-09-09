@@ -18,7 +18,7 @@
  * Both are one query away from `dayIndex`, and neither can be recovered if the
  * device picks one and throws the other away. So the device emits the index and
  * the sink defines the metric. (The benchmarks in
- * `tasks/retention-and-content-strategy-2026-06-19.md` — D1 26%, D7 10% — are
+ * `tasks/archive/2026-06/retention-and-content-strategy-2026-06-19.md` — D1 26%, D7 10% — are
  * classic day-N.)
  *
  * THE DEVICE CLOCK. `dayIndex` is wall-clock derived, and this repo has five

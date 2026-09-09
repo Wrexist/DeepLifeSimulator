@@ -23,7 +23,7 @@ This checklist converts the audit plan into executable PRs with file-level owner
 
 ## PR-02 - Baseline Quality Pipeline and Reports
 - [x] `scripts/preflight-check.js` - Owner: `Tooling` - Effort: `2h`
-- [x] `tasks/baseline-failures-2026-03-09.md` - Owner: `Tooling + QA` - Effort: `1h`
+- [x] `tasks/archive/2026-03/baseline-failures-2026-03-09.md` - Owner: `Tooling + QA` - Effort: `1h`
 - [x] `package.json` scripts audit (`preflight:quick`, `lint`, `test`) - Owner: `Tooling` - Effort: `1h`
 - Exit criteria:
 - [x] Stable baseline counts recorded and reproducible locally

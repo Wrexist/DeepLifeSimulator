@@ -68,7 +68,7 @@ failures — both are missing EAS secrets, not code defects.** Routes clean
 
 ## Blocker 5 — Privacy policy alignment 🟡
 
-- **Verified:** `UPDATED_PRIVACY_POLICY.md` exists and **does** cover AdMob + ATT,
+- **Verified:** `docs/archive/privacy-policy-2025-10-20.md` exists and **does** cover AdMob + ATT,
   but states AdMob is *"Currently disabled in this version"* (lines 31).
 - **What's needed:** when ads/analytics actually ship, update the policy to say so,
   and add the new pure-JS telemetry pipeline (anonymous install id, no device/ad id)
