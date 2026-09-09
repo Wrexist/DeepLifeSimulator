@@ -1486,4 +1486,9 @@ Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.
 - [x] Replace the rejected cream/scenery layout with game-native navy surfaces, semantic accents, and prominent authentic gameplay actions.
 - [x] Rewrite all ten stories around concrete choices and rewards; compose dedicated iPhone and iPad layouts.
 - [x] Visually inspect all stories, validate all 30 exports, and update the downloadable pack and documentation.
-- [ ] Open a new PR against current main and inspect its latest CI checks.
+- [x] Open a new PR against current main and inspect its latest CI checks.
+
+PR #204: all 30 revised exports and the download ZIP validated. Remote tree
+matches the locally verified files. No merge conflicts. EAS Update CI is still
+running at handoff; Supabase Preview was skipped. Native iOS parity remains
+a release-build check, since these are reused web gameplay captures.
