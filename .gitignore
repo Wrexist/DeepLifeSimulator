@@ -110,6 +110,7 @@ coverage/
 screenshots/*
 !screenshots/README.md
 !screenshots/appstore-2026/
+!screenshots/player-stories-2026-09/
 # The three ready-to-upload sets and the real-gameplay captures they compose
 # from. Re-capturing is documented as silently stale-prone, so the captures are
 # tracked on purpose; recomposing from them is the cheap, deterministic path.

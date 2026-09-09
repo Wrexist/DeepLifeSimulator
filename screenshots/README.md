@@ -1,26 +1,41 @@
 # App Store screenshots
 
-The current campaign is the [immersive September 2026 edition](appstore-2026/README.md).
+The current set is [Your life. Your way.](player-stories-2026-09/README.md),
+the player-stories campaign created 9 September 2026.
 
-| Device | Current main set | Dimensions |
+| Device | Upload folder | Dimensions |
 | --- | --- | --- |
-| iPhone 6.9 | `appstore-2026/iphone-6.9/` | 1320 × 2868 |
-| iPhone 6.5 | `appstore-2026/iphone-6.5/` | 1284 × 2778 |
-| iPad 13 | `appstore-2026/ipad-13/` | 2064 × 2752 |
+| iPhone 6.9″ | `player-stories-2026-09/iphone-6.9/` | 1320 × 2868 |
+| iPhone 6.5″ | `player-stories-2026-09/iphone-6.5/` | 1284 × 2778 |
+| iPad 13″ | `player-stories-2026-09/ipad-13/` | 2064 × 2752 |
 
-Use the ten main images in filename order. Optional images in `appstore-2026/alternatives/` replace a main slot. The 47 exports combine real game captures with 16 distinct cinematic artwork plates. The art, fonts, prompts and compositor are under `appstore-2026/source/`.
+Ten distinct images per device, uploaded in filename order. They cover life
+choices, business, relationships, careers, education, investing, property,
+cars, streaming, travel and family through player outcomes and authentic UI.
 
-Before uploading, verify that these existing web captures match the iOS build being submitted. Export validation does not establish native-build parity.
+![First three](player-stories-2026-09/first-three.png)
 
-## Rebuild from the repository root
+[Full iPhone overview](player-stories-2026-09/overview-iphone.png) ·
+[Full iPad overview](player-stories-2026-09/overview-ipad.png)
+
+Before uploading, verify that these existing web captures match the iOS build
+being submitted. The first image uses the newer compact Home UI. Export
+validation does not establish native-build parity.
+
+## Rebuild
 
 ```bash
-npm install --prefix screenshots/appstore-2026/source
+npm ci --prefix screenshots/appstore-2026/source
 node scripts/generate-appstore-2026-set.mjs
 node scripts/generate-appstore-2026-ipad.mjs
-node screenshots/appstore-2026/source/previews.mjs
+node screenshots/player-stories-2026-09/source/verify.mjs
+node screenshots/player-stories-2026-09/source/previews.mjs
 ```
 
-Keep `rich-captures/` and `rich-captures-ipad/`, including their text sidecars. They are shared source inputs and are reused without duplication. Re-capture only when gameplay has changed, using `scripts/capture-rich-state.mjs` and the phone/tablet viewport settings documented in its source. Its label-driven actions require review after UI copy changes.
+The [previous immersive campaign](appstore-2026/README.md) is retained for
+comparison. Its captures, fonts and nine artwork plates are shared inputs to the
+new campaign. Keep its source directories and text sidecars. Re-capture changed
+screens through `scripts/capture-rich-state.mjs`, reviewing its label-driven
+actions after UI changes.
 
-Nothing in this directory is bundled into the playable app.
+Nothing here is bundled into the playable app.

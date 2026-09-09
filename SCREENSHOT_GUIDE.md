@@ -21,9 +21,9 @@ This file covers the surrounding rules: what Apple requires, and how to upload.
 
 | Upload to | Folder | Size |
 |---|---|---|
-| **iPhone 6.9" (required)** | `screenshots/appstore-2026/iphone-6.9/` | 1320 × 2868 |
-| iPhone 6.5" | `screenshots/appstore-2026/iphone-6.5/` | 1284 × 2778 |
-| iPad 13" | `screenshots/appstore-2026/ipad-13/` | 2064 × 2752 |
+| **iPhone 6.9" (required)** | `screenshots/player-stories-2026-09/iphone-6.9/` | 1320 × 2868 |
+| iPhone 6.5" | `screenshots/player-stories-2026-09/iphone-6.5/` | 1284 × 2778 |
+| iPad 13" | `screenshots/player-stories-2026-09/ipad-13/` | 2064 × 2752 |
 
 Ten frames each, uploaded **in filename order** (`01…` first). Apple down-scales
 the 6.9" set to every smaller iPhone class, so those three cover the store.
@@ -36,7 +36,7 @@ node scripts/generate-appstore-2026-ipad.mjs   # iPad 13"
 ```
 
 Full pipeline, including re-capturing from a running app when the UI itself has
-changed, is in [`screenshots/appstore-2026/README.md`](./screenshots/appstore-2026/README.md).
+changed, is in [`screenshots/player-stories-2026-09/README.md`](./screenshots/player-stories-2026-09/README.md).
 Design rationale is in [`docs/store-screenshot-design.md`](./docs/store-screenshot-design.md).
 
 ---
@@ -51,9 +51,10 @@ Screenshots must:
 - match the real UI; marketing text may frame a capture but must not obscure it
 - be correct for each size class, 5–10 per class
 
-The reason the generated set satisfies 2.3.3 is that every frame contains a real
-capture of the shipping build, driven through the app by Playwright. Hand-mocked
-or HTML-faked screens would not.
+Every frame contains real gameplay captures. The new campaign reuses repository
+web captures, with the newer compact Home UI in the opening frame. Confirm that
+they match the native iOS build being submitted. This is not a claim that native
+parity or Apple review approval has been established.
 
 ## Uploading to App Store Connect
 
