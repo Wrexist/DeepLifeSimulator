@@ -5,7 +5,7 @@
 | Current status | [todo.md](todo.md) |
 | Next master prompt | [MASTER_PROMPT_BACKLOG.md](MASTER_PROMPT_BACKLOG.md) |
 | Recurring lessons | [lessons.md](lessons.md) |
-| Current release queue | `release/` on [PR #203](https://github.com/Wrexist/DeepLifeSimulator/pull/203) until merged |
+| Current release queue | [Release queue and evidence](release/README.md) |
 | September implementation evidence | Dated reports in this directory |
 | Earlier audits and completed plans | [archive/](archive/README.md) |
 

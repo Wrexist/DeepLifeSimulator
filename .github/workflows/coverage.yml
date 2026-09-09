@@ -1,0 +1,53 @@
+name: Coverage ratchet
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+  pull_request:
+    paths:
+      - '.github/workflows/coverage.yml'
+      - 'jest.config.js'
+      - 'jest.setup.js'
+      - 'babel.config.js'
+      - 'tsconfig.jest.json'
+      - 'tsconfig.json'
+      - 'scripts/check-coverage.js'
+      - 'scripts/lib/coverageRatchet.js'
+      - '__tests__/helpers/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Full suite with coverage
+        run: npm run test:coverage -- --ci --runInBand
+      - name: Enforce coverage floors
+        run: npm run coverage:ratchet
+      - name: Preserve coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: |
+            coverage/coverage-summary.json
+            coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 14

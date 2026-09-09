@@ -5,7 +5,8 @@ Use [current work](../todo.md) and [the master-prompt backlog](../MASTER_PROMPT_
 
 ## Ledger snapshots
 
-- [Original TODO ledger](todo-before-cleanup-2026-09-09.md)
+- [Initial audit TODO ledger at 811cfc2](todo-before-cleanup-2026-09-09.md)
+- [Full TODO ledger immediately before cleanup integration at a470e79](todo-before-integration-2026-09-09.md), including concurrent release and review work
 - [Complete pre-cleanup audit inventory](todo-inventory-2026-09-09.md)
 
 ## Archived reports

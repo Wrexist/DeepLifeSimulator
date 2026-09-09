@@ -5,6 +5,7 @@ Start with [current work](../tasks/todo.md) and [project instructions](../CLAUDE
 ## Build, release and store
 
 - [Release runbook](RELEASE_RUNBOOK.md)
+- [CI gates and cadence](CI_GATES.md)
 - [App Store automation](ASC-AUTOMATION.md)
 - [Current release execution reference](RELEASE-2.13.0-EXECUTION-PACKET.md): check current version/build records before reusing inputs
 - [Google Play plan](GOOGLE_PLAY_RELEASE_PLAN.md)
