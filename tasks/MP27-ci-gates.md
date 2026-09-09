@@ -27,9 +27,12 @@ Merge only after MP00 integration and all applicable current-head checks pass.
 
 ## Acceptance evidence
 
-- Both YAML files parse. Sixteen representative path cases pass, including
+- Both YAML files parse. Twenty-two representative path cases pass, including
   ordinary component/event/liveops changes, helper/coverage configuration changes,
   self-workflow changes and docs/archive exclusions.
+- Coverage filters include the actual Babel and TypeScript transform inputs:
+  `babel.config.js`, `tsconfig.jest.json` and its base `tsconfig.json`. This
+  addresses PR #207's review finding after confirming the Jest configuration.
 - All three quality scripts pass locally with existing floors/ceilings.
 - First remote quality job `102426880583` passed. Latest PR #207 checks and
   merge state are the current acceptance record.
