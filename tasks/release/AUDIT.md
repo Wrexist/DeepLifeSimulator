@@ -183,3 +183,24 @@ recorded blockers are resolved with evidence for the actual candidate.
 Candidate `13fe9f315dd53ea141f98eaf1bde76db3845b16b`, PR #203, exactly matches the local implementation tree. Both remote workflows passed: Preflight run 34309941424 and EAS Update run 34309941422 (including preview update). Post-rebase local preflight also exited 0.
 
 Full normal suite: 782 passed suites, 9,779 passed tests, 308 snapshots; 17 opt-in suites/32 tests skipped; exit 0 in 237.659s. It reported a worker teardown warning. A diagnostic `npm test -- --runInBand --detectOpenHandles --silent` reproduced all 782/9,779/308 passes in 613.388s, but the process stayed alive after the summary without identifying a handle. This diagnostic is not claimed as a clean exit. R05 remains active to isolate the test-runner cleanup cause; do not repeat the whole suite without narrowing the leak first or introduce forceExit to hide it. The focused real-save simulations exit cleanly.
+
+## R05 cleanup completed
+
+The preceding active status is superseded by implementation `591f372345d0be784169da7a96ac69827945f4ce`.
+Domain isolation and async-resource tracing identified orphaned storage-readiness
+deadlines, unawaited provider teardown in a jail-action fixture, and a subscription
+test that abandoned its 90-second purchase request. Each owner now completes or
+clears its own resource, with focused regression assertions; no forceExit, timer
+purge, weakened threshold or production purchase-timeout change.
+
+Full serial suite: **782 suites / 9,782 tests / 308 snapshots**, exit 0 in 591.556s,
+without delayed-exit/worker-teardown warnings. Focused open-handle diagnostic: 23
+tests, exit 0. Fresh 120-week save/load, five-persona 3 x 80-week replay and
+four-persona 100-week retention runs all exit 0. Types, local preflight and unchanged
+lint ratchet pass. Details and timing caveats:
+`tasks/release/evidence/R05-cleanup-2026-09-09.md`.
+
+R05 is locally verified. Remaining packages require the already recorded visual,
+native, production-environment or store evidence; no independent pending package
+is eligible. Keep the release verdict **HOLD**, inspect latest pushed-head CI
+separately, and do not retry unchanged external blockers or expand feature scope.

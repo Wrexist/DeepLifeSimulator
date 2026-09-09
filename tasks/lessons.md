@@ -5765,3 +5765,18 @@ inside the guarded authoritative tick, with life-scoped deterministic rolls.
 Return action outcomes from the same pure resolver used by the updater, rather
 than adding unconditional success after a state update. The existing result
 ratchet caught that follow-up defect and was preserved.
+
+## 2026-09-09 — Tests own the resources they start
+
+A green assertion is not a completed asynchronous operation. The subscription
+routing test abandoned purchaseItemAsync, leaving its 90-second deadline alive.
+Complete the mock store event, await the result and assert cancellation of that
+specific deadline; do not shorten the production timeout or use forceExit.
+React 19 unmount also schedules work: await act around fixture teardown in an
+afterEach, including assertion-failure paths, then verify provider intervals were
+cleared. Finally, Promise.race does not cancel its loser: storage-readiness attempts
+must clear their timeout in finally on success, rejection and timeout.
+
+Install the isolated asset-tooling lockfile as CI does before repository-wide
+lint (`npm ci --prefix art/game-assets-v1/source`). Missing three/sharp in a fresh
+checkout is an installation gap, not seven new source defects.

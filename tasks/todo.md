@@ -15,6 +15,12 @@ This section supersedes historical Active headings below as the current queue.
 - [ ] Execute further actionable packages in dependency order, verifying each before completion.
 - [ ] Check latest PR CI and record remaining native/store gates without claiming approval.
 
+R05 cleanup continuation:
+- [x] Refresh the concurrent `b5aa2a8` handoff and narrow the runner issue by domain.
+- [x] Reproduce and fix owned-resource cleanup without hiding unfinished work.
+- [x] Verify affected suites and local candidate gates; record remaining remote/native/store gates.
+      R05 evidence: `tasks/release/evidence/R05-cleanup-2026-09-09.md`.
+
 No automatic production OTA, native build, merge or App Store submission is implied.
 Keep version 2.13.0/schema 51 until verified release identity requires a new binary version.
 Preserve PR #202 screenshot work. User approval to start this plan is provided in this chat.

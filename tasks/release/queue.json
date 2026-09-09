@@ -132,9 +132,16 @@
         "R02"
       ],
       "kind": "audit",
-      "status": "active",
+      "status": "verified",
       "prompt": "tasks/release/R05.md",
       "evidence": [
+        {
+          "commit": "591f372345d0be784169da7a96ac69827945f4ce",
+          "result": "Resource ownership fixed and regression-tested. Full serial suite: 782 suites/9782 tests/308 snapshots, clean exit; focused detectOpenHandles clean; 120-week save/load, five-persona 3x80-week replay and four-persona 100-week retention pass. Source/test types and local preflight pass; budgets unchanged. Native and latest-push remote gates remain separate.",
+          "references": [
+            "tasks/release/evidence/R05-cleanup-2026-09-09.md"
+          ]
+        },
         {
           "commit": "13fe9f315dd53ea141f98eaf1bde76db3845b16b",
           "result": "782 suites/9779 tests/308 snapshots pass; full replay and save/load pass; both remote workflows pass. Remaining runner cleanup warning reproduced by serial tracing, cause not isolated.",
