@@ -5734,3 +5734,12 @@ Combining an older standalone coach with the newer GoalsCard-embedded coach woul
 restore duplicate job guidance. Preserve the complete newer Home hierarchy and
 keep the asset pack separate. Check automatically merged neighboring sections too,
 including the identity card and recap positions, not only conflict markers.
+
+
+## 2026-09-09 — Store artwork must preserve the game's identity
+
+The user rejected cream headers and large cinematic scenery because they did
+not look like Deep Life Simulator or communicate enjoyable interaction. Start
+from the current theme tokens, actual avatars, controls, and rewarding choices.
+Use marketing copy to frame what the player can do and achieve. Keep gameplay
+large enough to read and inspect complete cards on every device format.

@@ -1,8 +1,12 @@
-# Deep Life Simulator: Your life. Your way.
+# Deep Life Simulator: Small start. Big life.
 
-A new ten-image App Store campaign focused on the experience of building a life.
-Warm ivory headlines, individual cinematic illustrations, readable gameplay
-panels and a consistent navy finish. Created 9 September 2026.
+Revised after the original campaign was rejected for not matching the game.
+All ten compositions now use navy game surfaces, bright semantic accents,
+the actual app icon, prominent gameplay controls, and shorter action-led copy.
+No scenic illustrations appear in the exports. The first image follows an example
+character from a modest start through a first action to an aspirational career.
+The iPad layout uses wider cards and independently cropped tablet captures.
+Revised 9 September 2026.
 
 ![First three](first-three.png)
 
@@ -24,16 +28,16 @@ These sizes follow [Apple's screenshot specifications](https://developer.apple.c
 
 | # | Headline | Player experience and gameplay proof |
 | --- | --- | --- |
-| 01 | Your life. Your way. | Current first-job guidance paired with an established career. Different example lives illustrate progression, not a promised timeline. |
-| 02 | Be your own boss. | Launch a company and develop revenue, market share and brand. |
-| 03 | Find your kind of love. | Discover profiles and choose who to pursue in Spark. |
-| 04 | Start small. Aim higher. | Earn qualifications and progress to senior jobs. |
-| 05 | Make more. Own more. | Combine a first property with the stock market. |
-| 06 | You earned this life. | Own and manage a supercar as a visible progression reward. |
-| 07 | One choice. A new chapter. | Pick between actual event options with their actual effects. |
-| 08 | Your channel. Your big break. | Start streaming, upgrade equipment and grow an audience. The example channel is explicitly at its starting state. |
-| 09 | Go beyond the everyday. | Get a passport and choose destinations including Paris, Tokyo and Bali. |
-| 10 | More to life than money. | Build relationships, raise children and maintain connections. |
+| 01 | Small start. Big life. | Current first-job guidance paired with an established career. Different example lives illustrate progression, not a promised timeline. |
+| 02 | Build it. Be the boss. | Launch a company and develop revenue, market share and brand. |
+| 03 | Swipe. Spark. Fall in love. | Discover profiles and choose who to pursue in Spark. |
+| 04 | Dream job? Work for it. | Earn qualifications and progress to senior jobs. |
+| 05 | First paycheck. Next property. | Combine a first property with the stock market. |
+| 06 | Dream car. Your keys. | Own and manage a supercar as a visible progression reward. |
+| 07 | Take the cash? Chase the fame? | Pick between actual event options with their actual effects. |
+| 08 | Go live. Get noticed. | Start streaming, upgrade equipment and grow an audience. The example channel is explicitly at its starting state. |
+| 09 | Next stop? Your choice. | Get a passport and choose destinations including Paris, Tokyo and Bali. |
+| 10 | Find your people. Build your life. | Build relationships, raise children and maintain connections. |
 
 The first three communicate agency, ambition and connection. Later images broaden
 the reasons to play without repeating a financial menu ten times. Ten is the
@@ -44,7 +48,7 @@ the previous campaign using Product Page Optimization before attributing an upli
 
 ## Sources and limits
 
-- Reviewed repository base: `1e8c0fdfccbe59a37b0634b77d0be79a526cd108`.
+- Reviewed repository base: `024f19e76cd1bc56693316e98b1fd5be089d1e4e`.
 - Frame 01 uses the newer Home captures in `docs/reviews/compact-hud/`, replacing
   the prior campaign's obsolete opening UI.
 - Other gameplay panels reuse the repository's real seeded web captures in
@@ -55,10 +59,11 @@ the previous campaign using Product Page Optimization before attributing an upli
   screenshots**. Confirm visible UI parity with the submitted iOS build before
   uploading. Export validation alone cannot establish native parity.
 - Source images show example game states, not guaranteed outcomes or real money.
-- Scenery is promotional illustration, not a playable 3D world. The new first
-  illustration was made with built-in image generation. Its brief is in
-  `source/art/prompt.txt`. Other plates reuse the established campaign artwork
-  and prompts in `../appstore-2026/source/art-prompts.json`.
+- The rejected scenic art remains archived under `source/art/` but is not
+  consumed by the renderer. The only image outside gameplay captures is the
+  existing app icon. Decorative line icons and layout are code-native SVG.
+- Colors follow `lib/config/theme.ts`: navy backgrounds, slate cards, blue
+  action accents, green progress, pink relationships, and purple investments.
 - `source/manifest.json` records exact inputs, crop rectangles, output hashes and
   per-frame storyboard hashes. The earlier campaign remains available for comparison.
 - No gameplay code, balance, monetization or App Store Connect data is changed.
