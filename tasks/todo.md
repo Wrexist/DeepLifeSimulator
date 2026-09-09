@@ -1480,3 +1480,15 @@ Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.
 - [x] Preserve main's compact Home and single coaching/goal surface, keep the reusable asset pack and static import fix, and retain both task histories.
 - [x] Run startup, Home/coaching/asset tests, type checks and lint ratchets (20 suites / 195 tests passed, both type trees clean, zero lint errors, ratchets passed).
 - [ ] Push a non-force merge commit and verify latest GitHub checks and mergeability.
+
+## 2026-09-09 — Rebuild store screenshots in the actual game theme
+
+- [x] Replace the rejected cream/scenery layout with game-native navy surfaces, semantic accents, and prominent authentic gameplay actions.
+- [x] Rewrite all ten stories around concrete choices and rewards; compose dedicated iPhone and iPad layouts.
+- [x] Visually inspect all stories, validate all 30 exports, and update the downloadable pack and documentation.
+- [x] Open a new PR against current main and inspect its latest CI checks.
+
+PR #204: all 30 revised exports and the download ZIP validated. Remote tree
+matches the locally verified files. No merge conflicts. EAS Update CI is still
+running at handoff; Supabase Preview was skipped. Native iOS parity remains
+a release-build check, since these are reused web gameplay captures.

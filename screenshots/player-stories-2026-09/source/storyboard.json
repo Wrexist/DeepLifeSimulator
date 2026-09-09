@@ -2,24 +2,38 @@
   {
     "id": "01-your-life",
     "title": [
-      "Your life.",
-      "Your way."
+      "Small start.",
+      "Big life."
     ],
     "sub": [
-      "Start with a little. Build a life",
-      "you cannot wait to come back to."
+      "Your first job is just the beginning.",
+      "What will you become?"
     ],
     "theme": "A LIFE FULL OF POSSIBILITIES",
-    "accent": "#D4B17A",
-    "ink": "#8A6026",
-    "art": "new",
-    "proof": "Every ambition starts somewhere.",
+    "accent": "#60A5FA",
+    "ink": "#60A5FA",
     "steps": [
-      "Make choices",
-      "Build a future",
-      "Live your story"
+      "Choose your path",
+      "Build your skills",
+      "Unlock more"
     ],
     "panels": [
+      {
+        "shot": "current-home",
+        "crop": [
+          0.04,
+          0.59,
+          0.92,
+          0.11
+        ],
+        "ipadCrop": [
+          0.02,
+          0.448,
+          0.96,
+          0.094
+        ],
+        "checks": []
+      },
       {
         "shot": "current-home",
         "crop": [
@@ -30,9 +44,9 @@
         ],
         "ipadCrop": [
           0.02,
-          0.147,
+          0.158,
           0.96,
-          0.275
+          0.222
         ],
         "checks": [
           "Choose your first job"
@@ -57,27 +71,31 @@
           "Top of the ladder"
         ]
       }
+    ],
+    "icon": "life",
+    "labels": [
+      "YOUR STORY STARTS HERE",
+      "CHOOSE YOUR FIRST MOVE",
+      "CLIMB THE CAREER LADDER"
     ]
   },
   {
     "id": "02-build-an-empire",
     "title": [
-      "Be your",
-      "own boss."
+      "Build it.",
+      "Be the boss."
     ],
     "sub": [
-      "Launch a company. Grow your revenue.",
-      "Make your ambition worth something."
+      "Start a company. Grow your brand.",
+      "Make the big decisions."
     ],
     "theme": "BUSINESS & AMBITION",
-    "accent": "#D4B17A",
-    "ink": "#8A6026",
-    "art": "02",
-    "proof": "Your business. Your next big move.",
+    "accent": "#34D399",
+    "ink": "#34D399",
     "steps": [
-      "Start a company",
-      "Grow your brand",
-      "Build an empire"
+      "Launch",
+      "Grow",
+      "Expand"
     ],
     "panels": [
       {
@@ -92,7 +110,7 @@
           0.022,
           0.099,
           0.956,
-          0.487
+          0.463
         ],
         "checks": [
           "Empire snapshot",
@@ -100,26 +118,28 @@
           "Brand"
         ]
       }
+    ],
+    "icon": "business",
+    "labels": [
+      "YOUR BUSINESS IN MOTION"
     ]
   },
   {
     "id": "03-find-love",
     "title": [
-      "Find your",
-      "kind of love."
+      "Swipe. Spark.",
+      "Fall in love."
     ],
     "sub": [
-      "Meet someone. Make a connection.",
-      "See where your story takes you."
+      "Find your match. Make your move.",
+      "Start a story together."
     ],
     "theme": "DATING & RELATIONSHIPS",
-    "accent": "#E7AEB5",
-    "ink": "#A04E5A",
-    "art": "03",
-    "proof": "A match can become so much more.",
+    "accent": "#FB7185",
+    "ink": "#FB7185",
     "steps": [
-      "Meet someone",
-      "Build a bond",
+      "Meet",
+      "Connect",
       "Fall in love"
     ],
     "panels": [
@@ -142,26 +162,28 @@
           "30 swipes left"
         ]
       }
+    ],
+    "icon": "heart",
+    "labels": [
+      "WHO WILL YOU CHOOSE?"
     ]
   },
   {
     "id": "04-reach-the-top",
     "title": [
-      "Start small.",
-      "Aim higher."
+      "Dream job?",
+      "Work for it."
     ],
     "sub": [
-      "Earn your degree. Land a better job.",
-      "Work your way to the top."
+      "Study. Get qualified. Get promoted.",
+      "Make every step count."
     ],
     "theme": "EDUCATION & CAREERS",
-    "accent": "#A4D6C9",
-    "ink": "#287463",
-    "art": "05",
-    "proof": "Turn qualifications into possibilities.",
+    "accent": "#34D399",
+    "ink": "#34D399",
     "steps": [
-      "Choose a path",
-      "Get qualified",
+      "Study",
+      "Qualify",
       "Get promoted"
     ],
     "panels": [
@@ -203,27 +225,30 @@
           "Computer Science"
         ]
       }
+    ],
+    "icon": "career",
+    "labels": [
+      "YOUR NEXT MILESTONE",
+      "SKILLS THAT OPEN DOORS"
     ]
   },
   {
     "id": "05-build-your-wealth",
     "title": [
-      "Make more.",
-      "Own more."
+      "First paycheck.",
+      "Next property."
     ],
     "sub": [
-      "Trade stocks. Buy your first property.",
-      "Build wealth beyond your paycheck."
+      "Trade stocks. Collect rent.",
+      "Build a portfolio of your own."
     ],
     "theme": "INVESTING & PROPERTY",
-    "accent": "#BEB7E4",
-    "ink": "#665097",
-    "art": "08",
-    "proof": "From your first investment to a portfolio.",
+    "accent": "#A78BFA",
+    "ink": "#A78BFA",
     "steps": [
-      "Invest in stocks",
-      "Buy property",
-      "Grow your portfolio"
+      "Earn",
+      "Invest",
+      "Own"
     ],
     "panels": [
       {
@@ -264,27 +289,30 @@
           "AAPL"
         ]
       }
+    ],
+    "icon": "wealth",
+    "labels": [
+      "A PLACE OF YOUR OWN",
+      "PICK YOUR INVESTMENTS"
     ]
   },
   {
     "id": "06-drive-the-dream",
     "title": [
-      "You earned",
-      "this life."
+      "Dream car.",
+      "Your keys."
     ],
     "sub": [
-      "Get the licence. Buy the dream car.",
-      "Make your progress feel real."
+      "Earn it. Buy it. Make it yours.",
+      "Build the garage you always wanted."
     ],
     "theme": "CARS & LIFESTYLE",
-    "accent": "#E4C275",
-    "ink": "#856017",
-    "art": "09",
-    "proof": "Your next milestone is waiting.",
+    "accent": "#FBBF24",
+    "ink": "#FBBF24",
     "steps": [
-      "Get your licence",
-      "Build your garage",
-      "Enjoy the rewards"
+      "Get licensed",
+      "Save up",
+      "Get the keys"
     ],
     "panels": [
       {
@@ -306,27 +334,29 @@
           "Your Vehicles"
         ]
       }
+    ],
+    "icon": "car",
+    "labels": [
+      "THE REWARD YOU WORKED FOR"
     ]
   },
   {
     "id": "07-shape-your-story",
     "title": [
-      "One choice.",
-      "A new chapter."
+      "Take the cash?",
+      "Chase the fame?"
     ],
     "sub": [
-      "Money, happiness or reputation?",
-      "Decide what matters to you."
+      "See the trade-offs. Make your choice.",
+      "Your decisions shape your life."
     ],
     "theme": "CHOICES & CONSEQUENCES",
-    "accent": "#D8B58C",
-    "ink": "#8E6236",
-    "art": "04",
-    "proof": "See the effects. Make the call.",
+    "accent": "#60A5FA",
+    "ink": "#60A5FA",
     "steps": [
-      "Face the moment",
-      "Weigh the effects",
-      "Choose your future"
+      "Explore",
+      "Decide",
+      "See what changes"
     ],
     "panels": [
       {
@@ -349,27 +379,29 @@
           "Embrace the feeling"
         ]
       }
+    ],
+    "icon": "choice",
+    "labels": [
+      "WHAT WOULD YOU DO?"
     ]
   },
   {
     "id": "08-become-a-creator",
     "title": [
-      "Your channel.",
-      "Your big break."
+      "Go live.",
+      "Get noticed."
     ],
     "sub": [
-      "Hit go live. Upgrade your setup.",
-      "Build an audience of your own."
+      "Start your channel. Upgrade your gear.",
+      "Give them a reason to tune in."
     ],
     "theme": "CREATORS & STREAMING",
-    "accent": "#CDB3E3",
-    "ink": "#81549C",
-    "art": "13",
-    "proof": "Even the biggest channels start at zero.",
+    "accent": "#A78BFA",
+    "ink": "#A78BFA",
     "steps": [
-      "Start streaming",
-      "Upgrade your gear",
-      "Grow your audience"
+      "Go live",
+      "Upgrade",
+      "Grow"
     ],
     "panels": [
       {
@@ -410,27 +442,30 @@
           "Upgrade"
         ]
       }
+    ],
+    "icon": "stream",
+    "labels": [
+      "YOUR CHANNEL STARTS HERE",
+      "BUILD A BETTER SETUP"
     ]
   },
   {
     "id": "09-see-the-world",
     "title": [
-      "Go beyond",
-      "the everyday."
+      "Next stop?",
+      "Your choice."
     ],
     "sub": [
-      "Get your passport. Pick a destination.",
-      "Turn success into new experiences."
+      "Paris, Tokyo or a break in Bali?",
+      "Make room for a little adventure."
     ],
     "theme": "TRAVEL & EXPERIENCES",
-    "accent": "#A7D6DC",
-    "ink": "#2D717B",
-    "art": "12",
-    "proof": "Paris, Tokyo, Bali. Where to next?",
+    "accent": "#22D3EE",
+    "ink": "#22D3EE",
     "steps": [
-      "Get your passport",
-      "Choose a destination",
-      "See the world"
+      "Get a passport",
+      "Pick a place",
+      "Take a break"
     ],
     "panels": [
       {
@@ -480,27 +515,30 @@
           "Paris"
         ]
       }
+    ],
+    "icon": "travel",
+    "labels": [
+      "WHERE WILL YOU GO?",
+      "PICK YOUR NEXT ADVENTURE"
     ]
   },
   {
     "id": "10-build-a-family",
     "title": [
-      "More to life",
-      "than money."
+      "Find your people.",
+      "Build your life."
     ],
     "sub": [
-      "Fall in love. Raise a family.",
-      "Build a life worth sharing."
+      "Make time for love and family.",
+      "Grow closer, one choice at a time."
     ],
     "theme": "FAMILY & CONNECTION",
-    "accent": "#E2BDA4",
-    "ink": "#925B36",
-    "art": "10",
-    "proof": "The people who make it all matter.",
+    "accent": "#FB7185",
+    "ink": "#FB7185",
     "steps": [
-      "Build relationships",
-      "Raise your children",
-      "Stay connected"
+      "Connect",
+      "Start a family",
+      "Grow together"
     ],
     "panels": [
       {
@@ -541,6 +579,11 @@
           "Child"
         ]
       }
+    ],
+    "icon": "family",
+    "labels": [
+      "MORE THAN A CONTACT LIST",
+      "YOUR CLOSEST CONNECTIONS"
     ]
   }
 ]

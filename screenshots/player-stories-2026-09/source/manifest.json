@@ -3,20 +3,30 @@
     "file": "ipad-13/01-your-life.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "c5480e5e8cdb948e33fe8a64854c696760736340deb46987a23ba7aa0a2a661a",
-    "frameSha256": "0834963aeb4951ebfb83a57c9fd4ebfa3e331872adbc5f45c4f6342ceeef8579",
-    "headline": "Your life. Your way.",
-    "art": "screenshots/player-stories-2026-09/source/art/01-new-beginnings.png",
-    "artSha256": "516c587e180c4421e5fc26202180c0e78f51101b004f8592942d98de954d1c1f",
+    "pngSha256": "dd40aa710cd07e2f63251819cc248bb9820cedd5a42b55d6ef53650d6730450c",
+    "frameSha256": "aff98db7d2fd483386a077694c17e4f83179e867c8d548c69a10fee28838c2c6",
+    "headline": "Small start. Big life.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "docs/reviews/compact-hud/home-768.png",
         "sha256": "975fd76ed6d964607f6e1645218c33ab6ca9720109e9ec36406fd2fa00a429d7",
         "crop": [
           31,
-          301,
+          918,
           1475,
-          563
+          193
+        ]
+      },
+      {
+        "file": "docs/reviews/compact-hud/home-768.png",
+        "sha256": "975fd76ed6d964607f6e1645218c33ab6ca9720109e9ec36406fd2fa00a429d7",
+        "crop": [
+          31,
+          324,
+          1475,
+          455
         ]
       },
       {
@@ -35,11 +45,11 @@
     "file": "ipad-13/02-build-an-empire.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "059ea938a2ea277eea7e040f0f9a9e66e0a401578c2421bec41e097b011136d8",
-    "frameSha256": "cafbffb78928cf61b31c6391e158b776de4d2dd694a6c6ba5b0f358e6ebca5d6",
-    "headline": "Be your own boss.",
-    "art": "screenshots/appstore-2026/source/art/02.png",
-    "artSha256": "409f7e705a82e8ce8adfbddaefc2b059d4981c8303bb8b6dacd6edcae27fb0d2",
+    "pngSha256": "f5cff9a7a15b10bd6e8faa31ed162b8f65df0b5bc29c36ec797166dc9df7912b",
+    "frameSha256": "f22935c0318afbd32f1d9cb45dc2af4efb20574bafe18d0eb0779ec9ccc344d8",
+    "headline": "Build it. Be the boss.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/17-x-company.png",
@@ -48,7 +58,7 @@
           45,
           270,
           1958,
-          1330
+          1265
         ]
       }
     ]
@@ -57,11 +67,11 @@
     "file": "ipad-13/03-find-love.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "76094c2de90718146dfa75289abd52b23487f97f2a72ed1ed365682708053a92",
-    "frameSha256": "61aefd95a69858955368b6cbf5de220dc920b90d01222f33ab730d44b8eb9eb7",
-    "headline": "Find your kind of love.",
-    "art": "screenshots/appstore-2026/source/art/03.png",
-    "artSha256": "088e7f60a430da974f38a028fbd89dad23e84880f9115e414513870ba59823ad",
+    "pngSha256": "fdca37df3266fa6a8153960cc97be5d0ff2fb97f8a1cb24bbe72e8c433b20821",
+    "frameSha256": "0b0fe5f693e2314cab9d86ad1ac551cfcc19a7dcf3f61680a83be2b6ee1476b4",
+    "headline": "Swipe. Spark. Fall in love.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/05-app-spark.png",
@@ -79,11 +89,11 @@
     "file": "ipad-13/04-reach-the-top.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "12459cf99438dce4c3366e8fed08ef192215e04b0bd0ae6d935bdd98c9e7e3b3",
-    "frameSha256": "a1f35c9875b3a17d14f2ca80ec05e6a081a7cd9004489707224df54e7f801aa7",
-    "headline": "Start small. Aim higher.",
-    "art": "screenshots/appstore-2026/source/art/05.png",
-    "artSha256": "d70035bd95b4e3d33be0afef17869a4f5851dae99f17983d284e12782b7f0597",
+    "pngSha256": "cd1d074a8a7c25061f36ca2f6b27dbabe1c0b232aa3689c1a15709b175a9d32c",
+    "frameSha256": "6a5ffefb85e20339cdef790da3a4f3fa113b30b4aed32a1f943df99cda7857c9",
+    "headline": "Dream job? Work for it.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/02-work.png",
@@ -111,11 +121,11 @@
     "file": "ipad-13/05-build-your-wealth.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "8ff872d69df303e6123e21bf1c95b44de97b38f0b4dc95f17565d92d58269e22",
-    "frameSha256": "63d3630268b6561d1c3e20d8f388875c4369175a4610ede9f6f87a49dae17519",
-    "headline": "Make more. Own more.",
-    "art": "screenshots/appstore-2026/source/art/08.png",
-    "artSha256": "1249c2c888d1775427f94fbcc371e0f5089b92229aea96ef3fec9cf8d3313c1a",
+    "pngSha256": "721848dd8e141832c68a604041c687cc2953b68de226e3687a9fa9b780d350fd",
+    "frameSha256": "168263e5357e034ec616542cc3c7eff67eef8a50a199dacb75ffe9ea85113a48",
+    "headline": "First paycheck. Next property.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/33-x-realestate-portfolio.png",
@@ -143,11 +153,11 @@
     "file": "ipad-13/06-drive-the-dream.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "901204590e2df0b674f829dc3bc86409fc45f2ff57df7c32d8f4e0412f612ebf",
-    "frameSha256": "7e958aca7760954e41000572561bd50503c6c762d461911bc5310b4d4b42215c",
-    "headline": "You earned this life.",
-    "art": "screenshots/appstore-2026/source/art/09.png",
-    "artSha256": "444e7bed526bb8b9b22733f1591a51b433cddca597e9e1837d256fff91cad401",
+    "pngSha256": "991d221e5b65b4c4f2ebccdf6a377edecb5121b1681c9252c73cf7fbd3d6bf3e",
+    "frameSha256": "0a5998dcd66690a4a4e907ec7d0fa3a2149139469bf0d4d31f46c09e70f02d0b",
+    "headline": "Dream car. Your keys.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/34-x-garage-owned.png",
@@ -165,11 +175,11 @@
     "file": "ipad-13/07-shape-your-story.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "3f300715a591e0224513cff3f708350cac5711feb4adf6e0fd25e6c1aeb80df1",
-    "frameSha256": "e911fed6b279ad780caed416f200ec909f055adc663d211f5b6913d72ed22984",
-    "headline": "One choice. A new chapter.",
-    "art": "screenshots/appstore-2026/source/art/04.png",
-    "artSha256": "5a10563754f0a618b0e0d07ed364554505fc4bce5d7e715adad00361d3310e69",
+    "pngSha256": "5e74a1dd2041babd40f9e01907792285c606c5c4006ee3732dcb3de27519f4ed",
+    "frameSha256": "96f97d34437959f2f4c3e5810319e06b75b7bbcc6eb46d2c65743d1c7ca3bf41",
+    "headline": "Take the cash? Chase the fame?",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/32-event-decision.png",
@@ -187,11 +197,11 @@
     "file": "ipad-13/08-become-a-creator.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "06cb6868ffeb992c72b844dfdd16d8b71ea76c7b137f5efecf16adf7f19fc8e8",
-    "frameSha256": "6160eef69eb9f214bd4b8157b8100c22c1efc580fecd7155196315e456ad8887",
-    "headline": "Your channel. Your big break.",
-    "art": "screenshots/appstore-2026/source/art/13.png",
-    "artSha256": "1417addb0f4bab4856a45f0d75b7e946924313daf318454fe43867ad8789616a",
+    "pngSha256": "6ce2198e313001e82ad22636902d695e9c9db882804d3e97f9ce3945aadb37bc",
+    "frameSha256": "f02919eff157fc97efa1d94bbf5347d4822ca4cee983d667ac4b9d0cf1ec5c3a",
+    "headline": "Go live. Get noticed.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/25-x-streaming.png",
@@ -219,11 +229,11 @@
     "file": "ipad-13/09-see-the-world.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "7ea8cc94cc2536bbf6c09827257819c9a600c3e7b2499b1b85d14af284871d90",
-    "frameSha256": "0bd9c9d2f4592d2dc9eda14575a8fa8ff165320f2e425781de0f36b4dfd5f97b",
-    "headline": "Go beyond the everyday.",
-    "art": "screenshots/appstore-2026/source/art/12.png",
-    "artSha256": "2831e46236976b8381f24892499c8f4a9359e64d4621749f3ca46ea2827fb3df",
+    "pngSha256": "c08a52ff758aee8f71a3a9d4b1e14101e68ed7109729afe410d3a1e6fcb14fe3",
+    "frameSha256": "633f292c764f2bdf193ecba646e2b232b25aa72e2f3059dccb05751615950dc8",
+    "headline": "Next stop? Your choice.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/24-x-travel.png",
@@ -251,11 +261,11 @@
     "file": "ipad-13/10-build-a-family.png",
     "width": 2064,
     "height": 2752,
-    "pngSha256": "52a5001677b61b29306f8cf61dfa533a643bf4af820a59ffd281a7580a620a4e",
-    "frameSha256": "10c00c673d89db879558e10b0f37dbc0a5250542aed306bdd119f5688f49c039",
-    "headline": "More to life than money.",
-    "art": "screenshots/appstore-2026/source/art/10.png",
-    "artSha256": "956f70e0889b14dea0d78d220b8c0fa61bade5c9bf13008159b82c54a71bb6ed",
+    "pngSha256": "9cf3e009980d537ec91c26f104b5b88d5928f620396ddf3cf75999a781a5a521",
+    "frameSha256": "8649a301d3279cef657b190cc655571883a9bfb3335cb95d1874bacc00fdae3b",
+    "headline": "Find your people. Build your life.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures-ipad/09-app-contacts.png",
@@ -283,12 +293,22 @@
     "file": "iphone-6.5/01-your-life.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "e7b033959f37fca841abcf6f9d1af6c3bc0b64899a0061146dc6b3d4c69498dd",
-    "frameSha256": "0834963aeb4951ebfb83a57c9fd4ebfa3e331872adbc5f45c4f6342ceeef8579",
-    "headline": "Your life. Your way.",
-    "art": "screenshots/player-stories-2026-09/source/art/01-new-beginnings.png",
-    "artSha256": "516c587e180c4421e5fc26202180c0e78f51101b004f8592942d98de954d1c1f",
+    "pngSha256": "cec3078bb9aee41d4ff96cc8e912136079d1975e550f453dc56da6dc88055a32",
+    "frameSha256": "aff98db7d2fd483386a077694c17e4f83179e867c8d548c69a10fee28838c2c6",
+    "headline": "Small start. Big life.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
+      {
+        "file": "docs/reviews/compact-hud/home-390.png",
+        "sha256": "cd9d8dd7ebae0f3db80068ce184df4a10be792d9cb2a7f5d0cf1362cd6911e41",
+        "crop": [
+          31,
+          996,
+          718,
+          186
+        ]
+      },
       {
         "file": "docs/reviews/compact-hud/home-390.png",
         "sha256": "cd9d8dd7ebae0f3db80068ce184df4a10be792d9cb2a7f5d0cf1362cd6911e41",
@@ -315,11 +335,11 @@
     "file": "iphone-6.5/02-build-an-empire.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "69321bd1a648bc7c150ff39f5f0e8d5d372159db7c9a1f6341d36784f2ed2487",
-    "frameSha256": "cafbffb78928cf61b31c6391e158b776de4d2dd694a6c6ba5b0f358e6ebca5d6",
-    "headline": "Be your own boss.",
-    "art": "screenshots/appstore-2026/source/art/02.png",
-    "artSha256": "409f7e705a82e8ce8adfbddaefc2b059d4981c8303bb8b6dacd6edcae27fb0d2",
+    "pngSha256": "40f5b04f1aacc0c1b217caebf1c69b59cd14f63d6a52b25000780f0119fd3588",
+    "frameSha256": "f22935c0318afbd32f1d9cb45dc2af4efb20574bafe18d0eb0779ec9ccc344d8",
+    "headline": "Build it. Be the boss.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/17-x-company.png",
@@ -337,11 +357,11 @@
     "file": "iphone-6.5/03-find-love.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "098b69514e372a7f257f14b0d63a6bc09c83e6f6d7febe788746dbbbbc08e19b",
-    "frameSha256": "61aefd95a69858955368b6cbf5de220dc920b90d01222f33ab730d44b8eb9eb7",
-    "headline": "Find your kind of love.",
-    "art": "screenshots/appstore-2026/source/art/03.png",
-    "artSha256": "088e7f60a430da974f38a028fbd89dad23e84880f9115e414513870ba59823ad",
+    "pngSha256": "f62b517bb8ec72ac2710d8af09a17b61cea15d1ed7375a7aa8059a13aae0ff4e",
+    "frameSha256": "0b0fe5f693e2314cab9d86ad1ac551cfcc19a7dcf3f61680a83be2b6ee1476b4",
+    "headline": "Swipe. Spark. Fall in love.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/05-app-spark.png",
@@ -359,11 +379,11 @@
     "file": "iphone-6.5/04-reach-the-top.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "bc0d027cf8d9deb2a80af95ba9e7c5bcf06b8e3674d9700e0455759bf3665d5b",
-    "frameSha256": "a1f35c9875b3a17d14f2ca80ec05e6a081a7cd9004489707224df54e7f801aa7",
-    "headline": "Start small. Aim higher.",
-    "art": "screenshots/appstore-2026/source/art/05.png",
-    "artSha256": "d70035bd95b4e3d33be0afef17869a4f5851dae99f17983d284e12782b7f0597",
+    "pngSha256": "910ffb545ed67d560ad19bc3da74c76cd42cc68a3092cb6751d0871c9c4f62f4",
+    "frameSha256": "6a5ffefb85e20339cdef790da3a4f3fa113b30b4aed32a1f943df99cda7857c9",
+    "headline": "Dream job? Work for it.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/02-work.png",
@@ -391,11 +411,11 @@
     "file": "iphone-6.5/05-build-your-wealth.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "d2d2bcd23f1cc2d4b568e678adc1f362a56e059be9cfbab4acbf766db134340b",
-    "frameSha256": "63d3630268b6561d1c3e20d8f388875c4369175a4610ede9f6f87a49dae17519",
-    "headline": "Make more. Own more.",
-    "art": "screenshots/appstore-2026/source/art/08.png",
-    "artSha256": "1249c2c888d1775427f94fbcc371e0f5089b92229aea96ef3fec9cf8d3313c1a",
+    "pngSha256": "9809d8245af00425c9508627410ea0933ff8500382253fc6c4afb981b10704cb",
+    "frameSha256": "168263e5357e034ec616542cc3c7eff67eef8a50a199dacb75ffe9ea85113a48",
+    "headline": "First paycheck. Next property.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/33-x-realestate-portfolio.png",
@@ -423,11 +443,11 @@
     "file": "iphone-6.5/06-drive-the-dream.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "88f812df4419ce3a8ac26244798e2f1c0a2efa4b043c892d272ffdec6275ca89",
-    "frameSha256": "7e958aca7760954e41000572561bd50503c6c762d461911bc5310b4d4b42215c",
-    "headline": "You earned this life.",
-    "art": "screenshots/appstore-2026/source/art/09.png",
-    "artSha256": "444e7bed526bb8b9b22733f1591a51b433cddca597e9e1837d256fff91cad401",
+    "pngSha256": "9fa25d6921705bc8bc52dc322e01f3640f1389aee9c3cf6c8e866579ee5dedf0",
+    "frameSha256": "0a5998dcd66690a4a4e907ec7d0fa3a2149139469bf0d4d31f46c09e70f02d0b",
+    "headline": "Dream car. Your keys.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/34-x-garage-owned.png",
@@ -445,11 +465,11 @@
     "file": "iphone-6.5/07-shape-your-story.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "cdedbe325b51daed0d7f5c4b8ec0475e42e4a009dcf733522dc88941d876b5c0",
-    "frameSha256": "e911fed6b279ad780caed416f200ec909f055adc663d211f5b6913d72ed22984",
-    "headline": "One choice. A new chapter.",
-    "art": "screenshots/appstore-2026/source/art/04.png",
-    "artSha256": "5a10563754f0a618b0e0d07ed364554505fc4bce5d7e715adad00361d3310e69",
+    "pngSha256": "50182215c8982009c075f721866af9ea8ffdfb60c39662344ecdca3402fba3df",
+    "frameSha256": "96f97d34437959f2f4c3e5810319e06b75b7bbcc6eb46d2c65743d1c7ca3bf41",
+    "headline": "Take the cash? Chase the fame?",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/32-event-decision.png",
@@ -467,11 +487,11 @@
     "file": "iphone-6.5/08-become-a-creator.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "a9fa0a8b037997a383bb3bc5c65f4a305f2fd544625c2d8cf146a4b32c8e69ce",
-    "frameSha256": "6160eef69eb9f214bd4b8157b8100c22c1efc580fecd7155196315e456ad8887",
-    "headline": "Your channel. Your big break.",
-    "art": "screenshots/appstore-2026/source/art/13.png",
-    "artSha256": "1417addb0f4bab4856a45f0d75b7e946924313daf318454fe43867ad8789616a",
+    "pngSha256": "015951a080f95ca7884f39992d6c1737b4c2003f3d0fccdedb904c1a36f81ec7",
+    "frameSha256": "f02919eff157fc97efa1d94bbf5347d4822ca4cee983d667ac4b9d0cf1ec5c3a",
+    "headline": "Go live. Get noticed.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/25-x-streaming.png",
@@ -499,11 +519,11 @@
     "file": "iphone-6.5/09-see-the-world.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "73341c0bda49ef0f7aa8d78dfd0308ca21b63e7746edf1df04319b5a4801ce31",
-    "frameSha256": "0bd9c9d2f4592d2dc9eda14575a8fa8ff165320f2e425781de0f36b4dfd5f97b",
-    "headline": "Go beyond the everyday.",
-    "art": "screenshots/appstore-2026/source/art/12.png",
-    "artSha256": "2831e46236976b8381f24892499c8f4a9359e64d4621749f3ca46ea2827fb3df",
+    "pngSha256": "a35c25cb815963a5ad7d6c4e354db4da08c15a9845e03cd4c18a08c9e1559855",
+    "frameSha256": "633f292c764f2bdf193ecba646e2b232b25aa72e2f3059dccb05751615950dc8",
+    "headline": "Next stop? Your choice.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/24-x-travel.png",
@@ -521,11 +541,11 @@
     "file": "iphone-6.5/10-build-a-family.png",
     "width": 1284,
     "height": 2778,
-    "pngSha256": "9eae922ee6286ad75e1c81102f49fa10ea77a41bbad39b27b5ff4defcd08b31d",
-    "frameSha256": "10c00c673d89db879558e10b0f37dbc0a5250542aed306bdd119f5688f49c039",
-    "headline": "More to life than money.",
-    "art": "screenshots/appstore-2026/source/art/10.png",
-    "artSha256": "956f70e0889b14dea0d78d220b8c0fa61bade5c9bf13008159b82c54a71bb6ed",
+    "pngSha256": "8ee8337c627c4321dbb5a24f749b0399325d9a6bc211e9268e7435a8a1e8d9d9",
+    "frameSha256": "8649a301d3279cef657b190cc655571883a9bfb3335cb95d1874bacc00fdae3b",
+    "headline": "Find your people. Build your life.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/09-app-contacts.png",
@@ -553,12 +573,22 @@
     "file": "iphone-6.9/01-your-life.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "add2143523e19061d8e5ed6768fe146f6849efd9f0aaee5e5f41e64a68b7e2fc",
-    "frameSha256": "0834963aeb4951ebfb83a57c9fd4ebfa3e331872adbc5f45c4f6342ceeef8579",
-    "headline": "Your life. Your way.",
-    "art": "screenshots/player-stories-2026-09/source/art/01-new-beginnings.png",
-    "artSha256": "516c587e180c4421e5fc26202180c0e78f51101b004f8592942d98de954d1c1f",
+    "pngSha256": "96b723be771c668bc8c6a38c44b5b401c52633c49213d154857185f942590493",
+    "frameSha256": "aff98db7d2fd483386a077694c17e4f83179e867c8d548c69a10fee28838c2c6",
+    "headline": "Small start. Big life.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
+      {
+        "file": "docs/reviews/compact-hud/home-390.png",
+        "sha256": "cd9d8dd7ebae0f3db80068ce184df4a10be792d9cb2a7f5d0cf1362cd6911e41",
+        "crop": [
+          31,
+          996,
+          718,
+          186
+        ]
+      },
       {
         "file": "docs/reviews/compact-hud/home-390.png",
         "sha256": "cd9d8dd7ebae0f3db80068ce184df4a10be792d9cb2a7f5d0cf1362cd6911e41",
@@ -585,11 +615,11 @@
     "file": "iphone-6.9/02-build-an-empire.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "ec15d996d021cb6119c1dedc84500d78ca2638b0123d855ca6edb2284174037a",
-    "frameSha256": "cafbffb78928cf61b31c6391e158b776de4d2dd694a6c6ba5b0f358e6ebca5d6",
-    "headline": "Be your own boss.",
-    "art": "screenshots/appstore-2026/source/art/02.png",
-    "artSha256": "409f7e705a82e8ce8adfbddaefc2b059d4981c8303bb8b6dacd6edcae27fb0d2",
+    "pngSha256": "563c35c77bd0b9af339a29ecca21dba7e7c628249c036f967edb7535b6165274",
+    "frameSha256": "f22935c0318afbd32f1d9cb45dc2af4efb20574bafe18d0eb0779ec9ccc344d8",
+    "headline": "Build it. Be the boss.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/17-x-company.png",
@@ -607,11 +637,11 @@
     "file": "iphone-6.9/03-find-love.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "147270f4774a398c928016ef6e918a10b784e80082376d425fc019781b25fff5",
-    "frameSha256": "61aefd95a69858955368b6cbf5de220dc920b90d01222f33ab730d44b8eb9eb7",
-    "headline": "Find your kind of love.",
-    "art": "screenshots/appstore-2026/source/art/03.png",
-    "artSha256": "088e7f60a430da974f38a028fbd89dad23e84880f9115e414513870ba59823ad",
+    "pngSha256": "29107e2398c3491d7eb6e1252d2aa290cc386cff95344e7c606608796c153049",
+    "frameSha256": "0b0fe5f693e2314cab9d86ad1ac551cfcc19a7dcf3f61680a83be2b6ee1476b4",
+    "headline": "Swipe. Spark. Fall in love.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/05-app-spark.png",
@@ -629,11 +659,11 @@
     "file": "iphone-6.9/04-reach-the-top.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "71dc0aec9a18a81f86e67a60cf77e3a2da29c46fc494c392149df40788438b23",
-    "frameSha256": "a1f35c9875b3a17d14f2ca80ec05e6a081a7cd9004489707224df54e7f801aa7",
-    "headline": "Start small. Aim higher.",
-    "art": "screenshots/appstore-2026/source/art/05.png",
-    "artSha256": "d70035bd95b4e3d33be0afef17869a4f5851dae99f17983d284e12782b7f0597",
+    "pngSha256": "5557458cdc776e8d9d827414f7ad523594d7a0bf5e24c8c7f6a208acbe20ced1",
+    "frameSha256": "6a5ffefb85e20339cdef790da3a4f3fa113b30b4aed32a1f943df99cda7857c9",
+    "headline": "Dream job? Work for it.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/02-work.png",
@@ -661,11 +691,11 @@
     "file": "iphone-6.9/05-build-your-wealth.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "49713462ee29ec6b16f24996e6e883cbba7f3704e5dfd46d23b80a48dfe7edce",
-    "frameSha256": "63d3630268b6561d1c3e20d8f388875c4369175a4610ede9f6f87a49dae17519",
-    "headline": "Make more. Own more.",
-    "art": "screenshots/appstore-2026/source/art/08.png",
-    "artSha256": "1249c2c888d1775427f94fbcc371e0f5089b92229aea96ef3fec9cf8d3313c1a",
+    "pngSha256": "65d9d51a3591d954280e6bb08bb5d48e1ff4162a27facb317f8cfa835b852f58",
+    "frameSha256": "168263e5357e034ec616542cc3c7eff67eef8a50a199dacb75ffe9ea85113a48",
+    "headline": "First paycheck. Next property.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/33-x-realestate-portfolio.png",
@@ -693,11 +723,11 @@
     "file": "iphone-6.9/06-drive-the-dream.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "aa78a867df85f3da34f105ec8f96a99003c00ed640d5cea2cb7a796145f190a2",
-    "frameSha256": "7e958aca7760954e41000572561bd50503c6c762d461911bc5310b4d4b42215c",
-    "headline": "You earned this life.",
-    "art": "screenshots/appstore-2026/source/art/09.png",
-    "artSha256": "444e7bed526bb8b9b22733f1591a51b433cddca597e9e1837d256fff91cad401",
+    "pngSha256": "444ca656c35b0871c3c2e3c3d5cf17d48c0a756cd401635c12c8df7310b246af",
+    "frameSha256": "0a5998dcd66690a4a4e907ec7d0fa3a2149139469bf0d4d31f46c09e70f02d0b",
+    "headline": "Dream car. Your keys.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/34-x-garage-owned.png",
@@ -715,11 +745,11 @@
     "file": "iphone-6.9/07-shape-your-story.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "cd63b9f862f56b2bda18e4511adcc299038de9c8e11158724d6ffbee6ee54e9c",
-    "frameSha256": "e911fed6b279ad780caed416f200ec909f055adc663d211f5b6913d72ed22984",
-    "headline": "One choice. A new chapter.",
-    "art": "screenshots/appstore-2026/source/art/04.png",
-    "artSha256": "5a10563754f0a618b0e0d07ed364554505fc4bce5d7e715adad00361d3310e69",
+    "pngSha256": "abec77db588612a64a0c71ed3304b49ec6dd3adceace14093f2015dbdca0a2e4",
+    "frameSha256": "96f97d34437959f2f4c3e5810319e06b75b7bbcc6eb46d2c65743d1c7ca3bf41",
+    "headline": "Take the cash? Chase the fame?",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/32-event-decision.png",
@@ -737,11 +767,11 @@
     "file": "iphone-6.9/08-become-a-creator.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "e9b79a73d2d06175603297f20be09ad0d116fa067694310822bcf3e42142554b",
-    "frameSha256": "6160eef69eb9f214bd4b8157b8100c22c1efc580fecd7155196315e456ad8887",
-    "headline": "Your channel. Your big break.",
-    "art": "screenshots/appstore-2026/source/art/13.png",
-    "artSha256": "1417addb0f4bab4856a45f0d75b7e946924313daf318454fe43867ad8789616a",
+    "pngSha256": "f0b73c3faac4de975db37800f3d39a2b2e27700b32d041e20e96c8f6b80b82a1",
+    "frameSha256": "f02919eff157fc97efa1d94bbf5347d4822ca4cee983d667ac4b9d0cf1ec5c3a",
+    "headline": "Go live. Get noticed.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/25-x-streaming.png",
@@ -769,11 +799,11 @@
     "file": "iphone-6.9/09-see-the-world.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "8478324870c8f7fc4ad85675a6537c38136fdaff5c3de9199ee5406d6b239b2a",
-    "frameSha256": "0bd9c9d2f4592d2dc9eda14575a8fa8ff165320f2e425781de0f36b4dfd5f97b",
-    "headline": "Go beyond the everyday.",
-    "art": "screenshots/appstore-2026/source/art/12.png",
-    "artSha256": "2831e46236976b8381f24892499c8f4a9359e64d4621749f3ca46ea2827fb3df",
+    "pngSha256": "170cd44d5a47600da9db121f2294a56cd947395ca2029cf0c6c3d0d1a8f08fc3",
+    "frameSha256": "633f292c764f2bdf193ecba646e2b232b25aa72e2f3059dccb05751615950dc8",
+    "headline": "Next stop? Your choice.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/24-x-travel.png",
@@ -791,11 +821,11 @@
     "file": "iphone-6.9/10-build-a-family.png",
     "width": 1320,
     "height": 2868,
-    "pngSha256": "9f1496c876b1a50580626cc95e5bd5ba0dc54503a4dc7c7c0473c26cdd340c53",
-    "frameSha256": "10c00c673d89db879558e10b0f37dbc0a5250542aed306bdd119f5688f49c039",
-    "headline": "More to life than money.",
-    "art": "screenshots/appstore-2026/source/art/10.png",
-    "artSha256": "956f70e0889b14dea0d78d220b8c0fa61bade5c9bf13008159b82c54a71bb6ed",
+    "pngSha256": "6573bb194a4f9c2ed65ecf3de18930515b98982e52c086318a693ca6cc04da26",
+    "frameSha256": "8649a301d3279cef657b190cc655571883a9bfb3335cb95d1874bacc00fdae3b",
+    "headline": "Find your people. Build your life.",
+    "art": "assets/images/icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
     "captures": [
       {
         "file": "screenshots/appstore-2026/rich-captures/09-app-contacts.png",
