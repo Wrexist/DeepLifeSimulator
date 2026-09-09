@@ -27,6 +27,12 @@ import { PERSONAS } from '../helpers/earlyGamePersonas';
 import { closeCircle, supportCircle } from '@/lib/social/closeness';
 import { friendSupportEventTemplates } from '@/lib/events/friendSupportEvents';
 
+// Exercise real saves against read-after-write storage rather than the UI stub.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
+
 const RUN = process.env.RUN_SOCIAL_STORIES === '1';
 const d = RUN ? describe : describe.skip;
 

@@ -1187,6 +1187,7 @@ replaced with review checklists.
 | **`tasks/simulation-integrity-2026-09-04.md`** | **Why the same life now replays identically: the seven unseeded draws and wall-clock ids, the frozen-clock experiment that disproved the previous report's cause, the happiness equation and source ledger, the saturation root cause, and the new determinism guards. Read before adding a roll, an id, or a happiness gain** |
 | **`tasks/release-readiness-2026-09-04.md`** | **What can still stop the next update from shipping: the Program 15 forensic audit — baseline, every domain measured on HEAD, the P0-P3 / OWNER / HUMAN table, the fixes, the scorecard and the verdict. Read before cutting a build** |
 | `tasks/todo.md` | Active plan |
+| `tasks/release/README.md` | Fresh next-release queue and master prompts. `npm run release:status`, `release:next`, `release:check`. Local package verification never replaces native/store or current CI gates. |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |
 | **`docs/RELEASE_RUNBOOK.md`** | **The step-by-step release procedure — follow it top to bottom** |

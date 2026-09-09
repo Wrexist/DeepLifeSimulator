@@ -10,7 +10,7 @@ anything marked 🟡 costs you reach or money but will not break anything.
 |---|---|
 | **Time** | ~35 min of work, plus ~40 min of waiting on builds, plus 24–48 h of Apple review |
 | **You need** | Apple Developer account, App Store Connect access, a RevenueCat login, a terminal in this repo |
-| **Repo state** | Verified below. Everything code-side is done |
+| **Repo state** | Historical measurements below. Current verdict and evidence: `tasks/release/REMAINING_WORK.md` and `queue.json`. Native/store gates remain open. |
 
 ---
 
@@ -27,7 +27,7 @@ npm run check:routes
 npm run check:aso
 ```
 
-Verified on this branch:
+Historical verification from 4 September 2026, not proof for the current candidate:
 
 | Gate | Result |
 |---|---|

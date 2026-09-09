@@ -53,6 +53,7 @@ type Probe = {
 };
 
 let captured: Probe | null = null;
+let mountedRoot: { unmount: () => void } | null = null;
 
 function ProbeComponent() {
   const { gameState, setGameState } = useGameState();
@@ -69,6 +70,7 @@ function mountJailed() {
       h(UIUXProvider as never, null, h(GameProvider as never, null, h(ProbeComponent))),
     );
   });
+  mountedRoot = root!;
   // Put the player in a cell with energy and cash, and a clean activity board.
   act(() => {
     captured!.setGameState((prev) => ({
@@ -82,8 +84,34 @@ function mountJailed() {
 }
 
 describe('performJailActivity reports what it did', () => {
+  let startedIntervals: jest.SpyInstance;
+  let clearedIntervals: jest.SpyInstance;
+
+  beforeEach(() => {
+    startedIntervals = jest.spyOn(global, 'setInterval');
+    clearedIntervals = jest.spyOn(global, 'clearInterval');
+  });
+
+  afterEach(async () => {
+    try {
+      // React 19 schedules effect cleanup. Await it while this environment
+      // still owns its timers, even when a behavioral assertion failed.
+      await act(async () => { mountedRoot?.unmount(); });
+      for (const result of startedIntervals.mock.results) {
+        if (result.type === 'return') {
+          expect(clearedIntervals).toHaveBeenCalledWith(result.value);
+        }
+      }
+    } finally {
+      mountedRoot = null;
+      captured = null;
+      startedIntervals.mockRestore();
+      clearedIntervals.mockRestore();
+    }
+  });
+
   it('returns the full message even when its updater is DEFERRED', () => {
-    const { root } = mountJailed();
+    mountJailed();
     const before = captured!.state.stats.money;
     let result: { success: boolean; message: string } | undefined;
 
@@ -106,11 +134,10 @@ describe('performJailActivity reports what it did', () => {
     expect(captured!.state.jailWeeks).toBe(4);
     expect(captured!.state.weeklyJailActivities?.prison_job).toBe(captured!.state.weeksLived);
 
-    root.unmount();
   });
 
   it('a second attempt in the same week is refused by the OUTER guard', () => {
-    const { root } = mountJailed();
+    mountJailed();
 
     act(() => { captured!.job.performJailActivity('prison_job'); });
     const moneyAfterFirst = captured!.state.stats.money;
@@ -122,11 +149,10 @@ describe('performJailActivity reports what it did', () => {
     expect(second!.message).toMatch(/already completed this activity this week/i);
     expect(captured!.state.stats.money).toBe(moneyAfterFirst);
 
-    root.unmount();
   });
 
   it('reports the release when the sentence runs out', () => {
-    const { root } = mountJailed();
+    mountJailed();
     act(() => {
       captured!.setGameState((prev) => ({ ...prev, jailWeeks: 1 }));
     });
@@ -137,11 +163,10 @@ describe('performJailActivity reports what it did', () => {
     expect(result!.message).toContain('You are released!');
     expect(captured!.state.jailWeeks).toBe(0);
 
-    root.unmount();
   });
 
   it('a stat-only activity lists its gains', () => {
-    const { root } = mountJailed();
+    mountJailed();
 
     let result: { success: boolean; message: string } | undefined;
     act(() => { result = captured!.job.performJailActivity('prison_exercise'); });
@@ -152,6 +177,5 @@ describe('performJailActivity reports what it did', () => {
     expect(result!.message).toContain('Fitness');
     expect(result!.message).toContain('Happiness');
 
-    root.unmount();
   });
 });

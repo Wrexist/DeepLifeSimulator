@@ -19,6 +19,12 @@ import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
 import { MEET_MAX_INTRODUCED, MEET_WINDOW_WEEKS } from '@/lib/social/meetPeople';
 import { closeCircle } from '@/lib/social/closeness';
 
+// Exercise real saves against read-after-write storage rather than the UI stub.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
+
 jest.setTimeout(20 * 60 * 1000);
 
 const WEEKS = 100;

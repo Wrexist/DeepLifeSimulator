@@ -33,6 +33,12 @@ import { PERSONAS } from '../helpers/earlyGamePersonas';
 import { eventTemplates } from '@/lib/events/engine';
 import type { GameState } from '@/contexts/game/types';
 
+// Exercise real saves against read-after-write storage rather than the UI stub.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
+
 const RUN = process.env.RUN_EVENT_FUNNEL === '1';
 const d = RUN ? describe : describe.skip;
 

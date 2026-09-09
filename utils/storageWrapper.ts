@@ -113,11 +113,18 @@ async function waitForStorageReady(maxWait = 3000): Promise<boolean> {
       // Use getAllKeys() instead of getItem() - less likely to fail if storage is partially ready
       // Wrap in Promise.race with timeout to prevent hanging
       const checkPromise = AsyncStorage.getAllKeys();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Storage check timeout')), 500)
-      );
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Storage check timeout')), 500);
+      });
 
-      await Promise.race([checkPromise, timeoutPromise]);
+      try {
+        await Promise.race([checkPromise, timeoutPromise]);
+      } finally {
+        // Promise.race does not cancel the losing deadline. This attempt owns
+        // it, including when the storage check rejects and another retry starts.
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
+      }
       return true;
     } catch {
       // Storage not ready, wait and retry
@@ -337,4 +344,3 @@ export const safeAsyncStorage = {
     }
   },
 };
-

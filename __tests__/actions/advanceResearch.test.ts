@@ -6,9 +6,10 @@
  * (income lifts, patents, competitions, breakthroughs) was dead. These tests
  * lock in the tick's behaviour: progress advances by the lab's speed each week,
  * a project that reaches 100% is finalised via `completeResearch`, and no more
- * than one project per company is finalised per tick (the completeResearch
- * snapshot-rebuild would otherwise clobber sibling completions).
+ * than one project per company is finalised per tick (the existing concurrency
+ * policy), without clobbering sibling projects.
  */
+import * as seededRoll from '@/utils/seededRoll';
 import { advanceResearch } from '@/contexts/game/actions/RDActions';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { createTestGameState } from '../helpers/createTestGameState';
@@ -86,8 +87,8 @@ describe('advanceResearch - weekly R&D tick', () => {
   });
 
   it('finalises at most ONE project per company per tick; the sibling is clamped, not lost', () => {
-    // Two projects both cross 100% this tick. Only one may be finalised via
-    // completeResearch (its snapshot rebuild would clobber a second). The other
+    // Two projects both cross 100% this tick. Preserve the existing policy:
+    // only one completes per company per week. The other
     // must be preserved at 100% (completed next tick) — never reverted/dropped.
     const snapshot = stateWith(company([
       project({ id: 'r1', technologyId: 'ml_models', progress: 80 }),
@@ -150,9 +151,9 @@ describe('advanceResearch - weekly R&D tick', () => {
   });
 
   it('applies a breakthrough income multiplier when the (previously-orphaned) roll fires', () => {
-    // Force the breakthrough roll to hit. ml_models is tier 1 → basic-lab
+    // Force the life-seeded breakthrough roll to hit. ml_models is tier 1 → basic-lab
     // breakthrough type is industry_disruption (×1.5 income).
-    const rnd = jest.spyOn(Math, 'random').mockReturnValue(0);
+    const rnd = jest.spyOn(seededRoll, 'makeLifeRoll').mockReturnValue(() => 0);
     try {
       const snapshot = stateWith(company([project({ progress: 80 })]));
       const { setState, get } = makeBatchedSetState(snapshot);

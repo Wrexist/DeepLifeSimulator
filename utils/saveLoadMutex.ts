@@ -9,10 +9,9 @@ import { logger } from '@/utils/logger';
 
 const log = logger.scope('SaveLoadMutex');
 
-// P0-15: 30s upper bound on any acquire — a hung save (AsyncStorage stuck,
-// thrown setGameState inside saveGame) must NOT deadlock the queue. If a
-// release is missed the next operation will time out and reject, surfacing
-// the bug instead of silently freezing all future saves.
+// P0-15: 30s upper bound on a waiting acquire. If a holder stalls or misses
+// release, waiting operations reject rather than hang silently. The holder's
+// watchdog reports the stall but cannot cancel its in-flight storage I/O.
 const DEFAULT_ACQUIRE_TIMEOUT_MS = 30_000;
 
 /** Opaque proof that the holder is the holder. See `release`. */
@@ -31,8 +30,8 @@ class SaveLoadMutex {
   private currentOperation: 'save' | 'load' | null = null;
   private acquireTimer: ReturnType<typeof setTimeout> | null = null;
   /**
-   * Incremented on every grant AND on every forced release, so a token issued
-   * before a force-release can never match afterwards.
+   * Incremented on every grant, so a token from an earlier holder cannot
+   * release a later holder.
    *
    * `release()` used to check only `if (!this.isLocked) return;` — it never
    * verified the caller held the lock. After the 30s watchdog force-released
@@ -61,8 +60,7 @@ class SaveLoadMutex {
         this.currentOperation = operation;
         const token = ++this.holderId;
         log.debug(`Lock acquired for ${operation}`);
-        // Watchdog: if release isn't called within the timeout, force-release
-        // and log loudly so the underlying bug is visible.
+        // Watchdog reports stalled holders without admitting concurrent I/O.
         this.armWatchdog(operation, timeoutMs);
         resolve(token);
         return;
@@ -100,11 +98,12 @@ class SaveLoadMutex {
   private armWatchdog(operation: 'save' | 'load', timeoutMs: number): void {
     if (this.acquireTimer) clearTimeout(this.acquireTimer);
     this.acquireTimer = setTimeout(() => {
-      log.error(`Lock holder ${operation} exceeded ${timeoutMs}ms - force-releasing to prevent deadlock`);
-      // Invalidate the current holder's token BEFORE releasing, so its late
-      // `release(token)` is provably stale and gets ignored.
-      this.holderId++;
-      this.release(undefined, true);
+      this.acquireTimer = null;
+      log.error(`Lock holder ${operation} exceeded ${timeoutMs}ms - retaining lock until its I/O settles`);
+      // AsyncStorage writes cannot be cancelled. Handing the lock to another
+      // writer here lets the old write resume later and overwrite a newer save.
+      // Keep ownership until finally releases it. Waiters still reject on their
+      // own acquire deadlines, so a stalled operation surfaces as a failure.
     }, timeoutMs);
   }
 
@@ -112,16 +111,14 @@ class SaveLoadMutex {
    * Release lock and process next queued operation.
    *
    * Pass the token returned by `acquire`. A token that no longer matches the
-   * current holder - because the watchdog force-released and the lock has since
-   * been handed on - is IGNORED, which is what stops a late holder unlocking
-   * somebody else's write. Calling with no token keeps the old unchecked
+   * current holder, because the lock has since been handed on, is ignored.
+   * This stops a late holder unlocking somebody else's write.
+   * Calling with no token keeps the old unchecked
    * behaviour so an un-migrated site still works.
-   *
-   * `forced=true` is for the watchdog only.
    */
-  release(token?: MutexToken, forced: boolean = false): void {
+  release(token?: MutexToken): void {
     if (!this.isLocked) {
-      if (!forced) log.warn('Attempted to release lock that was not locked');
+      log.warn('Attempted to release lock that was not locked');
       return;
     }
 
@@ -135,7 +132,7 @@ class SaveLoadMutex {
       this.acquireTimer = null;
     }
     const operation = this.currentOperation;
-    log.debug(`Lock released for ${operation}${forced ? ' (forced)' : ''}`);
+    log.debug(`Lock released for ${operation}`);
 
     // SYNCHRONOUS HAND-OFF. This used to set `isLocked = false` here and then
     // grant the lock to the queued waiter from a `setTimeout(…, 0)`. Every
@@ -181,4 +178,3 @@ class SaveLoadMutex {
 
 // Export singleton instance
 export const saveLoadMutex = new SaveLoadMutex();
-

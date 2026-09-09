@@ -222,7 +222,7 @@ const unluckyThirteen: EventTemplate = {
  generate: () => ({
  id: 'secret_unlucky_13',
  description:
- " It's your 13th year and things feel... ominous. A black cat crosses your path. You walk under a ladder. You break a mirror. All in one day.",
+ " Today feels... ominous. A black cat crosses your path. You walk under a ladder. You break a mirror. All in one day.",
  choices: [
  {
  id: 'superstitious',
