@@ -3,6 +3,7 @@
 Start with `npm run release:status`, then `npm run release:next`.
 The queue is `queue.json`. The execution rules are `CONTRACT.md`.
 The fresh audit and evidence live in `AUDIT.md`.
+The complete remaining-work list and detailed handoff are in [REMAINING_WORK.md](REMAINING_WORK.md).
 
 The R00–R11 files contain every currently planned master prompt, including native
 and store gates. Refine each against current code when it becomes eligible.

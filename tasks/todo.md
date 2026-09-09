@@ -15,6 +15,13 @@ This section supersedes historical Active headings below as the current queue.
 - [ ] Execute further actionable packages in dependency order, verifying each before completion.
 - [ ] Check latest PR CI and record remaining native/store gates without claiming approval.
 
+Release completion and handoff continuation:
+- [x] Recheck latest branch/CI and closed R05 evidence.
+- [x] Reconcile support purchase/save guidance and ASO instructions with source/Apple evidence.
+- [x] Validate current metadata and all 30 screenshot exports.
+- [x] Expand all seven remaining gates into executable briefs with exact prerequisites and proof.
+- [x] Prepare publication and explicit seven-gate handoff; latest remote checks tracked in PR #203.
+
 R05 cleanup continuation:
 - [x] Refresh the concurrent `b5aa2a8` handoff and narrow the runner issue by domain.
 - [x] Reproduce and fix owned-resource cleanup without hiding unfinished work.

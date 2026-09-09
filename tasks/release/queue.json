@@ -122,7 +122,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R04.md",
       "evidence": [],
-      "blocker": "Existing journey/render regressions pass but local browser is blocked (ERR_BLOCKED_BY_CLIENT). Need actual interactive journey/visual acceptance; F06 age-independent copy corrected; visual evidence still unavailable."
+      "blocker": "Current browser discovery timed out and local support preview was blocked by ERR_BLOCKED_BY_CLIENT. Need actual app journey/visual acceptance. Detailed cases: R04.md."
     },
     {
       "id": "R05",
@@ -179,7 +179,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R07.md",
       "evidence": [],
-      "blocker": "Merged PR #202 native screenshot parity, support-copy reconciliation and current App Store Connect fields remain unverified. Public links and metadata validator pass."
+      "blocker": "All 30 screenshot exports and metadata checks pass; support-source guidance corrected. Need native parity, visual/live support review and current ASC version/localizations. Source metadata still targets historical 1.5.0. See R07.md."
     },
     {
       "id": "R08",
@@ -193,7 +193,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R08.md",
       "evidence": [],
-      "blocker": "Local preflight and iOS Hermes export pass. Need latest-head CI, real EAS production-environment preflight and owner-triggered processed TestFlight candidate with verified version/build identity."
+      "blocker": "Implementation 6d2346e passed remote Preflight 34312514459 and EAS Update 34312514460. Need latest-follow-up CI, real production environment and processed TestFlight identity. Read-only ASC status blocked by missing API credentials. See R08.md."
     },
     {
       "id": "R09",

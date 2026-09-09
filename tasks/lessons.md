@@ -5780,3 +5780,7 @@ must clear their timeout in finally on success, rejection and timeout.
 Install the isolated asset-tooling lockfile as CI does before repository-wide
 lint (`npm ci --prefix art/game-assets-v1/source`). Missing three/sharp in a fresh
 checkout is an installation gap, not seven new source defects.
+
+### 2026-09-09 — Release handoffs must distinguish source preparation from store state
+
+A green metadata validator does not establish that its version record or release notes are current in App Store Connect. The source still targeted 1.5.0 after the public listing had reached 1.5.5. Resolve the current draft/released records before applying metadata. Verify platform experiment capabilities against Apple documentation: Product Page Optimization tests icons, screenshots and previews, not subtitles. A documented npm ci command also needs a committed lockfile; verify the exact isolated command rather than relying on a preinstalled shared dependency.
