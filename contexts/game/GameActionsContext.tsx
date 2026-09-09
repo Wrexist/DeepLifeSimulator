@@ -54,7 +54,7 @@ import { lifeSalt, makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
 // delta in this file goes through it; decay below is untouched.
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { createBackupFromState } from '@/utils/saveBackup';
-import { saveLoadMutex } from '@/utils/saveLoadMutex';
+import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
 import { PRESTIGE_ACHIEVEMENTS, type PrestigeAchievement } from '@/lib/prestige/prestigeAchievements';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
@@ -312,8 +312,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.debug(`Skipping save: autosave suspended (${lifeAutosaveSuspendReason()})`);
  return false;
  }
- const saveMutexToken = await saveLoadMutex.acquire('save');
+ let saveMutexToken: MutexToken | undefined;
  try {
+ saveMutexToken = await saveLoadMutex.acquire('save');
  // CRITICAL: Validate state before saving to prevent saving corrupted state.
  // R2-F: autoFix=false. The repair branch below runs explicitly when validation
  // fails, so the eager clone inside autoFix=true was a 30-80ms hitch on every
@@ -461,7 +462,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showError('Save Error', 'Failed to save game progress. Will retry automatically.');
  return false;
  } finally {
- saveLoadMutex.release(saveMutexToken);
+ if (saveMutexToken !== undefined) saveLoadMutex.release(saveMutexToken);
  }
  }, [currentSlot, showError]);
 
@@ -4901,8 +4902,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }, []); // Empty deps - uses refs
 
  const loadGame = useCallback(async (slot: number): Promise<GameState | null> => {
- const loadMutexToken = await saveLoadMutex.acquire('load');
+ let loadMutexToken: MutexToken | undefined;
  try {
+ loadMutexToken = await saveLoadMutex.acquire('load');
  setLoadingMessage('Loading game...');
  setIsLoading(true);
 
@@ -5212,8 +5214,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showError('Load Error', 'Failed to load game progress');
  return null;
  } finally {
+ if (loadMutexToken !== undefined) {
  setIsLoading(false);
  saveLoadMutex.release(loadMutexToken);
+ }
  }
  }, [setIsLoading, setLoadingMessage, showError, setGameState, setCurrentSlot]);
 
