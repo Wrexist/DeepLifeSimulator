@@ -28,7 +28,8 @@ branches integrate; retain the short index and its authoritative release queue.
 
 Route, ASO, content and live-ops checks passed locally. The original ledger
 is byte-identical to its pre-cleanup source. All five source/test modifications
-are mapped path references in comments only. New navigation links resolve.
-Remote CI is pending. The source audit's test
+are mapped path references in comments only. All 224 new navigation links resolve.
+Published as PR #205. GitHub reports it mergeable; EAS Update CI is running.
+The connected GitHub publication produced the exact locally verified tree. The source audit's test
 results are recorded separately in MASTER_PROMPT_BACKLOG.md and must not be
 relabeled as tests of this cleanup commit.

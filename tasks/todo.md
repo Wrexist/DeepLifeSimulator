@@ -57,7 +57,7 @@ in the backlog. Historical hypotheses are not confirmed defects.
 - [x] Archive old reports, preserve historical evidence and add navigation.
 - [x] Remove only verified unreferenced generated outputs from `undefined/`.
 - [x] Verify references/content preservation and relevant local checks.
-- [ ] Publish the cleanup PR and inspect latest CI.
+- [x] Publish [cleanup PR #205](https://github.com/Wrexist/DeepLifeSimulator/pull/205) and inspect latest CI. Full remote checks remain pending.
 
 Integration note: if #203 updates this file, retain its live release entries and
 the navigation above. Do not restore the archived 1,500-line mixed history.

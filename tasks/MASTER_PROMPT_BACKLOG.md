@@ -197,7 +197,7 @@ Each brief defines a bounded starting point. For a multi-domain package, audit t
 
 **Dependencies:** MP03.
 
-**Read first:** tasks/release/R09.md; components/BaseModal.tsx; app/_layout.tsx; utils/saveQueue.ts; services/AdMobService.ts; docs/reviews/. Paths are entry points, not an exhaustive edit allowlist; resolve the current file before editing.
+**Read first:** tasks/release/R09.md; components/ui/BaseModal.tsx; app/_layout.tsx; utils/saveQueue.ts; services/AdMobService.ts; docs/reviews/. Paths are entry points, not an exhaustive edit allowlist; resolve the current file before editing.
 
 **Objective and scope:** Run fresh/update install, save migration, background/foreground, offline, low storage and kill/relaunch. Exercise nested cancellation/death/wedding sheets, reward/no-fill/denied-consent ad paths, avatar rendering, VoiceOver focus, largest text and Reduce Motion. Measure representative early/late saves on actual hardware.
 
@@ -295,7 +295,7 @@ Each brief defines a bounded starting point. For a multi-domain package, audit t
 
 **Dependencies:** Release complete; social/survival baseline.
 
-**Read first:** lib/social/closeness.ts; lib/social/npcDepth.ts; contexts/game/actions/SocialActions.ts; tasks/social-systems-2026-09-03.md; tasks/relationship-depth-2026-09-03.md. Paths are entry points, not an exhaustive edit allowlist; resolve the current file before editing.
+**Read first:** lib/social/closeness.ts; lib/social/npcDepth.ts; contexts/game/actions/ContactsActions.ts; tasks/social-systems-2026-09-03.md; tasks/relationship-depth-2026-09-03.md. Paths are entry points, not an exhaustive edit allowlist; resolve the current file before editing.
 
 **Objective and scope:** Measure free-call repetition, Spark promotion cost/caps and support-event reach. Prototype a small weekly priority/shared-plan system. Resolve named-relationship life moments, networking-person payoff and estrangement end states as separate slices.
 
@@ -463,7 +463,7 @@ Each brief defines a bounded starting point. For a multi-domain package, audit t
 
 **Dependencies:** MP11; MP20 useful.
 
-**Read first:** CompanyActions.ts and weekly company modules; lib/social/; creator app components; docs/APP_DEPTH_PLAN.md. Paths are entry points, not an exhaustive edit allowlist; resolve the current file before editing.
+**Read first:** contexts/game/actions/CompanyActions.ts and weekly company modules; lib/social/; creator app components; docs/APP_DEPTH_PLAN.md. Paths are entry points, not an exhaustive edit allowlist; resolve the current file before editing.
 
 **Objective and scope:** Preserve working creator levels, memberships, live-stream tab continuity and new-company overlays. Audit paid Insights, follower history, staff effects and scandal reach. Choose a bounded staff/customer/sponsor consequence chain before board-governance expansion.
 
