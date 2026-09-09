@@ -3,10 +3,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { validateQueue, nextPackage } = require('./lib/releaseWorkflow.cjs');
+const { validateEvidenceHistory } = require('./lib/releaseEvidence.cjs');
 const root = path.resolve(__dirname, '..');
 try {
   const queue = JSON.parse(fs.readFileSync(path.join(root, 'tasks/release/queue.json'), 'utf8'));
   const errors = validateQueue(queue);
+  if (!errors.length) errors.push(...validateEvidenceHistory(queue, { cwd: root }));
   for (const p of queue.packages ?? []) {
     if (p.prompt === `tasks/release/${p.id}.md` && !fs.existsSync(path.join(root, p.prompt))) errors.push(`${p.id}: prompt missing`);
   }

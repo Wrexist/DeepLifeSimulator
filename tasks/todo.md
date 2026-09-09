@@ -1,4 +1,21 @@
-# Active: Resolve PR #203 conflicts (2026-09-09)
+# Active: MP00 review corrections (2026-09-09)
+
+Master prompt: reproduce both PR #203 P1 review findings, handle acquisition
+timeouts through public save/load failure contracts without releasing another
+holder or clearing its loading indicator, and validate every recorded evidence
+commit against actual candidate ancestry. Keep missing history unverified.
+Correct unpublished evidence references with verified published provenance.
+Run focused regressions, source/test types, save/stress suites and current CI;
+review the diff and merge only the checked head. Then refresh the release queue.
+The user now explicitly authorizes this reviewed PR/merge loop and its existing
+main-push OTA consequence. Native/store acceptance still requires real evidence.
+
+- [x] Reproduce timeout and evidence-history failures.
+- [x] Implement minimal fixes and regression coverage.
+- [ ] Verify follow-up PR local and remote checks; integrate cleanup navigation.
+- [ ] Merge checked head and select the next eligible package.
+
+# Completed: Resolve PR #203 conflicts (2026-09-09)
 
 - [x] Identify the conflicting base/head revisions and enumerate conflict files.
 - [x] Merge current `main`, preserve both valid lesson entries, and remove all markers.

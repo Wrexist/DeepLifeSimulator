@@ -18,7 +18,10 @@ import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
-import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
+import { STATE_VERSION } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
+import { useGameUI } from '@/contexts/game/GameUIContext';
+import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
 
 const mockQueueSave = jest.fn().mockResolvedValue(undefined);
@@ -86,6 +89,7 @@ const { act } = TestRenderer;
 const h = React.createElement;
 
 type Probe = {
+  ui: ReturnType<typeof useGameUI>;
   currentSlot: number;
   loadGame: (slot: number) => Promise<GameState | null>;
   // `Promise<boolean>`, not `void` — saveGame resolves true only once the write
@@ -98,9 +102,11 @@ type Probe = {
 let captured: Probe | null = null;
 
 function ProbeComponent() {
+  const ui = useGameUI();
   const { currentSlot } = useGameState();
   const actions = useGameActions();
   captured = {
+    ui,
     currentSlot,
     loadGame: actions.loadGame as (slot: number) => Promise<GameState | null>,
     // No cast needed — the context already declares this signature.
@@ -122,7 +128,7 @@ function mountGame(): { root: any } {
 
 /** Persist a valid, signed save into the given slot via the real envelope path. */
 async function seedSlot(slot: number): Promise<void> {
-  const state: GameState = structuredClone(initialGameState);
+  const state = createTestGameState();
   const serialized = JSON.stringify({ ...state, version: STATE_VERSION });
   const envelope = createSaveEnvelope(serialized);
   const result = await doubleBufferSave(`save_slot_${slot}`, envelope);
@@ -134,6 +140,7 @@ describe('currentSlot sync on load (data-loss regression)', () => {
   let mounted: { root: any } | null = null;
 
   afterEach(async () => {
+    jest.restoreAllMocks();
     if (mounted) {
       act(() => mounted!.root.unmount());
       mounted = null;
@@ -142,6 +149,33 @@ describe('currentSlot sync on load (data-loss regression)', () => {
     mockQueueSave.mockClear();
     mockForceSave.mockClear();
     if (AsyncStorageMock?.clear) await AsyncStorageMock.clear();
+  });
+
+  it.each(['save', 'load'] as const)('%s acquisition timeout settles without releasing the current holder', async (operation) => {
+    await seedSlot(2);
+    mounted = mountGame();
+    await act(async () => { await captured!.loadGame(2); });
+    act(() => captured!.ui.setIsLoading(true));
+    const acquire = saveLoadMutex.acquire.bind(saveLoadMutex);
+    const holder = await acquire('load');
+    const release = jest.spyOn(saveLoadMutex, 'release');
+    jest.spyOn(saveLoadMutex, 'acquire').mockImplementation(op => acquire(op, 5));
+    mockQueueSave.mockClear();
+    mockForceSave.mockClear();
+    try {
+      await act(async () => {
+        const result = operation === 'save' ? captured!.saveGame(true) : captured!.loadGame(3);
+        await expect(result).resolves.toBe(operation === 'save' ? false : null);
+      });
+      expect(release).not.toHaveBeenCalled();
+      expect(saveLoadMutex.isHeld()).toBe(true);
+      expect(captured!.ui.isLoading).toBe(true);
+      expect(captured!.currentSlot).toBe(2);
+      expect(mockQueueSave).not.toHaveBeenCalled();
+      expect(mockForceSave).not.toHaveBeenCalled();
+    } finally {
+      saveLoadMutex.release(holder);
+    }
   });
 
   it('loading slot 2 makes the next save target slot 2, not slot 1', async () => {
