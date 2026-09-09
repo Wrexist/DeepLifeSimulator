@@ -4,7 +4,7 @@ Six-domain deep audit (economy/exploits, crash/stability, save/state, game logic
 completeness, performance/code health). Every domain was audited independently, then a separate
 adversarial verifier re-opened each anchor and tried to refute it — only findings that survived
 are below. Orchestrated as a deterministic workflow: **Opus 5** for the twelve audit and
-verification agents, **Fable 5** for the plan synthesis (`tasks/full-audit-2026-07-28-plan.md`).
+verification agents, **Fable 5** for the plan synthesis (`tasks/archive/2026-07/full-audit-2026-07-28-plan.md`).
 
 **29 confirmed · 1 refuted** — 🟠 4 high · 🟡 14 medium · ⚪ 11 low
 
@@ -183,7 +183,7 @@ re-checked by hand before this document was written.
 
 **Risk of the fix.** Correction to the auditor's framing: prestige itself is NOT blocked — PrestigePreviewCard (home.tsx:620-625, gated on weeksLived > 20 && money+savings > 25000) opens the same PrestigeModal, whose handleConfirm enforces the real threshold (PrestigeModal.tsx:131-145). That is why this is medium, not high. Fix risk: `netWorth()` gets called per render of an always-mounted card, but it is identity-key memoised (achievements.ts:35-56), so cost is a pointer compare. Making ch5 completable lets existing long-lived saves claim $35,000 + 320 gems once on next open — a real balance event for the installed base, worth a release note. __tests__/render/components.render.test.tsx is the only test mounting LifeChapterCard; no snapshot encodes chapter-5 progress. No STATE_VERSION bump (read-only derivation, no new field).
 
-**Verification evidence.** Repo-wide grep for `prestigeAvailable` (excluding node_modules) returns 8 files; every assignment is `false` except the DevTools toggle. I read lifeChapters.ts:230-279 (goal + getChapterProgress), LifeChapterCard.tsx:45-72 (claim gated on `prog.isComplete`) and :115 (`progress.isComplete ? ClaimButton : rewardHint`), home.tsx:606, prestigeTypes.ts:110-116 (threshold is $10M, not the $100M the types.ts:2545 comment and the checkProgress divisor assume). tasks/audit-findings-2026-06-11.md:32 flagged 'prestigeAvailable never set true' as M-4 but the recorded fix was 'revalidate inside executePrestige' — the flag is still never set, and no later task file mentions it.
+**Verification evidence.** Repo-wide grep for `prestigeAvailable` (excluding node_modules) returns 8 files; every assignment is `false` except the DevTools toggle. I read lifeChapters.ts:230-279 (goal + getChapterProgress), LifeChapterCard.tsx:45-72 (claim gated on `prog.isComplete`) and :115 (`progress.isComplete ? ClaimButton : rewardHint`), home.tsx:606, prestigeTypes.ts:110-116 (threshold is $10M, not the $100M the types.ts:2545 comment and the checkProgress divisor assume). tasks/archive/2026-06/audit-findings-2026-06-11.md:32 flagged 'prestigeAvailable never set true' as M-4 but the recorded fix was 'revalidate inside executePrestige' — the flag is still never set, and no later task file mentions it.
 
 ### 🟡 `UX-2` — Retired players get an enabled Apply button on every career: standard careers buzz and do nothing (rejection message discarded), advanced careers show a false "under review" toast and stick at Applied forever
 

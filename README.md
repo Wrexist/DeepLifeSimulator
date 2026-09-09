@@ -1,181 +1,68 @@
-# DeeplifeSim
+# Deep Life Simulator
 
-A comprehensive life simulation game with career progression, underground economy, skill trees, and social interactions.
+A mobile life simulation game built with Expo, React Native and TypeScript.
+Players build careers, relationships, families, businesses and lives across generations.
 
-## Latest Release (v2.2.8)
+## Start here
 
-See [RELEASE_NOTES.md](RELEASE_NOTES.md) for full details.
+| I want to… | Read |
+|---|---|
+| See what is done and what is next | [Current work](tasks/todo.md) |
+| Pick the next bounded implementation | [Master-prompt backlog](tasks/MASTER_PROMPT_BACKLOG.md) |
+| Work safely in the codebase | [Project instructions](CLAUDE.md) and [lessons](tasks/lessons.md) |
+| Find a system, document or runbook | [Documentation index](docs/README.md) |
+| Prepare a release | [Release runbook](docs/RELEASE_RUNBOOK.md) |
+| Prepare store screenshots | [Screenshot guide](SCREENSHOT_GUIDE.md) |
+| Understand earlier decisions | [Task archive](tasks/archive/README.md) |
 
-### Highlights
-- Fairness improvements and relationship consequences
-- Performance optimizations and economy balance
-- Comprehensive stability and crash fixes
-- Save system integrity improvements
-
-## Web Preview
-
-For development and testing, you can preview the app on different device viewports:
+## Local development
 
 ```bash
+npm ci
 npm run web
 ```
 
-Then navigate to `http://localhost:19006/preview` (or the port shown by Expo).
-
-### Device Presets
-- **iPhone SE (375×667)**: Small iPhone viewport
-- **iPhone 15 Pro (393×852)**: Standard iPhone viewport  
-- **iPhone 15 Pro Max (430×932)**: Large iPhone viewport
-- **iPad 9/10 (768×1024)**: Standard iPad viewport
-- **iPad Pro 12.9 (1024×1366)**: Large iPad viewport
-- **Desktop 1280**: Standard desktop viewport
-- **Desktop 1440**: Large desktop viewport
-
-### URL Parameters
-You can also set custom viewport dimensions via URL parameters:
-- `?w=393&h=852` - Set custom width and height
-- Presets are automatically saved to localStorage and persist across page reloads
-- Use the "Reset" button to clear viewport overrides
-
-## Key Features
-
-- Career progression with 20+ career paths including politician, celebrity, and athlete
-- Dynamic stock market and crypto trading with weekly simulations
-- Family tree system with inheritance, marriage, and generational prestige
-- Underground economy with skill trees (Stealth, Technology, Lockpicking)
-- Real estate, vehicles, and property management
-- Social media simulation with NPC interactions
-- Cloud save with conflict resolution
-- Achievements, leaderboards, and daily challenges
-- In-app purchases and subscription system
-
-## Cloud Save
-
-### Setup
-
-To enable cloud save functionality, set the `EXPO_PUBLIC_CLOUD_SAVE_URL` environment variable to point to your backend service URL.
+Use the URL printed by Expo. Web is a preview target; native purchases, ads,
+device lifecycle and accessibility require a native candidate.
+Native configuration is documented in [CLAUDE.md](CLAUDE.md) and the release runbook.
 
 ```bash
-# .env or .env.local
-EXPO_PUBLIC_CLOUD_SAVE_URL=https://your-backend-url.com/api
+npm run preflight:quick
+npm run type-check:tests
+npm test
 ```
 
-### Backend Requirements
+Install the isolated [asset tooling](art/game-assets-v1/README.md) when running
+checks that inspect its scripts. CI uses `npm ci --prefix art/game-assets-v1/source`.
+Read the applicable test and release requirements before making changes.
 
-Your backend service must implement the following endpoints:
+## Repository map
 
-#### POST `/save`
-Saves the game state to the cloud.
+| Directory | Purpose |
+|---|---|
+| `app/` | Expo Router screens and app startup |
+| `components/`, `hooks/`, `src/` | Shared interface, hooks and feature helpers |
+| `contexts/game/` | Game state, action providers and weekly orchestration |
+| `lib/` | Domain logic and game content |
+| `utils/`, `services/` | Persistence, platform services and integrations |
+| `__tests__/`, `__mocks__/` | Behavior checks and test support |
+| `scripts/`, `plugins/`, `android/` | Tooling, Expo plugins and native Android project |
+| `assets/`, `art/` | Runtime assets and editable asset sources |
+| `screenshots/`, `marketing/` | Store assets and growth materials |
+| `support-site/`, `user-pages/`, `server/`, `discord/` | Support/community surfaces and service code |
+| `docs/` | Current guides and reference indexes |
+| `tasks/` | Current work, recent evidence and archived history |
 
-**Request:**
-```json
-{
-  "userId": "string",
-  "slot": "number",
-  "data": "string (JSON serialized game state)",
-  "version": "number",
-  "timestamp": "number"
-}
-```
+## Release and service status
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Save successful"
-}
-```
+Read the binary version from [package.json](package.json), the save schema from
+`contexts/game/initialState.ts`, and the current store/build records from their
+providers. A version in an old report is not proof of a published build.
 
-#### GET `/save?userId={userId}&slot={slot}`
-Retrieves a saved game state from the cloud.
+The active release work is tracked in [PR #203](https://github.com/Wrexist/DeepLifeSimulator/pull/203).
+Its queue includes native/device/store gates that must not be closed by web tests.
+Merging main can publish a production OTA. Support-site changes can deploy Pages.
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": "string (JSON serialized game state)",
-  "version": "number",
-  "timestamp": "number"
-}
-```
-
-#### POST `/leaderboard`
-Uploads a leaderboard score.
-
-**Request:**
-```json
-{
-  "userId": "string",
-  "score": "number",
-  "netWorth": "number",
-  "week": "number"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "rank": "number"
-}
-```
-
-#### GET `/leaderboard`
-Retrieves the leaderboard.
-
-**Response:**
-```json
-{
-  "success": true,
-  "scores": [
-    {
-      "userId": "string",
-      "score": "number",
-      "netWorth": "number",
-      "week": "number",
-      "rank": "number"
-    }
-  ]
-}
-```
-
-### Implementation Notes
-
-- The game state is serialized as JSON before being sent to the backend
-- Save operations are queued and retried automatically on failure
-- Storage quota errors are handled gracefully with user-friendly messages
-- The service includes conflict resolution for concurrent saves
-- Network status is monitored to queue saves when offline
-
-### Example Backend Implementation
-
-A basic Node.js/Express example:
-
-```javascript
-const express = require('express');
-const app = express();
-
-app.use(express.json());
-
-const saves = new Map(); // In production, use a database
-
-app.post('/save', (req, res) => {
-  const { userId, slot, data, version, timestamp } = req.body;
-  const key = `${userId}_${slot}`;
-  saves.set(key, { data, version, timestamp });
-  res.json({ success: true, message: 'Save successful' });
-});
-
-app.get('/save', (req, res) => {
-  const { userId, slot } = req.query;
-  const key = `${userId}_${slot}`;
-  const save = saves.get(key);
-  if (save) {
-    res.json({ success: true, ...save });
-  } else {
-    res.status(404).json({ success: false, message: 'Save not found' });
-  }
-});
-
-app.listen(3000);
-```
+Cloud backup is not a promise of automatic cross-device or reinstall recovery.
+Read the [existing backend and identity contract](docs/CLOUD-SAVE-BACKEND.md)
+before changing or describing it.

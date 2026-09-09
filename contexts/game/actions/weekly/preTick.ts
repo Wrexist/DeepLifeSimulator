@@ -6,7 +6,7 @@
  * smaller hot function to inline, lets the equivalence-test battery
  * (`__tests__/refactor/subsystemEquivalence.test.ts`) lock in current
  * behavior, and is the first concrete step in the `nextWeek()` refactor
- * plan documented in `tasks/round7-master-plan-2026-05-30.md`.
+ * plan documented in `tasks/archive/2026-05/round7-master-plan-2026-05-30.md`.
  *
  * Pure functions. No React, no setState, no side effects beyond logger
  * calls that match the original inline behavior. Output of each helper

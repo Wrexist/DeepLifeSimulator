@@ -1,3 +1,5 @@
+> Historical October 2025 draft. Do not publish or use for current privacy answers. Current source: `support-site/privacy.html`; release reconciliation is tracked in PR #203.
+
 # Privacy Policy for DeepLife Sim
 
 **Last updated:** October 20, 2025

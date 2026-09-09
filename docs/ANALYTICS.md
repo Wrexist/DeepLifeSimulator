@@ -159,7 +159,7 @@ on `session_start` plus one `retention_day` per new day.
 ("returned on day N exactly") and rolling N-day ("returned on day N or later")
 disagree, both are one query away from `dayIndex`, and neither can be recovered
 if the device picks one. Benchmarks in
-`tasks/retention-and-content-strategy-2026-06-19.md` are classic day-N.
+`tasks/archive/2026-06/retention-and-content-strategy-2026-06-19.md` are classic day-N.
 
 **`anchorEstimated: true` records MUST be excluded from any retention curve.**
 There is no install timestamp in this app's history and none can be recovered,

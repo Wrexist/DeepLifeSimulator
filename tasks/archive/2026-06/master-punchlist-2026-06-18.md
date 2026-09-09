@@ -63,7 +63,7 @@ and the fixes already landed this session (git log).
 | L2 | AdMob ships Google **TEST** ad-unit IDs → $0 revenue + likely store rejection | `services/AdMobService.ts:102-122` | Set 6 `EXPO_PUBLIC_ADMOB_*_{IOS,ANDROID}` EAS secrets |
 | L3 | `EXPO_PUBLIC_SAVE_HMAC_KEY` must exist and **never rotate** post-launch | `utils/saveValidation.ts:111-122` | Generate once, set as EAS secret, document as prod-critical |
 | L4 | Leaked Google Play service-account key in git history | backlog:101 | Rotate in GCP IAM, purge via `git filter-repo`, force-push |
-| L5 | Privacy policy says AdMob "Currently disabled" while builds can ship ads | `UPDATED_PRIVACY_POLICY.md:31,152` | Launch ads-off OR update policy first |
+| L5 | Privacy policy says AdMob "Currently disabled" while builds can ship ads | `docs/archive/privacy-policy-2025-10-20.md:31,152` | Launch ads-off OR update policy first |
 | L6 | CI preflight non-blocking (`continue-on-error: true`) + missing Android ad-unit vars | `.github/workflows/eas-build.yml:61-69` | Mirror secrets to GH Actions, add Android vars, flip to hard gate |
 
 > **Verified 2026-06-18 (code-assistable parts):**

@@ -5,7 +5,7 @@ Branch `claude/early-game-survivability-g2ejfj`, on top of Program 9
 personas on the real tick over 20/50/100/250 weeks, derive the life stages
 from measurement, audit prices and rewards, test for dominant strategies and
 shock recovery, fix only what the evidence supports, and report honestly.
-The prior economy audit (`tasks/economy-audit-2026-08-25.md`) is the
+The prior economy audit (`tasks/archive/2026-08/economy-audit-2026-08-25.md`) is the
 baseline; the "known concerns" in the brief were VERIFIED here, not assumed.
 
 Method: every number below is either read from source (with the file named)

@@ -1,6 +1,6 @@
 # DeepLife Simulator — Implementation Plan to Overtake BitLife
 
-**Date:** 2026-08-09 · **Binary:** 2.6.0 · **Companion to:** `tasks/category-leader-plan-2026-08-09.md`
+**Date:** 2026-08-09 · **Binary:** 2.6.0 · **Companion to:** `tasks/archive/2026-08/category-leader-plan-2026-08-09.md`
 
 This is the execution document. Six audits, four blockers, eight workstreams,
 each with concrete changes, acceptance criteria and the tests that prove them.

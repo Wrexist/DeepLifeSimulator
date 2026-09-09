@@ -74,7 +74,7 @@ describe('ImageScrim actually fades', () => {
 
   it('never imports the Expo gradient module', () => {
     // `expo-linear-gradient` hard-aborts on iOS 26 TurboModule init (P0-7/P0-8,
-    // tasks/critical-bugs-2026-05-29.md), which is why all 265 call sites use
+    // tasks/archive/2026-05/critical-bugs-2026-05-29.md), which is why all 265 call sites use
     // the flat fallback. react-native-svg is a DIFFERENT library and is already
     // imported directly by GradientButton, ProgressRing and DeepLifePlusUpsell.
     expect(code).not.toMatch(/expo-linear-gradient/);

@@ -218,7 +218,7 @@ denominator.** `docs/RETENTION-ANALYTICS.md` has both standard retention
 formulas and the cohort-size query.
 
 Benchmarks to compare against (classic day-N, from
-`tasks/retention-and-content-strategy-2026-06-19.md`): industry average
+`tasks/archive/2026-06/retention-and-content-strategy-2026-06-19.md`): industry average
 **D1 ≈ 26%, D7 ≈ 10%, D30 < 4%**; top casual titles **D1 35%+, D7 12%+**.
 
 ---

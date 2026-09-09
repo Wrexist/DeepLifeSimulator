@@ -130,7 +130,8 @@ screenshots/appstore-2026/*
 *.tmp.cjs
 *.tmp.js
 
-# Playwright MCP session artifacts (console logs, page snapshots).playwright-mcp/
+# Playwright MCP session artifacts (console logs, page snapshots).
+.playwright-mcp/
 
 # Discord structure snapshots (discord/cli.mjs backup).
 # Carry live role and channel ids, plus any per-member permission overwrites,
@@ -149,3 +150,6 @@ __tests__/scratch_probe/
 !screenshots/appstore-2026/alternatives/
 !screenshots/appstore-2026/source/
 !screenshots/appstore-2026/DeepLife-Immersive-*.png
+
+# Accidental screenshot destination from a missing output argument.
+/undefined/

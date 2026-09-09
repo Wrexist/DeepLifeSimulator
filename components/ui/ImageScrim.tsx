@@ -6,7 +6,7 @@
  * Card artwork needs a darkened base so an overlaid title stays legible. The
  * obvious tool is `LinearGradient`, but `expo-linear-gradient` is BANNED
  * app-wide - direct imports hard-abort on iOS 26 TurboModule init (recorded as
- * P0-7/P0-8 in `tasks/critical-bugs-2026-05-29.md`). Every call site used to go
+ * P0-7/P0-8 in `tasks/archive/2026-05/critical-bugs-2026-05-29.md`). Every call site used to go
  * through `LinearGradientFallback`, which took `colors[0]` and painted a flat
  * block: a `['transparent', 'black']` scrim disappeared, and a
  * `['black', 'transparent']` one became an opaque slab across the art. Call

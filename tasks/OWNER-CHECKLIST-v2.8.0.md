@@ -192,7 +192,7 @@ removed — it arrives when it means something.
 
 I did not ship it because **it changes what every existing player sees**, not
 just new ones. That is a product call, not a correctness one. Candidates are
-ranked cheapest-first in `tasks/review-response-2026-08-10.md` §3.
+ranked cheapest-first in `tasks/archive/2026-08/review-response-2026-08-10.md` §3.
 
 Tell me to do it and I will.
 

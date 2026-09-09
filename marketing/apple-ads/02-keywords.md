@@ -1,7 +1,7 @@
 # 02 — Keywords
 
 **126 exact-match keywords** across three campaigns, plus 12 broad-match Discovery
-seeds. Machine-readable lists live in [`keywords/`](keywords/):
+seeds. Machine-readable lists live in [`keywords/`](keywords):
 
 | File | Rows | Campaign |
 |---|---|---|

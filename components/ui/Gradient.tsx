@@ -4,7 +4,7 @@
  * ## Why
  *
  * `expo-linear-gradient` is banned app-wide: direct imports hard-abort on iOS 26
- * TurboModule init (P0-7/P0-8, `tasks/critical-bugs-2026-05-29.md`). Every call
+ * TurboModule init (P0-7/P0-8, `tasks/archive/2026-05/critical-bugs-2026-05-29.md`). Every call
  * site was swapped to `LinearGradientFallback`, which takes `colors[0]` and
  * paints it as a flat background - a correct crash fix, and a silent visual
  * regression nobody swept up afterwards.

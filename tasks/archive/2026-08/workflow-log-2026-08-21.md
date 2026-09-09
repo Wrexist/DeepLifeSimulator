@@ -23,7 +23,7 @@ implemented the rest directly — same plan, fewer moving parts.
 | 10 | Post-prestige leaks | coordinator direct | vendor seeds reviewCount→0 (initialState + v18 migration); achievements repeat-claims award nothing; rig Sell button |
 | 11 | Verification battery | coordinator | type-check ✓ type-check:tests ✓ lint ✓ politics 93 ✓ contacts/economy 135 ✓ integ/onb/monet 546 ✓ equivalence 405 ✓ (6 snapshots updated) |
 | 12 | Pre-existing failures isolated | coordinator | stashed all changes → same 3 render suites fail on clean tree (money-format drift) → not ours |
-| 13 | Visual paywall check | coordinator | Playwright on web build; `paywall-full.png`; live-fixed footer clipping mid-check |
+| 13 | Visual paywall check | coordinator | Playwright on web build; `docs/reviews/paywall-2026-08-21/paywall-full.png`; live-fixed footer clipping mid-check |
 | 14 | Push | coordinator | `da84a27a` → origin/main |
 | 15 | Cleanup: untrack `.playwright-mcp/` artifacts, gitignore | coordinator | `f2f39a23` |
 

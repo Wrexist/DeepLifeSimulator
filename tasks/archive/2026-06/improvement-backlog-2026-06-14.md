@@ -99,7 +99,7 @@
 | 2 | P0 | **AdMob ships Google *test* ad unit IDs** by default → zero ad revenue. | `services/AdMobService.ts:102-122`. Set the 6 `EXPO_PUBLIC_ADMOB_*` EAS secrets. |
 | 3 | P0 | **`EXPO_PUBLIC_SAVE_HMAC_KEY` must exist as an EAS secret** and never change post-launch (or every existing save invalidates). | Preflight blocker — confirm it's set. |
 | 4 | P0 | **Rotate + purge the leaked Google Play service-account key** (history rewrite on `main`, owner-only). | Ops/security. |
-| 5 | P0 | **Privacy policy says AdMob is "Currently disabled in this version"** while a build that ships ads contradicts it → App Store privacy-label mismatch. | `UPDATED_PRIVACY_POLICY.md:31,152`. Either keep ads off at launch or update the policy before enabling. |
+| 5 | P0 | **Privacy policy says AdMob is "Currently disabled in this version"** while a build that ships ads contradicts it → App Store privacy-label mismatch. | `docs/archive/privacy-policy-2025-10-20.md:31,152`. Either keep ads off at launch or update the policy before enabling. |
 | 6 | P0 | **CI preflight is non-blocking** (`continue-on-error: true`) — a missing secret, test-ad ID, or type regression can silently ship. Android matrix leg also missing 3 `*_ANDROID` ad-unit env vars. | `.github/workflows/eas-build.yml:61-69`. Make preflight a hard gate ahead of `eas build --profile production`. |
 
 ---

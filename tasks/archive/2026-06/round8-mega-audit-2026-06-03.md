@@ -94,7 +94,7 @@ Decision-gated items above are now unblocked too (answers captured); queued behi
 - **Effort:** 1.5 h.
 
 ### H-3 [HIGH] Privacy policy says "AdMob disabled" while production enables it — compliance gap
-- **Files:** `eas.json:9` (`EXPO_PUBLIC_ENABLE_ADMOB: "true"`) vs `UPDATED_PRIVACY_POLICY.md:31,152` ("Currently disabled", last updated Oct 2025); enable logic `lib/config/featureFlags.ts:18`.
+- **Files:** `eas.json:9` (`EXPO_PUBLIC_ENABLE_ADMOB: "true"`) vs `docs/archive/privacy-policy-2025-10-20.md:31,152` ("Currently disabled", last updated Oct 2025); enable logic `lib/config/featureFlags.ts:18`.
 - **Impact:** Published policy materially misrepresents data collection → App Store 5.1.1/5.1.2 + GDPR/CCPA actionable.
 - **Fix:** Decide whether ads ship. If yes: update the policy + App Store privacy nutrition labels to declare AdMob + AD_ID + tracking, bump the date. If no: set `EXPO_PUBLIC_ENABLE_ADMOB:"false"` in `eas.json` prod.
 - **Effort:** 1 h (+ legal review of copy).
