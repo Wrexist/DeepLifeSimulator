@@ -1,3 +1,12 @@
+# Active: App Store player stories (2026-09-09)
+
+Authorized scope: a new clean screenshot campaign emphasizing player experiences and achievements.
+
+- [x] Review current repository, source captures, existing artwork and Apple sizes.
+- [x] Create ten distinct outcome-led compositions with authentic gameplay evidence.
+- [x] Export and visually verify iPhone 6.5, iPhone 6.9 and iPad sets.
+- [ ] Document sources, check outputs, open a PR and inspect remote checks.
+
 # Active: PR CI recovery
 
 - [x] Read failed job logs and reproduce first-session fixture failures.

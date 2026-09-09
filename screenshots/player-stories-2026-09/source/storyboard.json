@@ -1,0 +1,546 @@
+[
+  {
+    "id": "01-your-life",
+    "title": [
+      "Your life.",
+      "Your way."
+    ],
+    "sub": [
+      "Start with a little. Build a life",
+      "you cannot wait to come back to."
+    ],
+    "theme": "A LIFE FULL OF POSSIBILITIES",
+    "accent": "#D4B17A",
+    "ink": "#8A6026",
+    "art": "new",
+    "proof": "Every ambition starts somewhere.",
+    "steps": [
+      "Make choices",
+      "Build a future",
+      "Live your story"
+    ],
+    "panels": [
+      {
+        "shot": "current-home",
+        "crop": [
+          0.038,
+          0.192,
+          0.924,
+          0.31
+        ],
+        "ipadCrop": [
+          0.02,
+          0.147,
+          0.96,
+          0.275
+        ],
+        "checks": [
+          "Choose your first job"
+        ]
+      },
+      {
+        "shot": "02-work",
+        "crop": [
+          0.033,
+          0.24,
+          0.934,
+          0.163
+        ],
+        "ipadCrop": [
+          0.028,
+          0.262,
+          0.944,
+          0.168
+        ],
+        "checks": [
+          "Engineering Manager",
+          "Top of the ladder"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "02-build-an-empire",
+    "title": [
+      "Be your",
+      "own boss."
+    ],
+    "sub": [
+      "Launch a company. Grow your revenue.",
+      "Make your ambition worth something."
+    ],
+    "theme": "BUSINESS & AMBITION",
+    "accent": "#D4B17A",
+    "ink": "#8A6026",
+    "art": "02",
+    "proof": "Your business. Your next big move.",
+    "steps": [
+      "Start a company",
+      "Grow your brand",
+      "Build an empire"
+    ],
+    "panels": [
+      {
+        "shot": "17-x-company",
+        "crop": [
+          0.037,
+          0.09,
+          0.923,
+          0.465
+        ],
+        "ipadCrop": [
+          0.022,
+          0.099,
+          0.956,
+          0.487
+        ],
+        "checks": [
+          "Empire snapshot",
+          "8,000",
+          "Brand"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "03-find-love",
+    "title": [
+      "Find your",
+      "kind of love."
+    ],
+    "sub": [
+      "Meet someone. Make a connection.",
+      "See where your story takes you."
+    ],
+    "theme": "DATING & RELATIONSHIPS",
+    "accent": "#E7AEB5",
+    "ink": "#A04E5A",
+    "art": "03",
+    "proof": "A match can become so much more.",
+    "steps": [
+      "Meet someone",
+      "Build a bond",
+      "Fall in love"
+    ],
+    "panels": [
+      {
+        "shot": "05-app-spark",
+        "crop": [
+          0.032,
+          0.075,
+          0.936,
+          0.835
+        ],
+        "ipadCrop": [
+          0.027,
+          0.09,
+          0.947,
+          0.809
+        ],
+        "checks": [
+          "Sarah Johnson",
+          "30 swipes left"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "04-reach-the-top",
+    "title": [
+      "Start small.",
+      "Aim higher."
+    ],
+    "sub": [
+      "Earn your degree. Land a better job.",
+      "Work your way to the top."
+    ],
+    "theme": "EDUCATION & CAREERS",
+    "accent": "#A4D6C9",
+    "ink": "#287463",
+    "art": "05",
+    "proof": "Turn qualifications into possibilities.",
+    "steps": [
+      "Choose a path",
+      "Get qualified",
+      "Get promoted"
+    ],
+    "panels": [
+      {
+        "shot": "02-work",
+        "crop": [
+          0.033,
+          0.24,
+          0.934,
+          0.163
+        ],
+        "ipadCrop": [
+          0.028,
+          0.262,
+          0.944,
+          0.168
+        ],
+        "checks": [
+          "Engineering Manager",
+          "Top of the ladder"
+        ]
+      },
+      {
+        "shot": "28-app-education-earned",
+        "crop": [
+          0.035,
+          0.38,
+          0.93,
+          0.33
+        ],
+        "ipadCrop": [
+          0.023,
+          0.399,
+          0.954,
+          0.357
+        ],
+        "checks": [
+          "Business Degree",
+          "Computer Science"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "05-build-your-wealth",
+    "title": [
+      "Make more.",
+      "Own more."
+    ],
+    "sub": [
+      "Trade stocks. Buy your first property.",
+      "Build wealth beyond your paycheck."
+    ],
+    "theme": "INVESTING & PROPERTY",
+    "accent": "#BEB7E4",
+    "ink": "#665097",
+    "art": "08",
+    "proof": "From your first investment to a portfolio.",
+    "steps": [
+      "Invest in stocks",
+      "Buy property",
+      "Grow your portfolio"
+    ],
+    "panels": [
+      {
+        "shot": "33-x-realestate-portfolio",
+        "crop": [
+          0.035,
+          0.256,
+          0.93,
+          0.257
+        ],
+        "ipadCrop": [
+          0.023,
+          0.218,
+          0.954,
+          0.266
+        ],
+        "checks": [
+          "Your properties",
+          "Studio Apartment"
+        ]
+      },
+      {
+        "shot": "07-app-stocks",
+        "crop": [
+          0.035,
+          0.628,
+          0.93,
+          0.275
+        ],
+        "ipadCrop": [
+          0.023,
+          0.662,
+          0.954,
+          0.29
+        ],
+        "checks": [
+          "All stocks",
+          "AAPL"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "06-drive-the-dream",
+    "title": [
+      "You earned",
+      "this life."
+    ],
+    "sub": [
+      "Get the licence. Buy the dream car.",
+      "Make your progress feel real."
+    ],
+    "theme": "CARS & LIFESTYLE",
+    "accent": "#E4C275",
+    "ink": "#856017",
+    "art": "09",
+    "proof": "Your next milestone is waiting.",
+    "steps": [
+      "Get your licence",
+      "Build your garage",
+      "Enjoy the rewards"
+    ],
+    "panels": [
+      {
+        "shot": "34-x-garage-owned",
+        "crop": [
+          0.075,
+          0.161,
+          0.85,
+          0.345
+        ],
+        "ipadCrop": [
+          0.024,
+          0.152,
+          0.952,
+          0.355
+        ],
+        "checks": [
+          "Exotic Supercar",
+          "Your Vehicles"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "07-shape-your-story",
+    "title": [
+      "One choice.",
+      "A new chapter."
+    ],
+    "sub": [
+      "Money, happiness or reputation?",
+      "Decide what matters to you."
+    ],
+    "theme": "CHOICES & CONSEQUENCES",
+    "accent": "#D8B58C",
+    "ink": "#8E6236",
+    "art": "04",
+    "proof": "See the effects. Make the call.",
+    "steps": [
+      "Face the moment",
+      "Weigh the effects",
+      "Choose your future"
+    ],
+    "panels": [
+      {
+        "shot": "32-event-decision",
+        "crop": [
+          0.041,
+          0.179,
+          0.919,
+          0.646
+        ],
+        "ipadCrop": [
+          0.148,
+          0.188,
+          0.705,
+          0.625
+        ],
+        "checks": [
+          "Choice Effects",
+          "Reputation +15",
+          "Embrace the feeling"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "08-become-a-creator",
+    "title": [
+      "Your channel.",
+      "Your big break."
+    ],
+    "sub": [
+      "Hit go live. Upgrade your setup.",
+      "Build an audience of your own."
+    ],
+    "theme": "CREATORS & STREAMING",
+    "accent": "#CDB3E3",
+    "ink": "#81549C",
+    "art": "13",
+    "proof": "Even the biggest channels start at zero.",
+    "steps": [
+      "Start streaming",
+      "Upgrade your gear",
+      "Grow your audience"
+    ],
+    "panels": [
+      {
+        "shot": "25-x-streaming",
+        "crop": [
+          0.039,
+          0.157,
+          0.921,
+          0.36
+        ],
+        "ipadCrop": [
+          0.026,
+          0.175,
+          0.947,
+          0.409
+        ],
+        "checks": [
+          "Your Channel",
+          "Go Live"
+        ]
+      },
+      {
+        "shot": "25-x-streaming",
+        "crop": [
+          0.039,
+          0.546,
+          0.921,
+          0.181
+        ],
+        "ipadCrop": [
+          0.026,
+          0.585,
+          0.948,
+          0.187
+        ],
+        "checks": [
+          "Stream health",
+          "Upgrade"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "09-see-the-world",
+    "title": [
+      "Go beyond",
+      "the everyday."
+    ],
+    "sub": [
+      "Get your passport. Pick a destination.",
+      "Turn success into new experiences."
+    ],
+    "theme": "TRAVEL & EXPERIENCES",
+    "accent": "#A7D6DC",
+    "ink": "#2D717B",
+    "art": "12",
+    "proof": "Paris, Tokyo, Bali. Where to next?",
+    "steps": [
+      "Get your passport",
+      "Choose a destination",
+      "See the world"
+    ],
+    "panels": [
+      {
+        "shot": "24-x-travel",
+        "crop": [
+          0.035,
+          0.572,
+          0.93,
+          0.422
+        ],
+        "ipadCrop": [
+          0.023,
+          0.604,
+          0.954,
+          0.39
+        ],
+        "checks": [
+          "Paris",
+          "Tokyo",
+          "Bali"
+        ]
+      }
+    ],
+    "ipadPanels": [
+      {
+        "shot": "24-x-travel",
+        "ipadCrop": [
+          0.025,
+          0.481,
+          0.95,
+          0.104
+        ],
+        "checks": [
+          "Unlock world travel"
+        ]
+      },
+      {
+        "shot": "24-x-travel",
+        "ipadCrop": [
+          0.024,
+          0.604,
+          0.952,
+          0.241
+        ],
+        "checks": [
+          "Where to next",
+          "Paris"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "10-build-a-family",
+    "title": [
+      "More to life",
+      "than money."
+    ],
+    "sub": [
+      "Fall in love. Raise a family.",
+      "Build a life worth sharing."
+    ],
+    "theme": "FAMILY & CONNECTION",
+    "accent": "#E2BDA4",
+    "ink": "#925B36",
+    "art": "10",
+    "proof": "The people who make it all matter.",
+    "steps": [
+      "Build relationships",
+      "Raise your children",
+      "Stay connected"
+    ],
+    "panels": [
+      {
+        "shot": "09-app-contacts",
+        "crop": [
+          0.033,
+          0.127,
+          0.934,
+          0.233
+        ],
+        "ipadCrop": [
+          0.027,
+          0.135,
+          0.946,
+          0.2
+        ],
+        "checks": [
+          "Relationship portfolio"
+        ]
+      },
+      {
+        "shot": "09-app-contacts",
+        "crop": [
+          0.033,
+          0.649,
+          0.934,
+          0.266
+        ],
+        "ipadCrop": [
+          0.027,
+          0.642,
+          0.946,
+          0.266
+        ],
+        "checks": [
+          "Spouse",
+          "Baby Sam",
+          "Child"
+        ]
+      }
+    ]
+  }
+]
