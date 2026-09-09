@@ -615,10 +615,10 @@ Each brief defines a bounded starting point. For a multi-domain package, audit t
 
 ```text
 Work only in Wrexist/DeepLifeSimulator. Execute [PACKAGE ID AND TITLE] from
-DeepLifeSimulator-Master-Prompt-Backlog.md using the detailed brief below.
+tasks/MASTER_PROMPT_BACKLOG.md using the detailed brief below.
 
 Read CLAUDE.md, relevant scoped instructions, tasks/todo.md, tasks/lessons.md,
-and, where present, tasks/release/CONTRACT.md and queue.json. Refresh main,
+and, where present, tasks/release/CONTRACT.md and tasks/release/queue.json. Refresh main,
 open PRs and latest CI. Pin the source SHA. Distinguish merged implementation,
 unmerged implementation, previously recorded evidence and fresh verification.
 Do not duplicate PR #203 or overwrite other active work.

@@ -1,3 +1,47 @@
+# Active: Resolve PR #203 conflicts (2026-09-09)
+
+- [x] Identify the conflicting base/head revisions and enumerate conflict files.
+- [x] Merge current `main`, preserve both valid lesson entries, and remove all markers.
+- [x] Run focused validation, commit, push, and verify GitHub mergeability; remote checks started.
+
+---
+
+# Active: Fresh release workflow (2026-09-09)
+
+User authorized a new audit, sequential master prompts, implementation and verification
+through readiness for the next App Store version. Baseline: main `1e8c0fdf`.
+This section supersedes historical Active headings below as the current queue.
+
+- [x] Identify repository, read canonical instructions and inspect open PRs/current CI.
+- [x] Run fresh automated checks and evidence-backed save, logic, product and release audits.
+      Scope and external gaps: `tasks/release/AUDIT.md`.
+- [x] Create one tracked release queue and resumable master prompts with explicit evidence gates.
+- [x] Fix reproduced stale save-writer race after mutex watchdog expiry and add regression.
+- [x] Fix research slot-switch/replay defects and fail incomplete release evidence.
+- [x] Correct factual privacy disclosures in source; publication/operational review remains blocked.
+- [x] Extend existing hourly PR-check automation to the release queue.
+- [ ] Execute further actionable packages in dependency order, verifying each before completion.
+- [ ] Check latest PR CI and record remaining native/store gates without claiming approval.
+
+Release completion and handoff continuation:
+- [x] Recheck latest branch/CI and closed R05 evidence.
+- [x] Reconcile support purchase/save guidance and ASO instructions with source/Apple evidence.
+- [x] Validate current metadata and all 30 screenshot exports.
+- [x] Expand all seven remaining gates into executable briefs with exact prerequisites and proof.
+- [x] Prepare publication and explicit seven-gate handoff; latest remote checks tracked in PR #203.
+
+R05 cleanup continuation:
+- [x] Refresh the concurrent `b5aa2a8` handoff and narrow the runner issue by domain.
+- [x] Reproduce and fix owned-resource cleanup without hiding unfinished work.
+- [x] Verify affected suites and local candidate gates; record remaining remote/native/store gates.
+      R05 evidence: `tasks/release/evidence/R05-cleanup-2026-09-09.md`.
+
+No automatic production OTA, native build, merge or App Store submission is implied.
+Keep version 2.13.0/schema 51 until verified release identity requires a new binary version.
+Preserve PR #202 screenshot work. User approval to start this plan is provided in this chat.
+
+---
+
 # Active: App Store player stories (2026-09-09)
 
 Authorized scope: a new clean screenshot campaign emphasizing player experiences and achievements.
@@ -8,6 +52,7 @@ Authorized scope: a new clean screenshot campaign emphasizing player experiences
 - [x] Document sources, check outputs, open a PR and inspect remote checks.
       PR #202 is open with no merge conflicts. All 30 image exports pass.
       Repository EAS Update CI was still running when this status was recorded.
+
 
 # Active: PR CI recovery
 
