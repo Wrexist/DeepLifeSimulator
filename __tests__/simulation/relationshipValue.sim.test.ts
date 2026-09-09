@@ -29,6 +29,12 @@ import { runPersona, rowAt, type SimResult, type SimPolicy } from '../helpers/ea
 import { PERSONAS } from '../helpers/earlyGamePersonas';
 import type { GameState, Relationship } from '@/contexts/game/types';
 
+// Exercise real saves against read-after-write storage rather than the UI stub.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
+
 const RUN = process.env.RUN_RELATIONSHIP_VALUE === '1';
 const d = RUN ? describe : describe.skip;
 

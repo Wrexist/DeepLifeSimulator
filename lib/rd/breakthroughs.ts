@@ -60,7 +60,8 @@ export function triggerBreakthrough(
   technologyId: string,
   companyId: string,
   week: number,
-  labType: 'basic' | 'advanced' | 'cutting_edge'
+  labType: 'basic' | 'advanced' | 'cutting_edge',
+  rollFor: (key: string) => number,
 ): Breakthrough | null {
   // Base chance for breakthrough
   const baseChance = {
@@ -75,13 +76,13 @@ export function triggerBreakthrough(
 
   const chance = baseChance * tierMultiplier;
 
-  if (Math.random() < chance) {
+  if (rollFor('breakthrough') < chance) {
     // Determine breakthrough type based on technology tier
     let type: BreakthroughType;
     if (technology?.tier === 3) {
-      type = Math.random() < 0.3 ? 'global_impact' : 'revolutionary_product';
+      type = rollFor('type') < 0.3 ? 'global_impact' : 'revolutionary_product';
     } else if (technology?.tier === 2) {
-      type = Math.random() < 0.5 ? 'industry_disruption' : 'revolutionary_product';
+      type = rollFor('type') < 0.5 ? 'industry_disruption' : 'revolutionary_product';
     } else {
       type = 'industry_disruption';
     }
@@ -89,7 +90,7 @@ export function triggerBreakthrough(
     const effects = BREAKTHROUGH_EFFECTS[type];
 
     return {
-      id: `breakthrough_${technologyId}_${week}_${Date.now()}`,
+      id: `breakthrough_${companyId}_${technologyId}_${week}`,
       name: effects.name,
       description: effects.description,
       type,

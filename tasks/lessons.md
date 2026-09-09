@@ -5735,6 +5735,57 @@ restore duplicate job guidance. Preserve the complete newer Home hierarchy and
 keep the asset pack separate. Check automatically merged neighboring sections too,
 including the identity card and recap positions, not only conflict markers.
 
+## 2026-09-09 — A watchdog cannot cancel storage writes
+
+A save mutex timeout may reject a waiter, but must not admit another writer while
+old AsyncStorage I/O remains in flight. A release token prevents unlocking another
+holder; it does not fence an old storage write. Reproduce against doubleBufferSave
+with a paused write and verify the final active buffer, not just mutex ownership.
+
+## 2026-09-09 — Unreached release evidence is a failed gate
+
+A browser run with no FAIL rows can still have skipped entire acceptance branches.
+Require the complete expected check set and reject UNREACHED, duplicate or malformed
+rows before reporting success. Record native and external gates separately from web.
+
+## 2026-09-09 — A passing simulation must finish its saves
+
+runPersona unmounted its provider but returned before fire-and-forget saves
+finished. A FIFO save-mutex acquisition after awaited unmount is a completion
+barrier for those already-started saves. No new production drain API is needed.
+The save/load suite also inherited a storage mock that discarded every write,
+so real save verification retried instead of completing. Give that suite a
+stateful storage fixture and assert queue/mutex idle without mocking away the
+production save path. Do not use forceExit or hide teardown errors.
+
+## 2026-09-09 — Week changes are not necessarily played weeks
+
+Loading a different slot can change weeksLived by exactly one. Research belongs
+inside the guarded authoritative tick, with life-scoped deterministic rolls.
+Return action outcomes from the same pure resolver used by the updater, rather
+than adding unconditional success after a state update. The existing result
+ratchet caught that follow-up defect and was preserved.
+
+## 2026-09-09 — Tests own the resources they start
+
+A green assertion is not a completed asynchronous operation. The subscription
+routing test abandoned purchaseItemAsync, leaving its 90-second deadline alive.
+Complete the mock store event, await the result and assert cancellation of that
+specific deadline; do not shorten the production timeout or use forceExit.
+React 19 unmount also schedules work: await act around fixture teardown in an
+afterEach, including assertion-failure paths, then verify provider intervals were
+cleared. Finally, Promise.race does not cancel its loser: storage-readiness attempts
+must clear their timeout in finally on success, rejection and timeout.
+
+Install the isolated asset-tooling lockfile as CI does before repository-wide
+lint (`npm ci --prefix art/game-assets-v1/source`). Missing three/sharp in a fresh
+checkout is an installation gap, not seven new source defects.
+
+### 2026-09-09 — Release handoffs must distinguish source preparation from store state
+
+A green metadata validator does not establish that its version record or release notes are current in App Store Connect. The source still targeted 1.5.0 after the public listing had reached 1.5.5. Resolve the current draft/released records before applying metadata. Verify platform experiment capabilities against Apple documentation: Product Page Optimization tests icons, screenshots and previews, not subtitles. A documented npm ci command also needs a committed lockfile; verify the exact isolated command rather than relying on a preinstalled shared dependency.
+
+The expanded release briefs initially renamed the required Acceptance criteria heading. The exact latest-tree workflow regression caught it in CI; the earlier focused test had run before the final brief edits and could not certify them. Preserve the prompt contract headings and run the relevant check after the last artifact edit, not just before expanding the files.
 
 ## 2026-09-09 — Store artwork must preserve the game's identity
 

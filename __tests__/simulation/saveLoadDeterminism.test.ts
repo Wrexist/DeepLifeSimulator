@@ -24,6 +24,17 @@ import { runPersona, type SimPolicy, type SimWeekContext, type SimResult } from 
 import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
 import { hydrateLoadedState } from '@/utils/hydrateLoadedState';
 import type { GameState } from '@/contexts/game/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveQueue } from '@/utils/saveQueue';
+import { saveLoadMutex } from '@/utils/saveLoadMutex';
+
+// The shared UI fixture discards writes and always reads null. This suite runs
+// real saves, so use actual read-after-write storage semantics: verification,
+// signatures, backups and the queue all remain the production implementations.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
 
 const RUN = process.env.RUN_SAVELOAD_SIM === '1';
 const d = RUN ? describe : describe.skip;
@@ -100,6 +111,12 @@ async function run(name: string, weeks: number, from?: GameState): Promise<SimRe
 }
 
 d('a save round trip does not change the life', () => {
+  beforeEach(async () => { await AsyncStorage.clear(); });
+  afterEach(() => {
+    expect(saveLoadMutex.isHeld()).toBe(false);
+    expect(saveQueue.getStatus()).toMatchObject({ queueLength: 0, isProcessing: false });
+  });
+
   for (const name of ['CASUAL SOCIAL', 'LONER']) {
     it(`${name}: continuing from a round-tripped save matches continuing straight through`, async () => {
       const first = await run(name, SPLIT);

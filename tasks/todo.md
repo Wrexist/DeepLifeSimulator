@@ -12,11 +12,13 @@ Verify current main, PR heads and provider records before acting.
 
 ## Active release
 
-[PR #203](https://github.com/Wrexist/DeepLifeSimulator/pull/203) owns the current
-release queue and save/research/validation fixes. While that PR is unmerged,
-use its [remaining-work guide](https://github.com/Wrexist/DeepLifeSimulator/blob/codex/fresh-release-workflow/tasks/release/REMAINING_WORK.md)
-and [queue](https://github.com/Wrexist/DeepLifeSimulator/blob/codex/fresh-release-workflow/tasks/release/queue.json).
-Once integrated, those same files are local under `tasks/release/`.
+[PR #203](https://github.com/Wrexist/DeepLifeSimulator/pull/203) merged the
+release queue and save/research/validation fixes at `c32f2b9`.
+Use the [remaining-work guide](release/REMAINING_WORK.md),
+[release queue](release/queue.json), and [execution contract](release/CONTRACT.md).
+[PR #206](https://github.com/Wrexist/DeepLifeSimulator/pull/206) owns follow-up
+save/load timeout handling and evidence ancestry validation; its checks must pass
+before integration. User authorized the reviewed merge loop on 9 September 2026.
 
 | Package | Remaining acceptance |
 |---|---|
@@ -30,7 +32,8 @@ Once integrated, those same files are local under `tasks/release/`.
 
 The release remains HOLD until the required evidence exists. Do not reuse stale
 “dispatch 2.13.0” instructions without checking current build/store records.
-R00/R01/R02/R03/R05 have recorded evidence on #203; unmerged code is not main.
+R00/R01/R02/R03/R05 have recorded implementation evidence. #206 corrects unpublished
+local commit references; native/store acceptance remains separate.
 
 ## Recently merged
 
@@ -64,8 +67,8 @@ in the backlog. Historical hypotheses are not confirmed defects.
 - [x] Inspect both PR heads, review comments and completed CI logs.
 - [x] Repair the encoding fixture exception after its historical report moved.
 - [ ] Verify cleanup CI and merge #205 at its checked head.
-- [ ] Fix #203 save/load acquisition rejection and verify evidence commit ancestry.
-- [ ] Verify #203 checks, integrate current main and merge at its checked head.
+- [ ] Merge verified #206 save/load acquisition and evidence ancestry corrections.
+- [x] Refresh merged #203 and integrate its release queue without restoring old TODO history.
 - [ ] Refresh the release queue and execute the next eligible package.
 
 Integration note: if #203 updates this file, retain its live release entries and

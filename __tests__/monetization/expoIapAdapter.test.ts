@@ -131,10 +131,19 @@ describe('expoIapAdapter', () => {
 
   it('requests a subscription purchase under type "subs"', async () => {
     const adapter = await freshAdapter();
-    adapter.purchaseItemAsync('deeplife_premium_yearly', 'subs');
+    const deadlines = jest.spyOn(global, 'setTimeout');
+    const clearedDeadlines = jest.spyOn(global, 'clearTimeout');
+    const purchase = adapter.purchaseItemAsync('deeplife_premium_yearly', 'subs');
     expect(requestPurchaseMock).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'subs' }),
     );
+    // Finish the request through its real listener; abandoning the promise
+    // leaves the adapter's 90-second StoreKit deadline alive after this test.
+    errorCb!({ code: 'user-cancelled', productId: 'deeplife_premium_yearly' });
+    expect((await purchase).responseCode).toBe(adapter.IAPResponseCode.USER_CANCELED);
+    const deadlineIndex = deadlines.mock.calls.findIndex(([, ms]) => ms === 90_000);
+    expect(deadlineIndex).toBeGreaterThanOrEqual(0);
+    expect(clearedDeadlines).toHaveBeenCalledWith(deadlines.mock.results[deadlineIndex].value);
   });
 
   it('maps a user cancellation to USER_CANCELED', async () => {

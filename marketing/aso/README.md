@@ -1,3 +1,9 @@
+> Release preparation: `metadata.mjs` still names historical store record 1.5.0.
+> The fresh audit observed public version 1.5.5. Do not apply the historical
+> record or its What's New copy to the next release. Read current App Store
+> Connect state, then reconcile all release-note sources under R07.
+> Current handoff: `tasks/release/REMAINING_WORK.md`.
+
 # App Store & Google Play metadata
 
 **The copy lives in `metadata.mjs`, not here.** This file explains the thinking;
@@ -66,8 +72,9 @@ already carry. *This is the one change that needs a review cycle and a decision
 duplicated the name. This one shares no term with any other field and adds four
 distinct high-intent terms.
 
-**Keywords → 99/100**, no overlap with name or subtitle, no competitor marks,
-singular forms.
+**Keywords:** use the measured count from `check:aso`. The current field uses
+84/100 characters, with no overlap with name or subtitle or competitor marks.
+Additional terms need relevance and search-demand evidence, not padding.
 
 **A second keyword field.** The US storefront indexes an app's **es-MX**
 metadata alongside its en-US metadata, so adding the Spanish localisation buys
@@ -138,10 +145,11 @@ Anything added later that sounds like a promise belongs there with its evidence.
 2. **`bitlife` is deliberately absent.** It is the obvious high-volume term and
    it is a competitor trademark: App Store Review 5.2.5, and a takedown risk on
    Play. It would also bring traffic expecting a different game.
-3. **Test the subtitle rather than trust it.** Apple's Product Page Optimization
-   runs a real A/B test on the subtitle, icon and screenshots, free, up to three
-   treatments. The subtitle here is a considered guess; PPO is how you turn it
-   into a measured one.
+3. **Measure creative performance.** Apple's Product Page Optimization tests
+   app icons, screenshots and app previews, with up to three treatments. It does
+   not test subtitles. Evaluate subtitle changes separately and account for
+   release timing and traffic changes before attributing an uplift. See
+   [Apple's current scope](https://developer.apple.com/help/app-store-connect/create-product-page-optimization-tests/overview-of-product-page-optimization).
 4. **The IAP renames are optional** and need App Store Connect edits.
 
 ---
@@ -153,5 +161,5 @@ Anything added later that sounds like a promise belongs there with its evidence.
 | Name, subtitle, keywords | `metadata.mjs` → App Store Connect | Yes |
 | Description | `metadata.mjs` | Yes |
 | Promotional text | `metadata.mjs` | **No** — the only field you can change any time |
-| What's New | `WHATS_NEW.md` | Ships with the build |
-| Screenshots | `screenshots/appstore-2026/` | Yes. See `docs/store-screenshot-design.md` |
+| What's New | `metadata.mjs` (store), `WHATS_NEW.md` and `lib/config/changelog.ts` (aligned) | Ships with the build |
+| Screenshots | `screenshots/player-stories-2026-09/` | Yes. Native parity required before upload |

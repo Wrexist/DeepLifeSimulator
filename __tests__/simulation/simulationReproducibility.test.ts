@@ -31,6 +31,15 @@
 import { runPersona, type SimPolicy, type SimWeekContext, type SimResult } from '../helpers/earlyGameSim';
 import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
 import type { GameState } from '@/contexts/game/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveQueue } from '@/utils/saveQueue';
+import { saveLoadMutex } from '@/utils/saveLoadMutex';
+
+// Keep real save verification and queue behavior, with storage that retains writes.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
 
 const RUN = process.env.RUN_REPRO_SIM === '1';
 const d = RUN ? describe : describe.skip;
@@ -88,6 +97,12 @@ function firstDivergence(a: Record<string, string>[], b: Record<string, string>[
 }
 
 d('the same life produces the same life', () => {
+  beforeEach(async () => { await AsyncStorage.clear(); });
+  afterEach(() => {
+    expect(saveLoadMutex.isHeld()).toBe(false);
+    expect(saveQueue.getStatus()).toMatchObject({ queueLength: 0, isProcessing: false });
+  });
+
   for (const name of ['LONER', 'CASUAL SOCIAL', 'ROMANCE-FOCUSED', 'FRIENDSHIP-FOCUSED', 'CAREER-OBSESSED']) {
     it(`${name}: ${RUNS} runs of ${WEEKS} weeks agree on every field, every week`, async () => {
       const base: Record<string, string>[] = [];

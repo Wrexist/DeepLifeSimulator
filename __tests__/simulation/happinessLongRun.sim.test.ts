@@ -17,6 +17,12 @@ import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
 import type { GameState } from '@/contexts/game/types';
 import * as fs from 'fs';
 
+// Exercise real saves against read-after-write storage rather than the UI stub.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
+
 const RUN = process.env.RUN_HAPPINESS_LONGRUN === '1';
 const d = RUN ? describe : describe.skip;
 jest.setTimeout(4 * 60 * 60 * 1000);

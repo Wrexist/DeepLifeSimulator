@@ -25,6 +25,44 @@ describe('safeAsyncStorage', () => {
     jest.clearAllMocks();
   });
 
+  describe('readiness deadline ownership', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      (AsyncStorage.getAllKeys as jest.Mock).mockReset().mockResolvedValue([]);
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue('"ready"');
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      (AsyncStorage.getAllKeys as jest.Mock).mockReset().mockResolvedValue([]);
+    });
+
+    it('releases the deadline after a successful readiness check', async () => {
+      expect(await safeAsyncStorage.getItem('key')).toBe('ready');
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('releases a rejected attempt deadline before retrying', async () => {
+      (AsyncStorage.getAllKeys as jest.Mock)
+        .mockRejectedValueOnce(new Error('Bridge not ready'));
+      const read = safeAsyncStorage.getItem('key');
+      await jest.advanceTimersByTimeAsync(100);
+      expect(await read).toBe('ready');
+      expect(AsyncStorage.getAllKeys).toHaveBeenCalledTimes(2);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('still times out stalled checks and returns the fallback at the retry limit', async () => {
+      (AsyncStorage.getAllKeys as jest.Mock).mockImplementation(() => new Promise(() => {}));
+      const read = safeAsyncStorage.getItem('key', 'unavailable');
+      await jest.advanceTimersByTimeAsync(3000);
+      expect(await read).toBe('unavailable');
+      expect(AsyncStorage.getAllKeys).toHaveBeenCalledTimes(5);
+      expect(AsyncStorage.getItem).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    });
+  });
+
   describe('getItem', () => {
     it('should return parsed JSON value', async () => {
       const testData = { key: 'value' };
@@ -83,4 +121,3 @@ describe('safeAsyncStorage', () => {
     });
   });
 });
-
