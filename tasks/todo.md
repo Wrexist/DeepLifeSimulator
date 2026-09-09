@@ -7,7 +7,7 @@ Verify current main, PR heads and provider records before acting.
 
 - [Master-prompt backlog](MASTER_PROMPT_BACKLOG.md): 35 scoped packages with dependencies and acceptance criteria.
 - [Task guide](README.md): where plans and evidence belong.
-- [Original ledger](archive/todo-before-cleanup-2026-09-09.md): the full previous task history, preserved verbatim.
+- [Initial audit ledger](archive/todo-before-cleanup-2026-09-09.md) and [full pre-integration ledger](archive/todo-before-integration-2026-09-09.md): both preserved verbatim at their named revisions.
 - [Lessons](lessons.md): recurring engineering constraints and past corrections.
 
 ## Active release
@@ -16,9 +16,10 @@ Verify current main, PR heads and provider records before acting.
 release queue and save/research/validation fixes at `c32f2b9`.
 Use the [remaining-work guide](release/REMAINING_WORK.md),
 [release queue](release/queue.json), and [execution contract](release/CONTRACT.md).
-[PR #206](https://github.com/Wrexist/DeepLifeSimulator/pull/206) owns follow-up
-save/load timeout handling and evidence ancestry validation; its checks must pass
-before integration. User authorized the reviewed merge loop on 9 September 2026.
+[PR #206](https://github.com/Wrexist/DeepLifeSimulator/pull/206) merged verified
+save/load timeout handling and evidence ancestry validation at `a470e79`.
+Cleanup [PR #205](https://github.com/Wrexist/DeepLifeSimulator/pull/205) merged at
+`6c89195`. User authorized the reviewed merge loop on 9 September 2026.
 
 | Package | Remaining acceptance |
 |---|---|
@@ -45,7 +46,7 @@ local commit references; native/store acceptance remains separate.
 | #200 | Reusable assets and recap presentation | HomeScene intentionally not mounted on Home |
 | #204 | Ten game-themed store stories in three sizes | Native parity and current store upload |
 
-## MP27: CI gate preparation (merge after MP00)
+## MP27: CI gates and handoff corrections — PR #207
 
 Master prompt: close the confirmed ordinary-component/content/liveops CI gap.
 Add a small relevant-path workflow running existing UI/content/liveops ratchets;
@@ -57,9 +58,11 @@ inspect its current checks and merge only when they pass. Keep provider/device
 release gates explicitly blocked when their evidence is unavailable.
 
 - [x] Confirm missing ordinary-component filters and absent coverage cadence.
-- [ ] Add targeted workflows and document their cadence.
-- [ ] Validate paths, ratchets, coverage and latest remote checks.
-- [ ] Merge the checked PR and reconcile the remaining queue.
+- [x] Add targeted workflows and document their cadence.
+- [x] Validate YAML/path cases and unchanged quality/coverage floors locally.
+- [ ] Confirm full-checkout CI on the latest [PR #207](https://github.com/Wrexist/DeepLifeSimulator/pull/207) head.
+- [x] Preserve concurrent ledger history and correct master-prompt repo paths.
+- [ ] Merge the checked PR. Its live checks/merge state are authoritative; recheck before repeating MP27.
 
 ## Next product work after release
 
@@ -76,16 +79,16 @@ in the backlog. Historical hypotheses are not confirmed defects.
 - [x] Archive old reports, preserve historical evidence and add navigation.
 - [x] Remove only verified unreferenced generated outputs from `undefined/`.
 - [x] Verify references/content preservation and relevant local checks.
-- [x] Publish [cleanup PR #205](https://github.com/Wrexist/DeepLifeSimulator/pull/205) and inspect latest CI. Full remote checks remain pending.
+- [x] Publish [cleanup PR #205](https://github.com/Wrexist/DeepLifeSimulator/pull/205) and inspect latest CI. Latest integrated checks passed before merge.
 
-## MP00 integration review (active)
+## MP00 integration review
 
 - [x] Inspect both PR heads, review comments and completed CI logs.
 - [x] Repair the encoding fixture exception after its historical report moved.
-- [ ] Verify cleanup CI and merge #205 at its checked head.
-- [ ] Merge verified #206 save/load acquisition and evidence ancestry corrections.
+- [x] Verify cleanup CI and merge #205 at its checked head.
+- [x] Merge verified #206 save/load acquisition and evidence ancestry corrections.
 - [x] Refresh merged #203 and integrate its release queue without restoring old TODO history.
-- [ ] Refresh the release queue and execute the next eligible package.
+- [x] Refresh release blockers and execute independent MP27. R11 source is now published; native/provider acceptance remains blocked.
 
 Integration note: if #203 updates this file, retain its live release entries and
 the navigation above. Do not restore the archived 1,500-line mixed history.

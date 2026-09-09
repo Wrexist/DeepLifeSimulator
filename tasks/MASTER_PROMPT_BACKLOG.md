@@ -2,6 +2,22 @@
 
 Prepared 9 September 2026 for Wrexist/DeepLifeSimulator.
 
+## Execution update: 9 September 2026
+
+PR #203 merged at `c32f2b9`. Its two reproduced P1 review findings were fixed
+and verified in [PR #206](https://github.com/Wrexist/DeepLifeSimulator/pull/206),
+merged at `a470e79`. [PR #205](https://github.com/Wrexist/DeepLifeSimulator/pull/205)
+merged the cleanup at `6c89195` after integrated CI passed. MP27's implementation
+and remaining documentation corrections are in
+[PR #207](https://github.com/Wrexist/DeepLifeSimulator/pull/207); inspect that PR's
+latest checks and merge state before repeating work. The historical audit below
+retains its inspected SHAs. Current release state is in `tasks/release/queue.json`.
+
+The user authorized the reviewed sequential PR/merge loop, including existing
+main-push OTA publication. This does not turn unavailable native/store/provider
+evidence into a passed release gate. Continue only independent packages while
+their prerequisites remain blocked.
+
 ## Recommendation
 
 Finish the existing release candidate before starting another broad feature program. Preserve the accepted compact Home and revised game-themed screenshots. After the release gates, finish the accurate post-bills cash forecast, then improve weekly consequences, relationship choices and different life paths.
@@ -615,13 +631,14 @@ Each brief defines a bounded starting point. For a multi-domain package, audit t
 
 ```text
 Work only in Wrexist/DeepLifeSimulator. Execute [PACKAGE ID AND TITLE] from
-DeepLifeSimulator-Master-Prompt-Backlog.md using the detailed brief below.
+tasks/MASTER_PROMPT_BACKLOG.md using the detailed brief below.
 
 Read CLAUDE.md, relevant scoped instructions, tasks/todo.md, tasks/lessons.md,
-and, where present, tasks/release/CONTRACT.md and queue.json. Refresh main,
+and tasks/release/CONTRACT.md and tasks/release/queue.json. Refresh main,
 open PRs and latest CI. Pin the source SHA. Distinguish merged implementation,
 unmerged implementation, previously recorded evidence and fresh verification.
-Do not duplicate PR #203 or overwrite other active work.
+Inspect the execution update and current PRs; do not repeat merged work or
+overwrite another active package.
 
 First reproduce or measure the stated problem on current source. If the
 historical claim is already fixed, record the proof and close/supersede it.

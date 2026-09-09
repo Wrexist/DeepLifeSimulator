@@ -106,9 +106,16 @@
             "__tests__/tooling/privacyDisclosures.test.ts",
             "tasks/release/AUDIT.md"
           ]
+        },
+        {
+          "commit": "c32f2b9a395ce9f617c5f80f08a0a59d2c0f6883",
+          "result": "Pages deployment succeeded; privacy/support HTTP 200 bodies match source byte-for-byte. Publication proof only; no visual/provider/native acceptance claimed.",
+          "references": [
+            "tasks/release/evidence/R11-publication-2026-09-09.md"
+          ]
         }
       ],
-      "blocker": "Source disclosures corrected and drift test passes (published in 13fe9f315dd53ea141f98eaf1bde76db3845b16b). Owner operational identity/retention and store privacy answers, authorized deployment and visual/live confirmation remain unverified."
+      "blocker": "Corrected source deployed from c32f2b9 (Pages run 34337850444); direct HTTP privacy/support bodies match candidate bytes. Provider/operator identity, retention/deletion/consent, ASC privacy answers and visual/native confirmation remain unverified. See publication evidence."
     },
     {
       "id": "R04",
@@ -122,7 +129,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R04.md",
       "evidence": [],
-      "blocker": "Current browser discovery timed out and local support preview was blocked by ERR_BLOCKED_BY_CLIENT. Need actual app journey/visual acceptance. Detailed cases: R04.md."
+      "blocker": "Browser runtime initialized on 9 September; tab discovery timed out twice after documented connection troubleshooting. Interactive app journey/visual acceptance remains unavailable. See R04.md."
     },
     {
       "id": "R05",

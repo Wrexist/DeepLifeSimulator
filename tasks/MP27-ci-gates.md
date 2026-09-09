@@ -31,7 +31,13 @@ Merge only after MP00 integration and all applicable current-head checks pass.
   ordinary component/event/liveops changes, helper/coverage configuration changes,
   self-workflow changes and docs/archive exclusions.
 - All three quality scripts pass locally with existing floors/ceilings.
-- Full coverage run and first remote workflow results: pending.
+- First remote quality job `102426880583` passed. Latest PR #207 checks and
+  merge state are the current acceptance record.
+- Local coverage: 59.94% statements, 42.33% branches, 52.23% functions and
+  61.22% lines; the unchanged ratchet passes. Full local run: 781 suites passed,
+  two suites failed only because the sparse checkout omitted asset/capture
+  fixtures. Full-checkout remote coverage must pass before merge; no tests or
+  collection paths were excluded to hide these failures.
 - Source coverage floors remain 55.0 statements, 36.3 branches, 46.6 functions,
   and 56.2 lines; collection scope is unchanged.
 
@@ -43,3 +49,14 @@ Read-only ASC status still fails because ASC_KEY_ID, ASC_ISSUER_ID and
 ASC_KEY_P8/ASC_KEY_P8_PATH are unavailable in this session. No store mutation was
 attempted. Native candidate/device and provider operational evidence is still
 required; these CI changes do not satisfy those dependencies.
+
+## Handoff review corrections
+
+PR #205's P2 review identified two documentation defects. Preserve the exact
+full `a470e79:tasks/todo.md` as a second archive so concurrent release/conflict
+and review plans are not lost. Its 1,556 lines hash to SHA-256
+`3fa7df554fdf6b6f080bc29ea3b4047b6220c9269c1707a6239e9186d750870b`.
+Retain the original 1,494-line `811cfc2` snapshot separately. Correct the executable
+wrapper to `tasks/MASTER_PROMPT_BACKLOG.md` and `tasks/release/queue.json` and
+refresh current merged-work references. Publication evidence discovered during
+the loop is recorded separately under R11 without closing its external gates.
