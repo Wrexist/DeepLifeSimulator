@@ -1,0 +1,43 @@
+name: Quality ratchets
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'contexts/**'
+      - 'hooks/**'
+      - 'src/**'
+      - 'lib/**'
+      - 'support-site/liveops.json'
+      - 'scripts/check-ui-ratchet.js'
+      - 'scripts/check-content-quality.js'
+      - 'scripts/lib/contentQualityRatchet.js'
+      - 'scripts/check-liveops-calendar.cjs'
+      - '.github/workflows/quality-ratchets.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-ratchets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # These source scanners use only Node built-ins. No application install
+      # or native build is necessary to enforce their existing bounds.
+      - name: UI complexity
+        run: node scripts/check-ui-ratchet.js
+      - name: Authored content quality
+        run: node scripts/check-content-quality.js
+      - name: Live ops runway
+        run: node scripts/check-liveops-calendar.cjs

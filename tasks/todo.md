@@ -45,6 +45,22 @@ local commit references; native/store acceptance remains separate.
 | #200 | Reusable assets and recap presentation | HomeScene intentionally not mounted on Home |
 | #204 | Ten game-themed store stories in three sizes | Native parity and current store upload |
 
+## MP27: CI gate preparation (merge after MP00)
+
+Master prompt: close the confirmed ordinary-component/content/liveops CI gap.
+Add a small relevant-path workflow running existing UI/content/liveops ratchets;
+add weekly/manual coverage and run it on coverage-workflow/configuration changes.
+Keep all floors, native release gates and existing EAS behavior unchanged.
+Validate YAML, representative matching/nonmatching paths, actual ratchet commands
+and a full coverage measurement. Review the diff, open a focused PR after MP00,
+inspect its current checks and merge only when they pass. Keep provider/device
+release gates explicitly blocked when their evidence is unavailable.
+
+- [x] Confirm missing ordinary-component filters and absent coverage cadence.
+- [ ] Add targeted workflows and document their cadence.
+- [ ] Validate paths, ratchets, coverage and latest remote checks.
+- [ ] Merge the checked PR and reconcile the remaining queue.
+
 ## Next product work after release
 
 1. MP08: authoritative cash/arrears/rental/noncash forecast before commitments.
