@@ -1,6 +1,6 @@
 # App Store screenshots
 
-The current set is [Your life. Your way.](player-stories-2026-09/README.md),
+The current set is [Small start. Big life.](player-stories-2026-09/README.md),
 the player-stories campaign created 9 September 2026.
 
 | Device | Upload folder | Dimensions |
