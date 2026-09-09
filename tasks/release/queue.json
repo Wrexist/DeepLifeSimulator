@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "repository": "Wrexist/DeepLifeSimulator",
+  "baseline": "1e8c0fdfccbe59a37b0634b77d0be79a526cd108",
+  "release": {
+    "binaryVersion": "2.13.0",
+    "stateVersion": 51,
+    "storeVersion": "next record unverified",
+    "liveStoreVersion": "1.5.5"
+  },
+  "packages": [
+    {
+      "id": "R00",
+      "title": "Fresh baseline and release inventory",
+      "priority": "P1",
+      "dependsOn": [],
+      "kind": "audit",
+      "status": "verified",
+      "prompt": "tasks/release/R00.md",
+      "evidence": [
+        {
+          "commit": "1e8c0fdf",
+          "result": "Fresh source/invariant audit and baseline: 777 suites, 9762 tests, 308 snapshots; source/test types pass. Native/store state explicitly unverified.",
+          "references": [
+            "tasks/release/AUDIT.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R01",
+      "title": "Prevent stale saves overwriting newer progress",
+      "priority": "P1",
+      "dependsOn": [
+        "R00"
+      ],
+      "kind": "fix",
+      "status": "verified",
+      "prompt": "tasks/release/R01.md",
+      "evidence": [
+        {
+          "commit": "14858aa",
+          "result": "Stalled double-buffer writer fails before fix and passes after. Focused 4 suites/21 tests, source/test types pass.",
+          "references": [
+            "tasks/release/AUDIT.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "title": "Make research advance only on played weeks",
+      "priority": "P2",
+      "dependsOn": [
+        "R01"
+      ],
+      "kind": "fix",
+      "status": "verified",
+      "prompt": "tasks/release/R02.md",
+      "evidence": [
+        {
+          "commit": "6e2d17b",
+          "result": "Mounted slot-load, deterministic replay, real weekly hydrated continuation and atomic bonus regressions pass. 833 stress/audit tests; final result-pattern correction plus 37 tests pass, ratchet unchanged.",
+          "references": [
+            "tasks/release/AUDIT.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "title": "Make release validation fail on incomplete checks",
+      "priority": "P1",
+      "dependsOn": [
+        "R00"
+      ],
+      "kind": "fix",
+      "status": "verified",
+      "prompt": "tasks/release/R03.md",
+      "evidence": [
+        {
+          "commit": "ae09ef8",
+          "result": "Nine workflow/gate tests pass. Missing, duplicate, malformed, failed and UNREACHED browser evidence cannot exit successfully.",
+          "references": [
+            "tasks/release/AUDIT.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R11",
+      "title": "Correct privacy disclosures for the enabled SDKs",
+      "priority": "P1",
+      "dependsOn": [
+        "R03"
+      ],
+      "kind": "fix",
+      "status": "blocked",
+      "prompt": "tasks/release/R11.md",
+      "evidence": [
+        {
+          "commit": "6152d63",
+          "result": "Factual SDK disclosures corrected; automated source drift check passes. Not deployed or legally certified.",
+          "references": [
+            "support-site/privacy.html",
+            "__tests__/tooling/privacyDisclosures.test.ts",
+            "tasks/release/AUDIT.md"
+          ]
+        }
+      ],
+      "blocker": "Source disclosures corrected and drift test passes (6152d63). Owner operational identity/retention and store privacy answers, authorized deployment and visual/live confirmation remain unverified."
+    },
+    {
+      "id": "R04",
+      "title": "Audit player journeys and clarity",
+      "priority": "P2",
+      "dependsOn": [
+        "R02",
+        "R03"
+      ],
+      "kind": "audit",
+      "status": "blocked",
+      "prompt": "tasks/release/R04.md",
+      "evidence": [],
+      "blocker": "Existing journey/render regressions pass but local browser is blocked (ERR_BLOCKED_BY_CLIENT). Need actual interactive journey/visual acceptance; F06 age-independent copy corrected; visual evidence still unavailable."
+    },
+    {
+      "id": "R05",
+      "title": "Verify economy, continuity and performance",
+      "priority": "P1",
+      "dependsOn": [
+        "R02"
+      ],
+      "kind": "audit",
+      "status": "active",
+      "prompt": "tasks/release/R05.md",
+      "evidence": []
+    },
+    {
+      "id": "R06",
+      "title": "Verify purchases and recovery on native iOS",
+      "priority": "P1",
+      "dependsOn": [
+        "R01",
+        "R05",
+        "R08"
+      ],
+      "kind": "external",
+      "status": "blocked",
+      "prompt": "tasks/release/R06.md",
+      "evidence": [],
+      "blocker": "Requires current native build/device or connected store evidence. See package acceptance criteria."
+    },
+    {
+      "id": "R07",
+      "title": "Verify store copy, links and screenshot campaign",
+      "priority": "P1",
+      "dependsOn": [
+        "R04",
+        "R11"
+      ],
+      "kind": "external",
+      "status": "blocked",
+      "prompt": "tasks/release/R07.md",
+      "evidence": [],
+      "blocker": "Merged PR #202 native screenshot parity, support-copy reconciliation and current App Store Connect fields remain unverified. Public links and metadata validator pass."
+    },
+    {
+      "id": "R08",
+      "title": "Prepare and verify signed release candidate",
+      "priority": "P1",
+      "dependsOn": [
+        "R03",
+        "R05"
+      ],
+      "kind": "external",
+      "status": "blocked",
+      "prompt": "tasks/release/R08.md",
+      "evidence": [],
+      "blocker": "Local preflight and iOS Hermes export pass. Need latest-head CI, real EAS production-environment preflight and owner-triggered processed TestFlight candidate with verified version/build identity."
+    },
+    {
+      "id": "R09",
+      "title": "Complete device and accessibility acceptance",
+      "priority": "P1",
+      "dependsOn": [
+        "R08"
+      ],
+      "kind": "external",
+      "status": "blocked",
+      "prompt": "tasks/release/R09.md",
+      "evidence": [],
+      "blocker": "No native iPhone/iPad candidate or device acceptance session available."
+    },
+    {
+      "id": "R10",
+      "title": "Assemble submission and release decision",
+      "priority": "P1",
+      "dependsOn": [
+        "R06",
+        "R07",
+        "R09"
+      ],
+      "kind": "external",
+      "status": "blocked",
+      "prompt": "tasks/release/R10.md",
+      "evidence": [],
+      "blocker": "Await current evidence for all candidate/native/store gates before owner submission decision."
+    }
+  ]
+}

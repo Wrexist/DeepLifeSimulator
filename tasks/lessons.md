@@ -5734,3 +5734,34 @@ Combining an older standalone coach with the newer GoalsCard-embedded coach woul
 restore duplicate job guidance. Preserve the complete newer Home hierarchy and
 keep the asset pack separate. Check automatically merged neighboring sections too,
 including the identity card and recap positions, not only conflict markers.
+
+## 2026-09-09 — A watchdog cannot cancel storage writes
+
+A save mutex timeout may reject a waiter, but must not admit another writer while
+old AsyncStorage I/O remains in flight. A release token prevents unlocking another
+holder; it does not fence an old storage write. Reproduce against doubleBufferSave
+with a paused write and verify the final active buffer, not just mutex ownership.
+
+## 2026-09-09 — Unreached release evidence is a failed gate
+
+A browser run with no FAIL rows can still have skipped entire acceptance branches.
+Require the complete expected check set and reject UNREACHED, duplicate or malformed
+rows before reporting success. Record native and external gates separately from web.
+
+## 2026-09-09 — A passing simulation must finish its saves
+
+runPersona unmounted its provider but returned before fire-and-forget saves
+finished. A FIFO save-mutex acquisition after awaited unmount is a completion
+barrier for those already-started saves. No new production drain API is needed.
+The save/load suite also inherited a storage mock that discarded every write,
+so real save verification retried instead of completing. Give that suite a
+stateful storage fixture and assert queue/mutex idle without mocking away the
+production save path. Do not use forceExit or hide teardown errors.
+
+## 2026-09-09 — Week changes are not necessarily played weeks
+
+Loading a different slot can change weeksLived by exactly one. Research belongs
+inside the guarded authoritative tick, with life-scoped deterministic rolls.
+Return action outcomes from the same pure resolver used by the updater, rather
+than adding unconditional success after a state update. The existing result
+ratchet caught that follow-up defect and was preserved.

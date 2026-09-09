@@ -20,6 +20,8 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
+import releaseWorkflow from './lib/releaseWorkflow.cjs';
+const { browserGateFailures } = releaseWorkflow;
 
 const OUT = process.env.OUT || '/tmp/p17-shots';
 const BASE = 'http://localhost:8090';
@@ -392,7 +394,9 @@ async function finish(browser, consoleErrors, pageErrors) {
   const fails = results.filter((r) => r.status === 'FAIL');
   console.log(`\n=== ${results.length} checks · ${results.filter(r=>r.status==='PASS').length} pass · ${fails.length} fail · ${results.filter(r=>r.status==='UNREACHED').length} unreached ===`);
   await browser.close();
-  process.exit(fails.length ? 1 : 0);
+  const blockers = browserGateFailures(results);
+  if (blockers.length) console.error(`Release gate incomplete: ${blockers.join(", ")}`);
+  process.exit(blockers.length ? 1 : 0);
 }
 
 main().catch((e) => { console.error('HARNESS ERROR:', e); process.exit(2); });

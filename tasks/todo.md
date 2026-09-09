@@ -1,3 +1,26 @@
+# Active: Fresh release workflow (2026-09-09)
+
+User authorized a new audit, sequential master prompts, implementation and verification
+through readiness for the next App Store version. Baseline: main `1e8c0fdf`.
+This section supersedes historical Active headings below as the current queue.
+
+- [x] Identify repository, read canonical instructions and inspect open PRs/current CI.
+- [x] Run fresh automated checks and evidence-backed save, logic, product and release audits.
+      Scope and external gaps: `tasks/release/AUDIT.md`.
+- [x] Create one tracked release queue and resumable master prompts with explicit evidence gates.
+- [x] Fix reproduced stale save-writer race after mutex watchdog expiry and add regression.
+- [x] Fix research slot-switch/replay defects and fail incomplete release evidence.
+- [x] Correct factual privacy disclosures in source; publication/operational review remains blocked.
+- [x] Extend existing hourly PR-check automation to the release queue.
+- [ ] Execute further actionable packages in dependency order, verifying each before completion.
+- [ ] Check latest PR CI and record remaining native/store gates without claiming approval.
+
+No automatic production OTA, native build, merge or App Store submission is implied.
+Keep version 2.13.0/schema 51 until verified release identity requires a new binary version.
+Preserve PR #202 screenshot work. User approval to start this plan is provided in this chat.
+
+---
+
 # Active: App Store player stories (2026-09-09)
 
 Authorized scope: a new clean screenshot campaign emphasizing player experiences and achievements.
@@ -8,6 +31,7 @@ Authorized scope: a new clean screenshot campaign emphasizing player experiences
 - [x] Document sources, check outputs, open a PR and inspect remote checks.
       PR #202 is open with no merge conflicts. All 30 image exports pass.
       Repository EAS Update CI was still running when this status was recorded.
+
 
 # Active: PR CI recovery
 

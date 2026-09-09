@@ -56,28 +56,28 @@
   <div class="legal reveal">
     <div class="meta">
       <span>App: <b>DeepLife Sim</b></span>
-      <span>Last updated: <b>October 20, 2025</b></span>
-      <span>Version: <b>1.0.2</b></span>
+      <span>Last updated: <b>September 9, 2026</b></span>
+      <span>Policy revision: <b>2</b></span>
     </div>
 
     <div class="panel summary">
       <h2><span class="num">★</span> Quick summary</h2>
       <ul>
-        <li><b>What we collect:</b> game data (stored locally), device info, and optional tracking data (only with your permission).</li>
-        <li><b>How we use it:</b> to save your progress, improve the app, and show ads only if you allow it.</li>
-        <li><b>Third parties:</b> Apple (in-app purchases), Expo (deployment), AdMob (ads — currently disabled).</li>
-        <li><b>Your control:</b> you own your data. Delete the app and your data goes with it. Opt out anytime.</li>
-        <li><b>Age:</b> rated 17+, not intended for children under 13.</li>
+        <li><b>What we collect:</b> local game saves, purchase information, device information, and consent-dependent advertising and analytics data.</li>
+        <li><b>How we use it:</b> to save your progress, process purchases, improve the app and provide advertising according to your privacy choices.</li>
+        <li><b>Third parties:</b> Apple (payments), RevenueCat (purchase verification and entitlements), Expo (updates), Google AdMob (ads), and Firebase Analytics (consent-gated measurement).</li>
+        <li><b>Your control:</b> delete local saves in the app, control tracking in iOS Settings, and contact us about data held by service providers. Deleting the app does not delete purchase records held by Apple or RevenueCat.</li>
+        <li><b>Age:</b> check the current App Store age rating for your region. The game is not intended for children under 13.</li>
       </ul>
     </div>
 
     <div class="panel">
       <h2><span class="num">1</span> Information we collect</h2>
       <ul>
-        <li><b>Game Data:</b> your progress, statistics, achievements, save slots, and in-game preferences, stored locally on your device.</li>
+        <li><b>Game Data:</b> your progress, statistics, achievements, save slots, and in-game preferences, stored locally on your device. Limited gameplay events may also be sent for consent-gated analytics.</li>
         <li><b>Device Information:</b> device type, OS version, app version, and device identifiers.</li>
         <li><b>Usage Data:</b> how you interact with the app, features used, session duration, and gameplay patterns.</li>
-        <li><b>Purchase Data:</b> in-app purchase receipts and history, processed securely through Apple.</li>
+        <li><b>Purchase Data:</b> transaction information, purchase history, app-user identifiers and entitlement status, processed by Apple and RevenueCat to verify and deliver purchases.</li>
         <li><b>Tracking Data (optional):</b> with your explicit permission via App Tracking Transparency, we may collect data for personalized advertising.</li>
       </ul>
     </div>
@@ -87,7 +87,7 @@
       <ul>
         <li><b>App functionality:</b> save your progress locally, provide game features, and process purchases securely.</li>
         <li><b>User experience:</b> improve performance, fix bugs, and enhance gameplay.</li>
-        <li><b>Advertising (with permission):</b> show relevant ads through Google AdMob.</li>
+        <li><b>Advertising:</b> provide ads through Google AdMob. Denying ATT tracking permission does not remove all ads; the app requests non-personalized ads when tracking is not allowed.</li>
         <li><b>Customer support:</b> respond to your questions, feedback, and technical issues.</li>
         <li><b>Legal compliance:</b> comply with applicable laws and protect our legal rights.</li>
       </ul>
@@ -98,18 +98,20 @@
       <ul>
         <li><b>Apple App Store:</b> secure in-app purchase processing and app distribution.</li>
         <li><b>Expo:</b> app development, deployment, and over-the-air updates.</li>
-        <li><b>Google AdMob (currently disabled):</b> displaying ads, requires your consent via ATT when enabled.</li>
+        <li><b>RevenueCat:</b> purchase verification, purchase history, entitlement management and restore support.</li>
+        <li><b>Google AdMob:</b> ad delivery and measurement, with non-personalized ad requests when tracking is not allowed.</li>
+        <li><b>Firebase Analytics:</b> device, session, gameplay and purchase-funnel measurement when the app enables analytics collection after consent.</li>
       </ul>
-      <p>We do <b>not</b> use Firebase or other analytics beyond Apple's built-in frameworks, and we do <b>not</b> transmit your game data to external servers unless you explicitly enable cloud save. All progress is stored locally using AsyncStorage.</p>
+      <p>Game saves are stored locally using AsyncStorage. This does not mean all app data stays on the device: enabled purchase, update, advertising and analytics services communicate with their providers. Cloud backup is a separate optional feature where available. See <a href="https://www.revenuecat.com/privacy/">RevenueCat privacy information</a>, <a href="https://policies.google.com/privacy">Google privacy information</a> and <a href="https://expo.dev/privacy">Expo privacy information</a>.</p>
     </div>
 
     <div class="panel">
       <h2><span class="num">4</span> Data storage &amp; transmission</h2>
       <ul>
-        <li><b>Local storage:</b> all game data is stored on your device.</li>
-        <li><b>No cloud by default:</b> your data stays on your device unless you enable cloud save.</li>
-        <li><b>In-app purchases:</b> receipts are validated with Apple but not stored on our servers.</li>
-        <li><b>Data deletion:</b> deleting the app permanently removes all locally stored game data.</li>
+        <li><b>Local storage:</b> your playable save state is stored on your device.</li>
+        <li><b>Cloud backup:</b> full-save backup is separate from service data and only available when the feature is enabled.</li>
+        <li><b>In-app purchases:</b> Apple and RevenueCat process purchase records and entitlement information. The app keeps local fulfillment records to prevent duplicate grants.</li>
+        <li><b>Data deletion:</b> deleting the app removes its local saves. It does not automatically erase provider records or cancel an Apple subscription.</li>
       </ul>
     </div>
 
@@ -118,8 +120,9 @@
       <p>We do <b>not</b> sell, rent, or trade your personal information. We may share limited data with:</p>
       <ul>
         <li><b>Apple Inc.:</b> in-app purchase processing and app distribution.</li>
-        <li><b>Expo:</b> deployment and crash reporting (minimal device/app info only).</li>
-        <li><b>Google AdMob (when enabled):</b> serving ads if you grant tracking permission.</li>
+        <li><b>RevenueCat:</b> purchase and entitlement verification, including restore support.</li>
+        <li><b>Expo:</b> deployment and over-the-air update delivery.</li>
+        <li><b>Google AdMob and Firebase:</b> ad delivery and consent-gated measurement as described above.</li>
         <li><b>Legal authorities:</b> only when required by law or to protect legal rights.</li>
       </ul>
     </div>
@@ -128,18 +131,18 @@
       <h2><span class="num">6</span> App Tracking Transparency (ATT)</h2>
       <ul>
         <li>We request your permission before tracking your activity across other apps and websites.</li>
-        <li>You can grant or deny this when first launching the app.</li>
+        <li>You can grant or deny tracking when the iOS permission prompt appears.</li>
         <li>Denying tracking does <b>not</b> affect core app functionality.</li>
         <li>Change your preference anytime in iOS Settings → Privacy → Tracking.</li>
-        <li>Tracking is only used for personalized advertising when AdMob is enabled.</li>
+        <li>The app uses the tracking choice to request non-personalized ads and disable Firebase analytics collection when tracking is not allowed.</li>
       </ul>
     </div>
 
     <div class="panel">
       <h2><span class="num">7</span> Data security</h2>
       <ul>
-        <li><b>Encryption:</b> sensitive data is encrypted using industry-standard methods.</li>
-        <li><b>Secure transmission:</b> all network communication uses HTTPS.</li>
+        <li><b>Save integrity:</b> the app checks save integrity to detect damaged data. Integrity checks are not encryption of local save contents.</li>
+        <li><b>Transmission:</b> configured service endpoints use HTTPS.</li>
         <li><b>Local security:</b> game data relies on iOS device security features.</li>
         <li><b>No passwords:</b> the app requires no account or password storage.</li>
         <li><b>Purchase security:</b> all transactions go through Apple's secure payment system.</li>
@@ -150,18 +153,18 @@
       <h2><span class="num">8</span> Data retention</h2>
       <ul>
         <li><b>Game data:</b> stored locally until you delete the app or your save files.</li>
-        <li><b>Purchase receipts:</b> retained by Apple for 7 years (tax and legal compliance).</li>
-        <li><b>Crash reports:</b> up to 90 days for debugging.</li>
-        <li><b>Analytics data:</b> not collected in the current version.</li>
+        <li><b>Purchase records:</b> Apple and RevenueCat retain records according to their policies and applicable requirements.</li>
+        <li><b>Support:</b> if you send a diagnostic report or screenshot, we use the information you provide to investigate your request.</li>
+        <li><b>Analytics:</b> consent-gated data is processed by Firebase. Contact us for requests concerning data linked to your app installation.</li>
       </ul>
     </div>
 
     <div class="panel">
       <h2><span class="num">9</span> Your rights</h2>
       <ul>
-        <li><b>Access:</b> view all your game data in-app (Statistics, Progress screens).</li>
+        <li><b>Access:</b> view game statistics and progress in the app; contact us about personal data held outside the app.</li>
         <li><b>Correct:</b> change your character name and preferences in Settings.</li>
-        <li><b>Delete:</b> remove all data by deleting the app or using in-app save-slot deletion.</li>
+        <li><b>Delete:</b> remove local saves using in-app save-slot deletion. Contact us about other personal data. Some provider records may need to be retained.</li>
         <li><b>Opt out of tracking:</b> deny or revoke tracking permission in iOS Settings.</li>
         <li><b>Opt out of ads:</b> purchase "Remove Ads" when available.</li>
         <li><b>Portability:</b> export your game data (cloud save feature, when enabled).</li>
@@ -172,7 +175,7 @@
     <div class="panel">
       <h2><span class="num">10</span> Children's privacy (COPPA)</h2>
       <ul>
-        <li>The app is rated <b>17+</b> and is <b>not</b> intended for children under 13.</li>
+        <li>Check the current App Store age rating for your region. The app is <b>not</b> intended for children under 13.</li>
         <li>We do not knowingly collect personal information from children under 13.</li>
         <li>If you believe we have, contact us immediately at <a href="mailto:DeepLifeSimulator@gmail.com">DeepLifeSimulator@gmail.com</a>.</li>
         <li>Parents can use iOS parental controls to restrict usage and in-app purchases.</li>
@@ -184,7 +187,7 @@
       <ul>
         <li>All purchases are processed securely through Apple's In-App Purchase system.</li>
         <li>We do <b>not</b> store your payment information — we only receive transaction receipts (no card data).</li>
-        <li>Purchases are tied to your Apple ID and can be restored via "Restore Purchases".</li>
+        <li>Eligible permanent purchases and active subscriptions can be restored with the same store account. Consumable balances are not automatically replayed after reinstall. If a purchase is pending, keep the original save and contact support before buying again.</li>
         <li>Refunds are handled by Apple according to their refund policy.</li>
       </ul>
     </div>
@@ -195,7 +198,7 @@
         <li>We may update this policy from time to time.</li>
         <li>We'll notify you of significant changes by updating the app and posting the new policy.</li>
         <li>The "Last updated" date above indicates the most recent revision.</li>
-        <li>Continued use after changes constitutes acceptance of the new policy.</li>
+        <li>Where a change requires a new privacy choice, that choice will be requested separately.</li>
       </ul>
     </div>
 
@@ -203,8 +206,8 @@
       <h2><span class="num">13</span> International users</h2>
       <ul>
         <li>The app is available worldwide through the Apple App Store.</li>
-        <li>By using it, you consent to data transfer to the United States, where our service providers may be located.</li>
-        <li>We comply with applicable international privacy laws including GDPR and CCPA.</li>
+        <li>Our service providers may process data in countries outside your own, as described in their privacy information.</li>
+        <li>Contact us to exercise applicable privacy rights or ask about the handling of your data.</li>
       </ul>
     </div>
 
@@ -220,15 +223,9 @@
     </div>
 
     <div class="panel">
-      <h2><span class="num">15</span> Compliance</h2>
-      <p>This privacy policy complies with:</p>
-      <ul>
-        <li>Apple App Store Review Guidelines (Section 5.1)</li>
-        <li>General Data Protection Regulation (GDPR) — EU</li>
-        <li>California Consumer Privacy Act (CCPA) — US</li>
-        <li>Children's Online Privacy Protection Act (COPPA) — US</li>
-        <li>App Tracking Transparency (ATT) — iOS 14.5+</li>
-      </ul>
+      <h2><span class="num">15</span> Privacy requests</h2>
+      <p>For questions or requests concerning access, correction, deletion or data handling, email <a href="mailto:DeepLifeSimulator@gmail.com">DeepLifeSimulator@gmail.com</a>. Include only the information needed to identify the request. Do not send passwords or payment-card details.</p>
+
     </div>
   </div>
 </section>

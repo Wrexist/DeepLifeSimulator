@@ -24,6 +24,22 @@ afterEach(() => {
 });
 
 describe('mutex ownership', () => {
+  it('retains a stalled holder while waiters time out, then recovers on release', async () => {
+    const token = await saveLoadMutex.acquire('save', 1_000);
+    const waiting = saveLoadMutex.acquire('load', 2_000);
+    const outcome = waiting.catch((error: Error) => error.message);
+    jest.advanceTimersByTime(1_000);
+    expect(saveLoadMutex.isHeld()).toBe(true);
+    expect(saveLoadMutex.getCurrentOperation()).toBe('save');
+    jest.advanceTimersByTime(1_000);
+    expect(await outcome).toContain('acquire timeout');
+    expect(saveLoadMutex.isHeld()).toBe(true);
+    saveLoadMutex.release(token);
+    const next = await saveLoadMutex.acquire('load');
+    saveLoadMutex.release(next);
+    expect(saveLoadMutex.isHeld()).toBe(false);
+  });
+
   it('hands out a token that releases the lock', async () => {
     const token = await saveLoadMutex.acquire('save');
 
@@ -41,11 +57,11 @@ describe('mutex ownership', () => {
     saveLoadMutex.release(second);
   });
 
-  it('ignores a release from a holder whose lock was force-released', async () => {
+  it('ignores a duplicate release from an earlier holder', async () => {
     const staleToken = await saveLoadMutex.acquire('save', 30_000);
 
-    // The watchdog fires: A is force-released and B takes the lock.
-    jest.advanceTimersByTime(30_000);
+    // A finishes, B takes the lock, and A later repeats its release.
+    saveLoadMutex.release(staleToken);
     expect(saveLoadMutex.isHeld()).toBe(false);
 
     const bToken = await saveLoadMutex.acquire('save');
@@ -62,7 +78,7 @@ describe('mutex ownership', () => {
 
   it('does not let a stale release hand the lock to a THIRD waiter', async () => {
     const staleToken = await saveLoadMutex.acquire('save', 30_000);
-    jest.advanceTimersByTime(30_000);
+    saveLoadMutex.release(staleToken);
 
     const bToken = await saveLoadMutex.acquire('save');
 

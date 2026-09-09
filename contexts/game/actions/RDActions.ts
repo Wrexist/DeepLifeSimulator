@@ -19,6 +19,8 @@ import {
   calculateCompetitionScore,
 } from '@/lib/rd/competitions';
 import type { Dispatch, SetStateAction } from 'react';
+import { makeLifeRoll } from '@/utils/seededRoll';
+import { guardTick } from './weekly/guardTick';
 
 /** Cap per-company competition history to prevent unbounded save/heap growth. */
 const COMPETITION_HISTORY_CAP = 50;
@@ -273,203 +275,120 @@ export const startResearch = (
   return { success: true, message: `Research started: ${technology.name} (${researchTime} weeks)` };
 };
 
+/** Resolve completion from the current company, so replay cannot grant twice. */
+function resolveResearchCompletion(state: GameState, company: Company, projectId: string): {
+  company: Company; breakthrough?: Breakthrough; patentOpportunity?: boolean;
+} {
+  const lab = company.rdLab;
+  const project = lab?.researchProjects.find(p => p.id === projectId);
+  const technology = project && getTechnologyById(project.technologyId);
+  if (!lab || !project || project.completed || !technology) return { company };
+
+  const lifeRoll = makeLifeRoll(state, state.weeksLived || 0);
+  const rollFor = (key: string) => lifeRoll(`research:${company.id}:${project.id}:${key}`);
+  const breakthrough = triggerBreakthrough(
+    project.technologyId, company.id, state.weeksLived || 0, lab.type, rollFor,
+  );
+  const completed: Company = {
+    ...company,
+    rdLab: {
+      ...lab,
+      researchProjects: lab.researchProjects.map(p => p.id === projectId ? { ...p, completed: true, progress: 100 } : p),
+      completedResearch: [...new Set([...(lab.completedResearch || []), project.technologyId])],
+    },
+    unlockedTechnologies: [...new Set([...(company.unlockedTechnologies || []), project.technologyId])],
+  };
+  const bonus = state.politics?.activePolicyEffects?.technology?.patentBonus || 0;
+  const chance = Math.min(1, LAB_TYPES[lab.type].breakthroughChance * (1 + bonus / 100));
+  return {
+    company: breakthrough ? { ...completed, ...applyBreakthroughEffects(
+      { weeklyIncome: completed.weeklyIncome, baseWeeklyIncome: completed.baseWeeklyIncome }, breakthrough,
+    ) } : completed,
+    breakthrough: breakthrough || undefined,
+    patentOpportunity: rollFor('patent') < chance,
+  };
+}
+
+type ResearchResult = { success: boolean; message: string; patentOpportunity?: boolean; breakthrough?: Breakthrough };
+
+/** One pure outcome supplies both the action preview and the atomic commit. */
+function resolveCompleteResearch(state: GameState, companyId: string, projectId: string): {
+  result: ResearchResult; next: GameState | null;
+} {
+  const company = (state.companies || []).find(c => c.id === companyId);
+  if (!company?.rdLab) return { result: { success: false, message: 'Company or lab not found' }, next: null };
+  const project = company.rdLab.researchProjects.find(p => p.id === projectId);
+  if (!project) return { result: { success: false, message: 'Research project not found' }, next: null };
+  if (project.completed) return { result: { success: false, message: 'Research already completed' }, next: null };
+  const technology = getTechnologyById(project.technologyId);
+  if (!technology) return { result: { success: false, message: 'Technology not found' }, next: null };
+  const completion = resolveResearchCompletion(state, company, projectId);
+  const breakthroughNote = completion.breakthrough
+    ? ` Breakthrough: ${completion.breakthrough.name} - company income ×${completion.breakthrough.effects.incomeMultiplier}!` : '';
+  return {
+    next: {
+      ...state,
+      companies: (state.companies || []).map(c => c.id === companyId ? completion.company : c),
+      company: state.company?.id === companyId ? completion.company : state.company,
+    },
+    result: {
+      success: true,
+      message: `Research completed: ${technology.name}!${breakthroughNote}${completion.patentOpportunity ? ' Patent opportunity available!' : ''}`,
+      breakthrough: completion.breakthrough,
+      patentOpportunity: completion.patentOpportunity,
+    },
+  };
+}
+
 export const completeResearch = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   companyId: string,
-  projectId: string
-): { success: boolean; message: string; patentOpportunity?: boolean; breakthrough?: Breakthrough } => {
-  const company = (gameState.companies || []).find(c => c.id === companyId);
-  if (!company || !company.rdLab) {
-    return { success: false, message: 'Company or lab not found' };
-  }
-
-  const project = company.rdLab.researchProjects.find(p => p.id === projectId);
-  if (!project) {
-    return { success: false, message: 'Research project not found' };
-  }
-
-  if (project.completed) {
-    return { success: false, message: 'Research already completed' };
-  }
-
-  const technology = getTechnologyById(project.technologyId);
-  if (!technology) {
-    return { success: false, message: 'Technology not found' };
-  }
-
-  // Mark project as completed
-  const updatedProjects = company.rdLab.researchProjects.map(p => {
-    if (p.id !== projectId) return p;
-    return { ...p, completed: true, progress: 100 };
-  });
-
-  // Add to completed research
-  const updatedCompletedResearch = [
-    ...(company.rdLab.completedResearch || []),
-    project.technologyId,
-  ];
-
-  // Add to unlocked technologies
-  const updatedUnlockedTechs = [
-    ...(company.unlockedTechnologies || []),
-    project.technologyId,
-  ];
-
-  // Roll a rare scientific breakthrough on completion. When it fires, the
-  // company's income is permanently multiplied (the 2×/3× events in
-  // BREAKTHROUGH_EFFECTS) via applyBreakthroughEffects - this wires the
-  // previously-orphaned breakthroughs module into the live economy. The chance
-  // is low and scales with lab type × technology tier (see triggerBreakthrough).
-  const breakthrough = triggerBreakthrough(
-    project.technologyId,
-    companyId,
-    gameState.weeksLived || 0,
-    company.rdLab.type,
-  );
-
-  // Apply the research completion (and any breakthrough income boost) to a
-  // company. baseWeeklyIncome is boosted too, so the multiplier survives the
-  // staff/upgrade income recompute (weeklyIncome = baseWeeklyIncome × mult).
-  const applyResearchCompletion = (c: Company): Company => {
-    const withResearch: Company = {
-      ...c,
-      rdLab: {
-        ...c.rdLab!,
-        researchProjects: updatedProjects,
-        completedResearch: updatedCompletedResearch,
-      },
-      unlockedTechnologies: updatedUnlockedTechs,
-    };
-    if (!breakthrough) return withResearch;
-    const boosted = applyBreakthroughEffects(
-      { weeklyIncome: withResearch.weeklyIncome, baseWeeklyIncome: withResearch.baseWeeklyIncome },
-      breakthrough,
-    );
-    return { ...withResearch, weeklyIncome: boosted.weeklyIncome, baseWeeklyIncome: boosted.baseWeeklyIncome };
-  };
-
-  setGameState(prev => ({
-    ...prev,
-    companies: (prev.companies || []).map(c => (c.id === companyId ? applyResearchCompletion(c) : c)),
-    company: prev.company && prev.company.id === companyId ? applyResearchCompletion(prev.company) : prev.company,
-  }));
-
-  log.info(`Completed research: ${technology.name} for ${companyId}`);
-  if (breakthrough) {
-    log.info(`Breakthrough for ${companyId}: ${breakthrough.name} (income ×${breakthrough.effects.incomeMultiplier})`);
-  }
-
-  // Check for patent opportunity (random chance based on lab type + policy bonus)
-  const labInfo = LAB_TYPES[company.rdLab.type];
-  const techPolicyEffects = gameState.politics?.activePolicyEffects?.technology;
-  const patentBonus = techPolicyEffects?.patentBonus || 0;
-  const adjustedBreakthroughChance = Math.min(1, labInfo.breakthroughChance * (1 + patentBonus / 100));
-  const hasPatentOpportunity = Math.random() < adjustedBreakthroughChance;
-
-  const breakthroughNote = breakthrough
-    ? ` Breakthrough: ${breakthrough.name} - company income ×${breakthrough.effects.incomeMultiplier}!`
-    : '';
-
-  return {
-    success: true,
-    message: `Research completed: ${technology.name}!${breakthroughNote}${hasPatentOpportunity ? ' Patent opportunity available!' : ''}`,
-    patentOpportunity: hasPatentOpportunity,
-    breakthrough: breakthrough || undefined,
-  };
+  projectId: string,
+): ResearchResult => {
+  const preview = resolveCompleteResearch(gameState, companyId, projectId);
+  if (!preview.next) return preview.result;
+  setGameState(prev => resolveCompleteResearch(prev, companyId, projectId).next ?? prev);
+  return preview.result;
 };
 
 /**
- * Weekly R&D research tick - the previously-missing driver that makes labs
- * actually finish research (before this, `completeResearch` had ZERO callers,
- * so research never completed and the whole R&D payoff chain was dead).
- *
- * Wired into the company weekly tick (CompanyActionsContext effect on
- * `weeksLived`). Each call:
- *   1. Advances every owned company's in-progress project by `100 / duration`
- *      (duration already bakes in the lab's research-speed multiplier via
- *      startResearch), clamped to 100.
- *   2. Finalises any project that reached 100% through `completeResearch`
- *      (records the tech, unlocks it, rolls the patent opportunity + breakthrough).
- *
- * At most ONE completion per company is finalised per tick: `completeResearch`
- * rebuilds a company's project/tech arrays from a snapshot, so finalising two of
- * the SAME company's projects in one batch would clobber the first. A second
- * project that also hit 100% this week is clamped to 100 and completes next week.
- * The caller guards against double-invoke per week (React StrictMode / remount).
+ * One played week's R&D transition. Called inside the authoritative weekly
+ * updater, never from a provider reacting to a loaded save. Income for the week
+ * has already been paid, preserving the existing patent/payment ordering.
+ * Keep one completion per company per week and the existing lab-speed rates.
  */
-export const advanceResearch = (
-  gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>,
-): void => {
-  const companies = gameState.companies || [];
-
-  // Detect the first project per company that reaches 100% this tick.
-  const toComplete = new Map<string, string>(); // companyId -> projectId
-  for (const company of companies) {
+export function applyResearchWeek(state: GameState): GameState {
+  const advance = (company: Company): Company => guardTick('companyResearch', () => {
     const projects = company.rdLab?.researchProjects || [];
-    for (const project of projects) {
-      if (project.completed) continue;
-      if (toComplete.has(company.id)) continue; // one completion per company per tick
-      const increment = 100 / Math.max(1, project.duration || 1);
-      if (project.progress + increment >= 100 - 1e-6) {
-        toComplete.set(company.id, project.id);
-      }
+    const due = projects.find(p => !p.completed && p.progress + 100 / Math.max(1, p.duration || 1) >= 100 - 1e-6);
+    let next = due ? resolveResearchCompletion(state, company, due.id).company : company;
+    if (Array.isArray(next.patents) && next.patents.length > 0) {
+      next = { ...next, patents: updatePatents(next.patents) };
     }
-  }
+    if (next.rdLab?.researchProjects.some(p => !p.completed && p.progress < 100)) {
+      next = { ...next, rdLab: {
+        ...next.rdLab,
+        researchProjects: next.rdLab.researchProjects.map(p => p.completed ? p : {
+          ...p, progress: Math.min(100, p.progress + 100 / Math.max(1, p.duration || 1)),
+        }),
+      } };
+    }
+    return next;
+  }, company);
+  const companies = (state.companies || []).map(advance);
+  const company = state.company
+    ? companies.find(c => c.id === state.company!.id) ?? advance(state.company)
+    : state.company;
+  if (company === state.company && companies.every((c, i) => c === state.companies?.[i])) return state;
+  return { ...state, companies, company };
+}
 
-  // Finalise completions first (reuses completeResearch → completedResearch,
-  // unlockedTechnologies, patent-opportunity + breakthrough income roll).
-  toComplete.forEach((projectId, companyId) => {
-    completeResearch(gameState, setGameState, companyId, projectId);
-  });
-
-  // Then advance every still-in-progress project by one week AND age patents.
-  // Derived from `prev` so it layers cleanly on top of the completion pass above.
-  setGameState(prev => {
-    let changed = false;
-    const advance = (c: Company): Company => {
-      let next = c;
-
-      // PATENT EXPIRY FIX: age patents once per weekly R&D tick. `updatePatents`
-      // decrements each patent's `duration` and drops any that reach 0, so patents
-      // finally expire after their `duration` weeks instead of paying `weeklyIncome`
-      // forever. calcWeeklyPassiveIncome (passiveIncome.ts) already gates patent
-      // income on `duration > 0`, so an expired/dropped patent stops paying the
-      // week it ages out. This weekly R&D step is the SOLE per-week driver for
-      // `updatePatents` (previously it had zero callers - patents never aged). It
-      // runs off `prev` inside the updater, so a StrictMode double-invoke re-derives
-      // the same one-week decrement rather than aging twice.
-      if (Array.isArray(c.patents) && c.patents.length > 0) {
-        next = { ...next, patents: updatePatents(c.patents) };
-        changed = true;
-      }
-
-      // Advance in-progress research by one week.
-      const lab = next.rdLab;
-      if (lab && lab.researchProjects && lab.researchProjects.length > 0) {
-        let touched = false;
-        const projects = lab.researchProjects.map(p => {
-          if (p.completed) return p;
-          const increment = 100 / Math.max(1, p.duration || 1);
-          const nextProgress = Math.min(100, p.progress + increment);
-          if (nextProgress !== p.progress) touched = true;
-          return { ...p, progress: nextProgress };
-        });
-        if (touched) {
-          changed = true;
-          next = { ...next, rdLab: { ...lab, researchProjects: projects } };
-        }
-      }
-
-      return next;
-    };
-    const companiesNext = (prev.companies || []).map(advance);
-    const companyNext = prev.company ? advance(prev.company) : prev.company;
-    if (!changed) return prev;
-    return { ...prev, companies: companiesNext, company: companyNext };
-  });
-};
+/** Action adapter for callers/tests; derive the complete transition from prev. */
+export const advanceResearch = (
+  _gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+): void => { setGameState(applyResearchWeek); };
 
 export const filePatent = (
   gameState: GameState,

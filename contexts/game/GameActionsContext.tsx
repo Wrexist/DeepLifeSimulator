@@ -144,6 +144,7 @@ import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
+import { applyResearchWeek } from './actions/RDActions';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
 import { resolveTenancyStep, computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { CLOSE_BOND_HAPPINESS_CAP } from '@/lib/social/closeness';
@@ -3681,6 +3682,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (lapseErr) {
    logger.error('[MAIL LAPSE] failed:', lapseErr);
  }
+
+ // Research belongs to this played week, not to a provider's observed week
+ // change (which also occurs when loading a different save).
+ nextState = guardTick('research', () => applyResearchWeek(nextState), nextState);
 
  // PERF (freeze fix): expose the computed state to the post-update code below.
  postTickState = nextState;

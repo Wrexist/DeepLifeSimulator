@@ -3,13 +3,13 @@
  * Provides warehouse and mining-related actions
  */
 
-import React, { createContext, useContext, useCallback, ReactNode, useRef, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useEffect, useMemo } from 'react';
 import { useSetGameState, useGameStateGetter, useGameSelector } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
 import * as CompanyActions from './company';
 import * as MiningActions from './actions/MiningActions';
 import { createFamilyBusiness as createFamilyBusinessModule, manageFamilyBusiness as manageFamilyBusinessModule } from './actions/FamilyBusinessActions';
-import { enterCompetition as enterCompetitionModule, processCompetitionResults, advanceResearch } from './actions/RDActions';
+import { enterCompetition as enterCompetitionModule, processCompetitionResults } from './actions/RDActions';
 import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import type { GameState } from './types';
 
@@ -74,34 +74,12 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   // so every entry was a pure money sink). Keyed on `weeksLived` so it fires once
   // per advance; processCompetitionResults is atomic + idempotent (it only touches
   // entries whose endWeek has arrived and that aren't already completed).
-  // The one genuinely REACTIVE read in this provider: the two effects below
+  // The one genuinely REACTIVE read in this provider: the effect below
   // must fire when the week advances. A narrow selector gives exactly that
   // without resubscribing the provider to the whole state.
   const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
   useEffect(() => {
     processCompetitionResults(setGameState, weeksLived);
-  }, [weeksLived, setGameState]);
-
-  // R&D research tick - the previously-missing driver that makes labs actually
-  // finish research (before this, `completeResearch` had ZERO callers, so
-  // research never completed). `advanceResearch` bumps each in-progress project's
-  // progress by the lab's speed and finalises any that hit 100% (recording the
-  // tech, rolling the patent opportunity + breakthrough income event).
-  //
-  // The `lastResearchWeekRef` guard makes it idempotent per week: a remount
-  // (save reload / React StrictMode) or an unrelated re-render never grants a
-  // free increment - it only advances when `weeksLived` genuinely changes.
-  const lastResearchWeekRef = useRef<number>(weeksLived);
-  useEffect(() => {
-    const prevWeek = lastResearchWeekRef.current;
-    lastResearchWeekRef.current = weeksLived;
-    // Only a genuine +1 weekly advance advances research. Gating on an exact
-    // forward step of one week means loading a different save slot (any other
-    // delta - a jump forward or a rewind) no longer grants a spurious research
-    // week / breakthrough roll. First mount is a no-op (prevWeek === weeksLived).
-    if (weeksLived !== prevWeek + 1) return;
-    const state = getGameState();
-    if (state) advanceResearch(state, setGameState);
   }, [weeksLived, setGameState]);
 
   const buyWarehouse = useCallback(() => {

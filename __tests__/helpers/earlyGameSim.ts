@@ -29,6 +29,7 @@ import { getJobBoard } from '@/lib/careers/jobMarket';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 // Economic actions (Program 10). Every one is the production action module the
 // app screens call, invoked with the same arguments the screen passes.
@@ -724,9 +725,20 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
       minHappiness,
     };
   } finally {
-    act(() => mounted.root.unmount());
-    captured = null;
-    Math.random = originalRandom;
+    try {
+      // Stop provider timers/listeners before waiting for already-started saves.
+      await act(async () => { mounted.root.unmount(); });
+      // nextWeek intentionally starts saveGame without awaiting it. Every such
+      // save owns this FIFO mutex until its queue write finishes. Acquiring
+      // behind those saves is a completion barrier, unlike flushQueue(), which
+      // only persists the recovery journal and does not drain active writes.
+      // Keep the environment and seeded random source alive until I/O settles.
+      const token = await saveLoadMutex.acquire('load');
+      saveLoadMutex.release(token);
+    } finally {
+      captured = null;
+      Math.random = originalRandom;
+    }
   }
 }
 

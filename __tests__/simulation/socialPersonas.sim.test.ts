@@ -16,6 +16,12 @@
 import { runPersona, formatSocialRun, rowAt, type SimResult } from '../helpers/earlyGameSim';
 import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
 
+// Exercise real saves against read-after-write storage rather than the UI stub.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual<typeof import('../helpers/statefulAsyncStorage')>('../helpers/statefulAsyncStorage')
+    .createStatefulAsyncStorageMock(),
+);
+
 const RUN = process.env.RUN_SOCIAL_PERSONAS === '1';
 const d = RUN ? describe : describe.skip;
 
