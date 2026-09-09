@@ -59,5 +59,14 @@ in the backlog. Historical hypotheses are not confirmed defects.
 - [x] Verify references/content preservation and relevant local checks.
 - [x] Publish [cleanup PR #205](https://github.com/Wrexist/DeepLifeSimulator/pull/205) and inspect latest CI. Full remote checks remain pending.
 
+## MP00 integration review (active)
+
+- [x] Inspect both PR heads, review comments and completed CI logs.
+- [x] Repair the encoding fixture exception after its historical report moved.
+- [ ] Verify cleanup CI and merge #205 at its checked head.
+- [ ] Fix #203 save/load acquisition rejection and verify evidence commit ancestry.
+- [ ] Verify #203 checks, integrate current main and merge at its checked head.
+- [ ] Refresh the release queue and execute the next eligible package.
+
 Integration note: if #203 updates this file, retain its live release entries and
 the navigation above. Do not restore the archived 1,500-line mixed history.

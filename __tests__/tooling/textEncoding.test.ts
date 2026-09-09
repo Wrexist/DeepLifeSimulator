@@ -133,7 +133,7 @@ function findMojibake(src: string): { run: string; fixed: string }[] {
 const QUOTES_MOJIBAKE_DELIBERATELY = [
   // The audit that first reported the mangled middot in the banking strings,
   // quoting the broken bytes as its evidence.
-  path.join('tasks', 'app-audit-2026-07-19.md'),
+  path.join('tasks', 'archive', '2026-07', 'app-audit-2026-07-19.md'),
   // This file's own planted-corruption control.
   path.join('__tests__', 'tooling', 'textEncoding.test.ts'),
 ];
