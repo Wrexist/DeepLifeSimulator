@@ -1,3 +1,11 @@
+# Active: Resolve PR #203 conflicts (2026-09-09)
+
+- [x] Identify the conflicting base/head revisions and enumerate conflict files.
+- [ ] Merge current `main`, preserve both valid lesson entries, and remove all markers.
+- [ ] Run focused validation, commit, push, and verify GitHub mergeability/checks.
+
+---
+
 # Active: Fresh release workflow (2026-09-09)
 
 User authorized a new audit, sequential master prompts, implementation and verification
