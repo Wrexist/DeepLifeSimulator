@@ -177,3 +177,9 @@ recorded blockers are resolved with evidence for the actual candidate.
 
 - Full default reproducibility: five personas × three runs × 80 weeks, 5/5 pass, exit 0 (234.368s). Retention: four personas × 100 weeks passed; the earlier combined command failed solely on the now-corrected replay fixture.
 - Publishing uses GitHub Git Data API because command-line push has no GitHub credentials. Evidence SHAs above identify local implementation commits; the published commit contains their combined tree. No local evidence SHA is represented as a remotely published commit.
+
+## Published candidate verification
+
+Candidate `13fe9f315dd53ea141f98eaf1bde76db3845b16b`, PR #203, exactly matches the local implementation tree. Both remote workflows passed: Preflight run 34309941424 and EAS Update run 34309941422 (including preview update). Post-rebase local preflight also exited 0.
+
+Full normal suite: 782 passed suites, 9,779 passed tests, 308 snapshots; 17 opt-in suites/32 tests skipped; exit 0 in 237.659s. It reported a worker teardown warning. A diagnostic `npm test -- --runInBand --detectOpenHandles --silent` reproduced all 782/9,779/308 passes in 613.388s, but the process stayed alive after the summary without identifying a handle. This diagnostic is not claimed as a clean exit. R05 remains active to isolate the test-runner cleanup cause; do not repeat the whole suite without narrowing the leak first or introduce forceExit to hide it. The focused real-save simulations exit cleanly.

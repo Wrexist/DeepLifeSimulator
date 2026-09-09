@@ -134,7 +134,16 @@
       "kind": "audit",
       "status": "active",
       "prompt": "tasks/release/R05.md",
-      "evidence": []
+      "evidence": [
+        {
+          "commit": "13fe9f315dd53ea141f98eaf1bde76db3845b16b",
+          "result": "782 suites/9779 tests/308 snapshots pass; full replay and save/load pass; both remote workflows pass. Remaining runner cleanup warning reproduced by serial tracing, cause not isolated.",
+          "references": [
+            "tasks/release/AUDIT.md",
+            "tasks/release/R05.md"
+          ]
+        }
+      ]
     },
     {
       "id": "R06",
