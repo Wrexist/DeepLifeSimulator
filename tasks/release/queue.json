@@ -39,8 +39,8 @@
       "prompt": "tasks/release/R01.md",
       "evidence": [
         {
-          "commit": "14858aa",
-          "result": "Stalled double-buffer writer fails before fix and passes after. Focused 4 suites/21 tests, source/test types pass.",
+          "commit": "13fe9f315dd53ea141f98eaf1bde76db3845b16b",
+          "result": "Stalled double-buffer writer fails before fix and passes after. Focused 4 suites/21 tests, source/test types pass. Published in consolidated commit 13fe9f315dd53ea141f98eaf1bde76db3845b16b; original local reference 14858aa was unpublished and is not candidate evidence.",
           "references": [
             "tasks/release/AUDIT.md"
           ]
@@ -59,8 +59,8 @@
       "prompt": "tasks/release/R02.md",
       "evidence": [
         {
-          "commit": "6e2d17b",
-          "result": "Mounted slot-load, deterministic replay, real weekly hydrated continuation and atomic bonus regressions pass. 833 stress/audit tests; final result-pattern correction plus 37 tests pass, ratchet unchanged.",
+          "commit": "13fe9f315dd53ea141f98eaf1bde76db3845b16b",
+          "result": "Mounted slot-load, deterministic replay, real weekly hydrated continuation and atomic bonus regressions pass. 833 stress/audit tests; final result-pattern correction plus 37 tests pass, ratchet unchanged. Published in consolidated commit 13fe9f315dd53ea141f98eaf1bde76db3845b16b; original local reference 6e2d17b was unpublished and is not candidate evidence.",
           "references": [
             "tasks/release/AUDIT.md"
           ]
@@ -79,8 +79,8 @@
       "prompt": "tasks/release/R03.md",
       "evidence": [
         {
-          "commit": "ae09ef8",
-          "result": "Nine workflow/gate tests pass. Missing, duplicate, malformed, failed and UNREACHED browser evidence cannot exit successfully.",
+          "commit": "13fe9f315dd53ea141f98eaf1bde76db3845b16b",
+          "result": "Nine workflow/gate tests pass. Missing, duplicate, malformed, failed and UNREACHED browser evidence cannot exit successfully. Published in consolidated commit 13fe9f315dd53ea141f98eaf1bde76db3845b16b; original local reference ae09ef8 was unpublished and is not candidate evidence.",
           "references": [
             "tasks/release/AUDIT.md"
           ]
@@ -99,8 +99,8 @@
       "prompt": "tasks/release/R11.md",
       "evidence": [
         {
-          "commit": "6152d63",
-          "result": "Factual SDK disclosures corrected; automated source drift check passes. Not deployed or legally certified.",
+          "commit": "13fe9f315dd53ea141f98eaf1bde76db3845b16b",
+          "result": "Factual SDK disclosures corrected; automated source drift check passes. Not deployed or legally certified. Published in consolidated commit 13fe9f315dd53ea141f98eaf1bde76db3845b16b; original local reference 6152d63 was unpublished and is not candidate evidence.",
           "references": [
             "support-site/privacy.html",
             "__tests__/tooling/privacyDisclosures.test.ts",
@@ -108,7 +108,7 @@
           ]
         }
       ],
-      "blocker": "Source disclosures corrected and drift test passes (6152d63). Owner operational identity/retention and store privacy answers, authorized deployment and visual/live confirmation remain unverified."
+      "blocker": "Source disclosures corrected and drift test passes (published in 13fe9f315dd53ea141f98eaf1bde76db3845b16b). Owner operational identity/retention and store privacy answers, authorized deployment and visual/live confirmation remain unverified."
     },
     {
       "id": "R04",

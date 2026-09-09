@@ -26,6 +26,13 @@ shows every package. `release:check` validates the ledger and exits nonzero unti
 required packages are verified. These commands select/check work; an AI session or
 scheduled task performs the work. They do not secretly run an AI service.
 
+All three commands verify recorded evidence commits against the checked-out
+candidate's Git ancestry. An unavailable, ambiguous or unrelated commit fails
+validation. A shallow checkout must fetch the candidate's missing history before
+evidence can be verified; do not replace this with a shape-only check. Use merge
+commits when integrating evidence-bearing branches so their provenance remains
+in candidate history. Code availability does not replace native/provider proof.
+
 Merge is a production action in this repository: `.github/workflows/eas-update.yml`
 publishes an OTA on main. Do not auto-merge, dispatch native builds, submit to Apple,
 change store version records, rotate keys, enable analytics or send community messages
