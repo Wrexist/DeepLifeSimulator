@@ -5,7 +5,9 @@ Authorized scope: a new clean screenshot campaign emphasizing player experiences
 - [x] Review current repository, source captures, existing artwork and Apple sizes.
 - [x] Create ten distinct outcome-led compositions with authentic gameplay evidence.
 - [x] Export and visually verify iPhone 6.5, iPhone 6.9 and iPad sets.
-- [ ] Document sources, check outputs, open a PR and inspect remote checks.
+- [x] Document sources, check outputs, open a PR and inspect remote checks.
+      PR #202 is open with no merge conflicts. All 30 image exports pass.
+      Repository EAS Update CI was still running when this status was recorded.
 
 # Active: PR CI recovery
 
