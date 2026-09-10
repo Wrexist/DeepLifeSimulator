@@ -10,7 +10,8 @@
 - [x] Fix reproduced save-replay and weekly-cash recap defects with behavioral regressions.
 - [x] Repair current Apple API compatibility and Windows tooling without weakening checks.
 - [x] Install reviewed mobile skills; add concise future-chat guidance and repair stale local skills.
-- [ ] Verify the combined changes, document native/device limits and preserve a reviewable branch.
+- [x] Verify combined changes locally, document native/device limits and preserve [draft PR #209](https://github.com/Wrexist/DeepLifeSimulator/pull/209).
+- [ ] Inspect PR #209 checks at its final head; native acceptance remains separate.
 
 Latest: [10 September audit and ordered release list](release/evidence/ios-quality-audit-2026-09-10.md).
 Candidate branch: `codex/ios-release-quality-2026-09-10`; native/provider gates remain HOLD.

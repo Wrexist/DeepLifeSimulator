@@ -4,6 +4,9 @@
 improves the development setup. It does not certify a signed iOS candidate or
 promise a defect-free game. Baseline main: `ea9880d0b56c714f5243cd12de6847e412768f1a`.
 Candidate branch: `codex/ios-release-quality-2026-09-10`.
+Implementation: `e70edd8ff2efb81c499854ae855a7897607f777d`, [draft PR #209](https://github.com/Wrexist/DeepLifeSimulator/pull/209).
+Use the PR's latest checks for candidate-wide CI and coverage results; a later
+handoff-only commit may supersede this implementation SHA.
 
 ## PR and candidate audit
 
@@ -138,11 +141,17 @@ is not established by web-seeded marketing captures.
 | 4 | R10 submission | Reconcile all evidence to the exact candidate, review notes/IAP access/privacy/content answers, rollout/support plan and authorized submission |
 
 The read-only ASC plan on baseline [run 34510532337](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/34510532337)
-proved repository credentials exist, but failed on the retired field. Local
-missing credentials are not the remote blocker. Test the fixed reader through
-the read-only workflow before choosing a version. Repository store metadata still
-targets historical 1.5.0; neither that value nor an old public-store observation
-establishes the next version. No store writes, native build, main push or community
+proved repository credentials exist, but failed on the retired field. The fixed
+reader in [run 34513497670](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/34513497670)
+successfully fetched 18 records and confirmed **1.5.5 READY_FOR_DISTRIBUTION**.
+It then correctly exited 1 refusing the default historical 1.5.0 target, which
+is also already distributed. That refusal is expected protection, not a remaining
+API failure. A read-only proposed **1.5.6** plan was requested in
+[run 34513608084](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/34513608084);
+inspect its result before reusing it. No version record was created or changed.
+Local missing credentials are not the remote blocker. Repository store metadata
+still targets historical 1.5.0 and must be deliberately reconciled with the chosen
+next release and its actual release notes. No store writes, native build, main push or community
 messages were performed in this pass.
 
 ## Future-chat setup
