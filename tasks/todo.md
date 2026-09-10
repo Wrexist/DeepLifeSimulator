@@ -11,8 +11,8 @@
 
 Continuation evidence: [privacy/provider reconciliation](release/evidence/R11-privacy.md)
 and [actual TestFlight candidate](release/evidence/R08-candidate-2026-09-10.md).
-Molin Inc. is an unregistered project name in Sweden; the individual legal
-operator name is pending. The owner monitors support and reports no prior deletion
+Isac Molin is the owner-confirmed individual operator in Sweden; Molin Inc. is
+an unregistered project name. The owner monitors support and reports no prior deletion
 requests. A researched deletion procedure is drafted, not yet adopted. Local work adds
 fail-closed ATT and UMP ad-request gating. A follow-up adds separate optional usage
 analytics, default denied native purposes and withdrawal handling. Its full local

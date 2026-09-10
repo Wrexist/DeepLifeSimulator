@@ -9,7 +9,10 @@ not certification that the signed app or live policy matches the candidate.
 The owner initially supplied **Molin Inc.**, then clarified that they operate in
 **Sweden** and that this is **not a registered legal name**. It is a project/trading
 name, not a verified corporate operator. The draft no longer presents it as a
-legal company. The individual's full legal operator name is awaiting confirmation.
+legal company. The owner subsequently confirmed **Isac Molin** as the individual
+legal operator in Sweden. The candidate policy now identifies Isac Molin and
+labels Molin Inc. only as the project name. These are owner-confirmed facts,
+not a claim of company registration.
 Candidate policy revision 3 has not been published. The actual deletion-request
 procedure, other providers' retention settings and completion records remain unconfirmed. No
 provider-wide deletion promise has been invented. The owner also confirmed

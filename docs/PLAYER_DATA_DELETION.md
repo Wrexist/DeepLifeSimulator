@@ -2,14 +2,15 @@
 
 Prepared 10 September 2026 for DeepLife (project name Molin Inc.). **Not yet confirmed as current
 practice.** Do not publish this as an existing promise or execute deletions from
-an audit request. The owner must establish responsibility, retention decisions
+an audit request. The owner must establish retention decisions
 and actual access, then validate the process with a designated test account.
 
 Confirmed by the owner: they personally monitor and manage
 `DeepLifeSimulator@gmail.com`; no player has requested deletion so far. They do
 not know of an existing procedure. They operate in Sweden and confirmed that
-Molin Inc. is not a registered legal name. The individual operator's full legal
-name is pending; do not describe the project name as an incorporated company.
+Molin Inc. is not a registered legal name. They confirmed **Isac Molin** as the
+individual legal operator and person responsible for privacy requests. Use
+Molin Inc. only as the project name, not an incorporated company.
 
 1. Receive the request through the published support mailbox. Record a private
    case reference and requested scope. Keep player details out of Git, build logs
