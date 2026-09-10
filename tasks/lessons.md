@@ -1,5 +1,26 @@
 # Lessons Learned
 
+## 2026-09-10 — Audit actual writers and execution boundaries
+
+A mutex timeout never grants permission to replay or restore without ownership.
+Inspect every double-buffer caller, including startup journals and backup UI;
+test with a paused real writer and durable storage rather than a mutex mock.
+Weekly recaps must distinguish actual paid cash from deferred debt and prepaid
+rent. Assert through the real tick, including insufficient-funds cases.
+
+Windows scanner identities need slash normalization, ESM imports need file URLs,
+and CLI invocation should use Node instead of assuming executable npm shims.
+Fixture expectations should normalize line endings and format known locale-aware
+amounts without weakening assertions. PowerShell 5.1 UTF-8 output includes a BOM:
+use an explicit no-BOM encoder for repository/scanned JSON. A scratch artifact
+failure is still a failed run; repair it and report the focused rerun honestly.
+
+Refresh remote records: merged PRs and deployed policy source are not still
+pending merely because an old handoff says so. Local absent Apple credentials
+did not mean the repository workflow lacked them; its real failure was a retired
+API field. Confirm read-only responses before any store write. Keep browser,
+JavaScript-export and native-purchase evidence separate.
+
 <!-- Updated after every correction. Reviewed at the start of each session. -->
 
 ## Patterns to Watch For

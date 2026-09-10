@@ -127,13 +127,16 @@ describe('TICK-A4 - the two earlier fixes of this class are still in place', () 
    * If either regresses, the structural guard above would not catch it - they
    * are folded into the recap's initial construction, not written after it.
    */
-  it('luxury risk cost is still counted as an expense', () => {
-    expect(CODE).toMatch(/const totalExpenses = [^;]*luxuryRiskCost/);
+  it('initial expenses use settled cash rather than nominal bills', () => {
+    // Real funded/deferred bill and landlord cases live in
+    // simulation/weeklyRecapCash.test.ts. This only guards the accounting boundary.
+    expect(CODE).toMatch(/const recapCashChange = Math\.round\(newStats\.money - currentMoney\)/);
+    expect(CODE).toMatch(/const totalExpenses = Math\.max\(0, Math\.round\(recapIncome\) - recapCashChange\)/);
   });
 
   it('luxury yield is still counted as income', () => {
-    expect(CODE).toMatch(/incomeEarned: totalIncome \+ luckyBonus \+ streakBonusAmount \+ luxuryYield/);
-    expect(CODE).toMatch(/netChange: Math\.round\(totalIncome \+ luckyBonus \+ streakBonusAmount \+ luxuryYield - totalExpenses\)/);
+    expect(CODE).toMatch(/const recapIncome = totalIncome \+ luckyBonus \+ streakBonusAmount \+ luxuryYield/);
+    expect(CODE).toMatch(/incomeEarned: Math\.round\(recapIncome\)/);
   });
 
   it('and none of them are taxed retroactively (the control)', () => {

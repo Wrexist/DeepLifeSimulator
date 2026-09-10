@@ -48,6 +48,7 @@ const MAX_REPLAYABLE_QUEUE_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
 class SaveQueue {
   private queue: SaveOperation[] = [];
   private processingPromise: Promise<void> | null = null;
+  private startupRestorePromise: Promise<void> | null = null;
   /** Set by `restoreQueue`: drop the persisted blob once the replay drains. */
   private clearPersistedAfterDrain = false;
   private maxRetries = 3;
@@ -823,6 +824,20 @@ class SaveQueue {
   }
 
   private async restoreQueue(): Promise<void> {
+    // Do not expose replay entries to a live drain before owning the lock.
+    // A timed-out acquire cannot cancel the current holder's storage I/O.
+    // Retry acquisition while leaving the durable journal untouched; read and
+    // validate it only after ownership, since another writer may change it.
+    let token: MutexToken | undefined;
+    while (token === undefined) {
+      try {
+        token = await saveLoadMutex.acquire('save');
+      } catch (lockError) {
+        this.log.warn('Queue replay is waiting for save lock; persisted entries retained', {
+          error: lockError instanceof Error ? lockError.message : String(lockError),
+        });
+      }
+    }
     try {
       const queueData = await safeGetItem('save_queue_persisted');
       if (!queueData) {
@@ -928,40 +943,14 @@ class SaveQueue {
         // clears it just the same.
         this.clearPersistedAfterDrain = true;
 
-        // L7 (2026-08-16 audit): the replay drain is the ONE drain with no mutex
-        // holder behind it, and it writes whole GameStates to slots.
-        //
-        // The comment on `queueSave` (F-9) explains why nothing INSIDE the queue
-        // acquires the mutex: the normal enqueuer is already holding it across
-        // its `await`, and the mutex is not reentrant, so a lock taken by
-        // `performSave` would deadlock every autosave. That design assumes the
-        // enqueuer is the holder - and this path has no enqueuer. It was kicked
-        // fire-and-forget from `restoreQueue`, so a startup `loadGame` could read
-        // a slot while the replay was writing it.
-        //
-        // Fixed at the only place that can fix it without touching the normal
-        // path: the restore acquires the 'save' lock ITSELF and awaits the drain
-        // inside it, exactly as `saveGame` does. No deadlock is possible -
-        // nothing on the `performSave` path acquires the mutex.
-        //
-        // Best-effort: if the lock cannot be had within the watchdog window we
-        // still replay rather than silently dropping the queued saves, because
-        // the persisted operations are the only copy of that data.
-        let token: MutexToken | null = null;
-        try {
-          token = await saveLoadMutex.acquire('save');
-        } catch (lockError) {
-          this.log.warn('Could not acquire save lock for queue replay - draining unlocked', {
-            error: lockError instanceof Error ? lockError.message : String(lockError),
-          });
-        }
+        // The lock spans validation, publication to the queue, and the complete
+        // drain. performSave cannot acquire it itself: normal saves already
+        // hold this non-reentrant lock while awaiting their queue operation.
         try {
           await this.kickProcessing();
         } catch {
           // processQueue already logs per-operation failures; a rejected drain
           // must not turn startup restore into a thrown boot error.
-        } finally {
-          if (token !== null) saveLoadMutex.release(token);
         }
       }
     } catch (error) {
@@ -970,11 +959,19 @@ class SaveQueue {
       try {
         await safeRemoveItem('save_queue_persisted');
       } catch {}
+    } finally {
+      saveLoadMutex.release(token);
     }
   }
 
-  async restoreOnStartup(): Promise<void> {
-    await this.restoreQueue();
+  restoreOnStartup(): Promise<void> {
+    // Repeated registration must share the waiter, not replay the journal twice.
+    if (!this.startupRestorePromise) {
+      this.startupRestorePromise = this.restoreQueue().finally(() => {
+        this.startupRestorePromise = null;
+      });
+    }
+    return this.startupRestorePromise;
   }
 
   /**

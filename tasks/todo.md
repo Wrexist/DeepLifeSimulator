@@ -1,6 +1,21 @@
 # Current work
 
-Updated 9 September 2026. This is the short entry point, not a second release queue.
+## Release audit refresh — 10 September 2026
+
+- [x] Clear verified stale Git lock, fast-forward main, preserve and reapply local popup fix.
+- [x] Refresh open/merged PRs and actual CI/build history.
+- [x] Repair local dependency installation and rerun automated audits, full tests and preflight.
+- [x] Review save/state, logic/economy/performance and release/provider evidence.
+- [x] Write a dated prioritized release audit with verified results and explicit external gaps.
+- [x] Fix reproduced save-replay and weekly-cash recap defects with behavioral regressions.
+- [x] Repair current Apple API compatibility and Windows tooling without weakening checks.
+- [x] Install reviewed mobile skills; add concise future-chat guidance and repair stale local skills.
+- [ ] Verify the combined changes, document native/device limits and preserve a reviewable branch.
+
+Latest: [10 September audit and ordered release list](release/evidence/ios-quality-audit-2026-09-10.md).
+Candidate branch: `codex/ios-release-quality-2026-09-10`; native/provider gates remain HOLD.
+
+Updated 10 September 2026. This is the short entry point, not a second release queue.
 Verify current main, PR heads and provider records before acting.
 
 ## Start here
@@ -60,9 +75,9 @@ release gates explicitly blocked when their evidence is unavailable.
 - [x] Confirm missing ordinary-component filters and absent coverage cadence.
 - [x] Add targeted workflows and document their cadence.
 - [x] Validate YAML/path cases and unchanged quality/coverage floors locally.
-- [ ] Confirm full-checkout CI on the latest [PR #207](https://github.com/Wrexist/DeepLifeSimulator/pull/207) head.
+- [x] Confirm full-checkout CI on the latest [PR #207](https://github.com/Wrexist/DeepLifeSimulator/pull/207) head.
 - [x] Preserve concurrent ledger history and correct master-prompt repo paths.
-- [ ] Merge the checked PR. Its live checks/merge state are authoritative; recheck before repeating MP27.
+- [x] PR #207 merged on 9 September; main `ea9880d0` EAS Update passed. Do not repeat MP27.
 
 ## Next product work after release
 

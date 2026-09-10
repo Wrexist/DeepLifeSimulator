@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 
 const repoRoot = path.join(__dirname, '..', '..');
-const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), 'utf8').replace(/\r\n/g, '\n');
 
 const SCRIPT = read('scripts/check-test-types.js');
 const WORKFLOW = read('.github/workflows/eas-update.yml');

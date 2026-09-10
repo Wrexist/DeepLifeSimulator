@@ -20,7 +20,7 @@ describe('offerBenefits', () => {
 
   it('derives bullets for a SKU with no display-meta entry', () => {
     const { bullets } = offerBenefits(IAP_PRODUCTS.GEMS_1000);
-    expect(bullets.some((b) => b.includes('1,000'))).toBe(true);
+    expect(bullets).toContain(`${(1000).toLocaleString()} Gems`);
   });
 
   it('states gems per dollar and how it compares to the baseline pack', () => {

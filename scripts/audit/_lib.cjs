@@ -106,7 +106,7 @@ function walk(relDirs, filter) {
         if (e.isDirectory()) {
           if (!IGNORED_DIRS.has(e.name)) stack.push(path.join(dir, e.name));
         } else if (filter(e.name)) {
-          out.push(path.relative(REPO_ROOT, path.join(dir, e.name)));
+          out.push(path.relative(REPO_ROOT, path.join(dir, e.name)).split(path.sep).join('/'));
         }
       }
     }

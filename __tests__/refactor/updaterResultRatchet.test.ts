@@ -154,7 +154,7 @@ function walk(dir: string, out: string[] = []): string[] {
 
 /** Every scanned source file, repo-relative, sorted. Read once. */
 const SOURCE_FILES: string[] = ROOTS.flatMap((r) => walk(path.join(REPO_ROOT, r)))
-  .map((f) => path.relative(REPO_ROOT, f))
+  .map((f) => path.relative(REPO_ROOT, f).split(path.sep).join('/'))
   .sort();
 
 const SOURCES = new Map<string, string>(

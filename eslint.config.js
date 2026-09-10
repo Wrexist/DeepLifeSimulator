@@ -5,7 +5,7 @@ const path = require('path');
 module.exports = [
   ...expoConfig,
   {
-    ignores: ["dist/*", "node_modules/*", ".expo/*"],
+    ignores: ["dist/*", "node_modules/*", ".expo/*", "tmp-bugaudit/**", "_to_delete/**"],
   },
   {
     files: ["**/*.{js,jsx,ts,tsx}"],

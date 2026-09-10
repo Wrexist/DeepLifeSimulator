@@ -83,7 +83,7 @@ function unscaledWrites(): string[] {
     if (!fs.existsSync(abs)) return;
     for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
       if (entry.name === 'node_modules' || entry.name.startsWith('.') || entry.name === '__tests__') continue;
-      const rel = path.join(dir, entry.name);
+      const rel = path.join(dir, entry.name).split(path.sep).join('/');
       if (entry.isDirectory()) { walk(rel); continue; }
       if (!/\.tsx?$/.test(entry.name) || /\.test\.tsx?$/.test(entry.name)) continue;
       const src = codeOnly(fs.readFileSync(path.join(ROOT, rel), 'utf8'));

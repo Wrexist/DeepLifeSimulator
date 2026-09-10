@@ -32,6 +32,7 @@ export const RELEASED_STATES = new Set([
   'PENDING_APPLE_RELEASE',
   'PENDING_DEVELOPER_RELEASE',
   'PROCESSING_FOR_APP_STORE',
+  'PROCESSING_FOR_DISTRIBUTION',
   'REPLACED_WITH_NEW_VERSION',
   'REMOVED_FROM_SALE',
   'DEVELOPER_REMOVED_FROM_SALE',
@@ -61,8 +62,22 @@ export function isValidVersionString(v) {
   return /^\d+(\.\d+){0,2}$/.test(String(v ?? ''));
 }
 
-const stateOf = (v) => v?.attributes?.appStoreVersionState ?? v?.attributes?.appVersionState ?? null;
+export const stateOf = (v) => v?.attributes?.appVersionState ?? v?.attributes?.appStoreVersionState ?? null;
 const stringOf = (v) => v?.attributes?.versionString ?? null;
+
+/** Apple's current API rejects the retired appStoreVersionState sparse field. */
+export function fetchAppStoreVersions(client, appId, platform = 'IOS') {
+  return client.getAll(
+    `/v1/apps/${encodeURIComponent(appId)}/appStoreVersions?filter[platform]=${encodeURIComponent(platform)}` +
+      '&fields[appStoreVersions]=versionString,appVersionState,createdDate&limit=200',
+  );
+}
+
+/** Only publicly available versions may trigger a release announcement. */
+export function liveAppStoreVersion(versions) {
+  return highestReleasedVersion((versions ?? []).filter((v) =>
+    ['READY_FOR_DISTRIBUTION', 'READY_FOR_SALE'].includes(stateOf(v))));
+}
 
 /** The highest version that has reached the public store, or null. */
 export function highestReleasedVersion(versions) {

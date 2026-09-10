@@ -109,7 +109,7 @@ describe('render - Market prices use the app-wide money format', () => {
   it('formats the item price instead of interpolating the number', () => {
     const { json, unmount } = renderWithProviders(<MarketScreenContent />);
 
-    expect(json).toContain('$5,000'); // the computer
+    expect(json).toContain(`$${(5000).toLocaleString()}`); // the computer
     expect(json).not.toContain('$5000');
     unmount();
   });
