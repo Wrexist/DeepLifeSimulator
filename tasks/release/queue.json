@@ -115,7 +115,7 @@
           ]
         }
       ],
-      "blocker": "Corrected source is published; live support desktop layout and recovery accordion inspected 10 September. Provider/operator identity, retention/deletion/consent, ASC privacy answers and native confirmation remain unverified. See ios-quality-audit-2026-09-10.md."
+      "blocker": "Sweden confirmed; Molin Inc. is not a registered legal name. Individual operator name pending; owner monitors support and reports no prior deletion requests. ASC privacy selections and AdMob/RevenueCat settings inspected read-only; candidate ATT/UMP fixes in progress. Actual deletion/retention, regional analytics consent, native choices and publication of policy revision 3 remain unresolved. See evidence/R11-privacy.md."
     },
     {
       "id": "R04",
@@ -200,7 +200,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R08.md",
       "evidence": [],
-      "blocker": "Candidate e70edd8f passes local preflight and iOS Hermes export; inspect latest PR #209 CI. Repository ASC credentials and corrected API reader verified in read-only run 34513497670. Need exact production configuration, authorized signed candidate and processed TestFlight identity; latest inspected native source cc60c2e predates current fixes. See ios-quality-audit-2026-09-10.md."
+      "blocker": "ASC latest upload is 2.14.0 (186), validated September 6, predating current fixes. Local package remains 2.13.0; reconcile binary/store version and exact source before an authorized signed build. PR #209 at 4552f6d passed CI; new consent changes require their own final checks. See evidence/R08-candidate-2026-09-10.md."
     },
     {
       "id": "R09",

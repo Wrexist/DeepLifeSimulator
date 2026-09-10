@@ -19,7 +19,6 @@ import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
 import CloudBackupRow from './settings/CloudBackupRow';
 import WhatsNewModal from './WhatsNewModal';
-const HelpModal = React.lazy(() => import('./HelpModal'));
 import { useTranslation } from '@/hooks/useTranslation';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
 import { setHapticsEnabled } from '@/utils/haptics';
@@ -41,6 +40,8 @@ import {
 } from '@/utils/discordRewardClaim';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { gameAlert } from '@/utils/gameAlert';
+import { isFeatureEnabled } from '@/lib/config/featureFlags';
+const HelpModal = React.lazy(() => import('./HelpModal'));
 const LinearGradient = Gradient;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -138,6 +139,25 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showHelp, setShowHelp] = useState(false);
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
+  const [isOpeningAdPrivacy, setIsOpeningAdPrivacy] = useState(false);
+
+  const handleAdPrivacy = async () => {
+    if (isOpeningAdPrivacy) return;
+    setIsOpeningAdPrivacy(true);
+    try {
+      const { adMobService } = await import('@/services/AdMobService');
+      const result = await adMobService.openPrivacyOptions();
+      if (result === 'not-required') {
+        gameAlert('Ad privacy choices', 'No additional ad privacy choices are currently required for this device. You can also manage tracking permission in your device settings.');
+      } else if (result === 'unavailable') {
+        gameAlert('Ad privacy choices', 'Privacy choices could not be opened. Please try again when you are connected.');
+      }
+    } catch {
+      gameAlert('Ad privacy choices', 'Privacy choices could not be opened. Please try again when you are connected.');
+    } finally {
+      setIsOpeningAdPrivacy(false);
+    }
+  };
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   // Game Dev Tools surface - only reachable when DEV_TOOLS_ENABLED (dev builds
   // or an explicit EXPO_PUBLIC_ENABLE_DEVTOOLS opt-in). Stripped from prod.
@@ -755,6 +775,15 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 />
 
                 {/* Privacy Policy & Terms */}
+                {Platform.OS !== 'web' && isFeatureEnabled('adMob') && (
+                  <SettingsActionButton
+                    icon={Shield}
+                    label={isOpeningAdPrivacy ? 'Opening privacy choices...' : 'Ad Privacy Choices'}
+                    accent="#94A3B8"
+                    onPress={handleAdPrivacy}
+                    disabled={isOpeningAdPrivacy}
+                  />
+                )}
                 <SettingsActionButton
                   icon={Shield}
                   label="Privacy Policy"

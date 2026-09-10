@@ -1,5 +1,28 @@
 # Current work
 
+## Priority execution — 10 September continuation
+
+- [x] Refresh main, PR #209 and its successful final-head checks.
+- [ ] R11: reconcile actual App Privacy/provider settings with the code data/consent map.
+- [ ] R04: exercise remaining journeys, reproduce and fix reachable player defects.
+- [ ] R08/R06/R09: resolve candidate identity and available native acceptance access.
+- [ ] R07/R10: prepare exact metadata/submission evidence, retaining unresolved gates.
+- [ ] Verify changes, update the review branch and inspect final checks.
+
+Continuation evidence: [privacy/provider reconciliation](release/evidence/R11-privacy.md)
+and [actual TestFlight candidate](release/evidence/R08-candidate-2026-09-10.md).
+Molin Inc. is an unregistered project name in Sweden; the individual legal
+operator name is pending. The owner monitors support and reports no prior deletion
+requests. A researched deletion procedure is drafted, not yet adopted. Local work adds
+fail-closed ATT and UMP ad-request gating. Regional analytics permission remains
+a separate unresolved code/provider task; do not treat ad permission as analytics
+permission. Latest native upload is 2.14.0 (186), older than these fixes.
+Full local verification: 787 suites / 9,822 tests / 308 snapshots pass, preflight
+exit 0, zero source/test type and lint errors. Analytics property 545257707 has
+2-month event / 14-month user retention (activity reset on); its iOS stream
+reports missing consent signals. Next code task: explicit regional measurement
+consent and withdrawal, followed by a minimal player privacy-request ID flow.
+
 ## Release audit refresh — 10 September 2026
 
 - [x] Clear verified stale Git lock, fast-forward main, preserve and reapply local popup fix.

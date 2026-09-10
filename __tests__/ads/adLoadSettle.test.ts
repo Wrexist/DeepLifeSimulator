@@ -35,6 +35,7 @@ jest.mock('@/services/RevenueCatService', () => ({
 }));
 
 jest.mock('react-native-google-mobile-ads', () => {
+  const initialize = jest.fn().mockResolvedValue(undefined);
   const created: { interstitials: FakeAd[]; rewarded: FakeAd[] } = {
     interstitials: [],
     rewarded: [],
@@ -69,7 +70,13 @@ jest.mock('react-native-google-mobile-ads', () => {
 
   return {
     __created: created,
-    default: () => ({ initialize: jest.fn().mockResolvedValue(undefined) }),
+    default: () => ({ initialize }),
+    __initialize: initialize,
+    AdsConsent: {
+      gatherConsent: jest.fn().mockResolvedValue(undefined),
+      getConsentInfo: jest.fn().mockResolvedValue({ canRequestAds: true }),
+      showPrivacyOptionsForm: jest.fn().mockResolvedValue(undefined),
+    },
     InterstitialAd: { createForAdRequest: () => makeFakeAd(created.interstitials) },
     RewardedAd: { createForAdRequest: () => makeFakeAd(created.rewarded) },
     AdEventType: { LOADED: 'loaded', ERROR: 'error', CLOSED: 'closed', OPENED: 'opened', PAID: 'paid' },
@@ -247,5 +254,116 @@ describe('impression-level revenue', () => {
     await flush();
 
     expect(mockTrackAdRevenue).not.toHaveBeenCalled();
+  });
+});
+
+interface ConsentSdkFixture {
+  __initialize: jest.Mock;
+  __created: { interstitials: FakeAd[]; rewarded: FakeAd[] };
+  AdsConsent: {
+    gatherConsent: jest.Mock;
+    getConsentInfo: jest.Mock;
+    showPrivacyOptionsForm: jest.Mock;
+  };
+}
+
+function consentSdk(): ConsentSdkFixture {
+  return jest.requireMock('react-native-google-mobile-ads') as ConsentSdkFixture;
+}
+
+describe('regional ad privacy request boundary', () => {
+  it('waits for consent before native initialization and shares concurrent startup', async () => {
+    const sdk = consentSdk();
+    let finish!: () => void;
+    sdk.AdsConsent.gatherConsent.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    const { adMobService: service } = await import('@/services/AdMobService');
+    const first = service.initialize();
+    expect(service.initialize()).toBe(first);
+    await flush();
+    expect(sdk.AdsConsent.gatherConsent).toHaveBeenCalledTimes(1);
+    expect(sdk.__initialize).not.toHaveBeenCalled();
+    expect(sdk.__created.interstitials).toHaveLength(0);
+    expect(service.getNativeBannerAd()).toBeNull();
+    finish();
+    await first;
+    expect(sdk.__initialize).toHaveBeenCalledTimes(1);
+    expect(sdk.__created.interstitials).toHaveLength(1);
+    expect(service.adRequestOptions()).toEqual({ requestNonPersonalizedAds: true });
+    service.cleanup();
+  });
+
+  it.each([false, undefined])('does not initialize or request ads when canRequestAds is %s', async allowed => {
+    const sdk = consentSdk();
+    sdk.AdsConsent.getConsentInfo.mockResolvedValue({ canRequestAds: allowed });
+    const { adMobService: service } = await import('@/services/AdMobService');
+    await service.initialize();
+    expect(sdk.__initialize).not.toHaveBeenCalled();
+    expect(sdk.__created.rewarded).toHaveLength(0);
+    expect(service.isAvailable()).toBe(false);
+  });
+
+  it.each([false, true])('on a consent update error uses only the SDK current permission (%s)', async allowed => {
+    const sdk = consentSdk();
+    sdk.AdsConsent.gatherConsent.mockRejectedValue(new Error('offline'));
+    sdk.AdsConsent.getConsentInfo.mockResolvedValue({ canRequestAds: allowed });
+    const { adMobService: service } = await import('@/services/AdMobService');
+    await service.initialize();
+    expect(sdk.__initialize).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    expect(service.isAvailable()).toBe(allowed);
+    service.cleanup();
+  });
+
+  it('fails closed when the SDK cannot read consent', async () => {
+    const sdk = consentSdk();
+    sdk.AdsConsent.getConsentInfo.mockRejectedValue(new Error('native read failed'));
+    const { adMobService: service } = await import('@/services/AdMobService');
+    await service.initialize();
+    expect(sdk.__initialize).not.toHaveBeenCalled();
+    expect(service.getState().isLoading).toBe(false);
+  });
+
+  it('cancels cached loads and blocks reinitialization while privacy choices are open', async () => {
+    const { service, interstitial, rewarded } = await bootService();
+    const sdk = consentSdk();
+    sdk.AdsConsent.getConsentInfo.mockResolvedValue({ canRequestAds: true, privacyOptionsRequirementStatus: 'REQUIRED' });
+    let finish!: () => void;
+    sdk.AdsConsent.showPrivacyOptionsForm.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    const change = service.openPrivacyOptions();
+    await flush();
+    expect(service.isAvailable()).toBe(false);
+    expect(interstitial.listenerCount()).toBe(0);
+    expect(rewarded.listenerCount()).toBe(0);
+    await service.initialize();
+    expect(sdk.__initialize).toHaveBeenCalledTimes(1);
+    interstitial.emit('loaded');
+    rewarded.emit('rewarded_loaded');
+    expect(service.getState().isInterstitialLoaded).toBe(false);
+    expect(service.getState().isRewardedLoaded).toBe(false);
+    expect(await service.showInterstitialAd()).toBe(false);
+    sdk.AdsConsent.getConsentInfo.mockResolvedValue({ canRequestAds: false, privacyOptionsRequirementStatus: 'REQUIRED' });
+    finish();
+    expect(await change).toBe('saved');
+    expect(service.isAvailable()).toBe(false);
+    expect(sdk.__created.interstitials).toHaveLength(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('creates fresh requests only after privacy choices permit them', async () => {
+    const { service } = await bootService();
+    const sdk = consentSdk();
+    sdk.AdsConsent.getConsentInfo.mockResolvedValue({ canRequestAds: true, privacyOptionsRequirementStatus: 'REQUIRED' });
+    expect(await service.openPrivacyOptions()).toBe('saved');
+    expect(sdk.AdsConsent.showPrivacyOptionsForm).toHaveBeenCalledTimes(1);
+    expect(sdk.__created.interstitials).toHaveLength(2);
+    expect(service.isAvailable()).toBe(true);
+    service.cleanup();
+  });
+
+  it.each(['UNKNOWN', 'NOT_REQUIRED'])('does not claim unknown privacy options are saved: %s', async status => {
+    const sdk = consentSdk();
+    sdk.AdsConsent.getConsentInfo.mockResolvedValue({ canRequestAds: false, privacyOptionsRequirementStatus: status });
+    const { adMobService: service } = await import('@/services/AdMobService');
+    expect(await service.openPrivacyOptions()).toBe(status === 'NOT_REQUIRED' ? 'not-required' : 'unavailable');
+    expect(sdk.AdsConsent.showPrivacyOptionsForm).not.toHaveBeenCalled();
   });
 });
