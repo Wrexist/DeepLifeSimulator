@@ -1,4 +1,5 @@
 import { isTrackingAllowed } from '@/utils/trackingTransparency';
+import { analyticsForegroundRevision, isAnalyticsForeground } from '@/utils/analyticsForeground';
 
 const KEY = 'deeplife_usage_analytics_consent_v1';
 let deniedForSession = false;
@@ -18,9 +19,11 @@ export async function hasUsageAnalyticsConsent(): Promise<boolean> {
 }
 
 export async function isUsageAnalyticsAllowed(): Promise<boolean> {
+  if (!isAnalyticsForeground()) return false;
+  const foregroundRevision = analyticsForegroundRevision();
   if (!await hasUsageAnalyticsConsent()) return false;
   const allowed = await isTrackingAllowed().catch(() => false);
-  return !deniedForSession && allowed;
+  return isAnalyticsForeground() && foregroundRevision === analyticsForegroundRevision() && !deniedForSession && allowed;
 }
 
 /** Persist before granting. A failed withdrawal still denies this session. */

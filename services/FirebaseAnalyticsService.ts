@@ -12,6 +12,7 @@
 import { Platform } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isUsageAnalyticsAllowed } from '@/utils/usageAnalyticsConsent';
+import { isAnalyticsForeground } from '@/utils/analyticsForeground';
 
 const log = logger.scope('FirebaseAnalytics');
 
@@ -49,6 +50,13 @@ class FirebaseAnalyticsServiceImpl {
   private collectionAllowed = false;
   private consentRevision = 0;
   private consentChanges: Promise<unknown> = Promise.resolve();
+
+  /** Lifecycle suspension must not load a native SDK before deferred startup. */
+  suspendCollection(): void {
+    this.collectionAllowed = false;
+    this.consentRevision++;
+    if (analyticsModule) void this.setConsent(false);
+  }
 
   /**
    * Usage analytics needs its own opt-in, with ATT as an additional restriction.
@@ -90,8 +98,8 @@ class FirebaseAnalyticsServiceImpl {
         ad_personalization: false,
       });
       if (revision !== this.consentRevision) return false;
-      await analytics().setAnalyticsCollectionEnabled(allowed);
-      this.collectionAllowed = revision === this.consentRevision && allowed;
+      await analytics().setAnalyticsCollectionEnabled(allowed && isAnalyticsForeground());
+      this.collectionAllowed = revision === this.consentRevision && allowed && isAnalyticsForeground();
       return this.collectionAllowed;
     } catch (err: any) {
       log.warn('setConsent failed:', err?.message);
@@ -122,7 +130,7 @@ class FirebaseAnalyticsServiceImpl {
    * purchase flow or a week tick.
    */
   logEvent(name: string, params?: Record<string, unknown>): void {
-    if (!this.collectionAllowed) return;
+    if (!this.collectionAllowed || !isAnalyticsForeground()) return;
     const analytics = loadModule();
     if (!analytics) return;
     try {

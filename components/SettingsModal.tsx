@@ -194,7 +194,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       await saveUsageAnalyticsConsent(granted);
       const allowed = await isUsageAnalyticsAllowed();
       if (nativeFirebase) await firebaseAnalyticsService.setConsent(allowed);
-      analytics.setConsent(allowed);
+      analytics.setConsent(allowed && await isUsageAnalyticsAllowed());
       setUsageAnalytics(granted);
     } catch {
       gameAlert('Privacy choice not saved', 'Usage analytics is off for this session. Please try again before closing the app so your choice can be saved.');

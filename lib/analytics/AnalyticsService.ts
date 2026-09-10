@@ -24,6 +24,7 @@
 
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { firebaseAnalyticsService } from '@/services/FirebaseAnalyticsService';
+import { isAnalyticsForeground } from '@/utils/analyticsForeground';
 import { logger } from '@/utils/logger';
 import {
   AnalyticsEvent,
@@ -255,7 +256,7 @@ class AnalyticsService {
 
   /** Grant/revoke consent (call after ATT/UMP resolves). No sends without it. */
   setConsent(granted: boolean): void {
-    this.consent = !!granted;
+    this.consent = !!granted && isAnalyticsForeground();
     if (!granted) {
       this.queueRevision++;
       this.queue = [];
@@ -282,7 +283,7 @@ class AnalyticsService {
 
   /** True only when we are allowed to record + send. */
   private get active(): boolean {
-    return this.enabled && this.consent;
+    return this.enabled && this.consent && isAnalyticsForeground();
   }
 
   /**
@@ -290,6 +291,7 @@ class AnalyticsService {
    * Unknown event names are dropped (with a dev warning) to keep the schema honest.
    */
   track(name: AnalyticsEventName, props?: AnalyticsProps): void {
+    if (!isAnalyticsForeground()) return;
     try {
       if (!isKnownAnalyticsEvent(name)) {
         if (__DEV__) console.warn(`[analytics] dropped unknown event "${name}"`);

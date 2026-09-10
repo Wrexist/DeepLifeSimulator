@@ -1,5 +1,6 @@
 import { analytics } from '../AnalyticsService';
 import { isKnownAnalyticsEvent } from '../events';
+import { setAnalyticsForeground } from '@/utils/analyticsForeground';
 
 const OK_FETCH = () =>
   jest.fn().mockResolvedValue({ ok: true } as Partial<Response>);
@@ -22,12 +23,28 @@ async function drain(): Promise<void> {
 
 describe('AnalyticsService', () => {
   beforeEach(async () => {
+    setAnalyticsForeground(true);
     await drain();
     analytics.shutdown();
     jest.clearAllMocks();
   });
 
   describe('gating', () => {
+    it('blocks stale grants and queued uploads while the app is away', async () => {
+      analytics.configure({ enabled: true, consent: true, endpoint: 'https://x.test' });
+      analytics.track('week_advanced', { weeksLived: 5 });
+      const fetch = OK_FETCH();
+      setGlobalFetch(fetch);
+      setAnalyticsForeground(false);
+      analytics.setConsent(true);
+      analytics.track('death', {});
+      await analytics.flush();
+      expect(analytics.getPendingCount()).toBe(1);
+      expect(fetch).not.toHaveBeenCalled();
+      setAnalyticsForeground(true);
+      await analytics.flush();
+      expect(fetch).not.toHaveBeenCalled();
+    });
     it('is a no-op when disabled', () => {
       analytics.configure({ enabled: false, consent: true, endpoint: 'https://x.test' });
       analytics.track('week_advanced', { weeksLived: 5 });

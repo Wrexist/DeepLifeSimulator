@@ -115,7 +115,7 @@
           ]
         }
       ],
-      "blocker": "Isac Molin confirmed as the individual operator in Sweden; Molin Inc. is an unregistered project name. Owner monitors support and reports no prior deletion requests. ASC privacy selections and AdMob/RevenueCat settings inspected read-only; ATT/UMP fixes and a separate usage-analytics choice implemented. Analytics retention verified at 2 months event / 14 months user. Actual deletion/other retention, native consent signals and publication of policy revision 3 remain unresolved. See evidence/R11-privacy.md."
+      "blocker": "Isac Molin confirmed as individual operator in Sweden; Molin Inc. is an unregistered project name. Policy revision 3 deployed and directly verified after owner merged PR 209. Owner monitors support and reports no prior deletion requests. ATT/UMP, separate usage choice and player-reviewed request IDs implemented; lifecycle consent refresh is the follow-up. Analytics retention verified at 2 months event / 14 months user. Actual deletion/other retention, native consent signals and cached-ad behavior after ATT changes remain unresolved. See evidence/R11-resume-consent-2026-09-10.md."
     },
     {
       "id": "R04",

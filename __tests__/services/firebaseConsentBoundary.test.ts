@@ -41,6 +41,19 @@ describe('Firebase measurement purposes', () => {
     expect(await service.getPrivacyRequestId()).toBeNull();
   });
 
+  it('lifecycle suspension does not load an unused SDK and blocks an active sink immediately', async () => {
+    const { firebaseAnalyticsService: service } = await import('@/services/FirebaseAnalyticsService');
+    service.suspendCollection();
+    expect(native.setConsent).not.toHaveBeenCalled();
+    expect(native.setAnalyticsCollectionEnabled).not.toHaveBeenCalled();
+    allowed.mockResolvedValue(true);
+    await service.initialize();
+    native.logEvent.mockClear();
+    service.suspendCollection();
+    service.logEvent('after_background');
+    expect(native.logEvent).not.toHaveBeenCalled();
+  });
+
   it('enables only measurement on opt-in and stops events after withdrawal', async () => {
     allowed.mockResolvedValue(true);
     const { firebaseAnalyticsService: service } = await import('@/services/FirebaseAnalyticsService');

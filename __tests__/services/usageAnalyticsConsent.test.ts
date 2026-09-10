@@ -61,4 +61,19 @@ describe('separate usage analytics permission', () => {
     expect(storage.setItem.mock.calls.map(call => call[1])).toEqual(['granted', 'denied']);
     expect(await consent.isUsageAnalyticsAllowed()).toBe(false);
   });
+
+  it('denies an in-flight permission read when the app leaves the foreground', async () => {
+    storage.getItem.mockResolvedValue('granted');
+    let finish!: (value: boolean) => void;
+    tracking.mockImplementation(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const consent = await import('@/utils/usageAnalyticsConsent');
+    const { setAnalyticsForeground } = await import('@/utils/analyticsForeground');
+    const reading = consent.isUsageAnalyticsAllowed();
+    await new Promise(resolve => setImmediate(resolve));
+    setAnalyticsForeground(false);
+    setAnalyticsForeground(true);
+    finish(true);
+    expect(await reading).toBe(false);
+    expect(await consent.hasUsageAnalyticsConsent()).toBe(true);
+  });
 });
