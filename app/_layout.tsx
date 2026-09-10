@@ -57,6 +57,7 @@ import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // in app.config.js (see P0-13). The runtime helper below is loaded lazily.
 import { requestTrackingPermission } from '@/utils/trackingTransparency';
 import { isUsageAnalyticsAllowed } from '@/utils/usageAnalyticsConsent';
+import { observeAnalyticsConsentLifecycle } from '@/utils/analyticsConsentLifecycle';
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { AppProviders } from '@/contexts/AppProviders';
@@ -1118,6 +1119,8 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     const enableATT = Platform.OS === 'ios' && isFeatureEnabled('att');
     const enableTelemetry = isFeatureEnabled('telemetry');
     const enableFirebase = Platform.OS !== 'web' && isFeatureEnabled('firebaseAnalytics');
+    const stopConsentLifecycle = Platform.OS !== 'web' && (enableTelemetry || enableFirebase)
+      ? observeAnalyticsConsentLifecycle(enableFirebase) : undefined;
     // Cloud device backup - pure JS, no native SDK, so unlike the flags above
     // it is NOT disabled by Boring Build (see featureFlags.ts) and runs in the
     // `preview` profile. Still a deferred task: nothing may touch the network
@@ -1305,6 +1308,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
 
     // Cleanup on unmount
     return () => {
+      stopConsentLifecycle?.();
       startupOrchestrator.cancel();
     };
   }, []);

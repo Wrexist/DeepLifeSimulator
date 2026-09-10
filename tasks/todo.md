@@ -1,5 +1,23 @@
 # Current work
 
+## Post-merge continuation — 10 September 2026
+
+PR #209 merged as `4046365e`; its four final CI gates passed. Main production
+update and support deployment were running when this task started. No open PRs.
+Current plan: close the observed missing analytics permission refresh on return
+from iOS Settings; test denied/error/rapid lifecycle transitions, run preflight,
+record evidence and prepare a separate PR. Native consent, cached ad requests and
+the designated deletion rehearsal remain explicit acceptance cases.
+
+Evidence and exact device steps: [R11 resume consent](release/evidence/R11-resume-consent-2026-09-10.md).
+Focused verification: 5 suites / 40 tests passed. Policy revision 3 is now live,
+verified directly after the successful support deployment. Native defaults still
+require a rebuilt binary; a main OTA does not supply them.
+The owner can run an iPhone rehearsal on a fresh installation with no real
+purchases. Next after this PR's CI: reconcile and prepare the exact signed build
+and its TestFlight instructions. The local standalone EAS CLI is unavailable;
+no new cloud build or submission has been dispatched.
+
 ## Priority execution — 10 September continuation
 
 Current bounded plan: add a player-reviewed deletion request with existing

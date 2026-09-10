@@ -4,6 +4,12 @@ Status: HOLD. Inspected PR #209 at `4552f6d08219161298047bda3134672c1cce20ec`
 plus the consent changes in this working branch. This is an evidence record,
 not certification that the signed app or live policy matches the candidate.
 
+Post-merge update: PR #209 merged as `4046365e` with all four final CI gates
+passing. Policy revision 3 is now deployed and directly verified with Isac Molin
+as operator. Earlier references below to an unpublished candidate describe the
+pre-merge inspection. See [lifecycle follow-up and device rehearsal](R11-resume-consent-2026-09-10.md)
+for current work and remaining acceptance.
+
 ## Confirmed operator and operating facts
 
 The owner initially supplied **Molin Inc.**, then clarified that they operate in
