@@ -55,7 +55,8 @@ import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // expo-tracking-transparency is in package.json AND wired via the config plugin
 // in app.config.js (see P0-13). The runtime helper below is loaded lazily.
-import { requestTrackingPermission, isTrackingAllowed } from '@/utils/trackingTransparency';
+import { requestTrackingPermission } from '@/utils/trackingTransparency';
+import { isUsageAnalyticsAllowed } from '@/utils/usageAnalyticsConsent';
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { AppProviders } from '@/contexts/AppProviders';
@@ -1127,10 +1128,8 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       logger.info('[Boring Build] All optional systems disabled via feature flags');
     }
 
-    // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Consent
-    // is derived from the user's tracking choice (ATT) rather than force-enabled
-    // - telemetry stays a no-op until tracking is allowed. The pipeline still
-    // uses only an anonymous install id (never a device/advertising id).
+    // Usage analytics has a separate opt-in, with ATT as an additional limit.
+    // Prepare the native sink before emitting the first consented session event.
     //
     // GATED ON EITHER SINK, not on `telemetry` alone. `AnalyticsService.track()`
     // documents two INDEPENDENT sinks - the self-hosted HTTP queue (needs
@@ -1151,9 +1150,14 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
         'Telemetry Service',
         async () => {
           await analytics.init();
-          const trackingAllowed = await isTrackingAllowed();
-          analytics.setConsent(trackingAllowed);
-          if (trackingAllowed) {
+          let usageAllowed = await isUsageAnalyticsAllowed();
+          if (usageAllowed && enableFirebase) {
+            const { firebaseAnalyticsService } = await import('@/services/FirebaseAnalyticsService');
+            await firebaseAnalyticsService.initialize();
+            usageAllowed = await isUsageAnalyticsAllowed();
+          }
+          analytics.setConsent(usageAllowed);
+          if (usageAllowed) {
             // `trackSessionStart`, not `track('session_start', …)` - it folds
             // this launch into the install's retention cohort and attaches the
             // day index. Calling `track` directly here would emit a session

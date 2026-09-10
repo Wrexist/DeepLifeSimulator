@@ -14,14 +14,19 @@ and [actual TestFlight candidate](release/evidence/R08-candidate-2026-09-10.md).
 Molin Inc. is an unregistered project name in Sweden; the individual legal
 operator name is pending. The owner monitors support and reports no prior deletion
 requests. A researched deletion procedure is drafted, not yet adopted. Local work adds
-fail-closed ATT and UMP ad-request gating. Regional analytics permission remains
-a separate unresolved code/provider task; do not treat ad permission as analytics
-permission. Latest native upload is 2.14.0 (186), older than these fixes.
+fail-closed ATT and UMP ad-request gating. A follow-up adds separate optional usage
+analytics, default denied native purposes and withdrawal handling. Its full local
+run caught one eager-storage startup import; fixed, then six focused suites / 40
+tests passed. Final-head CI must confirm the full suite. These Firebase defaults
+require a new native build. Latest native
+upload is 2.14.0 (186), older than these fixes.
 Full local verification: 787 suites / 9,822 tests / 308 snapshots pass, preflight
 exit 0, zero source/test type and lint errors. Analytics property 545257707 has
 2-month event / 14-month user retention (activity reset on); its iOS stream
-reports missing consent signals. Next code task: explicit regional measurement
-consent and withdrawal, followed by a minimal player privacy-request ID flow.
+reports missing consent signals. The optional control passed web phone/tablet
+inspection, opt-in persistence and withdrawal persistence. Next: verify actual
+native signals and system ATT revocation, then a minimal player privacy-request
+ID flow and a designated test-account deletion rehearsal.
 
 ## Release audit refresh — 10 September 2026
 

@@ -87,6 +87,9 @@ class AnalyticsService {
   private sessionId = randomId();
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private isFlushing = false;
+  private flushController: AbortController | null = null;
+  private queueRevision = 0;
+  private persistence: Promise<void> = Promise.resolve();
   private initialized = false;
   /** Install-scoped retention cohort, loaded in `init()`. Null until then. */
   private cohort: RetentionCohortRecord | null = null;
@@ -253,6 +256,12 @@ class AnalyticsService {
   /** Grant/revoke consent (call after ATT/UMP resolves). No sends without it. */
   setConsent(granted: boolean): void {
     this.consent = !!granted;
+    if (!granted) {
+      this.queueRevision++;
+      this.queue = [];
+      this.flushController?.abort();
+      void this.persistQueue();
+    }
   }
 
   /** Test/override hook. Lets tests run without env/flag/AsyncStorage plumbing. */
@@ -372,6 +381,7 @@ class AnalyticsService {
     if (!this.active || !this.endpoint || this.queue.length === 0 || this.isFlushing) return;
     this.isFlushing = true;
     const controller = new AbortController();
+    this.flushController = controller;
     const abortTimer = setTimeout(() => controller.abort(), FETCH_ABORT_MS);
     try {
       const batch = this.queue.slice(0, BATCH_SIZE);
@@ -391,6 +401,7 @@ class AnalyticsService {
       logger.debug('[analytics] flush failed (will retry)', { error });
     } finally {
       clearTimeout(abortTimer);
+      if (this.flushController === controller) this.flushController = null;
       this.isFlushing = false;
     }
   }
@@ -409,9 +420,10 @@ class AnalyticsService {
   }
 
   private async loadQueue(): Promise<void> {
+    const revision = this.queueRevision;
     try {
       const raw = await storage.getItem(QUEUE_KEY);
-      if (!raw) return;
+      if (!raw || revision !== this.queueRevision) return;
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         // Validate element shape so a corrupt cache can't inject malformed events.
@@ -425,7 +437,9 @@ class AnalyticsService {
 
   private async persistQueue(): Promise<void> {
     try {
-      await storage.setItem(QUEUE_KEY, JSON.stringify(this.queue.slice(-MAX_QUEUE)));
+      const write = this.persistence.then(() => storage.setItem(QUEUE_KEY, JSON.stringify(this.queue.slice(-MAX_QUEUE))));
+      this.persistence = write.catch(() => {});
+      await write;
     } catch (error) {
       /* best-effort */
       logger.debug('[analytics] persistQueue failed (ignored)', { error });

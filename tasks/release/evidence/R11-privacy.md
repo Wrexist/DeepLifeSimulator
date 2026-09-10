@@ -11,7 +11,7 @@ The owner initially supplied **Molin Inc.**, then clarified that they operate in
 name, not a verified corporate operator. The draft no longer presents it as a
 legal company. The individual's full legal operator name is awaiting confirmation.
 Candidate policy revision 3 has not been published. The actual deletion-request
-procedure, retention settings and completion records remain unconfirmed. No
+procedure, other providers' retention settings and completion records remain unconfirmed. No
 provider-wide deletion promise has been invented. The owner also confirmed
 they monitor/manage the support mailbox and have received no deletion requests.
 They do not know of an existing procedure. A researched
@@ -26,8 +26,8 @@ adopted or tested process.
 | Local saves | AsyncStorage save slots, game state, preferences and recovery journals | Local deletion does not remove provider or Apple purchase records. Device deletion/relaunch acceptance remains required. |
 | RevenueCat / Apple | Purchase configuration, anonymous app-user identifier, transactions, entitlements, restoration; ad-revenue event forwarding | Purchase functionality is separate from ATT. RevenueCat's Apple AdServices attribution collection also runs on iOS. Provider retention, customer lookup/deletion and optional measurement purposes need reconciliation. |
 | AdMob | Native initialization, banner/rewarded/interstitial requests, device/ad data, impression revenue | Candidate now waits for UMP `canRequestAds === true` before SDK initialization and requests. ATT separately restricts personalization. Neither non-personalized ads nor ATT establishes regional consent. |
-| Firebase Analytics | Native SDK plus product/session funnel when enabled; automatic collection defaults off in `firebase.json` | Current collection and funnel consent still derive from ATT. Separate regional analytics/advertising measurement permission and runtime withdrawal are unresolved. UMP ad-request permission does not by itself grant analytics permission. |
-| Optional telemetry | Consent-gated gameplay funnel and configured HTTP sink | Inspect actual production endpoint/configuration and retention; do not infer collection from an enabled flag alone. |
+| Firebase Analytics | Native SDK plus optional product/session funnel; automatic collection and native consent defaults off in `firebase.json` | Candidate requires a separate usage-analytics opt-in plus tracking permission. It sends explicit analytics consent and denies all three advertising purposes. Native behavior still needs validation. |
+| Optional telemetry | Same separate usage choice gates gameplay funnel and configured HTTP sink | Withdrawal clears queued events, serializes persistence and aborts a pending upload. Actual endpoint/configuration and retention still need confirmation; an enabled flag alone does not prove collection. |
 | Expo | Distribution and update requests | Network/update data are separate from local saves; provider retention not established here. |
 | Support email | Voluntary support correspondence | Actual request handling, identity verification and mailbox retention await owner confirmation. |
 
@@ -108,6 +108,14 @@ Provider deletion execution remains untested; no deletion request was submitted.
   clears cached loads/listeners and prevents new ads while the form is open.
 - The support contact is explicit in the candidate policy; the supplied trading
   name is not represented as a registered legal entity.
+- A separate **Usage analytics (optional)** choice is off by default, persists
+  explicitly and can be withdrawn in Settings. ATT alone no longer grants
+  measurement. Storage/native failures cannot grant it; queued consent changes
+  prevent a delayed grant from winning over withdrawal.
+- Firebase explicitly sends `analytics_storage` and keeps `ad_storage`,
+  `ad_user_data` and `ad_personalization` false. Native default keys are denied.
+  **A new native build is required** to include these Firebase defaults; a web
+  export or OTA cannot establish that the installed binary contains them.
 
 Behavioral regressions exercise native failure paths, pending consent, cached
 permission, request cancellation, late load events and changed choices.
@@ -119,8 +127,33 @@ completed with exit 0: source/test types clean, lint zero errors and 700 warning
 under the unchanged 715 ceiling; UI/content/liveops gates passed. The preflight
 success text was corrected to distinguish static checks from native release
 acceptance (`node --check scripts/preflight-check.js`, exit 0).
-Native form presentation, ATT allow/deny, regional simulation, withdrawal,
-background/relaunch and phone/tablet visual evidence remain UNREACHED.
+The follow-up analytics implementation passed another preflight (exit 0,
+unchanged floors). Its full local run had 788 suites / 9,834 tests passing and
+one failure: the startup guard caught an eager native AsyncStorage import in
+the new permission reader. This was corrected to lazy loading without changing
+the guard. Final focused verification passed **six suites / 40 tests**, exit 0,
+including that startup guard and the consent/withdrawal regressions. The failed
+full run is not a pass; final-head CI must supersede it. The 9,822 count above
+belongs to the preceding ad-consent implementation.
+
+Production-style web export: exit 0 with Firebase feature enabled, no telemetry
+endpoint, and native SDKs unavailable on web. This isolated preview used port
+8092 and created no life/save. Main Menu → Settings reached the new control:
+
+| Case | Result |
+|---|---|
+| 375×812 initial state | OFF, explanation readable, switch and modal Close reachable |
+| Opt in → reload → reopen Settings | ON retained |
+| Withdraw → reload → reopen Settings | OFF retained |
+| 820×1180 layout | Explanation and switch visible within scrollable modal |
+
+Captures: [phone](R11-analytics-phone-2026-09-10.png) and
+[tablet](R11-analytics-tablet-2026-09-10.png). Temporary viewport override reset.
+These are after-change web captures, not matched native before/after evidence.
+The later storage-loading correction and extra switch hit padding do not change
+the displayed layout; native startup and touch behavior remain separate checks.
+Native UMP form presentation, regional simulation, purpose signals, ATT revocation
+while backgrounded, old-binary upgrade and lifecycle acceptance remain UNREACHED.
 
 The existing browser gameplay session reached Save Slots at 375×812 with slot 1
 preserved and slots 2/3 empty. Clicking slot 2 timed out. No completed new-life
@@ -138,8 +171,9 @@ journey or visual-layout pass is inferred from that accessibility snapshot.
 
 1. Confirm actual deletion operations and provider retention; prepare a procedure
    if none exists, explicitly distinguishing a proposal from current practice.
-2. Reconcile regional analytics/measurement permission and withdrawal in code
-   and provider configuration. Review exact consent-message/store-answer changes.
+2. Validate the separate usage choice and native purpose signals against provider
+   configuration. Review exact consent-message/store-answer changes. Check system
+   ATT revocation during background/return as well as the in-app withdrawal path.
 3. Test those choices on the exact signed candidate, including offline failure,
    prior consent, revocation, reinstall and Settings modal presentation.
 4. Inspect phone/tablet policy and support pages, then publish only through an

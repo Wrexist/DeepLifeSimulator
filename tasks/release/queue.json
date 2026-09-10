@@ -115,7 +115,7 @@
           ]
         }
       ],
-      "blocker": "Sweden confirmed; Molin Inc. is not a registered legal name. Individual operator name pending; owner monitors support and reports no prior deletion requests. ASC privacy selections and AdMob/RevenueCat settings inspected read-only; candidate ATT/UMP fixes in progress. Actual deletion/retention, regional analytics consent, native choices and publication of policy revision 3 remain unresolved. See evidence/R11-privacy.md."
+      "blocker": "Sweden confirmed; Molin Inc. is not a registered legal name. Individual operator name pending; owner monitors support and reports no prior deletion requests. ASC privacy selections and AdMob/RevenueCat settings inspected read-only; ATT/UMP fixes and a separate usage-analytics choice implemented. Analytics retention verified at 2 months event / 14 months user. Actual deletion/other retention, native consent signals and publication of policy revision 3 remain unresolved. See evidence/R11-privacy.md."
     },
     {
       "id": "R04",

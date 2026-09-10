@@ -1,5 +1,19 @@
 # Lessons Learned
 
+## 2026-09-10 — Separate consent and verify operator identity
+
+ATT approval is not a usage-analytics opt-in or regional ad permission. Missing
+native methods and failed permission reads must not grant tracking. Wait for
+UMP request permission, express native analytics purposes explicitly and test a
+withdrawal racing a pending grant/upload. Firebase native defaults require a
+rebuilt binary; an OTA or browser preview does not verify them.
+
+A supplied brand name is not proof of an incorporated operator. Here the owner
+clarified that Molin Inc. is an unregistered project name in Sweden. Keep the
+individual legal identity pending until confirmed. Record actual provider
+retention and deletion operations separately from a proposed runbook, and never
+claim that local save deletion removes Apple/RevenueCat/Analytics records.
+
 ## 2026-09-10 — Audit actual writers and execution boundaries
 
 A mutex timeout never grants permission to replay or restore without ownership.

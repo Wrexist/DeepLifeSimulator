@@ -41,6 +41,9 @@ import {
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { gameAlert } from '@/utils/gameAlert';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
+import { analytics } from '@/lib/analytics';
+import { firebaseAnalyticsService } from '@/services/FirebaseAnalyticsService';
+import { hasUsageAnalyticsConsent, isUsageAnalyticsAllowed, saveUsageAnalyticsConsent } from '@/utils/usageAnalyticsConsent';
 const HelpModal = React.lazy(() => import('./HelpModal'));
 const LinearGradient = Gradient;
 
@@ -140,6 +143,40 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [isOpeningAdPrivacy, setIsOpeningAdPrivacy] = useState(false);
+  const [usageAnalytics, setUsageAnalytics] = useState(false);
+  const [changingAnalytics, setChangingAnalytics] = useState(false);
+  const analyticsChangePending = useRef(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    void hasUsageAnalyticsConsent().then(allowed => {
+      if (active && !analyticsChangePending.current) setUsageAnalytics(allowed);
+    });
+    return () => { active = false; };
+  }, [visible]);
+
+  const handleUsageAnalytics = async (granted: boolean) => {
+    if (analyticsChangePending.current) return;
+    analyticsChangePending.current = true;
+    setChangingAnalytics(true);
+    analytics.setConsent(false);
+    setUsageAnalytics(false);
+    const nativeFirebase = Platform.OS !== 'web' && isFeatureEnabled('firebaseAnalytics');
+    try {
+      if (nativeFirebase) await firebaseAnalyticsService.setConsent(false);
+      await saveUsageAnalyticsConsent(granted);
+      const allowed = await isUsageAnalyticsAllowed();
+      if (nativeFirebase) await firebaseAnalyticsService.setConsent(allowed);
+      analytics.setConsent(allowed);
+      setUsageAnalytics(granted);
+    } catch {
+      gameAlert('Privacy choice not saved', 'Usage analytics is off for this session. Please try again before closing the app so your choice can be saved.');
+    } finally {
+      analyticsChangePending.current = false;
+      setChangingAnalytics(false);
+    }
+  };
 
   const handleAdPrivacy = async () => {
     if (isOpeningAdPrivacy) return;
@@ -775,6 +812,25 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 />
 
                 {/* Privacy Policy & Terms */}
+                {(isFeatureEnabled('firebaseAnalytics') || isFeatureEnabled('telemetry')) && (
+                  <View style={[styles.settingItem, styles.settingItemGradient]}>
+                    <View style={styles.settingInfo}>
+                      <Text style={[styles.settingTitle, styles.settingTitleDark]}>Usage analytics (optional)</Text>
+                      <Text style={[styles.settingDescription, styles.settingDescriptionDark]}>
+                        Help improve DeepLife by sharing gameplay interactions and device identifiers with our analytics providers, including Google Firebase. Off by default; turn off anytime. This does not grant advertising permission.
+                      </Text>
+                    </View>
+                    <Switch
+                      value={usageAnalytics}
+                      disabled={changingAnalytics}
+                      onValueChange={handleUsageAnalytics}
+                      hitSlop={{ top: scale(8), bottom: scale(8), left: scale(8), right: scale(8) }}
+                      accessibilityLabel="Share optional usage analytics"
+                      accessibilityHint="Shares app interactions and device identifiers for app improvement. Does not grant advertising permission."
+                      accessibilityState={{ checked: usageAnalytics, disabled: changingAnalytics }}
+                    />
+                  </View>
+                )}
                 {Platform.OS !== 'web' && isFeatureEnabled('adMob') && (
                   <SettingsActionButton
                     icon={Shield}
