@@ -28,7 +28,8 @@ import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
-import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
+import { DISCORD_URL, PRIVACY_POLICY_URL, SUPPORT_EMAIL } from '@/lib/config/appConfig';
+import { buildPrivacyRequest, privacyRequestMailUrl } from '@/utils/privacyRequest';
 import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -143,6 +144,31 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [isOpeningAdPrivacy, setIsOpeningAdPrivacy] = useState(false);
+  const [privacyRequest, setPrivacyRequest] = useState<string | null>(null);
+  const [preparingPrivacy, setPreparingPrivacy] = useState(false);
+  const privacyRequestRevision = useRef(0);
+
+  useEffect(() => {
+    const requestRevision = privacyRequestRevision;
+    if (!visible) {
+      requestRevision.current++;
+      setPrivacyRequest(null);
+      setPreparingPrivacy(false);
+    }
+    return () => { requestRevision.current++; };
+  }, [visible]);
+
+  const preparePrivacyRequest = async () => {
+    const revision = ++privacyRequestRevision.current;
+    setPreparingPrivacy(true);
+    const body = await buildPrivacyRequest({
+      purchases: async () => (await import('@/services/RevenueCatService')).revenueCatService.getPrivacyRequestId(),
+      analytics: () => firebaseAnalyticsService.getPrivacyRequestId(),
+    });
+    if (revision !== privacyRequestRevision.current) return;
+    setPrivacyRequest(body);
+    setPreparingPrivacy(false);
+  };
   const [usageAnalytics, setUsageAnalytics] = useState(false);
   const [changingAnalytics, setChangingAnalytics] = useState(false);
   const analyticsChangePending = useRef(false);
@@ -854,6 +880,38 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 {/* Cloud backup - renders nothing unless the `cloudSave` flag
                     is on (preview-first rollout). */}
                 <CloudBackupRow />
+
+                <SettingsActionButton
+                  icon={Shield}
+                  label={preparingPrivacy ? 'Preparing request...' : 'Request Personal Data Deletion'}
+                  accent="#94A3B8"
+                  disabled={preparingPrivacy}
+                  onPress={() => { void preparePrivacyRequest(); }}
+                />
+                {privacyRequest !== null && (
+                  <View>
+                    <Text style={[styles.settingDescription, styles.settingDescriptionDark]}>
+                      Review these details before opening your email app. Nothing is sent automatically. You can select and copy this text if email is unavailable. Keep identifiers private.
+                    </Text>
+                    <Text selectable style={[styles.settingDescription, styles.settingDescriptionDark]}>{privacyRequest}</Text>
+                    <SettingsActionButton
+                      icon={MessageCircle}
+                      label="Open Email Draft"
+                      accent="#94A3B8"
+                      onPress={() => {
+                        Linking.openURL(privacyRequestMailUrl(privacyRequest)).catch(() => {
+                          gameAlert('Email unavailable', `Copy the request text and email ${SUPPORT_EMAIL}. No request has been sent.`);
+                        });
+                      }}
+                    />
+                    <SettingsActionButton
+                      icon={X}
+                      label="Hide Request Details"
+                      accent="#94A3B8"
+                      onPress={() => setPrivacyRequest(null)}
+                    />
+                  </View>
+                )}
 
                 {/* Danger Zone (restart & bug report) */}
                 <DangerZone

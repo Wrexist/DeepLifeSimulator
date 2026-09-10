@@ -172,6 +172,48 @@ journey or visual-layout pass is inferred from that accessibility snapshot.
 
 ## Next acceptance steps
 
+### Player request implementation follow-up
+
+The owner confirmed Isac Molin as the individual operator. Candidate Settings
+now prepares a selectable, player-reviewed deletion request containing only
+available existing RevenueCat App User ID and Firebase app instance ID.
+It does not initialize unused providers, change consent, reset identities,
+attach diagnostics or send/delete automatically. Each lookup is bounded at
+four seconds; errors and missing IDs preserve the support route and explicitly
+do not imply no data exists. Closing Settings clears the displayed draft and
+invalidates in-flight preparation. Email-client failure retains copyable text.
+
+Focused verification: 5 suites / 23 tests passed, explicit process exit 0,
+including malformed/missing/failed/stalled identities, no SDK configuration or
+consent changes, receipt boundaries, lazy storage and disclosure checks.
+Prior code head `f6279b48` has all four CI gates passing: 789 suites / 9,835 tests /
+308 snapshots; 17 suites / 32 tests skipped. That result does not cover this
+subsequent request-flow change. No provider deletion has been executed.
+
+Preflight completed with exit 0, zero source/test type errors and zero lint
+errors. It reported 701 warnings; the one new ref-cleanup warning was then
+fixed, and focused ESLint returned exit 0 with only the three pre-existing
+Settings warnings. No gate was weakened. Web export completed with exit 0.
+
+Browser acceptance on isolated port 8093, native SDKs unavailable:
+- 375×812: prepare request, unavailable-provider explanation, wrapped selectable
+  text, scroll to email/hide actions and persistent Settings Close: PASS.
+- 820×1180: prepare request, scroll through text to actions, Hide removes the
+  request text: PASS. Usage analytics stayed OFF.
+- Email composition/delivery, native ID values, native text selection,
+  VoiceOver/Larger Text and actual provider deletion: UNREACHED.
+
+Captures: [phone before](R11-request-before-phone-2026-09-10.png),
+[phone request](R11-request-phone-2026-09-10.png),
+[phone actions](R11-request-phone-actions-2026-09-10.png),
+[tablet actions](R11-request-tablet-2026-09-10.png).
+The final ref-cleanup adjustment does not alter presentation.
+
+Provider identity references: [RevenueCat customer IDs](https://www.revenuecat.com/docs/customers/user-ids)
+and [Firebase app instance ID API](https://reference.rnfirebase.io/_react-native-firebase/analytics/modular/getAppInstanceId.html).
+
+### Remaining acceptance
+
 1. Confirm actual deletion operations and provider retention; prepare a procedure
    if none exists, explicitly distinguishing a proposal from current practice.
 2. Validate the separate usage choice and native purpose signals against provider

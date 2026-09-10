@@ -18,9 +18,14 @@ Molin Inc. only as the project name, not an incorporated company.
 2. Establish which records belong to the requester using the minimum sufficient
    evidence. DeepLife uses anonymous RevenueCat identifiers; a character name or
    an unverified email alone does not prove ownership. Do not request passwords,
-   payment-card details or full identity documents by default. A safe way for the
-   player to provide the app's relevant provider identifiers still needs to be
-   verified in the signed app.
+   payment-card details or full identity documents by default. The candidate adds
+   Settings → Request Personal Data Deletion: the player reviews existing
+   RevenueCat/Firebase IDs and opens an email draft or copies its text. It does
+   not initialize unused SDKs, enable analytics, attach saves/logs/receipts,
+   reset IDs, send email or delete records automatically. Unavailable IDs and
+   other installations require follow-up; they do not establish absence of data.
+   This path still needs verification in the signed app. A supplied ID is a
+   lookup aid, not sufficient authorization for destructive action by itself.
 3. Explain the scope before execution: local saves, operator-held support data
    and each provider's records are different. Provider deletion is not a refund,
    subscription cancellation, or deletion of Apple's own transaction records.

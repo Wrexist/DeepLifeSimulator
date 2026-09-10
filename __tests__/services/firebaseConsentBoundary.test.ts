@@ -1,5 +1,5 @@
 describe('Firebase measurement purposes', () => {
-  const native = { setAnalyticsCollectionEnabled: jest.fn(), setConsent: jest.fn(), logEvent: jest.fn() };
+  const native = { setAnalyticsCollectionEnabled: jest.fn(), setConsent: jest.fn(), logEvent: jest.fn(), getAppInstanceId: jest.fn() };
   const allowed = jest.fn();
   beforeEach(() => {
     jest.resetModules();
@@ -23,6 +23,22 @@ describe('Firebase measurement purposes', () => {
     expect(native.logEvent).not.toHaveBeenCalled();
     expect(native.setConsent).toHaveBeenCalledWith({ analytics_storage: false, ad_storage: false, ad_user_data: false, ad_personalization: false });
     expect(native.setAnalyticsCollectionEnabled).not.toHaveBeenCalledWith(true);
+  });
+
+  it('privacy lookup never starts analytics or changes consent', async () => {
+    const { firebaseAnalyticsService: service } = await import('@/services/FirebaseAnalyticsService');
+    expect(await service.getPrivacyRequestId()).toBeNull();
+    expect(native.getAppInstanceId).not.toHaveBeenCalled();
+    expect(native.setConsent).not.toHaveBeenCalled();
+    await service.initialize();
+    native.getAppInstanceId.mockResolvedValue('existing-instance');
+    native.setConsent.mockClear();
+    native.setAnalyticsCollectionEnabled.mockClear();
+    expect(await service.getPrivacyRequestId()).toBe('existing-instance');
+    expect(native.setConsent).not.toHaveBeenCalled();
+    expect(native.setAnalyticsCollectionEnabled).not.toHaveBeenCalled();
+    native.getAppInstanceId.mockRejectedValue(new Error('unavailable'));
+    expect(await service.getPrivacyRequestId()).toBeNull();
   });
 
   it('enables only measurement on opt-in and stops events after withdrawal', async () => {

@@ -36,6 +36,16 @@ function loadModule(): any {
 
 class FirebaseAnalyticsServiceImpl {
   private initialized = false;
+
+  /** No SDK loading, consent changes or identity reset just to prepare a request. */
+  async getPrivacyRequestId(): Promise<string | null> {
+    if (!this.initialized || !analyticsModule) return null;
+    try {
+      return await analyticsModule().getAppInstanceId();
+    } catch {
+      return null;
+    }
+  }
   private collectionAllowed = false;
   private consentRevision = 0;
   private consentChanges: Promise<unknown> = Promise.resolve();

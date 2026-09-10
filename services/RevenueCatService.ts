@@ -127,6 +127,16 @@ function readEntitlements(customerInfo: any): RcEntitlements {
 
 class RevenueCatService {
   private configured = false;
+
+  /** Read only an existing session identity; never configure or restore for support. */
+  async getPrivacyRequestId(): Promise<string | null> {
+    if (!this.configured || !Purchases) return null;
+    try {
+      return await Purchases.getAppUserID();
+    } catch {
+      return null;
+    }
+  }
   // Last-known entitlements, kept in memory so synchronous callers
   // (`iapService.isAdsRemoved()`, `subscriptionService.hasPremiumAccess()`) can
   // OR them in without an await. Refreshed by every RC read/purchase/restore

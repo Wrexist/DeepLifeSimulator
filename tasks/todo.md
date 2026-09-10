@@ -2,6 +2,11 @@
 
 ## Priority execution — 10 September continuation
 
+Current bounded plan: add a player-reviewed deletion request with existing
+provider IDs only; verify unavailable/failed SDK paths, no provider initialization
+or consent changes, compact/tablet presentation and final PR checks. Provider
+deletion rehearsal and signed-device consent remain separate acceptance gates.
+
 - [x] Refresh main, PR #209 and its successful final-head checks.
 - [ ] R11: reconcile actual App Privacy/provider settings with the code data/consent map.
 - [ ] R04: exercise remaining journeys, reproduce and fix reachable player defects.
@@ -27,6 +32,12 @@ reports missing consent signals. The optional control passed web phone/tablet
 inspection, opt-in persistence and withdrawal persistence. Next: verify actual
 native signals and system ATT revocation, then a minimal player privacy-request
 ID flow and a designated test-account deletion rehearsal.
+
+Follow-up: prior `f6279b48` CI now PASS (789 suites / 9,835 tests / 308 snapshots).
+The player privacy-request ID flow is implemented with 23 focused tests passing,
+preflight exit 0 and phone/tablet web evidence. New request-flow CI remains to
+be inspected after push. Native ID/consent checks and a designated test-account
+deletion rehearsal are still required; no real request or deletion was sent.
 
 ## Release audit refresh — 10 September 2026
 
