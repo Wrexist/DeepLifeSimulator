@@ -115,7 +115,7 @@
           ]
         }
       ],
-      "blocker": "Corrected source deployed from c32f2b9 (Pages run 34337850444); direct HTTP privacy/support bodies match candidate bytes. Provider/operator identity, retention/deletion/consent, ASC privacy answers and visual/native confirmation remain unverified. See publication evidence."
+      "blocker": "Isac Molin confirmed as the individual operator in Sweden; Molin Inc. is an unregistered project name. Owner monitors support and reports no prior deletion requests. ASC privacy selections and AdMob/RevenueCat settings inspected read-only; ATT/UMP fixes and a separate usage-analytics choice implemented. Analytics retention verified at 2 months event / 14 months user. Actual deletion/other retention, native consent signals and publication of policy revision 3 remain unresolved. See evidence/R11-privacy.md."
     },
     {
       "id": "R04",
@@ -129,7 +129,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R04.md",
       "evidence": [],
-      "blocker": "Browser runtime initialized on 9 September; tab discovery timed out twice after documented connection troubleshooting. Interactive app journey/visual acceptance remains unavailable. See R04.md."
+      "blocker": "10 September browser reached normal new life, first job, first wage and saved-life Continue. Remaining education, poverty, business, family, life-end and full navigation journeys plus compact phone/tablet captures remain unverified. Direct web /home cold reload exposed default state until MainMenu Continue; no save loss observed. See ios-quality-audit-2026-09-10.md."
     },
     {
       "id": "R05",
@@ -186,7 +186,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R07.md",
       "evidence": [],
-      "blocker": "All 30 screenshot exports and metadata checks pass; support-source guidance corrected. Need native parity, visual/live support review and current ASC version/localizations. Source metadata still targets historical 1.5.0. See R07.md."
+      "blocker": "All 30 screenshot exports have automated checks and live support desktop review passed. Read-only ASC run 34513497670 confirms live 1.5.5 and correctly refuses historical metadata target 1.5.0. Need chosen next version/release notes/localizations, native screenshot parity and actual uploaded record. See ios-quality-audit-2026-09-10.md."
     },
     {
       "id": "R08",
@@ -200,7 +200,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R08.md",
       "evidence": [],
-      "blocker": "Implementation 6d2346e passed remote Preflight 34312514459 and EAS Update 34312514460. Need latest-follow-up CI, real production environment and processed TestFlight identity. Read-only ASC status blocked by missing API credentials. See R08.md."
+      "blocker": "ASC latest upload is 2.14.0 (186), validated September 6, predating current fixes. Local package remains 2.13.0; reconcile binary/store version and exact source before an authorized signed build. PR #209 at 4552f6d passed CI; new consent changes require their own final checks. See evidence/R08-candidate-2026-09-10.md."
     },
     {
       "id": "R09",

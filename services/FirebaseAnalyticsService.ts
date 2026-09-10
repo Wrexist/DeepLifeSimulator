@@ -1,18 +1,17 @@
 /**
  * Firebase Analytics — error-isolated wrapper.
  *
- * Its ONLY job is to enable Firebase / Google Analytics data collection
- * (consent-gated) so AdMob can attribute revenue to users and populate ARPU.
- * No custom events are needed for that.
+ * Collects optional usage measurements only after a separate player opt-in.
+ * Advertising purposes remain denied by this service.
  *
  * The native module is lazy-required inside try/catch so a broken SDK can never
  * crash boot — the same defensive pattern as `AdMobService`. Firebase itself
  * auto-initializes from the bundled GoogleService config; we only toggle
- * collection to honor the user's tracking choice.
+ * collection to honor the separate usage choice and tracking restrictions.
  */
 import { Platform } from 'react-native';
 import { logger } from '@/utils/logger';
-import { isTrackingAllowed } from '@/utils/trackingTransparency';
+import { isUsageAnalyticsAllowed } from '@/utils/usageAnalyticsConsent';
 
 const log = logger.scope('FirebaseAnalytics');
 
@@ -38,17 +37,28 @@ function loadModule(): any {
 class FirebaseAnalyticsServiceImpl {
   private initialized = false;
 
+  /** No SDK loading, consent changes or identity reset just to prepare a request. */
+  async getPrivacyRequestId(): Promise<string | null> {
+    if (!this.initialized || !analyticsModule) return null;
+    try {
+      return await analyticsModule().getAppInstanceId();
+    } catch {
+      return null;
+    }
+  }
+  private collectionAllowed = false;
+  private consentRevision = 0;
+  private consentChanges: Promise<unknown> = Promise.resolve();
+
   /**
-   * Enable collection when tracking is allowed (iOS ATT granted / consent),
-   * disable otherwise. Safe to call once at boot after ATT has resolved.
+   * Usage analytics needs its own opt-in, with ATT as an additional restriction.
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
     const analytics = loadModule();
     if (!analytics) return;
     try {
-      const allowed = await isTrackingAllowed().catch(() => false);
-      await analytics().setAnalyticsCollectionEnabled(allowed);
+      const allowed = await this.setConsent(await isUsageAnalyticsAllowed());
       this.initialized = true;
       log.info(`Initialized (collection ${allowed ? 'enabled' : 'disabled'})`);
     } catch (err: any) {
@@ -56,14 +66,36 @@ class FirebaseAnalyticsServiceImpl {
     }
   }
 
-  /** Update collection consent at runtime (e.g. after an ATT prompt result). */
-  async setConsent(allowed: boolean): Promise<void> {
+  /** Explicit measurement consent never grants advertising purposes. */
+  setConsent(allowed: boolean): Promise<boolean> {
+    this.collectionAllowed = false;
+    const revision = ++this.consentRevision;
+    const change = this.consentChanges.then(() => this.applyConsent(allowed, revision));
+    this.consentChanges = change.catch(() => false);
+    return change;
+  }
+
+  private async applyConsent(requested: boolean, revision: number): Promise<boolean> {
     const analytics = loadModule();
-    if (!analytics) return;
+    if (!analytics) return false;
     try {
+      // Stop collection before changing purposes, including withdrawal/errors.
+      await analytics().setAnalyticsCollectionEnabled(false);
+      const allowed = requested && await isUsageAnalyticsAllowed();
+      if (revision !== this.consentRevision) return false;
+      await analytics().setConsent({
+        analytics_storage: allowed,
+        ad_storage: false,
+        ad_user_data: false,
+        ad_personalization: false,
+      });
+      if (revision !== this.consentRevision) return false;
       await analytics().setAnalyticsCollectionEnabled(allowed);
+      this.collectionAllowed = revision === this.consentRevision && allowed;
+      return this.collectionAllowed;
     } catch (err: any) {
       log.warn('setConsent failed:', err?.message);
+      return false;
     }
   }
 
@@ -90,6 +122,7 @@ class FirebaseAnalyticsServiceImpl {
    * purchase flow or a week tick.
    */
   logEvent(name: string, params?: Record<string, unknown>): void {
+    if (!this.collectionAllowed) return;
     const analytics = loadModule();
     if (!analytics) return;
     try {

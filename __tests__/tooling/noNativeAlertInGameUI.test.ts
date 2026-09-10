@@ -49,7 +49,7 @@ describe('player-facing UI uses the in-game alert, not the OS dialog', () => {
   it('has no native Alert.alert call outside the allowed set', () => {
     const offenders: string[] = [];
     for (const file of files) {
-      const rel = path.relative(ROOT, file);
+      const rel = path.relative(ROOT, file).split(path.sep).join('/');
       if (ALLOWED.has(rel)) continue;
       const src = fs.readFileSync(file, 'utf8');
       // Strip comments so the doc references in AlertHost/_layout don't trip it.

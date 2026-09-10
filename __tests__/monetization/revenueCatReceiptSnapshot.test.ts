@@ -5,6 +5,7 @@ jest.mock('react-native', () => ({ Platform: { OS: 'ios', select: (values: Recor
 const originalKey = process.env.EXPO_PUBLIC_RC_IOS_KEY;
 const mockSdk = {
   configure: jest.fn(),
+  getAppUserID: jest.fn(),
   invalidateCustomerInfoCache: jest.fn(async () => undefined),
   getCustomerInfo: jest.fn(),
   getProducts: jest.fn(),
@@ -30,6 +31,21 @@ it('invalidates the SDK cache and reads dated individual receipts, not owned pro
   expect(mockSdk.invalidateCustomerInfoCache).toHaveBeenCalledTimes(1);
   expect(result?.transactions[0]).toMatchObject({ id: 'real-receipt', productId: IAP_PRODUCTS.GEMS_500 });
   expect(result?.requestDate).toBeGreaterThan(0);
+});
+it('reads a privacy ID only after configuration without fetching receipts or creating an identity', async () => {
+  const { revenueCatService } = await import('@/services/RevenueCatService');
+  expect(await revenueCatService.getPrivacyRequestId()).toBeNull();
+  expect(mockSdk.configure).not.toHaveBeenCalled();
+  expect(mockSdk.getAppUserID).not.toHaveBeenCalled();
+  await revenueCatService.configure();
+  mockSdk.configure.mockClear();
+  mockSdk.getAppUserID.mockResolvedValue('existing-customer');
+  expect(await revenueCatService.getPrivacyRequestId()).toBe('existing-customer');
+  expect(mockSdk.configure).not.toHaveBeenCalled();
+  expect(mockSdk.getCustomerInfo).not.toHaveBeenCalled();
+  expect(mockSdk.invalidateCustomerInfoCache).not.toHaveBeenCalled();
+  mockSdk.getAppUserID.mockRejectedValue(new Error('native unavailable'));
+  expect(await revenueCatService.getPrivacyRequestId()).toBeNull();
 });
 it.each(['stale', 'missing date', 'missing receipt identity', 'ownership only'])('refuses %s customer info', async reason => {
   const valid = info();

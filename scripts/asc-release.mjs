@@ -30,7 +30,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   AscClient,
   AscApiError,
@@ -39,6 +39,8 @@ import {
 } from './lib/ascClient.mjs';
 import {
   planVersionRecord,
+  fetchAppStoreVersions,
+  stateOf,
   planLocalizations,
   versionCreatePayload,
   localizationCreatePayload,
@@ -72,7 +74,7 @@ function die(message) {
 }
 
 async function loadMetadata() {
-  const mod = await import(path.join(ROOT, 'marketing/aso/metadata.mjs'));
+  const mod = await import(pathToFileURL(path.join(ROOT, 'marketing/aso/metadata.mjs')).href);
   return mod;
 }
 
@@ -141,13 +143,10 @@ async function main() {
   say(`${C.dim}Mode: ${apply ? 'APPLY — writes will be performed' : 'PLAN — nothing will be written'}${C.off}\n`);
 
   // ---- 1 · what Apple has now -------------------------------------------
-  const versions = await client.getAll(
-    `/v1/apps/${appId}/appStoreVersions?filter[platform]=${encodeURIComponent(platform)}` +
-      '&fields[appStoreVersions]=versionString,appStoreVersionState,createdDate&limit=200',
-  );
+  const versions = await fetchAppStoreVersions(client, appId, platform);
   say(`${C.bold}Existing versions${C.off} (${versions.length})`);
   for (const v of versions.slice(0, 8)) {
-    say(`  ${String(v.attributes?.versionString).padEnd(10)} ${v.attributes?.appStoreVersionState ?? '?'}`);
+    say(`  ${String(v.attributes?.versionString).padEnd(10)} ${stateOf(v) ?? '?'}`);
   }
   if (versions.length > 8) say(`  ${C.dim}… and ${versions.length - 8} more${C.off}`);
   say('');

@@ -329,7 +329,7 @@ describe('the guard exemptions are self-checking', () => {
         REPO_ROOT,
         path.resolve(path.dirname(TICK), `${importMatch![1]}.ts`),
       );
-      expect(resolved).toBe(modulePath);
+      expect(resolved.split(path.sep).join('/')).toBe(modulePath);
 
       const moduleSource = fs.readFileSync(path.join(REPO_ROOT, modulePath), 'utf8');
       expect(moduleSource).toMatch(/\btry\s*\{/);

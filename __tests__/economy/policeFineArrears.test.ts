@@ -31,7 +31,7 @@ describe('police fine assessment and collection', () => {
       expect(paid + addedDebt).toBe(500_000);
       expect(ctx.newStats.money).toBeGreaterThanOrEqual(0);
       expect(addedDebt).toBe(Math.max(0, 500_000 - cash));
-      expect(ctx.notifications[0].message).toContain('$500,000');
+      expect(ctx.notifications[0].message).toContain(`$${(500000).toLocaleString()}`);
     },
   );
 

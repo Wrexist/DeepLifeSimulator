@@ -59,6 +59,7 @@ let NativeTestIds: any = null;
 // AdMob's numeric precision enum, forwarded to the RevenueCat precision mapper
 // so it never has to hardcode an ordinal the SDK could renumber.
 let NativeRevenuePrecisions: any = null;
+let NativeConsent: typeof import('react-native-google-mobile-ads').AdsConsent | null = null;
 
 let moduleLoaded = false;
 let moduleLoadAttempted = false;
@@ -82,6 +83,7 @@ function loadModule(): boolean {
     NativeBannerAdSize = mod.BannerAdSize;
     NativeTestIds = mod.TestIds;
     NativeRevenuePrecisions = mod.RevenuePrecisions ?? null;
+    NativeConsent = mod.AdsConsent ?? null;
     moduleLoaded = true;
     return true;
   } catch (error: any) {
@@ -213,6 +215,10 @@ export interface AdMobState {
 // Service implementation
 // ---------------------------------------------------------------------------
 class AdMobServiceImpl {
+  private initializing: Promise<void> | null = null;
+  private changingPrivacy = false;
+  private cancelInterstitialLoad: (() => void) | null = null;
+  private cancelRewardedLoad: (() => void) | null = null;
   private state: AdMobState = {
     isLoading: false,
     isInitialized: false,
@@ -224,9 +230,8 @@ class AdMobServiceImpl {
   private listeners: ((state: AdMobState) => void)[] = [];
   private interstitial: any = null;
   private rewarded: any = null;
-  // P0-5: gate personalized ads on ATT / consent. Defaults to false
-  // (non-personalized — the GDPR + Apple 5.1.2 safe default) until the cached
-  // tracking status resolves after init.
+  // ATT separately limits personalization. Regional request permission comes
+  // from UMP before SDK initialization; non-personalized ads still need it.
   private trackingAllowed = false;
 
   // RevenueCat correlates an impression's events by a single id, so one is
@@ -253,7 +258,7 @@ class AdMobServiceImpl {
     return null;
   }
 
-  /** P0-5: request options — non-personalized ads unless ATT/consent is granted. */
+  /** ATT is an additional restriction; UMP manages regional consent signals. */
   adRequestOptions(): { requestNonPersonalizedAds: boolean } {
     return { requestNonPersonalizedAds: !this.trackingAllowed };
   }
@@ -399,7 +404,17 @@ class AdMobServiceImpl {
 
   // --- Initialization ---
 
-  async initialize(): Promise<void> {
+  initialize(): Promise<void> {
+    if (this.changingPrivacy) return Promise.resolve();
+    if (!this.initializing) {
+      this.initializing = this.initializeAfterConsent().finally(() => {
+        this.initializing = null;
+      });
+    }
+    return this.initializing;
+  }
+
+  private async initializeAfterConsent(): Promise<void> {
     if (circuitOpen || this.state.isInitialized) return;
 
     if (!loadModule() || !mobileAds) {
@@ -409,20 +424,24 @@ class AdMobServiceImpl {
 
     try {
       this.setState({ isLoading: true });
+      if (!NativeConsent) throw new Error('Ad privacy module not available');
+      try {
+        await NativeConsent.gatherConsent();
+      } catch (error) {
+        // UMP may retain a valid choice from the preceding session. Only its
+        // current canRequestAds result can authorize a request after an error.
+        log.warn('Ad privacy update failed', { error: errMessage(error) });
+      }
+      const { canRequestAds } = await NativeConsent.getConsentInfo();
+      if (canRequestAds !== true) {
+        this.setState({ isLoading: false, error: 'Ad privacy choice required' });
+        return;
+      }
+      this.trackingAllowed = await isTrackingAllowed().catch(() => false);
       await mobileAds().initialize();
       this.setState({ isInitialized: true, isLoading: false, error: null });
       recordSuccess();
       log.info('Initialized successfully');
-
-      // P0-5: cache ATT/consent so ad requests can synchronously request
-      // non-personalized ads when tracking isn't allowed (iOS ATT denied / EU).
-      void isTrackingAllowed()
-        .then((allowed) => {
-          this.trackingAllowed = allowed;
-        })
-        .catch(() => {
-          this.trackingAllowed = false; // fail closed → non-personalized
-        });
 
       // Pre-load ads in background
       void this.loadInterstitialAd();
@@ -431,6 +450,30 @@ class AdMobServiceImpl {
       recordFailure();
       log.error('Initialization failed:', error?.message);
       this.setState({ isLoading: false, error: error?.message || 'Init failed' });
+    }
+  }
+
+  /** Stop cached requests before changing privacy; UMP owns the regional choice. */
+  async openPrivacyOptions(): Promise<'saved' | 'not-required' | 'unavailable'> {
+    if (this.changingPrivacy) return 'unavailable';
+    this.changingPrivacy = true;
+    try {
+      if (this.initializing) await this.initializing;
+      if (!loadModule() || !NativeConsent) return 'unavailable';
+      const info = await NativeConsent.getConsentInfo();
+      if (info.privacyOptionsRequirementStatus === 'NOT_REQUIRED') return 'not-required';
+      if (info.privacyOptionsRequirementStatus !== 'REQUIRED') return 'unavailable';
+      this.setState({ isInitialized: false });
+      this.cleanup();
+      await NativeConsent.showPrivacyOptionsForm();
+      this.changingPrivacy = false;
+      await this.initialize();
+      return 'saved';
+    } catch (error) {
+      log.warn('Ad privacy options failed', { error: errMessage(error) });
+      return 'unavailable';
+    } finally {
+      this.changingPrivacy = false;
     }
   }
 
@@ -480,6 +523,8 @@ class AdMobServiceImpl {
           outcome();
         };
 
+        this.cancelInterstitialLoad = () => settle(resolve);
+
         timeout = setTimeout(
           () =>
             settle(() => {
@@ -518,7 +563,7 @@ class AdMobServiceImpl {
   }
 
   async showInterstitialAd(): Promise<boolean> {
-    if (circuitOpen || !this.state.isInterstitialLoaded || !this.interstitial) return false;
+    if (!this.isAvailable() || !this.state.isInterstitialLoaded || !this.interstitial) return false;
 
     try {
       await this.interstitial.show();
@@ -591,6 +636,8 @@ class AdMobServiceImpl {
           outcome();
         };
 
+        this.cancelRewardedLoad = () => settle(resolve);
+
         timeout = setTimeout(
           () =>
             settle(() => {
@@ -627,7 +674,7 @@ class AdMobServiceImpl {
   }
 
   async showRewardedAd(onReward: () => void): Promise<boolean> {
-    if (circuitOpen || !this.state.isRewardedLoaded || !this.rewarded) return false;
+    if (!this.isAvailable() || !this.state.isRewardedLoaded || !this.rewarded) return false;
 
     const ad = this.rewarded;
     let rewarded = false;
@@ -688,7 +735,7 @@ class AdMobServiceImpl {
 
   /** Returns the native BannerAd React component, or null if unavailable */
   getNativeBannerAd(): any {
-    return circuitOpen ? null : NativeBannerAd;
+    return this.isAvailable() ? NativeBannerAd : null;
   }
 
   /** Returns the BannerAdSize constants, or null if unavailable */
@@ -712,6 +759,10 @@ class AdMobServiceImpl {
 
   cleanup(): void {
     try {
+      this.cancelInterstitialLoad?.();
+      this.cancelRewardedLoad?.();
+      this.cancelInterstitialLoad = null;
+      this.cancelRewardedLoad = null;
       this.detachInterstitialRevenue = this.detach(this.detachInterstitialRevenue);
       this.detachRewardedRevenue = this.detach(this.detachRewardedRevenue);
       this.interstitial = null;

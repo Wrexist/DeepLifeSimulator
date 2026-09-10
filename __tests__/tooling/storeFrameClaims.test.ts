@@ -25,6 +25,7 @@
 import { execFileSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 
 const ROOT = join(__dirname, '..', '..');
 /**
@@ -77,7 +78,7 @@ type Loaded = {
  * copy that renders, which is the whole bug class this file exists to catch.
  */
 function loadModule(): Loaded {
-  const src = join(ROOT, 'scripts', 'lib', 'storeFrameSystem.mjs');
+  const src = pathToFileURL(join(ROOT, 'scripts', 'lib', 'storeFrameSystem.mjs')).href;
   const out = execFileSync(
     process.execPath,
     ['--input-type=module', '-e',

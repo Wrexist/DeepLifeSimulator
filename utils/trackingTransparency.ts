@@ -87,8 +87,8 @@ export async function requestTrackingPermission(): Promise<boolean> {
     if (__DEV__) {
       console.log('TrackingTransparency module not available');
     }
-    // Return true to allow app to continue - ads will work without personalization
-    return true;
+    // The app can continue without tracking. Missing native support is not consent.
+    return false;
   }
 
   try {
@@ -97,7 +97,7 @@ export async function requestTrackingPermission(): Promise<boolean> {
       if (__DEV__) {
         console.warn('TrackingTransparency.getTrackingPermissionsAsync is not a function');
       }
-      return true;
+      return false;
     }
 
     if (__DEV__) {
@@ -114,14 +114,14 @@ export async function requestTrackingPermission(): Promise<boolean> {
         if (__DEV__) {
           console.warn('getTrackingPermissionsAsync returned invalid result');
         }
-        return true; // Default to allowing app to continue
+        return false;
       }
     } catch (statusError: any) {
       if (__DEV__) {
         console.error('Error getting tracking status:', statusError?.message || statusError);
       }
-      // If we can't get the status, default to allowing the app to continue
-      return true;
+      // A failed status read cannot authorize tracking.
+      return false;
     }
     
     if (__DEV__) {
@@ -143,7 +143,7 @@ export async function requestTrackingPermission(): Promise<boolean> {
         if (__DEV__) {
           console.warn('TrackingTransparency.requestTrackingPermissionsAsync is not a function');
         }
-        return true;
+        return false;
       }
 
       if (__DEV__) {
@@ -171,8 +171,8 @@ export async function requestTrackingPermission(): Promise<boolean> {
         if (__DEV__) {
           console.error('Error requesting tracking permission:', requestError?.message || requestError);
         }
-        // If request fails, default to allowing app to continue
-        return true;
+        // A failed prompt does not grant tracking permission.
+        return false;
       }
     }
 
@@ -185,8 +185,8 @@ export async function requestTrackingPermission(): Promise<boolean> {
     if (__DEV__) {
       console.error('❌ Error requesting tracking permission:', error?.message || error);
     }
-    // Default to allowing app to continue - better than crashing
-    return true;
+    // Fail closed for tracking while allowing ordinary gameplay to continue.
+    return false;
   }
 }
 
@@ -202,12 +202,12 @@ export async function isTrackingAllowed(): Promise<boolean> {
   await new Promise(resolve => setTimeout(resolve, 100));
   
   if (!loadTrackingTransparency() || !TrackingTransparency) {
-    return true;
+    return false;
   }
 
   try {
     if (typeof TrackingTransparency.getTrackingPermissionsAsync !== 'function') {
-      return true;
+      return false;
     }
     
     const { status } = await TrackingTransparency.getTrackingPermissionsAsync();

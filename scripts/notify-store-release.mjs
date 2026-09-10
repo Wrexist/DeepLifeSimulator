@@ -29,8 +29,9 @@ import crypto from 'node:crypto';
 // declare Buffer for scripts/**/*.mjs, so this is not needed to lint - it is
 // the convention that block's own comment asks ESM scripts to follow.
 import { Buffer } from 'node:buffer';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AscClient, loadCredentials } from './lib/ascClient.mjs';
+import { fetchAppStoreVersions, liveAppStoreVersion } from './lib/ascRelease.mjs';
 import { renderReleasePost } from '../discord/copy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -71,12 +72,7 @@ async function fetchLiveAppStoreVersion() {
     return null;
   }
   const client = new AscClient({ credentials, dryRun: true });
-  const versions = await client.getAll(
-    `/v1/apps/${appId}/appStoreVersions?filter[platform]=IOS` +
-      '&fields[appStoreVersions]=versionString,appStoreVersionState,createdDate&limit=200',
-  );
-  const live = versions.find((v) => v.attributes?.appStoreVersionState === 'READY_FOR_SALE');
-  return live?.attributes?.versionString ?? null;
+  return liveAppStoreVersion(await fetchAppStoreVersions(client, appId));
 }
 
 // ---- Google Play: JWT-bearer OAuth2, RS256 (Node's native RSA signer — no
@@ -178,7 +174,7 @@ async function postToDiscord(payload) {
 }
 
 async function main() {
-  const { APPLE } = await import(path.join(ROOT, 'marketing/aso/metadata.mjs'));
+  const { APPLE } = await import(pathToFileURL(path.join(ROOT, 'marketing/aso/metadata.mjs')).href);
   const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
   // app.config.js hardcodes the Android package (see its android.package
   // field) rather than reading it from eas.json, so this does too — there is

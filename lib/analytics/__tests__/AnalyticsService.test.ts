@@ -52,6 +52,28 @@ describe('AnalyticsService', () => {
       analytics.track('death', {});
       expect(analytics.getPendingCount()).toBe(0);
     });
+
+    it('withdrawal aborts a pending upload and does not replay its queue on later consent', async () => {
+      analytics.configure({ enabled: true, consent: true, endpoint: 'https://x.test' });
+      analytics.track('week_advanced', { weeksLived: 81 });
+      let signal: AbortSignal | undefined;
+      setGlobalFetch(jest.fn().mockImplementation((_url, options) => {
+        signal = options.signal;
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      }));
+      const pending = analytics.flush();
+      expect(analytics.getPendingCount()).toBe(1);
+      analytics.setConsent(false);
+      await pending;
+      expect(signal?.aborted).toBe(true);
+      expect(analytics.getPendingCount()).toBe(0);
+      analytics.setConsent(true);
+      setGlobalFetch(OK_FETCH());
+      await analytics.flush();
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('schema validation', () => {

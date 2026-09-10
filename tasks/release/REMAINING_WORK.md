@@ -1,5 +1,22 @@
 # Deep Life Simulator: remaining release work and master-prompt handoff
 
+## Current refresh — 10 September 2026
+
+Use the [current complete audit and release sequence](evidence/ios-quality-audit-2026-09-10.md)
+for the latest observations. Main is `ea9880d0`; #203–#207 are merged and there
+were no open PRs at the refresh. New save/recap/Apple API/Windows fixes are on
+`codex/ios-release-quality-2026-09-10`, not production. Release remains HOLD.
+
+Corrections to the dated 9 September snapshot below: privacy/support source is
+now published; the live support page was visually reviewed on desktop. Repository
+ASC credentials exist, but the baseline read-only workflow failed because Apple
+retired its requested state field. The candidate fixes that reader. The normal
+browser first-job/wage/Continue journey was reached; other journeys and native
+candidate/purchases/accessibility/provider facts remain pending. Do not repeat
+old deployment or missing-remote-credentials tasks without checking current state.
+
+## Historical 9 September snapshot
+
 Updated 9 September 2026. Repository: `Wrexist/DeepLifeSimulator`.
 Review branch: `codex/fresh-release-workflow`, [PR #203](https://github.com/Wrexist/DeepLifeSimulator/pull/203).
 Inspected implementation: `6d2346e7b55ceff19c21dd286a665469dffc4d02`.

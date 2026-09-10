@@ -1120,7 +1120,7 @@ if (hasErrors) {
   process.exit(1);
 } else {
   log('\n✅ ALL PREFLIGHT CHECKS PASSED', GREEN);
-  log('   Build is ready for TestFlight/Production release.\n', GREEN);
+  log('   Static checks passed. Signed-build and device release acceptance remain separate.\n', GREEN);
   process.exit(0);
 }
 

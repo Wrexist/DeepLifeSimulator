@@ -133,7 +133,7 @@ function callSites(): string[] {
         if (/(^|\s)(\/\/|\*)/.test(before)) return false;
         return i >= 0;
       });
-      if (called) hits.push(path.relative(ROOT, file));
+      if (called) hits.push(path.relative(ROOT, file).split(path.sep).join('/'));
     }
   }
   return hits.sort();

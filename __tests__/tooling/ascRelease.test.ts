@@ -37,6 +37,30 @@ const version = (versionString: string, appStoreVersionState: string, id = versi
 });
 
 describe('version ordering', () => {
+  it('reads the current Apple API schema and recognizes only public releases', async () => {
+    const records = [
+      { attributes: { versionString: '1.5.5', appVersionState: 'READY_FOR_DISTRIBUTION' } },
+      { attributes: { versionString: '1.6.0', appVersionState: 'PENDING_DEVELOPER_RELEASE' } },
+      { attributes: { versionString: '2.0.0', appVersionState: 'PREPARE_FOR_SUBMISSION' } },
+    ];
+    const getAll = jest.fn(async (url: string) => {
+      const query = new URL(url, 'https://api.appstoreconnect.apple.com').searchParams;
+      expect(query.get('filter[platform]')).toBe('IOS');
+      expect(query.get('fields[appStoreVersions]')?.split(',')).toEqual([
+        'versionString', 'appVersionState', 'createdDate',
+      ]);
+      return records;
+    });
+    const received = await R.fetchAppStoreVersions({ getAll }, '6749675615');
+    expect(R.liveAppStoreVersion(received)).toBe('1.5.5');
+    expect(R.planVersionRecord({ versions: received, versionString: '1.5.0' }).action).toBe('refuse');
+    expect(R.liveAppStoreVersion([version('1.5.4', 'READY_FOR_SALE')])).toBe('1.5.4');
+    expect(R.liveAppStoreVersion(records.slice(1))).toBeNull();
+    const processing = [{ attributes: { versionString: '1.7.0', appVersionState: 'PROCESSING_FOR_DISTRIBUTION' } }];
+    expect(R.planVersionRecord({ versions: processing, versionString: '1.6.0' }).action).toBe('refuse');
+    expect(R.liveAppStoreVersion(processing)).toBeNull();
+  });
+
   it('compares component by component, not as strings', () => {
     // The string comparison this replaces reads "1.10.0" as lower than "1.9.0".
     expect(R.compareVersions('1.10.0', '1.9.0')).toBeGreaterThan(0);

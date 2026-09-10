@@ -143,7 +143,7 @@ describe('buildGoalRows', () => {
       ],
     } as unknown as ResolvedLiveEvent;
     const live = buildGoalRows(createTestGameState(), [event]).find((r) => r.system === 'liveops');
-    expect(live?.fraction).toBe('$1,500 / $5,000');
+    expect(live?.fraction).toBe(`$${(1500).toLocaleString()} / $${(5000).toLocaleString()}`);
   });
 
   it('skips a challenge whose reward is already claimed', () => {

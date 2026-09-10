@@ -11,6 +11,7 @@
  * ratchet and not a threshold.
  */
 const { execFileSync } = require('child_process');
+const path = require('path');
 const {
   MAX_ERRORS,
   MAX_WARNINGS,
@@ -21,7 +22,8 @@ const {
 function collectTotals() {
   let raw;
   try {
-    raw = execFileSync('npx', ['eslint', '.', '--format=json'], {
+    const eslintCli = path.join(path.dirname(require.resolve('eslint/package.json')), 'bin', 'eslint.js');
+    raw = execFileSync(process.execPath, [eslintCli, '.', '--format=json'], {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],

@@ -26,7 +26,7 @@ const WATCHER = 'scripts/wait-for-eas-submission.mjs';
 const workflows = fs
   .readdirSync(WORKFLOW_DIR)
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
-  .map((name) => ({ name, text: fs.readFileSync(path.join(WORKFLOW_DIR, name), 'utf8') }));
+  .map((name) => ({ name, text: fs.readFileSync(path.join(WORKFLOW_DIR, name), 'utf8').replace(/\r\n/g, '\n') }));
 
 /**
  * Split a workflow into its jobs by indentation: a job header is the only thing

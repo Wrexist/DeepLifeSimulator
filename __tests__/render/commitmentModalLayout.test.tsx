@@ -38,7 +38,7 @@ import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 const SOURCE = fs.readFileSync(
   path.join(__dirname, '..', '..', 'components', 'ActivityCommitmentModal.tsx'),
   'utf8',
-);
+).replace(/\r\n/g, '\n');
 
 /** The `content:` style block, comments stripped. */
 function contentStyle(): string {

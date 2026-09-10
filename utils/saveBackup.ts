@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { saveLoadMutex, type MutexToken } from './saveLoadMutex';
 import {
   doubleBufferSave,
   calculateHmacSignature,
@@ -841,7 +842,11 @@ export async function restoreFromBackup(
   backupId: string,
   intent: RestoreIntent = 'recovery'
 ): Promise<{ success: boolean; state?: any; error?: string }> {
+  // A menu suspension stops new autosaves, not storage I/O already in flight.
+  // Serialize the entire read/snapshot/replace sequence with normal saves.
+  let token: MutexToken | undefined;
   try {
+    token = await saveLoadMutex.acquire('save');
     const backup = await loadBackup(backupId);
     if (!backup) {
       logger.error(`Backup not found: ${backupId}`);
@@ -927,6 +932,8 @@ export async function restoreFromBackup(
   } catch (error) {
     logger.error(`Failed to restore backup ${backupId} to slot ${slot}`, error);
     return { success: false, error: 'Failed to restore backup' };
+  } finally {
+    if (token !== undefined) saveLoadMutex.release(token);
   }
 }
 

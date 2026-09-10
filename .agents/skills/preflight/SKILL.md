@@ -1,27 +1,35 @@
 ---
 name: preflight
-description: Run full preflight checks (type-check, lint, tests) before a release build
+description: Validate DeepLife Simulator source, tests, lint and release configuration before an iOS or Android candidate build.
 ---
 
-# Preflight Check
+# Preflight
 
-Run the complete preflight validation suite for DeepLife Simulator before any release or TestFlight build.
+Read current package.json scripts and docs/RELEASE_RUNBOOK.md. Preserve the worktree
+and report the exact revision plus uncommitted changes.
 
-## Steps
+If the lockfile changed or dependencies are broken, run npm ci and
+npm ci --prefix art/game-assets-v1/source. An incomplete install is not a gameplay
+failure. On Windows fix path/CLI portability rather than suppressing checks.
 
-1. Run TypeScript type-check: `npx tsc --noEmit --pretty`
-2. Run ESLint: `npx eslint . --ext .ts,.tsx`
-3. Run unit tests: `npm run test:unit`
-4. Run integration tests: `npm run test:integration`
-5. Run the full preflight script: `npm run preflight`
+Run npm run preflight for iOS (or the requested platform script). It includes
+source/test types, lint and current quality/content/liveops gates. Read the entire
+result: an intermediate success banner does not override a later ratchet failure.
+The script does not perform a full native build.
 
-## On Failure
+Run relevant unit/integration tests. For a release candidate or broad game/save
+change use npm test -- --runInBand --watchAll=false, which subsumes those categories.
+Do not repeat redundant unchanged suites. Run required opt-in stress/simulation
+cases separately and identify skips. Run coverage plus coverage:ratchet when in
+scope; preserve all floors.
 
-- Report which step failed with the exact error output
-- Suggest a fix for each failure
-- Do NOT proceed with the build until all checks pass
+Complete a production bundle export separately when requested; syntax checks are
+not Metro/Hermes exports. Record locally unverifiable production configuration
+without printing keys. EAS environment verification and a processed signed binary
+are separate from local tests.
 
-## On Success
-
-- Report all checks passed with a summary
-- Ask the user if they want to proceed with an EAS build
+Report exact failed commands and causes, fix authorized local failures, and rerun
+affected checks. Do not dispatch a build with failed prerequisites. If a specific
+build is already authorized, proceed once its prerequisites pass; otherwise finish
+the requested validation without automatically asking for or starting a build.
+Native acceptance remains in tasks/release/R06.md, R08.md and R09.md.

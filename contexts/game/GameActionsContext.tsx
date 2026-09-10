@@ -2415,29 +2415,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[WEEKLY_CHALLENGE] Progress update failed:', wcErr);
  }
 
- // Build week result for the result sheet. Pet food + luxury upkeep use the
- // ACTUAL charged amounts (the helpers floor their deduction at $0, so on a broke
- // week the nominal overstates what was really paid); every other component is
- // already the real figure (loan autopay tracks its actual payment). Equals the
- // old nominal sum on any week the player could afford these upkeeps.
- // luxuryRiskCost (insurance premiums + uninsured incident losses) is real cash
- // the luxury tick already took out of the wallet, and had no reader anywhere -
- // so the recap under-reported expenses by it. recap-1.
- const totalExpenses = incomeTax + weeklyRent + totalLoanAutoPaid + petFoodCharged + housingUpkeep + luxuryCharged + luxuryRiskCost;
+ // The income sources above have already credited cash. Rental income comes
+ // from the tenant tick separately; a negative rental result is a cash cost.
+ const recapIncome = totalIncome + luckyBonus + streakBonusAmount + luxuryYield + Math.max(0, housingRentalIncome);
+ // Measure what actually left cash rather than adding nominal bills. This
+ // includes tenancy rent, diet, tuition, vehicles and old-arrears settlement,
+ // while excluding any unpaid amount that was carried forward as debt.
+ // Luxury risk costs and upkeep are already reflected in this wallet balance.
+ // Later cash movements continue through recordRecapCash below; savings-goal
+ // transfers retain their existing exclusion from the income/expense recap.
+ const recapCashChange = Math.round(newStats.money - currentMoney);
+ const totalExpenses = Math.max(0, Math.round(recapIncome) - recapCashChange);
  const weekResult = {
  luckyBonus: luckyBonus > 0 ? luckyBonus: undefined,
  luckyMessage: luckyMessage || undefined,
  luckyTier,
  streakBonus: streakBonusAmount > 0 ? streakBonusAmount: undefined,
- // Luxury yield (charter fees, dividends, museum loan fees - up to six figures
- // a week late-game) is credited to the wallet by the luxury tick but was
- // missing from the recap entirely, so netChange never matched the money the
- // player actually gained. Added to the DISPLAY fields only: `totalIncome` is
- // computed far earlier and feeds calculateIncomeTax, so folding it in there
- // would retroactively tax the yield - a balance change, not a reporting fix.
- incomeEarned: totalIncome + luckyBonus + streakBonusAmount + luxuryYield,
- expensesPaid: Math.round(totalExpenses),
- netChange: Math.round(totalIncome + luckyBonus + streakBonusAmount + luxuryYield - totalExpenses),
+ // Display accounting only: taxable income and the actual cash writes above
+ // remain authoritative and are not changed by the recap.
+ incomeEarned: Math.round(recapIncome),
+ expensesPaid: totalExpenses,
+ netChange: recapCashChange,
  careerProgressPercent: (() => {
  const activeCareer = (updatedCareers || []).find((c: any) => c?.id === newCurrentJob && c?.accepted);
  return activeCareer?.progress || 0;

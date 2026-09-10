@@ -55,7 +55,8 @@ import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // expo-tracking-transparency is in package.json AND wired via the config plugin
 // in app.config.js (see P0-13). The runtime helper below is loaded lazily.
-import { requestTrackingPermission, isTrackingAllowed } from '@/utils/trackingTransparency';
+import { requestTrackingPermission } from '@/utils/trackingTransparency';
+import { isUsageAnalyticsAllowed } from '@/utils/usageAnalyticsConsent';
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { AppProviders } from '@/contexts/AppProviders';
@@ -1127,10 +1128,8 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       logger.info('[Boring Build] All optional systems disabled via feature flags');
     }
 
-    // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Consent
-    // is derived from the user's tracking choice (ATT) rather than force-enabled
-    // - telemetry stays a no-op until tracking is allowed. The pipeline still
-    // uses only an anonymous install id (never a device/advertising id).
+    // Usage analytics has a separate opt-in, with ATT as an additional limit.
+    // Prepare the native sink before emitting the first consented session event.
     //
     // GATED ON EITHER SINK, not on `telemetry` alone. `AnalyticsService.track()`
     // documents two INDEPENDENT sinks - the self-hosted HTTP queue (needs
@@ -1151,9 +1150,14 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
         'Telemetry Service',
         async () => {
           await analytics.init();
-          const trackingAllowed = await isTrackingAllowed();
-          analytics.setConsent(trackingAllowed);
-          if (trackingAllowed) {
+          let usageAllowed = await isUsageAnalyticsAllowed();
+          if (usageAllowed && enableFirebase) {
+            const { firebaseAnalyticsService } = await import('@/services/FirebaseAnalyticsService');
+            await firebaseAnalyticsService.initialize();
+            usageAllowed = await isUsageAnalyticsAllowed();
+          }
+          analytics.setConsent(usageAllowed);
+          if (usageAllowed) {
             // `trackSessionStart`, not `track('session_start', …)` - it folds
             // this launch into the install's retention cohort and attaches the
             // day index. Calling `track` directly here would emit a session
@@ -1388,7 +1392,17 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
    */
   const { gameState, setGameState } = useGameState();
   // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
-  // full-screen - but NOT the critical popups below, which keep `showStatsBar`.
+  // full-screen - but NOT the critical popups below, which render regardless
+  // of `showStatsBar`/`showTopChrome` entirely (see the two gates further
+  // down). A death or wedding outcome can be set from a screen the router
+  // hasn't yet resolved into `(tabs)` - onboarding tail, a nested modal route,
+  // a path segment that happens to match the `isInOnboardingPath` substring
+  // check - and `home.tsx`'s `blockingModalUp` already treats these two flags
+  // as blocking UNCONDITIONALLY. Gating the popup ITSELF on `showStatsBar`
+  // used to mean the flag could go true with nothing on screen to clear it:
+  // the game reads as blocked with no way out. Player report, 2026-08-27
+  // ("stuck on the you're married screen", Week 1 / WeeksLived 0 - the wedding
+  // fired before the router had settled into `(tabs)`).
   const fullscreenApp = useFullscreenApp();
   const showTopChrome = showStatsBar && !fullscreenApp;
 
@@ -1460,14 +1474,18 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       {/* Modal priority: DeathPopup > WeddingPopup > SicknessModal/CureSuccessModal.
           The SicknessModal no longer auto-opens on week advance - it only shows
           when the player taps the TopStatsBar disease badge. */}
-      {showStatsBar && gameState?.showDeathPopup && (
+      {/* Deliberately NOT gated on showStatsBar - these two also drive
+          home.tsx's blockingModalUp UNCONDITIONALLY, so hiding the popup
+          behind route/onboarding state while the block still applied
+          elsewhere was a soft lock with nothing on screen to clear it. */}
+      {gameState?.showDeathPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showDeathPopup')}>
           <Suspense fallback={null}>
             <DeathPopup />
           </Suspense>
         </ErrorBoundary>
       )}
-      {showStatsBar && !gameState?.showDeathPopup && gameState?.showWeddingPopup && (
+      {!gameState?.showDeathPopup && gameState?.showWeddingPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showWeddingPopup')}>
           <Suspense fallback={null}>
             <WeddingPopup />

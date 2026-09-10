@@ -19,7 +19,6 @@ import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
 import CloudBackupRow from './settings/CloudBackupRow';
 import WhatsNewModal from './WhatsNewModal';
-const HelpModal = React.lazy(() => import('./HelpModal'));
 import { useTranslation } from '@/hooks/useTranslation';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
 import { setHapticsEnabled } from '@/utils/haptics';
@@ -29,7 +28,8 @@ import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
-import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
+import { DISCORD_URL, PRIVACY_POLICY_URL, SUPPORT_EMAIL } from '@/lib/config/appConfig';
+import { buildPrivacyRequest, privacyRequestMailUrl } from '@/utils/privacyRequest';
 import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -41,6 +41,11 @@ import {
 } from '@/utils/discordRewardClaim';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { gameAlert } from '@/utils/gameAlert';
+import { isFeatureEnabled } from '@/lib/config/featureFlags';
+import { analytics } from '@/lib/analytics';
+import { firebaseAnalyticsService } from '@/services/FirebaseAnalyticsService';
+import { hasUsageAnalyticsConsent, isUsageAnalyticsAllowed, saveUsageAnalyticsConsent } from '@/utils/usageAnalyticsConsent';
+const HelpModal = React.lazy(() => import('./HelpModal'));
 const LinearGradient = Gradient;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -138,6 +143,84 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showHelp, setShowHelp] = useState(false);
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
+  const [isOpeningAdPrivacy, setIsOpeningAdPrivacy] = useState(false);
+  const [privacyRequest, setPrivacyRequest] = useState<string | null>(null);
+  const [preparingPrivacy, setPreparingPrivacy] = useState(false);
+  const privacyRequestRevision = useRef(0);
+
+  useEffect(() => {
+    const requestRevision = privacyRequestRevision;
+    if (!visible) {
+      requestRevision.current++;
+      setPrivacyRequest(null);
+      setPreparingPrivacy(false);
+    }
+    return () => { requestRevision.current++; };
+  }, [visible]);
+
+  const preparePrivacyRequest = async () => {
+    const revision = ++privacyRequestRevision.current;
+    setPreparingPrivacy(true);
+    const body = await buildPrivacyRequest({
+      purchases: async () => (await import('@/services/RevenueCatService')).revenueCatService.getPrivacyRequestId(),
+      analytics: () => firebaseAnalyticsService.getPrivacyRequestId(),
+    });
+    if (revision !== privacyRequestRevision.current) return;
+    setPrivacyRequest(body);
+    setPreparingPrivacy(false);
+  };
+  const [usageAnalytics, setUsageAnalytics] = useState(false);
+  const [changingAnalytics, setChangingAnalytics] = useState(false);
+  const analyticsChangePending = useRef(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    void hasUsageAnalyticsConsent().then(allowed => {
+      if (active && !analyticsChangePending.current) setUsageAnalytics(allowed);
+    });
+    return () => { active = false; };
+  }, [visible]);
+
+  const handleUsageAnalytics = async (granted: boolean) => {
+    if (analyticsChangePending.current) return;
+    analyticsChangePending.current = true;
+    setChangingAnalytics(true);
+    analytics.setConsent(false);
+    setUsageAnalytics(false);
+    const nativeFirebase = Platform.OS !== 'web' && isFeatureEnabled('firebaseAnalytics');
+    try {
+      if (nativeFirebase) await firebaseAnalyticsService.setConsent(false);
+      await saveUsageAnalyticsConsent(granted);
+      const allowed = await isUsageAnalyticsAllowed();
+      if (nativeFirebase) await firebaseAnalyticsService.setConsent(allowed);
+      analytics.setConsent(allowed);
+      setUsageAnalytics(granted);
+    } catch {
+      gameAlert('Privacy choice not saved', 'Usage analytics is off for this session. Please try again before closing the app so your choice can be saved.');
+    } finally {
+      analyticsChangePending.current = false;
+      setChangingAnalytics(false);
+    }
+  };
+
+  const handleAdPrivacy = async () => {
+    if (isOpeningAdPrivacy) return;
+    setIsOpeningAdPrivacy(true);
+    try {
+      const { adMobService } = await import('@/services/AdMobService');
+      const result = await adMobService.openPrivacyOptions();
+      if (result === 'not-required') {
+        gameAlert('Ad privacy choices', 'No additional ad privacy choices are currently required for this device. You can also manage tracking permission in your device settings.');
+      } else if (result === 'unavailable') {
+        gameAlert('Ad privacy choices', 'Privacy choices could not be opened. Please try again when you are connected.');
+      }
+    } catch {
+      gameAlert('Ad privacy choices', 'Privacy choices could not be opened. Please try again when you are connected.');
+    } finally {
+      setIsOpeningAdPrivacy(false);
+    }
+  };
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   // Game Dev Tools surface - only reachable when DEV_TOOLS_ENABLED (dev builds
   // or an explicit EXPO_PUBLIC_ENABLE_DEVTOOLS opt-in). Stripped from prod.
@@ -755,6 +838,34 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 />
 
                 {/* Privacy Policy & Terms */}
+                {(isFeatureEnabled('firebaseAnalytics') || isFeatureEnabled('telemetry')) && (
+                  <View style={[styles.settingItem, styles.settingItemGradient]}>
+                    <View style={styles.settingInfo}>
+                      <Text style={[styles.settingTitle, styles.settingTitleDark]}>Usage analytics (optional)</Text>
+                      <Text style={[styles.settingDescription, styles.settingDescriptionDark]}>
+                        Help improve DeepLife by sharing gameplay interactions and device identifiers with our analytics providers, including Google Firebase. Off by default; turn off anytime. This does not grant advertising permission.
+                      </Text>
+                    </View>
+                    <Switch
+                      value={usageAnalytics}
+                      disabled={changingAnalytics}
+                      onValueChange={handleUsageAnalytics}
+                      hitSlop={{ top: scale(8), bottom: scale(8), left: scale(8), right: scale(8) }}
+                      accessibilityLabel="Share optional usage analytics"
+                      accessibilityHint="Shares app interactions and device identifiers for app improvement. Does not grant advertising permission."
+                      accessibilityState={{ checked: usageAnalytics, disabled: changingAnalytics }}
+                    />
+                  </View>
+                )}
+                {Platform.OS !== 'web' && isFeatureEnabled('adMob') && (
+                  <SettingsActionButton
+                    icon={Shield}
+                    label={isOpeningAdPrivacy ? 'Opening privacy choices...' : 'Ad Privacy Choices'}
+                    accent="#94A3B8"
+                    onPress={handleAdPrivacy}
+                    disabled={isOpeningAdPrivacy}
+                  />
+                )}
                 <SettingsActionButton
                   icon={Shield}
                   label="Privacy Policy"
@@ -769,6 +880,38 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 {/* Cloud backup - renders nothing unless the `cloudSave` flag
                     is on (preview-first rollout). */}
                 <CloudBackupRow />
+
+                <SettingsActionButton
+                  icon={Shield}
+                  label={preparingPrivacy ? 'Preparing request...' : 'Request Personal Data Deletion'}
+                  accent="#94A3B8"
+                  disabled={preparingPrivacy}
+                  onPress={() => { void preparePrivacyRequest(); }}
+                />
+                {privacyRequest !== null && (
+                  <View>
+                    <Text style={[styles.settingDescription, styles.settingDescriptionDark]}>
+                      Review these details before opening your email app. Nothing is sent automatically. You can select and copy this text if email is unavailable. Keep identifiers private.
+                    </Text>
+                    <Text selectable style={[styles.settingDescription, styles.settingDescriptionDark]}>{privacyRequest}</Text>
+                    <SettingsActionButton
+                      icon={MessageCircle}
+                      label="Open Email Draft"
+                      accent="#94A3B8"
+                      onPress={() => {
+                        Linking.openURL(privacyRequestMailUrl(privacyRequest)).catch(() => {
+                          gameAlert('Email unavailable', `Copy the request text and email ${SUPPORT_EMAIL}. No request has been sent.`);
+                        });
+                      }}
+                    />
+                    <SettingsActionButton
+                      icon={X}
+                      label="Hide Request Details"
+                      accent="#94A3B8"
+                      onPress={() => setPrivacyRequest(null)}
+                    />
+                  </View>
+                )}
 
                 {/* Danger Zone (restart & bug report) */}
                 <DangerZone

@@ -1,6 +1,61 @@
 # Current work
 
-Updated 9 September 2026. This is the short entry point, not a second release queue.
+## Priority execution — 10 September continuation
+
+Current bounded plan: add a player-reviewed deletion request with existing
+provider IDs only; verify unavailable/failed SDK paths, no provider initialization
+or consent changes, compact/tablet presentation and final PR checks. Provider
+deletion rehearsal and signed-device consent remain separate acceptance gates.
+
+- [x] Refresh main, PR #209 and its successful final-head checks.
+- [ ] R11: reconcile actual App Privacy/provider settings with the code data/consent map.
+- [ ] R04: exercise remaining journeys, reproduce and fix reachable player defects.
+- [ ] R08/R06/R09: resolve candidate identity and available native acceptance access.
+- [ ] R07/R10: prepare exact metadata/submission evidence, retaining unresolved gates.
+- [ ] Verify changes, update the review branch and inspect final checks.
+
+Continuation evidence: [privacy/provider reconciliation](release/evidence/R11-privacy.md)
+and [actual TestFlight candidate](release/evidence/R08-candidate-2026-09-10.md).
+Isac Molin is the owner-confirmed individual operator in Sweden; Molin Inc. is
+an unregistered project name. The owner monitors support and reports no prior deletion
+requests. A researched deletion procedure is drafted, not yet adopted. Local work adds
+fail-closed ATT and UMP ad-request gating. A follow-up adds separate optional usage
+analytics, default denied native purposes and withdrawal handling. Its full local
+run caught one eager-storage startup import; fixed, then six focused suites / 40
+tests passed. Final-head CI must confirm the full suite. These Firebase defaults
+require a new native build. Latest native
+upload is 2.14.0 (186), older than these fixes.
+Full local verification: 787 suites / 9,822 tests / 308 snapshots pass, preflight
+exit 0, zero source/test type and lint errors. Analytics property 545257707 has
+2-month event / 14-month user retention (activity reset on); its iOS stream
+reports missing consent signals. The optional control passed web phone/tablet
+inspection, opt-in persistence and withdrawal persistence. Next: verify actual
+native signals and system ATT revocation, then a minimal player privacy-request
+ID flow and a designated test-account deletion rehearsal.
+
+Follow-up: prior `f6279b48` CI now PASS (789 suites / 9,835 tests / 308 snapshots).
+The player privacy-request ID flow is implemented with 23 focused tests passing,
+preflight exit 0 and phone/tablet web evidence. New request-flow CI remains to
+be inspected after push. Native ID/consent checks and a designated test-account
+deletion rehearsal are still required; no real request or deletion was sent.
+
+## Release audit refresh — 10 September 2026
+
+- [x] Clear verified stale Git lock, fast-forward main, preserve and reapply local popup fix.
+- [x] Refresh open/merged PRs and actual CI/build history.
+- [x] Repair local dependency installation and rerun automated audits, full tests and preflight.
+- [x] Review save/state, logic/economy/performance and release/provider evidence.
+- [x] Write a dated prioritized release audit with verified results and explicit external gaps.
+- [x] Fix reproduced save-replay and weekly-cash recap defects with behavioral regressions.
+- [x] Repair current Apple API compatibility and Windows tooling without weakening checks.
+- [x] Install reviewed mobile skills; add concise future-chat guidance and repair stale local skills.
+- [x] Verify combined changes locally, document native/device limits and preserve [draft PR #209](https://github.com/Wrexist/DeepLifeSimulator/pull/209).
+- [ ] Inspect PR #209 checks at its final head; native acceptance remains separate.
+
+Latest: [10 September audit and ordered release list](release/evidence/ios-quality-audit-2026-09-10.md).
+Candidate branch: `codex/ios-release-quality-2026-09-10`; native/provider gates remain HOLD.
+
+Updated 10 September 2026. This is the short entry point, not a second release queue.
 Verify current main, PR heads and provider records before acting.
 
 ## Start here
@@ -60,9 +115,9 @@ release gates explicitly blocked when their evidence is unavailable.
 - [x] Confirm missing ordinary-component filters and absent coverage cadence.
 - [x] Add targeted workflows and document their cadence.
 - [x] Validate YAML/path cases and unchanged quality/coverage floors locally.
-- [ ] Confirm full-checkout CI on the latest [PR #207](https://github.com/Wrexist/DeepLifeSimulator/pull/207) head.
+- [x] Confirm full-checkout CI on the latest [PR #207](https://github.com/Wrexist/DeepLifeSimulator/pull/207) head.
 - [x] Preserve concurrent ledger history and correct master-prompt repo paths.
-- [ ] Merge the checked PR. Its live checks/merge state are authoritative; recheck before repeating MP27.
+- [x] PR #207 merged on 9 September; main `ea9880d0` EAS Update passed. Do not repeat MP27.
 
 ## Next product work after release
 

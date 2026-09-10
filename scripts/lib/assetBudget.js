@@ -107,7 +107,7 @@ function referencedAssets(root) {
       const rel = raw.startsWith('@/')
         ? raw.slice(2)
         : path.relative(root, path.resolve(path.dirname(file), raw));
-      found.add(rel);
+      found.add(rel.split(path.sep).join('/'));
     }
   }
   return found;
@@ -121,7 +121,8 @@ function referencedAssets(root) {
  */
 function measureAssets(root) {
   const referenced = referencedAssets(root);
-  const onDisk = walk(path.join(root, 'assets'), IMAGE_EXT).map((f) => path.relative(root, f));
+  const onDisk = walk(path.join(root, 'assets'), IMAGE_EXT)
+    .map((f) => path.relative(root, f).split(path.sep).join('/'));
 
   let shippedBytes = 0;
   let onDiskBytes = 0;
