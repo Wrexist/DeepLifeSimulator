@@ -33,6 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AscClient, loadCredentials } from './lib/ascClient.mjs';
 import { fetchAppStoreVersions, liveAppStoreVersion } from './lib/ascRelease.mjs';
 import { renderReleasePost } from '../discord/copy.mjs';
+import { watcherSummary } from './lib/watcherSummary.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATE_PATH = path.join(ROOT, 'discord/state/last-notified-release.json');
@@ -157,6 +158,7 @@ async function fetchLivePlayVersion(packageName) {
 async function postToDiscord(payload) {
   const webhook = process.env.DISCORD_WEBHOOK_UPDATES;
   if (!webhook) {
+    if (!DRY_RUN) throw new Error('DISCORD_WEBHOOK_UPDATES missing; no announcement sent or checkpoint advanced.');
     warn('DISCORD_WEBHOOK_UPDATES is not set — printing the post instead of sending it.');
     log(JSON.stringify(payload, null, 2));
     return;
@@ -195,7 +197,7 @@ async function main() {
   let posted = false;
 
   if (state._isFirstRun) {
-    log('No prior state found — seeding baseline from the current live versions without posting.');
+    watcherSummary(`${DRY_RUN ? 'DRY RUN: would seed' : 'BASELINE ONLY: seeding'} current live versions; no Discord message sent. State must be persisted by the following step.`);
     if (appStore) state.appStoreVersion = appStore;
     if (googlePlay) state.googlePlayVersion = googlePlay;
     delete state._isFirstRun;
@@ -208,6 +210,8 @@ async function main() {
     const payload = renderReleasePost({ storeVersion: appStore, whatsNew: APPLE.whatsNew });
     await postToDiscord(payload);
     state.appStoreVersion = appStore;
+    if (!DRY_RUN) writeState(state);
+    watcherSummary(DRY_RUN ? 'DRY RUN: App Store announcement not sent.' : 'SENT: Discord accepted the App Store announcement.');
     posted = true;
   } else {
     log(`App Store: ${appStore ?? 'unknown'} (no change).`);
@@ -222,13 +226,15 @@ async function main() {
     payload.embeds[0].title = `🚀 Deep Life Simulator ${googlePlay} is live on Google Play`;
     await postToDiscord(payload);
     state.googlePlayVersion = googlePlay;
+    if (!DRY_RUN) writeState(state);
+    watcherSummary(DRY_RUN ? 'DRY RUN: Google Play announcement not sent.' : 'SENT: Discord accepted the Google Play announcement.');
     posted = true;
   } else {
     log(`Google Play: ${googlePlay ?? 'unknown'} (no change).`);
   }
 
   if (posted && !DRY_RUN) writeState(state);
-  if (!posted) log('Nothing new to announce.');
+  if (!posted) watcherSummary('NO POST: no new live store version detected. See store lookup logs for unavailable providers.');
 }
 
 main().catch((err) => {
