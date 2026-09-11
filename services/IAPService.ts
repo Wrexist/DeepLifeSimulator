@@ -12,6 +12,7 @@ import {
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { track } from '@/lib/analytics';
+import { purchaseOfferMeasurement } from '@/lib/analytics/purchaseMeasurement';
 // RevenueCat transport (opt-in). When enabled, purchases/restore route through
 // RevenueCat (which verifies server-side) instead of the self-hosted verify
 // server, while reusing the SAME applyBenefit grant + dedup below. No import
@@ -1133,12 +1134,7 @@ export class IAPService {
     // catalog has not loaded; never fall back to config USD here, an analytics
     // row claiming a price the store did not charge is worse than a gap.
     const storeProduct = this.state.products.find((p) => p?.productId === productId);
-    const displayPrice = storeProduct?.displayPrice ?? storeProduct?.localizedPrice;
-    const currency = storeProduct?.currency ?? storeProduct?.currencyCode;
-    const priceProps = {
-      ...(typeof displayPrice === 'string' && displayPrice ? { displayPrice } : {}),
-      ...(typeof currency === 'string' && currency ? { currency } : {}),
-    };
+    const priceProps = purchaseOfferMeasurement(storeProduct);
     track('purchase_started', { productId, ...priceProps });
     try {
       const result = await this.runPurchaseFlow(productId);

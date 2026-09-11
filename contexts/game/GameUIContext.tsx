@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, ReactNode, useMemo } from '
 
 interface GameUIContextType {
   isLoading: boolean;
+  isAdvancingWeek: boolean;
+  setIsAdvancingWeek: (advancing: boolean) => void;
   setIsLoading: (loading: boolean) => void;
   loadingProgress: number;
   setLoadingProgress: (progress: number) => void;
@@ -29,6 +31,7 @@ interface GameUIProviderProps {
 
 export function GameUIProvider({ children }: GameUIProviderProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdvancingWeek, setIsAdvancingWeek] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
   const [loadingMessage, setLoadingMessage] = useState<string>('Initializing...');
   const [isCacheClearing, setIsCacheClearing] = useState<boolean>(false);
@@ -36,6 +39,8 @@ export function GameUIProvider({ children }: GameUIProviderProps) {
 
   const value = useMemo<GameUIContextType>(() => ({
     isLoading,
+    isAdvancingWeek,
+    setIsAdvancingWeek,
     setIsLoading,
     loadingProgress,
     setLoadingProgress,
@@ -45,7 +50,7 @@ export function GameUIProvider({ children }: GameUIProviderProps) {
     setIsCacheClearing,
     cacheUpdateInfo,
     setCacheUpdateInfo,
-  }), [isLoading, loadingProgress, loadingMessage, isCacheClearing, cacheUpdateInfo]);
+  }), [isLoading, isAdvancingWeek, loadingProgress, loadingMessage, isCacheClearing, cacheUpdateInfo]);
 
   return (
     <GameUIContext.Provider value={value}>

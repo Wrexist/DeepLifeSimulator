@@ -330,7 +330,7 @@ class AnalyticsService {
         // would be a plausible name for both.
         firebaseAnalyticsService.logEvent(name, {
           ...clean,
-          session_id: this.sessionId,
+          ctx_session_id: this.sessionId,
           ctx_schema_version: this.context.schemaVersion,
           ctx_app_version: this.context.appVersion,
           ctx_build: this.context.buildNumber,

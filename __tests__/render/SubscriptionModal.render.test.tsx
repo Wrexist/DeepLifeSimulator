@@ -36,7 +36,8 @@ describe('render - SubscriptionModal (DeepLife+ paywall)', () => {
     );
     expect(renderer.toJSON()).not.toBeNull();
     // The benefits are the reason to subscribe and must always render.
-    expect(json).toContain('Ad-Free Forever');
+    expect(json).toContain('Ad-Free Play');
+    expect(json).not.toContain('Ad-Free Forever');
     expect(json).toContain('Daily Gem Drop');
     expect(json).toContain('Bigger Paychecks');
     expect(json).toContain('Legacy Pass Premium');

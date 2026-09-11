@@ -576,12 +576,17 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 {purchased
                   ? "You're in. Here's everything you just unlocked."
                   : active
-                    ? 'Your membership is active - thank you!'
+                    ? 'Your premium benefits are ready to use.'
                     : 'Make every life better.'}
               </Text>
             </View>
 
             {/* Value stack - five rows, one glance. */}
+            {active || purchased ? (
+              <Text style={styles.plusLine}>
+                Included during an active trial or subscription. Lifetime premium does not expire.
+              </Text>
+            ) : null}
             <View style={styles.benefits}>
               {primaryBenefits.map((b, i) => {
                 const Icon = BENEFIT_ICON[b.id] ?? Check;

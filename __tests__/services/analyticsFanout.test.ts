@@ -53,7 +53,8 @@ describe('analytics fan-out', () => {
   it('carries the session id so events can be grouped into funnels', () => {
     analytics.track('purchase_started', { product: 'deeplife_premium_monthly' });
     const [, params] = mockLogEvent.mock.calls[0];
-    expect(params.session_id).toBeTruthy();
+    expect(params.ctx_session_id).toBeTruthy();
+    expect(params.session_id).toBeUndefined();
   });
 
   it('still drops unknown event names - the schema stays honest', () => {

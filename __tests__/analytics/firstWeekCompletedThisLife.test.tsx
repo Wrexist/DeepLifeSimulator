@@ -30,8 +30,10 @@ jest.mock('@/lib/analytics', () => ({
 // The tracker gates every transition event on hydration having finished. These
 // tests are about what happens AFTER that, so the provider is stubbed rather
 // than driven.
+let mockLoading = false;
+let mockAdvancing = false;
 jest.mock('@/contexts/game/GameUIContext', () => ({
-  useGameUI: () => ({ isLoading: false }),
+  useGameUI: () => ({ isLoading: mockLoading, isAdvancingWeek: mockAdvancing }),
 }));
 
 jest.mock('expo-router', () => ({ usePathname: () => '/home' }));
@@ -84,7 +86,22 @@ function mount(state: GameState) {
 }
 
 describe('first_week_completed measures the first week of THIS life', () => {
-  beforeEach(() => mockTrack.mockClear());
+  beforeEach(() => { mockTrack.mockClear(); mockLoading = false; mockAdvancing = false; });
+
+  it('records committed progress under the weekly loading overlay, but not save hydration', () => {
+    const s = mount(lifeAt(25, 0));
+    mockLoading = true;
+    mockAdvancing = true;
+    s.advance(lifeAt(25, 1));
+    expect(firedFirstWeek()).toHaveLength(1);
+    expect(mockTrack.mock.calls.filter(([name]) => name === 'week_advanced')).toHaveLength(1);
+    mockAdvancing = false;
+    s.advance(lifeAt(25, 20));
+    expect(mockTrack.mock.calls.filter(([name]) => name === 'week_advanced')).toHaveLength(1);
+    mockLoading = false;
+    s.advance(lifeAt(25, 20));
+    expect(mockTrack.mock.calls.filter(([name]) => name === 'week_advanced')).toHaveLength(1);
+  });
 
   it.each([18, 20, 25, 40])(
     'fires on the first week played from an age-%i start',
