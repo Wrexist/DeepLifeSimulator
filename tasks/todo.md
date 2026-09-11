@@ -1,5 +1,13 @@
 # Current work
 
+## Discord watcher repair — 11 September 2026
+
+Observed run 34578762105 repeatedly seeds both baselines and then reports no
+state change: git diff ignores the new untracked checkpoint files. Plan: stage
+before comparing, persist with tested Git helper, serialize watcher commits,
+show explicit no-post/sent outcomes, verify and prepare PR. Do not backfill old
+announcements or send test messages without the owner's explicit message scope.
+
 ## Post-merge continuation — 10 September 2026
 
 PR #209 merged as `4046365e`; its four final CI gates passed. Main production

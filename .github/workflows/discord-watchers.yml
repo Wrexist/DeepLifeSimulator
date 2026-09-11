@@ -45,6 +45,9 @@ jobs:
       HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_UPDATES != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -71,19 +74,15 @@ jobs:
         run: npm run notify:store-release -- ${{ inputs.dryRun && '--dry-run' || '' }}
 
       - name: Commit state
-        if: ${{ env.HAS_WEBHOOK == 'true' && !inputs.dryRun }}
+        if: ${{ !cancelled() && env.HAS_WEBHOOK == 'true' && !inputs.dryRun && hashFiles('discord/state/last-notified-release.json') != '' }}
         run: |
-          if git diff --quiet -- discord/state/last-notified-release.json; then
-            echo "No state change."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add discord/state/last-notified-release.json
-          git commit -m "chore(discord): record last-announced store release [skip ci]"
-          git push
+          node scripts/commit-discord-state.mjs discord/state/last-notified-release.json
 
   github-hype:
+    needs: store-release
+    if: ${{ !cancelled() }}
     # Quoted: an unquoted `#` starts a YAML comment, so this job had been
     # rendering in the Actions UI as a bare "GitHub activity →" with nothing
     # after the arrow ever since it was written.
@@ -94,6 +93,9 @@ jobs:
       HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_DEVELOPMENT != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -119,12 +121,6 @@ jobs:
       - name: Commit state
         if: ${{ env.HAS_WEBHOOK == 'true' && !inputs.dryRun }}
         run: |
-          if git diff --quiet -- discord/state/last-notified-pr.json; then
-            echo "No state change."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add discord/state/last-notified-pr.json
-          git commit -m "chore(discord): record last-announced PR [skip ci]"
-          git push
+          node scripts/commit-discord-state.mjs discord/state/last-notified-pr.json

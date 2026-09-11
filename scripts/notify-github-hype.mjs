@@ -27,6 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderAnnouncement } from '../discord/copy.mjs';
+import { watcherSummary } from './lib/watcherSummary.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATE_PATH = path.join(ROOT, 'discord/state/last-notified-pr.json');
@@ -83,6 +84,7 @@ function formatEntry(pr) {
 async function postToDiscord(payload) {
   const webhook = process.env.DISCORD_WEBHOOK_DEVELOPMENT;
   if (!webhook) {
+    if (!DRY_RUN) throw new Error('DISCORD_WEBHOOK_DEVELOPMENT missing; no announcement sent or checkpoint advanced.');
     console.warn('DISCORD_WEBHOOK_DEVELOPMENT is not set — printing the post instead of sending it.');
     console.log(JSON.stringify(payload, null, 2));
     return;
@@ -105,7 +107,7 @@ async function main() {
 
   if (state._isFirstRun) {
     const highest = merged.length ? Math.max(...merged.map((pr) => pr.number)) : 0;
-    console.log(`No prior state found — seeding baseline at PR #${highest} without posting.`);
+    watcherSummary(`${DRY_RUN ? 'DRY RUN: would seed' : 'BASELINE ONLY: seeding'} PR #${highest}; no Discord message sent. State must be persisted by the following step.`);
     if (!DRY_RUN) writeState({ lastPrNumber: highest });
     return;
   }
@@ -116,7 +118,7 @@ async function main() {
     .sort((a, b) => a.number - b.number);
 
   if (fresh.length === 0) {
-    console.log(`Nothing new since PR #${state.lastPrNumber}.`);
+    watcherSummary(`NO POST: no new player-facing PRs since #${state.lastPrNumber}.`);
     return;
   }
 
@@ -138,7 +140,7 @@ async function main() {
   });
 
   await postToDiscord(payload);
-  console.log(`Posted ${fresh.length} PR(s), advancing state to #${highestNumber}.`);
+  watcherSummary(DRY_RUN ? 'DRY RUN: activity announcement not sent; state unchanged.' : `SENT: Discord accepted ${fresh.length} PR(s); checkpoint #${highestNumber}.`);
 
   if (!DRY_RUN) writeState({ lastPrNumber: highestNumber });
 }
