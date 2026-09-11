@@ -31,6 +31,8 @@ import { primaryGoal } from '@/lib/goals';
 import { upcomingEvents } from '@/lib/anticipation';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { track } from '@/lib/analytics';
+import { useRouter } from 'expo-router';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 const LinearGradient = Gradient;
 
 const { width: _screenWidth } = Dimensions.get('window');
@@ -42,6 +44,9 @@ interface WelcomeBackPopupProps {
 
 export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupProps) {
   const { gameState } = useGameState();
+  const router = useRouter();
+  const reducedMotion = useReducedMotion();
+  const nextGoal = primaryGoal(gameState);
   const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const isDarkMode = settings.darkMode;
 
@@ -55,9 +60,11 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
   // can lose the interruption slot and never show), carrying the absence
   // length. Once per popup appearance, not per render.
   const trackedRef = useRef(false);
+  const closingRef = useRef(false);
   useEffect(() => {
     if (!visible) {
       trackedRef.current = false;
+      closingRef.current = false;
       return;
     }
     if (trackedRef.current) return;
@@ -77,6 +84,14 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
     let pulseLoopRef: Animated.CompositeAnimation | null = null;
 
     if (visible) {
+      if (reducedMotion) {
+        scaleAnim.setValue(1);
+        fadeAnim.setValue(1);
+        slideAnim.setValue(0);
+        glowAnim.setValue(0);
+        pulseAnim.setValue(1);
+        return;
+      }
       // Reset animations
       scaleAnim.setValue(0.9);
       fadeAnim.setValue(0);
@@ -144,9 +159,13 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
       if (glowLoopRef) glowLoopRef.stop();
       if (pulseLoopRef) pulseLoopRef.stop();
     };
-  }, [visible]);
+  }, [visible, reducedMotion]);
 
-  const handleClose = () => {
+  const close = (afterClose?: () => void) => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    const finish = () => { onClose(); afterClose?.(); };
+    if (reducedMotion) { finish(); return; }
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
@@ -159,9 +178,16 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
         useNativeDriver: true,
       }),
     ]).start(() => {
-      onClose();
+      finish();
     });
   };
+  const handleClose = () => close();
+  const continueGoal = () => close(() => {
+    if (!nextGoal) return;
+    track('goal_tapped', { goalId: nextGoal.id, surface: 'return_summary' });
+    router.push((nextGoal.route.includes('segment=')
+      ? `${nextGoal.route}&ts=${Date.now()}` : nextGoal.route) as never);
+  });
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
@@ -352,7 +378,6 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                   // The same derived recommendation the home screen shows, so the
                   // return screen and the dashboard cannot tell the player two
                   // different things. Pure and cheap; nothing is stored or paid.
-                  const nextGoal = primaryGoal(gameState);
                   const neglectedPartner = (gameState.relationships || []).find(
                     (r: any) =>
                       (r?.type === 'partner' || r?.type === 'spouse') &&
@@ -469,7 +494,10 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 only way to dismiss this popup. */}
             <TouchableOpacity
               style={styles.continueButton}
-              onPress={handleClose}
+              onPress={continueGoal}
+              accessibilityRole="button"
+              accessibilityLabel={nextGoal ? `Continue: ${nextGoal.title}` : 'Continue playing'}
+              accessibilityHint="Closes the summary and opens your next goal"
               activeOpacity={0.8}
             >
               <LinearGradient
@@ -478,7 +506,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 end={{ x: 1, y: 1 }}
                 style={styles.continueButtonGradient}
               >
-                <Text style={styles.continueButtonText}>Continue Playing</Text>
+                <Text style={styles.continueButtonText}>{nextGoal ? nextGoal.title : 'Continue Playing'}</Text>
                 <ArrowRight size={scale(20)} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
@@ -724,6 +752,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   continueButtonText: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
     color: '#FFFFFF',

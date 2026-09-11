@@ -49,6 +49,7 @@ import { enforceStateInvariants } from '@/utils/stateInvariants';
 // instrumenting the function would count the same condition several times per
 // week and make the number meaningless.
 import { trackSaveRepaired } from '@/lib/analytics/reliability';
+import { track } from '@/lib/analytics';
 
 export interface HydrateLoadedStateOptions {
   /**
@@ -57,6 +58,8 @@ export interface HydrateLoadedStateOptions {
    * the path that produced it.
    */
   source: string;
+  /** Schema before migration, when known. Never infer it from migrated data. */
+  sourceSaveVersion?: number;
   /** Log prefix for the diagnostics emitted here. Defaults to `[LOAD_GAME]`. */
   logTag?: string;
   /** Permanent (IAP) perk ids to apply. Read by the caller — this module does no IO. */
@@ -95,6 +98,12 @@ export function hydrateLoadedState(
   // CRITICAL: Repair and validate state before setting it.
   // This prevents corrupted state from being set, even temporarily.
   const repairResult = repairGameState(raw);
+  track('save_repair_checked', {
+    repaired: repairResult.repaired,
+    repairs: repairResult.repairs.length,
+    ...(Number.isFinite(options.sourceSaveVersion) ? { sourceSaveVersion: options.sourceSaveVersion } : {}),
+    ...(typeof raw.version === 'number' ? { saveVersion: raw.version } : {}),
+  });
   if (repairResult.repaired) {
     // A rise in this count after a release means a migration is not doing its
     // job — the condition that otherwise surfaces weeks later as a support

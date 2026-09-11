@@ -1,5 +1,34 @@
 # Current work
 
+## Five-point follow-up — 11 September 2026
+
+- [x] Investigate repair signals and synthetic old-save continuity; no repeated repair reproduced. Historical player cause remains unknown; diagnostic denominator added.
+- [x] Correct screen/week tracking and label purchase-flow quotes without inventing revenue. Signed-build revenue reconciliation remains open.
+- [x] Improve the existing return journey with a concrete goal and next action.
+- [x] Explain active premium benefits truthfully, including trial limitations.
+- [x] Decompose the matched-week Apple download decline by Search/Browse before store edits.
+- [ ] Verify focused regressions, UI evidence, full relevant gates and latest PR checks.
+
+Baseline: origin/main 67528146, no open PRs. Work branch:
+codex/retention-measurement-followup. No store edits, production publish or paid build.
+Evidence: [five-point follow-up](release/evidence/five-point-followup-2026-09-11.md).
+Next external acceptance: rebuilt signed candidate for screen telemetry, consent,
+purchase/restore, real old saves and native accessibility. No measured retention
+or trial-conversion uplift is claimed yet.
+
+## Provider statistics audit — 11 September 2026
+
+Read-only Firebase/GA4, RevenueCat and App Store Connect review completed for
+acquisition, trial outcomes, measured retention, monetization and reliability
+signals. Private dated evidence is stored outside this public repository at
+`../DeepLife-statistikaudit-2026-09-11.md`; do not publish its business metrics.
+PR #211 is merged; main watcher checkpoints now persist; no open PRs at review.
+Next: segment save-repair signals by app/save version and reproduce old-save
+hydration before making a fix. Then reconcile screen/week/purchase measurement
+with consent and transaction deduplication preserved. Native performance,
+provider billing/AdMob reconciliation and signed-device release acceptance
+remain unverified. No runtime or provider configuration changes in this audit.
+
 ## Discord watcher repair — 11 September 2026
 
 Observed run 34578762105 repeatedly seeds both baselines and then reports no

@@ -275,7 +275,7 @@ interface GameActionsProviderProps {
 
 export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { gameState, setGameState, currentSlot, setCurrentSlot } = useGameState();
- const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
+ const { setIsLoading, setIsAdvancingWeek, setLoadingProgress, setLoadingMessage } = useGameUI();
  const { updateMoney } = useMoneyActions();
  // NOTE: gameplay notifications use `showInfoBanner` (friendly, auto-dismissing) - not
  // `showWarning`, whose orange AlertTriangle banner never auto-dismissed and piled
@@ -555,6 +555,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ANTI-EXPLOIT: Prevent concurrent week advances from rapid button mashing
  if (nextWeekInProgressRef.current) return;
  nextWeekInProgressRef.current = true;
+ setIsAdvancingWeek(true);
 
  {
  haptic.medium(); // Tactile tick for week advance
@@ -3875,8 +3876,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } finally {
  // ANTI-EXPLOIT: Release the week progression guard
  nextWeekInProgressRef.current = false;
+ setIsAdvancingWeek(false);
  }
- }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfoBanner, saveGame]);
+ }, [setGameState, setIsLoading, setIsAdvancingWeek, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfoBanner, saveGame]);
 
  /** Re-entrancy guard for the batch itself - see `nextWeekInProgressRef`. */
 
@@ -5010,6 +5012,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // A-4: Run version migrations BEFORE repair (migrations handle renames/restructures,
  // repair fills remaining defaults)
+ const sourceSaveVersion = typeof parsed.version === 'number' ? parsed.version : undefined;
  try {
  const { runMigrations, SaveFromFutureError } = await import('@/utils/saveMigrations');
  const migrationResult = runMigrations(parsed);
@@ -5069,6 +5072,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  const hydrated = hydrateLoadedState(parsed, {
  source: `loadGame:slot-${slot}`,
+ sourceSaveVersion,
  permanentPerks,
  });
  if (hydrated.repairs.length > 0) {

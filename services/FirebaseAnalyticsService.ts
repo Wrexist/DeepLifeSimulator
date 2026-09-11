@@ -138,6 +138,18 @@ class FirebaseAnalyticsServiceImpl {
       // the whole event when it does. Our names are already snake_case, but
       // normalising here means a future event name cannot silently lose data.
       const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 40);
+      if (safeName === 'screen_view') {
+        const path = typeof params?.path === 'string' ? params.path : '';
+        const segment = path.split('?')[0].split('/').filter(Boolean).pop() ?? 'home';
+        const known = ['home', 'life', 'work', 'apps', 'health', 'market', 'progression',
+          'computer', 'mobile', 'settings', 'MainMenu', 'SaveSlots', 'Customize',
+          'Scenarios', 'Perks', 'Ambitions'];
+        const screen = known.includes(segment) ? segment : 'other';
+        void analytics().logScreenView({
+          ...sanitizeParams(params), screen_name: screen, screen_class: `DeepLife_${screen}`,
+        }).catch((err: any) => log.debug('screen view rejected:', err?.message));
+        return;
+      }
       void analytics()
         .logEvent(safeName, sanitizeParams(params))
         .catch((err: any) => log.debug('logEvent rejected:', err?.message));

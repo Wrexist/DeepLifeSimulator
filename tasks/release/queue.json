@@ -172,7 +172,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R06.md",
       "evidence": [],
-      "blocker": "Requires current native build/device or connected store evidence. See package acceptance criteria."
+      "blocker": "Requires current native build/device or connected store evidence, including trial/paid/restore measurement reconciliation. See evidence/five-point-followup-2026-09-11.md and package acceptance criteria."
     },
     {
       "id": "R07",

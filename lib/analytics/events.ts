@@ -257,6 +257,8 @@ export const ANALYTICS_EVENT_NAME_LIST = [
   // release is a migration that is not doing its job, which otherwise surfaces
   // weeks later as a support ticket about a missing feature.
   'save_repaired',
+  // Repair checks during hydration, including clean checks: repair-rate denominator.
+  'save_repair_checked',
   // Cold-start duration. Startup time is the one performance number that gates
   // everything else — a player who never reaches the first frame cannot be
   // retained by anything — and it is measured nowhere today.

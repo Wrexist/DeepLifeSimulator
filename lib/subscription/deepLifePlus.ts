@@ -89,11 +89,11 @@ export interface DeepLifePlusBenefit {
  * rejects paywalls that promise benefits the app doesn't deliver).
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
-  { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials - just pure, uninterrupted play.' },
-  { id: 'daily_gems', title: 'Daily Gem Drop', description: '250 gems every day - 12× the free daily.' },
-  { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },
-  { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
-  { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
+  { id: 'no_ads', title: 'Ad-Free Play', description: 'No banners or interstitials while your premium access is active.' },
+  { id: 'daily_gems', title: 'Daily Gem Drop', description: 'Claim 250 gems from the daily gem drop each day while premium is active.' },
+  { id: 'income_boost', title: 'Bigger Paychecks', description: 'Advance a working week to receive +25% career income while premium is active.' },
+  { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Earn season XP, then claim unlocked premium tiers in the Legacy Pass.' },
+  { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Earn seasonal themes, frames and skins through the premium Legacy Pass.' },
   { id: 'welcome_gems', title: '500 Welcome Gems', description: 'A one-time gem bonus the moment you join.' },
   { id: 'vip_support', title: 'VIP Priority Support', description: 'Your questions jump to the front of the queue.' },
 ];

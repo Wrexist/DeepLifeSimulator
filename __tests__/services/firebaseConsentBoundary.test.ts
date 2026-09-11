@@ -1,5 +1,5 @@
 describe('Firebase measurement purposes', () => {
-  const native = { setAnalyticsCollectionEnabled: jest.fn(), setConsent: jest.fn(), logEvent: jest.fn(), getAppInstanceId: jest.fn() };
+  const native = { setAnalyticsCollectionEnabled: jest.fn(), setConsent: jest.fn(), logEvent: jest.fn(), logScreenView: jest.fn(), getAppInstanceId: jest.fn() };
   const allowed = jest.fn();
   beforeEach(() => {
     jest.resetModules();
@@ -23,6 +23,20 @@ describe('Firebase measurement purposes', () => {
     expect(native.logEvent).not.toHaveBeenCalled();
     expect(native.setConsent).toHaveBeenCalledWith({ analytics_storage: false, ad_storage: false, ad_user_data: false, ad_personalization: false });
     expect(native.setAnalyticsCollectionEnabled).not.toHaveBeenCalledWith(true);
+  });
+
+  it('names route screens through the native screen API only with consent', async () => {
+    const { firebaseAnalyticsService: service } = await import('@/services/FirebaseAnalyticsService');
+    service.logEvent('screen_view', { path: '/home' });
+    expect(native.logScreenView).not.toHaveBeenCalled();
+    allowed.mockResolvedValue(true);
+    await service.initialize();
+    service.logEvent('screen_view', { path: '/(tabs)/work' });
+    expect(native.logScreenView).toHaveBeenLastCalledWith(expect.objectContaining({ screen_name: 'work', screen_class: 'DeepLife_work' }));
+    expect(native.logEvent).not.toHaveBeenCalled();
+    await service.setConsent(false);
+    service.logEvent('screen_view', { path: '/home' });
+    expect(native.logScreenView).toHaveBeenCalledTimes(1);
   });
 
   it('privacy lookup never starts analytics or changes consent', async () => {

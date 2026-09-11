@@ -51,8 +51,10 @@ export function AnalyticsTracker(): null {
   // Gate transition events until the save has hydrated: while `isLoading` is true,
   // the loaded values arrive AFTER mount, which would otherwise be mis-read as
   // in-session week/prestige/death transitions for returning players.
-  const { isLoading } = useGameUI();
-  const ready = !isLoading;
+  const { isLoading, isAdvancingWeek } = useGameUI();
+  // A committed weekly transition is gameplay, even while its loading overlay
+  // is still visible. Only save hydration should re-arm the transition refs.
+  const ready = !isLoading || !!isAdvancingWeek;
 
   const prevWeeks = useRef(weeksLived);
   const prevPrestiges = useRef(totalPrestiges);
