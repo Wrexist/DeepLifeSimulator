@@ -71,14 +71,19 @@ describe('render - WeddingPopup keeps its only exit on screen', () => {
   });
 });
 describe('render - WelcomeBackPopup keeps its only exit on screen', () => {
-  it('mounts and renders the Continue Playing button', () => {
+  it('mounts and renders the next-goal continue button', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <WelcomeBackPopup visible onClose={() => {}} />,
     );
     expect(renderer.toJSON()).not.toBeNull();
     // The sole dismiss control: no close X, no backdrop tap, and
     // `onRequestClose` is Android's hardware back button alone.
-    expect(json).toContain('Continue Playing');
+    expect(json).toContain('Continue: Get hired');
+    expect(renderer.root.findAll(node =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'button' &&
+      node.props.accessibilityLabel === 'Continue: Get hired' &&
+      typeof node.props.onPress === 'function',
+    )).toHaveLength(1);
     unmount();
   });
 

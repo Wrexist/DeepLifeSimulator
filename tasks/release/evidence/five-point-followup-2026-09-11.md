@@ -44,7 +44,13 @@ production configuration or live release changes.
   liveops quiet-period warnings remain; passing runway does not prove retention.
 - Production iOS/Hermes export with `eas.json` production environment: exit 0,
   4,005 modules bundled. Local output: `tmp-bugaudit/five-point-ios/`.
-- Full suite is running; completion and latest PR checks remain pending.
+- Full local suite reached its result: 794 suites / 9,859 tests passed; one
+  existing popup test failed because it expected the replaced generic button
+  label. 17 suites / 32 tests skipped by existing configuration; 308 snapshots
+  passed. Updated that test to assert the named accessible, pressable goal CTA.
+  The failed run left its mounted animation open; terminated after the result
+  (process exit -1), so it is not a clean passing run. Corrected focused result
+  and final full remote CI are tracked in PR #212. The corrected popup suite passes: 4 tests, exit 0.
 - Real-component local web captures: before/after return and active premium,
   375x667 and 820x1180, reduced motion. Eight captures, no JS errors. Visually
   inspected compact phone and tablet layouts, primary actions and scrollable
