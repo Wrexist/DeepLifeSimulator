@@ -1,5 +1,13 @@
 # Current work
 
+## Discord player notes - 12 September 2026
+
+Replace linked PR titles with authored, playful player notes from the PR's
+`Player update notes` section. Skip technical-only merges; keep upcoming versus
+live wording honest. Strip GitHub links from release copy too. Offline tests and
+lint results are in the PR; no Discord messages sent or edited.
+Evidence: [player notes](release/evidence/discord-player-notes-2026-09-12.md).
+
 ## Five-point follow-up — 11 September 2026
 
 - [x] Investigate repair signals and synthetic old-save continuity; no repeated repair reproduced. Historical player cause remains unknown; diagnostic denominator added.

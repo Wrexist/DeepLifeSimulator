@@ -27,13 +27,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderAnnouncement } from '../discord/copy.mjs';
+import { playerNotesFromPr, developmentNoteBody } from '../discord/playerNotes.mjs';
 import { watcherSummary } from './lib/watcherSummary.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STATE_PATH = path.join(ROOT, 'discord/state/last-notified-pr.json');
 const DRY_RUN = process.argv.includes('--dry-run');
 const REPO = process.env.GITHUB_REPOSITORY || 'Wrexist/DeepLifeSimulator';
-const MAX_PRS_PER_POST = 12; // Discord embed description budget, not a soft cap on shipping fast.
 
 function readState() {
   try {
@@ -63,22 +63,6 @@ async function fetchRecentMergedPrs() {
   const q = encodeURIComponent(`repo:${REPO} is:pr is:merged`);
   const data = await githubApi(`/search/issues?q=${q}&sort=updated&order=desc&per_page=30`);
   return data.items ?? [];
-}
-
-/**
- * Strips PR noise a player doesn't care about (dependency bumps, CI-only
- * changes, pure test/refactor work) so the channel reads as "what's new for
- * you", not a commit log. Conservative on purpose: an unmatched title is kept,
- * because a hidden real feature is worse than one filtered post reading dry.
- */
-function isPlayerFacing(pr) {
-  const title = pr.title.toLowerCase();
-  const noise = [/^chore/, /^ci[:(]/, /^test[:(]/, /^deps?[:(]/, /^refactor/, /^docs?[:(]/, /bump .* to /];
-  return !noise.some((re) => re.test(title));
-}
-
-function formatEntry(pr) {
-  return `• ${pr.title.replace(/\s+/g, ' ').trim()} ([#${pr.number}](${pr.html_url}))`;
 }
 
 async function postToDiscord(payload) {
@@ -114,7 +98,6 @@ async function main() {
 
   const fresh = merged
     .filter((pr) => pr.number > state.lastPrNumber)
-    .filter(isPlayerFacing)
     .sort((a, b) => a.number - b.number);
 
   if (fresh.length === 0) {
@@ -123,21 +106,18 @@ async function main() {
   }
 
   const highestNumber = Math.max(...merged.filter((pr) => pr.number > state.lastPrNumber).map((pr) => pr.number));
-  const shown = fresh.slice(-MAX_PRS_PER_POST);
-  const omitted = fresh.length - shown.length;
-
-  const body = [
-    "Here's what the team shipped behind the scenes — full release notes land in #updates when it's actually live:",
-    '',
-    ...shown.map(formatEntry),
-    omitted > 0 ? `\n…and ${omitted} more.` : '',
-  ].filter(Boolean).join('\n');
-
+  const notes = [...new Set(fresh.flatMap(playerNotesFromPr))];
+  if (!notes.length) {
+    watcherSummary('NO POST: no authored player update notes; technical changes stay out of Discord.');
+    if (!DRY_RUN) writeState({ lastPrNumber: highestNumber });
+    return;
+  }
   const payload = renderAnnouncement({
-    title: `🛠️ ${fresh.length} update${fresh.length === 1 ? '' : 's'} in the works`,
-    body,
+    title: '✨ Your next chapter is taking shape',
+    body: developmentNoteBody(notes),
     color: 0x57f287,
   });
+  payload.allowed_mentions = { parse: [] };
 
   await postToDiscord(payload);
   watcherSummary(DRY_RUN ? 'DRY RUN: activity announcement not sent; state unchanged.' : `SENT: Discord accepted ${fresh.length} PR(s); checkpoint #${highestNumber}.`);

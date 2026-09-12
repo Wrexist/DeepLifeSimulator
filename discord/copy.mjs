@@ -1,3 +1,4 @@
+import { cleanPlayerNote } from './playerNotes.mjs';
 /**
  * Everything the bot writes: the pinned documents, the release post, the
  * announcement shell.
@@ -395,7 +396,9 @@ export function renderReleasePost({ storeVersion, whatsNew, buildVersion }) {
   if (!storeVersion) throw new Error('renderReleasePost needs a storeVersion (marketing/aso/metadata.mjs APPLE.storeVersion)');
   if (!whatsNew || !whatsNew.trim()) throw new Error('renderReleasePost needs the release copy (APPLE.whatsNew)');
 
-  const [headline, ...rest] = whatsNew.trim().split('\n');
+  const playerCopy = cleanPlayerNote(whatsNew);
+  if (!playerCopy) throw new Error('Release copy needs player-facing notes.');
+  const [headline, ...rest] = playerCopy.split('\n');
   const detail = rest.join('\n').trim();
   const description = [`**${headline.trim()}**`, '', detail].join('\n');
 
