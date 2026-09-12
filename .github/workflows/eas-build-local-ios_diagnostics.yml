@@ -86,6 +86,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Root lint includes the isolated asset tooling and resolves its imports.
+      - name: Install asset tooling dependencies
+        run: npm ci --prefix art/game-assets-v1/source
+
       - name: Route conflict check
         run: npm run check:routes
 

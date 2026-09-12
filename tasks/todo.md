@@ -1,5 +1,14 @@
 # Current work
 
+## TestFlight lint repair - 12 September 2026
+
+Run 34655502072 failed on seven missing asset-tool imports, not the 700 warnings.
+Install the asset project's locked dependencies before lint in all four affected
+build workflows, matching EAS Update/preflight. YAML/order checks pass; local
+lint and latest PR results are recorded in the repair PR. A fresh build run must
+use the corrected workflow revision; no native build is verified by this repair.
+Evidence: [TestFlight tooling](release/evidence/testflight-tooling-2026-09-12.md).
+
 ## Discord player notes - 12 September 2026
 
 Replace linked PR titles with authored, playful player notes from the PR's
