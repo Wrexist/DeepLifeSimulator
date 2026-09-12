@@ -2,6 +2,15 @@
 
 <!-- 1-3 sentences. What changed and why. -->
 
+## Player update notes
+
+<!-- Optional: bullet points here are published to Discord after merge.
+Write short, playful, factual notes about what players can do or experience.
+No PR titles, GitHub links, test counts or implementation details. Leave empty
+for tooling-only work. Describe upcoming changes, never imply a merge is live.
+Example: - Your next chapter has a direction: jump straight to your next goal when you return.
+-->
+
 ## Risk
 
 <!-- Mark all that apply. Anything checked here needs extra verification. -->
