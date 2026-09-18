@@ -127,10 +127,20 @@ function GoldStoreButton({
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
+          {/* Liquid-glass depth, matching the settings and season discs: a
+              shaded lower edge under the glyph, the specular dome above it. */}
+          <Gradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.26)']}
+            start={{ x: 0.5, y: 0.55 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
           {/* Deep brown rather than white: on a light gold fill a white glyph
               loses contrast, and the storefront shape is what identifies the
               button. */}
           <Store size={22} color="#7C2D12" />
+          <View pointerEvents="none" style={styles.specular} />
 
           {/* The sweep. `pointerEvents="none"` so it can never eat the tap -
               a decorative overlay that swallows presses on the shop button
@@ -165,6 +175,15 @@ const styles = StyleSheet.create({
     bottom: -scale(14),
     width: scale(10),
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
+  },
+  specular: {
+    position: 'absolute',
+    top: '7%',
+    left: '20%',
+    right: '20%',
+    height: '30%',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.45)',
   },
 });
 

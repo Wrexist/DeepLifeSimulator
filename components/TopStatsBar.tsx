@@ -27,6 +27,7 @@ import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
+import LiquidGlassDisc from '@/components/ui/LiquidGlassDisc';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
 import {
@@ -426,10 +427,6 @@ function TopStatsBarComponent() {
  ];
  const iconColor = darkMode ? '#E2E8F0': '#0F172A';
 
- // Flat fill - these are 22px circles; the old two-stop gradient across them
- // was invisible and cost an SVG layer each on the always-mounted HUD.
- const controlButtonFill = darkMode ? '#1E293B' : '#FFFFFF';
-
  const formatGems = (amount: number) => {
  const a = Math.floor(amount || 0);
  // Always remove decimals in TopStatsBar for better readability
@@ -496,9 +493,9 @@ function TopStatsBarComponent() {
  accessibilityRole="button"
  accessibilityHint={ACCESSIBILITY_HINTS.BUTTONS.SETTINGS}
  >
- <View style={[styles.iconButtonGradient, { backgroundColor: controlButtonFill }]}>
+ <LiquidGlassDisc accent="#64748B">
  <Settings size={22} color={iconColor} />
- </View>
+ </LiquidGlassDisc>
  </TouchableOpacity>
  <View style={[styles.iconButton, darkMode && styles.iconButtonDark]}>
  <SeasonalIndicator size={22} />
