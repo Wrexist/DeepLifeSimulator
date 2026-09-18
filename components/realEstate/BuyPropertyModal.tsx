@@ -163,6 +163,14 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
             {quote && !quote.rejected && (
               <View style={[styles.quoteCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                 <Row theme={theme} label="Down payment" value={formatMoney(quote.downPaymentUSD ?? 0)} highlight />
+                {/* MP08: the upfront delta. The sheet showed the down payment
+                    but not what the player's cash becomes the moment they
+                    commit - buyers had to subtract in their head. */}
+                <Row
+                  theme={theme}
+                  label="Cash after purchase"
+                  value={formatMoney(cash - (quote.downPaymentUSD ?? 0))}
+                />
                 {(quote.loanPrincipal ?? 0) > 0 && (
                   <>
                     <Row theme={theme} label="Financed" value={formatMoney(quote.loanPrincipal ?? 0)} />

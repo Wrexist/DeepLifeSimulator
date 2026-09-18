@@ -162,6 +162,23 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
                   label="Interest"
                   value={formatMoney(quote.totalRepaid! - principal)}
                 />
+                {/* MP08: upfront + next-week deltas. The sheet quoted the APR
+                    and the payment but not where the money lands or how heavy
+                    the payment is against income. */}
+                {checking && (
+                  <QuoteRow
+                    theme={theme}
+                    label="Checking after loan"
+                    value={formatMoney(checking.balance + principal)}
+                  />
+                )}
+                {weeklyIncome > 0 && (
+                  <QuoteRow
+                    theme={theme}
+                    label="Share of weekly income"
+                    value={`${Math.round((quote.weeklyPayment! / weeklyIncome) * 100)}%`}
+                  />
+                )}
               </View>
             )}
           </ScrollView>
