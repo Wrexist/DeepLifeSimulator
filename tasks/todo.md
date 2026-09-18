@@ -1,5 +1,30 @@
 # Current work
 
+## Owner review pass - 18 September 2026
+
+Branch `codex/restore-precompact-hud` (built on `1e766685`, v2.13.0, schema 51),
+not pushed. Owner-directed fixes plus MP08/MP09:
+
+- Restored the pre-compact two-column HUD (`TopStatsBar` from `421e2008`),
+  removing the compact disclosure layout the owner rejected.
+- Replaced the flat HUD discs with a shared `LiquidGlassDisc` material (body +
+  accent bloom + faint sheen), removing the season disc's 1px white border that
+  anti-aliased into rim crescents. Kept gradient-free to hold the UI ratchet.
+- Added a left-edge `RemoveAdsOrb` that deep-links to the shop's No Ads
+  purchase; gated off when ads are removed or IAP is disabled.
+- Work job cards now name their toll (`Happiness -3` / `Health -2`).
+- MP08: wallet forecast excludes crypto-paid mining power, labels projected rent
+  as an occupancy estimate, and settles standing arrears; property/loan sheets
+  show upfront cash deltas (education already did).
+- MP09: the recap's promotion badge opens Work.
+
+Verification: source + test type-checks clean, eslint 0 errors, lint ratchet OK,
+UI ratchet at ceilings, route check OK. Focused suites green; full suite green
+except the load-sensitive `tickTiming.bench` 52-tick ceiling (passes alone).
+
+Next: no in-repo defects outstanding from the review; remaining work is product
+(MP10-MP13) and the external release gates R04/R06/R07/R08/R09/R10.
+
 ## TestFlight lint repair - 12 September 2026
 
 Run 34655502072 failed on seven missing asset-tool imports, not the 700 warnings.
