@@ -348,7 +348,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
 
   // MP08: warehouse mining power is deducted from mined crypto by the tick
   // (`applyMiningCryptos`), so it never leaves `stats.money`. It is an economic
-  // cost, not a cash debit — the wallet forecast (and the Cash Flow beneath it)
+  // cost, not a cash debit. The wallet forecast (and the Cash Flow beneath it)
   // opts it out, while the breakdown row below still names it, labelled for
   // what it is. Company miner power is already netted inside passive income.
   const expenseInfo = useMemo(
@@ -1109,7 +1109,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </>
           )}
           
-          {/* Mining Power — paid from mined crypto, not cash. The tick deducts
+          {/* Mining Power, paid from mined crypto, not cash. The tick deducts
               it inside `applyMiningCryptos`, so it is deliberately NOT in the
               cash total above; it stays visible as an economic cost with an
               explicit label rather than reading as an unpaid cash bill. */}
