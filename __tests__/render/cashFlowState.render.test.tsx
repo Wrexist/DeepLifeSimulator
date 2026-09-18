@@ -90,6 +90,25 @@ describe('cash flow receives and refreshes its real state inputs', () => {
     s.close();
   });
 
+  it('shows standing arrears, which the tick settles before this week bills', () => {
+    const b = createTestGameState({ educations: [], loans: [], realEstate: [] });
+    const totalOf = (t: string) => /Total Expenses: (\$[\d,]+)/.exec(t)?.[1];
+
+    const debt = render({ ...b, overdueBalance: 400, stats: { ...b.stats, money: 5000 } });
+    const debtText = debt.text();
+    expect(debtText).toContain('Arrears (old debt): $400');
+    const debtTotal = totalOf(debtText);
+    debt.close();
+
+    const clean = render(b);
+    const cleanTotal = totalOf(clean.text());
+    clean.close();
+
+    // The arrears reach the CASH total, not just the breakdown row.
+    expect(debtTotal).toBeDefined();
+    expect(debtTotal).not.toBe(cleanTotal);
+  });
+
   it('labels projected real-estate income as an occupancy-dependent estimate', () => {
     // The tick pays REALIZED tenant rent (cycle variance, carrying costs,
     // multipliers) through `runRealEstateWeeklyTick`; this card can only show

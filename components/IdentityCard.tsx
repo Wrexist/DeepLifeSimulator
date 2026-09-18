@@ -351,8 +351,15 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // cost, not a cash debit. The wallet forecast (and the Cash Flow beneath it)
   // opts it out, while the breakdown row below still names it, labelled for
   // what it is. Company miner power is already netted inside passive income.
+  // `includeArrears`: the tick settles standing old debt FIRST out of
+  // cash + income (`applyArrears`), so the wallet forecast must show it or the
+  // Cash Flow below reads healthier than the week will actually be.
   const expenseInfo = useMemo(
-    () => calcWeeklyExpenses(gameState, projectedIncome, { excludeMiningPower: true }),
+    () =>
+      calcWeeklyExpenses(gameState, projectedIncome, {
+        excludeMiningPower: true,
+        includeArrears: true,
+      }),
     [gameState, projectedIncome]
   );
 
@@ -962,6 +969,18 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </Text>
           </View>
           
+          {/* Arrears, listed first because the tick pays them first. Standing
+              debt is settled off the top of cash + income before this week's
+              bills, so omitting it made the Cash Flow optimistic. */}
+          {expenseInfo.breakdown.arrears > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={scale(18)} color="#F59E0B" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Arrears (old debt): {formatMoney(expenseInfo.breakdown.arrears)}
+              </Text>
+            </View>
+          )}
+
           {/* Property Upkeep - Individual Properties */}
           {expenseInfo.breakdown.upkeep > 0 && (
             <>
