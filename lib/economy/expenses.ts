@@ -55,6 +55,16 @@ export function calcWeeklyExpenses(
    * caller gets.
    */
   taxableIncome?: number,
+  /**
+   * MP08: a WALLET forecast must not bill cash for a cost the tick pays in
+   * crypto. Warehouse mining power is deducted from mined crypto by
+   * `applyMiningCryptos`, so it never leaves `stats.money`. The economic cost
+   * still belongs in `breakdown.miningPower` for financial-independence and
+   * net-worth views, but `excludeMiningPower` takes it out of the CASH total.
+   * Default (unset) keeps every cost in the total, so existing callers are
+   * unchanged.
+   */
+  opts?: { excludeMiningPower?: boolean },
 ): { total: number; breakdown: ExpenseBreakdown } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
@@ -241,7 +251,10 @@ export function calcWeeklyExpenses(
     const safeIncomeTax = isFinite(incomeTaxCost) && incomeTaxCost >= 0 ? incomeTaxCost : 0;
     const safePropertyTax = isFinite(propertyTax) && propertyTax >= 0 ? propertyTax : 0;
     
-    const total = safeUpkeep + safePropertyTax + safeLoanPayments + safeMiningPowerCosts
+    // Warehouse power is paid from mined crypto, not cash, so a wallet forecast
+    // opts it out of the total (the line stays in `breakdown.miningPower`).
+    const miningPowerForCashTotal = opts?.excludeMiningPower ? 0 : safeMiningPowerCosts;
+    const total = safeUpkeep + safePropertyTax + safeLoanPayments + miningPowerForCashTotal
       + safeVehicleCosts + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax
       + safeLuxury + safePets + safeSubscriptions;
     

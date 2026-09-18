@@ -89,6 +89,29 @@ describe('cash flow receives and refreshes its real state inputs', () => {
     s.close();
   });
 
+  it('bills warehouse mining power from mined crypto, not cash', () => {
+    // MP08: the tick deducts this inside `applyMiningCryptos`, so the wallet
+    // total must match the identical life with no miners — while the line stays
+    // visible and says where it is paid from.
+    const base = createTestGameState({ realEstate: [], educations: [], loans: [] });
+    const withMiners: GameState = { ...base, warehouse: { level: 1, miners: { basic: 10 } } };
+    const totalOf = (t: string) => /Total Expenses: (\$[\d,]+)/.exec(t)?.[1];
+
+    const miner = render(withMiners);
+    const minerText = miner.text();
+    expect(minerText).toContain('Mining Power (paid from mined crypto):');
+    expect(minerText).not.toContain('Mining Power Costs:');
+    const minerTotal = totalOf(minerText);
+    miner.close();
+
+    const none = render(base);
+    const noneTotal = totalOf(none.text());
+    none.close();
+
+    expect(minerTotal).toBeDefined();
+    expect(minerTotal).toBe(noneTotal);
+  });
+
   it('uses the paid work boost and withholds payroll while jailed', () => {
     const initial = createTestGameState();
     const job = initial.careers.find(c => c.id !== 'political' && c.levels[0]?.salary > 0)!;

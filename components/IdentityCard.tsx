@@ -346,8 +346,13 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
     return projected + luxuryYield;
   }, [gameState, jobPay, passiveInfo, luxuryYield, retirementIncome]);
 
+  // MP08: warehouse mining power is deducted from mined crypto by the tick
+  // (`applyMiningCryptos`), so it never leaves `stats.money`. It is an economic
+  // cost, not a cash debit — the wallet forecast (and the Cash Flow beneath it)
+  // opts it out, while the breakdown row below still names it, labelled for
+  // what it is. Company miner power is already netted inside passive income.
   const expenseInfo = useMemo(
-    () => calcWeeklyExpenses(gameState, projectedIncome),
+    () => calcWeeklyExpenses(gameState, projectedIncome, { excludeMiningPower: true }),
     [gameState, projectedIncome]
   );
 
@@ -1088,13 +1093,16 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </>
           )}
           
-          {/* Mining Power Costs - Individual Sources */}
+          {/* Mining Power — paid from mined crypto, not cash. The tick deducts
+              it inside `applyMiningCryptos`, so it is deliberately NOT in the
+              cash total above; it stays visible as an economic cost with an
+              explicit label rather than reading as an unpaid cash bill. */}
           {expenseInfo.breakdown.miningPower > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-                <Zap size={scale(18)} color="#EF4444" />
+                <Zap size={scale(18)} color="#F59E0B" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  Mining Power Costs: {formatMoney(expenseInfo.breakdown.miningPower)}
+                  Mining Power (paid from mined crypto): {formatMoney(expenseInfo.breakdown.miningPower)}
                 </Text>
               </View>
               {(() => {
