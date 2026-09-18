@@ -756,10 +756,14 @@ function WorkScreenContent() {
             });
         }
         metadata.push(...metReqChips);
+        // PLAYER REPORT (2026-08-31): the weekly toll was a bare "-3" / "-2"
+        // beside a small icon, so the only thing telling happiness from health
+        // was a 13px glyph. Name the stat, exactly like the Fitness/Reputation
+        // chips above. The sign is carried in the number for both branches.
         if (happinessPenalty < 0) {
             metadata.push({
                 icon: <Smile size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
-                value: `${happinessPenalty}`,
+                value: `Happiness ${happinessPenalty}`,
                 tone: 'bad',
             });
         } else if (happinessPenalty > 0) {
@@ -767,19 +771,19 @@ function WorkScreenContent() {
             // tradeoff worth advertising against a higher wage elsewhere.
             metadata.push({
                 icon: <Smile size={scale(13)} color="rgba(52, 211, 153, 0.95)" />,
-                value: `+${happinessPenalty}`,
+                value: `Happiness +${happinessPenalty}`,
             });
         }
         if (healthPenalty < 0) {
             metadata.push({
                 icon: <Heart size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
-                value: `${healthPenalty}`,
+                value: `Health ${healthPenalty}`,
                 tone: 'bad',
             });
         } else if (healthPenalty > 0) {
             metadata.push({
                 icon: <Heart size={scale(13)} color="rgba(52, 211, 153, 0.95)" />,
-                value: `+${healthPenalty}`,
+                value: `Health +${healthPenalty}`,
             });
         }
 
