@@ -5,6 +5,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { LUXURY_CATALOG } from '@/lib/luxury/catalog';
+import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -86,6 +87,26 @@ describe('cash flow receives and refreshes its real state inputs', () => {
     expect(s.text()).not.toContain('Retirement Pension:');
     s.update({ ...initial, isRetired: true, pensionWeekly: 500 });
     expect(s.text()).toContain('Retirement Pension: $500');
+    s.close();
+  });
+
+  it('labels projected real-estate income as an occupancy-dependent estimate', () => {
+    // The tick pays REALIZED tenant rent (cycle variance, carrying costs,
+    // multipliers) through `runRealEstateWeeklyTick`; this card can only show
+    // the deterministic list-rent base. It must say so, not present the base as
+    // the exact figure the week will credit.
+    const base = createTestGameState();
+    const rented = {
+      ...RESIDENTIAL_CATALOG[0],
+      owned: true,
+      status: 'rented' as const,
+      rent: 1500,
+      upkeep: 300,
+    };
+    const s = render({ ...base, realEstate: [rented] });
+    const text = s.text();
+    expect(text).toContain('Real Estate:');
+    expect(text).toMatch(/estimate/i);
     s.close();
   });
 

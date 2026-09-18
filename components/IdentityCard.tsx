@@ -836,9 +836,25 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           {passiveInfo.breakdown.realEstate > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Home size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                  Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
+                </Text>
+                {/* MP08: this line is the deterministic list-rent base. The tick
+                    pays REALIZED tenant rent (occupancy, cycle variance, carrying
+                    costs) through `runRealEstateWeeklyTick`, so the week's actual
+                    figure can differ. Label the estimate rather than implying
+                    parity the projection cannot have. */}
+                <Text
+                  style={[
+                    styles.modalSubText,
+                    isDarkMode && styles.modalSubTextDark,
+                    { fontSize: fontScale(11), opacity: 0.75 },
+                  ]}
+                >
+                  Estimate; actual rent varies with occupancy
+                </Text>
+              </View>
             </View>
           )}
           {passiveInfo.breakdown.companies > 0 && (
