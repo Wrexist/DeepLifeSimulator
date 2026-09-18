@@ -18,7 +18,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Ban } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
@@ -27,8 +26,6 @@ import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { scale, fontScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
-
-const OFFER_GRADIENT = ['#4F46E5', '#818CF8'] as const;
 
 const FIRST_DELAY: [number, number] = [120000, 180000];
 const REPEAT_DELAY: [number, number] = [600000, 900000];
@@ -147,9 +144,9 @@ export default function RemoveAdsOrb() {
         accessibilityLabel="Remove ads, open the shop"
         style={styles.orb}
       >
-        <Gradient colors={OFFER_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.orbCircle}>
+        <View style={styles.orbCircle}>
           <Ban size={scale(20)} color="#FFFFFF" strokeWidth={2.3} />
-        </Gradient>
+        </View>
         <View style={styles.orbLabel}>
           <Text style={styles.orbAmount} numberOfLines={1}>No ads</Text>
           <Text style={styles.orbSub} numberOfLines={1}>Remove ads</Text>
@@ -187,9 +184,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#4F46E5',
   },
   orbLabel: { flexShrink: 1 },
-  orbAmount: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '800', fontVariant: ['tabular-nums'] },
+  orbAmount: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '600', fontVariant: ['tabular-nums'] },
   orbSub: { color: 'rgba(226,232,240,0.72)', fontSize: fontScale(11), fontWeight: '500' },
   orbClose: { marginLeft: scale(4), padding: scale(2) },
 });
