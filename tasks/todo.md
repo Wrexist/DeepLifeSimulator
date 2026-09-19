@@ -17,10 +17,17 @@ not pushed. Owner-directed fixes plus MP08/MP09:
   as an occupancy estimate, and settles standing arrears; property/loan sheets
   show upfront cash deltas (education already did).
 - MP09: the recap's promotion badge opens Work.
+- Weekly audit burned down to fully clean: typed the `WeekContext` test fixture,
+  deleted three dead modules, and removed all 54 `as GameState` test casts
+  (factory / named sub-types / one DELIBERATE-CORRUPTION marker).
+- MP11: three connected story arcs (work pressure, family plans, side project),
+  each a setup + two responses + a weight-0 delayed-consequence sequel, via the
+  declarative `followUpEventId` API.
 
 Verification: source + test type-checks clean, eslint 0 errors, lint ratchet OK,
-UI ratchet at ceilings, route check OK. Focused suites green; full suite green
-except the load-sensitive `tickTiming.bench` 52-tick ceiling (passes alone).
+UI ratchet at ceilings, route check OK, weekly audit fully clean. Full suite
+804 suites / 9881 tests / 308 snapshots green. PR #215 open with all checks
+(`update`, `quality`, CodeRabbit) passing; not merged.
 
 Next: no in-repo defects outstanding from the review; remaining work is product
 (MP10-MP13) and the external release gates R04/R06/R07/R08/R09/R10.
