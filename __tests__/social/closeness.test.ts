@@ -13,7 +13,10 @@ import {
   isCloseBond,
   closeCircle,
   closeCircleHappiness,
+  bondHappinessSupport,
   CLOSE_BOND_HAPPINESS,
+  TRUSTED_BOND_HAPPINESS,
+  CONFIDANT_BOND_HAPPINESS,
   CLOSE_BOND_HAPPINESS_CAP,
 } from '@/lib/social/closeness';
 import {
@@ -146,17 +149,71 @@ describe('the wire runs both ways now', () => {
     expect(failing.happinessSupport).toBe(0);
   });
 
-  it('and a healthy partner is', () => {
-    const good = applyRelationshipHealth(
+  it('and a healthy partner is - at the depth they are kept', () => {
+    const close = applyRelationshipHealth(
+      rel({ id: 'p', type: 'partner', relationshipScore: 70 }),
+      0,
+      ctx(),
+    );
+    expect(close.happinessSupport).toBe(CLOSE_BOND_HAPPINESS);
+
+    const trusted = applyRelationshipHealth(
       rel({ id: 'p', type: 'partner', relationshipScore: 80 }),
       0,
       ctx(),
     );
-    expect(good.happinessSupport).toBe(CLOSE_BOND_HAPPINESS);
+    expect(trusted.happinessSupport).toBe(TRUSTED_BOND_HAPPINESS);
+
+    const confidant = applyRelationshipHealth(
+      rel({ id: 'p', type: 'partner', relationshipScore: 100 }),
+      0,
+      ctx(),
+    );
+    expect(confidant.happinessSupport).toBe(CONFIDANT_BOND_HAPPINESS);
   });
 
   it('a life with nobody is worth zero, not negative — the loner loses nothing', () => {
     const alone = stateWith([]);
     expect(closeCircleHappiness(alone)).toBe(0);
+  });
+});
+
+describe('MP12: depth at the top of the ladder', () => {
+  it('pays by band, so 60, 80 and 100 are three different things', () => {
+    expect(bondHappinessSupport(59)).toBe(0);
+    expect(bondHappinessSupport(60)).toBe(CLOSE_BOND_HAPPINESS);
+    expect(bondHappinessSupport(79)).toBe(CLOSE_BOND_HAPPINESS);
+    expect(bondHappinessSupport(80)).toBe(TRUSTED_BOND_HAPPINESS);
+    expect(bondHappinessSupport(94)).toBe(TRUSTED_BOND_HAPPINESS);
+    expect(bondHappinessSupport(95)).toBe(CONFIDANT_BOND_HAPPINESS);
+    expect(bondHappinessSupport(100)).toBe(CONFIDANT_BOND_HAPPINESS);
+    expect(bondHappinessSupport(undefined)).toBe(0);
+  });
+
+  it('names the confidant band', () => {
+    expect(bondTier(94)).toBe('trusted');
+    expect(bondTier(95)).toBe('confidant');
+    expect(bondTier(100)).toBe('confidant');
+  });
+
+  it('lets one confidant reach the ceiling two trusted bonds need', () => {
+    expect(closeCircleHappiness(stateWith([rel({ id: 'a', relationshipScore: 100 })]))).toBe(
+      CLOSE_BOND_HAPPINESS_CAP,
+    );
+    expect(closeCircleHappiness(stateWith([rel({ id: 'a', relationshipScore: 80 })]))).toBe(
+      TRUSTED_BOND_HAPPINESS,
+    );
+    expect(
+      closeCircleHappiness(
+        stateWith([
+          rel({ id: 'a', relationshipScore: 80 }),
+          rel({ id: 'b', relationshipScore: 85 }),
+        ]),
+      ),
+    ).toBe(CLOSE_BOND_HAPPINESS_CAP);
+  });
+
+  it('still cannot out-earn decay - the ceiling is unchanged', () => {
+    expect(CLOSE_BOND_HAPPINESS_CAP).toBeLessThan(4);
   });
 });

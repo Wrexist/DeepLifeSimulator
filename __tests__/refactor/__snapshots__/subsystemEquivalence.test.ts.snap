@@ -4382,7 +4382,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth friend type: just clamps
   "notifications": [],
   "result": {
     "happinessPenalty": 0,
-    "happinessSupport": 1,
+    "happinessSupport": 3,
     "rel": {
       "id": "r1",
       "name": "Pal",

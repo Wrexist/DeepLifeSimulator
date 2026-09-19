@@ -50,7 +50,7 @@
 import type { Relationship } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { clampRelationshipScore } from '@/utils/stateValidation';
-import { CLOSE_BOND_HAPPINESS, isCloseBond } from '@/lib/social/closeness';
+import { bondHappinessSupport } from '@/lib/social/closeness';
 import type { WeekContext } from './weekContext';
 
 export interface RelationshipHealthResult {
@@ -303,5 +303,7 @@ export function applyRelationshipHealth(
  */
 function supportFrom(rel: Relationship): number {
   if (rel.type === 'child') return 0;
-  return isCloseBond(rel) ? CLOSE_BOND_HAPPINESS : 0;
+  // Banded support (close 1, trusted 2, confidant 3). A child is excluded above
+  // because every child starts at NEWBORN_BOND (75) by construction.
+  return bondHappinessSupport(rel.relationshipScore);
 }
