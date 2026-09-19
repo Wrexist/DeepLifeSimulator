@@ -26,6 +26,9 @@ not pushed. Owner-directed fixes plus MP08/MP09:
 - MP12: bond support now scales by band (close 1, trusted 2, confidant 95+ 3)
   with the +3 ceiling unchanged, so depth beats headcount at the top of the
   ladder instead of only at the bottom.
+- MP13: three non-wealth life capstones (family, career, community) recognise a
+  completed path at death and pay legacy points into the next life, named on the
+  death screen. Existing currency, no new save field.
 
 Verification: source + test type-checks clean, eslint 0 errors, lint ratchet OK,
 UI ratchet at ceilings, route check OK, weekly audit fully clean. Full suite
