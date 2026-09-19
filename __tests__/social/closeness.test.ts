@@ -41,13 +41,15 @@ function stateWith(rels: Relationship[]): GameState {
 }
 
 function ctx(): WeekContext {
+  // Typed as a real WeekContext (no cast): a new required field breaks
+  // compilation here instead of going silently undefined (weekly audit).
   return {
     newStats: createTestGameState().stats,
     notifications: [],
     preRolls: zeroPreRolls(),
     nextWeeksLived: 100,
     lifeSkillMods: NEUTRAL_LIFE_SKILL_MODIFIERS,
-  } as unknown as WeekContext;
+  };
 }
 
 describe('the bands are one definition, shared', () => {
