@@ -66,13 +66,22 @@ export const BOND = {
   close: 60,
   /** The people a life is actually built on. */
   trusted: 80,
+  /**
+   * MP12: the very top of the ladder. Program 12 made 60 and 100 differ (via
+   * `trusted` at 80), but 80 and 100 still did nothing different. This band is
+   * what depth buys: a bond kept all the way up is worth more than one that
+   * merely crossed 80, which is the "quality over quantity" rule made visible
+   * at the top rather than only at the bottom.
+   */
+  confidant: 95,
 } as const;
 
-export type BondTier = 'estranged' | 'known' | 'close' | 'trusted';
+export type BondTier = 'estranged' | 'known' | 'close' | 'trusted' | 'confidant';
 
 /** Which band a score sits in. */
 export function bondTier(score: number | undefined): BondTier {
   const n = typeof score === 'number' && Number.isFinite(score) ? score : 0;
+  if (n >= BOND.confidant) return 'confidant';
   if (n >= BOND.trusted) return 'trusted';
   if (n >= BOND.close) return 'close';
   if (n >= BOND.estranged) return 'known';
@@ -118,33 +127,49 @@ export function supportCircle(state: GameState | null | undefined): Relationship
 }
 
 /**
- * Weekly happiness a single close bond contributes.
+ * Weekly happiness a single bond contributes, by the band its score sits in.
  *
- * Deliberately the same magnitude as `NEGLECT_HAPPINESS_DRAG` (−1), because
- * this is that wire's missing half rather than a new reward: one point for
- * somebody you are close to, one point off for somebody you have let go.
+ * MP12: this used to be a flat +1 for any bond at `close` (60), which made 60,
+ * 80 and 100 worth exactly the same and left the top of the ladder as
+ * decoration. Depth now pays: a close bond is 1, a trusted (80+) bond is 2, and
+ * a confidant (95+) bond is 3. The shape still mirrors `NEGLECT_HAPPINESS_DRAG`
+ * (-1) exactly - this is that wire's missing half, not a new reward.
  */
 export const CLOSE_BOND_HAPPINESS = 1;
+export const TRUSTED_BOND_HAPPINESS = 2;
+export const CONFIDANT_BOND_HAPPINESS = 3;
+
+/** Weekly happiness one bond contributes, by the band its score sits in. */
+export function bondHappinessSupport(score: number | undefined): number {
+  const n = typeof score === 'number' && Number.isFinite(score) ? score : 0;
+  if (n >= BOND.confidant) return CONFIDANT_BOND_HAPPINESS;
+  if (n >= BOND.trusted) return TRUSTED_BOND_HAPPINESS;
+  if (n >= BOND.close) return CLOSE_BOND_HAPPINESS;
+  return 0;
+}
 
 /**
  * Ceiling on the TOTAL weekly happiness a circle can contribute.
  *
- * The mirror of `NEGLECT_HAPPINESS_DRAG_CAP` (−3), and the reason quantity
- * cannot beat quality: three close bonds reach the cap, and the fiftieth
- * acquaintance is worth exactly as much as the fourth, which is nothing. It is
- * also why this cannot become a strategy — natural decay is 4/week
+ * The mirror of `NEGLECT_HAPPINESS_DRAG_CAP` (-3), and the reason quantity
+ * cannot beat quality. The ceiling is deliberately unchanged by MP12: a single
+ * confidant now reaches the same cap a full circle of close friends does, and
+ * the fiftieth acquaintance is still worth nothing. Natural decay is 4/week
  * (`lib/economy/statDecay.ts`), so a maxed circle offsets three quarters of one
  * stat's drift and nothing else. A player still has to live.
  */
 export const CLOSE_BOND_HAPPINESS_CAP = 3;
 
 /**
- * What the circle is worth this week: +1 per close bond, capped.
+ * What the circle is worth this week: the sum of each bond's band value, capped.
  *
  * Pure, so the HUD breakdown and the tick can call the same function and cannot
- * disagree about the number — the rule `statDecay.ts` established for decay.
+ * disagree about the number - the rule `statDecay.ts` established for decay.
  */
 export function closeCircleHappiness(state: GameState | null | undefined): number {
-  const n = closeCircle(state).length;
-  return Math.min(CLOSE_BOND_HAPPINESS_CAP, n * CLOSE_BOND_HAPPINESS);
+  const total = closeCircle(state).reduce(
+    (sum, r) => sum + bondHappinessSupport(r.relationshipScore),
+    0,
+  );
+  return Math.min(CLOSE_BOND_HAPPINESS_CAP, total);
 }

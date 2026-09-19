@@ -22,7 +22,7 @@ import type { GameState } from '@/contexts/game/types';
 
 /**
  * Both fields are REQUIRED on `activePolicyEffects.healthcare`. This helper
- * used to declare them optional and the result was cast `as GameState`, so five
+ * used to declare them optional and the result was cast to the whole state, so five
  * call sites below passed `{ medicalCostReduction: N }` alone — a shape
  * production cannot produce. `healthcarePolicyPerks` is defensive enough that
  * it read as 0 rather than throwing, so nothing broke; the tests were simply

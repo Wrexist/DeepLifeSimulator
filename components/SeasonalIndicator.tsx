@@ -5,6 +5,7 @@ import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason, WEEKS_PER_SEASON } from '@/lib/events/seasonalEvents';
 import { isIPad, touchTargets, fontScale } from '@/utils/scaling';
+import LiquidGlassDisc from '@/components/ui/LiquidGlassDisc';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 
 interface SeasonalIndicatorProps {
@@ -114,16 +115,19 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
         accessibilityLabel={holiday ? `${holiday.name}, ${config.name} season` : `${config.name} season`}
         accessibilityHint="Shows the season, the week within it and any active holiday"
       >
-        {/* Neutral disc, season colour on the glyph. The saturated gradient
-            disc was one more filled circle competing with the HUD's primary
-            action for a piece of information the player cannot act on. */}
-        <View style={[styles.gradient, styles.disc]}>
+        {/* Liquid glass, season colour on the glyph and in the bloom. The old
+            flat disc carried a 1px white border that anti-aliased into pale
+            crescents around the rim once clipped (owner screenshot,
+            2026-09-18); the shared material has no uniform border, so it cannot
+            come back. The colour still lives in the glyph, not a filled disc,
+            so the control does not compete with the primary action. */}
+        <LiquidGlassDisc accent={config.color}>
           {holiday && HolidayIcon ? (
             <HolidayIcon size={iconSize} color={holiday.color} />
           ) : (
             <SeasonIcon size={iconSize} color={config.color} />
           )}
-        </View>
+        </LiquidGlassDisc>
       </TouchableOpacity>
 
       <Modal
@@ -243,17 +247,6 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
-  },
-  gradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disc: {
-    backgroundColor: 'rgba(30, 41, 59, 0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
   },
   modalOverlay: {
     flex: 1,

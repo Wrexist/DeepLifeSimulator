@@ -3068,6 +3068,276 @@ const friendDistant: EventTemplate = {
   }),
 };
 
+// ── MP11: three connected story arcs (2026-09-19) ───────────────────────────
+// Each arc is ONE setup with two viable responses, a delayed consequence per
+// response, and an aftermath the sequel narrates. Authored entirely through the
+// declarative `followUpEventId` API, so every one is life-salted and
+// replay-stable by construction (the selector seeds on life + week). Sequels
+// are weight 0 (they can never fire at random), the setups are `oncePerLife`
+// (an arc is a story the life lived, not a loop), and outcomes use the seeded
+// `payloadRoll` rather than Math.random.
+
+// Arc 1 - work pressure. The manager offers a stretch project.
+const workStretchProject: EventTemplate = {
+  id: 'work_stretch_project',
+  category: 'general',
+  weight: 0.35,
+  oncePerLife: true,
+  condition: (state) => !!state.currentJob && weeksInThisLife(state) >= 12,
+  generate: () => ({
+    id: 'work_stretch_project',
+    description:
+      'Your manager pulls you aside: there is a stretch project, the kind that eats evenings for a month, and everyone knows who leads it gets noticed.',
+    choices: [
+      {
+        id: 'take',
+        text: 'Take it on',
+        effects: { stats: { energy: -8, happiness: -4 } },
+        followUpEventId: 'stretch_project_result',
+        followUpDelayWeeks: 4,
+      },
+      {
+        id: 'decline',
+        text: 'Protect your evenings',
+        effects: { stats: { happiness: 4 } },
+        followUpEventId: 'stretch_project_passed',
+        followUpDelayWeeks: 4,
+      },
+    ],
+  }),
+};
+
+const stretchProjectResult: EventTemplate = {
+  id: 'stretch_project_result',
+  category: 'general',
+  weight: 0,
+  generate: (state) => {
+    const roll = payloadRoll(state, 'stretch_project_result');
+    if (roll('outcome') < 0.7) {
+      return {
+        id: 'stretch_project_result',
+        description:
+          'The stretch project landed. Your name was in the room when it was praised, and the long evenings look like an investment after all.',
+        choices: [
+          { id: 'press', text: 'Ask for more responsibility', effects: { stats: { reputation: 8, happiness: 6 } } },
+          { id: 'recover', text: 'Bank the win and recover', effects: { stats: { happiness: 8, energy: 6 } } },
+        ],
+      };
+    }
+    return {
+      id: 'stretch_project_result',
+      description:
+        'The stretch project slipped past its date. Nobody blames you outright, but the evenings were spent and the shine has worn off.',
+      choices: [
+        { id: 'own_it', text: 'Own the miss and reset', effects: { stats: { reputation: 3, happiness: -4 } } },
+        { id: 'deflect', text: 'Point at the timeline', effects: { stats: { reputation: -5, happiness: -3 } } },
+      ],
+    };
+  },
+};
+
+const stretchProjectPassed: EventTemplate = {
+  id: 'stretch_project_passed',
+  category: 'general',
+  weight: 0,
+  generate: (state) => {
+    const roll = payloadRoll(state, 'stretch_project_passed');
+    if (roll('outcome') < 0.6) {
+      return {
+        id: 'stretch_project_passed',
+        description:
+          'A colleague led the stretch project and got the recognition. You kept your evenings; they kept the credit.',
+        choices: [
+          { id: 'refocus', text: 'Pick a project you actually want', effects: { stats: { happiness: 6 } } },
+          { id: 'sour', text: 'Let it rankle', effects: { stats: { happiness: -5, reputation: -2 } } },
+        ],
+      };
+    }
+    return {
+      id: 'stretch_project_passed',
+      description:
+        'The colleague who took the project burned out by the end of it. Your evenings look like the better trade.',
+      choices: [
+        { id: 'reconnect', text: 'Check in on them', effects: { stats: { happiness: 5, reputation: 3 } } },
+        { id: 'quiet', text: 'Stay out of it', effects: { stats: { happiness: 2 } } },
+      ],
+    };
+  },
+};
+
+// Arc 2 - partner and family plans.
+const familyPlanTalk: EventTemplate = {
+  id: 'family_plan_talk',
+  category: 'relationship',
+  weight: 0.3,
+  oncePerLife: true,
+  condition: (state) =>
+    weeksInThisLife(state) >= 20 && (state.relationships ?? []).some((r) => r.type === 'partner'),
+  generate: (state) => {
+    const partner = (state.relationships ?? []).find((r) => r.type === 'partner');
+    if (!partner) {
+      return {
+        id: 'family_plan_talk',
+        description: 'You think about what the next few years should hold.',
+        choices: [{ id: 'wait', text: 'Continue', effects: {} }],
+      };
+    }
+    return {
+      id: 'family_plan_talk',
+      description: `${partner.name} brings up the future - a place of your own, maybe a family - and asks where you actually see this going.`,
+      relationId: partner.id,
+      choices: [
+        {
+          id: 'plan',
+          text: 'Plan it together',
+          effects: { relationship: 10, stats: { happiness: 7 } },
+          followUpEventId: 'family_plan_followthrough',
+          followUpDelayWeeks: 6,
+        },
+        {
+          id: 'not_yet',
+          text: 'Not yet - keep it open',
+          effects: { relationship: -8, stats: { happiness: -3 } },
+          followUpEventId: 'family_plan_wait',
+          followUpDelayWeeks: 6,
+        },
+      ],
+    };
+  },
+};
+
+const familyPlanFollowthrough: EventTemplate = {
+  id: 'family_plan_followthrough',
+  category: 'relationship',
+  weight: 0,
+  generate: (state) => {
+    const roll = payloadRoll(state, 'family_plan_followthrough');
+    if (roll('outcome') < 0.6) {
+      return {
+        id: 'family_plan_followthrough',
+        description:
+          'You and your partner start looking at places together. It is a lot of money, and the first time the plan feels real.',
+        choices: [
+          { id: 'commit', text: 'Commit to the plan', effects: { relationship: 8, stats: { happiness: 6 } } },
+          { id: 'slow', text: 'One step at a time', effects: { relationship: 3, stats: { happiness: 3 } } },
+        ],
+      };
+    }
+    return {
+      id: 'family_plan_followthrough',
+      description:
+        'The plan hits its first real cost sooner than either of you expected, and the conversation gets sharp.',
+      choices: [
+        { id: 'honest', text: 'Be honest about the numbers', effects: { relationship: 6, stats: { happiness: -2 } } },
+        { id: 'avoid', text: 'Change the subject', effects: { relationship: -5, stats: { happiness: -3 } } },
+      ],
+    };
+  },
+};
+
+const familyPlanWait: EventTemplate = {
+  id: 'family_plan_wait',
+  category: 'relationship',
+  weight: 0,
+  generate: (state) => {
+    const roll = payloadRoll(state, 'family_plan_wait');
+    if (roll('outcome') < 0.5) {
+      return {
+        id: 'family_plan_wait',
+        description:
+          'Your partner gave you the time you asked for. They bring it up again, gently, because it has not gone away.',
+        choices: [
+          { id: 'revisit', text: 'Revisit it properly', effects: { relationship: 6, stats: { happiness: 4 } } },
+          { id: 'stall', text: 'Stall again', effects: { relationship: -6, stats: { happiness: -4 } } },
+        ],
+      };
+    }
+    return {
+      id: 'family_plan_wait',
+      description:
+        'Your partner stops bringing it up. The quiet is not agreement, and you both know it.',
+      choices: [
+        { id: 'repair', text: 'Start the conversation yourself', effects: { relationship: 7, stats: { happiness: 3 } } },
+        { id: 'drift', text: 'Let it drift', effects: { relationship: -8, stats: { happiness: -5 } } },
+      ],
+    };
+  },
+};
+
+// Arc 3 - a business / creator opportunity.
+const sideProjectOffer: EventTemplate = {
+  id: 'side_project_offer',
+  category: 'economy',
+  weight: 0.3,
+  oncePerLife: true,
+  condition: (state) => (state.stats?.money ?? 0) >= 500 && weeksInThisLife(state) >= 16,
+  generate: () => ({
+    id: 'side_project_offer',
+    description:
+      'A friend who runs a small studio asks if you want in on a side project - a few hundred to start, and a share if it works.',
+    choices: [
+      {
+        id: 'invest',
+        text: 'Put in $500',
+        effects: { money: -500, stats: { happiness: 3 } },
+        followUpEventId: 'side_project_result',
+        followUpDelayWeeks: 5,
+      },
+      {
+        id: 'pass',
+        text: 'Pass - not your money to risk',
+        effects: { stats: { happiness: 1 } },
+        followUpEventId: 'side_project_elsewhere',
+        followUpDelayWeeks: 5,
+      },
+    ],
+  }),
+};
+
+const sideProjectResult: EventTemplate = {
+  id: 'side_project_result',
+  category: 'economy',
+  weight: 0,
+  generate: (state) => {
+    const roll = payloadRoll(state, 'side_project_result');
+    if (roll('outcome') < 0.45) {
+      return {
+        id: 'side_project_result',
+        description:
+          'The side project found its audience. Your share lands, and the studio wants to talk about the next one.',
+        choices: [
+          { id: 'reinvest', text: 'Reinvest for a bigger share', effects: { money: -300, stats: { reputation: 5 } } },
+          { id: 'take', text: 'Take the payout and the lesson', effects: { money: 1400, stats: { happiness: 6 } } },
+        ],
+      };
+    }
+    return {
+      id: 'side_project_result',
+      description:
+        'The side project went quiet. The studio returns half your stake and a lesson about who does the work.',
+      choices: [
+        { id: 'learn', text: 'Take it as tuition', effects: { money: 250, stats: { reputation: 3 } } },
+        { id: 'push', text: 'Push them to finish it', effects: { money: 100, relationship: -5, stats: { happiness: -4 } } },
+      ],
+    };
+  },
+};
+
+const sideProjectElsewhere: EventTemplate = {
+  id: 'side_project_elsewhere',
+  category: 'economy',
+  weight: 0,
+  generate: () => ({
+    id: 'side_project_elsewhere',
+    description:
+      'The studio went with someone else. Months later you see their work in a feed everyone you know is watching.',
+    choices: [
+      { id: 'start', text: 'Start your own version', effects: { money: -200, stats: { happiness: 5, energy: -5 } } },
+      { id: 'shrug', text: 'Shrug and move on', effects: { stats: { happiness: 1 } } },
+    ],
+  }),
+};
+
 export const eventTemplates: EventTemplate[] = [
   // Life-Moment Payoff Events (self-gated; fire once when their setup unlocks them)
   streetMusicianFriend,
@@ -3103,6 +3373,17 @@ export const eventTemplates: EventTemplate[] = [
   weddingEvent,
   honeymoonGlow, // weight 0 - sequel-only (wedding "marry")
   partnerCools, // weight 0 - sequel-only (wedding "wait")
+  // MP11 arcs (2026-09-19): setup (weighted, oncePerLife) + two weight-0
+  // sequels each. See the arc block above for the design.
+  workStretchProject,
+  stretchProjectResult, // weight 0 - sequel-only (work_stretch_project "take")
+  stretchProjectPassed, // weight 0 - sequel-only (work_stretch_project "decline")
+  familyPlanTalk,
+  familyPlanFollowthrough, // weight 0 - sequel-only (family_plan_talk "plan")
+  familyPlanWait, // weight 0 - sequel-only (family_plan_talk "not_yet")
+  sideProjectOffer,
+  sideProjectResult, // weight 0 - sequel-only (side_project_offer "invest")
+  sideProjectElsewhere, // weight 0 - sequel-only (side_project_offer "pass")
   schoolFees,
   reportCard, // weight 0 - sequel-only (school_fees "pay")
   carBreakdown,

@@ -81,7 +81,7 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
   const keyExtractor = useCallback((item: LogEntry) => item.id, []);
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Log Viewer</Text>

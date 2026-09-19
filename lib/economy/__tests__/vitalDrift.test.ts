@@ -101,7 +101,7 @@ describe('the fresh quick start is told the whole truth', () => {
   });
 
   it('never throws on a malformed state and reports rest for energy', () => {
-    const broken = { ...createTestGameState(), careers: undefined, items: undefined, stats: undefined } as unknown as GameState;
+    const broken = { ...createTestGameState(), careers: undefined, items: undefined, stats: undefined } as unknown as Parameters<typeof projectWeeklyVitalDrift>[0];
     const drift = projectWeeklyVitalDrift(broken);
     expect(drift.causes.some((c) => c.id === 'decay')).toBe(true);
     expect(drift.causes.find((c) => c.id === 'rest')?.energy).toBeGreaterThan(0);

@@ -3207,8 +3207,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
+ // R7 Phase 2 step 2.8-B / MP13: classify the completed life (ribbon) and pay
+ // any non-wealth capstone legacy bonus. Hoisted so `legacyPoints` below can
+ // include the bonus - that field is assigned after the partial is spread.
+ const deathRibbon = applyDeathRibbon({
+ prevState,
+ newStats,
+ nextWeeksLived,
+ newShowDeathPopup,
+ });
+
  let nextState: GameState = {
-...prevState,
+ ...prevState,
  // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
  // just flipped to complete - see updatedAchievements above).
  achievements: updatedAchievements,
@@ -3265,15 +3275,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showDeathPopup: newShowDeathPopup,
  deathReason: newDeathReason,
  // R7 Phase 2 step 2.8-B: death ribbon extracted into
- // ./actions/weekly/applyDeathRibbon.ts. Same edge detection
- // (newShowDeathPopup && !prevState.showDeathPopup), same classify +
- // collection-merge, same try/catch swallow.
-...applyDeathRibbon({
-   prevState,
-   newStats,
-   nextWeeksLived,
-   newShowDeathPopup,
- }).partial,
+ // ./actions/weekly/applyDeathRibbon.ts. Same edge detection, same classify +
+ // collection-merge. Its `legacyBonus` (MP13 non-wealth capstones) is folded
+ // into `legacyPoints` below, since that field is assigned after this spread.
+ ...deathRibbon.partial,
  showWeddingPopup: newShowWeddingPopup,
  weddingPartnerName: newWeddingPartnerName,
  // CRITICAL: Cap energy to 0-100 after all calculations (regen + penalties)
@@ -3530,7 +3535,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Engagement Systems
  playStreak: updatedPlayStreak,
  weekResult,
- legacyPoints: newLegacyPoints,
+ legacyPoints: newLegacyPoints + deathRibbon.legacyBonus,
  // Consecutive weeks under the poverty line - gates the scholarship recovery
  // event. Nothing wrote this field before 2026-08-14.
  weeksInPoverty: nextWeeksInPoverty,

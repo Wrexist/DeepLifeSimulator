@@ -218,7 +218,7 @@ describe('the counters stay null-safe', () => {
         // DELIBERATE-CORRUPTION: this test proves the accessor survives a
         // stripped/partial state, so it must construct garbage a factory
         // cannot produce.
-        const v = spec.current(gs as GameState);
+        const v = spec.current(gs as Parameters<typeof spec.current>[0]);
         expect(Number.isFinite(v)).toBe(true);
         expect(v).toBeGreaterThanOrEqual(0);
       }

@@ -30,7 +30,6 @@
  */
 import { runPersona, type SimPolicy, type SimWeekContext, type SimResult } from '../helpers/earlyGameSim';
 import { SOCIAL_PERSONAS } from '../helpers/socialPersonas';
-import type { GameState } from '@/contexts/game/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveQueue } from '@/utils/saveQueue';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
@@ -77,7 +76,7 @@ async function runOnce(name: string, snaps: Record<string, string>[]): Promise<S
   const inner = spec.make();
   const policy: SimPolicy = async (ctx: SimWeekContext) => {
     await inner(ctx);
-    snaps.push(flatten(ctx.state() as unknown as GameState));
+    snaps.push(flatten(ctx.state()));
   };
   return runPersona({ name: 'repro', scenarioId: spec.scenarioId, seed: 1, weeks: WEEKS, policy });
 }

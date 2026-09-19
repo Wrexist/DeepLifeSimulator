@@ -71,7 +71,7 @@ describe('the signing week is not charged twice', () => {
       // DELIBERATE-CORRUPTION: `startedWeek` is required on the v32 shape, so
       // the pre-v32 save this test exists to cover cannot be expressed without
       // the cast — the missing field IS the fixture.
-      rental: { tierId: TIER.id } as GameState['rental'],
+      rental: { tierId: TIER.id } as NonNullable<GameState['rental']>,
     });
     expect(run(state).result.rent).toBe(TIER.weeklyRent);
   });

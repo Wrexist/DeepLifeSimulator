@@ -99,6 +99,9 @@ describe('getActiveScenarioProgress', () => {
   });
 
   it('never throws on a malformed state', () => {
+    // DELIBERATE-CORRUPTION - a truncated save really carries a null stats bag;
+    // the test proves getActiveScenarioProgress survives it, so it must be able
+    // to construct the garbage rather than assert the shape.
     const broken = { scenarioId: 'rags_to_riches', stats: null } as unknown as GameState;
     expect(() => getActiveScenarioProgress(broken)).not.toThrow();
   });

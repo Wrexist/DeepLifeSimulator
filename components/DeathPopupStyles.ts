@@ -224,6 +224,12 @@ export function createStyles(darkMode: boolean) {
       lineHeight: fontScale(17),
       color: c.textSecondary,
     },
+    // MP13: the completed non-wealth capstones, named under the ribbon.
+    capstoneLine: {
+      marginTop: scale(6),
+      color: '#6EE7B7',
+      fontWeight: '600',
+    },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',

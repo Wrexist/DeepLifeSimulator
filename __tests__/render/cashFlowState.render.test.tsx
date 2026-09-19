@@ -5,6 +5,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { LUXURY_CATALOG } from '@/lib/luxury/catalog';
+import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -87,6 +88,68 @@ describe('cash flow receives and refreshes its real state inputs', () => {
     s.update({ ...initial, isRetired: true, pensionWeekly: 500 });
     expect(s.text()).toContain('Retirement Pension: $500');
     s.close();
+  });
+
+  it('shows standing arrears, which the tick settles before this week bills', () => {
+    const b = createTestGameState({ educations: [], loans: [], realEstate: [] });
+    const totalOf = (t: string) => /Total Expenses: (\$[\d,]+)/.exec(t)?.[1];
+
+    const debt = render({ ...b, overdueBalance: 400, stats: { ...b.stats, money: 5000 } });
+    const debtText = debt.text();
+    expect(debtText).toContain('Arrears (old debt): $400');
+    const debtTotal = totalOf(debtText);
+    debt.close();
+
+    const clean = render(b);
+    const cleanTotal = totalOf(clean.text());
+    clean.close();
+
+    // The arrears reach the CASH total, not just the breakdown row.
+    expect(debtTotal).toBeDefined();
+    expect(debtTotal).not.toBe(cleanTotal);
+  });
+
+  it('labels projected real-estate income as an occupancy-dependent estimate', () => {
+    // The tick pays REALIZED tenant rent (cycle variance, carrying costs,
+    // multipliers) through `runRealEstateWeeklyTick`; this card can only show
+    // the deterministic list-rent base. It must say so, not present the base as
+    // the exact figure the week will credit.
+    const base = createTestGameState();
+    const rented = {
+      ...RESIDENTIAL_CATALOG[0],
+      owned: true,
+      status: 'rented' as const,
+      rent: 1500,
+      upkeep: 300,
+    };
+    const s = render({ ...base, realEstate: [rented] });
+    const text = s.text();
+    expect(text).toContain('Real Estate:');
+    expect(text).toMatch(/estimate/i);
+    s.close();
+  });
+
+  it('bills warehouse mining power from mined crypto, not cash', () => {
+    // MP08: the tick deducts this inside `applyMiningCryptos`, so the wallet
+    // total must match the identical life with no miners — while the line stays
+    // visible and says where it is paid from.
+    const base = createTestGameState({ realEstate: [], educations: [], loans: [] });
+    const withMiners: GameState = { ...base, warehouse: { level: 1, miners: { basic: 10 } } };
+    const totalOf = (t: string) => /Total Expenses: (\$[\d,]+)/.exec(t)?.[1];
+
+    const miner = render(withMiners);
+    const minerText = miner.text();
+    expect(minerText).toContain('Mining Power (paid from mined crypto):');
+    expect(minerText).not.toContain('Mining Power Costs:');
+    const minerTotal = totalOf(minerText);
+    miner.close();
+
+    const none = render(base);
+    const noneTotal = totalOf(none.text());
+    none.close();
+
+    expect(minerTotal).toBeDefined();
+    expect(minerTotal).toBe(noneTotal);
   });
 
   it('uses the paid work boost and withholds payroll while jailed', () => {

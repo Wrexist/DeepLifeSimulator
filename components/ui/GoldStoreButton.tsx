@@ -24,7 +24,7 @@
  * both entirely and leaves the gold, which is the part that does the work.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Animated, Easing, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Store } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -166,6 +166,7 @@ const styles = StyleSheet.create({
     width: scale(10),
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
+
 });
 
 export default React.memo(GoldStoreButton);

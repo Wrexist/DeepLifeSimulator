@@ -33,11 +33,7 @@ import { unlockTier } from '@/lib/progress/featureUnlocks';
 
 /** A life `n` weeks in. `lifeStartWeek` pins the baseline (CLAUDE.md §4.2). */
 function lifeAt(n: number, patch: Partial<GameState> = {}): GameState {
-  return {
-    ...createTestGameState({ weeksLived: n }),
-    lifeStartWeek: 0,
-    ...patch,
-  } as GameState;
+  return createTestGameState({ weeksLived: n, lifeStartWeek: 0, ...patch });
 }
 
 describe('somebody is around, on a schedule the save does not store', () => {

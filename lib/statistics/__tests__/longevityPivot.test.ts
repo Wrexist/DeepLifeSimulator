@@ -41,7 +41,7 @@ describe('longevityPivot', () => {
   });
 
   it('degrades to the historical 80 on a state the model cannot read', () => {
-    expect(longevityPivot(null as unknown as GameState)).toBe(80);
+    expect(longevityPivot(null as never)).toBe(80);
   });
 
   it('reads the same model the Statistics app displays', () => {

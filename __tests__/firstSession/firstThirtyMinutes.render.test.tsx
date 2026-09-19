@@ -39,7 +39,7 @@ function Seed({ mutate, children }: { mutate: (s: GameState) => GameState; child
 
 /** Prints one state field into the tree so a render test can read it back. */
 function Probe({ pick }: { pick: (s: GameState) => unknown }) {
-  const value = useGameSelector((s) => JSON.stringify(pick(s as GameState) ?? null));
+  const value = useGameSelector((s) => JSON.stringify(pick(s) ?? null));
   return <>{`probe:${value}`}</>;
 }
 

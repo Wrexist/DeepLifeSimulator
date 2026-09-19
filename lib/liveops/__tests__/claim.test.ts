@@ -55,7 +55,7 @@ describe('the double-tap guard', () => {
     expect(first.ok).toBe(true);
     if (!first.ok) return;
 
-    const afterFirst = { ...completedState(), ...first.patch } as GameState;
+    const afterFirst = { ...completedState(), ...first.patch };
     const second = applyLiveEventClaim(afterFirst, event(), context, NOW);
 
     expect(second).toEqual({ ok: false, reason: 'already_claimed' });
@@ -70,9 +70,9 @@ describe('the double-tap guard', () => {
     if (!first.ok) return;
 
     // Round-trip through JSON, as a save does.
-    const reloaded = JSON.parse(
+    const reloaded: GameState = JSON.parse(
       JSON.stringify({ ...completedState(), ...first.patch }),
-    ) as GameState;
+    );
 
     expect(applyLiveEventClaim(reloaded, event(), context, NOW)).toEqual({
       ok: false,
@@ -86,7 +86,7 @@ describe('the clock', () => {
     const first = applyLiveEventClaim(completedState(), event(), context, NOW);
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    const after = { ...completedState(), ...first.patch } as GameState;
+    const after = { ...completedState(), ...first.patch };
 
     // Back to the very start of the window.
     const earlier = Date.parse('2026-06-01T00:00:01Z');
@@ -100,7 +100,7 @@ describe('the clock', () => {
     // Objectives read game state. Moving to the middle of the window with the
     // objective unmet is still not claimable, whatever the clock says.
     const base = createTestGameState();
-    const unmet = { ...base, stats: { ...base.stats, reputation: 0 } } as GameState;
+    const unmet = { ...base, stats: { ...base.stats, reputation: 0 } };
     expect(applyLiveEventClaim(unmet, event(), context, NOW)).toEqual({
       ok: false,
       reason: 'not_claimable',
@@ -121,7 +121,7 @@ describe('the clock', () => {
 
     // Incomplete: the grace extends the CLAIM, never the work.
     const base = createTestGameState();
-    const unmet = { ...base, stats: { ...base.stats, reputation: 0 } } as GameState;
+    const unmet = { ...base, stats: { ...base.stats, reputation: 0 } };
     expect(applyLiveEventClaim(unmet, graced, context, justAfter)).toEqual({
       ok: false,
       reason: 'not_claimable',
@@ -142,7 +142,7 @@ describe('the rolling budget', () => {
       ...spent,
       stats: { ...spent.stats, reputation: 50 },
       liveOps: { budget: [{ at: NOW - 1000, value: WEEKLY_BUDGET_GEMS - 10 }] },
-    } as GameState;
+    };
 
     expect(applyLiveEventClaim(nearlyFull, event(), context, NOW)).toEqual({
       ok: false,
@@ -156,7 +156,7 @@ describe('the rolling budget', () => {
       ...base,
       stats: { ...base.stats, reputation: 50 },
       liveOps: { budget: [{ at: NOW - 8 * 24 * 60 * 60 * 1000, value: WEEKLY_BUDGET_GEMS }] },
-    } as GameState;
+    };
     expect(applyLiveEventClaim(state, event(), context, NOW).ok).toBe(true);
   });
 
@@ -169,7 +169,7 @@ describe('the rolling budget', () => {
       ...base,
       stats: { ...base.stats, reputation: 50 },
       liveOps: { budget: [{ at: NOW + 5 * 24 * 60 * 60 * 1000, value: WEEKLY_BUDGET_GEMS }] },
-    } as GameState;
+    };
     expect(applyLiveEventClaim(state, event(), context, NOW)).toEqual({
       ok: false,
       reason: 'budget_exhausted',
@@ -214,7 +214,7 @@ describe('what a claim writes', () => {
     // Overflow to Infinity makes validateGameState treat the save as critical
     // and RESET money to 0 on the next load - worse than capping.
     const base = completedState();
-    const rich = { ...base, stats: { ...base.stats, money: Number.MAX_SAFE_INTEGER } } as GameState;
+    const rich = { ...base, stats: { ...base.stats, money: Number.MAX_SAFE_INTEGER } };
     const cash = event({ rewards: [{ kind: 'cash', amount: 25_000 }] });
     const result = applyLiveEventClaim(rich, cash, context, NOW);
     expect(result.ok).toBe(true);
@@ -238,7 +238,7 @@ describe('robustness', () => {
   it('never throws on a malformed save', () => {
     for (const bad of [null, undefined, {}, { stats: null }]) {
       expect(() =>
-        applyLiveEventClaim(bad as unknown as GameState, event(), context, NOW),
+        applyLiveEventClaim(bad as never, event(), context, NOW),
       ).not.toThrow();
     }
   });
@@ -261,7 +261,7 @@ describe('applyLiveEventSeen', () => {
     const patch = applyLiveEventSeen(state, event(), 40);
     expect(patch?.liveOps?.seenInstanceIds).toContain(instanceId(event()));
 
-    const after = { ...state, ...patch } as GameState;
+    const after = { ...state, ...patch };
     expect(applyLiveEventSeen(after, event(), 40)).toBeNull();
   });
 
@@ -281,7 +281,7 @@ describe('the open-then-claim path (the one the UI actually performs)', () => {
     // refused the instance in the player's hand. Open the card, read the brief,
     // tap Collect, get told no.
     const state = completedState();
-    const opened = { ...state, ...applyLiveEventSeen(state, event(), 40) } as GameState;
+    const opened = { ...state, ...applyLiveEventSeen(state, event(), 40) };
     expect(applyLiveEventClaim(opened, event(), context, NOW).ok).toBe(true);
   });
 
@@ -293,7 +293,7 @@ describe('the open-then-claim path (the one the UI actually performs)', () => {
     const seenRecently = {
       ...base,
       liveOps: { lastSeenWeek: { test_event: 39 }, seenInstanceIds: [] },
-    } as GameState;
+    };
     expect(applyLiveEventClaim(seenRecently, laterRun, context, NOW)).toEqual({
       ok: false,
       reason: 'not_claimable',

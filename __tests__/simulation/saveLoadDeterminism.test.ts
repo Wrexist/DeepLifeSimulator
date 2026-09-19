@@ -127,8 +127,8 @@ d('a save round trip does not change the life', () => {
       const reloaded = await run(name, WEEKS - SPLIT, roundTrip(first.finalState));
 
       const diffs = differences(
-        flatten(straight.finalState as unknown as GameState),
-        flatten(reloaded.finalState as unknown as GameState),
+        flatten(straight.finalState),
+        flatten(reloaded.finalState),
       );
       expect(diffs).toEqual([]);
     });
@@ -137,8 +137,8 @@ d('a save round trip does not change the life', () => {
   it('the round trip itself preserves every field the simulation reads', async () => {
     const lived = await run('CASUAL SOCIAL', SPLIT);
     const diffs = differences(
-      flatten(lived.finalState as unknown as GameState),
-      flatten(roundTrip(lived.finalState) as unknown as GameState),
+      flatten(lived.finalState),
+      flatten(roundTrip(lived.finalState)),
     );
     // Anything here is a field written to disk and lost (or rewritten) on the
     // way back in - the defect class CLAUDE.md §7 calls out by name.

@@ -594,10 +594,10 @@ describe('the save story for `dynasty` (v36 carve-out)', () => {
       { dynasty: { vaultItemIds: 'nope', endowments: 7, seatWings: [1, null], trials: 'nope' } },
     ];
     for (const bad of junk) {
-      // Typed against the accessor's OWN parameter rather than `as GameState`.
+      // Typed against the accessor's OWN parameter rather than a whole-state cast.
       // The cast is legitimate here - the point is malformed input, which a
       // factory cannot produce - but Hard Rule #3's guard rightly flags the
-      // `as GameState` shape, and this says what we mean more precisely: these
+      // whole-state cast shape, and this says what we mean more precisely: these
       // functions claim to tolerate anything their signature admits.
       const s = bad as Parameters<typeof vaultItemIds>[0];
       expect(() => [

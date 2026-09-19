@@ -346,8 +346,20 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
     return projected + luxuryYield;
   }, [gameState, jobPay, passiveInfo, luxuryYield, retirementIncome]);
 
+  // MP08: warehouse mining power is deducted from mined crypto by the tick
+  // (`applyMiningCryptos`), so it never leaves `stats.money`. It is an economic
+  // cost, not a cash debit. The wallet forecast (and the Cash Flow beneath it)
+  // opts it out, while the breakdown row below still names it, labelled for
+  // what it is. Company miner power is already netted inside passive income.
+  // `includeArrears`: the tick settles standing old debt FIRST out of
+  // cash + income (`applyArrears`), so the wallet forecast must show it or the
+  // Cash Flow below reads healthier than the week will actually be.
   const expenseInfo = useMemo(
-    () => calcWeeklyExpenses(gameState, projectedIncome),
+    () =>
+      calcWeeklyExpenses(gameState, projectedIncome, {
+        excludeMiningPower: true,
+        includeArrears: true,
+      }),
     [gameState, projectedIncome]
   );
 
@@ -831,9 +843,25 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           {passiveInfo.breakdown.realEstate > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Home size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                  Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
+                </Text>
+                {/* MP08: this line is the deterministic list-rent base. The tick
+                    pays REALIZED tenant rent (occupancy, cycle variance, carrying
+                    costs) through `runRealEstateWeeklyTick`, so the week's actual
+                    figure can differ. Label the estimate rather than implying
+                    parity the projection cannot have. */}
+                <Text
+                  style={[
+                    styles.modalSubText,
+                    isDarkMode && styles.modalSubTextDark,
+                    { fontSize: fontScale(11), opacity: 0.75 },
+                  ]}
+                >
+                  Estimate; actual rent varies with occupancy
+                </Text>
+              </View>
             </View>
           )}
           {passiveInfo.breakdown.companies > 0 && (
@@ -941,6 +969,18 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </Text>
           </View>
           
+          {/* Arrears, listed first because the tick pays them first. Standing
+              debt is settled off the top of cash + income before this week's
+              bills, so omitting it made the Cash Flow optimistic. */}
+          {expenseInfo.breakdown.arrears > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={scale(18)} color="#F59E0B" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Arrears (old debt): {formatMoney(expenseInfo.breakdown.arrears)}
+              </Text>
+            </View>
+          )}
+
           {/* Property Upkeep - Individual Properties */}
           {expenseInfo.breakdown.upkeep > 0 && (
             <>
@@ -1088,13 +1128,16 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </>
           )}
           
-          {/* Mining Power Costs - Individual Sources */}
+          {/* Mining Power, paid from mined crypto, not cash. The tick deducts
+              it inside `applyMiningCryptos`, so it is deliberately NOT in the
+              cash total above; it stays visible as an economic cost with an
+              explicit label rather than reading as an unpaid cash bill. */}
           {expenseInfo.breakdown.miningPower > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-                <Zap size={scale(18)} color="#EF4444" />
+                <Zap size={scale(18)} color="#F59E0B" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  Mining Power Costs: {formatMoney(expenseInfo.breakdown.miningPower)}
+                  Mining Power (paid from mined crypto): {formatMoney(expenseInfo.breakdown.miningPower)}
                 </Text>
               </View>
               {(() => {

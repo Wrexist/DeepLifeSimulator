@@ -32,7 +32,7 @@ const def = (o: Partial<LiveEventDefinition> = {}): LiveEventDefinition => ({
 
 const withRep = (reputation: number, extra: Partial<GameState> = {}): GameState => {
   const base = createTestGameState(extra);
-  return { ...base, stats: { ...base.stats, reputation } } as GameState;
+  return { ...base, stats: { ...base.stats, reputation } };
 };
 
 describe('resolveEvent', () => {
@@ -64,7 +64,7 @@ describe('resolveEvent', () => {
   });
 
   it('never throws on a malformed save', () => {
-    expect(() => resolveEvent(def(), {} as GameState, ctx(), NOW)).not.toThrow();
+    expect(() => resolveEvent(def(), {} as never, ctx(), NOW)).not.toThrow();
   });
 });
 

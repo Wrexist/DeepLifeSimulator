@@ -36,6 +36,13 @@ export interface ExpenseBreakdown {
   pets: number;
   /** In-game subscription renewals, charged by `applySubscriptions`. */
   subscriptions: number;
+  /**
+   * Standing old-debt settlement. `applyArrears` pays arrears off the top of
+   * cash + income BEFORE this week's bills, so a wallet forecast that omits it
+   * overstates spendable cash. Populated only when the caller opts in
+   * (`includeArrears`), so economic callers keep their existing totals.
+   */
+  arrears: number;
 }
 
 interface LoanLike {
@@ -55,6 +62,25 @@ export function calcWeeklyExpenses(
    * caller gets.
    */
   taxableIncome?: number,
+  /**
+   * MP08: a WALLET forecast must not bill cash for a cost the tick pays in
+   * crypto. Warehouse mining power is deducted from mined crypto by
+   * `applyMiningCryptos`, so it never leaves `stats.money`. The economic cost
+   * still belongs in `breakdown.miningPower` for financial-independence and
+   * net-worth views, but `excludeMiningPower` takes it out of the CASH total.
+   * Default (unset) keeps every cost in the total, so existing callers are
+   * unchanged.
+   */
+  opts?: {
+    excludeMiningPower?: boolean;
+    /**
+     * MP08: include the standing arrears the tick settles first out of
+     * cash + income. Capped at what is actually available, matching
+     * `applyArrears`. Off by default so financial-independence and other
+     * economic callers are byte-identical to before.
+     */
+    includeArrears?: boolean;
+  },
 ): { total: number; breakdown: ExpenseBreakdown } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
@@ -241,9 +267,32 @@ export function calcWeeklyExpenses(
     const safeIncomeTax = isFinite(incomeTaxCost) && incomeTaxCost >= 0 ? incomeTaxCost : 0;
     const safePropertyTax = isFinite(propertyTax) && propertyTax >= 0 ? propertyTax : 0;
     
-    const total = safeUpkeep + safePropertyTax + safeLoanPayments + safeMiningPowerCosts
+    // Old arrears, settled first out of cash + income by `applyArrears`, capped
+    // at what is available exactly as that function caps it.
+    let arrearsCost = 0;
+    if (opts?.includeArrears) {
+      const overdue =
+        typeof state.overdueBalance === 'number' && Number.isFinite(state.overdueBalance)
+          ? Math.max(0, state.overdueBalance)
+          : 0;
+      const cashOnHand =
+        typeof state.stats?.money === 'number' && Number.isFinite(state.stats.money)
+          ? Math.max(0, state.stats.money)
+          : 0;
+      const incomeForSettlement =
+        typeof taxableIncome === 'number' && Number.isFinite(taxableIncome) && taxableIncome > 0
+          ? taxableIncome
+          : 0;
+      arrearsCost = Math.min(overdue, cashOnHand + incomeForSettlement);
+    }
+    const safeArrears = isFinite(arrearsCost) && arrearsCost >= 0 ? arrearsCost : 0;
+
+    // Warehouse power is paid from mined crypto, not cash, so a wallet forecast
+    // opts it out of the total (the line stays in `breakdown.miningPower`).
+    const miningPowerForCashTotal = opts?.excludeMiningPower ? 0 : safeMiningPowerCosts;
+    const total = safeUpkeep + safePropertyTax + safeLoanPayments + miningPowerForCashTotal
       + safeVehicleCosts + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax
-      + safeLuxury + safePets + safeSubscriptions;
+      + safeLuxury + safePets + safeSubscriptions + safeArrears;
     
     // CRITICAL: Final validation - ensure total is always valid
     const safeTotal = isFinite(total) && total >= 0 ? total : 0;
@@ -263,6 +312,7 @@ export function calcWeeklyExpenses(
         luxury: safeLuxury,
         pets: safePets,
         subscriptions: safeSubscriptions,
+        arrears: safeArrears,
       } 
     };
   } catch (error) {
@@ -283,6 +333,7 @@ export function calcWeeklyExpenses(
         luxury: 0,
         pets: 0,
         subscriptions: 0,
+        arrears: 0,
       },
     };
   }

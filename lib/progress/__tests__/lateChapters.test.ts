@@ -9,7 +9,7 @@
  */
 import { LIFE_CHAPTERS, getActiveChapter, getChapterProgress } from '../lifeChapters';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
 
 const chapter = (id: string) => {
   const found = LIFE_CHAPTERS.find((c) => c.id === id);
@@ -65,7 +65,7 @@ describe('chapters 6-7', () => {
           level: 1, description: '', requirements: {} as never, progress: 100, applied: true, accepted: true },
       ] as never,
     });
-    s.lifetimeStatistics = { ...s.lifetimeStatistics, peakNetWorth: 1_500_000 } as GameState['lifetimeStatistics'];
+    s.lifetimeStatistics = { ...s.lifetimeStatistics, peakNetWorth: 1_500_000 } as LifetimeStatistics;
     const progress = getChapterProgress(chapter('ch6_established'), s);
     expect(progress.isComplete).toBe(true);
   });

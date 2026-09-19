@@ -49,7 +49,7 @@ describe('campaign() approval-refund loop is closed', () => {
       lobbyists: [],
       alliances: [],
       campaignFunds: 1_000, // pre-existing party money stays untouched
-    } as GameState['politics'];
+    };
 
     const { box, setGameState } = harness(state);
     const r = campaign(box.state, setGameState as never, 5_000, { updateMoney });
@@ -104,7 +104,7 @@ describe('educationAnyOf routes', () => {
     s.educations = educationIds.map(id => ({
       id, name: id, description: '', cost: 1, duration: 1, completed: true,
     }));
-    s.items = itemIds.map(id => ({ id, name: id, price: 0, owned: true })) as GameState['items'];
+    s.items = itemIds.map(id => ({ id, name: id, price: 0, owned: true }));
     return s;
   };
 

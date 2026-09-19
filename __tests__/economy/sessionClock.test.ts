@@ -23,8 +23,7 @@ const DAY = 24 * HOUR;
 const NOW = 1_800_000_000_000;
 
 function stateWithLastLogin(lastLogin: number | undefined): GameState {
-  const base = createTestGameState();
-  return { ...base, lastLogin } as GameState;
+  return createTestGameState({ lastLogin });
 }
 
 describe('refreshSessionClock', () => {

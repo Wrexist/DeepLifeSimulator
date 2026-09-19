@@ -122,7 +122,7 @@ describe('a save round trip cannot inflate it', () => {
     const saved: GameState = { ...base, relationships: [partner(RICHEST)] };
     const before = householdPartnerIncome(saved.relationships);
 
-    const migrated = runMigrations(JSON.parse(JSON.stringify(saved))).state as GameState;
+    const migrated: GameState = runMigrations(JSON.parse(JSON.stringify(saved))).state;
     const repaired = { ...migrated };
     repairGameState(repaired);
     const merged: GameState = {

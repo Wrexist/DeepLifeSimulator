@@ -7,7 +7,7 @@
  * cannot be farmed.
  */
 import { createTestGameState } from '../helpers/createTestGameState';
-import type { GameState, Relationship } from '@/contexts/game/types';
+import type { Disease, GameState, Relationship } from '@/contexts/game/types';
 import {
   friendSupportEventTemplates,
   SUPPORT_BOND_COST,
@@ -35,7 +35,7 @@ function illAndBroke(bond = 85): GameState {
     ...base,
     stats: { ...base.stats, health: 30, money: 40 },
     bankSavings: 0,
-    diseases: [{ id: 'flu', name: 'Flu' }] as GameState['diseases'],
+    diseases: [{ id: 'flu', name: 'Flu' }] as Disease[],
     relationships: [friend(bond)],
   };
 }
@@ -259,7 +259,7 @@ describe('the states these are gated on are ones a life actually reaches', () =>
     const s: GameState = {
       ...base,
       stats: { ...base.stats, health: 40 },
-      diseases: [{ id: 'flu', name: 'Flu' }] as GameState['diseases'],
+      diseases: [{ id: 'flu', name: 'Flu' }] as Disease[],
       relationships: [friend(85)],
     };
     expect(byId('friend_gets_you_seen').condition!(s)).toBe(true);

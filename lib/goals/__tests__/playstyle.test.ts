@@ -79,7 +79,7 @@ describe('playstyleEmphasis', () => {
   });
 
   it('never crashes on a malformed state', () => {
-    const broken = { stats: null, companies: [null], relationships: [{}] } as unknown as GameState;
+    const broken = { stats: null, companies: [null], relationships: [{}] } as unknown as Parameters<typeof playstyleEmphasis>[0];
     const e = playstyleEmphasis(broken);
     for (const v of Object.values(e)) expect(Number.isFinite(v)).toBe(true);
   });

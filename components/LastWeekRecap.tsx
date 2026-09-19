@@ -161,12 +161,22 @@ function LastWeekRecap() {
           </View>
         )}
         {careerProgress > 0 && (
-          <View style={styles.badge}>
+          <TouchableOpacity
+            style={styles.badge}
+            onPress={() => router.push('/(tabs)/work')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={
+              careerProgress >= 100
+                ? 'Promotion ready, open Work'
+                : `Promotion ${careerProgress} percent, open Work`
+            }
+          >
             <Briefcase size={scale(11)} color="#60A5FA" />
             <Text style={styles.badgeCareer}>
               {careerProgress >= 100 ? 'Promotion ready' : `Promotion ${careerProgress}%`}
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
         {pendingEvents > 0 && (
           <View style={styles.badge}>

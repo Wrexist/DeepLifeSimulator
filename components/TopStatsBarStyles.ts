@@ -7,18 +7,6 @@ import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBor
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export const styles = StyleSheet.create({
- compactContainer: { flexDirection: 'column', gap: scale(4) },
- compactContent: { width: '100%' },
- utilityRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: scale(4) },
- metricsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: scale(4) },
- compactVitals: { width: '100%', justifyContent: 'space-between', marginTop: 0, marginBottom: 0, gap: scale(4) },
- compactVitalTouchable: { flexDirection: 'row', gap: scale(3), minHeight: scale(44), minWidth: scale(48), justifyContent: 'center' },
- currencyTouchable: { minHeight: scale(44), justifyContent: 'center' },
- compactMoneyRow: { width: 'auto', marginTop: 0, flexShrink: 1, minHeight: scale(44) },
- compactDateRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: scale(8) },
- compactDateInfo: { flex: 1, minWidth: 0 },
- compactDateInner: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: scale(8) },
- compactDateText: { fontSize: responsiveFontSize.sm, lineHeight: fontScale(18), fontWeight: '500', color: '#94A3B8' },
  container: {
  flexDirection:'row',
  justifyContent: 'space-between',
@@ -69,8 +57,6 @@ export const styles = StyleSheet.create({
  },
  generationRow: {
  flexDirection: 'row',
- flexWrap: 'wrap',
- flexShrink: 1,
  alignItems: 'center',
  marginBottom: responsiveSpacing.xs * 0.5,
  gap: responsiveSpacing.xs,
@@ -489,9 +475,10 @@ export const styles = StyleSheet.create({
  },
 
  quickActionsContainer: {
- position: 'relative',
- marginTop: scale(4),
- minWidth: scale(88),
+ position: 'absolute',
+ top: 40,
+ left: 0,
+ right: 0,
  backgroundColor: 'rgba(0, 0, 0, 0.95)',
  borderRadius: responsiveBorderRadius.md,
  padding: responsiveSpacing.sm,
@@ -501,7 +488,6 @@ export const styles = StyleSheet.create({
  marginBottom: responsiveSpacing.xs,
  },
  quickActionGradient: {
- minHeight: scale(44),
  flexDirection: 'row',
  alignItems: 'center',
  paddingHorizontal: responsiveSpacing.sm,

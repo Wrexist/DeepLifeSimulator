@@ -9,7 +9,7 @@
  */
 import { buildLifeTimeline, MAX_TIMELINE_ENTRIES } from '../lifeTimeline';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
 
 function livedState(): GameState {
   const s = createTestGameState({
@@ -40,7 +40,7 @@ function livedState(): GameState {
     ],
     peakNetWorth: 2_400_000,
     peakNetWorthWeek: 750,
-  } as GameState['lifetimeStatistics'];
+  } as LifetimeStatistics;
   return s;
 }
 
@@ -77,7 +77,7 @@ describe('buildLifeTimeline', () => {
   it('degrades to empty on nothing, never throws on a partial state', () => {
     expect(buildLifeTimeline(null)).toEqual([]);
     expect(buildLifeTimeline(undefined)).toEqual([]);
-    expect(() => buildLifeTimeline({} as GameState)).not.toThrow();
+    expect(() => buildLifeTimeline({} as never)).not.toThrow();
   });
 
   it('caps a very long life instead of dumping the archive', () => {

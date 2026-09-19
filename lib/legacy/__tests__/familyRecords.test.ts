@@ -61,6 +61,6 @@ describe('familyRecords', () => {
   });
 
   it('never throws on a malformed state', () => {
-    expect(() => familyRecords({ previousLives: [{}] } as unknown as GameState)).not.toThrow();
+    expect(() => familyRecords(createTestGameState({ previousLives: [{} as never] }))).not.toThrow();
   });
 });
