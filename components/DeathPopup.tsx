@@ -45,6 +45,7 @@ import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { stashNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { characterName } from '@/utils/characterName';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
+import { earnedCapstones, capstoneLegacyBonus } from '@/lib/legacy/lifeCapstone';
 import DeathHero from '@/components/death/DeathHero';
 import LifeQualityGauge from '@/components/death/LifeQualityGauge';
 import AlertHost from '@/components/ui/AlertHost';
@@ -233,6 +234,11 @@ function DeathPopup() {
   // modal behind IdentityCard, and the best-previous-life comparison existed
   // solely in LegacyTimeline. This is the one moment the player is deciding
   // whether a next life is worth starting (2026-08-25 retention audit).
+  // MP13: the non-wealth capstones this life completed. `applyDeathRibbon`
+  // already paid the legacy points forward during the tick; this names them so
+  // the player can see what the completion was worth.
+  const capstones = useMemo(() => earnedCapstones(gameState), [gameState]);
+
   const dynastyContext = useMemo(() => {
     try {
       const discovered = (gameState.ribbonCollection?.discoveredIds ?? []).length;
@@ -1023,6 +1029,12 @@ function DeathPopup() {
                           <Text style={styles.verdictDesc}>
                             {lifeRibbon ? lifeRibbon.description : deathMessage}
                           </Text>
+                          {capstones.length > 0 && (
+                            <Text style={[styles.verdictDesc, styles.capstoneLine]}>
+                              {capstones.map((c) => c.name).join(' · ')} · +
+                              {capstoneLegacyBonus(gameState)} legacy points
+                            </Text>
+                          )}
                         </View>
 
                         <LifeQualityGauge quality={quality} darkMode={settings.darkMode} />

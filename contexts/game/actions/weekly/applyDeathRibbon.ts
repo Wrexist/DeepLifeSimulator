@@ -29,6 +29,7 @@
 import type { GameState, GameStats } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { classifyLife, addRibbonToCollection } from '@/lib/legacy/ribbonSystem';
+import { capstoneLegacyBonus } from '@/lib/legacy/lifeCapstone';
 
 export interface DeathRibbonInput {
   prevState: GameState;
@@ -41,11 +42,17 @@ export interface DeathRibbonInput {
 export interface DeathRibbonResult {
   /** Partial fragment for the state-merge object. Empty when no fire. */
   partial: { ribbonCollection?: GameState['ribbonCollection'] };
+  /**
+   * MP13: legacy points a completed non-wealth path (capstone) pays into the
+   * next life. 0 unless this tick is the death tick. Added to `legacyPoints`
+   * by the caller, because that field is assigned after this partial is spread.
+   */
+  legacyBonus: number;
 }
 
 export function applyDeathRibbon(input: DeathRibbonInput): DeathRibbonResult {
   if (!input.newShowDeathPopup || input.prevState.showDeathPopup) {
-    return { partial: {} };
+    return { partial: {}, legacyBonus: 0 };
   }
   try {
     const syntheticState = {
@@ -59,10 +66,14 @@ export function applyDeathRibbon(input: DeathRibbonInput): DeathRibbonResult {
       ribbon,
       syntheticState,
     );
-    logger.info(`[RIBBON] Life classified as: ${ribbon.name} (${ribbon.emoji})`);
-    return { partial: { ribbonCollection: updatedCollection } };
+    // A completed non-wealth path pays legacy points into the next life.
+    const legacyBonus = capstoneLegacyBonus(syntheticState);
+    logger.info(
+      `[RIBBON] Life classified as: ${ribbon.name} (${ribbon.emoji}); capstone legacy +${legacyBonus}`,
+    );
+    return { partial: { ribbonCollection: updatedCollection }, legacyBonus };
   } catch (ribbonErr) {
     logger.error('[RIBBON] Classification failed:', ribbonErr);
-    return { partial: {} };
+    return { partial: {}, legacyBonus: 0 };
   }
 }

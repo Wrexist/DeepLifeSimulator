@@ -1534,6 +1534,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel undefined: treated as
 
 exports[`pre-tick equivalence - applyDeathRibbon edge case (death first fire): classifies + adds to collection 1`] = `
 {
+  "legacyBonus": 0,
   "partial": {
     "ribbonCollection": [
       {
