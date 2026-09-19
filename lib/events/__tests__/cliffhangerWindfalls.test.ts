@@ -69,7 +69,7 @@ describe('ch_investment_news', () => {
       stocks: {
         ...(base.stocks ?? { holdings: [], watchlist: [] }),
         holdings: [{ symbol: 'JNJ', shares: 10, averagePrice: 150, currentPrice: 150 }],
-      } as GameState['stocks'],
+      } as NonNullable<typeof base.stocks>,
     };
     expect(eligible('ch_investment_news', holder)).toBe(true);
     expect(eligible('ch_investment_news', base)).toBe(false);

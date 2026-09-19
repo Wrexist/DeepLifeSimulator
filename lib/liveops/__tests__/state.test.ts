@@ -1,10 +1,11 @@
 import { MAX_TRACKED_IDS, hasClaimed, hasSeen, readLiveOpsState, withClaim, withSeen } from '../state';
+import type { LiveOpsState } from '../types';
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 const NOW = Date.parse('2026-06-15T12:00:00Z');
 const withLiveOps = (liveOps: unknown): GameState =>
-  ({ ...createTestGameState(), liveOps } as GameState);
+  createTestGameState({ liveOps: liveOps as LiveOpsState });
 
 describe('readLiveOpsState', () => {
   it('returns the empty answer for a save that predates the field', () => {

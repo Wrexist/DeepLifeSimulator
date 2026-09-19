@@ -119,7 +119,7 @@ describe('mail - boundedness', () => {
 
 /**
  * `applyMail` returns `GameState | null` - null meaning "nothing changed".
- * Narrowing that with `as GameState` is what Hard Rule #3 bans and what the
+ * Narrowing that with a whole-state cast is what Hard Rule #3 bans and what the
  * weekly audit flagged, so this asserts the delivery happened and narrows off
  * the assertion instead. It also reads better: a null here is a real failure of
  * the test's premise, not a type inconvenience to be cast away.

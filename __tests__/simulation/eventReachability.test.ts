@@ -28,7 +28,7 @@
  */
 import { createTestGameState } from '../helpers/createTestGameState';
 import { eventTemplates } from '@/lib/events/engine';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState, Vehicle } from '@/contexts/game/types';
 
 /** A relationship dense enough to satisfy "has friends" style gates. */
 function people(n: number, score: number): GameState['relationships'] {
@@ -150,7 +150,7 @@ function archetypes(): Record<string, GameState> {
   A.influencer = createTestGameState({
     stats: { money: 400_000, health: 70, happiness: 70, energy: 65, reputation: 92 },
     weeksLived: 500, lifeStartWeek: 104, relationships: people(10, 55),
-    socialMedia: { ...base().socialMedia!, influenceLevel: 'celebrity' } as GameState['socialMedia'],
+    socialMedia: { ...base().socialMedia!, influenceLevel: 'celebrity' },
   });
 
   A.hobbyist = createTestGameState({
@@ -161,7 +161,7 @@ function archetypes(): Record<string, GameState> {
       running: { level: 3, xp: 500 },
       chess: { level: 2, xp: 260 },
       cooking: { level: 3, xp: 480 },
-    } as GameState['pursuits'],
+    },
   });
 
   A.heir = createTestGameState({
@@ -173,7 +173,7 @@ function archetypes(): Record<string, GameState> {
       : ([
           { name: 'Ancestor One', generationNumber: 1, netWorth: 120_000 },
           { name: 'Ancestor Two', generationNumber: 2, netWorth: 340_000 },
-        ] as unknown as GameState['previousLives']),
+        ] as unknown as NonNullable<Parameters<typeof createTestGameState>[0]>['previousLives']),
   });
 
   A.owner = createTestGameState({
@@ -183,7 +183,7 @@ function archetypes(): Record<string, GameState> {
     pets: [{ id: 'pet-1', name: 'Bean', type: 'dog', age: 3, hunger: 40, happiness: 70, health: 80 }],
     vehicles: base().vehicles?.length
       ? base().vehicles
-      : ([{ id: 'car-1', name: 'Hatchback', condition: 70, purchaseWeek: 400 }] as unknown as GameState['vehicles']),
+      : ([{ id: 'car-1', name: 'Hatchback', condition: 70, purchaseWeek: 400 }] as unknown as Vehicle[]),
   });
 
   A.pristine = base();

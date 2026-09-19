@@ -88,7 +88,7 @@ const at = (obj: unknown, path: string): unknown =>
  * `mergeLoadedSlice`; everything else rides the spread.
  */
 const loadMerge = (parsed: Record<string, unknown>): GameState => {
-  // `Partial<GameState>`, never `as GameState` (Hard Rule #3): a parsed save is
+  // `Partial<GameState>`, never a whole-state cast (Hard Rule #3): a parsed save is
   // genuinely partial, and the spread over `initialGameState` is what makes the
   // result complete — which is the property under test.
   const p: Partial<GameState> = parsed;

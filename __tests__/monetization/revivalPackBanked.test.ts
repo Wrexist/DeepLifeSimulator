@@ -30,7 +30,7 @@ import type { GameState } from '@/contexts/game/types';
 /**
  * `runMigrations` and `repairGameState` both take a raw parsed save, so their
  * state is not typed as a GameState. Reading one field back through four
- * separate `as unknown as GameState` casts said nothing except "trust me" —
+ * separate whole-state casts said nothing except "trust me" —
  * this names the one field these tests care about instead.
  */
 const bankedRevive = (state: unknown): unknown =>

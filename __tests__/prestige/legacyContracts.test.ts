@@ -34,7 +34,7 @@ import { DEFAULT_DYNASTY_STATS } from '@/lib/legacy/dynasty';
 
 /**
  * Build a state by MUTATING a factory instance rather than spreading over it
- * behind an `as GameState`. Hard Rule #3's static guard flags that cast, and
+ * behind a whole-state cast. Hard Rule #3's static guard flags that cast, and
  * rightly: a spread-and-cast is exactly how a test ends up asserting on a shape
  * that no longer matches GameState.
  */

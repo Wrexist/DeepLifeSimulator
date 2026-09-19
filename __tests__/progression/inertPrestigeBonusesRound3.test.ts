@@ -47,7 +47,7 @@ function makeCareer(over: Partial<Career> = {}): Career {
 function withBonuses(ids: string[]): GameState {
   // `createTestGameState` always returns a complete `prestige`, so spread it
   // directly. The `?? {}` widened every required field to optional, which is
-  // what forced the `as GameState` on the whole object.
+  // what forced the whole-state cast on the object.
   const base = createTestGameState();
   return { ...base, prestige: { ...base.prestige!, unlockedBonuses: ids } };
 }
@@ -167,7 +167,7 @@ describe('R3-P3 - the relationship multiplier reaches relationship gains', () =>
     // moment the rental corruption tests landed and made it four. A count that
     // climbs whenever someone writes a legitimate fixture is a warning people
     // learn to skim.
-    const corrupt = { ...withBonuses([]), prestige: { unlockedBonuses: null } } as unknown as GameState;
+    const corrupt = { ...withBonuses([]), prestige: { unlockedBonuses: null } } as unknown as Parameters<typeof applyRelationshipGain>[0];
 
     const out = applyRelationshipGain(corrupt, 10);
     expect(Number.isFinite(out)).toBe(true);

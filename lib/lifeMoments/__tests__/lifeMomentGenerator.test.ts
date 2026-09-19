@@ -17,6 +17,7 @@ import {
   LIFE_MOMENT_TEMPLATES,
   LIFE_MOMENT_REPEAT_COOLDOWN_WEEKS,
 } from '@/lib/lifeMoments/lifeMomentGenerator';
+import type { ConsequenceState } from '@/lib/lifeMoments/types';
 
 /** A state deep enough into its life that the 52-week pity has ripened. */
 function pityRipeState(overrides: Partial<GameState> = {}): GameState {
@@ -84,7 +85,7 @@ describe('the pity baseline (§4.2)', () => {
 describe('repeat guard', () => {
   it('recentMomentKeys parses keys from the resolver-written history and windows them', () => {
     const key = lifeMomentTemplateKey(LIFE_MOMENT_TEMPLATES[0]);
-    const state = {
+    const state: Pick<GameState, 'consequenceState' | 'weeksLived'> = {
       weeksLived: 500,
       consequenceState: {
         choiceHistory: [
@@ -92,8 +93,8 @@ describe('repeat guard', () => {
           { eventId: `life_moment_stale_1`, choiceId: 'a', week: 2, weeksLived: 500 - LIFE_MOMENT_REPEAT_COOLDOWN_WEEKS - 1, age: 25, timestamp: 0 },
           { eventId: 'weekly_event_x', choiceId: 'a', week: 2, weeksLived: 499, age: 27, timestamp: 0 },
         ],
-      },
-    } as unknown as GameState;
+      } as ConsequenceState,
+    };
     const keys = recentMomentKeys(state);
     expect(keys.has(key)).toBe(true);
     expect(keys.has('stale')).toBe(false);
@@ -101,14 +102,14 @@ describe('repeat guard', () => {
   });
 
   it('legacy timestamp ids never suppress (they key to nothing a template hashes to)', () => {
-    const state = {
+    const state: Pick<GameState, 'consequenceState' | 'weeksLived'> = {
       weeksLived: 500,
       consequenceState: {
         choiceHistory: [
           { eventId: 'life_moment_1719000000000_ab12cd', choiceId: 'a', week: 1, weeksLived: 499, age: 27, timestamp: 0 },
         ],
-      },
-    } as unknown as GameState;
+      } as ConsequenceState,
+    };
     const keys = recentMomentKeys(state);
     for (const template of LIFE_MOMENT_TEMPLATES) {
       expect(keys.has(lifeMomentTemplateKey(template))).toBe(false);
@@ -122,15 +123,15 @@ describe('repeat guard', () => {
     const pickedKey = firstPick!.id.split('_')[2];
     // Mark the picked template as recently answered; the same week's roll must
     // now land on a different template.
-    const withHistory = {
+    const withHistory: GameState = {
       ...base,
       consequenceState: {
-        ...(base.consequenceState ?? {}),
+        ...(base.consequenceState ?? ({} as ConsequenceState)),
         choiceHistory: [
           { eventId: firstPick!.id, choiceId: 'a', week: 1, weeksLived: 458, age: 27, timestamp: 0 },
         ],
       },
-    } as GameState;
+    };
     const secondPick = generateLifeMoment(withHistory);
     expect(secondPick).not.toBeNull();
     expect(secondPick!.id.split('_')[2]).not.toBe(pickedKey);

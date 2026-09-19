@@ -18,7 +18,7 @@ import { applyEventStatDeltas } from '../statEffects';
 import { eventTemplates } from '../engine';
 import { CLIFFHANGERS } from '../cliffhangerEvents';
 import { FOLLOW_UP_EVENTS } from '../lifeEvents';
-import type { GameState, GameStats } from '@/contexts/game/types';
+import type { GameState, GameStats, Relationship } from '@/contexts/game/types';
 import type { WeeklyEvent } from '../engine';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
@@ -88,7 +88,7 @@ describe('the fixed producers', () => {
       relationships: [
         { id: 'f1', name: 'Alex', type: 'friend', relationshipScore: 60, personality: 'kind', gender: 'male', age: 30 },
         { id: 'p1', name: 'Sam', type: 'partner', relationshipScore: 80, personality: 'warm', gender: 'female', age: 29 },
-      ] as GameState['relationships'],
+      ] as Relationship[],
     });
 
   it('policy_voting delivers the policy money on the money path, never inside stats', () => {

@@ -13,12 +13,12 @@
  */
 import { applyWeeklyEvents, MAX_PENDING_EVENTS } from '@/contexts/game/actions/weekly/applyWeeklyEvents';
 import * as engine from '@/lib/events/engine';
-import type { GameState } from '@/contexts/game/types';
+import type { EconomyState, GameState } from '@/contexts/game/types';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import { createTestGameState } from '../../helpers/createTestGameState';
 
 /** The reducer only forwards this into the synthetic state it hands the roller. */
-const ECONOMY = {} as GameState['economy'];
+const ECONOMY = {} as EconomyState;
 
 const anEvent = (id: string): WeeklyEvent =>
   ({ id, description: id, choices: [{ id: 'ok', text: 'OK', effects: {} }] }) as WeeklyEvent;

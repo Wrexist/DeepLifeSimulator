@@ -171,7 +171,7 @@ describe('detectReviewMoment - safety', () => {
       careers: 'not-an-array',
       stocks: { realizedGains: NaN },
       ambitionCompletedMilestones: null,
-    } as unknown as GameState; // DELIBERATE-CORRUPTION
+    } as never; // DELIBERATE-CORRUPTION
     expect(() => detectReviewMoment(junk, junk)).not.toThrow();
     expect(detectReviewMoment(junk, junk)).toBeNull();
   });

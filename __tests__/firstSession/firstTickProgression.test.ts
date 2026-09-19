@@ -93,7 +93,7 @@ function quickStart(): GameState {
     selectedPerks: [],
     permanentPerks: [],
     selectedMindset: null,
-  }) as GameState;
+  });
 }
 
 describe('the first tick of a quick start does not open the mid-game', () => {

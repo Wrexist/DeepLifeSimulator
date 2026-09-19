@@ -624,7 +624,7 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
       sparkApp: {
         ...captured!.state.sparkApp!,
         // A COMPLETE SparkMatch. The literal used to carry 3 of its 5 required
-        // fields behind an `as GameState['sparkApp']`; the guard under test
+        // fields behind a whole-state cast; the guard under test
         // fires before the profile lookup, so the missing fields never
         // mattered - but the cast is what made that invisible.
         matches: [{

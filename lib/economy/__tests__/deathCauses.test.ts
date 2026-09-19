@@ -50,7 +50,7 @@ describe('explainVitalDeath', () => {
   });
 
   it('never throws on a malformed state', () => {
-    const broken = { ...deadOfHappiness(), careers: undefined, items: undefined, stats: undefined } as unknown as GameState;
+    const broken = { ...deadOfHappiness(), careers: undefined, items: undefined, stats: undefined } as unknown as Parameters<typeof explainVitalDeath>[0];
     const e = explainVitalDeath(broken)!;
     expect(e.what).toContain('Happiness sat at 0');
     expect(e.fix).toContain('Life → Health');

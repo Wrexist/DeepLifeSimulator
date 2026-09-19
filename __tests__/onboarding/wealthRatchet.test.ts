@@ -54,7 +54,7 @@ const baseLifetimeStatistics = (): LifetimeStatistics => {
  *
  * `Pick<GameState, K>` rather than `Partial<GameState>`: spreading a Partial
  * widens every key it names to `| undefined`, which is what made the first
- * version of this helper reach for `as GameState` — the cast Hard Rule #3 bans,
+ * version of this helper reach for a whole-state cast — the cast Hard Rule #3 bans,
  * and for exactly this reason. Keyed on the fields actually passed, the spread
  * IS a `GameState` and the compiler checks the fixture instead of being told.
  */

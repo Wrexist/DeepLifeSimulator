@@ -12,7 +12,7 @@ import { hasRememberedLives } from '@/utils/lifeArchive';
 import { buildLifeRecord } from '../lifeRecord';
 import { executePrestige } from '@/lib/prestige/prestigeExecution';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
+import type { FamilyState, GameState, LifetimeStatistics } from '@/contexts/game/types';
 
 function livedInState(): GameState {
   const s = createTestGameState({
@@ -40,7 +40,7 @@ function livedInState(): GameState {
       { job: 'chef', weeks: 156, earnings: 40_000, startWeek: 0, endWeek: 156, title: 'Head Chef' },
       { job: 'ceo', weeks: 26, earnings: 90_000, startWeek: 200 },
     ],
-  } as GameState['lifetimeStatistics'];
+  } as LifetimeStatistics;
   return s;
 }
 
@@ -90,7 +90,7 @@ describe('buildLifeRecord', () => {
 
   it('falls back to the relationships list for a spouse the family record lacks', () => {
     const s = livedInState();
-    s.family = { ...s.family, spouse: undefined } as GameState['family'];
+    s.family = { ...s.family, spouse: undefined } as FamilyState;
     s.relationships = [
       { id: 'r1', name: 'Sam Vale', type: 'spouse', relationshipScore: 88, personality: '', age: 39 } as never,
     ];

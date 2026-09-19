@@ -1,6 +1,5 @@
 import { LIVE_OBJECTIVES, evaluateObjective, findObjective, isKnownObjective, objectiveLabel } from '../objectives';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
 
 describe('the registry', () => {
   it('has unique, lower snake_case ids', () => {
@@ -11,7 +10,7 @@ describe('the registry', () => {
 
   it('every read is TOTAL - a save missing everything still yields a number', () => {
     // These run on every render of the hub; a throw here takes down the surface.
-    const empty = {} as GameState;
+    const empty = {} as never;
     for (const objective of LIVE_OBJECTIVES) {
       expect(() => objective.read(empty)).not.toThrow();
       const value = objective.read(empty);
@@ -72,7 +71,7 @@ describe('evaluateObjective', () => {
 
   it('reports met when the target is reached', () => {
     const base = createTestGameState();
-    const state = { ...base, stats: { ...base.stats, reputation: 60 } } as GameState;
+    const state = { ...base, stats: { ...base.stats, reputation: 60 } };
     expect(evaluateObjective('reputation', 50, state)).toEqual({
       objectiveId: 'reputation',
       label: 'Reach 50 reputation',
@@ -92,7 +91,7 @@ describe('evaluateObjective', () => {
   it('under-reports rather than paying out when a read fails', () => {
     // Zero is the safe direction: a later render corrects it, whereas
     // over-reporting would pay for a state that could not be read.
-    expect(evaluateObjective('net_worth', 100, null as unknown as GameState)?.current).toBe(0);
+    expect(evaluateObjective('net_worth', 100, null as never)?.current).toBe(0);
   });
 
   it('normalises a nonsense target instead of propagating it', () => {
