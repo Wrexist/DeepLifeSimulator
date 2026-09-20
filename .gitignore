@@ -153,3 +153,8 @@ __tests__/scratch_probe/
 
 # Accidental screenshot destination from a missing output argument.
 /undefined/
+
+# Local agent scratch: weekly-audit logs, exports and one-off probes. Never
+# shipped, never reviewed - ignore so `git status` stays about real work.
+/tmp-bugaudit/
+/_to_delete/
