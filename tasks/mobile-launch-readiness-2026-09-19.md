@@ -49,10 +49,17 @@ Branch `codex/restore-precompact-hud` (PR #215, all checks green). Binary
 
 ### Required before publishing to Play (external - not doable from source)
 
-1. **AdMob Android ad units.** Without `EXPO_PUBLIC_ADMOB_BANNER_ANDROID`,
-   `_INTERSTITIAL_ANDROID`, `_REWARDED_ANDROID` set in the EAS production env,
-   the build falls back to Google **TEST** units (zero revenue). Create the units
-   in AdMob and set them (`eas env:create`), or the Android launch ships test ads.
+1. **AdMob Android ad units.** **This is the one build-side blocker for a
+   correct Android launch.** Audited with `eas env:list --environment
+   production` (read-only): iOS has `EXPO_PUBLIC_ADMOB_IOS_APP_ID`,
+   `_BANNER_IOS`, `_INTERSTITIAL_IOS`, `_REWARDED_IOS`; Android has the app ID
+   (`app.config.js` default `ca-app-pub-2286247955186424~3290819490`) but **none**
+   of `EXPO_PUBLIC_ADMOB_BANNER_ANDROID` / `_INTERSTITIAL_ANDROID` /
+   `_REWARDED_ANDROID`. Without them the build falls back to Google **TEST**
+   units (zero revenue). Create the units in AdMob, then set them with
+   `eas env:create` (commands below). RevenueCat is already complete for both
+   platforms (`EXPO_PUBLIC_RC_ANDROID_KEY` and `_IOS_KEY` set, plus the IAP
+   verify URL and the save HMAC key).
 2. **Play Console listing + forms** (none exist today):
    - Store listing text: title <= 30, short description <= 80, full description <= 4000.
    - App icon **512x512 PNG** (32-bit, no alpha needed).
