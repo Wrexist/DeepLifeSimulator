@@ -54,18 +54,17 @@ Contains ads. In-app purchases available.
 |---|---|---|---|
 | App icon | `icon-512.png` | 512x512 PNG, 32-bit | generated |
 | Feature graphic | `feature-graphic-1024x500.png` | 1024x500 PNG/JPG | generated |
-| Phone screenshots | `screenshots/` | 2-8, each side 320-3840px, aspect <= 2:1 | live 9:16 captures (720x1280) - placeholders |
+| Phone screenshots | `screenshots/` | 2-8, each side 320-3840px, aspect <= 2:1 | 8 designed 1080x1920 (9:16) storyboards |
 
 Phone screenshots must be Android/Play-aspect. The existing iOS shots are
 1320x2868 / 1284x2778 (**2.17:1**) and would be **rejected** by Play - do not
 upload them.
 
-`screenshots/` holds four live 9:16 captures (720x1280) as a working placeholder
-set: Home, Work board, Life vitals, and Progress. They are honest screenshots of
-a new life, not marketing compositions - replace them with the designed
-storyboards (currently App Store-only; see
-`screenshots/player-stories-2026-09/source/build.mjs`) or a richer seeded life
-before publishing.
+`screenshots/` holds the **designed storyboards** (8 of the 10-story campaign),
+rendered at 1080x1920 by
+`screenshots/player-stories-2026-09/source/build.mjs --devices=play-phone`,
+which gained a `play-phone` size for this. `screenshots-live/` keeps four plain
+live captures (720x1280) as alternates if a raw screenshot is preferred.
 
 ## Compliance answers (verify each in the console before submitting)
 

@@ -848,5 +848,225 @@
         ]
       }
     ]
+  },
+  {
+    "file": "play-phone\\01-your-life.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "41b59b3048fdb6dde7d7edf6a6ed569a2b76999fbb595f80210c5edabd37ff83",
+    "frameSha256": "aff98db7d2fd483386a077694c17e4f83179e867c8d548c69a10fee28838c2c6",
+    "headline": "Small start. Big life.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "docs\\reviews\\compact-hud\\home-390.png",
+        "sha256": "cd9d8dd7ebae0f3db80068ce184df4a10be792d9cb2a7f5d0cf1362cd6911e41",
+        "crop": [
+          31,
+          996,
+          718,
+          186
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\02-build-an-empire.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "044e84fb32ec8e922c04a147069f7f97aa336170f721a1838a01fdfcbff61a87",
+    "frameSha256": "f22935c0318afbd32f1d9cb45dc2af4efb20574bafe18d0eb0779ec9ccc344d8",
+    "headline": "Build it. Be the boss.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\17-x-company.png",
+        "sha256": "c120874b3efd310e89e028f49fee81dc2bc19bd4d40383750328be0ad3faa85e",
+        "crop": [
+          48,
+          252,
+          1191,
+          1300
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\03-find-love.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "cffbad7cca5949fac2c8cc2b336e04b2ed651eb52a6bb304f189f60f1f1bf4ca",
+    "frameSha256": "0b0fe5f693e2314cab9d86ad1ac551cfcc19a7dcf3f61680a83be2b6ee1476b4",
+    "headline": "Swipe. Spark. Fall in love.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\05-app-spark.png",
+        "sha256": "0fcf2f4b43514a9a32a16df723d41cdf2aafd2e603786f4d4053983d6c896b76",
+        "crop": [
+          41,
+          210,
+          1207,
+          2335
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\04-reach-the-top.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "7c477e011d1ea6e1e8abffac6736180341f4d772030c431f7c1879ff5cc4a97f",
+    "frameSha256": "6a5ffefb85e20339cdef790da3a4f3fa113b30b4aed32a1f943df99cda7857c9",
+    "headline": "Dream job? Work for it.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\02-work.png",
+        "sha256": "2dc0025a8fc22b3d4cc0592e2989db7fa5b7ab113ac154baf3aac5032b554e24",
+        "crop": [
+          43,
+          671,
+          1205,
+          456
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\05-build-your-wealth.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "7cac41dd932887c9a0543305a7333f7e2484d5c029da05e947ee6bd0dfdf5064",
+    "frameSha256": "168263e5357e034ec616542cc3c7eff67eef8a50a199dacb75ffe9ea85113a48",
+    "headline": "First paycheck. Next property.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\33-x-realestate-portfolio.png",
+        "sha256": "dd96a0e214b241d60ed9bf59660c085831bcf3740a64fcf62bdae4efc8e87474",
+        "crop": [
+          45,
+          716,
+          1200,
+          719
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\06-drive-the-dream.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "642fac169ebc8bfbb2ddd448c63bf43df6a7c63252969795f9c2ec99713ad98c",
+    "frameSha256": "0a5998dcd66690a4a4e907ec7d0fa3a2149139469bf0d4d31f46c09e70f02d0b",
+    "headline": "Dream car. Your keys.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\34-x-garage-owned.png",
+        "sha256": "01fa0b75f8c1085f922d99a8cfd6188032c400cfab8604d4c39c59d83394d2f1",
+        "crop": [
+          97,
+          450,
+          1097,
+          965
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\07-shape-your-story.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "8fe393637121c6c77fe503fb19bc277106e247a63a025be34da68d1feb588865",
+    "frameSha256": "96f97d34437959f2f4c3e5810319e06b75b7bbcc6eb46d2c65743d1c7ca3bf41",
+    "headline": "Take the cash? Chase the fame?",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\32-event-decision.png",
+        "sha256": "8642e597be42cea31428aa96928c1ff0d6f6da6dbedf311a57208e6829ec1aae",
+        "crop": [
+          53,
+          500,
+          1186,
+          1806
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\08-become-a-creator.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "7f46540bdd2bd30b9f9136a8c53e14ba38a40717466780853d718fbbaff5e837",
+    "frameSha256": "f02919eff157fc97efa1d94bbf5347d4822ca4cee983d667ac4b9d0cf1ec5c3a",
+    "headline": "Go live. Get noticed.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\25-x-streaming.png",
+        "sha256": "a0945d3093bbb17007b4ac1756a4bcf71847552aa1728e975a7516940c5be8e5",
+        "crop": [
+          50,
+          439,
+          1188,
+          1007
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\09-see-the-world.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "54adb741780dee810d4646023fef8d1dae361a25811e2300765cdec2978966cf",
+    "frameSha256": "633f292c764f2bdf193ecba646e2b232b25aa72e2f3059dccb05751615950dc8",
+    "headline": "Next stop? Your choice.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\24-x-travel.png",
+        "sha256": "91a9813fb73c8407449b22efbd0eaf1b8849f03418cf9bcdaa1db527ac391267",
+        "crop": [
+          45,
+          1599,
+          1200,
+          1180
+        ]
+      }
+    ]
+  },
+  {
+    "file": "play-phone\\10-build-a-family.png",
+    "width": 1080,
+    "height": 1920,
+    "pngSha256": "735445387490b8b81b1b913198ccc84d71e333a108fd440e4d9a9c00ed86b5f7",
+    "frameSha256": "8649a301d3279cef657b190cc655571883a9bfb3335cb95d1874bacc00fdae3b",
+    "headline": "Find your people. Build your life.",
+    "art": "assets\\images\\icon.png",
+    "artSha256": "19ceda961534c6a573b63ce60d9b132292aa3ef23c4ba7fc2b7fd56cefda71eb",
+    "captures": [
+      {
+        "file": "screenshots\\appstore-2026\\rich-captures\\09-app-contacts.png",
+        "sha256": "d04baff8278faeb278ec267a2a15713c01a186e1c0429297f96a21cf7fcd2c07",
+        "crop": [
+          43,
+          355,
+          1205,
+          651
+        ]
+      }
+    ]
   }
 ]

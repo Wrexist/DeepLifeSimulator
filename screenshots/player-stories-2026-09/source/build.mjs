@@ -24,6 +24,10 @@ const sizes = [
   {id:'iphone-6.9', w:1320, h:2868},
   {id:'iphone-6.5', w:1284, h:2778},
   {id:'ipad-13', w:2064, h:2752, pad:true},
+  // Google Play phone. 9:16 (aspect 1.778), which Play accepts and which the
+  // iOS sizes (2.17:1) do NOT. The layout is aspect-adaptive, so no other
+  // change is needed; output lands in screenshots/player-stories-2026-09/play-phone/.
+  {id:'play-phone', w:1080, h:1920, maxPanels:1},
 ];
 const selectedIds = process.argv.find(a => a.startsWith('--ids='))?.slice(6).split(',');
 const selectedDevices = process.argv.find(a => a.startsWith('--devices='))?.slice(10).split(',');
@@ -76,7 +80,8 @@ family:'<circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3m1-18a4 4
 function symbol(name,x,y,size,color){return `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${symbols[name]}</svg>`;}
 async function render(f, s) {
   const W=s.pad?2064:1320, H=s.pad?2752:s.h*1320/s.w;
-  const panels=await Promise.all((s.pad&&f.ipadPanels?f.ipadPanels:f.panels).map(p=>getPanel(p,s.pad)));
+  const panelDefs=(s.pad&&f.ipadPanels?f.ipadPanels:f.panels).slice(0,s.maxPanels||99);
+  const panels=await Promise.all(panelDefs.map(p=>getPanel(p,s.pad)));
   const iconFile=join(repo,'assets/images/icon.png'), logo=await source(iconFile);
   const a=[];
   a.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${s.w}" height="${s.h}" viewBox="0 0 ${W} ${H}"><defs><radialGradient id="glow"><stop stop-color="${f.accent}" stop-opacity=".24"/><stop offset="1" stop-color="${f.accent}" stop-opacity="0"/></radialGradient><filter id="shadow" x="-25%" y="-25%" width="150%" height="160%"><feGaussianBlur stdDeviation="22"/></filter><clipPath id="logo"><rect x="76" y="64" width="70" height="70" rx="18"/></clipPath></defs><rect width="${W}" height="${H}" fill="#0F172A"/><ellipse cx="${W*.75}" cy="${H*.55}" rx="${W*.85}" ry="${H*.53}" fill="url(#glow)"/>`);
@@ -93,10 +98,14 @@ async function render(f, s) {
   const width=Math.min(areaW,(areaH-panels.length*labelHeight-(panels.length-1)*gap)/ratio);
   const total=width*ratio+panels.length*labelHeight+(panels.length-1)*gap;
   let y=areaY+(areaH-total)/2;
-  if(total<(s.pad?1120:1350)){
+  // The sparse "big symbol + panels pushed down" treatment only when it FITS.
+  // On the shorter Play canvas pushing to 1080 would overflow, so it is skipped
+  // there and the panels centre instead. App Store geometry is unchanged.
+  const sparseY = s.pad?1120:1080;
+  if(total<(s.pad?1120:1350) && sparseY+total <= areaY+areaH){
     const cy=s.pad?820:800;
     a.push(`<circle cx="${W/2}" cy="${cy+85}" r="116" fill="${f.accent}" fill-opacity=".12" stroke="${f.accent}" stroke-opacity=".3" stroke-width="2"/>`,symbol(f.icon,W/2-63,cy+22,126,f.accent));
-    y=Math.max(y,s.pad?1120:1080);
+    y=Math.max(y,sparseY);
   }
   for(let i=0;i<panels.length;i++){
     const x=areaX+(areaW-width)/2;
