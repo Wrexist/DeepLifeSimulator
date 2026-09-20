@@ -22,6 +22,7 @@ import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import RemoveAdsOrb from '@/components/RemoveAdsOrb';
+import InAppReviewPrompt from '@/components/InAppReviewPrompt';
 import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
@@ -406,6 +407,9 @@ export default function TabLayout() {
         (offset below the reward orb). Self-gating: hidden once ads are removed
         or when IAP is disabled, and paced slower than the reward orb. */}
     <RemoveAdsOrb />
+    {/* Headless: asks for a store rating once, on a week worth celebrating
+        (a ready promotion or a streak bonus), never on a timer. */}
+    <InAppReviewPrompt />
     </View>
   );
 }
