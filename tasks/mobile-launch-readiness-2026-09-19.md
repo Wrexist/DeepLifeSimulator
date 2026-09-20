@@ -98,6 +98,20 @@ manifest are configured; no change needed here.
    authorization to dispatch a build).
 4. Device acceptance matrix (iOS + Android) - unavailable in this environment.
 
+## Signed Android build - DONE (2026-09-19)
+
+`eas build --platform android --profile production --non-interactive`
+(`EAS_SKIP_AUTO_FINGERPRINT=1`; the npx CLI hits a `brace-expansion` bug in its
+fingerprint step).
+
+- Build: `3336566b-1a0e-4011-a679-4353db713f6d`, **FINISHED**
+- Version `2.13.0`, versionCode **114** (remote auto-increment)
+- Artifact: https://expo.dev/artifacts/eas/3dwd5xHgLGdMXKua6PFyrtWNsYDlLaZQdaibYs6_xDk.aab
+- Page: https://expo.dev/accounts/isacm/projects/deeplife-simulator/builds/3336566b-1a0e-4011-a679-4353db713f6d
+
+`eas submit` still needs `play-service-account.json`; otherwise upload this AAB
+by hand via Play Console -> Test -> Internal testing -> Create new release.
+
 ## Commands to run once authorized (not run here)
 
 ```bash
