@@ -43,6 +43,13 @@ async function source(file) {
   return cache.get(file);
 }
 const normalize = s => s.toLowerCase().replace(/\s+/g,'');
+// Play-only 3D hero per story: a project-owned model rendered by the asset
+// studio (art/game-assets-v1/renders/*.png, transparent, isometric).
+const HERO_BY_STORY = {
+  '01':'room','02':'business-factory','03':'home','04':'laptop','05':'business-bank',
+  '06':'keys','07':'briefcase','08':'business-ai','09':'city','10':'sofa',
+};
+const heroFor = id => HERO_BY_STORY[id.slice(0,2)];
 function capturePath(p, pad) {
   return p.shot === 'current-home'
     ? join(repo, 'docs/reviews/compact-hud', pad ? 'home-768.png' : 'home-390.png')
@@ -84,7 +91,7 @@ async function render(f, s) {
   const panels=await Promise.all(panelDefs.map(p=>getPanel(p,s.pad)));
   const iconFile=join(repo,'assets/images/icon.png'), logo=await source(iconFile);
   const a=[];
-  a.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${s.w}" height="${s.h}" viewBox="0 0 ${W} ${H}"><defs><radialGradient id="glow"><stop stop-color="${f.accent}" stop-opacity=".24"/><stop offset="1" stop-color="${f.accent}" stop-opacity="0"/></radialGradient><filter id="shadow" x="-25%" y="-25%" width="150%" height="160%"><feGaussianBlur stdDeviation="22"/></filter><clipPath id="logo"><rect x="76" y="64" width="70" height="70" rx="18"/></clipPath></defs><rect width="${W}" height="${H}" fill="#0F172A"/><ellipse cx="${W*.75}" cy="${H*.55}" rx="${W*.85}" ry="${H*.53}" fill="url(#glow)"/>`);
+  a.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${s.w}" height="${s.h}" viewBox="0 0 ${W} ${H}"><defs><radialGradient id="glow"><stop stop-color="${f.accent}" stop-opacity=".24"/><stop offset="1" stop-color="${f.accent}" stop-opacity="0"/></radialGradient><filter id="shadow" x="-25%" y="-25%" width="150%" height="160%"><feGaussianBlur stdDeviation="22"/></filter><filter id="heroShadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="26" stdDeviation="30" flood-color="#020617" flood-opacity=".75"/></filter><radialGradient id="heroGlow"><stop stop-color="${f.accent}" stop-opacity=".42"/><stop offset="1" stop-color="${f.accent}" stop-opacity="0"/></radialGradient><clipPath id="logo"><rect x="76" y="64" width="70" height="70" rx="18"/></clipPath></defs><rect width="${W}" height="${H}" fill="#0F172A"/><ellipse cx="${W*.75}" cy="${H*.55}" rx="${W*.85}" ry="${H*.53}" fill="url(#glow)"/>`);
   a.push(`<image href="${logo.uri}" x="76" y="64" width="70" height="70" clip-path="url(#logo)"/>`,text('Deep Life Simulator',166,113,35,'#FFFFFF'));
   a.push(text(f.id.slice(0,2)+' / 10',W-210,111,29,'#94A3B8',500));
   const left=s.pad?120:80, titleWidth=s.pad?1824:1160;
@@ -92,7 +99,9 @@ async function render(f, s) {
   f.title.forEach((line,i)=>a.push(text(line,left,(s.pad?330:300)+i*(titleSize+12),titleSize,i?f.accent:'#FFFFFF')));
   const subSize=s.pad?51:43;
   f.sub.forEach((line,i)=>{if(measure(line,subSize,500)>titleWidth)throw Error('Subtitle overflow '+f.id);a.push(text(line,left,(s.pad?650:570)+i*(s.pad?70:58),subSize,'#CBD5E1',500));});
-  let areaX=s.pad?160:90, areaW=s.pad?1744:1140, areaY=s.pad?900:810, areaH=s.pad?1530:H-1110;
+  // Play reserves a right column for the 3D hero, so the panel does not sit
+  // under it; every other size keeps the full-width panel.
+  let areaX=s.pad?160:90, areaW=s.pad?1744:(s.id==='play-phone'?830:1140), areaY=s.pad?900:810, areaH=s.pad?1530:H-1110;
   const labelHeight=65,gap=95;
   const ratio=panels.reduce((n,p)=>n+p.crop[3]/p.crop[2],0);
   const width=Math.min(areaW,(areaH-panels.length*labelHeight-(panels.length-1)*gap)/ratio);
@@ -115,6 +124,25 @@ async function render(f, s) {
     y+=labelHeight;
     a.push(panel(panels[i],x,y,width));
     y+=width*panels[i].crop[3]/panels[i].crop[2]+gap;
+  }
+  // Play-only: a floating project 3D render + ambient particles, so the
+  // listing art reads as a living world instead of a flat screenshot. Guarded
+  // by size, so every App Store output is byte-identical to before.
+  if(s.id==='play-phone'){
+    const heroId=heroFor(f.id), heroFile=join(repo,'art/game-assets-v1/renders',heroId+'.png');
+    if(existsSync(heroFile)){
+      const hero=await source(heroFile);
+      const hw=404, hh=hw*hero.height/hero.width;
+      const hx=W-hw-24, hy=920;
+      a.push(`<ellipse cx="${(hx+hw*.5).toFixed(1)}" cy="${(hy+hh*.5).toFixed(1)}" rx="${(hw*.62).toFixed(1)}" ry="${(hh*.72).toFixed(1)}" fill="url(#heroGlow)"/>`);
+      let seed=2166136261; for(const ch of f.id) seed=(seed^ch.charCodeAt(0))>>>0, seed=Math.imul(seed,16777619)>>>0;
+      const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0; return seed/4294967296;};
+      for(let i=0;i<16;i++){
+        const px=120+rnd()*(W-240), py=250+rnd()*(H-540), r=2+rnd()*5;
+        a.push(`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(1)}" fill="${f.accent}" fill-opacity="${(0.05+rnd()*0.13).toFixed(3)}"/>`);
+      }
+      a.push(`<g filter="url(#heroShadow)" transform="rotate(-4 ${(hx+hw/2).toFixed(1)} ${(hy+hh/2).toFixed(1)})"><image href="${hero.uri}" x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" width="${hw}" height="${hh.toFixed(1)}"/></g>`);
+    }
   }
   if(y-gap>H-230)throw Error('Panel overflow '+f.id);
   const yy=H-177, stepWidth=(W-160)/3;

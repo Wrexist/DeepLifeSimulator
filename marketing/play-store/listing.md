@@ -63,8 +63,13 @@ upload them.
 `screenshots/` holds the **designed storyboards** (8 of the 10-story campaign),
 rendered at 1080x1920 by
 `screenshots/player-stories-2026-09/source/build.mjs --devices=play-phone`,
-which gained a `play-phone` size for this. `screenshots-live/` keeps four plain
-live captures (720x1280) as alternates if a raw screenshot is preferred.
+which gained a `play-phone` size for this. Each Play frame also carries a
+floating **project-owned 3D render** (from `art/game-assets-v1/renders/`, e.g.
+the neighborhood, home, factory, bank, laptop, keys, briefcase, studio and sofa
+models) with a soft glow, drop shadow and ambient particles, so the listing
+reads as a living world rather than a flat screenshot. App Store outputs are
+byte-identical - the hero block is guarded to the Play size.
+`screenshots-live/` keeps four plain live captures (720x1280) as alternates.
 
 ## Compliance answers (verify each in the console before submitting)
 
