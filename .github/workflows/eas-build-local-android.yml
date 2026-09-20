@@ -233,10 +233,11 @@ jobs:
       # env:exec wrapper) — save-signing
       # (EXPO_PUBLIC_SAVE_HMAC_KEY), IAP receipt verification, and malformed ad
       # unit IDs all fail the build closed, so a Play upload can never ship with
-      # unsigned saves or unverified purchases. The ONLY exception is
-      # --warn-missing-android-admob, which downgrades *missing Android AdMob ad
-      # units* to a warning (they aren't created yet — iOS-only ad launch). Drop
-      # that flag once the Android ad units exist to make ads blocking too.
+      # unsigned saves or unverified purchases. The Android AdMob ad units now
+      # exist in the EAS production env (created 2026-09-19 for the first Play
+      # release), so the former --warn-missing-android-admob downgrade is gone
+      # and missing Android ad units fail the build closed like every other
+      # revenue-critical value.
       - name: Preflight (production config)
         # Run INSIDE the EAS production environment (`eas.json` -> build.production.
         # environment), so the env-store values the build itself will use are
@@ -247,7 +248,7 @@ jobs:
         # warnings and concluded RevenueCat was unconfigured when it had been set
         # up correctly all along - the keys were simply somewhere the gate could
         # not look. The env block below still applies; store values layer on top.
-        run: eas env:exec production "node scripts/preflight-check.js --platform android --warn-missing-android-admob" --non-interactive
+        run: eas env:exec production "node scripts/preflight-check.js --platform android" --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'

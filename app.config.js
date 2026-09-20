@@ -27,10 +27,12 @@ if (trimmedBuildNumber !== "") {
 // AdMob App IDs — one per platform (iOS and Android are separate AdMob apps).
 // Defaults are the real per-platform App IDs; override via EAS env vars if needed.
 //   iOS     ~7015403477  (confirmed — used by the iOS build that serves ads)
-//   Android ~3290819490  (matches the committed AndroidManifest; Android ships
-//                         ad-free until its ad units are created in AdMob)
+//   Android ~9052280895  (the Android AdMob app created for the first Play
+//                         release on 2026-09-19. This MUST match the app that
+//                         owns the Android ad units, or the SDK fails to init.
+//                         The old placeholder ~3290819490 was never a real app.)
 const admobIosAppId = process.env.ADMOB_IOS_APP_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || "ca-app-pub-2286247955186424~7015403477";
-const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || "ca-app-pub-2286247955186424~3290819490";
+const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || "ca-app-pub-2286247955186424~9052280895";
 // Firebase config files (unlocks AdMob ARPU once the account is linked to the
 // Firebase/GA property). Paths can be overridden via EAS secret files.
 const iosGoogleServicesFile = process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist";

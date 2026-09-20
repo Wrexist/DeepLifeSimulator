@@ -12,12 +12,15 @@ You are logged into EAS as `isacm`. Keep that terminal handy.
 
 ---
 
-## PART 1 - AdMob Android ad units (the one build blocker)
+## PART 1 - AdMob Android ad units — ✅ DONE (2026-09-19)
 
-Without these, the Android build shows **test ads** (no revenue).
+Set in the EAS production env and in `app.config.js`:
+`EXPO_PUBLIC_ADMOB_ANDROID_APP_ID`, `EXPO_PUBLIC_ADMOB_BANNER_ANDROID`,
+`EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID`, `EXPO_PUBLIC_ADMOB_REWARDED_ANDROID`.
+Kept below for reference / if the units ever need recreating.
 
-1. Open https://admob.google.com → **Apps**. Your Android app already exists
-   (App ID `ca-app-pub-2286247955186424~3290819490`).
+1. Open https://admob.google.com → **Apps**. Android app App ID:
+   `ca-app-pub-2286247955186424~9052280895`.
 2. **Ad units → Add ad unit**. Create exactly three, for that Android app:
    - **Banner** → copy its Ad unit ID (`ca-app-pub-…/…`)
    - **Interstitial** → copy its ID

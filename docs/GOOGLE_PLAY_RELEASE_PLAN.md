@@ -848,18 +848,20 @@ The first production release of a new app goes through Google review — plan fo
 | Sentry crash-free rate | Sentry | Your earlier warning system than Play's |
 | IAP conversion | RevenueCat | Compare with iOS to spot a broken Android purchase path |
 
-### 13.2 Turn on Android ads (deliberately deferred)
-Android launches **ad-free** because no Android ad units exist. When you want ads:
-1. 👤 AdMob → create the Android app (App ID already referenced:
-   `ca-app-pub-2286247955186424~3290819490`) → create **banner**, **interstitial**,
-   and **rewarded** units.
-2. 👤 Add secrets `EXPO_PUBLIC_ADMOB_ANDROID_APP_ID`,
-   `EXPO_PUBLIC_ADMOB_{BANNER,INTERSTITIAL,REWARDED}_ANDROID`.
-3. 🤖 Remove `--warn-missing-android-admob` from the workflow's preflight step so
-   missing Android ad units become a **blocking** check again (PR it once the units
-   exist — not before, or every build fails).
-4. 👤 AdMob → app settings → set the **maximum ad content rating** to match your
-   IARC rating, so ad content never exceeds what the store says.
+### 13.2 Android ads - DONE (2026-09-19)
+Android launched ad-free because no units existed; that is now resolved for the
+first Play release:
+1. 👤 AdMob → Android app created (App ID `ca-app-pub-2286247955186424~9052280895`)
+   with **banner**, **interstitial** and **rewarded** units. (The earlier
+   `~3290819490` in this plan was a placeholder, not a real app.)
+2. 🤖 All four values set in the EAS production env
+   (`EXPO_PUBLIC_ADMOB_ANDROID_APP_ID`, `EXPO_PUBLIC_ADMOB_{BANNER,INTERSTITIAL,REWARDED}_ANDROID`),
+   and `app.config.js` defaults to the new App ID.
+3. 🤖 `--warn-missing-android-admob` removed from the Android build workflow, so
+   missing Android ad units now fail the build closed like every other
+   revenue-critical value.
+4. 👤 Still to do in AdMob → app settings → set the **maximum ad content rating**
+   to match your IARC rating, so ad content never exceeds what the store says.
 5. Ship it as a normal versioned update. Your Data safety and Ads declarations
    already say "contains ads", so nothing in the Console changes.
 
