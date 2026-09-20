@@ -58,9 +58,11 @@ Branch `codex/restore-precompact-hud` (PR #215, all checks green). Binary
    - App icon **512x512 PNG** (32-bit, no alpha needed).
    - **Feature graphic 1024x500** (required).
    - Phone screenshots: at least 2, each side 320-3840px and **aspect ratio no
-     more than 2:1**. The existing iOS shots are 1320x2868 / 1284x2778
-     (**2.17:1**) and would be REJECTED - Android needs its own captures (e.g.
-     1080x1920).
+     more than 2:1**. **Done** - `marketing/play-store/screenshots/` holds the 8
+     designed 1080x1920 (9:16) storyboards, rendered by
+     `screenshots/player-stories-2026-09/source/build.mjs --devices=play-phone`
+     (a `play-phone` size was added for this). The iOS shots are 2.17:1 and must
+     NOT be uploaded.
    - Data safety form, content rating questionnaire, Ads declaration ("contains
      ads"), target audience, privacy policy URL
      (`https://wrexist.github.io/DeepLifeSimulator/privacy.html`).
@@ -91,6 +93,25 @@ manifest are configured; no change needed here.
 3. Signed candidate + TestFlight/Play internal track (external, requires
    authorization to dispatch a build).
 4. Device acceptance matrix (iOS + Android) - unavailable in this environment.
+
+## Commands to run once authorized (not run here)
+
+```bash
+# 1. Set the Android ad units (else the build ships Google TEST ads).
+eas env:create --environment production --name EXPO_PUBLIC_ADMOB_BANNER_ANDROID     --value <id> --visibility plaintext
+eas env:create --environment production --name EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID --value <id> --visibility plaintext
+eas env:create --environment production --name EXPO_PUBLIC_ADMOB_REWARDED_ANDROID   --value <id> --visibility plaintext
+
+# 2. Signed Android App Bundle (first Android release).
+eas build --platform android --profile production
+
+# 3. Upload to the Play internal track (needs play-service-account.json).
+eas submit --platform android --profile production
+```
+
+Confirm the remote `versionCode` before the first upload (`appVersionSource:
+remote`, `autoIncrement: true` in eas.json). Dispatch/submit only with explicit
+authorization.
 
 ## Changed in this pass
 
