@@ -128,6 +128,45 @@ async function bootService(): Promise<{
 
 const ORIGINAL_ENV = { ...process.env };
 
+describe('banner paid impressions', () => {
+  it('reports each refresh as one displayed impression with the same id as its revenue', async () => {
+    const { adMobService: service } = await import('@/services/AdMobService');
+    service.trackBannerRevenue('banner-unit', { value: 0.0042, currency: 'USD', precision: 3 });
+    service.trackBannerRevenue('banner-unit', { value: 0, currency: 'USD', precision: 1 });
+
+    expect(mockTrackAdDisplayed).toHaveBeenCalledTimes(2);
+    expect(mockTrackAdRevenue).toHaveBeenCalledTimes(2);
+    const revenueEvents = mockTrackAdRevenue.mock.calls.map(([payload]) => payload);
+    for (const [index, event] of revenueEvents.entries()) {
+      expect(mockTrackAdDisplayed).toHaveBeenNthCalledWith(index + 1, {
+        mediatorName: 'AdMob', adFormat: 'banner', adUnitId: 'banner-unit',
+        impressionId: event.impressionId,
+      });
+    }
+    expect(revenueEvents[0].impressionId).not.toBe(revenueEvents[1].impressionId);
+    expect(revenueEvents[0].revenueMicros).toBe(4200);
+    expect(revenueEvents[1].revenueMicros).toBe(0);
+  });
+
+  it('still sends revenue if the displayed-event reporter throws', async () => {
+    const { adMobService: service } = await import('@/services/AdMobService');
+    mockTrackAdDisplayed.mockImplementationOnce(() => { throw new Error('reporter unavailable'); });
+    expect(() => service.trackBannerRevenue('banner-unit', {
+      value: 0.01, currency: 'SEK', precision: 3,
+    })).not.toThrow();
+    expect(mockTrackAdRevenue).toHaveBeenCalledWith(expect.objectContaining({
+      revenueMicros: 10000, currency: 'SEK', adFormat: 'banner',
+    }));
+  });
+
+  it('does not report an impression without an ad unit', async () => {
+    const { adMobService: service } = await import('@/services/AdMobService');
+    service.trackBannerRevenue('', { value: 0.01, currency: 'USD', precision: 3 });
+    expect(mockTrackAdDisplayed).not.toHaveBeenCalled();
+    expect(mockTrackAdRevenue).not.toHaveBeenCalled();
+  });
+});
+
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
