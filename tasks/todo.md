@@ -1,5 +1,13 @@
 # Current work
 
+## Banner impression measurement — 24 September 2026
+
+- [x] Reproduce missing RevenueCat display events from banner paid callbacks.
+- [x] Report display/revenue with the same impression ID, preserving refresh uniqueness and failure isolation.
+- [ ] Inspect final-head CI and verify delivery on the exact signed iOS candidate; existing native gates remain open.
+
+Evidence: [banner measurement](release/evidence/banner-impression-measurement-2026-09-24.md). No ad frequency, pricing or consent changes; no deployment.
+
 ## Owner review pass - 18 September 2026
 
 Branch `codex/restore-precompact-hud` (built on `1e766685`, v2.13.0, schema 51),

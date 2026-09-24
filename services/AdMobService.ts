@@ -375,7 +375,13 @@ class AdMobServiceImpl {
     // failure. AdMob refreshes banners in place, so it fired again on every
     // refresh. The mint no longer throws; this makes the promise true regardless.
     try {
-      this.reportRevenue(event, 'banner', adUnitId, newImpressionId());
+      const impressionId = newImpressionId();
+      // AdMob's paid callback represents an impression, including zero-value
+      // impressions. RevenueCat tracks display and revenue separately. Reuse
+      // the id so banner refreshes contribute to both metrics without minting
+      // an unrelated impression for the revenue event.
+      this.reportLifecycle('displayed', 'banner', adUnitId, impressionId);
+      this.reportRevenue(event, 'banner', adUnitId, impressionId);
     } catch (error) {
       log.warn('Banner revenue report failed', { error: errMessage(error) });
     }
