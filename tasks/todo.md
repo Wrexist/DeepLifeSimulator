@@ -1,5 +1,17 @@
 # Current work
 
+## Home freeze + four-lens audit — 25 September 2026
+
+Branch `claude/great-davinci-cr2nh8`. Report: [home-freeze-and-audits](home-freeze-and-audits-2026-09-25.md).
+
+- [x] Reproduce the Home freeze statically and dynamically (no render loop; Modal handoff identified).
+- [x] Interruption queue: handoff settle gap, no preemption of a presented Modal, orb sheet holds the slot, popup close fallbacks.
+- [x] Gameplay: hidden gamble outcomes, lost karma, first-job tenure, friend-only social events, wedding gate.
+- [x] UX: HUD quick actions, market toasts, recap count, coach anchor/copy, save-slot weeks.
+- [x] Perf/stability: root layout + ticker narrow subscriptions; repairs on clones.
+- [ ] Verify the freeze fix on an iOS device (welcome back → daily reward on a new day).
+- [ ] Owner decisions on the ranked "recommended next" list in the report (Android save budget first).
+
 ## Banner impression measurement — 24 September 2026
 
 - [x] Reproduce missing RevenueCat display events from banner paid callbacks.

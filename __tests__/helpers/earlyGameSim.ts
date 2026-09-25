@@ -521,7 +521,9 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
       performHealthActivity: (id) =>
         spend('health', () => captured!.item.performHealthActivity(id) as SimActionResult | undefined, 60),
       buyFood: (id) => spend('food', () => captured!.item.buyFood(id) as SimActionResult | undefined),
-      buyItem: (id) => spend('items', () => captured!.item.buyItem(id) as SimActionResult | undefined),
+      // buyItem returns whether it succeeded (refusals toast on their own).
+      buyItem: (id) =>
+        spend('items', (): SimActionResult | undefined => (captured!.item.buyItem(id) ? { success: true } : undefined)),
       rentHome: (tierId) =>
         spend('housing', () => rentHomeAction(captured!.setGameState, captured!.state, tierId)),
       // `resolveEvent` keeps `${eventId}_${choiceId}` in a 500 ms double-tap
