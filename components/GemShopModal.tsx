@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Platform } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -31,6 +31,7 @@ import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
 import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
 import { track } from '@/lib/analytics';
+import { nothingToRestoreMessage } from '@/lib/shop/storeAccount';
 
 /**
  * Presentation-only companions to the gem-upgrade catalogue (M8). Artwork and
@@ -465,7 +466,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
       } else {
         gameAlert(
           'Nothing To Restore',
-          'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
+          nothingToRestoreMessage(Platform.OS),
           [{ text: 'OK', style: 'default' }],
         );
       }

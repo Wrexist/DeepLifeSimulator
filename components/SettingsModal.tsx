@@ -43,6 +43,7 @@ import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { gameAlert } from '@/utils/gameAlert';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { analytics } from '@/lib/analytics';
+import { nothingToRestoreMessage } from '@/lib/shop/storeAccount';
 import { firebaseAnalyticsService } from '@/services/FirebaseAnalyticsService';
 import { hasUsageAnalyticsConsent, isUsageAnalyticsAllowed, saveUsageAnalyticsConsent } from '@/utils/usageAnalyticsConsent';
 const HelpModal = React.lazy(() => import('./HelpModal'));
@@ -367,7 +368,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       } else {
         gameAlert(
           'Nothing To Restore',
-          'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
+          nothingToRestoreMessage(Platform.OS),
           [{ text: 'OK', style: 'default' }]
         );
       }
