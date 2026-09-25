@@ -67,12 +67,21 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const handleClaim = () => {
  if (claimInProgressRef.current) return;
  claimInProgressRef.current = true;
+ // Exactly once, whichever arrives first: the animation's end callback or
+ // the fallback timer. The latch above swallows every later tap and the
+ // Android back gesture, so a dropped native-driver callback would otherwise
+ // leave this full-screen Modal with no way out.
+ let closed = false;
+ const finish = () => {
+ if (closed) return;
+ closed = true;
+ if (isMountedRef.current) onClose();
+ };
+ setTimeout(finish, 400);
  Animated.parallel([
  Animated.timing(scaleAnim, { toValue: 0.96, duration: 160, useNativeDriver: true }),
  Animated.timing(fadeAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
- ]).start(() => {
- if (isMountedRef.current) onClose();
- });
+ ]).start(finish);
  };
 
  const palette = isDarkMode

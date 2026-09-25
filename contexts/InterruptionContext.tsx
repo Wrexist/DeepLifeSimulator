@@ -106,14 +106,46 @@ export type InterruptionPriority =
  */
 export const MAX_INTERRUPTIONS_PER_WEEK = 2;
 
+/**
+ * The gap between one surface giving up the slot and the next one receiving it.
+ *
+ * Every surface here that holds the slot is (or opens) an RN Modal, and each is
+ * MOUNTED only while it holds the slot. So a handoff - welcome back closes, the
+ * daily reward it was queued in front of takes over - used to unmount one
+ * PRESENTED Modal and present the next in back-to-back commits, while iOS was
+ * still animating the first one away. iOS refuses or strands a presentation
+ * started during another's dismissal, and the stranded case is a transparent
+ * full-screen layer that swallows every touch: Home visible, nothing
+ * responding. That is the "Home tab got frozen/stuck" report, on the most
+ * ordinary session there is - the first launch of a new day. `AlertHost`
+ * documents the same mechanism for the Revival Pack report.
+ *
+ * Long enough for a native dismissal to finish (UIKit's is ~0.3s), short
+ * enough that the next surface still reads as "next".
+ */
+export const HANDOFF_SETTLE_MS = 450;
+
 interface ClaimRecord {
   priority: number;
   countsTowardBudget: boolean;
+  /**
+   * Whether a higher-priority claim may take the slot from this surface while
+   * it still wants it. False for anything that presents a Modal: pulling the
+   * slot from a presented Modal unmounts it under the player's thumb, and
+   * whatever outranked it then presents during that dismissal (see
+   * `HANDOFF_SETTLE_MS`). A higher claim simply waits until this one closes.
+   */
+  preemptible: boolean;
 }
 
 interface InterruptionContextValue {
   /** Register or clear this surface's claim. */
-  claim: (id: string, priority: number | null, countsTowardBudget?: boolean) => void;
+  claim: (
+    id: string,
+    priority: number | null,
+    countsTowardBudget?: boolean,
+    preemptible?: boolean
+  ) => void;
   /** The id currently holding the slot, or null when nothing wants to show. */
   activeId: string | null;
 }
@@ -129,9 +161,19 @@ export function InterruptionProvider({ children }: { children: ReactNode }) {
   /** The current grant holder - read by the winner memo so an in-flight grant
    *  is never evicted by its own budget increment. */
   const activeRef = useRef<string | null>(null);
+  /** The surface currently granted the slot (trails the winner on handoff). */
+  const [granted, setGranted] = useState<string | null>(null);
+  /** When the slot was last given up - the start of the handoff gap. Starts at
+   *  0 so the very first grant of a session is immediate. */
+  const lastReleaseAtRef = useRef(0);
 
   const claim = useCallback(
-    (id: string, priority: number | null, countsTowardBudget: boolean = true) => {
+    (
+      id: string,
+      priority: number | null,
+      countsTowardBudget: boolean = true,
+      preemptible: boolean = false
+    ) => {
       setClaims((prev) => {
         if (priority === null) {
           if (!(id in prev)) return prev; // no-op keeps the identity stable
@@ -143,11 +185,12 @@ export function InterruptionProvider({ children }: { children: ReactNode }) {
         if (
           existing &&
           existing.priority === priority &&
-          existing.countsTowardBudget === countsTowardBudget
+          existing.countsTowardBudget === countsTowardBudget &&
+          existing.preemptible === preemptible
         ) {
           return prev;
         }
-        return { ...prev, [id]: { priority, countsTowardBudget } };
+        return { ...prev, [id]: { priority, countsTowardBudget, preemptible } };
       });
     },
     []
@@ -180,7 +223,12 @@ export function InterruptionProvider({ children }: { children: ReactNode }) {
     });
   }, [store]);
 
-  const activeId = useMemo(() => {
+  // Who SHOULD hold the slot right now, before the handoff gap below.
+  const winner = useMemo(() => {
+    // A non-preemptible holder that still wants the slot keeps it, whatever
+    // has arrived above it since. See `ClaimRecord.preemptible`.
+    if (granted && claims[granted] && !claims[granted].preemptible) return granted;
+
     let winner: string | null = null;
     let best = -Infinity;
     // Sort the ids so equal priorities resolve the same way every render
@@ -193,7 +241,7 @@ export function InterruptionProvider({ children }: { children: ReactNode }) {
       const eligible =
         !c.countsTowardBudget ||
         usedThisWeek < MAX_INTERRUPTIONS_PER_WEEK ||
-        id === activeRef.current;
+        id === granted;
       if (!eligible) continue;
       if (c.priority > best) {
         best = c.priority;
@@ -201,7 +249,29 @@ export function InterruptionProvider({ children }: { children: ReactNode }) {
       }
     }
     return winner;
-  }, [claims, usedThisWeek]);
+  }, [claims, usedThisWeek, granted]);
+
+  // The actual grant, which trails `winner` by one settle gap on every handoff.
+  // A slot that CHANGES hands always passes through null first, so the outgoing
+  // surface unmounts in one commit and the incoming one presents at least
+  // HANDOFF_SETTLE_MS later - never in the next commit.
+  useEffect(() => {
+    if (winner === granted) return undefined;
+    if (granted !== null) {
+      lastReleaseAtRef.current = Date.now();
+      setGranted(null);
+      return undefined;
+    }
+    const wait = HANDOFF_SETTLE_MS - (Date.now() - lastReleaseAtRef.current);
+    if (wait <= 0) {
+      setGranted(winner);
+      return undefined;
+    }
+    const timer = setTimeout(() => setGranted(winner), wait);
+    return () => clearTimeout(timer);
+  }, [winner, granted]);
+
+  const activeId = granted;
 
   // Account a grant: each transition to a NEW budgeted holder spends one unit.
   useEffect(() => {
@@ -229,6 +299,13 @@ export interface InterruptionSlotOptions {
    * refuses a direct tap.
    */
   countsTowardBudget?: boolean;
+  /**
+   * Whether a higher-priority surface may take the slot while this one still
+   * wants it. Defaults to false, which is right for anything that presents a
+   * Modal. Pass true only for a surface that is safe to yank mid-display (the
+   * ad orb's floating pill, which is not a Modal).
+   */
+  preemptible?: boolean;
 }
 
 /**
@@ -248,15 +325,16 @@ export function useInterruptionSlot(
 ): boolean {
   const ctx = useContext(InterruptionContext);
   const countsTowardBudget = options?.countsTowardBudget !== false;
+  const preemptible = options?.preemptible === true;
 
   const claim = ctx?.claim;
   useEffect(() => {
     if (!claim) return;
-    claim(id, wants ? priority : null, countsTowardBudget);
+    claim(id, wants ? priority : null, countsTowardBudget, preemptible);
     // Release on unmount so a surface that disappears mid-claim can't wedge the
     // queue shut for everything below it.
     return () => claim(id, null);
-  }, [claim, id, priority, wants, countsTowardBudget]);
+  }, [claim, id, priority, wants, countsTowardBudget, preemptible]);
 
   if (!ctx) return wants;
   return wants && ctx.activeId === id;

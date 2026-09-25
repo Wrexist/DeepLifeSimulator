@@ -168,9 +168,6 @@ export default function TabLayout() {
     if (pendingEventCount === 0 && eventInboxOpen) setEventInboxOpen(false);
   }, [pendingEventCount, eventInboxOpen]);
 
-  const higherModalUp = !!(
-    showDeathPopup || showWeddingPopup || pendingMoment || eventInboxOpen
-  );
 
   // ── The two surfaces the queue declared but nobody claimed ────────────────
   //
@@ -202,6 +199,12 @@ export default function TabLayout() {
     { countsTowardBudget: false }
   );
   // The inbox pill shows when decisions are waiting and nothing else is up.
+  // Keyed on the life moment actually SHOWING, not merely pending: a moment the
+  // per-week budget has deferred is not on screen, and hiding the pill for it
+  // left the player with decisions waiting and nothing to tap until next week.
+  const higherModalUp = !!(
+    showDeathPopup || showWeddingPopup || showLifeMoment || eventInboxOpen
+  );
   const showEventPill = pendingEventCount > 0 && !higherModalUp && !isInPrison;
 
   // Force navigation to work tab when entering prison

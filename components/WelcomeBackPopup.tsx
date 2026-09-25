@@ -42,6 +42,9 @@ interface WelcomeBackPopupProps {
   onClose: () => void;
 }
 
+
+/** Close-animation fallback: comfortably longer than the 200ms exit. */
+const CLOSE_FALLBACK_MS = 450;
 export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupProps) {
   const { gameState } = useGameState();
   const router = useRouter();
@@ -164,8 +167,19 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
   const close = (afterClose?: () => void) => {
     if (closingRef.current) return;
     closingRef.current = true;
-    const finish = () => { onClose(); afterClose?.(); };
+    // Exactly once, whichever arrives first: the animation's end callback or
+    // the fallback timer. The latch above swallows every later tap and the
+    // Android back gesture, so if the native-driver callback were ever dropped
+    // the only way out of this full-screen Modal would be gone.
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      onClose();
+      afterClose?.();
+    };
     if (reducedMotion) { finish(); return; }
+    setTimeout(finish, CLOSE_FALLBACK_MS);
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
