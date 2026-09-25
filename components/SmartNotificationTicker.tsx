@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, useGameStateGetter, useSetGameState } from '@/contexts/game/useGameSelector';
 import { smartNotificationSystem, NotificationContext } from '@/utils/smartNotifications';
 
 /**
@@ -31,11 +31,15 @@ function getSeason(): NotificationContext['season'] {
 const PRIORITY_RANK: Record<string, number> = { critical: 3, high: 2, medium: 1, low: 0 };
 
 export default function SmartNotificationTicker() {
-  const { gameState, setGameState } = useGame();
-  const weeksLived = gameState?.weeksLived ?? 0;
+  // Subscribes to ONE number. This is mounted for the whole session in the tab
+  // layout, and it used to take the full state through `useGame()` purely to
+  // keep a ref fresh - so it re-rendered on every mutation of anything. The
+  // timer reads the live state through the getter instead (CLAUDE.md 4.1,
+  // the AdRewardOrb pattern).
+  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
+  const getGameState = useGameStateGetter();
+  const setGameState = useSetGameState();
   const prevWeekRef = useRef<number | null>(null);
-  const stateRef = useRef(gameState);
-  stateRef.current = gameState;
 
   useEffect(() => {
     // First mount: just record the baseline, don't fire on load/restore.
@@ -51,7 +55,7 @@ export default function SmartNotificationTicker() {
 
     // Let the week-result sheet / recap animations land first.
     const timer = setTimeout(() => {
-      const gs = stateRef.current;
+      const gs = getGameState();
       if (!gs || gs.showDeathPopup) return;
       try {
         const context: NotificationContext = {
@@ -110,7 +114,7 @@ export default function SmartNotificationTicker() {
       }
     }, 1600);
     return () => clearTimeout(timer);
-  }, [weeksLived, setGameState]);
+  }, [weeksLived, setGameState, getGameState]);
 
   return null;
 }

@@ -38,7 +38,7 @@ import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, Interac
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { useGameState } from '@/contexts/GameContext';
+import { useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { initializeDebugContext, setStateGetter } from '@/src/debug/aiDebugConfig';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import TopStatsBar from '@/components/TopStatsBar';
@@ -50,7 +50,7 @@ import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
 import AlertHost from '@/components/ui/AlertHost';
 import { hydrateSectionCollapse } from '@/utils/sectionCollapse';
-import { Component, useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { Component, useEffect, useState, lazy, Suspense } from 'react';
 import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // expo-tracking-transparency is in package.json AND wired via the config plugin
@@ -1367,34 +1367,25 @@ interface StatusBarWrapperProps {
 }
 
 function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
-  // Use useGameState directly instead of useGame to avoid GameActionsProvider dependency
-  // This component only needs gameState, not actions
-  // Add defensive check - if hook fails, ErrorBoundary will catch it
-  //
   /**
-   * PERF-A1, OPEN - analysed, deliberately not changed here.
+   * PERF-A1 - narrowed. This sits at the root and wraps <Slot/>, the TopStatsBar
+   * and every global popup, and it used to subscribe to the WHOLE game state via
+   * `useGameState()`: every money change and every weekly stat decay re-rendered
+   * the root SafeAreaView, the router slot and all its siblings.
    *
-   * This subscribes to the WHOLE game state and sits at the root, so it
-   * re-renders on every money change and every weekly stat decay, and its
-   * SafeAreaView wraps the app. What it actually reads is narrow:
-   * `settings.darkMode`, the presence of `stats`, and four popup flags.
-   *
-   * It is not a simple selector swap, for two reasons. `setGameState` is
-   * needed by `dismissPopupOnError`, and taking it from `useGameState()` is
-   * itself the documented full-state re-subscription (CLAUDE.md §4.1,
-   * tasks/lessons.md 2026-06-09) - so narrowing the reads alone would change
-   * nothing. And the AI debug getter needs the whole state, via the ref below.
-   * A real fix means splitting this into a narrow presentational part and a
-   * render-nothing leaf that owns the writer and the debug getter.
-   *
-   * Left alone because the payoff is unmeasured and the risk is not: this is
-   * `app/_layout.tsx`, the file the v2.5.0 launch crash came out of, and the
-   * PR checklist requires TestFlight verification for changes to it. The
-   * round-4 audit reached the same conclusion - "needs device measurement, not
-   * more static analysis". Recorded here so the next pass starts from the
-   * analysis instead of re-deriving it.
+   * What it actually reads is narrow - `settings.darkMode`, whether `stats`
+   * exists, and two popup flags - so those are selected one primitive at a time.
+   * The two things that looked like they needed the full subscription do not:
+   * `dismissPopupOnError` writes through `useSetGameState` (a stable setter with
+   * no subscription, CLAUDE.md 4.1), and the AI debug getter reads through
+   * `useGameStateGetter` (a stable read with no subscription).
    */
-  const { gameState, setGameState } = useGameState();
+  const darkMode = useGameSelector((s) => s?.settings?.darkMode !== false);
+  const hasStats = useGameSelector((s) => !!s?.stats);
+  const showDeathPopup = useGameSelector((s) => !!s?.showDeathPopup);
+  const showWeddingPopup = useGameSelector((s) => !!s?.showWeddingPopup);
+  const setGameState = useSetGameState();
+  const getGameState = useGameStateGetter();
   // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
   // full-screen - but NOT the critical popups below, which render regardless
   // of `showStatsBar`/`showTopChrome` entirely (see the two gates further
@@ -1409,12 +1400,6 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // fired before the router had settled into `(tabs)`).
   const fullscreenApp = useFullscreenApp();
   const showTopChrome = showStatsBar && !fullscreenApp;
-
-  // P1-14: keep a ref of the latest gameState so the AI debug getter doesn't
-  // need to re-register on every state change (the previous useEffect with
-  // [gameState] deps fired tens of times per second during week progression).
-  const gameStateRef = useRef(gameState);
-  useEffect(() => { gameStateRef.current = gameState; });
 
   // P0-14: per-popup auto-dismiss handler. When a lazy modal fails to mount
   // (chunk-load failure, render error), clear its show flag so the game can
@@ -1431,26 +1416,25 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // we always use the fallback which is a safe no-op component.
   const StatusBar = StatusBarFallback;
 
-  // Register game state getter with AI Debug Context.
-  // P1-14: register once on mount, read latest state via ref. The previous
-  // [gameState]-dep effect re-registered the getter on every state change.
+  // Register game state getter with AI Debug Context. Registered once; the
+  // store getter always reads the live state, so nothing needs re-registering.
   useEffect(() => {
     try {
-      setStateGetter(() => gameStateRef.current);
+      setStateGetter(() => getGameState());
     } catch (error) {
       if (__DEV__) {
         console.warn('[StatusBarWrapper] Failed to set state getter:', error);
       }
     }
-  }, []);
+  }, [getGameState]);
   return (
-    <SafeAreaView style={[styles.safeArea, gameState?.settings?.darkMode !== false && styles.safeAreaDark]} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safeArea, darkMode && styles.safeAreaDark]} edges={['left', 'right', 'bottom']}>
       {/* Only show status bar space and TopStatsBar when in main game (and not
           while a phone app is full-screen). */}
-      {showTopChrome && <View style={[styles.statusBar, gameState?.settings?.darkMode !== false && styles.statusBarDark, { height: insets.top }]} />}
+      {showTopChrome && <View style={[styles.statusBar, darkMode && styles.statusBarDark, { height: insets.top }]} />}
       {/* Show TopStatsBar only in main game, not in onboarding */}
       {/* TopStatsBar is wrapped in ErrorBoundary via AppProviders, so it's safe to render */}
-      {showTopChrome && gameState?.stats && (
+      {showTopChrome && hasStats && (
         <ErrorBoundary
           fallback={null}
           onError={(error) => {
@@ -1482,28 +1466,28 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
           home.tsx's blockingModalUp UNCONDITIONALLY, so hiding the popup
           behind route/onboarding state while the block still applied
           elsewhere was a soft lock with nothing on screen to clear it. */}
-      {gameState?.showDeathPopup && (
+      {showDeathPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showDeathPopup')}>
           <Suspense fallback={null}>
             <DeathPopup />
           </Suspense>
         </ErrorBoundary>
       )}
-      {!gameState?.showDeathPopup && gameState?.showWeddingPopup && (
+      {!showDeathPopup && showWeddingPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showWeddingPopup')}>
           <Suspense fallback={null}>
             <WeddingPopup />
           </Suspense>
         </ErrorBoundary>
       )}
-      {showStatsBar && !gameState?.showDeathPopup && (
+      {showStatsBar && !showDeathPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showSicknessModal')}>
           <Suspense fallback={null}>
             <SicknessModal />
           </Suspense>
         </ErrorBoundary>
       )}
-      {showStatsBar && !gameState?.showDeathPopup && (
+      {showStatsBar && !showDeathPopup && (
         // CureSuccessModal has no show-flag (it self-gates on `cureSuccessMessage`).
         // If it fails to render, just swallow - there's nothing to dismiss.
         <ErrorBoundary fallback={null} onError={(error) => logger.error('[StatusBarWrapper] CureSuccessModal failed:', { error: error?.message })}>
