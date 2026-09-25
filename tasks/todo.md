@@ -10,8 +10,11 @@ a reload drops the purchase.
 - [x] Failing provider-level test: action + `saveGame()` in one handler → persisted payload and a reloaded slot contain the action (on `main`: `microphone: false` on disk).
 - [x] Fix in `saveGame`: wait for the commit that carries every update dispatched before the call, then read. No per-call-site patches, no save-format change.
 - [x] Keep R3-S1 and the slot pairing safe (a load committing inside that wait must not be written into the previous slot). Mutation-checked: guard off → slot 1 overwritten.
-- [ ] Run save, stress, startup suites; `npm run preflight`; lessons entry; PR with the save-system risk box.
-- [ ] Follow-up (not this PR): drop the now-redundant `setTimeout(0)` yields at six call sites; decide whether "Switch save slot" saves first.
+- [x] Save + integration (53 suites / 587), stress + startup (55 / 908), full suite on the merged tree (816 / 817; the red one is the wall-clock tick benchmark, also red on `main` on this Windows machine, A/B shows no cost). Type-checks 0. Lessons entry written.
+- [x] `npm run preflight`: `main` was at 703 lint warnings against a 701 ceiling (two new `require()`s in `lib/review/__tests__/inAppReview.test.ts`, from #220). Fixed with the repo's line-level disable convention rather than raising the ceiling.
+- [ ] PR with the save-system risk box; watch CI's tick-timing number against `main`'s 3.98 ms/tick.
+- [ ] Follow-up (not this PR): "Switch save slot" should save before it suspends. Market purchases (`buyItem` / `buyFood`) never call `saveGame`, so a switch within 2 minutes of one still loses it.
+- [ ] Follow-up (not this PR): drop the now-redundant `setTimeout(0)` / 200 ms pre-save yields (home, work, DeathPopup, Discord grant, restoreFromCloud, resolveEvent).
 
 ## Home freeze + four-lens audit — 25 September 2026
 
