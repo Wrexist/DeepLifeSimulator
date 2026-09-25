@@ -18,8 +18,7 @@ sidan — gratis.
 
 ## Gör nu (~15 min)
 
-1. **Skicka in Halloween-eventet** — `promo-events/2026-10-halloween-SV.md`
-   (5 min, deadline 2 okt). Play-event syns i *Event*-fliken, i sökresultat
+1. ✅ **Halloween-eventet är inskickat** (25 sep) — `promo-events/2026-10-halloween-SV.md`. Play-event syns i *Event*-fliken, i sökresultat
    och på butikssidan — gratis exponering för spelare som aldrig hört om
    spelet. Under förhandsvisningen (från 2 okt) kan folk anmäla sig för en
    avisering när eventet startar.
@@ -65,7 +64,7 @@ snygg förhandsvisning (bild + titel) i WhatsApp, Discord, iMessage och X.
 
 | # | Event | Fönster | Skicka in senast | Status |
 |---|---|---|---|---|
-| 1 | Halloween "Nothing to Fear" | 16 okt – 6 nov | **2 okt** | klart att skicka |
+| 1 | Halloween "Nothing to Fear" | 16 okt – 6 nov | 2 okt | ✅ **inskickat 25 sep** (id 4832155368004637099) |
 | 2 | *Valfritt:* Black Friday-erbjudande (typ **Erbjudande**) | 27 nov – 1 dec | 13 nov | ditt beslut: kräver en riktig rea på gem-paket/ta bort reklam i Play Console |
 | 3 | Jul "Home for the Holidays" | 18 dec – 4 jan | **4 dec** (tidigast 19 okt) | klart att skicka — `promo-events/2026-12-holidays-SV.md` |
 

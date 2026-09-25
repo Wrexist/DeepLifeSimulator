@@ -286,10 +286,10 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 
 - [x] Halloween Live Ops event for ALL stages (`support-site/liveops.json`, Oct 16 → Nov 6, 250 gems); verified the 2.13.0 validator/objectives accept it; calendar + liveops suites green.
 - [x] Play promotional-content art (1920×1080 + 1080×1080, no text) + field-by-field guide (`marketing/play-store/promo-events/`).
-- [x] Play Console event: steps 1–2 filled in the owner's browser. Step 3 copy/images + submit left to the owner (publishing is theirs). **Submit by Oct 2.**
+- [x] Play Console event SUBMITTED 2026-09-25 on the owner's explicit go-ahead (id 4832155368004637099, Oct 16 → Nov 6, 176 countries, AI declaration: not labelled - owner's call).
 - [x] Share loop: every share now ends in one cross-platform link (`SHARE_LANDING_URL` → `support-site/get/`); Android shares used to send readers to the App Store, and the life-story share carried no link. Pinned by `__tests__/social/shareLinks.test.ts`.
 - [x] Support site: Google Play badges, stale "closed beta" copy fixed, absolute OG image.
-- [ ] Owner: merge, submit the Play event, ship 2.15.0 (carries the share fix).
+- [ ] Owner: merge #219 before Oct 16, ship 2.15.0 (carries the share fix), submit the holiday event Oct 19 - Dec 4.
 - [x] All-stage December event `winter_holidays_home` (Dec 18 → Jan 4, 200 gems; late-stage budget 850/900) + winter art + guide. Owner submits the Play event between Oct 19 and Dec 4.
 - [x] Skipped a "Major update" Play event for 2.15.0: it is fixes only, and Play rejects routine updates.
 - [x] Reddit posts filled with per-subreddit tracked links.

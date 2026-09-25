@@ -1,10 +1,11 @@
 # Play-händelse: Halloween 2026 "Nothing to Fear" — fält för fält
 
-**Status (2026-09-25):** steg 1–2 är ifyllda i din Chrome-flik
-(*Kampanjinnehåll → Skapa händelse*). Kvar: steg 3 (text + bilder) och
-steg 4 (skicka in). Tid: ~5 minuter.
+**Status: INSKICKAT 2026-09-25** — Play Console-id `4832155368004637099`,
+status "Inte påbörjad" (schemalagt), AI-deklaration "Märk inte tillgångar".
+Google granskar i upp till 4 dagar. Kvar för dig: **merga PR #219 före 16 okt**
+så att eventet finns i spelet. Resten av filen är underlaget som skickades in.
 
-**Deadline: skicka in senast 2 oktober.** Google kräver 14 dagars
+**Inskickat i tid** (deadline var 2 oktober). Google kräver 14 dagars
 framförhållning för att kunna framhäva (featura) eventet, och upp till 4 dagar
 för granskning. Förhandsvisningen på Play startar 2 oktober.
 
