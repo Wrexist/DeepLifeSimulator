@@ -357,6 +357,58 @@ Une vie dure des décennies et chaque semaine est une décision. La plupart des 
         'entreprise', 'famille', 'heritage', 'prison', 'rencontre', 'magnat',
       ],
     },
+    'de-DE': {
+      // Germany is the next non-English market by new customers (RevenueCat,
+      // 2026-08-28 → 09-24: 20 of 820, level with Canada). Same manual first
+      // step as pt-BR; the name matches the live German Play listing.
+      shipped: false,
+      name: 'Deep Life: Lebenssimulation',
+      subtitle: 'Karriere, Verbrechen, Krypto',
+      promotionalText:
+        'Fang bei null an. Ein Job, ein Kredit, ein Risiko. Bau ein Vermögen mit '
+        + 'Aktien, Immobilien und Verbrechen auf und vererbe am Ende alles.',
+      whatsNew: `Kein eingefrorener Startbildschirm mehr, und Wetten sind wieder Wetten.
+
+• Der Startbildschirm friert nicht mehr ein. Das Schließen eines Belohnungsfensters konnte den Bildschirm sichtbar, aber ohne Reaktion zurücklassen. Fenster warten jetzt, bis sie dran sind, und keines verschwindet mehr unter deinem Finger.
+• Flüssigeres Speichern. Jeder Speichervorgang erledigt nur noch die Hälfte der Arbeit, daher ruckelt der Button Next Week in einem langen Leben weniger.
+• Wetten sind wieder Wetten. Investment-Tipps, angefochtene Strafzettel und die Bitte um eine größere Gehaltserhöhung zeigen das Ergebnis nicht mehr vor deiner Entscheidung.
+• Deine Entscheidungen zählen. Ehrlichkeit, Loyalität und Großzügigkeit ändern sich nach Entscheidungen bei Arbeit und Reisen, und Arbeitsereignisse gibt es schon im ersten Job.
+• Freunde sind Freunde. Freundschaftsereignisse drehen sich um Menschen, die du kennengelernt hast, nicht um deine Mutter oder dein Baby, und eine Überraschungshochzeit sagt deine geplante nicht mehr ab.
+• Schnellaktionen tun, was sie versprechen. Halte einen Statusring gedrückt, und jede Option erhöht genau diesen Wert.
+• Ehrliche Zahlen. Ein fehlgeschlagener Kauf zeigt nicht mehr zusätzlich "Purchased!", und Speicherplätze zeigen die Wochen, die du wirklich gespielt hast.`,
+
+      description: `Jedes Leben beginnt gleich: kein Geld, kein Job, kein Plan.
+Was danach passiert, liegt ganz bei dir.
+
+Deep Life Simulator ist eine Lebenssimulation mit einer echten Wirtschaft darunter. Löhne werden besteuert. Kredite kosten Zinsen. Die Miete ist fällig, ob du zahlen kannst oder nicht. Märkte bewegen sich von selbst, und es ist ihnen egal, dass du investiert bist. Jede Entscheidung summiert sich über Jahrzehnte, bis du stirbst und den Rest einem Erben hinterlässt.
+
+SPRACHE
+Das Spiel ist auf Englisch. Diese Seite ist auf Deutsch, damit du genau weißt, was dich erwartet.
+
+KARRIERE UND AUSBILDUNG
+Über 20 Karrieren, vom Kurier bis zur Chirurgin oder zum CEO. Geh an die Uni, oder lass es und verdiene schon mit 16 Geld. Oder nimm den anderen Weg: die Straße, das Darknet und das Risiko, im Gefängnis zu landen.
+
+GELD, DAS SICH WIE GELD VERHÄLT
+Eine Live-Börse mit rotierenden Sektoren. Krypto zum Handeln oder Minen. Immobilien zum Vermieten, Firmen zum Gründen und Personal zum Einstellen. Kredite mit echten Zinsen, Bonität, Zahlungsrückstände und die sehr reale Möglichkeit der Pleite.
+
+FAMILIE UND ERBE
+Date, heirate, streite, lass dich scheiden. Zieh Kinder groß, die deine Züge und dein Vermögen erben. Bau über Generationen eine Dynastie auf und schalte dauerhafte Vorteile für das nächste Leben frei.
+
+LUXUS UND STATUS
+Supersportwagen, seltene Uhren, museumsreife Sammlungen, Immobilien und Ansehen. Mach aus einer Firma ein Imperium, oder geh früh in Rente und behalte, was du hast.
+
+WIE DAS SPIEL DICH BEHANDELT
+• Funktioniert offline: dein Spielstand bleibt auf deinem Gerät
+• Vollbildwerbung nur am Ende eines Spieljahres, nie in deinen ersten zwei Jahren, und ein Kauf entfernt sie dauerhaft
+• Keine Echtzeit-Energieleiste zwischen dir und der nächsten Woche
+
+Ein Leben dauert Jahrzehnte, und jede Woche ist eine Entscheidung. Die meisten fangen ein zweites an.`,
+      // Umlauts dropped (börse → borse), as accents are in the other locales.
+      keywords: [
+        'spiel', 'offline', 'geld', 'millionar', 'reichtum', 'imperium', 'borse',
+        'firma', 'familie', 'erbe', 'gefangnis', 'magnat', 'aktien',
+      ],
+    },
     'en-GB': {
       // Reference only — NOT a localisation to create in App Store Connect.
       // `check:aso --emit` skips unshipped locales for exactly this reason: a

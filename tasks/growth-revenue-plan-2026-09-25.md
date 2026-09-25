@@ -270,7 +270,7 @@ Store:
       pt-BR by hand in App Store Connect, then flip it.
 - [x] **fr-FR copy drafted** the same way (France is the largest non-English
       market in the data). Name matches the live French Play listing.
-- [ ] de-DE next.
+- [x] **de-DE copy drafted** the same way (Germany: 20 of 820 new customers).
 
 **Product page conversion.** The live 1.5.5 screenshots (iTunes lookup, US) are
 **neither repo set**: an older mix whose first two images are "07 phone full of
@@ -351,7 +351,7 @@ $2.54 from the cloud pass.
 ## Done this pass (repo)
 
 - `tasks/growth-revenue-plan-2026-09-25.md`: this file.
-- `marketing/aso/metadata.mjs`: pt-BR and fr-FR App Store localizations
+- `marketing/aso/metadata.mjs`: pt-BR, fr-FR and de-DE App Store localizations
   (reference until created in App Store Connect).
 - `scripts/check-aso.mjs`: validates a localized `name` and checks limits on
   every field present, shipped or not.
