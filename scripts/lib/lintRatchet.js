@@ -178,7 +178,9 @@ const MAX_ERRORS = 0;
 // source and the ceiling lowered to the measured count, per the ratchet rule.
 // 715 on 2026-09-08: the purchase handler no longer imports unused React.
 // Lock in the measured reduction while adding the Program 18 recovery path.
-const MAX_WARNINGS = 715;
+// 701 on 2026-09-25: the art pipeline's resolver errors were scoped off (it is
+// its own npm package) and the tree measured 701. Lowered per the ratchet rule.
+const MAX_WARNINGS = 701;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;
