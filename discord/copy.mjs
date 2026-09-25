@@ -435,6 +435,25 @@ export function renderReleasePost({ storeVersion, whatsNew, buildVersion }) {
   };
 }
 
+/**
+ * The one ask a Google Play release announcement carries: an HONEST rating.
+ *
+ * The Android listing had zero ratings at launch, and Play shows no stars at
+ * all until it has some - so the people most likely to rate are the ones
+ * reading the post the day an update lands. Deliberately no reward, no
+ * "5 stars", no contest: Play's policy forbids incentivised or manipulated
+ * ratings, and a community asked plainly gives the rating the game earned.
+ * scripts/notify-store-release.mjs appends it to the Google Play embed;
+ * __tests__/tooling/discordPlayRatingAsk.test.ts pins the wording.
+ */
+export function playRatingAsk() {
+  return {
+    name: '⭐ Enjoying it?',
+    value: `An honest rating on [Google Play](${LINKS.playStore}) helps other players find the game.`,
+    inline: false,
+  };
+}
+
 /** A plain announcement. */
 /**
  * @param {{title: string, body: string, color?: number}} input
