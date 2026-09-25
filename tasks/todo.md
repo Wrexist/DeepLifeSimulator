@@ -278,3 +278,16 @@ in the backlog. Historical hypotheses are not confirmed defects.
 
 Integration note: if #203 updates this file, retain its live release entries and
 the navigation above. Do not restore the archived 1,500-line mixed history.
+
+## Android growth — free levers (2026-09-25)
+
+Measured first: production v2.13.0, 57 installs, 14 listing visitors / 28 days
+at **93 % conversion** — the bottleneck is traffic, not the listing.
+
+- [x] Halloween Live Ops event for ALL stages (`support-site/liveops.json`, Oct 16 → Nov 6, 250 gems); verified the 2.13.0 validator/objectives accept it; calendar + liveops suites green.
+- [x] Play promotional-content art (1920×1080 + 1080×1080, no text) + field-by-field guide (`marketing/play-store/promo-events/`).
+- [x] Play Console event: steps 1–2 filled in the owner's browser. Step 3 copy/images + submit left to the owner (publishing is theirs). **Submit by Oct 2.**
+- [x] Share loop: every share now ends in one cross-platform link (`SHARE_LANDING_URL` → `support-site/get/`); Android shares used to send readers to the App Store, and the life-story share carried no link. Pinned by `__tests__/social/shareLinks.test.ts`.
+- [x] Support site: Google Play badges, stale "closed beta" copy fixed, absolute OG image.
+- [ ] Owner: merge, submit the Play event, ship 2.15.0 (carries the share fix).
+- [ ] Next: an all-stage December event for the Q4 featuring slot #3 (submit by Dec 4).
