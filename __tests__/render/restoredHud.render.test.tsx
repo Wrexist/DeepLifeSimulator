@@ -27,11 +27,21 @@ it('restores the two-column HUD: direct utilities and long-press quick actions',
   // Long press still opens the vital quick actions in the floating container.
   act(() => button('Energy level')!.props.onLongPress());
   expect(button('Rest')).toBeDefined();
-  expect(button('Eat')).toBeDefined();
+  // Each ring offers only actions that raise its own stat: eating restores no
+  // energy, so the Energy ring no longer offers it.
+  expect(button('Eat')).toBeUndefined();
+  expect(button('Eat Healthy')).toBeUndefined();
   expect(styles.quickActionsContainer.position).toBe('absolute');
 
   act(() => button('Energy level')!.props.onLongPress());
   expect(button('Rest')).toBeUndefined();
+
+  // Health: Rest adds no health (and costs happiness), so it is not here.
+  act(() => button('Health level')!.props.onLongPress());
+  expect(button('Eat Healthy')).toBeDefined();
+  expect(button('Exercise')).toBeDefined();
+  expect(button('Rest')).toBeUndefined();
+  act(() => button('Health level')!.props.onLongPress());
 
   r.unmount();
 });

@@ -66,7 +66,7 @@ const DECLARED: Record<string, string> = {
     'authored event effects. Every one lands through `applyEventStatDeltas`, which scales.',
 
   // ── UI / dev tooling ─────────────────────────────────────────────────────
-  'components/TopStatsBar.tsx': 'quick actions route through `updateStats` -> `applyStatsDelta`.',
+  'components/TopStatsBar.tsx': 'quick actions scale explicitly with `scaledHappinessGain` inside their updater.',
   'components/computer/TravelApp.tsx': 'display preview of a trip total; the commit goes through TravelActions.',
   'components/health/GymCard.tsx': 'routes through `updateStats` -> `applyStatsDelta`.',
   'components/jail/JailScreen.tsx': 'routes through `updateStats` -> `applyStatsDelta`.',
