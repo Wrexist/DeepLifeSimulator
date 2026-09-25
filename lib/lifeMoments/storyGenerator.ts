@@ -8,6 +8,7 @@
 import { GameState, JournalEntry, Relationship } from '@/contexts/game/types';
 import { getAge as canonicalAge } from '@/lib/progress/lifeChapters';
 import { ageFromWeeksLived } from '@/utils/weekCounters';
+import { shareUrlFor } from '@/lib/config/appConfig';
 
 export interface StoryChapter {
  title: string;
@@ -274,7 +275,13 @@ export function generateShareableStory(state: GameState): string {
 
  lines.push(story.summary);
  lines.push('');
- lines.push(' Deep Life Simulator');
+ // The link the obituary learned to carry (see obituaryGenerator): without it
+ // a reader who wants the game has nowhere to go but a store search. Last, so
+ // messaging clients build their preview from it.
+ lines.push('Live your own life in Deep Life Simulator:');
+ lines.push(shareUrlFor('life_story'));
+ lines.push('');
+ lines.push('#DeepLifeSim');
 
  return lines.join('\n');
 }

@@ -7,7 +7,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
-import { APP_STORE_URL } from '@/lib/config/appConfig';
+import { shareUrlFor } from '@/lib/config/appConfig';
 
 export interface Obituary {
   headline: string;
@@ -135,7 +135,9 @@ export function generateObituary(state: GameState): Obituary {
   // search a store for a hashtag, and nothing about the install was
   // attributable. A share is the cheapest acquisition channel the game has and
   // it was terminating one tap short of working. Keep the URL last - messaging
-  // apps and social clients build their preview from the final link.
+  // apps and social clients build their preview from the final link. It is the
+  // cross-platform share link, not a store URL: the reader's phone decides the
+  // store, not the sharer's (see SHARE_LANDING_URL).
   const shareText = [
     `RIP ${name} (Age ${age})`,
     `${descriptor.charAt(0).toUpperCase() + descriptor.slice(1)} ${factsStr}.`,
@@ -143,7 +145,7 @@ export function generateObituary(state: GameState): Obituary {
     `Cause of death: ${deathReason}`,
     '',
     'Live your own life in Deep Life Simulator:',
-    APP_STORE_URL,
+    shareUrlFor('obituary'),
     '',
     '#DeepLifeSim',
   ].join('\n');

@@ -141,6 +141,35 @@ export function planVersionRecord({ versions, versionString }) {
 }
 
 /**
+ * The locales this repo manages on the App Store record, mapped to their
+ * What's New text. Two kinds of locale are left out, for different reasons:
+ *
+ *   - `shipped: false` (en-GB): reference only and never created, because
+ *     those storefronts already fall back to en-US.
+ *   - `pending: true` (a new language): real copy, but the language does not
+ *     exist on the record yet, and this script writes only What's New. It
+ *     cannot add a language, and a locale created with notes alone would have
+ *     no name, description or keywords. Create it by hand (`npm run aso`
+ *     prints the copy), then drop `pending` so later releases manage it.
+ */
+export function whatsNewByLocale(APPLE) {
+  const out = {};
+  if (APPLE?.whatsNew) out['en-US'] = APPLE.whatsNew;
+  for (const [locale, loc] of Object.entries(APPLE?.localized ?? {})) {
+    if (loc?.shipped === false || loc?.pending === true) continue;
+    if (loc?.whatsNew) out[locale] = loc.whatsNew;
+  }
+  return out;
+}
+
+/** Locales whose copy is ready but which must be created by hand first. */
+export function pendingLocales(APPLE) {
+  return Object.entries(APPLE?.localized ?? {})
+    .filter(([, loc]) => loc?.pending === true && loc?.shipped !== false)
+    .map(([locale]) => locale);
+}
+
+/**
  * Decides, per locale, whether What's New needs writing.
  *
  * Idempotence lives here: a locale whose stored text already equals the

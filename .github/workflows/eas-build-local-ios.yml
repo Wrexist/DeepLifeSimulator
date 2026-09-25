@@ -257,8 +257,15 @@ jobs:
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           echo "::notice::expo.version for this build: $(node -p "require('./package.json').version") (build $BUILD_NUMBER)"
 
+      # An unset repo secret arrives as an EMPTY variable, and a --local build
+      # ranks this shell above the EAS store, then drops empty values, so an
+      # empty secret deletes the store's value. Same loop and reasoning as the
+      # Android workflow's build step.
       - name: EAS Build iOS (local)
         run: |
+          for name in $(compgen -e | grep '^EXPO_PUBLIC_'); do
+            if [ -z "${!name}" ]; then unset "$name"; fi
+          done
           mkdir -p build
           eas build \
             --platform ios \

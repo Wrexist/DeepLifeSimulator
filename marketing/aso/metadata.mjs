@@ -241,6 +241,176 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
         'negocio', 'bolsa', 'citas', 'familia', 'herencia', 'magnate', 'carcel',
       ],
     },
+    'pt-BR': {
+      // Players asked for Portuguese (a 1★ review on 1.5.5 names it), and Brazil
+      // is a large life-sim market. `pending: true` because the language does
+      // not exist on the App Store record yet, and `asc-release.mjs` writes only
+      // What's New: it cannot add a language. `npm run aso` prints this copy
+      // paste-ready. Add pt-BR by hand in App Store Connect (App Information
+      // takes `name` and `subtitle`; the version takes description, keywords,
+      // promotional text and What's New), then remove `pending` so every later
+      // release updates its notes automatically. Not `shipped: false`: that
+      // means reference only, never created (en-GB below).
+      //
+      // The UI is English only, so the description says so. A Portuguese page
+      // for an English game, with nothing said, is exactly how the "not in
+      // Portuguese" 1★ happens. UI labels stay in English in the notes for the
+      // same reason: "Next Week" is what the button says.
+      pending: true,
+      // "simulador de vida" is the query this market types. The name is per
+      // locale on the App Store, so it can carry it without touching en-US.
+      name: 'Deep Life: Simulador de Vida',
+      subtitle: 'Carreira, crime, cripto, luxo',
+      promotionalText:
+        'Comece do zero. Um emprego, um empréstimo, um risco. Faça fortuna na '
+        + 'bolsa, em imóveis e no crime; depois morra e deixe tudo para um herdeiro.',
+      whatsNew: `Chega de tela inicial congelada, e as apostas voltam a ser apostas.
+
+• A tela inicial não congela mais. Fechar uma janela de recompensa podia deixar a tela visível sem responder a nada. Agora as janelas esperam a vez delas, e nenhuma some debaixo do seu dedo.
+• Salvamento mais leve. Cada salvamento faz metade do trabalho de antes, então o botão Next Week trava menos numa vida longa.
+• Apostas voltam a ser apostas. Dicas de investimento, multas contestadas e pedir um aumento maior não mostram mais o resultado antes da sua escolha.
+• Suas escolhas contam. Honestidade, lealdade e generosidade agora mudam depois de decisões de trabalho e de viagem, e os eventos do trabalho acontecem já no seu primeiro emprego.
+• Amigos são amigos. Os eventos de amizade falam das pessoas que você conheceu, não da sua mãe nem do seu bebê, e um casamento surpresa não cancela mais o que você planejou.
+• Ações rápidas fazem o que prometem. Segure um anel de atributo e toda opção aumenta esse atributo.
+• Números honestos. Uma compra que falhou não mostra mais "Purchased!", e os espaços de salvamento mostram as semanas que você realmente jogou.`,
+
+      description: `Toda vida começa do mesmo jeito: sem dinheiro, sem emprego, sem plano.
+O que acontece depois depende só de você.
+
+Deep Life Simulator é um simulador de vida com uma economia de verdade por baixo. O salário paga imposto. Empréstimos cobram juros. O aluguel vence, dê para pagar ou não. Os mercados se mexem sozinhos e não ligam se você está dentro. Cada escolha se acumula por décadas, até você morrer e deixar o que sobrou para um herdeiro.
+
+IDIOMA
+O jogo está em inglês. Esta página está em português para você saber exatamente o que vai encontrar.
+
+CARREIRA E ESTUDOS
+Mais de 20 carreiras, de entregador a cirurgião ou CEO. Faça faculdade, ou pule essa parte e comece a ganhar dinheiro aos 16. Ou siga pelo outro caminho: a rua, a dark web e o risco de acabar na prisão.
+
+DINHEIRO DE VERDADE
+Uma bolsa ao vivo com setores que giram. Cripto para negociar ou minerar. Imóveis para alugar, empresas para abrir e funcionários para contratar. Empréstimos com juros reais, score de crédito, dívidas em atraso e a possibilidade bem real de falência.
+
+FAMÍLIA E HERANÇA
+Namore, case, brigue, divorcie-se. Crie filhos que herdam seus traços e sua fortuna. Construa uma dinastia ao longo de gerações e desbloqueie vantagens permanentes para a próxima vida.
+
+LUXO E STATUS
+Superesportivos, relógios raros, coleções de museu, imóveis e reputação. Transforme um negócio em império, ou se aposente cedo e fique com o que tem.
+
+COMO O JOGO TE TRATA
+• Funciona offline: o save fica no seu aparelho
+• Anúncios em tela cheia só na virada do ano, nunca nos seus dois primeiros anos, e uma compra os remove para sempre
+• Sem barra de energia em tempo real entre você e a próxima semana
+
+Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na primeira.`,
+      // No term from the name or subtitle: Apple matches across fields.
+      keywords: [
+        'jogo', 'offline', 'milionario', 'dinheiro', 'negocio', 'bolsa', 'namoro',
+        'familia', 'heranca', 'magnata', 'prisao', 'imperio', 'riqueza',
+      ],
+    },
+    'fr-FR': {
+      // France is the largest non-English market by new customers (RevenueCat,
+      // 2026-08-28 → 09-24: 34 of 820). Same reasoning and the same manual first
+      // step as pt-BR above; the name matches the live French Play listing.
+      pending: true,
+      name: 'Deep Life : Simulateur de vie',
+      subtitle: 'Carrière, crime, crypto, luxe',
+      promotionalText:
+        'Partez de rien. Un emploi, un prêt, un risque. Bâtissez une fortune en '
+        + "bourse, dans l'immobilier et le crime, puis léguez tout à un héritier.",
+      whatsNew: `Fini l'écran d'accueil figé, et les paris redeviennent des paris.
+
+• L'accueil ne se fige plus. Fermer une fenêtre de récompense pouvait laisser l'écran visible sans plus rien répondre. Les fenêtres attendent désormais leur tour, et aucune ne disparaît sous votre doigt.
+• Des sauvegardes plus fluides. Chaque sauvegarde fait moitié moins de travail, donc le bouton Next Week accroche moins sur une longue vie.
+• Les paris redeviennent des paris. Les tuyaux d'investissement, les amendes contestées et la demande d'une plus grosse augmentation ne vous montrent plus le résultat avant votre choix.
+• Vos choix comptent. L'honnêteté, la loyauté et la générosité évoluent après les décisions de travail et de voyage, et les événements professionnels arrivent dès votre premier emploi.
+• Les amis sont des amis. Les événements d'amitié parlent des gens que vous avez rencontrés, pas de votre mère ni de votre bébé, et un mariage surprise n'annule plus celui que vous aviez prévu.
+• Les actions rapides font ce qu'elles annoncent. Appuyez longuement sur un anneau de statistique et chaque option augmente cette statistique.
+• Des chiffres honnêtes. Un achat échoué n'affiche plus aussi "Purchased!", et les emplacements de sauvegarde montrent les semaines réellement jouées.`,
+
+      description: `Toute vie commence de la même façon : sans argent, sans emploi, sans plan.
+La suite ne dépend que de vous.
+
+Deep Life Simulator est une simulation de vie avec une vraie économie en dessous. Le salaire est imposé. Les prêts coûtent des intérêts. Le loyer tombe, que vous puissiez le payer ou non. Les marchés bougent seuls et se moquent que vous y soyez. Chaque choix s'accumule pendant des décennies, jusqu'à votre mort, et ce qu'il reste passe à un héritier.
+
+LANGUE
+Le jeu est en anglais. Cette page est en français pour que vous sachiez exactement à quoi vous attendre.
+
+CARRIÈRE ET ÉTUDES
+Plus de 20 carrières, de livreur à chirurgien ou PDG. Allez à l'université, ou passez-vous-en et commencez à gagner de l'argent à 16 ans. Ou prenez l'autre route : la rue, le dark web et le risque de finir en prison.
+
+DE L'ARGENT QUI SE COMPORTE COMME DE L'ARGENT
+Une bourse en direct où les secteurs tournent. Des cryptos à échanger ou à miner. Des biens à louer, des entreprises à fonder et du personnel à recruter. Des prêts avec de vrais intérêts, une cote de crédit, des impayés et la possibilité bien réelle de la faillite.
+
+FAMILLE ET HÉRITAGE
+Sortez avec quelqu'un, mariez-vous, disputez-vous, divorcez. Élevez des enfants qui héritent de vos traits et de votre fortune. Bâtissez une dynastie sur plusieurs générations et débloquez des avantages permanents pour la vie suivante.
+
+LUXE ET STATUT
+Supercars, montres rares, collections dignes d'un musée, immobilier et réputation. Faites d'une entreprise un empire, ou prenez une retraite anticipée et gardez ce que vous avez.
+
+COMMENT LE JEU VOUS TRAITE
+• Fonctionne hors connexion : la partie reste sur votre appareil
+• Publicités plein écran seulement en fin d'année de jeu, jamais pendant vos deux premières années, et un achat les supprime définitivement
+• Pas de barre d'énergie en temps réel entre vous et la semaine suivante
+
+Une vie dure des décennies et chaque semaine est une décision. La plupart des joueurs en commencent une deuxième.`,
+      // Accents dropped, as in es-MX and pt-BR. "hors" + "ligne" together
+      // match "hors ligne" (Apple matches across the field).
+      keywords: [
+        'jeu', 'hors', 'ligne', 'argent', 'millionnaire', 'empire', 'bourse',
+        'entreprise', 'famille', 'heritage', 'prison', 'rencontre', 'magnat',
+      ],
+    },
+    'de-DE': {
+      // Germany is the next non-English market by new customers (RevenueCat,
+      // 2026-08-28 → 09-24: 20 of 820, level with Canada). Same manual first
+      // step as pt-BR; the name matches the live German Play listing.
+      pending: true,
+      name: 'Deep Life: Lebenssimulation',
+      subtitle: 'Karriere, Verbrechen, Krypto',
+      promotionalText:
+        'Fang bei null an. Ein Job, ein Kredit, ein Risiko. Bau ein Vermögen mit '
+        + 'Aktien, Immobilien und Verbrechen auf und vererbe am Ende alles.',
+      whatsNew: `Kein eingefrorener Startbildschirm mehr, und Wetten sind wieder Wetten.
+
+• Der Startbildschirm friert nicht mehr ein. Das Schließen eines Belohnungsfensters konnte den Bildschirm sichtbar, aber ohne Reaktion zurücklassen. Fenster warten jetzt, bis sie dran sind, und keines verschwindet mehr unter deinem Finger.
+• Flüssigeres Speichern. Jeder Speichervorgang erledigt nur noch die Hälfte der Arbeit, daher ruckelt der Button Next Week in einem langen Leben weniger.
+• Wetten sind wieder Wetten. Investment-Tipps, angefochtene Strafzettel und die Bitte um eine größere Gehaltserhöhung zeigen das Ergebnis nicht mehr vor deiner Entscheidung.
+• Deine Entscheidungen zählen. Ehrlichkeit, Loyalität und Großzügigkeit ändern sich nach Entscheidungen bei Arbeit und Reisen, und Arbeitsereignisse gibt es schon im ersten Job.
+• Freunde sind Freunde. Freundschaftsereignisse drehen sich um Menschen, die du kennengelernt hast, nicht um deine Mutter oder dein Baby, und eine Überraschungshochzeit sagt deine geplante nicht mehr ab.
+• Schnellaktionen tun, was sie versprechen. Halte einen Statusring gedrückt, und jede Option erhöht genau diesen Wert.
+• Ehrliche Zahlen. Ein fehlgeschlagener Kauf zeigt nicht mehr zusätzlich "Purchased!", und Speicherplätze zeigen die Wochen, die du wirklich gespielt hast.`,
+
+      description: `Jedes Leben beginnt gleich: kein Geld, kein Job, kein Plan.
+Was danach passiert, liegt ganz bei dir.
+
+Deep Life Simulator ist eine Lebenssimulation mit einer echten Wirtschaft darunter. Löhne werden besteuert. Kredite kosten Zinsen. Die Miete ist fällig, ob du zahlen kannst oder nicht. Märkte bewegen sich von selbst, und es ist ihnen egal, dass du investiert bist. Jede Entscheidung summiert sich über Jahrzehnte, bis du stirbst und den Rest einem Erben hinterlässt.
+
+SPRACHE
+Das Spiel ist auf Englisch. Diese Seite ist auf Deutsch, damit du genau weißt, was dich erwartet.
+
+KARRIERE UND AUSBILDUNG
+Über 20 Karrieren, vom Kurier bis zur Chirurgin oder zum CEO. Geh an die Uni, oder lass es und verdiene schon mit 16 Geld. Oder nimm den anderen Weg: die Straße, das Darknet und das Risiko, im Gefängnis zu landen.
+
+GELD, DAS SICH WIE GELD VERHÄLT
+Eine Live-Börse mit rotierenden Sektoren. Krypto zum Handeln oder Minen. Immobilien zum Vermieten, Firmen zum Gründen und Personal zum Einstellen. Kredite mit echten Zinsen, Bonität, Zahlungsrückstände und die sehr reale Möglichkeit der Pleite.
+
+FAMILIE UND ERBE
+Date, heirate, streite, lass dich scheiden. Zieh Kinder groß, die deine Züge und dein Vermögen erben. Bau über Generationen eine Dynastie auf und schalte dauerhafte Vorteile für das nächste Leben frei.
+
+LUXUS UND STATUS
+Supersportwagen, seltene Uhren, museumsreife Sammlungen, Immobilien und Ansehen. Mach aus einer Firma ein Imperium, oder geh früh in Rente und behalte, was du hast.
+
+WIE DAS SPIEL DICH BEHANDELT
+• Funktioniert offline: dein Spielstand bleibt auf deinem Gerät
+• Vollbildwerbung nur am Ende eines Spieljahres, nie in deinen ersten zwei Jahren, und ein Kauf entfernt sie dauerhaft
+• Keine Echtzeit-Energieleiste zwischen dir und der nächsten Woche
+
+Ein Leben dauert Jahrzehnte, und jede Woche ist eine Entscheidung. Die meisten fangen ein zweites an.`,
+      // Umlauts dropped (börse → borse), as accents are in the other locales.
+      keywords: [
+        'spiel', 'offline', 'geld', 'millionar', 'reichtum', 'imperium', 'borse',
+        'firma', 'familie', 'erbe', 'gefangnis', 'magnat', 'aktien',
+      ],
+    },
     'en-GB': {
       // Reference only — NOT a localisation to create in App Store Connect.
       // `check:aso --emit` skips unshipped locales for exactly this reason: a

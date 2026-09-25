@@ -185,6 +185,16 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   if (locDupes.length) fail(`${locale} keyword field repeats itself: ${locDupes.join(', ')}`);
   // Overlap with its OWN subtitle wastes a slot the same way en-US does.
   overlap(terms(loc.subtitle).map(stem), loc.keywords.map(stem), `${locale} subtitle`, `${locale} keyword field`);
+  // A locale may carry its own name (the App Store name is per language).
+  if (loc.name) {
+    checkLimit(`${locale} name`, loc.name, LIMITS.appleName);
+    overlap(terms(loc.name).map(stem), loc.keywords.map(stem), `${locale} name`, `${locale} keyword field`);
+    overlap(terms(loc.name).map(stem), terms(loc.subtitle).map(stem), `${locale} name`, `${locale} subtitle`);
+  }
+  // Limits hold for every field that is present, shipped or not: a reference
+  // locale gets pasted into a console by hand, and a field that is too long
+  // there is truncated just as silently.
+  if (loc.promotionalText) checkLimit(`${locale} promotional text`, loc.promotionalText, LIMITS.applePromo);
   if (locale === 'es-MX') {
     const sameAsEnUs = loc.keywords.filter((k) => kwTerms.includes(stem(k)));
     if (sameAsEnUs.length) {
@@ -195,18 +205,24 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   // bad experience for everyone it reaches. Ship the whole localisation or none.
   // `shipped: false` marks a locale kept for reference rather than created in
   // App Store Connect, so the completeness rule does not apply to it.
+  if (loc.description) checkLimit(`${locale} description`, loc.description, LIMITS.appleDescription);
+  if (loc.whatsNew) checkLimit(`${locale} What's New`, loc.whatsNew, LIMITS.appleWhatsNew);
+  // `pending` = will ship once created by hand; `shipped: false` = never ships.
+  // Both at once is a contradiction the emitter and the release script would
+  // resolve differently, so refuse it.
+  if (loc.pending === true && loc.shipped === false) {
+    fail(`${locale} is both \`pending\` and \`shipped: false\`. Pick one: pending ships once created, shipped: false never does.`);
+  } else if (loc.pending === true) {
+    note(`${locale} is pending: create it in App Store Connect by hand from \`npm run aso\`, then remove \`pending\`.`);
+  }
   if (loc.shipped !== false) {
     if (!loc.description) fail(`${locale} has keywords but no translated description — that is a keyword grab, not a localisation.`);
-    else checkLimit(`${locale} description`, loc.description, LIMITS.appleDescription);
-    if (loc.promotionalText) checkLimit(`${locale} promotional text`, loc.promotionalText, LIMITS.applePromo);
     // A shipped locale with no release notes gets the en-US text on its store
     // page — English release notes under a Spanish description. Worse than the
     // untranslated listing this file already refuses, because it is the one
     // field a returning player actually reads.
     if (!loc.whatsNew) {
       fail(`${locale} is shipped but has no whatsNew — its store page would show the en-US release notes under translated copy.`);
-    } else {
-      checkLimit(`${locale} What's New`, loc.whatsNew, LIMITS.appleWhatsNew);
     }
   }
   if (locale === 'en-GB' && field === keywordField) {
@@ -268,11 +284,23 @@ if (process.argv.includes('--emit')) {
   // the one those storefronts already fall back to, contradicting Part 7 of
   // the runbook. `shipped: false` in the metadata is the single place that
   // decision lives.
+  //
+  // `pending: true` is the other case, and it needs the OPPOSITE treatment: the
+  // copy is real, but the language does not exist on the record yet and
+  // asc-release.mjs cannot add one, so an operator creates it by hand from
+  // exactly these blocks.
   for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
     if (loc.shipped === false) {
       console.log(`\n[Apple · ${locale}] reference only — not created in App Store Connect. See RELEASE_RUNBOOK Part 7.`);
       continue;
     }
+    if (loc.pending === true) {
+      console.log(
+        `\n[Apple · ${locale}] PENDING — add this language in App Store Connect by hand: `
+          + 'name and subtitle on App Information, the rest on the version. Then remove `pending` in metadata.mjs.',
+      );
+    }
+    if (loc.name) console.log(`\n[Apple · ${locale} · Name ${len(loc.name)}/30]\n${loc.name}`);
     console.log(`\n[Apple · ${locale} · Subtitle ${len(loc.subtitle)}/30]\n${loc.subtitle}`);
     const locKeywordField = loc.keywords.join(',');
     console.log(`\n[Apple · ${locale} · Keywords ${len(locKeywordField)}/100]\n${locKeywordField}`);

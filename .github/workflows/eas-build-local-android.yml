@@ -314,8 +314,20 @@ jobs:
       # passed explicitly so Metro embeds them at bundle time even if an EAS
       # project secret is missing. eas.json's production profile builds an
       # app-bundle (:app:bundleRelease), which is what Google Play requires.
+      #
+      # An UNSET repo secret still arrives in the env block below, as an EMPTY
+      # variable. For a --local build eas-cli ranks this shell ABOVE the EAS
+      # store ({ ...easEnv, ...process.env }, eas-cli src/build/local.ts), and
+      # the build plugin then drops empty values, so an empty secret silently
+      # DELETES the store's value. The Android ad units live only in the store
+      # (no repo secret), so without the loop below the .aab ships with no ads
+      # while the preflight gate above, which runs under `eas env:exec` where the
+      # store wins, stays green. Unsetting the empties lets the store fill them.
       - name: EAS Build Android (local)
         run: |
+          for name in $(compgen -e | grep '^EXPO_PUBLIC_'); do
+            if [ -z "${!name}" ]; then unset "$name"; fi
+          done
           mkdir -p build
           eas build \
             --platform android \

@@ -44,6 +44,12 @@ export const ANALYTICS_EVENT_NAME_LIST = [
   'challenge_completed',
   'streak_changed',
   'achievement_unlocked',
+  // The store-rating ask (`lib/review/inAppReview.ts`), with an `outcome` of
+  // `requested`, `unavailable` or `error`. REQUESTED, not shown: the OS decides
+  // whether a sheet appears and never says. Without this, "does the rating
+  // prompt fire at all" has no answer but the rating count, which lags by weeks
+  // and mixes in every unprompted rating.
+  'review_prompt_requested',
 
   // ── Retention cohorts ──
   //

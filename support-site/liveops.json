@@ -8,6 +8,26 @@
 
   "events": [
     {
+      "id": "halloween_nothing_to_fear",
+      "schemaVersion": 1,
+      "kind": "seasonal",
+      "title": "Nothing to Fear",
+      "summary": "Halloween: get your happiness and your health up at the same time.",
+      "brief": "It is the season for being scared of things that are not there. Skip it. Get your happiness and your health up together, keep this life going for a month, and take the Halloween bonus before the lanterns go out.",
+      "emoji": "🎃",
+      "startsAt": "2026-10-16T00:00:00Z",
+      "endsAt": "2026-11-06T00:00:00Z",
+      "claimGraceDays": 2,
+      "objectives": [
+        { "objectiveId": "happiness", "target": 70 },
+        { "objectiveId": "health", "target": 70 },
+        { "objectiveId": "weeks_this_life", "target": 4 }
+      ],
+      "rewards": [{ "kind": "gems", "amount": 250 }],
+      "priority": 30
+    },
+
+    {
       "id": "winter_first_steps",
       "schemaVersion": 1,
       "kind": "opportunity",
@@ -45,6 +65,26 @@
       "rewards": [{ "kind": "gems", "amount": 200 }],
       "eligibility": { "stages": ["mid"] },
       "priority": 15
+    },
+
+    {
+      "id": "winter_holidays_home",
+      "schemaVersion": 1,
+      "kind": "seasonal",
+      "title": "Home for the Holidays",
+      "summary": "The holidays: a little put by for gifts, and the spirit to enjoy them.",
+      "brief": "The end of the year asks for two things at once: something set aside for the people you love, and enough cheer left over to spend it with them. Keep both through the holidays and take a bonus into the new year.",
+      "emoji": "🎄",
+      "startsAt": "2026-12-18T00:00:00Z",
+      "endsAt": "2027-01-04T00:00:00Z",
+      "claimGraceDays": 3,
+      "objectives": [
+        { "objectiveId": "cash_on_hand", "target": 2500 },
+        { "objectiveId": "happiness", "target": 65 },
+        { "objectiveId": "weeks_this_life", "target": 3 }
+      ],
+      "rewards": [{ "kind": "gems", "amount": 200 }],
+      "priority": 30
     },
 
     {
