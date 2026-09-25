@@ -45,6 +45,44 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.0',
+    date: 'September 2026',
+    headline: 'No more frozen Home screen',
+    summary:
+      'Popups no longer lock up Home, gambles stay a gamble, and a long list of fixes you reported.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Home screen freeze',
+        bullets: [
+          'Closing one reward popup no longer leaves Home frozen with nothing responding.',
+          'A popup already on screen is never pulled out from under your thumb.',
+          'Saving is smoother, with less stutter when you press Next Week.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Life events',
+        bullets: [
+          'Investment tips and other gambles no longer show you the outcome before you choose.',
+          'Honesty, loyalty and generosity now change after work and travel choices, as promised.',
+          'Workplace events now happen at your very first job.',
+          'Friend events are about your friends - not your mom, and not your baby.',
+          'A surprise wedding can no longer cancel the wedding you already planned.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Quick actions and shop',
+        bullets: [
+          'Long-press a stat ring and every option now actually raises that stat.',
+          'Buying something that fails no longer also says "Purchased!".',
+          'Save slots show the weeks you have played in that life.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.13.0',
     date: 'September 2026',
     headline: 'A calendar that agrees with itself',
