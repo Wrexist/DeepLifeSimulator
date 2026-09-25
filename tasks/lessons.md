@@ -53,6 +53,37 @@ Also: a test fixture must be something the function under test actually
 repairs. `repairGameState` does not fix a NaN balance, and the first draft of
 the repair test asserted it did.
 
+## 2026-09-25 — A save called in the handler that changed state saved the state before it
+
+Player report (App Store 1.2.5, Canada): YouVideo items were gone after
+reloading a slot. `saveGame` read `gameStateRef.current` the moment it was
+called, and a post-commit effect refreshes that ref. So `buyAccessory(...);
+saveGame();` in one handler wrote the pre-purchase state. The purchase lived
+only in memory until an autosave, and "Switch save slot" suspends autosave
+(R3-S1) before the reload. A provider-level test (real queue, real load) put
+`microphone: false` on disk before the fix.
+
+The hazard was known and patched per call site: home, work, DeathPopup, the
+Discord grant and restoreFromCloud each yield `setTimeout(0)` first, and
+resolveEvent waits 200 ms. About 80 other UI call sites did not. Rule: when
+the third call site needs the same workaround, fix the callee.
+
+The fix waits for a commit, not a macrotask. `saveGame` dispatches one counter
+update and resumes from the effect that sees it, which is declared after the
+ref sync. Updates dispatched together commit together, so that commit carries
+the caller's action. A timer yield only works when React happens to commit
+before the timer fires, which is scheduler timing rather than a React contract.
+
+Reading later opened a window the synchronous read never had. With the wait
+in place, a slot switch that committed inside it wrote slot 2's life into slot
+1 (mutation check: guard off, slot 1 read `weeksLived` 300). `saveGame` now
+refuses when the selected slot moved. Rule: when a read moves later, re-check
+every pairing the early read got for free.
+
+For tests: `act()` commits nothing until its callback settles, so `await
+act(async () => { await saveGame(); })` now deadlocks. Three existing tests did
+exactly that. Start the save in a synchronous `act` and await it afterwards.
+
 <!-- Updated after every correction. Reviewed at the start of each session. -->
 
 ## Patterns to Watch For

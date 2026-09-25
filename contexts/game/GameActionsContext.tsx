@@ -5,7 +5,7 @@
 // - ItemActionsContext: items, purchases, hobbies, food
 // - SocialActionsContext: relationships, dating, family
 
-import React, { createContext, useContext, useCallback, ReactNode, useRef, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useRef, useEffect, useMemo, useState } from 'react';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { AppState, AppStateStatus } from 'react-native';
 import { logger } from '@/utils/logger';
@@ -23,6 +23,7 @@ import {
   type CloudRestoreOutcome,
 } from '@/services/cloudBackup';
 import { useGameState } from './GameStateContext';
+import { useCurrentSlotGetter } from './useGameSelector';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
@@ -287,10 +288,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const gameStateRef = useRef<GameState | null>(null);
  const isSavingRef = useRef(false);
  const saveGameRef = useRef<((force?: boolean) => Promise<boolean>) | null>(null);
+ // The slot the player last selected, published when it is selected rather
+ // than when it commits - `saveGame` checks it after waiting for a commit.
+ const getSelectedSlot = useCurrentSlotGetter();
+
+ // Commit barrier for `saveGame`. `gameStateRef` is refreshed by a post-commit
+ // effect, so a save that read it synchronously - which `saveGame` did - saw
+ // the state from BEFORE any `setGameState` made in the same handler. That is
+ // the shape of ~80 UI call sites (`buyAccessory(...); saveGame();`): the
+ // purchase was applied in memory and the pre-purchase state hit disk, so a
+ // reload after "Switch save slot" (which suspends every later autosave) lost
+ // it. Dispatching one more update and waiting for the effect that sees it
+ // waits for exactly the commit that carries everything dispatched before it:
+ // updates dispatched together render and commit together (no transitions
+ // here to split the lanes), and the release effect is declared after the
+ // `gameStateRef` sync, so it runs after that sync in the same commit.
+ const [saveCommitSeq, setSaveCommitSeq] = useState(0);
+ const saveCommitSeqRef = useRef(0);
+ const saveCommitWaitersRef = useRef<{ seq: number; release: () => void }[]>([]);
+ const waitForPendingCommit = useCallback((): Promise<void> => new Promise<void>((release) => {
+ const seq = ++saveCommitSeqRef.current;
+ saveCommitWaitersRef.current.push({ seq, release });
+ setSaveCommitSeq(seq);
+ }), []);
 
  // Save & Load Actions - MOVED BEFORE nextWeek TO FIX HOISTING
  const saveGame = useCallback(async (force: boolean = false): Promise<boolean> => {
- // Use ref to get current state (prevents stale closure)
+ // Wait for the commit that carries whatever the caller dispatched before
+ // asking, then read. Anything that stops React committing while it awaits
+ // this - a test awaiting it inside the act() that dispatched it - waits
+ // forever. __tests__/save/saveInSameHandlerPersistsAction.test.ts
+ await waitForPendingCommit();
  const currentState = gameStateRef.current;
  if (!currentState) {
  logger.warn('Cannot save: game state is null');
@@ -310,6 +338,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // have just deleted (death -> New Game) or just restored from a backup.
  if (isLifeAutosaveSuspended()) {
  logger.debug(`Skipping save: autosave suspended (${lifeAutosaveSuspendReason()})`);
+ return false;
+ }
+ // Waiting for the commit opened a window the synchronous read never had: a
+ // `loadGame` that commits inside it leaves `gameStateRef` holding the life it
+ // just loaded, while this save was asked for `currentSlot`. Writing it would
+ // put one slot's life into another, so refuse - as the slot check below does.
+ if (getSelectedSlot() !== currentSlot) {
+ logger.warn('[SAVE] Refusing to save: the selected slot changed while the save waited', {
+ requestedSlot: currentSlot,
+ selectedSlot: getSelectedSlot(),
+ });
  return false;
  }
  let saveMutexToken: MutexToken | undefined;
@@ -464,7 +503,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } finally {
  if (saveMutexToken !== undefined) saveLoadMutex.release(saveMutexToken);
  }
- }, [currentSlot, showError]);
+ }, [currentSlot, getSelectedSlot, showError, waitForPendingCommit]);
 
  /**
   * Upload the live state to the cloud right now (Settings "Back up now").
@@ -4655,6 +4694,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  useEffect(() => {
  gameStateRef.current = gameState;
  }, [gameState]);
+
+ // Release saves waiting in `waitForPendingCommit`. Declared AFTER the sync
+ // above so it runs after it within a commit. Only waiters whose own barrier
+ // update this commit carries are released; one registered after the render
+ // (from a layout effect, say) waits for the commit its update produces.
+ useEffect(() => {
+ const pending = saveCommitWaitersRef.current;
+ if (pending.length === 0) return;
+ saveCommitWaitersRef.current = pending.filter((waiter) => waiter.seq > saveCommitSeq);
+ for (const waiter of pending) {
+ if (waiter.seq <= saveCommitSeq) waiter.release();
+ }
+ }, [saveCommitSeq]);
+
+ // No commit follows an unmount, so a waiting save would wait forever. Let it
+ // go with the last committed state - what it would have read before.
+ useEffect(() => () => {
+ const pending = saveCommitWaitersRef.current;
+ saveCommitWaitersRef.current = [];
+ for (const waiter of pending) waiter.release();
+ }, []);
 
  useEffect(() => {
  saveGameRef.current = saveGame;

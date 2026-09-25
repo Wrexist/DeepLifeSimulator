@@ -84,7 +84,9 @@ describe('measuring the rating ask', () => {
   // the storage mock remembers the per-install "asked" flag.
   const load = (): { review: ReviewModule; store: StoreReviewMock } => {
     jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const store = require('expo-store-review') as StoreReviewMock;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const review = require('@/lib/review/inAppReview') as ReviewModule;
     return { review, store };
   };
