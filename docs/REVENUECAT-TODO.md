@@ -9,8 +9,15 @@ Everything in the code has been wired up. The tasks below **cannot be done in co
 >   production access" is history.
 > - Play products: all 27 one-time products and both subscriptions exist and
 >   are active. **Neither subscription has the 7-day free-trial offer (§3a).**
-> - RevenueCat: all 29 Play products registered, attached to the `default`
->   offering and to `premium` / `ads_removed` (2026-09-20).
+> - RevenueCat, Play Store app (products added 2026-09-20). Three separate
+>   facts, not one:
+>   - **Registered:** all 29 Play products (everything in `utils/iapConfig.ts`).
+>   - **Offering:** `default` has **12 packages** with a Play product attached
+>     (both subscriptions + 10 one-time products). The other 17 one-time
+>     products are bought by id, not through the offering.
+>   - **Entitlements:** only `premium` ← monthly, yearly, lifetime and
+>     `ads_removed` ← `deeplife_remove_ads`, on both stores. Every other product
+>     grants its benefit in-app (§1e).
 > - Android developer verification: `com.deeplife.simulator` is **Registered**
 >   (2026-07-30), not Draft.
 > - Details and numbers: `tasks/growth-revenue-plan-2026-09-25.md`.

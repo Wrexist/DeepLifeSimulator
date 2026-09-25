@@ -265,9 +265,10 @@ Store:
 - [x] **pt-BR copy drafted** in `marketing/aso/metadata.mjs` (name
       "Deep Life: Simulador de Vida", subtitle, 100/100 keywords, description
       that says the game is in English, promotional text, 1.6.0 notes).
-      `check:aso` validates it. Marked `shipped: false` because
-      `asc-release.mjs` writes only What's New and cannot add a language: add
-      pt-BR by hand in App Store Connect, then flip it.
+      `check:aso` validates it. Marked `pending: true` because
+      `asc-release.mjs` writes only What's New and cannot add a language:
+      `npm run aso` prints it paste-ready; add pt-BR by hand in App Store
+      Connect, then remove `pending`.
 - [x] **fr-FR copy drafted** the same way (France is the largest non-English
       market in the data). Name matches the live French Play listing.
 - [x] **de-DE copy drafted** the same way (Germany: 20 of 820 new customers).
