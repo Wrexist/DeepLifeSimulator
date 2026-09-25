@@ -32,7 +32,12 @@ function getCareerName(state: GameState): string {
 function getWeeksEmployed(state: GameState): number {
   const careers = Array.isArray(state.careers) ? state.careers : [];
   const career = careers.find(c => c && c.id === state.currentJob && c.accepted);
-  if (!career?.startedWeeksLived) return 0;
+  // `typeof`, not truthiness: a job taken before the first Next Week of an
+  // age-18 life is stamped `startedWeeksLived: 0`, and the falsy check pinned
+  // its tenure at 0 forever - so every tenure-gated workplace event below
+  // (reviews, raises, office party, coworker conflict) never fired for the
+  // tutorial's first job.
+  if (typeof career?.startedWeeksLived !== 'number') return 0;
   return (state.weeksLived || 0) - career.startedWeeksLived;
 }
 
@@ -81,8 +86,7 @@ const performanceReview: EventTemplate = {
           {
             id: 'excuse',
             text: 'Make excuses',
-            effects: { stats: { reputation: -5 } },
-            karma: { dimension: 'honesty', amount: -1, reason: 'Made excuses during performance review' },
+            effects: { stats: { reputation: -5 }, karma: { dimension: 'honesty', amount: -1, reason: 'Made excuses during performance review' } },
           },
         ],
       };
@@ -99,8 +103,7 @@ const performanceReview: EventTemplate = {
           {
             id: 'argue',
             text: 'Argue with your manager',
-            effects: { stats: { happiness: -5, reputation: -10 } },
-            karma: { dimension: 'loyalty', amount: -1, reason: 'Argued with manager during review' },
+            effects: { stats: { happiness: -5, reputation: -10 }, karma: { dimension: 'loyalty', amount: -1, reason: 'Argued with manager during review' } },
           },
         ],
       };
@@ -142,9 +145,8 @@ const formalWarning: EventTemplate = {
         {
           id: 'push_back',
           text: 'Push back on the criticism',
-          effects: { stats: { happiness: -5, reputation: -5 } },
+          effects: { stats: { happiness: -5, reputation: -5 }, karma: { dimension: 'honesty', amount: -1, reason: 'Denied legitimate performance criticism' } },
           special: 'add_career_warning',
-          karma: { dimension: 'honesty', amount: -1, reason: 'Denied legitimate performance criticism' },
         },
       ],
     };
@@ -172,9 +174,8 @@ const jobTermination: EventTemplate = {
         {
           id: 'accept_termination',
           text: 'Accept and leave quietly',
-          effects: { stats: { happiness: -20 } },
+          effects: { stats: { happiness: -20 }, karma: { dimension: 'loyalty', amount: 1, reason: 'Accepted termination gracefully' } },
           special: 'fire_from_job',
-          karma: { dimension: 'loyalty', amount: 1, reason: 'Accepted termination gracefully' },
         },
         {
           id: 'negotiate_severance',
@@ -202,8 +203,7 @@ const coworkerConflict: EventTemplate = {
         {
           id: 'confront',
           text: 'Confront them directly',
-          effects: { stats: { happiness: -5, reputation: 3 } },
-          karma: { dimension: 'honesty', amount: 1, reason: 'Confronted dishonest coworker' },
+          effects: { stats: { happiness: -5, reputation: 3 }, karma: { dimension: 'honesty', amount: 1, reason: 'Confronted dishonest coworker' } },
         },
         {
           id: 'report',
@@ -249,6 +249,7 @@ const surpriseRaise: EventTemplate = {
         {
           id: 'negotiate_more',
           text: 'Push for even more',
+          outcomeHidden: true,
           effects: {
             // Two INDEPENDENT draws before this change (you could win the bigger
             // cheque and still annoy management, or take the smaller one and be
@@ -276,8 +277,7 @@ const officeParty: EventTemplate = {
       {
         id: 'attend',
         text: 'Attend the party',
-        effects: { stats: { happiness: 10, energy: -10, reputation: 5 } },
-        karma: { dimension: 'loyalty', amount: 1, reason: 'Participated in team bonding' },
+        effects: { stats: { happiness: 10, energy: -10, reputation: 5 }, karma: { dimension: 'loyalty', amount: 1, reason: 'Participated in team bonding' } },
       },
       {
         id: 'skip',
@@ -367,14 +367,13 @@ const bossFavoritism: EventTemplate = {
         {
           id: 'speak_up',
           text: 'Speak to your boss about it',
-          effects: { stats: { reputation: roll('speak-up-outcome') > 0.5 ? 5 : -5, happiness: -5 } },
-          karma: { dimension: 'honesty', amount: 1, reason: 'Addressed workplace favoritism' },
+          outcomeHidden: true,
+          effects: { stats: { reputation: roll('speak-up-outcome') > 0.5 ? 5 : -5, happiness: -5 }, karma: { dimension: 'honesty', amount: 1, reason: 'Addressed workplace favoritism' } },
         },
         {
           id: 'outperform',
           text: 'Work harder to outshine them',
-          effects: { stats: { energy: -15, reputation: 5 } },
-          karma: { dimension: 'ambition', amount: 1, reason: 'Chose to outwork the competition' },
+          effects: { stats: { energy: -15, reputation: 5 }, karma: { dimension: 'ambition', amount: 1, reason: 'Chose to outwork the competition' } },
         },
         {
           id: 'accept_it',

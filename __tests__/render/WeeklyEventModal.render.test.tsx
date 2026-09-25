@@ -113,4 +113,32 @@ describe('render - WeeklyEventModal (Liquid Glass)', () => {
       renderer!.unmount();
     });
   });
+  it('does not preview a rolled outcome (investment tip was risk-free money)', () => {
+    mockGameState = {
+      weeksLived: 20,
+      pets: [],
+      pendingEvents: [
+        {
+          id: 'investment_tip',
+          description: 'A tip.',
+          choices: [
+            { id: 'invest_big', text: 'Invest big', outcomeHidden: true, effects: { money: 50000 } },
+            { id: 'invest_small', text: 'Invest small', outcomeHidden: true, effects: { money: -1000 } },
+            { id: 'pass', text: 'Pass', effects: {} },
+          ],
+        },
+      ],
+    };
+    let renderer: TestRenderer.ReactTestRenderer | undefined;
+    act(() => {
+      renderer = TestRenderer.create(<WeeklyEventModal />);
+    });
+    const json = JSON.stringify(renderer!.toJSON());
+    expect(json).toContain('Outcome uncertain');
+    expect(json).not.toContain('50,000');
+    expect(json).not.toContain('1,000');
+    act(() => {
+      renderer!.unmount();
+    });
+  });
 });
