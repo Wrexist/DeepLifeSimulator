@@ -325,4 +325,16 @@ module.exports = [
       },
     },
   },
+  {
+    // The 3D asset pipeline is its OWN npm package (art/game-assets-v1/source/
+    // package.json: three, sharp, playwright) and is never bundled into the
+    // app. Its imports only resolve after `npm install` inside that folder, so
+    // from the repo root they read as unresolved - 7 errors that failed
+    // `lint:ratchet` and therefore `preflight`. Only the resolver rule is off;
+    // everything else still lints these files.
+    files: ["art/**/source/**/*.mjs"],
+    rules: {
+      "import/no-unresolved": "off",
+    },
+  },
 ];

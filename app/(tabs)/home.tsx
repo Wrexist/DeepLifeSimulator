@@ -103,6 +103,13 @@ function HomeScreenContent() {
       showDailyRewardPopup: s?.showDailyRewardPopup,
       dailyRewardAmount: s?.dailyRewardAmount,
       lastLoginRewardDate: s?.lastLoginRewardDate,
+      // The daily-reward gate below reads these two as well. They were missing
+      // from this slice, so the effect's outer check saw `undefined` for both:
+      // the epoch high-water mark and the v31 game-week gate were silently off
+      // at render time, only the inner updater re-check held, and a refused
+      // claim still reported `daily_reward_claimed` to analytics.
+      lastLoginRewardAt: s?.lastLoginRewardAt,
+      lastLoginRewardWeek: s?.lastLoginRewardWeek,
       loginStreak: s?.loginStreak,
       lastLoginDate: s?.lastLoginDate,
       lastLogin: s?.lastLogin,
@@ -313,7 +320,10 @@ function HomeScreenContent() {
           },
         }, LEGACY_PASS_XP.dailyChallenge);
       });
-      track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
+      // No `track` here: the updater above may refuse, and a value decided
+      // inside an updater is not visible out here (CLAUDE.md §4.1). The claim
+      // is reported from the committed-marker effect below, which only runs
+      // when a grant actually landed.
       // The persist happens in the committed-marker effect below - NOT here.
       // saveGame reads gameStateRef.current, which is synced to state in a
       // POST-COMMIT effect (in GameActionsProvider), so calling saveGame() in
@@ -353,11 +363,25 @@ function HomeScreenContent() {
   useEffect(() => {
     if (persistedRewardDateRef.current === gameState.lastLoginRewardDate) return undefined;
     persistedRewardDateRef.current = gameState.lastLoginRewardDate;
+    // The grant stamps the date AND raises the popup in one updater; a date
+    // that changed without the popup (a save/slot load) is not a claim.
+    if (gameState.showDailyRewardPopup) {
+      track('daily_reward_claimed', {
+        streak: gameState.loginStreak ?? 1,
+        gems: gameState.dailyRewardAmount ?? 0,
+      });
+    }
     const id = setTimeout(() => {
       void saveGame?.(false);
     }, 0);
     return () => clearTimeout(id);
-  }, [gameState.lastLoginRewardDate, saveGame]);
+  }, [
+    gameState.lastLoginRewardDate,
+    gameState.showDailyRewardPopup,
+    gameState.loginStreak,
+    gameState.dailyRewardAmount,
+    saveGame,
+  ]);
 
   // v44: the game-week marker gating the welcome-back cash bonus. Selected on
   // its own (a primitive) rather than pulling `settings` into the slice above,

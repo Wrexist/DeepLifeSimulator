@@ -163,14 +163,19 @@ function AdRewardOrb() {
   // be) on screen. The component stays mounted so the Modal can animate out and
   // report its native dismissal, but nothing of ours is visible or tappable.
   const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad' | 'watching'>('hidden');
-  // Lowest priority in the shared queue. The orb only claims a slot while the
-  // ORB is showing - once the player taps through to the ad it is their own
-  // deliberate action and no longer an interruption, so it doesn't hold the
-  // queue against anything else.
+  // Lowest priority in the shared queue. While only the floating ORB shows it
+  // is preemptible - it is not a Modal, so anything the player must act on may
+  // take the slot and the orb just hides. Once the player taps through, the
+  // reward SHEET is a presented Modal, so the orb keeps the slot (no longer
+  // preemptible) until the sheet closes. It used to release the slot here,
+  // which let Home's reward popups present a second Modal over the open sheet
+  // - the stacked-presentation shape that strands a touch-swallowing layer on
+  // iOS (see HANDOFF_SETTLE_MS in InterruptionContext).
   const orbSlot = useInterruptionSlot(
     'orb:ad-reward',
     INTERRUPTION_PRIORITY.AD_ORB,
-    phase === 'orb'
+    phase === 'orb' || phase === 'ad',
+    { preemptible: phase === 'orb' }
   );
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)

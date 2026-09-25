@@ -39,6 +39,7 @@ import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker';
 import { PITY_THRESHOLD_WEEKLY_EVENTS } from '@/lib/randomness/randomnessConstants';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
+import { friendsOf, chosenCompanyOf } from './socialCircle';
 
 export interface EventChoiceEffects {
   /** Flat amount. Also the FLOOR when `moneyPct` is set. Sign carries. */
@@ -109,6 +110,15 @@ export interface EventChoice {
   // 2026-08-24 rather than left as a silent no-op contract; chains key off the
   // EVENT-level `chainId`/`chainStage` pair.
   diseaseId?: string; // Disease ID to add when special === 'add_disease'
+  /**
+   * The effects are a ROLLED outcome, decided when the event was generated.
+   * The event screen previews every choice's effects, so a gamble showed its
+   * answer before the player chose: `investment_tip` read "+$50,000" on one
+   * branch and "-$50,000" on the other, which turned a fair double-or-nothing
+   * into risk-free money every 26 weeks. Set on any choice whose effects come
+   * from a roll; the screen then says "Outcome uncertain" instead.
+   */
+  outcomeHidden?: boolean;
 }
 
 /**
@@ -338,11 +348,13 @@ const friendNeedsHelp: EventTemplate = {
   id: 'friend_help',
   category: 'relationship',
   weight: 0.5,
-  condition: state => state.relationships?.length > 0,
+  // Friends only - see lib/events/socialCircle.ts.
+  condition: state => friendsOf(state).length > 0,
   generate: state => {
-    if (!state.relationships?.length) return { id: 'friend_help', description: 'A friend reaches out.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
+    const friends = friendsOf(state);
+    if (!friends.length) return { id: 'friend_help', description: 'A friend reaches out.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const roll = payloadRoll(state, 'friend_help');
-    const friend = pickSeeded(state.relationships, roll, 'friend');
+    const friend = pickSeeded(friends, roll, 'friend');
     return {
       id: 'friend_help',
       description: `${friend.name} asks to borrow $50.`,
@@ -388,15 +400,28 @@ const friendRepays: EventTemplate = {
   },
 };
 
+/** A partner with no engagement and no wedding booked. */
+const isUncommittedPartner = (r: { type?: string; engagementWeek?: number; weddingPlanned?: unknown }) =>
+  r.type === 'partner' && r.engagementWeek === undefined && !r.weddingPlanned;
+
 const weddingEvent: EventTemplate = {
   id: 'wedding',
   category: 'relationship',
   weight: 0.2,
   // Only allow wedding consideration after week 36 and if a partner exists
   // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (week 1-4 resets monthly)
-  condition: state => weeksInThisLife(state) >= 36 && state.relationships?.some(r => r.type === 'partner'),
+  // Only for a couple with nothing already in motion. `resolveEvent` turns
+  // "marry" into a real marriage (buildSpouseRecord), so firing this for a
+  // player who is engaged or has a wedding booked through the Family tab
+  // married them for $2,000 on the spot and discarded the planned wedding and
+  // its paid deposit - and firing it for a married player would stage a
+  // second wedding.
+  condition: state =>
+    weeksInThisLife(state) >= 36 &&
+    !state.family?.spouse &&
+    !!state.relationships?.some(isUncommittedPartner),
   generate: state => {
-    const partner = state.relationships?.find(r => r.type === 'partner');
+    const partner = state.relationships?.find(isUncommittedPartner);
     if (!partner) return { id: 'wedding', description: 'You think about the future.', choices: [{ id: 'wait', text: 'Continue', effects: {} }] };
     return {
       id: 'wedding',
@@ -664,10 +689,12 @@ const gymInvitation: EventTemplate = {
   id: 'gym_invite',
   category: 'health',
   weight: 0.3,
-  condition: state => state.relationships?.length > 0,
+  // A friend or partner - not a parent, and never a child.
+  condition: state => chosenCompanyOf(state).length > 0,
   generate: state => {
-    if (!state.relationships?.length) return { id: 'gym_invite', description: 'A friend invites you to the gym.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const friend = pickSeeded(state.relationships, payloadRoll(state, 'gym_invite'), 'friend');
+    const company = chosenCompanyOf(state);
+    if (!company.length) return { id: 'gym_invite', description: 'A friend invites you to the gym.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
+    const friend = pickSeeded(company, payloadRoll(state, 'gym_invite'), 'friend');
     return {
       id: 'gym_invite',
       description: `${friend.name} invites you to join a gym session for $20.`,
@@ -870,7 +897,9 @@ const friendlyStranger: EventTemplate = {
   id: 'friendly_stranger',
   category: 'relationship',
   weight: 0.8,
-  condition: state => weeksInThisLife(state) < 12 && (state.relationships?.length || 0) < 2,
+  // Counted in chosen company: the seeded parents used to make this
+  // unreachable in every first life.
+  condition: state => weeksInThisLife(state) < 12 && chosenCompanyOf(state).length < 2,
   generate: () => ({
     id: 'friendly_stranger',
     description: 'A friendly stranger at the park strikes up a conversation. They seem genuinely interested in getting to know you.',
@@ -1892,8 +1921,8 @@ const investmentTip: EventTemplate = {
       // it (50/50, EV ≈ 0). Description updated to match the real stakes.
       description: 'A successful investor shares a tip about an undervalued stock. You could double your money - or lose your whole stake.',
       choices: [
-        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
-        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
+        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, outcomeHidden: true, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
+        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, outcomeHidden: true, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
         { id: 'pass', text: 'Pass on the opportunity', effects: {} },
       ],
     };
@@ -2312,7 +2341,7 @@ const surpriseParty: EventTemplate = {
   id: 'surprise_party',
   category: 'relationship',
   weight: 0.25,
-  condition: state => (state.relationships?.length || 0) >= 2,
+  condition: state => friendsOf(state).length >= 2,
   generate: () => ({
     id: 'surprise_party',
     description: 'Your friends throw a surprise party for you!',
@@ -2565,7 +2594,7 @@ const birthdayForgotten: EventTemplate = {
   id: 'birthday_forgotten',
   category: 'relationship',
   weight: 0.2,
-  condition: state => (state.relationships?.length || 0) >= 1,
+  condition: state => friendsOf(state).length >= 1,
   generate: () => ({
     id: 'birthday_forgotten',
     description: "Oh no! You forgot a friend's birthday. It was yesterday!",
@@ -2713,7 +2742,7 @@ const speedingTicket: EventTemplate = {
       description: `You got pulled over for speeding in your ${vehicle?.name || 'vehicle'}. The officer issues a ticket.`,
       choices: [
         { id: 'pay', text: `Pay the $${fine} fine`, effects: { money: -fine, stats: { reputation: -2 } } },
-        { id: 'contest', text: 'Contest the ticket ($50 court fee)', effects: { money: roll('contest-outcome') > 0.3 ? -50 : -fine, stats: { reputation: -1 } } },
+        { id: 'contest', text: 'Contest the ticket ($50 court fee)', outcomeHidden: true, effects: { money: roll('contest-outcome') > 0.3 ? -50 : -fine, stats: { reputation: -1 } } },
       ],
     };
   },
@@ -2798,7 +2827,7 @@ const parkingTicket: EventTemplate = {
       description: 'You find a parking ticket on your windshield. Expired meter!',
       choices: [
         { id: 'pay', text: `Pay the $${fine} fine`, effects: { money: -fine } },
-        { id: 'ignore', text: 'Ignore it (risk higher fine)', effects: { money: roll('ignore-outcome') > 0.5 ? -fine * 2 : -fine, stats: { reputation: -2 } } },
+        { id: 'ignore', text: 'Ignore it (risk higher fine)', outcomeHidden: true, effects: { money: roll('ignore-outcome') > 0.5 ? -fine * 2 : -fine, stats: { reputation: -2 } } },
       ],
     };
   },

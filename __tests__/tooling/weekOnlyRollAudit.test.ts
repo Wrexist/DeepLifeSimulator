@@ -88,10 +88,11 @@ const DECLARED: Record<string, [Kind, string]> = {
   ],
   'contexts/game/actions/weekly/applyEducationProgression.ts': [
     'NOT_LIFE_AFFECTING',
-    'the fractional part of the education-speed multiplier, plus exam and ' +
-      'campus-event gates keyed on the education id. The speed roll pays out an ' +
-      'EXPECTED value equal to the purchased multiplier over the length of a ' +
-      'programme, so the stream identity does not change what a player gets.',
+    'the fractional part of the education-speed multiplier only. It pays out ' +
+      'an EXPECTED value equal to the purchased multiplier over the length of ' +
+      'a programme, so the stream identity does not change what a player gets. ' +
+      'Exams and campus events moved to `makeLifeRoll` (2026-09-25): an exam ' +
+      'result moves GPA, which feeds scholarships and hiring.',
   ],
   'contexts/game/actions/weekly/applyIncome.ts': [
     'NOT_LIFE_AFFECTING',

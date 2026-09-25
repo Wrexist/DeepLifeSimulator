@@ -36,6 +36,13 @@ export interface SaveSlotMeta {
   money: number;
   /** Weeks lived — rendered by the SaveSlots card, so it lives on the meta too. */
   weeksLived: number;
+  /**
+   * `weeksLived` when the life began (v43). `weeksLived` is absolute and seeded
+   * from the starting age, so the card showed "Weeks 364" for an age-25 life
+   * nobody had played yet. Optional: summaries cached before this lack it and
+   * are rewritten on the slot's next save.
+   */
+  lifeStartWeek?: number;
   updatedAt: number;
 }
 
@@ -67,6 +74,7 @@ export function extractSaveSlotMeta(data: unknown): SaveSlotMeta | null {
     date?: { age?: number };
     stats?: { money?: number };
     weeksLived?: number;
+    lifeStartWeek?: number;
     updatedAt?: number;
   };
 
@@ -79,6 +87,9 @@ export function extractSaveSlotMeta(data: unknown): SaveSlotMeta | null {
     age: clampCount(snap.date?.age),
     money: clampAmount(snap.stats?.money),
     weeksLived: clampCount(snap.weeksLived),
+    ...(typeof snap.lifeStartWeek === 'number' && Number.isFinite(snap.lifeStartWeek)
+      ? { lifeStartWeek: clampCount(snap.lifeStartWeek) }
+      : {}),
     updatedAt,
   };
 }
@@ -113,6 +124,9 @@ export async function readSaveSlotMeta(slot: number): Promise<SaveSlotMeta | nul
       age: clampCount(parsed.age),
       money: clampAmount(parsed.money),
       weeksLived: clampCount(parsed.weeksLived),
+      ...(typeof parsed.lifeStartWeek === 'number' && Number.isFinite(parsed.lifeStartWeek)
+        ? { lifeStartWeek: clampCount(parsed.lifeStartWeek) }
+        : {}),
       updatedAt:
         typeof parsed.updatedAt === 'number' && Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : 0,
     };

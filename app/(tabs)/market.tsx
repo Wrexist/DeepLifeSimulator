@@ -93,8 +93,10 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       // P2-8: buyItem applies its money + ownership change synchronously via
       // setGameState (and re-checks affordability atomically). Affordability is
       // already gated above, so confirm immediately - no arbitrary delay/jank.
-      buyItem(itemId);
-      showSuccess(`Purchased ${itemName}!`);
+      // A refusal (already owned, dead, lost the affordability re-check) has
+      // shown its own "Purchase Failed" toast; a success toast on top of it
+      // told the player both things at once.
+      if (buyItem(itemId) !== false) showSuccess(`Purchased ${itemName}!`);
     } catch (error) {
       showError("Purchase failed");
     } finally {
@@ -113,8 +115,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         gameState.economy?.priceIndex ?? 1
       ) * 0.5).toFixed(2));
 
-      sellItem(itemId);
-      showInfo(`Sold ${itemName} for $${sellPrice}`);
+      if (sellItem(itemId) !== false) showInfo(`Sold ${itemName} for ${formatMoney(sellPrice)}`);
     } catch (error) {
       showError("Sale failed");
     } finally {

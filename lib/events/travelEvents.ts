@@ -60,8 +60,7 @@ const travelFriendship: EventTemplate = {
         {
           id: 'stay_in_touch',
           text: 'Exchange numbers and stay connected',
-          effects: { stats: { happiness: 10, reputation: 3 } },
-          karma: { dimension: 'loyalty', amount: 1, reason: 'Made a genuine connection while traveling' },
+          effects: { stats: { happiness: 10, reputation: 3 }, karma: { dimension: 'loyalty', amount: 1, reason: 'Made a genuine connection while traveling' } },
         },
         {
           id: 'enjoy_moment',
@@ -121,6 +120,7 @@ const travelScam: EventTemplate = {
         {
           id: 'confront',
           text: 'Confront the vendor',
+          outcomeHidden: true,
           effects: { money: roll('confront-outcome') > 0.5 ? 0 : -100, stats: { happiness: -3, reputation: -2 } },
         },
       ],
@@ -216,8 +216,7 @@ const culturalImmersion: EventTemplate = {
         {
           id: 'join',
           text: 'Accept the invitation',
-          effects: { stats: { happiness: 20, reputation: 5 } },
-          karma: { dimension: 'generosity', amount: 1, reason: 'Embraced local culture with respect' },
+          effects: { stats: { happiness: 20, reputation: 5 }, karma: { dimension: 'generosity', amount: 1, reason: 'Embraced local culture with respect' } },
         },
         {
           id: 'politely_decline',
@@ -243,8 +242,7 @@ const souvenir: EventTemplate = {
         {
           id: 'buy',
           text: 'Buy it as a keepsake ($150)',
-          effects: { money: -150, stats: { happiness: 10 } },
-          karma: { dimension: 'generosity', amount: 1, reason: 'Supported local artisan' },
+          effects: { money: -150, stats: { happiness: 10 }, karma: { dimension: 'generosity', amount: 1, reason: 'Supported local artisan' } },
         },
         {
           id: 'haggle',

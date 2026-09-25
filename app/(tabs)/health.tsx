@@ -22,6 +22,7 @@ import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 type Vital = { key: string; label: string; value: number; color: string };
 
@@ -169,10 +170,15 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   const buildActivityDeltas = (activity: HealthActivity): HealthDelta[] => {
     const out: HealthDelta[] = [];
     // Gains carry the commitment's progress side, which is what the action
-    // applies - see the C-1 note in ItemActionsContext. `happinessGain` is
-    // raw there too, so it is raw here.
+    // applies - see the C-1 note in ItemActionsContext. `happinessGain` goes
+    // through the happiness taper there, so the card shows the tapered value.
     if (activity.healthGain) out.push({ stat: 'health', delta: healthCommitment.progress(activity.healthGain) });
-    if (activity.happinessGain) out.push({ stat: 'happiness', delta: activity.happinessGain });
+    if (activity.happinessGain) {
+      out.push({
+        stat: 'happiness',
+        delta: Math.round(scaledHappinessGain(gameState.stats?.happiness ?? 0, activity.happinessGain)),
+      });
+    }
     if (activity.fitnessGain) out.push({ stat: 'fitness', delta: healthCommitment.progress(activity.fitnessGain) });
     if (typeof activity.energyCost === 'number' && activity.energyCost !== 0) {
       // energyCost positive means it costs energy; negative means it restores energy.

@@ -1766,6 +1766,25 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 }
 
 /**
+ * The value a `setGameState` updater should commit after a repair that was run
+ * OUTSIDE the updater, on a clone of `repairedFrom`.
+ *
+ * - `prev` is still the object that was repaired → commit the repaired clone.
+ * - The state has moved on since → repair a clone of the newer `prev` instead,
+ *   so the repair still lands without clobbering the newer state.
+ * - Nothing to repair → `prev` unchanged (no re-render).
+ *
+ * Never repairs `prev` in place: `repairGameState` writes back onto its input,
+ * and mutating the committed object is exactly how a repair used to reach the
+ * save while React - and every selector - kept showing the corrupt values.
+ */
+export function repairedCommit<T extends GameState>(prev: T, repairedFrom: T, repairedClone: T): T {
+  if (prev === repairedFrom) return repairedClone;
+  const fresh = { ...prev };
+  return repairGameState(fresh).repaired ? fresh : prev;
+}
+
+/**
  * True when the state is the pristine boot default - no life has been started.
  *
  * Every real game built by onboarding has a `scenarioId` AND a non-empty

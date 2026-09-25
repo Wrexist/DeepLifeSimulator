@@ -140,6 +140,9 @@ export const medicalEmergency: EventTemplate = {
         {
           id: 'home',
           text: 'Try home remedies',
+          // Whether the illness takes hold is rolled; the preview's disease
+          // badge would otherwise tell the player which remedy is safe.
+          outcomeHidden: true,
           effects: {
             money: -50,
             stats: {

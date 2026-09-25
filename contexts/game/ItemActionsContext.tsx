@@ -13,6 +13,7 @@ import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } 
 import { haptic } from '@/utils/haptics';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { satietyHint } from '@/lib/economy/foodSatiety';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
 import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 import { makeLifeRoll } from '@/utils/seededRoll';
@@ -31,8 +32,10 @@ export interface FoodPurchaseResult {
 
 interface ItemActionsContextType {
   // Items & Purchases
-  buyItem: (itemId: string) => void;
-  sellItem: (itemId: string) => void;
+  /** False when refused (the refusal toast is already shown). */
+  buyItem: (itemId: string) => boolean;
+  /** False when refused (the refusal toast is already shown). */
+  sellItem: (itemId: string) => boolean;
   buyDarkWebItem: (itemId: string) => void;
   buyHack: (hackId: string) => void;
   performHack: (hackId: string) => HackResult;
@@ -80,26 +83,29 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   const getGameState = useGameStateGetter();
 
   // Items & Purchases Actions
-  const buyItem = useCallback((itemId: string) => {
+  const buyItem = useCallback((itemId: string): boolean => {
     const state = getGameState();
-    if (!state) return;
+    if (!state) return false;
 
     const result = ItemActions.buyItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
     if (result?.success) {
       haptic.medium(); // Item purchased
-    } else {
-      showError('Purchase Failed', result?.message || 'Could not purchase item');
+      return true;
     }
+    showError('Purchase Failed', result?.message || 'Could not purchase item');
+    return false;
   }, [setGameState, updateMoney, showError]);
 
-  const sellItem = useCallback((itemId: string) => {
+  const sellItem = useCallback((itemId: string): boolean => {
     const state = getGameState();
-    if (!state) return;
+    if (!state) return false;
 
     const result = ItemActions.sellItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
     if (!result?.success) {
       showError('Sale Failed', result?.message || 'Could not sell item');
+      return false;
     }
+    return true;
   }, [setGameState, updateMoney, showError]);
 
   // Onion (dark-web) actions - were all stubs that logged and did nothing,
@@ -437,7 +443,13 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
 
       // Add happiness
       const currentHappiness = prevState.stats.happiness;
-      const newHappiness = clampStatByKey('happiness', currentHappiness + activity.happinessGain);
+      // Through the happiness taper (CLAUDE.md 4.3). This was raw while the
+      // comment below claimed otherwise, so the Health tab's free fixes were
+      // one of the main paths that pinned lives at 100.
+      const newHappiness = clampStatByKey(
+        'happiness',
+        currentHappiness + scaledHappinessGain(currentHappiness, activity.happinessGain),
+      );
       updatedStats.happiness = newHappiness;
       actualChanges.happiness = newHappiness - currentHappiness;
 
@@ -454,7 +466,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
        * Scaled here are the HEALTH-domain outcomes, matching how every other
        * area applies its own metric - relationships scale the relationship
        * boost, hobbies their XP. `happinessGain` is deliberately left raw: it
-       * is cross-domain and already passes through the happiness taper
+       * is cross-domain and goes through the happiness taper just above
        * (CLAUDE.md 4.3), which must stay the one place that curve lives.
        */
       // Add health if applicable

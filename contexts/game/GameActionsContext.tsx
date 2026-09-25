@@ -39,7 +39,7 @@ import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
-import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
+import { isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
@@ -1068,6 +1068,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // GL-1: the prestige learning bonuses finally reach the thing they claim to
    // speed up. `getExperienceMultiplier` had zero call sites.
    experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
+   // Exams are drawn per life (lifeSalt), not per week - see the input doc.
+   life: { lineageId: prevState.lineageId, generationNumber: prevState.generationNumber },
  }, weeklyCtx), { updatedEducations, pendingCampusEvent: undefined });
  updatedEducations = progressionResult.updatedEducations;
  educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
@@ -3798,15 +3800,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const validation = validateGameState(updatedState, false);
  if (!validation.valid) {
  logger.error('[WEEK PROGRESSION] State validation failed after update:', validation.errors);
- // Attempt repair
- const repairResult = repairGameState(updatedState);
+ // Attempt repair - on a CLONE. `updatedState` is the committed state
+ // object; `repairGameState` writes its result back onto whatever it is
+ // given, so repairing it directly mutated React's state in place, the
+ // updater's second repair then found nothing to fix and returned `prev`,
+ // and the UI kept showing the corrupt values (the L5 bug `saveGame`
+ // already fixed - same pattern).
+ const repairCandidate: GameState = {...updatedState };
+ const repairResult = repairGameState(repairCandidate);
  if (repairResult.repaired) {
  logger.warn('[WEEK PROGRESSION] Repaired corrupted state:', repairResult.repairs);
- // Update state with repaired version
- setGameState(prev => {
- const repaired = repairGameState(prev);
- return repaired.repaired ? {...prev }: prev; // repairGameState mutates in-place, spread to signal React
- });
+ setGameState(prev => repairedCommit(prev, updatedState, repairCandidate));
  } else {
  logger.error('[WEEK PROGRESSION] State corruption detected and could not be repaired');
  showError('State Error', 'Game state became corrupted. Please reload your save.');
@@ -4882,15 +4886,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const validation = validateGameState(currentState, false);
  if (!validation.valid) {
  logger.error('[HEALTH CHECK] State corruption detected during gameplay:', validation.errors);
- // Attempt repair
- const repairResult = repairGameState(currentState);
+ // Attempt repair on a clone, never on the committed object - see the
+ // week-progression branch above.
+ const repairCandidate: GameState = {...currentState };
+ const repairResult = repairGameState(repairCandidate);
  if (repairResult.repaired) {
  logger.warn('[HEALTH CHECK] Repaired corrupted state:', repairResult.repairs);
- // Update state with repaired version - spread to create new reference so React detects the change
- setGameState(prev => {
- const repaired = repairGameState(prev);
- return repaired.repaired ? {...prev }: prev;
- });
+ setGameState(prev => repairedCommit(prev, currentState, repairCandidate));
  } else {
  logger.error('[HEALTH CHECK] State corruption detected and could not be repaired');
  // Don't show error to user during gameplay - just log it

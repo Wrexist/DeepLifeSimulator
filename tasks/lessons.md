@@ -35,6 +35,24 @@ did not mean the repository workflow lacked them; its real failure was a retired
 API field. Confirm read-only responses before any store write. Keep browser,
 JavaScript-export and native-purchase evidence separate.
 
+## 2026-09-25 — A queue that serializes Modals must also space them
+
+"Home frozen" had no render loop. The interruption queue guaranteed ONE surface
+at a time, and that was read as sufficient; it was not. Each popup is mounted
+only while it holds the slot, so a handoff unmounted one presented Modal and
+presented the next in back-to-back commits, during iOS's dismissal. That is the
+same stranded-layer mechanism AlertHost documents. Rule: anything that swaps
+one Modal for another needs a settle gap (or onDismiss) between them, and a
+holder that is presenting a Modal must never be preempted.
+
+Three audit claims were wrong on re-read: the random wedding does marry (a
+special-case in resolveEvent), NPCs do age (npcDepth), and seven "misplaced
+karma" hits were inside multi-line `effects`. A line-based grep would have
+"fixed" correct code; the guard test walks to the enclosing object instead.
+Also: a test fixture must be something the function under test actually
+repairs. `repairGameState` does not fix a NaN balance, and the first draft of
+the repair test asserted it did.
+
 <!-- Updated after every correction. Reviewed at the start of each session. -->
 
 ## Patterns to Watch For

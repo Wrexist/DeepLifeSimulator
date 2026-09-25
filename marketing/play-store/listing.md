@@ -49,7 +49,9 @@ particles, rendered by
 
 ## Compliance answers (verify each in the console)
 
-**Ads** - Yes, the app contains ads (banner + rewarded video via Google AdMob).
+**Ads** - Yes, the app contains ads (banner, opt-in rewarded video, and a rare
+interstitial at a year boundary after a two-year grace - `lib/ads/interstitial.ts` -
+all via Google AdMob).
 
 **In-app purchases** - Yes. The catalogue is `utils/iapConfig.ts` (27 one-time
 products + 2 subscriptions, already listed in `tasks/launch-step-by-step.md`).
@@ -63,7 +65,10 @@ simulated gambling; dating/marriage is mild; alcohol/drugs are mild references.
 
 **Data safety** - declare:
 - *Collected*: App activity (in-app actions/screens) via Firebase/GA4; Device or
-  other IDs (advertising ID) via AdMob.
+  other IDs (advertising ID) via AdMob; **Purchase history** via Play Billing and
+  RevenueCat (entitlements, receipt validation); **App info and performance -
+  Diagnostics** (categorised failure counts such as `save_failed`) via Firebase.
+  Full answer set with sources: `docs/DATA_SAFETY.md`.
 - *Shared*: Device or other IDs with Google AdMob for advertising.
 - *Not collected*: name, email, precise location, contacts, photos, messages.
 - Encrypted in transit: yes.

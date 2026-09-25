@@ -125,6 +125,26 @@ function readEntitlements(customerInfo: any): RcEntitlements {
   return { adsRemoved, premium };
 }
 
+/**
+ * A store product's id with any Play base-plan suffix removed.
+ *
+ * `PurchasesStoreProduct.identifier` is the store id - on Android a
+ * subscription reads `productId:basePlanId` (e.g. `deeplife_plus_monthly:monthly`),
+ * while the app's product map is keyed on the bare product id. Without the
+ * strip, Android subscriptions neither matched a package nor mapped back to an
+ * app id, so the paywall had no price to show for them.
+ */
+export function storeProductBaseId(sp: unknown): string | undefined {
+  if (!sp || typeof sp !== 'object') return undefined;
+  const rec = sp as { identifier?: unknown; productIdentifier?: unknown };
+  const raw = typeof rec.identifier === 'string'
+    ? rec.identifier
+    : typeof rec.productIdentifier === 'string' ? rec.productIdentifier : undefined;
+  if (!raw) return undefined;
+  const colon = raw.indexOf(':');
+  return colon > 0 ? raw.slice(0, colon) : raw;
+}
+
 class RevenueCatService {
   private configured = false;
 
@@ -328,8 +348,8 @@ class RevenueCatService {
     const out: Record<string, StoreProductLike> = {};
     for (const pkg of packages) {
       const sp = pkg?.storeProduct;
-      const storeId = sp?.identifier ?? sp?.productIdentifier;
-      if (!sp || typeof storeId !== 'string') continue;
+      const storeId = storeProductBaseId(sp);
+      if (!sp || !storeId) continue;
       // Map back to the app-internal id so callers key off the same ids the
       // rest of the app uses (see lib/subscription/revenueCatProductMap.ts).
       const appId = storeToAppProductId(storeId);
@@ -404,10 +424,13 @@ class RevenueCatService {
       // in the default offering).
       if (isSubscriptionProduct(productId)) {
         const offering = await this.getCurrentOffering();
+        // Match on the SDK's `storeProduct.identifier`. This compared
+        // `productIdentifier`, which `PurchasesStoreProduct` does not have, so
+        // the package lookup could never match on the product and EVERY
+        // subscription purchase fell through to the direct
+        // `purchaseStoreProduct` path the comment above says fails on Android.
         const pkg = offering?.availablePackages?.find(
-
-          (p: any) =>
-            p.storeProduct?.productIdentifier === storeId || p.identifier === storeId,
+          (p: any) => storeProductBaseId(p?.storeProduct) === storeId || p?.identifier === storeId,
         );
         if (pkg) {
           // purchasePackage already handles the configure guard internally.

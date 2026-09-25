@@ -399,6 +399,23 @@ export default function WeeklyEventModal() {
 
  if (!hasEffects) return null;
 
+ // A rolled outcome must not be previewed - the badges would be the
+ // answer (see `EventChoice.outcomeHidden`).
+ if (choice.outcomeHidden) {
+ return (
+ <View key={choice.id} style={styles.choiceEffect}>
+ <Text style={styles.choiceEffectLabel}>
+ {choice.text}
+ </Text>
+ <View style={styles.choiceEffectDetails}>
+ <View style={[styles.effectBadge, styles.uncertainBadge]}>
+ <Text style={styles.effectBadgeText}>Outcome uncertain</Text>
+ </View>
+ </View>
+ </View>
+ );
+ }
+
  return (
  <View key={choice.id} style={styles.choiceEffect}>
  <Text style={styles.choiceEffectLabel}>
@@ -748,6 +765,10 @@ const styles = StyleSheet.create({
  negativeBadge: {
  backgroundColor: 'rgba(239, 68, 68, 0.18)',
  borderColor: 'rgba(248, 113, 113, 0.55)',
+ },
+ uncertainBadge: {
+ backgroundColor: 'rgba(245, 158, 11, 0.16)',
+ borderColor: 'rgba(251, 191, 36, 0.55)',
  },
  effectBadgeText: {
  fontSize: fontScale(14),

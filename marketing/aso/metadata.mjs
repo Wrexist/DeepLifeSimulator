@@ -31,7 +31,7 @@ export const APPLE = {
    *
    * `scripts/asc-release.mjs` reads this as the record to create and fill.
    */
-  storeVersion: '1.5.0',
+  storeVersion: '1.6.0',
 
   /**
    * The "What's New" for `storeVersion`, 4000 chars max.
@@ -44,17 +44,15 @@ export const APPLE = {
    * described for three audiences, and a reader who finds them disagreeing
    * cannot tell which one is the lie.
    */
-  whatsNew: `New faces, real conversations, and nothing left locked.
+  whatsNew: `No more frozen Home screen, and gambles that stay a gamble.
 
-• Character creation, rebuilt. Your face is now built from features you choose rather than picked from a gallery of portraits, and it ages with you instead of being swapped for a stranger's at each age band. Children look like children, and they inherit their parents' features.
-• Spark chats are a real conversation. Break the ice, compliment, joke, flirt, ask them out for coffee, dinner or something reckless, or ask them to go steady. Every match keeps its own rapport, so a relationship is built rather than announced — and any match you'd rather not date can become a friend instead.
-• Fixed a trap that could lock you out of the game. Buying a house or a company could take away the very app that manages it, and two life chapters asked for apps those same chapters were the only way to unlock. Progress only ever goes up now.
-• Your starting age no longer breaks the early game. Beginner luck, the early grace period, the first-month events and the week-count goals were all measured against your age instead of your life, so anyone who didn't start at 18 lost them — and Chapter 1 opened two-thirds done.
-• The dark web sells gear. The tool shop had no way in, which left 18 of the 19 street jobs locked behind tools nobody could buy. Deliveries now hand over the item you paid for, and listings rotate instead of freezing for weeks.
-• The money you're shown is the money you're charged. Weekly Expenses and the Budget tab left out rent, income tax and student loan payments; the Net Worth breakdown didn't add up to the Net Worth above it. Both add up now.
-• Friends are real. Only your first Spark match could ever become a contact, network contacts had no action at all, and neglecting people cost nothing. All three are fixed — and a neglected friend can now drift out of your life.
-• Six more money fixes: a false "Need $10,000" on family business actions, a double-tap that could buy a vehicle twice or duplicate coins in a swap, savings with no way to pay into it, buy-outs that added no revenue, ad rewards that offered a property millionaire $50, and a poverty scholarship that promised free education and delivered respect.
-• Faster and clearer. About six seconds off a cold start, a death screen that scrolls, food/gym/housing cards that show what they do to each stat, a Life Goals list that fits on a page, and a Contacts app that stays smooth in a long life.`,
+• Home no longer freezes. Closing one reward popup could leave the screen visible with nothing responding. Popups now wait their turn, and one on screen is never pulled out from under your thumb.
+• Smoother saving. Each save does half the work it did, so Next Week stutters less on a long life.
+• Gambles are gambles again. Investment tips, contested tickets and pushing for a bigger raise no longer show you the outcome before you choose.
+• Your choices count. Honesty, loyalty and generosity now change after work and travel decisions, and workplace events happen at your very first job.
+• Friends are friends. Friend events are about the people you met, not your mom or your newborn, and a surprise wedding can no longer cancel the one you planned.
+• Quick actions do what they say. Long-press a stat ring and every option raises that stat.
+• Honest numbers. A failed purchase no longer also says "Purchased!", and save slots show the weeks you actually played.`,
 
   /**
    * 30 chars. The highest-weighted field there is.
@@ -205,17 +203,15 @@ A life runs for decades and every week is a decision you make. Most people start
       // Mirrors APPLE.whatsNew. Kept in the register of the description above
       // — this locale is a real translation, not machine output, and a
       // machine-shaped release note next to hand-written copy reads as one.
-      whatsNew: `Caras nuevas, conversaciones de verdad y nada que te deje fuera.
+      whatsNew: `Adiós a la pantalla de inicio congelada, y las apuestas vuelven a ser apuestas.
 
-• Creación de personaje, rehecha. Tu cara se construye a partir de rasgos que eliges, en vez de elegirse en una galería de retratos, y envejece contigo en lugar de cambiarse por la de un desconocido en cada etapa. Los niños parecen niños y heredan los rasgos de sus padres.
-• Los chats de Spark son una conversación real. Rompe el hielo, halaga, bromea, coquetea, invita a un café, a cenar o a algo temerario, o pide formalizar. Cada match tiene su propia complicidad, así que una relación se construye en vez de anunciarse; y con quien no quieras salir, puedes quedar como amigos.
-• Arreglado un fallo que podía dejarte fuera del juego. Comprar una casa o una empresa podía quitarte la app que la gestiona, y dos capítulos pedían apps que solo esos mismos capítulos desbloqueaban. Ahora el progreso solo sube.
-• Tu edad inicial ya no rompe el principio. La suerte de novato, el periodo de gracia, los eventos del primer mes y las metas por semanas se medían contra tu edad y no contra tu vida, así que quien no empezaba a los 18 los perdía. El capítulo 1 empezaba con dos tercios hechos.
-• La dark web ya vende equipo. La tienda de herramientas no tenía puerta de entrada, lo que dejaba 18 de los 19 trabajos callejeros bloqueados. Los envíos entregan lo que pagaste y los anuncios rotan en vez de congelarse durante semanas.
-• El dinero que ves es el que te cobran. Los gastos semanales y la pestaña de presupuesto omitían el alquiler, los impuestos y los préstamos estudiantiles; el desglose de patrimonio no cuadraba con la cifra de arriba. Ya cuadran.
-• Las amistades son reales. Solo tu primer match de Spark podía volverse contacto, los contactos de red no tenían ninguna acción y descuidar a la gente no costaba nada. Las tres cosas están arregladas, y a un amigo desatendido puedes perderlo.
-• Seis arreglos más de dinero: un falso "Necesitas $10,000" en el negocio familiar, un doble toque que podía comprar un vehículo dos veces o duplicar monedas en un intercambio, ahorros sin forma de ingresar dinero, adquisiciones que no sumaban ingresos, recompensas por anuncio que ofrecían $50 a un millonario y una beca que prometía estudios gratis y daba reputación.
-• Más rápido y más claro. Unos seis segundos menos al abrir, una pantalla de muerte que se desplaza bien, tarjetas de comida, gimnasio y vivienda que muestran su efecto en cada estadística, una lista de metas que cabe en una pantalla y una app de contactos fluida en vidas largas.`,
+• Inicio ya no se congela. Cerrar una ventana de recompensa podía dejar la pantalla visible sin responder a nada. Ahora las ventanas esperan su turno y ninguna desaparece bajo tu dedo.
+• Guardado más fluido. Cada guardado hace la mitad de trabajo, así que Semana siguiente se traba menos en una vida larga.
+• Las apuestas vuelven a serlo. Los consejos de inversión, las multas recurridas y pedir un aumento mayor ya no te enseñan el resultado antes de elegir.
+• Tus decisiones cuentan. La honestidad, la lealtad y la generosidad cambian tras las decisiones de trabajo y de viaje, y los eventos laborales llegan desde tu primer empleo.
+• Los amigos son amigos. Los eventos de amistad hablan de la gente que conociste, no de tu madre ni de tu bebé, y una boda sorpresa ya no cancela la que planeaste.
+• Las acciones rápidas hacen lo que dicen. Mantén pulsado un anillo de estadística y cada opción sube esa estadística.
+• Números honestos. Una compra fallida ya no dice también «¡Comprado!», y las ranuras de guardado muestran las semanas que jugaste de verdad.`,
 
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
 Lo que pasa después depende solo de ti.

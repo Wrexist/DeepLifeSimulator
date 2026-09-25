@@ -48,7 +48,7 @@ import {
   computeSemesterNumber,
   STUDY_GROUP_BENEFITS,
 } from '@/lib/education/educationSystem';
-import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
 import type { WeekContext } from './weekContext';
 
 export interface EducationProgressionInput {
@@ -72,6 +72,14 @@ export interface EducationProgressionInput {
    * percentage. 2026-07-30 audit GL-1.
    */
   experienceMultiplier?: number;
+  /**
+   * The life the exams belong to (`lineageId` + `generationNumber`). Exam
+   * results move GPA, which feeds scholarship merit and the hiring
+   * multiplier, so they must not be the same draw for every life in a given
+   * week (CLAUDE.md 4.3, `lifeSalt`). Optional so an isolated caller keeps
+   * the old week-only stream.
+   */
+  life?: { lineageId?: string; generationNumber?: number };
 }
 
 export interface EducationProgressionResult {
@@ -150,6 +158,10 @@ export function applyEducationProgression(
   // and consistent under StrictMode double-invoke — instead of raw Math.random()
   // inside runExam / shouldTriggerCampusEvent.
   const weeklyRoll = makeWeeklyRoll(input.nextWeeksLived);
+  // Exams and campus events are drawn per LIFE, not per week: an exam result
+  // moves GPA, and GPA feeds scholarships and hiring. The speed roll above stays
+  // on the week-only stream - it pays out its expected value either way.
+  const lifeRoll = input.life ? makeLifeRoll(input.life, input.nextWeeksLived) : weeklyRoll;
 
   // Weeks of progress this tick. Previously `Math.max(1, Math.ceil(mult))`,
   // which quantized the whole learning-speed economy to integers: 1.10x
@@ -228,7 +240,7 @@ export function applyEducationProgression(
           ctx.newStats.energy,
           !!edu.studyGroupActive,
           examBonus,
-          (label) => weeklyRoll(`exam:${edu.id}:${label}`),
+          (label) => lifeRoll(`exam:${edu.id}:${label}`),
         );
         updatedEdu.lastExamWeek = input.nextWeeksLived;
         updatedEdu.examsPassed = (edu.examsPassed || 0) + (examResult.passed ? 1 : 0);
@@ -255,7 +267,7 @@ export function applyEducationProgression(
       }
 
       // Campus event check (random, every 4-8 weeks).
-      if (shouldTriggerCampusEvent(edu, input.nextWeeksLived, weeklyRoll(`campus:${edu.id}`))) {
+      if (shouldTriggerCampusEvent(edu, input.nextWeeksLived, lifeRoll(`campus:${edu.id}`))) {
         updatedEdu.lastCampusEventWeek = input.nextWeeksLived;
         // Campus events are handled via pending events in the UI.
         // Store a flag for the UI to pick up.

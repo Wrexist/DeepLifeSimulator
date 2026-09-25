@@ -74,6 +74,13 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
   const hasPendingApplication = useGameSelector((s) => (s?.careers ?? []).some((career) => career?.applied && !career.accepted));
   const darkMode = useGameSelector((s) => s?.settings?.darkMode !== false);
   const weeksWorked = useGameSelector((s) => s?.lifetimeStatistics?.totalWeeksWorked ?? 0);
+  // v43: `weeksLived` when THIS life began. The stored baseline below is one
+  // device-wide key, so a second life anchored its window on the FIRST life's
+  // clock - an age-25 restart after an age-20 life read 364 - 104 = 260 weeks
+  // "elapsed" and never showed the coach. The life's own start is the right
+  // anchor wherever the save carries it; the stored key remains the fallback
+  // for saves written before v43.
+  const lifeStartWeek = useGameSelector((s) => s?.lifeStartWeek);
 
   /**
    * Was this life already established when the coach first mounted?
@@ -152,13 +159,13 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
       resolveCoachStep({
         dismissed,
         establishedLife,
-        baseline,
+        baseline: typeof lifeStartWeek === 'number' ? lifeStartWeek : baseline,
         weeksLived,
         hasWorkedForPay: weeksWorked > 0,
         hasPendingApplication,
         hasJob: Boolean(currentJob),
       }),
-    [dismissed, establishedLife, baseline, weeksLived, weeksWorked, hasPendingApplication, currentJob]
+    [dismissed, establishedLife, baseline, lifeStartWeek, weeksLived, weeksWorked, hasPendingApplication, currentJob]
   );
 
   const retire = useCallback(() => {
@@ -253,7 +260,7 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
       Icon: CalendarCheck,
       tone: accent.success,
       title: 'Hired. Now live a week',
-      body: 'Tap the green arrow up top. Your wage lands at the end of the week.',
+      body: 'Tap Next week up top. Your wage lands at the end of the week.',
       cta: 'Got it',
     },
     paid: {

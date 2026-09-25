@@ -17,6 +17,7 @@ import {
   useInterruptionSlot,
   INTERRUPTION_PRIORITY,
   MAX_INTERRUPTIONS_PER_WEEK,
+  HANDOFF_SETTLE_MS,
   type InterruptionSlotOptions,
 } from '@/contexts/InterruptionContext';
 import { GameStoreContext, type GameStore } from '@/contexts/game/useGameSelector';
@@ -49,13 +50,29 @@ function mount(element: React.ReactElement) {
   return {
     renderer,
     tree: () => JSON.stringify(renderer.toJSON()),
-    update: (next: React.ReactElement) => act(() => renderer.update(next)),
+    // An update that hands the slot on only lands after the settle gap, so
+    // `update` lets that gap elapse - these tests are about WHO wins. The gap
+    // itself is pinned separately below with `updateNow`.
+    update: (next: React.ReactElement) => {
+      act(() => renderer.update(next));
+      settle();
+    },
+    updateNow: (next: React.ReactElement) => act(() => renderer.update(next)),
   };
+}
+
+function settle() {
+  act(() => {
+    jest.advanceTimersByTime(HANDOFF_SETTLE_MS);
+  });
 }
 
 const shown = (tree: string, id: string) => tree.includes(`SHOWING:${id}`);
 
 describe('InterruptionContext', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
   it('grants the slot to the highest-priority claimant', () => {
     const { tree } = mount(
       <InterruptionProvider>
@@ -246,6 +263,74 @@ describe('InterruptionContext', () => {
 
     act(() => advanceWeek());
     act(() => renderer.update(harness(false, false)));
+    settle();
     expect(shown(tree(), 'c')).toBe(true); // fresh week, fresh budget
+  });
+  it('never presents the next surface in the commit that dismisses the last one', () => {
+    // The Home freeze: welcome back closes and the daily reward it was queued
+    // in front of used to present in the very next commit, while iOS was still
+    // dismissing the first Modal - which can strand a transparent layer that
+    // swallows every touch. The slot now passes through nothing for a beat.
+    const harness = (aWants: boolean) => (
+      <InterruptionProvider>
+        <Surface id="welcome" priority={INTERRUPTION_PRIORITY.WELCOME_BACK} wants={aWants} />
+        <Surface id="daily" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants />
+      </InterruptionProvider>
+    );
+    const { tree, updateNow } = mount(harness(true));
+    expect(shown(tree(), 'welcome')).toBe(true);
+
+    updateNow(harness(false));
+    expect(shown(tree(), 'welcome')).toBe(false);
+    expect(shown(tree(), 'daily')).toBe(false);
+
+    act(() => {
+      jest.advanceTimersByTime(HANDOFF_SETTLE_MS - 1);
+    });
+    expect(shown(tree(), 'daily')).toBe(false);
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(shown(tree(), 'daily')).toBe(true);
+  });
+
+  it('does not pull the slot from a presented surface when a higher one arrives', () => {
+    const harness = (welcomeWants: boolean, dailyWants: boolean) => (
+      <InterruptionProvider>
+        <Surface id="welcome" priority={INTERRUPTION_PRIORITY.WELCOME_BACK} wants={welcomeWants} />
+        <Surface id="daily" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants={dailyWants} />
+      </InterruptionProvider>
+    );
+    const { tree, update } = mount(harness(false, true));
+    expect(shown(tree(), 'daily')).toBe(true);
+
+    // Higher priority turns up while the daily reward is on screen: it waits.
+    update(harness(true, true));
+    expect(shown(tree(), 'daily')).toBe(true);
+    expect(shown(tree(), 'welcome')).toBe(false);
+
+    // ...and presents once the daily reward closes.
+    update(harness(true, false));
+    expect(shown(tree(), 'welcome')).toBe(true);
+  });
+
+  it('lets a preemptible surface (the floating orb) yield to one that matters', () => {
+    const harness = (dailyWants: boolean) => (
+      <InterruptionProvider>
+        <Surface
+          id="orb"
+          priority={INTERRUPTION_PRIORITY.AD_ORB}
+          wants
+          options={{ preemptible: true }}
+        />
+        <Surface id="daily" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants={dailyWants} />
+      </InterruptionProvider>
+    );
+    const { tree, update } = mount(harness(false));
+    expect(shown(tree(), 'orb')).toBe(true);
+
+    update(harness(true));
+    expect(shown(tree(), 'orb')).toBe(false);
+    expect(shown(tree(), 'daily')).toBe(true);
   });
 });

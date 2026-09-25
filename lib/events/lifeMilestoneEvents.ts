@@ -12,6 +12,7 @@
 import type { EventTemplate } from './engine';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { chosenCompanyOf } from './socialCircle';
 
 // ---------------------------------------------------------------------------
 // Romantic relationship events
@@ -417,7 +418,10 @@ const loneliness: EventTemplate = {
   id: 'loneliness',
   category: 'health',
   weight: 0.2,
-  condition: state => (state.relationships?.length || 0) === 0,
+  // Nobody the player CHOSE - the seeded parents made `=== 0` unreachable in
+  // every first life. Held back half a year, so it lands as the consequence of
+  // not reaching out rather than as a greeting to a brand-new character.
+  condition: state => weeksInThisLife(state) >= 26 && chosenCompanyOf(state).length === 0,
   generate: () => ({
     id: 'loneliness',
     description: "You realize you haven't had a meaningful conversation in weeks. The isolation is wearing on you.",

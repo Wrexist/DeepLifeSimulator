@@ -25,6 +25,7 @@ import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import LiquidGlassDisc from '@/components/ui/LiquidGlassDisc';
@@ -187,7 +188,11 @@ function TopStatsBarComponent() {
  stats: {
  ...st,
  health: deltas.health != null ? clamp((st.health ?? 0) + deltas.health) : st.health,
- happiness: deltas.happiness != null ? clamp((st.happiness ?? 0) + deltas.happiness) : st.happiness,
+ // Through the happiness taper, like every other gain (CLAUDE.md
+ // 4.3). A loss passes through unscaled.
+ happiness: deltas.happiness != null
+ ? clamp((st.happiness ?? 0) + scaledHappinessGain(st.happiness ?? 0, deltas.happiness))
+ : st.happiness,
  energy: deltas.energy != null ? clamp((st.energy ?? 0) + deltas.energy) : st.energy,
  fitness: deltas.fitness != null ? clamp((st.fitness ?? 0) + deltas.fitness) : st.fitness,
  money: deltas.money != null ? Math.max(0, (st.money ?? 0) + deltas.money) : st.money,
@@ -218,17 +223,22 @@ function TopStatsBarComponent() {
  refuseWeeklyGate();
  return;
  }
+ // The toast states the gain the updater will actually apply, taper included.
+ const joy = (n: number) => Math.round(scaledHappinessGain(stats?.happiness ?? 0, n));
  switch (action) {
  case 'eat':
  if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
- apply({ money: -12, health: 7, happiness: 4 }, 'Healthy meal - +7 health, +4 happiness.');
+ apply({ money: -12, health: 7, happiness: 4 }, `Healthy meal - +7 health, +${joy(4)} happiness.`);
  break;
  case 'rest':
- apply({ happiness: -5, energy: 14 }, 'You rest up - +14 energy (−5 happiness).');
+ // Resting at full energy used to spend the weekly slot and cost 5
+ // happiness for a "+14 energy" toast that added nothing.
+ if ((s.energy ?? 0) >= 100) { haptic('warning'); info('Already fully rested.'); return; }
+ apply({ happiness: -5, energy: 14 }, `You rest up - +${Math.min(14, 100 - (s.energy ?? 0))} energy (−5 happiness).`);
  break;
  case 'social':
  if ((s.energy ?? 0) < 8) { haptic('warning'); info('Too tired to socialize right now.'); return; }
- apply({ energy: -8, happiness: 10 }, 'Good company - +10 happiness.');
+ apply({ energy: -8, happiness: 10 }, `Good company - +${joy(10)} happiness.`);
  break;
  case 'exercise':
  if ((s.energy ?? 0) < 12) { haptic('warning'); info('Too tired to work out right now.'); return; }
@@ -370,9 +380,13 @@ function TopStatsBarComponent() {
  value: stats.health,
  gradient: [STAT_IDENTITY.health.color, '#F87171'] as [string, string],
  max: 100,
+ // Each ring offers only actions that RAISE its own stat. Health used
+ // to offer Rest (energy only, −5 happiness), Happiness offered
+ // Exercise (no happiness at all) and Energy offered Eat (no energy),
+ // under a hint promising "Quick action to improve <stat>".
  quickActions: [
  { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
- { icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
+ { icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
  ],
  },
  {
@@ -383,7 +397,7 @@ function TopStatsBarComponent() {
  max: 100,
  quickActions: [
  { icon: Coffee, label: 'Socialize', action: () => handleQuickAction('social') },
- { icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
+ { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
  ],
  },
  {
@@ -394,7 +408,6 @@ function TopStatsBarComponent() {
  max: 100,
  quickActions: [
  { icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
- { icon: Apple, label: 'Eat', action: () => handleQuickAction('eat') },
  ],
  },
  ];

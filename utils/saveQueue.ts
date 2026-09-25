@@ -45,6 +45,13 @@ type ToastCallback = (message: string, type: 'success' | 'error') => void;
  */
 const MAX_REPLAYABLE_QUEUE_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
 
+/**
+ * How long a save may be in flight before the queue journals it to storage.
+ * A healthy save completes well inside this, so the common path never pays a
+ * second full serialize + HMAC of the state.
+ */
+export const QUEUE_PERSIST_GRACE_MS = 1000;
+
 class SaveQueue {
   private queue: SaveOperation[] = [];
   private processingPromise: Promise<void> | null = null;
@@ -54,6 +61,14 @@ class SaveQueue {
   private maxRetries = 3;
   private retryDelay = 1000; // 1 second
   private toastCallback: ToastCallback | null = null;
+  /** Pending grace-period journal write - see `schedulePersist`. */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * The operation `performSave` is writing right now. The drain dequeues an
+   * operation BEFORE writing it, so without this a journal taken mid-write
+   * would see an empty queue and record nothing.
+   */
+  private inFlight: SaveOperation | null = null;
   private log = logger.scope('SaveQueue');
 
   /**
@@ -132,10 +147,16 @@ class SaveQueue {
     // Immutable push to prevent mid-iteration mutation
     this.queue = [...this.queue, operation];
 
-    // Persist queue after adding (non-blocking)
-    this.persistQueue().catch(err => {
-      this.log.warn('Failed to persist queue after add (non-critical):', err);
-    });
+    // Persist the queue only if this save is still pending after a grace
+    // period. It used to persist on EVERY add, which serialized and
+    // HMAC-signed the whole GameState a second time - synchronously, before
+    // `performSave` even reached its yield - on every Next Week and every
+    // action that saves, only for the drain to delete the blob milliseconds
+    // later. The journal exists for saves that do NOT complete promptly (a
+    // slow or failing write, or an app killed mid-retry): those still get it,
+    // from this timer, from the retry path in `processQueue`, and from
+    // `flushQueue` when the app goes to the background.
+    this.schedulePersist();
 
     // F-9b: race the LIVE drain, not a captured one, until OUR operation
     // settles. The first drain promise this sees can be a PREVIOUS drain in
@@ -204,7 +225,12 @@ class SaveQueue {
       }
 
       try {
-        await this.performSave(operation);
+        this.inFlight = operation;
+        try {
+          await this.performSave(operation);
+        } finally {
+          this.inFlight = null;
+        }
         this.log.debug(`Save successful for slot ${operation.slot}`);
 
         // Persist queue state after successful save (in case there are more operations)
@@ -228,11 +254,14 @@ class SaveQueue {
           operation.retryCount++;
           operation.timestamp = Date.now();
 
+          // Re-add to front of queue for the while loop to pick up, and journal
+          // it NOW: a failing write is exactly the save the persisted queue
+          // exists for (the add no longer journals eagerly - see addToQueue).
+          this.queue = [operation, ...this.queue];
+          await this.persistQueue();
+
           // Wait for retry delay inline (no setTimeout re-entrance)
           await new Promise(resolve => setTimeout(resolve, this.retryDelay * operation.retryCount));
-
-          // Re-add to front of queue for the while loop to pick up
-          this.queue = [operation, ...this.queue];
         } else {
           this.log.error(`Save operation failed permanently for slot ${operation.slot} after ${this.maxRetries} retries`);
 
@@ -769,15 +798,33 @@ class SaveQueue {
     for (const operation of dropped) this.settleOperation(operation);
   }
 
+  /** Journal the queue if a save is still pending after the grace period. */
+  private schedulePersist(): void {
+    if (this.persistTimer) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      if (this.pendingOperations().length === 0) return;
+      this.persistQueue().catch(err => {
+        this.log.warn('Failed to persist pending queue (non-critical):', err);
+      });
+    }, QUEUE_PERSIST_GRACE_MS);
+  }
+
+  /** Everything not yet durably written: the write in flight, then the queue. */
+  private pendingOperations(): SaveOperation[] {
+    return this.inFlight ? [this.inFlight, ...this.queue] : this.queue;
+  }
+
   private async persistQueue(): Promise<void> {
     try {
+      const pending = this.pendingOperations();
       // Only persist if queue has operations
-      if (this.queue.length === 0) {
+      if (pending.length === 0) {
         return;
       }
       
       // Only persist operations that haven't failed too many times
-      const operationsToPersist = this.queue.filter(op => op.retryCount < 2);
+      const operationsToPersist = pending.filter(op => op.retryCount < 2);
       if (operationsToPersist.length === 0) {
         return;
       }
@@ -805,6 +852,11 @@ class SaveQueue {
       // `addToQueue`).
       const queueData = JSON.stringify(operationsToPersist);
       const { createSaveEnvelope } = await import('@/utils/saveValidation');
+      // The import yields. If every operation captured above has completed in
+      // the meantime, the drain has already cleared (or is clearing) the
+      // journal - writing now would leave a stale one to replay next launch.
+      const stillPending = this.pendingOperations();
+      if (!operationsToPersist.some(op => stillPending.includes(op))) return;
       await safeSetItem('save_queue_persisted', createSaveEnvelope(queueData));
       this.log.debug(`Persisted ${operationsToPersist.length} queue operations`);
     } catch (error) {

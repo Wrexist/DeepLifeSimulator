@@ -1,5 +1,33 @@
 # What's New - DeepLife Simulator
 
+## v2.15.0 - No more frozen Home screen (store version 1.6.0)
+
+**Covers:** the 2026-09-25 pass on `claude/great-davinci-cr2nh8`, on top of
+everything merged to `main` since the 2.14.0 (186) upload.
+**Compatibility:** every existing save loads. The save format stays **v51**;
+nothing in this release adds or changes a saved field.
+**Source of truth:** the store copy lives in `marketing/aso/metadata.mjs`
+(`APPLE.whatsNew`, plus `es-MX`), and the in-app feed in
+`lib/config/changelog.ts`. This section describes the same release for
+the repo.
+
+- Home freeze: the popup queue now leaves a 450 ms gap between one Modal
+  closing and the next presenting, never preempts a presented Modal, and the
+  ad orb's reward sheet holds the slot. Reward popups close on a timer fallback.
+- Events: rolled outcomes are hidden (`EventChoice.outcomeHidden`), karma on
+  11 choices now applies, workplace events fire for a first job, friend events
+  read friends only, and the random wedding respects a planned one.
+- HUD quick actions raise their own stat and use the happiness taper.
+- Honest UI: market toasts, the recap's decision count, save-slot weeks, the
+  first-session coach on a second life.
+- Performance: the root layout, the notification ticker and the health modals
+  no longer re-render on every mutation; a save no longer serializes the whole
+  state twice.
+- Android: AsyncStorage's 6 MB cap raised to 64 MB; subscription purchases
+  match their RevenueCat package.
+
+---
+
 ## v2.13.0 - The same life every time, and the fixes you photographed
 
 **Covers:** everything since **v2.12.0** (cut 2026-08-30), up to 2026-09-06.
