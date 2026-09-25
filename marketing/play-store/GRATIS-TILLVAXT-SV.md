@@ -26,8 +26,11 @@ sidan — gratis.
 2. **Merga PR:en** (2 min). Den lägger in eventet i spelet (når v2.13.0 utan
    uppdatering), fixar delningslänken och byter "Android beta" till
    "Google Play" på webbplatsen.
-3. **Svara på varje recension** — *Övervaka och förbättra → Betyg och
-   recensioner* (5 min). Svar syns publikt och får folk att höja betyget.
+3. **Få de första betygen** (5 min). Appen har **0 betyg** — Play visar inga
+   stjärnor förrän det finns några, och betyg väger in i sökrankningen. Be
+   Android-spelarna i Discord om ett *ärligt* betyg, utan belöning. Spelets
+   egen betygsprompt (Play In-App Review) sköter resten när spelare har goda
+   veckor.
 
 ## Denna vecka
 
@@ -63,8 +66,11 @@ snygg förhandsvisning (bild + titel) i WhatsApp, Discord, iMessage och X.
 | # | Event | Fönster | Skicka in senast | Status |
 |---|---|---|---|---|
 | 1 | Halloween "Nothing to Fear" | 16 okt – 6 nov | **2 okt** | klart att skicka |
-| 2 | Större uppdatering (2.15.0) | 28 dagar från utrullning | 14 dagar innan | när bygget är ute |
-| 3 | Jul-event för ALLA spelare | ca 18 dec – 4 jan | 4 dec | behöver ett nytt event i `liveops.json` utan stadiespärr |
+| 2 | *Valfritt:* Black Friday-erbjudande (typ **Erbjudande**) | 27 nov – 1 dec | 13 nov | ditt beslut: kräver en riktig rea på gem-paket/ta bort reklam i Play Console |
+| 3 | Jul "Home for the Holidays" | 18 dec – 4 jan | **4 dec** (tidigast 19 okt) | klart att skicka — `promo-events/2026-12-holidays-SV.md` |
+
+Hoppa över *Större uppdatering* för 2.15.0: den är buggfixar, och Google
+avvisar rutinuppdateringar. Spara den typen till en version med en ny funktion.
 
 Regel: ett Play-event måste gälla **alla** användare. Spelets egna event
 `autumn_foundations`, `second_act` och `winter_ledger` är spärrade till vissa

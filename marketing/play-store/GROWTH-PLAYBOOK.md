@@ -34,6 +34,12 @@ the listing looks finished - screenshots, icon, rating prompt live.
 
 ## Reddit posts (organic, rule-safe)
 
+> Links are filled in and tracked: each one reports its subreddit as the
+> `utm_source` in Play Console (*Butikens resultat → Butiksanalys*). r/AndroidGaming
+> gets the plain Play link (an Android-only sub, and a visible destination reads
+> as trustworthy); mixed audiences get the cross-platform `get/` page, which
+> sends each reader to their own store. The `get/` links work once PR #219 is merged.
+
 Post **one subreddit at a time**, spaced a day apart. Reply to every comment.
 Never post the same text twice in 24 hours. Always check that day's subreddit
 rules - they change.
@@ -67,7 +73,7 @@ I would genuinely love feedback from this sub on the first-30-minutes
 experience - that is the part I have reworked the most and the part I am least
 sure about. What is confusing? What made you put it down?
 
-Link: <PLAY STORE LINK>
+Link: https://play.google.com/store/apps/details?id=com.deeplife.simulator&referrer=utm_source%3Dreddit_androidgaming%26utm_medium%3Dreddit
 ```
 *Why this works here:* leads with the design problem, not the product; asks for
 serious feedback; states the ad policy up front (this sub punishes hidden ads).
@@ -98,7 +104,7 @@ Price: free, ads at year boundaries only, one IAP removes them
 Looking for: whether the first 30 minutes teach you what to do. I have a
 first-job coach, but I want to know if it actually lands.
 
-Link: <PLAY STORE LINK>
+Link: https://wrexist.github.io/DeepLifeSimulator/get/?src=reddit_playmygame
 ```
 *Why this works here:* this sub exists for exactly this; a feedback ask with
 playtime and a specific question is what it rewards.
@@ -120,7 +126,7 @@ arrears interact with your credit score, the credit score gates a loan, the loan
 buys a property that pays rent that funds the next life's heir.
 
 If you like that kind of design, I would love to talk about it. Game is out on
-Android (iOS very soon): <PLAY STORE LINK>
+Android and iOS: https://wrexist.github.io/DeepLifeSimulator/get/?src=reddit_indiegaming
 ```
 *Why this works here:* pure craft discussion, link last.
 
@@ -142,7 +148,7 @@ game. A few things this sub tends to care about:
   if you over-buy.
 - Prestige is generational: your heir keeps the assets and the debts.
 
-Would love the nitpicky feedback this sub gives. <PLAY STORE LINK>
+Would love the nitpicky feedback this sub gives. https://wrexist.github.io/DeepLifeSimulator/get/?src=reddit_tycoon
 ```
 *Why this works here:* speaks their language (systems), invites nitpicks.
 
@@ -167,7 +173,7 @@ distinct events; the same twelve on salted rolls hit 78.
 Now guarded by a static audit: no Math.random() anywhere in the tick, and every
 tick-reachable module with a draw or clock read must declare itself.
 
-The game is <PLAY STORE LINK> if you want to see the result, but genuinely here
+The game is https://wrexist.github.io/DeepLifeSimulator/get/?src=reddit_gamedev if you want to see the result, but genuinely here
 for the systems talk.
 ```
 *Why this works here:* this sub upvotes technical depth and downvotes promos;

@@ -290,4 +290,6 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 - [x] Share loop: every share now ends in one cross-platform link (`SHARE_LANDING_URL` → `support-site/get/`); Android shares used to send readers to the App Store, and the life-story share carried no link. Pinned by `__tests__/social/shareLinks.test.ts`.
 - [x] Support site: Google Play badges, stale "closed beta" copy fixed, absolute OG image.
 - [ ] Owner: merge, submit the Play event, ship 2.15.0 (carries the share fix).
-- [ ] Next: an all-stage December event for the Q4 featuring slot #3 (submit by Dec 4).
+- [x] All-stage December event `winter_holidays_home` (Dec 18 → Jan 4, 200 gems; late-stage budget 850/900) + winter art + guide. Owner submits the Play event between Oct 19 and Dec 4.
+- [x] Skipped a "Major update" Play event for 2.15.0: it is fixes only, and Play rejects routine updates.
+- [x] Reddit posts filled with per-subreddit tracked links.

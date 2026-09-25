@@ -25,11 +25,13 @@ Sources: Play Console Help — *Create promotional content* (answer 12932541) an
 | Event | Window (UTC) | In-game id | Guide |
 |---|---|---|---|
 | Halloween "Nothing to Fear" | 2026-10-16 → 2026-11-06 | `halloween_nothing_to_fear` | `2026-10-halloween-SV.md` |
+| Holidays "Home for the Holidays" | 2026-12-18 → 2027-01-04 | `winter_holidays_home` | `2026-12-holidays-SV.md` |
 
 ## Rebuilding the art
 
 ```
 python marketing/play-store/promo-events/build_halloween.py
+python marketing/play-store/promo-events/build_winter.py
 ```
 
 Needs Pillow + numpy. Deterministic (fixed seeds), so a rebuild reproduces the

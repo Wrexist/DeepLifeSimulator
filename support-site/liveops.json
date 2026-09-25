@@ -68,6 +68,26 @@
     },
 
     {
+      "id": "winter_holidays_home",
+      "schemaVersion": 1,
+      "kind": "seasonal",
+      "title": "Home for the Holidays",
+      "summary": "The holidays: a little put by for gifts, and the spirit to enjoy them.",
+      "brief": "The end of the year asks for two things at once: something set aside for the people you love, and enough cheer left over to spend it with them. Keep both through the holidays and take a bonus into the new year.",
+      "emoji": "🎄",
+      "startsAt": "2026-12-18T00:00:00Z",
+      "endsAt": "2027-01-04T00:00:00Z",
+      "claimGraceDays": 3,
+      "objectives": [
+        { "objectiveId": "cash_on_hand", "target": 2500 },
+        { "objectiveId": "happiness", "target": 65 },
+        { "objectiveId": "weeks_this_life", "target": 3 }
+      ],
+      "rewards": [{ "kind": "gems", "amount": 200 }],
+      "priority": 30
+    },
+
+    {
       "id": "new_year_reset",
       "schemaVersion": 1,
       "kind": "seasonal",
