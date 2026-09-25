@@ -19,6 +19,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
 
 const log = logger.scope('InAppReview');
@@ -105,14 +106,17 @@ export async function requestReviewOnce(): Promise<boolean> {
     const can = await StoreReview.hasAction?.() ?? await StoreReview.isAvailableAsync?.();
     if (!can) {
       requested = false; // let a later, capable session try
+      track('review_prompt_requested', { outcome: 'unavailable' });
       return false;
     }
     await StoreReview.requestReview();
     await markAsked();
+    track('review_prompt_requested', { outcome: 'requested' });
     log.info('Requested an in-app review after a positive week');
     return true;
   } catch (err) {
     requested = false; // never latch on a failure
+    track('review_prompt_requested', { outcome: 'error' });
     log.error('In-app review unavailable', err);
     return false;
   }
