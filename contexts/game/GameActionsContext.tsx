@@ -1068,6 +1068,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // GL-1: the prestige learning bonuses finally reach the thing they claim to
    // speed up. `getExperienceMultiplier` had zero call sites.
    experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
+   // Exams are drawn per life (lifeSalt), not per week - see the input doc.
+   life: { lineageId: prevState.lineageId, generationNumber: prevState.generationNumber },
  }, weeklyCtx), { updatedEducations, pendingCampusEvent: undefined });
  updatedEducations = progressionResult.updatedEducations;
  educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
