@@ -241,6 +241,69 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
         'negocio', 'bolsa', 'citas', 'familia', 'herencia', 'magnate', 'carcel',
       ],
     },
+    'pt-BR': {
+      // Players asked for Portuguese (a 1★ review on 1.5.5 names it), and Brazil
+      // is a large life-sim market. `shipped: false` because the language does
+      // not exist on the App Store record yet, and `asc-release.mjs` writes only
+      // What's New: it cannot add a language. Add pt-BR by hand in App Store
+      // Connect (App Information takes `name` and `subtitle`; the version takes
+      // description, keywords, promotional text and What's New), then flip this
+      // to shipped so every later release updates its notes automatically.
+      //
+      // The UI is English only, so the description says so. A Portuguese page
+      // for an English game, with nothing said, is exactly how the "not in
+      // Portuguese" 1★ happens. UI labels stay in English in the notes for the
+      // same reason: "Next Week" is what the button says.
+      shipped: false,
+      // "simulador de vida" is the query this market types. The name is per
+      // locale on the App Store, so it can carry it without touching en-US.
+      name: 'Deep Life: Simulador de Vida',
+      subtitle: 'Carreira, crime, cripto, luxo',
+      promotionalText:
+        'Comece do zero. Um emprego, um empréstimo, um risco. Faça fortuna na '
+        + 'bolsa, em imóveis e no crime; depois morra e deixe tudo para um herdeiro.',
+      whatsNew: `Chega de tela inicial congelada, e as apostas voltam a ser apostas.
+
+• A tela inicial não congela mais. Fechar uma janela de recompensa podia deixar a tela visível sem responder a nada. Agora as janelas esperam a vez delas, e nenhuma some debaixo do seu dedo.
+• Salvamento mais leve. Cada salvamento faz metade do trabalho de antes, então o botão Next Week trava menos numa vida longa.
+• Apostas voltam a ser apostas. Dicas de investimento, multas contestadas e pedir um aumento maior não mostram mais o resultado antes da sua escolha.
+• Suas escolhas contam. Honestidade, lealdade e generosidade agora mudam depois de decisões de trabalho e de viagem, e os eventos do trabalho acontecem já no seu primeiro emprego.
+• Amigos são amigos. Os eventos de amizade falam das pessoas que você conheceu, não da sua mãe nem do seu bebê, e um casamento surpresa não cancela mais o que você planejou.
+• Ações rápidas fazem o que prometem. Segure um anel de atributo e toda opção aumenta esse atributo.
+• Números honestos. Uma compra que falhou não mostra mais "Purchased!", e os espaços de salvamento mostram as semanas que você realmente jogou.`,
+
+      description: `Toda vida começa do mesmo jeito: sem dinheiro, sem emprego, sem plano.
+O que acontece depois depende só de você.
+
+Deep Life Simulator é um simulador de vida com uma economia de verdade por baixo. O salário paga imposto. Empréstimos cobram juros. O aluguel vence, dê para pagar ou não. Os mercados se mexem sozinhos e não ligam se você está dentro. Cada escolha se acumula por décadas, até você morrer e deixar o que sobrou para um herdeiro.
+
+IDIOMA
+O jogo está em inglês. Esta página está em português para você saber exatamente o que vai encontrar.
+
+CARREIRA E ESTUDOS
+Mais de 20 carreiras, de entregador a cirurgião ou CEO. Faça faculdade, ou pule essa parte e comece a ganhar dinheiro aos 16. Ou siga pelo outro caminho: a rua, a dark web e o risco de acabar na prisão.
+
+DINHEIRO DE VERDADE
+Uma bolsa ao vivo com setores que giram. Cripto para negociar ou minerar. Imóveis para alugar, empresas para abrir e funcionários para contratar. Empréstimos com juros reais, score de crédito, dívidas em atraso e a possibilidade bem real de falência.
+
+FAMÍLIA E HERANÇA
+Namore, case, brigue, divorcie-se. Crie filhos que herdam seus traços e sua fortuna. Construa uma dinastia ao longo de gerações e desbloqueie vantagens permanentes para a próxima vida.
+
+LUXO E STATUS
+Superesportivos, relógios raros, coleções de museu, imóveis e reputação. Transforme um negócio em império, ou se aposente cedo e fique com o que tem.
+
+COMO O JOGO TE TRATA
+• Funciona offline: o save fica no seu aparelho
+• Anúncios em tela cheia só na virada do ano, nunca nos seus dois primeiros anos, e uma compra os remove para sempre
+• Sem barra de energia em tempo real entre você e a próxima semana
+
+Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na primeira.`,
+      // No term from the name or subtitle: Apple matches across fields.
+      keywords: [
+        'jogo', 'offline', 'milionario', 'dinheiro', 'negocio', 'bolsa', 'namoro',
+        'familia', 'heranca', 'magnata', 'prisao', 'imperio', 'riqueza',
+      ],
+    },
     'en-GB': {
       // Reference only — NOT a localisation to create in App Store Connect.
       // `check:aso --emit` skips unshipped locales for exactly this reason: a

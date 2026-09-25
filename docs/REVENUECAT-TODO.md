@@ -2,6 +2,19 @@
 
 Everything in the code has been wired up. The tasks below **cannot be done in code** — they require dashboard access, store consoles, or secret management. Work through them in order before submitting a production build.
 
+> **Console state on 2026-09-25 (read from the consoles, not from this file).**
+> Much of §1c and §3 below is done; the sections are kept as the procedure.
+> - Google Play: **2.13.0 (versionCode 114) in production since 2026-09-20**, in
+>   176 of 177 countries (South Korea refused a rating). §3.0's "no builds / no
+>   production access" is history.
+> - Play products: all 27 one-time products and both subscriptions exist and
+>   are active. **Neither subscription has the 7-day free-trial offer (§3a).**
+> - RevenueCat: all 29 Play products registered, attached to the `default`
+>   offering and to `premium` / `ads_removed` (2026-09-20).
+> - Android developer verification: `com.deeplife.simulator` is **Registered**
+>   (2026-07-30), not Draft.
+> - Details and numbers: `tasks/growth-revenue-plan-2026-09-25.md`.
+
 ---
 
 ## 1. RevenueCat Dashboard Setup

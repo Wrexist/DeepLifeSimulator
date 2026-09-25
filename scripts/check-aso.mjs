@@ -185,6 +185,16 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   if (locDupes.length) fail(`${locale} keyword field repeats itself: ${locDupes.join(', ')}`);
   // Overlap with its OWN subtitle wastes a slot the same way en-US does.
   overlap(terms(loc.subtitle).map(stem), loc.keywords.map(stem), `${locale} subtitle`, `${locale} keyword field`);
+  // A locale may carry its own name (the App Store name is per language).
+  if (loc.name) {
+    checkLimit(`${locale} name`, loc.name, LIMITS.appleName);
+    overlap(terms(loc.name).map(stem), loc.keywords.map(stem), `${locale} name`, `${locale} keyword field`);
+    overlap(terms(loc.name).map(stem), terms(loc.subtitle).map(stem), `${locale} name`, `${locale} subtitle`);
+  }
+  // Limits hold for every field that is present, shipped or not: a reference
+  // locale gets pasted into a console by hand, and a field that is too long
+  // there is truncated just as silently.
+  if (loc.promotionalText) checkLimit(`${locale} promotional text`, loc.promotionalText, LIMITS.applePromo);
   if (locale === 'es-MX') {
     const sameAsEnUs = loc.keywords.filter((k) => kwTerms.includes(stem(k)));
     if (sameAsEnUs.length) {
@@ -195,18 +205,16 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   // bad experience for everyone it reaches. Ship the whole localisation or none.
   // `shipped: false` marks a locale kept for reference rather than created in
   // App Store Connect, so the completeness rule does not apply to it.
+  if (loc.description) checkLimit(`${locale} description`, loc.description, LIMITS.appleDescription);
+  if (loc.whatsNew) checkLimit(`${locale} What's New`, loc.whatsNew, LIMITS.appleWhatsNew);
   if (loc.shipped !== false) {
     if (!loc.description) fail(`${locale} has keywords but no translated description — that is a keyword grab, not a localisation.`);
-    else checkLimit(`${locale} description`, loc.description, LIMITS.appleDescription);
-    if (loc.promotionalText) checkLimit(`${locale} promotional text`, loc.promotionalText, LIMITS.applePromo);
     // A shipped locale with no release notes gets the en-US text on its store
     // page — English release notes under a Spanish description. Worse than the
     // untranslated listing this file already refuses, because it is the one
     // field a returning player actually reads.
     if (!loc.whatsNew) {
       fail(`${locale} is shipped but has no whatsNew — its store page would show the en-US release notes under translated copy.`);
-    } else {
-      checkLimit(`${locale} What's New`, loc.whatsNew, LIMITS.appleWhatsNew);
     }
   }
   if (locale === 'en-GB' && field === keywordField) {
