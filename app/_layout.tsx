@@ -1384,6 +1384,14 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   const hasStats = useGameSelector((s) => !!s?.stats);
   const showDeathPopup = useGameSelector((s) => !!s?.showDeathPopup);
   const showWeddingPopup = useGameSelector((s) => !!s?.showWeddingPopup);
+  // The two health modals below subscribe to the WHOLE state (`useGame()`), and
+  // they used to be mounted for the entire session - re-rendering on every
+  // mutation to decide they had nothing to show. Mounted only while their own
+  // flag is up, the subscription exists only while one is actually open.
+  const showSicknessModal = useGameSelector((s) => !!s?.showSicknessModal);
+  const showCureSuccessModal = useGameSelector(
+    (s) => !!s?.showCureSuccessModal && (s?.curedDiseases?.length ?? 0) > 0
+  );
   const setGameState = useSetGameState();
   const getGameState = useGameStateGetter();
   // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
@@ -1480,14 +1488,14 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
           </Suspense>
         </ErrorBoundary>
       )}
-      {showStatsBar && !showDeathPopup && (
+      {showStatsBar && !showDeathPopup && showSicknessModal && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showSicknessModal')}>
           <Suspense fallback={null}>
             <SicknessModal />
           </Suspense>
         </ErrorBoundary>
       )}
-      {showStatsBar && !showDeathPopup && (
+      {showStatsBar && !showDeathPopup && showCureSuccessModal && (
         // CureSuccessModal has no show-flag (it self-gates on `cureSuccessMessage`).
         // If it fails to render, just swallow - there's nothing to dismiss.
         <ErrorBoundary fallback={null} onError={(error) => logger.error('[StatusBarWrapper] CureSuccessModal failed:', { error: error?.message })}>
