@@ -208,8 +208,12 @@ per-ad-unit report was not read (the report table would not render).
 
 ## Phase 3: grow downloads
 
-**Ratings.** The in-app review prompt ships in 2.15.0. After release, check that
-it fires (Firebase event list) and watch the rating count on the lookup API.
+**Ratings.** The in-app review prompt ships in 2.15.0, but it emitted no
+analytics event, so "does it fire" could only be read off the rating count.
+A separate PR adds `review_prompt_requested` (outcome `requested` /
+`unavailable` / `error`); merge it before the 2.15.0 build to measure this
+release. After release, check that event in Firebase and the rating count on
+the lookup API.
 Drafted replies to the 1–2★ reviews that name something now fixed are below;
 posting them is Tier B. Evidence per complaint was checked against the code and
 changelog (dark web shop fixed in 2.9.0; heart disease and stroke now need age
@@ -264,8 +268,9 @@ Store:
       `check:aso` validates it. Marked `shipped: false` because
       `asc-release.mjs` writes only What's New and cannot add a language: add
       pt-BR by hand in App Store Connect, then flip it.
-- [ ] **fr-FR next** (France is the largest non-English market in the data), then
-      de-DE.
+- [x] **fr-FR copy drafted** the same way (France is the largest non-English
+      market in the data). Name matches the live French Play listing.
+- [ ] de-DE next.
 
 **Product page conversion.** Apple Product Page Optimization can test icons,
 screenshots and previews, not text. Proposal (Tier B to start): control = the
@@ -316,8 +321,8 @@ $2.54 from the cloud pass.
 ## Done this pass (repo)
 
 - `tasks/growth-revenue-plan-2026-09-25.md`: this file.
-- `marketing/aso/metadata.mjs`: pt-BR App Store localization (reference until
-  created in App Store Connect).
+- `marketing/aso/metadata.mjs`: pt-BR and fr-FR App Store localizations
+  (reference until created in App Store Connect).
 - `scripts/check-aso.mjs`: validates a localized `name` and checks limits on
   every field present, shipped or not.
 - `docs/REVENUECAT-TODO.md`: status block with the console state above.

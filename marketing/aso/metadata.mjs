@@ -304,6 +304,59 @@ Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na
         'familia', 'heranca', 'magnata', 'prisao', 'imperio', 'riqueza',
       ],
     },
+    'fr-FR': {
+      // France is the largest non-English market by new customers (RevenueCat,
+      // 2026-08-28 → 09-24: 34 of 820). Same reasoning and the same manual first
+      // step as pt-BR above; the name matches the live French Play listing.
+      shipped: false,
+      name: 'Deep Life : Simulateur de vie',
+      subtitle: 'Carrière, crime, crypto, luxe',
+      promotionalText:
+        'Partez de rien. Un emploi, un prêt, un risque. Bâtissez une fortune en '
+        + "bourse, dans l'immobilier et le crime, puis léguez tout à un héritier.",
+      whatsNew: `Fini l'écran d'accueil figé, et les paris redeviennent des paris.
+
+• L'accueil ne se fige plus. Fermer une fenêtre de récompense pouvait laisser l'écran visible sans plus rien répondre. Les fenêtres attendent désormais leur tour, et aucune ne disparaît sous votre doigt.
+• Des sauvegardes plus fluides. Chaque sauvegarde fait moitié moins de travail, donc le bouton Next Week accroche moins sur une longue vie.
+• Les paris redeviennent des paris. Les tuyaux d'investissement, les amendes contestées et la demande d'une plus grosse augmentation ne vous montrent plus le résultat avant votre choix.
+• Vos choix comptent. L'honnêteté, la loyauté et la générosité évoluent après les décisions de travail et de voyage, et les événements professionnels arrivent dès votre premier emploi.
+• Les amis sont des amis. Les événements d'amitié parlent des gens que vous avez rencontrés, pas de votre mère ni de votre bébé, et un mariage surprise n'annule plus celui que vous aviez prévu.
+• Les actions rapides font ce qu'elles annoncent. Appuyez longuement sur un anneau de statistique et chaque option augmente cette statistique.
+• Des chiffres honnêtes. Un achat échoué n'affiche plus aussi "Purchased!", et les emplacements de sauvegarde montrent les semaines réellement jouées.`,
+
+      description: `Toute vie commence de la même façon : sans argent, sans emploi, sans plan.
+La suite ne dépend que de vous.
+
+Deep Life Simulator est une simulation de vie avec une vraie économie en dessous. Le salaire est imposé. Les prêts coûtent des intérêts. Le loyer tombe, que vous puissiez le payer ou non. Les marchés bougent seuls et se moquent que vous y soyez. Chaque choix s'accumule pendant des décennies, jusqu'à votre mort, et ce qu'il reste passe à un héritier.
+
+LANGUE
+Le jeu est en anglais. Cette page est en français pour que vous sachiez exactement à quoi vous attendre.
+
+CARRIÈRE ET ÉTUDES
+Plus de 20 carrières, de livreur à chirurgien ou PDG. Allez à l'université, ou passez-vous-en et commencez à gagner de l'argent à 16 ans. Ou prenez l'autre route : la rue, le dark web et le risque de finir en prison.
+
+DE L'ARGENT QUI SE COMPORTE COMME DE L'ARGENT
+Une bourse en direct où les secteurs tournent. Des cryptos à échanger ou à miner. Des biens à louer, des entreprises à fonder et du personnel à recruter. Des prêts avec de vrais intérêts, une cote de crédit, des impayés et la possibilité bien réelle de la faillite.
+
+FAMILLE ET HÉRITAGE
+Sortez avec quelqu'un, mariez-vous, disputez-vous, divorcez. Élevez des enfants qui héritent de vos traits et de votre fortune. Bâtissez une dynastie sur plusieurs générations et débloquez des avantages permanents pour la vie suivante.
+
+LUXE ET STATUT
+Supercars, montres rares, collections dignes d'un musée, immobilier et réputation. Faites d'une entreprise un empire, ou prenez une retraite anticipée et gardez ce que vous avez.
+
+COMMENT LE JEU VOUS TRAITE
+• Fonctionne hors connexion : la partie reste sur votre appareil
+• Publicités plein écran seulement en fin d'année de jeu, jamais pendant vos deux premières années, et un achat les supprime définitivement
+• Pas de barre d'énergie en temps réel entre vous et la semaine suivante
+
+Une vie dure des décennies et chaque semaine est une décision. La plupart des joueurs en commencent une deuxième.`,
+      // Accents dropped, as in es-MX and pt-BR. "hors" + "ligne" together
+      // match "hors ligne" (Apple matches across the field).
+      keywords: [
+        'jeu', 'hors', 'ligne', 'argent', 'millionnaire', 'empire', 'bourse',
+        'entreprise', 'famille', 'heritage', 'prison', 'rencontre', 'magnat',
+      ],
+    },
     'en-GB': {
       // Reference only — NOT a localisation to create in App Store Connect.
       // `check:aso --emit` skips unshipped locales for exactly this reason: a
