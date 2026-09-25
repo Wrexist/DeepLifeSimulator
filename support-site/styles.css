@@ -73,6 +73,7 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .appstore svg{width:26px;height:26px;fill:#fff}
 .appstore small{display:block;font-size:10px;color:#bbb;line-height:1.1}
 .appstore b{font-family:Sora;font-size:18px;font-weight:700}
+.store-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 
 footer{border-top:1px solid var(--stroke);padding:46px 0 60px;text-align:center;color:var(--muted)}
 footer .brand{justify-content:center;margin-bottom:14px;color:var(--ink)}

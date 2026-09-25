@@ -32,7 +32,7 @@ import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { logger } from '@/utils/logger';
-import { APP_STORE_URL } from '@/lib/config/appConfig';
+import { shareUrlFor } from '@/lib/config/appConfig';
 import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 const BlurView = BlurViewFallback;
 
@@ -149,7 +149,7 @@ ${childrenCount > 0 ? ` ${childrenCount} children` : ''}
 ${tagline}
 
 Live your own life in Deep Life Simulator:
-${APP_STORE_URL}
+${shareUrlFor('life_card')}
 
 #DeepLifeSim`;
 
