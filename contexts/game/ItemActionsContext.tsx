@@ -32,8 +32,10 @@ export interface FoodPurchaseResult {
 
 interface ItemActionsContextType {
   // Items & Purchases
-  buyItem: (itemId: string) => void;
-  sellItem: (itemId: string) => void;
+  /** False when refused (the refusal toast is already shown). */
+  buyItem: (itemId: string) => boolean;
+  /** False when refused (the refusal toast is already shown). */
+  sellItem: (itemId: string) => boolean;
   buyDarkWebItem: (itemId: string) => void;
   buyHack: (hackId: string) => void;
   performHack: (hackId: string) => HackResult;
@@ -81,26 +83,29 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   const getGameState = useGameStateGetter();
 
   // Items & Purchases Actions
-  const buyItem = useCallback((itemId: string) => {
+  const buyItem = useCallback((itemId: string): boolean => {
     const state = getGameState();
-    if (!state) return;
+    if (!state) return false;
 
     const result = ItemActions.buyItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
     if (result?.success) {
       haptic.medium(); // Item purchased
-    } else {
-      showError('Purchase Failed', result?.message || 'Could not purchase item');
+      return true;
     }
+    showError('Purchase Failed', result?.message || 'Could not purchase item');
+    return false;
   }, [setGameState, updateMoney, showError]);
 
-  const sellItem = useCallback((itemId: string) => {
+  const sellItem = useCallback((itemId: string): boolean => {
     const state = getGameState();
-    if (!state) return;
+    if (!state) return false;
 
     const result = ItemActions.sellItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
     if (!result?.success) {
       showError('Sale Failed', result?.message || 'Could not sell item');
+      return false;
     }
+    return true;
   }, [setGameState, updateMoney, showError]);
 
   // Onion (dark-web) actions - were all stubs that logged and did nothing,

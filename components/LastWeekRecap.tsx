@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { driftDrainLabels, projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+import { modalEventCount } from '@/lib/events/routing';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { scale, fontScale } from '@/utils/scaling';
@@ -41,7 +42,10 @@ function LastWeekRecap() {
       weekResult: s?.weekResult,
       playStreak: s?.playStreak,
       weeksLived: s?.weeksLived,
-      pendingEventCount: s?.pendingEvents?.length ?? 0,
+      // The same count the tab bar's inbox pill uses. Counting ALL pending
+      // events included mail-routed letters, so the recap announced a
+      // decision the pill (and the modal) would not open.
+      pendingEventCount: modalEventCount(s),
       weekSummaryEnabled: s?.settings?.weeklySummaryEnabled !== false,
     }),
     shallowEqual,

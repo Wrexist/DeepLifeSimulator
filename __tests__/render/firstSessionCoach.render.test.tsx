@@ -95,3 +95,20 @@ it('gives the composed Home card one lead throughout coaching and restores recom
   expect(text()).not.toContain('Choose your first job');
   act(() => tree.unmount());
 });
+
+it('anchors the window on this life, not on a baseline stored by an earlier life', async () => {
+  // A previous age-20 life stored its baseline (104) in the device-wide key.
+  // This life started at age 25 (weeksLived 364) and is two weeks in.
+  const storage = jest.requireMock('@/utils/storageWrapper').lazyAsyncStorage;
+  storage.getItem.mockImplementation(async (key: string) =>
+    key === '@deep_life_first_session_coach_baseline' ? '104' : null);
+  mockState = createTestGameState({ currentJob: undefined, weeksLived: 366, lifeStartWeek: 364 });
+  mockState = { ...mockState,
+    lifetimeStatistics: { ...mockState.lifetimeStatistics!, totalWeeksWorked: 0 },
+  };
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => { tree = TestRenderer.create(<FirstSessionCoach />); });
+  expect(JSON.stringify(tree.toJSON())).toContain('Choose your first job');
+  act(() => tree.unmount());
+  storage.getItem.mockImplementation(async () => null);
+});
