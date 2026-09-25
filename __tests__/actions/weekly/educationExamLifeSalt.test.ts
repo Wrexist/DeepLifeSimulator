@@ -9,7 +9,7 @@
 import { applyEducationProgression } from '@/contexts/game/actions/weekly/applyEducationProgression';
 import type { Education, GameStats } from '@/contexts/game/types';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
-import { buildPreRolls } from '@/contexts/game/actions/weekly/preTick';
+import { zeroPreRolls } from '../../helpers/zeroPreRolls';
 
 function stats(): GameStats {
   return { health: 70, happiness: 70, energy: 70, fitness: 60, money: 1000, reputation: 50, gems: 0 } as GameStats;
@@ -19,17 +19,16 @@ function ctx(): WeekContext {
   return {
     newStats: stats(),
     notifications: [] as WeekNotification[],
-    preRolls: buildPreRolls(100),
+    preRolls: zeroPreRolls(),
     nextWeeksLived: 100,
   } as WeekContext;
 }
 
 function edu(): Education {
   return {
-    id: 'exam-bio', name: 'Biology', level: 'highSchool', cost: 0, duration: 52,
-    requirements: {} as Education['requirements'], completed: false, paused: false,
-    weeksRemaining: 26, gpa: 2.5, examsPassed: 2, examsFailed: 1,
-  } as Education;
+    id: 'exam-bio', name: 'Biology', description: 'A biology programme', cost: 0, duration: 52,
+    completed: false, paused: false, weeksRemaining: 26, gpa: 2.5, examsPassed: 2, examsFailed: 1,
+  };
 }
 
 function outcome(lineageId: string): string {
@@ -40,7 +39,7 @@ function outcome(lineageId: string): string {
     perkFastLearner: false,
     life: { lineageId, generationNumber: 1 },
   }, ctx());
-  const e = result.updatedEducations[0] as Education & { examsPassed?: number; examsFailed?: number; gpa?: number };
+  const e = result.updatedEducations[0];
   return `${e.examsPassed}/${e.examsFailed}/${e.gpa}`;
 }
 
