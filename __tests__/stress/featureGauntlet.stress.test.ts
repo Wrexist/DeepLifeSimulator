@@ -569,7 +569,11 @@ describe('Feature Gauntlet - every major action through real provider', () => {
   // ── SAVE/LOAD GAME HOOKS ────────────────────────────────────────────────
   it('SaveGame hook: saveGame returns without throwing', async () => {
     mounted = mountGame();
-    await act(async () => { await captured!.game.saveGame(false); });
+    // Started in a synchronous act, awaited after it: saveGame waits for a
+    // commit, and act commits nothing until its callback settles.
+    let saved!: Promise<boolean>;
+    act(() => { saved = captured!.game.saveGame(false); });
+    await act(async () => { await saved; });
     assertCleanState('saveGame');
   });
 

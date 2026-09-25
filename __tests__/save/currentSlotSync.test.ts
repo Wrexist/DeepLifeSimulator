@@ -163,8 +163,13 @@ describe('currentSlot sync on load (data-loss regression)', () => {
     mockQueueSave.mockClear();
     mockForceSave.mockClear();
     try {
+      // Started in a synchronous act and awaited after it: saveGame waits for
+      // a commit, and act commits nothing until its callback settles.
+      let result!: Promise<boolean | GameState | null>;
+      act(() => {
+        result = operation === 'save' ? captured!.saveGame(true) : captured!.loadGame(3);
+      });
       await act(async () => {
-        const result = operation === 'save' ? captured!.saveGame(true) : captured!.loadGame(3);
         await expect(result).resolves.toBe(operation === 'save' ? false : null);
       });
       expect(release).not.toHaveBeenCalled();
@@ -199,9 +204,12 @@ describe('currentSlot sync on load (data-loss regression)', () => {
 
     // A subsequent (non-forced) save must route to slot 2.
     mockQueueSave.mockClear();
+    let saved!: Promise<boolean>;
+    act(() => {
+      saved = captured!.saveGame(false);
+    });
     await act(async () => {
-      await captured!.saveGame(false);
-      await Promise.resolve();
+      await saved;
     });
 
     expect(mockQueueSave).toHaveBeenCalled();

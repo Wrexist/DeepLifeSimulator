@@ -1,6 +1,13 @@
 # Play-händelse: Jul 2026 "Home for the Holidays" — fält för fält
 
-**Skicka in mellan 19 oktober och 4 december.** Tidigast 60 dagar före start,
+**Status: UTKAST SPARAT i Play Console (2026-09-25)** — steg 1–3 är ifyllda
+(namn, typ, 176 länder, 18 dec–4 jan UTC, förhandsvisning 14 dagar, tagline,
+beskrivning, vinterbild; Play: "Ingen text hittades på den primära bilden").
+**Kvar: mellan 19 oktober och 4 december — öppna utkastet under
+Kampanjinnehåll → Utkast och aktiva event, välj AI-deklaration och klicka
+"Skicka händelse".** (Play tillåter inte inskickning tidigare än 60 dagar före start.)
+
+Ursprunglig instruktion: **skicka in mellan 19 oktober och 4 december.** Tidigast 60 dagar före start,
 senast 14 dagar före för att kunna begära framhävning. Julveckan är årets
 största vecka för appnedladdningar (nya telefoner i julklapp) — det här är
 Q4:s viktigaste event-plats.

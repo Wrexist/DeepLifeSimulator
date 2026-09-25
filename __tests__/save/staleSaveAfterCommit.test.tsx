@@ -26,6 +26,13 @@ import TestRenderer, { act } from 'react-test-renderer';
  *   1. A synchronous save inside the marker effect captures the STALE value
  *      (the bug — proving the ordering hazard is real, not theoretical).
  *   2. A macrotask-deferred save captures the COMMITTED value (the fix).
+ *
+ * 2026-09-25: the real `saveGame` no longer reads the ref synchronously. It
+ * now waits for the commit that carries everything dispatched before the call
+ * (`waitForPendingCommit`), because ~80 other call sites never got this
+ * deferral and lost purchases on reload. See
+ * `saveInSameHandlerPersistsAction.test.ts`. This mirror still pins the
+ * ordering hazard for any other parent-synced ref.
  */
 
 interface Harness {
