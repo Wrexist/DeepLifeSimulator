@@ -37,6 +37,27 @@ const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_P
 // Firebase/GA property). Paths can be overridden via EAS secret files.
 const iosGoogleServicesFile = process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist";
 const androidGoogleServicesFile = process.env.GOOGLE_SERVICES_JSON || "./google-services.json";
+// R8 keep rules for the revenue-critical native bridges whose React Native
+// wrappers ship NO consumer ProGuard rules of their own (checked against
+// node_modules on 2026-09-25 - the SDKs underneath do, the bridges do not).
+// A stripped bridge fails at RUNTIME, not at build time: purchases or ads
+// quietly stop working. So these are kept whole rather than trusted.
+// The committed android/app/proguard-rules.pro is not what EAS builds with
+// (.easignore excludes /android and prebuild regenerates it), which is why the
+// rules live here. Pinned by __tests__/tooling/androidCodeOptimization.test.ts.
+const ANDROID_KEEP_RULES = [
+  "# RevenueCat bridge (purchases + paywalls)",
+  "-keep class com.revenuecat.purchases.react.** { *; }",
+  "# AdMob bridge",
+  "-keep class io.invertase.googlemobileads.** { *; }",
+  "# React Native Firebase bridge (app + analytics)",
+  "-keep class io.invertase.firebase.** { *; }",
+  "# expo-iap and the OpenIAP Google SDK under it",
+  "-keep class expo.modules.iap.** { *; }",
+  "-keep class dev.hyo.openiap.** { *; }",
+  "# AsyncStorage - every save goes through it",
+  "-keep class com.reactnativecommunity.asyncstorage.** { *; }",
+].join("\n");
 
 module.exports = {
   expo: {
@@ -203,6 +224,27 @@ module.exports = {
             extraPods: [
               { name: "GoogleUtilities", modular_headers: true },
             ],
+          },
+          android: {
+            // Google Play's code-optimization requirement, enforced from
+            // February 2027 with a store-visibility penalty: a GAME with more
+            // than 50 MB of DEX must be at least 25% optimized, obfuscated and
+            // shrunk. 2.13.0 (vc 114) shipped 71.5 MB of DEX across 7 files
+            // with R8 off - no mapping file in BUNDLE-METADATA, so 0% - and
+            // Play Console's vitals overview flags that bundle. Measured from
+            // the EAS artifact on 2026-09-25.
+            //
+            // R8 also drops what a release build never reaches. expo-dev-client
+            // is autolinked into EVERY variant and brings Compose, Apollo,
+            // kotlin-reflect and ML Kit with it, while its release variant is a
+            // stub that references none of them; resource shrinking then drops
+            // their resources. A smaller download installs more often.
+            //
+            // NEEDS a release smoke test before production (internal testing):
+            // purchase + restore, a rewarded ad, save/load, and a cold start.
+            enableMinifyInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+            extraProguardRules: ANDROID_KEEP_RULES,
           },
         },
       ],
