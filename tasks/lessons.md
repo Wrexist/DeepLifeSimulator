@@ -5847,3 +5847,36 @@ not look like Deep Life Simulator or communicate enjoyable interaction. Start
 from the current theme tokens, actual avatars, controls, and rewarding choices.
 Use marketing copy to frame what the player can do and achieve. Keep gameplay
 large enough to read and inspect complete cards on every device format.
+
+## 2026-09-25 — Read the console before planning console work
+
+The master prompt and `docs/REVENUECAT-TODO.md` both said Android had no
+production access, no Play products and developer verification in Draft. The
+Play Console said otherwise: 2.13.0 had been in production for five days, all
+29 products existed, verification was Registered and every App content form was
+done. A plan built from the repo would have re-run a 14-day closed test for an
+app already live. Store and console state changes outside git, so a repo note
+about it is a claim with a date on it: read the console first, then write the
+dated state back next to the procedure it supersedes.
+
+## 2026-09-25 — Jest finds no tests in a `.claude` worktree on Windows
+
+`npx jest <path>` in a worktree under `.claude\worktrees\` reported
+"testMatch ... 0 matches" for files that exist. The rootDir is joined with a
+backslash, so the glob sees `\.claude` and reads `\.` as an escaped dot: the
+pattern no longer matches any real path. It is not a missing test or a broken
+config. Pass the match yourself with forward slashes, e.g.
+`npx jest --ci --testMatch "**/__tests__/tooling/ascRelease.test.ts"`.
+
+## 2026-09-25 — A green preflight can check a different env than the build uses
+
+The Android local-build workflow runs preflight under `eas env:exec`, which
+merges `{ ...process.env, ...easStore }`, and then builds with
+`eas build --local`, which merges `{ ...easStore, ...process.env }` and drops
+empty values. Repo secrets that do not exist arrive as EMPTY variables, so the
+Android ad units (held only in the EAS store) passed the gate and would have
+been erased from the build. When a gate and the thing it guards resolve config
+through different tools, check that both see the same values: read the merge
+order in each tool's source, not the comment above the step. Guard: unset
+empty `EXPO_PUBLIC_*` before `eas build --local`
+(`__tests__/tooling/localBuildEnvLayering.test.ts`).

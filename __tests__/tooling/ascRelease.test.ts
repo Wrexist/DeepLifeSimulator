@@ -376,3 +376,33 @@ describe('credential loading', () => {
     expect(C.loadCredentials({ ASC_KEY_ID: 'K' })).toBeNull();
   });
 });
+
+/**
+ * Which locales the release writes. A new language cannot be created by this
+ * script (it writes What's New only), so `pending` copy must be skipped rather
+ * than posted as a notes-only locale, and `shipped: false` stays untouched.
+ */
+describe('which locales the release manages', () => {
+  const APPLE = {
+    whatsNew: 'en notes',
+    localized: {
+      'es-MX': { whatsNew: 'es notes' },
+      'pt-BR': { pending: true, whatsNew: 'pt notes' },
+      'en-GB': { shipped: false, whatsNew: 'gb notes' },
+      'fr-FR': { pending: true, shipped: false, whatsNew: 'fr notes' },
+    },
+  };
+
+  it('writes en-US and live locales only', () => {
+    expect(R.whatsNewByLocale(APPLE)).toEqual({ 'en-US': 'en notes', 'es-MX': 'es notes' });
+  });
+
+  it('reports pending locales, but never a reference-only one', () => {
+    expect(R.pendingLocales(APPLE)).toEqual(['pt-BR']);
+  });
+
+  it('tolerates metadata with no localizations', () => {
+    expect(R.whatsNewByLocale({ whatsNew: 'x' })).toEqual({ 'en-US': 'x' });
+    expect(R.pendingLocales({})).toEqual([]);
+  });
+});

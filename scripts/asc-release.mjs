@@ -42,6 +42,8 @@ import {
   fetchAppStoreVersions,
   stateOf,
   planLocalizations,
+  whatsNewByLocale,
+  pendingLocales,
   versionCreatePayload,
   localizationCreatePayload,
   localizationUpdatePayload,
@@ -82,21 +84,6 @@ function readAscAppId() {
   if (process.env.ASC_APP_ID) return process.env.ASC_APP_ID;
   const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
   return eas?.submit?.production?.ios?.ascAppId ?? null;
-}
-
-/**
- * The locales this repo actually ships, mapped to their What's New text.
- * `shipped: false` locales (en-GB) are reference-only and deliberately not
- * created — those storefronts fall back to en-US already.
- */
-function whatsNewByLocale(APPLE) {
-  const out = {};
-  if (APPLE.whatsNew) out['en-US'] = APPLE.whatsNew;
-  for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
-    if (loc?.shipped === false) continue;
-    if (loc?.whatsNew) out[locale] = loc.whatsNew;
-  }
-  return out;
 }
 
 function preview(text, width = 88) {
@@ -192,6 +179,9 @@ async function main() {
   const localizationOps = planLocalizations({ existingLocalizations, whatsNewByLocale: copy });
 
   say(`\n${C.bold}What's New${C.off}`);
+  for (const locale of pendingLocales(APPLE)) {
+    say(`  ${C.yellow}SKIP${C.off}      ${locale} ${C.dim}— pending: add this language in App Store Connect by hand (npm run aso prints its copy)${C.off}`);
+  }
   for (const op of localizationOps) {
     if (op.op === 'unchanged') {
       say(`  ${C.dim}UNCHANGED${C.off} ${op.locale}`);
