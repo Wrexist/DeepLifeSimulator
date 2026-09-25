@@ -361,8 +361,40 @@ $2.54 from the cloud pass.
 
 ## Waiting on the owner
 
-See the chat reply of 2026-09-25 for the one-message checklist. Unverified
-lead worth its own task: YouVideo purchases may be lost on a slot switch
-(`components/computer/GamingApp.tsx:373-374` saves from a ref that updates a
-render late; `components/SettingsModal.tsx:727-735` switches slot without
-saving first).
+**Order matters for the builds.** Merge PR #221 first, or the Android .aab ships
+with no ad units. Merge PR #220 too if this release should measure the rating
+prompt. Then dispatch the two local-build workflows with version 2.15.0.
+
+Owner-only actions (no decision needed):
+
+1. Merge #221 (and #220), then dispatch `eas-build-local-ios.yml` and
+   `eas-build-local-android.yml` with version 2.15.0, submit on, track internal.
+   The local permission guard refused to dispatch them from this session.
+2. Sign in to App Store Connect in Chrome (the session had expired).
+3. Create a new Discord webhook and set the `DISCORD_WEBHOOK_UPDATES` repo secret
+   (the old webhook was deleted; the watcher fails every run since 2026-09-23).
+4. AdMob → Apps → Apps to confirm → `com.deeplife.simulator` → Complete setup
+   (links the AdMob Android app to its Play listing; 434 requests in 7 days).
+
+Tier B, waiting for a "go":
+
+1. Submissions: submit App Store 1.6.0 once 2.15.0 is smoke-tested on
+   TestFlight; promote Android 2.15.0 to production at 20% → 50% → 100%.
+2. Android trial: add a 7-day free-trial offer to both Play subscriptions.
+3. Content rating: review the 2026-09-20 IARC answers (PEGI 18, Australia
+   R18+, South Korea refused) before anything is resubmitted.
+4. Store growth: post the six drafted review replies after 1.6.0 is live; add
+   pt-BR (then fr-FR, de-DE) on the App Store; pick the 1.6.0 screenshot set
+   and start a Product Page Optimization test with the other.
+5. Money: interstitial units (create standard "Mellansida" units in both AdMob
+   apps; this turns on year-end ads players currently never see) and the
+   paywall proposal (DeepLife+ Yearly as hero, Lifetime as anchor, no price
+   change).
+
+Unverified lead with its own task: YouVideo purchases may be lost on a slot
+switch (`components/computer/GamingApp.tsx:373-374` saves from a ref that
+updates a render late; `components/SettingsModal.tsx:727-735` switches slot
+without saving first).
+
+**Next look: Thursday 2026-10-02.** 2.15.0 vitals, `review_prompt_requested` in
+Firebase, Android trial starts, AdMob Android impressions after the fixed build.
