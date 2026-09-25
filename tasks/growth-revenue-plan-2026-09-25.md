@@ -182,15 +182,29 @@ per-ad-unit report was not read (the report table would not render).
       (36135357090), Quality ratchets ✓, EAS Update ✓.
 - [x] Bundling check, local `npx expo export` from `887c10e2`: iOS ✓ (13.6 MB
       Hermes bundle, exit 0), Android ✓ (13.6 MB, exit 0).
-- [ ] **Production builds: waiting on the owner.** The local permission guard
-      refused to dispatch the build workflows as a production deploy. The exact
-      commands are in "Waiting on the owner".
+- [x] Pre-build fixes on `main` (merged 2026-09-25, 15:26–15:38 UTC):
+      #221 keeps the Android ad units in local builds (`b4e2bcc9`), #220 adds
+      `review_prompt_requested` (`cdc68d27`), #218 is this plan and the
+      pt-BR/fr-FR/de-DE copy (`7e3c245e`), #222 turns on R8 for Android release
+      builds (`e3cddb7e`, from another session), #219 adds the Halloween and
+      Holidays live events, the `/get/` share link and Play mentions on the
+      site (`f3f890de`, from another session). EAS Update on `main`, which runs
+      the full Jest suite, passed for all five (runs 36154159522, 36154169707,
+      36154178021, 36154185617, 36155478615). The support site deployed
+      (36155478559): `/get/` answers 200 and `liveops.json` serves both new
+      events.
+- [ ] **Production builds: waiting on the owner.** Unblocked now that #221 is
+      merged. The local permission guard refused to dispatch the build
+      workflows from this session as a production deploy; the exact commands
+      are in "Waiting on the owner".
 - [ ] TestFlight smoke test on a device (owner): close Welcome Back and the daily
       reward follows about half a second later with Home still responsive; a
       sandbox purchase; a rewarded ad.
 - [ ] App Store Connect 1.6.0 record, build attached, then submit (Tier B).
-- [ ] Android: 2.15.0 AAB on Internal testing, then a purchase and a large save
-      on a real device (owner), then production (Tier B).
+- [ ] Android: 2.15.0 AAB on Internal testing, then on a real device (owner): a
+      purchase and a restore, a rewarded ad, a large save and reload, and a cold
+      start. R8 is on from this build (#222), and a stripped native bridge fails
+      at runtime, not at build time. Then production (Tier B).
 
 ## Phase 2: Android
 
@@ -362,15 +376,14 @@ $2.54 from the cloud pass.
 
 ## Waiting on the owner
 
-**Order matters for the builds.** Merge PR #221 first, or the Android .aab ships
-with no ad units. Merge PR #220 too if this release should measure the rating
-prompt. Then dispatch the two local-build workflows with version 2.15.0.
+**The builds are unblocked.** #221 (Android ad units) and #220 (rating event)
+are on `main`, so dispatch the two local-build workflows with version 2.15.0.
 
 Owner-only actions (no decision needed):
 
-1. Merge #221 (and #220), then dispatch `eas-build-local-ios.yml` and
-   `eas-build-local-android.yml` with version 2.15.0, submit on, track internal.
-   The local permission guard refused to dispatch them from this session.
+1. Dispatch `eas-build-local-ios.yml` and `eas-build-local-android.yml` with
+   version 2.15.0, submit on, track internal. The local permission guard refused
+   to dispatch them from this session.
 2. Sign in to App Store Connect in Chrome (the session had expired).
 3. Create a new Discord webhook and set the `DISCORD_WEBHOOK_UPDATES` repo secret
    (the old webhook was deleted; the watcher fails every run since 2026-09-23).
