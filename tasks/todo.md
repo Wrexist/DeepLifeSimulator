@@ -10,7 +10,8 @@ Branch `claude/great-davinci-cr2nh8`. Report: [home-freeze-and-audits](home-free
 - [x] UX: HUD quick actions, market toasts, recap count, coach anchor/copy, save-slot weeks.
 - [x] Perf/stability: root layout + ticker narrow subscriptions; repairs on clones.
 - [ ] Verify the freeze fix on an iOS device (welcome back → daily reward on a new day).
-- [ ] Owner decisions on the ranked "recommended next" list in the report (Android save budget first).
+- [x] Android save budget raised (64 MB), subscription lookup fixed, exams per life, store metadata 1.6.0 + data safety, version 2.15.0.
+- [ ] Run `tasks/release/MASTER-PROMPT-growth-revenue-local.md` in a local session with Claude in Chrome: ship 2.15.0, launch Android, grow revenue.
 
 ## Banner impression measurement — 24 September 2026
 

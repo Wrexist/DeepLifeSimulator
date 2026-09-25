@@ -1,186 +1,207 @@
-# Master prompt: store, revenue and growth audit (local session + Claude in Chrome)
+# Master prompt: ship it, launch Android, grow revenue (local session + Claude in Chrome)
 
-Paste everything below the line into a **local** Claude Code session, started in
-your clone of this repo with the Claude in Chrome extension connected and signed
-in to RevenueCat, App Store Connect, Google Play Console, AdMob and Firebase.
-A cloud session cannot do this, because it has no browser and no signed-in dashboards.
+**How to use:** open Claude Code on your own computer, in your clone of this
+repo, with the **Claude in Chrome** extension connected and Chrome signed in to
+RevenueCat, App Store Connect, Google Play Console, AdMob, Firebase and GitHub.
+Make sure `eas whoami` works in the terminal. Paste everything below the line.
+A cloud session can't do this, because it has no browser and no signed-in
+consoles.
 
-It builds on the cloud pass of 25 September 2026 (branch
-`claude/great-davinci-cr2nh8`). Report: `tasks/home-freeze-and-audits-2026-09-25.md`.
+It continues the cloud pass of 25 September 2026 (branch
+`claude/great-davinci-cr2nh8`; report `tasks/home-freeze-and-audits-2026-09-25.md`).
 
 ---
 
-You are auditing Deep Life Simulator's live store, revenue and growth position
-and turning it into a ranked, evidence-backed plan. You have Claude in Chrome
-and the owner is signed in to every console. Read `CLAUDE.md` first (especially
-§9 on releases and the two version numbers), then
-`tasks/home-freeze-and-audits-2026-09-25.md`, `tasks/release/REMAINING_WORK.md`,
-`docs/MEASUREMENT_CONTRACT.md`, `docs/ANALYTICS.md` (read its Limitations
-section before quoting any number), `marketing/apple-ads/05-measurement-and-roi.md`
-and `marketing/play-store/`.
+You are the operator for Deep Life Simulator. The owner has asked you to **do
+everything needed to ship the next release on iOS, launch Android properly, and
+grow downloads and revenue**, working through the terminal and through Claude
+in Chrome in the owner's signed-in consoles. Work through the phases in order,
+keep going without waiting between routine steps, and stop only where the
+tiers below say so.
 
-## Hard rules
+Read first: `CLAUDE.md` (especially §9 on releases and the two version
+numbers), `tasks/home-freeze-and-audits-2026-09-25.md`,
+`docs/RELEASE_RUNBOOK.md`, `tasks/release/REMAINING_WORK.md`,
+`docs/DATA_SAFETY.md`, `marketing/play-store/listing.md`,
+`marketing/play-store/LOCALIZATIONS.md`, `marketing/aso/metadata.mjs`,
+`utils/iapConfig.ts`, `docs/REVENUECAT-SETUP.md`, `docs/REVENUECAT-TODO.md`,
+and `marketing/apple-ads/05-measurement-and-roi.md`.
 
-1. **Read-only in every console unless the owner says "go" for that specific
-   change in this chat.** Before any write, state the exact change: console,
-   page, field, old value and new value. Writes include saving a form,
-   changing a price, creating a product, starting a test track, submitting a
-   build for review, pausing or starting ads spend, answering a content-rating
-   questionnaire, and replying to a review. Never approve a purchase, accept
-   an agreement or enter payment or tax details.
-2. **Never paste secrets** (API keys, service-account JSON, signing keys,
-   tokens) into chat, files or commits. If a value is needed, name where it
-   lives.
-3. **Every number carries its source and date range**: console, report, filter
-   and the date you read it. If a screen shows nothing, write "no data", never
-   an estimate dressed as a reading. Keep recorded facts separate from your
-   inferences.
-4. The store version (1.x, what users see) and the binary version
-   (`package.json`, now **2.15.0**) are different on purpose. Never change the
-   App Store Connect version record to match the binary (CLAUDE.md §9).
-5. No private player data in the repo. Aggregate numbers are fine, but reviewer
-   names and emails are not.
+## Permission tiers: the owner's standing instructions
 
-## What the cloud pass already established (verify, don't re-derive)
+**Tier A: do it, then report it.** The owner pre-authorizes these:
+- Reading everything in every console and exporting reports.
+- Repo work: merging `main` into the branch, fixing CI, opening a PR from
+  `claude/great-davinci-cr2nh8`, and merging it once CI is green and
+  `npm run preflight` passes. Follow CLAUDE.md in full.
+- Production EAS builds for iOS and Android from the merged `main` (via the
+  repo's workflows or `eas build --profile production`). Uploading them to
+  TestFlight and to Play's Internal and Closed testing tracks.
+- Creating the Play in-app products and subscriptions exactly as
+  `utils/iapConfig.ts` defines them (ids, types and the prices in the catalog,
+  converted by Play's own price template), then activating them. Attaching
+  them in RevenueCat (entitlements, the default offering's packages) for both
+  platforms.
+- Creating the App Store Connect **1.6.0** version record and filling its
+  metadata from `marketing/aso/metadata.mjs` (use `scripts/asc-release.mjs`
+  where it applies). Attaching build 2.15.0. Uploading the screenshot sets
+  already in the repo.
+- Play store-listing text, screenshots and localizations drafted in the repo
+  (`marketing/play-store/`), after `npm run check:aso` passes.
+- Setting up the Play **Closed testing** track, a testers list or Google
+  Group, and the opt-in link. Pointing the Beta Hub
+  (`support-site/android/`) at it.
+- Configuring a RevenueCat webhook and Firebase / AdMob settings that only
+  change measurement, never what players see or pay.
+- Drafting replies to store reviews, without posting them.
 
-- **iOS:** "Deep Life Simulator: Tycoon", store version 1.5.5, live since
-  7 Sept, English only, 3 ratings averaging 3.0. Build **2.14.0 (186)** is
-  uploaded and "Ready to Submit" but was built before later fixes. The next
-  binary is 2.15.0.
-- **Android:** a public Play listing exists under developer **"Delta Inc."**,
-  updated 20 Sept, showing **5+ downloads**, "Contains ads" and "In-app
-  purchases", with no rating shown. The repo also records a 2.13.0 AAB
-  (versionCode 114) on the Internal testing track, a personal developer account
-  with no production access ("12 testers for 14 days" closed test required),
-  a content rating showing PEGI 3 that should be about 12/16, Play products
-  not yet created, and Android developer verification still in Draft.
-  **Reconcile these**: which track is the public listing on, and which build
-  does it serve?
-- **iOS reviews** (App Store RSS): the recurring complaints are freezes and
-  crashes, the $79.99 "Lifetime" price, English-only ("Please put it in
-  Portuguese", 1★ on 1.5.5), and older balance issues (constant illness, money
-  exploits) that have since been fixed.
-- **Apple Ads** (paused 9 Aug): $55.77 for 22 installs (CPA $2.54). Product page
-  conversion was 40% against a 66% benchmark. The repo's LTV model gives about
-  $0.46 per install over 180 days, so paid installs currently lose money.
-- **OTA updates are off** (`app.config.js` `updates.enabled: false`, and the
-  production profile has no channel). Nothing merged since the last binaries
-  reaches players until new builds ship, including the Home freeze fix, the
-  rating prompt, the Remove Ads orb and the banner-measurement fix.
-- **Fixed on the branch but not yet shipped:** the Android subscription
-  purchase lookup in `services/RevenueCatService.ts` (it matched a field the
-  SDK doesn't have, and ignored Play's `:basePlan` suffix).
+**Tier B: show the exact change, wait for one "go", then do it.** Batch
+related items into one ask.
+- **Submitting for review:** App Store 1.6.0, and Play production or any
+  public track.
+- **Legal attestations:** the Play content-rating questionnaire, the Data
+  safety form, the Ads declaration, Target audience, App Privacy on App Store
+  Connect. Present the answers from `docs/DATA_SAFETY.md` and
+  `marketing/play-store/listing.md` in a table first. The owner is attesting,
+  so the owner must see them.
+- Android developer verification, if it asks for identity documents or a fee.
+- **Any price change** or new discount or offer on an existing product.
+- Posting review replies, publicly.
+- Starting, resuming or changing Apple Ads or any paid campaign spend.
+- Store listing experiments or Product Page Optimization tests that change
+  what live users see.
 
-## Phase 1: read the dashboards (read-only)
+**Tier C: never.** No payment details, card, bank, tax or payout
+forms; no accepting agreements or terms; no deleting an app, product, track or
+build; no changing account users or permissions; no pasting secrets (API keys,
+service-account JSON, signing keys) into chat, files or commits; no
+`eas build --local` workarounds that skip the signing flow. If a step needs one
+of these, stop and tell the owner exactly where to click.
 
-Produce one table per console. Use the last 28 days unless stated otherwise,
-and include the previous 28 days for comparison.
+Always: tag every number with its console, report and date range, and never
+estimate a number you couldn't read. Keep the store version (1.x) and the
+binary version (`package.json` 2.15.0) apart; never raise the App Store record
+to 2.x (CLAUDE.md §9). Keep private player data out of the repo.
 
-**RevenueCat** (Overview, Charts, Customers, Offerings, Products, Integrations):
-- Revenue, MRR, active subscriptions, active trials, trial→paid conversion,
-  refunds and churn, split by platform.
-- Revenue by product. Which of the 27 one-time products and 2 subscriptions
-  have ever sold?
-- Offering configuration: is the default offering current, and are packages
-  attached for BOTH iOS and Android? Record any product in the app catalog
-  (`utils/iapConfig.ts`) that is missing from RevenueCat or from either store.
-- Integrations: is a webhook configured? Is Apple AdServices attribution
-  arriving?
+## What the cloud pass established (verify, don't re-derive)
 
-**App Store Connect** (App Analytics, Sales and Trends, Ratings and Reviews,
-App Store tab, TestFlight, Business):
-- Impressions, product page views, conversion rate and downloads, split by
-  source (Search, Browse, Referral, App Referrer, Web). Also crashes per
-  session and sessions per active device.
-- Retention (D1, D7, D28) where App Analytics shows it.
-- Every rating and review since 1.5.5, grouped by theme.
-- Current metadata: title, subtitle, keywords, promotional text, screenshots,
-  app preview, localizations. Diff it against `marketing/aso/metadata.mjs` and
-  report every mismatch.
-- The IAP and subscription list with its review status. Whether the Small
-  Business Program (15% commission) is active. Whether 2.14.0 (186) is still
-  unsubmitted, and whether any version is in review or rejected.
+- **iOS:** 1.5.5 is live (7 Sept), English only, with 3 ratings averaging
+  3.0. Reviews complain about freezes, the $79.99 Lifetime price, English-only
+  (a 1★ asking for Portuguese), and older balance issues that have since been
+  fixed. 2.14.0 (186) was uploaded but never submitted and predates the fixes.
+  The next record is **1.6.0**, on binary **2.15.0**.
+- **Android:** a public Play listing exists under "Delta Inc." (5+ downloads,
+  updated 20 Sept, no rating shown). The repo also records a 2.13.0 AAB on
+  Internal testing, no production access yet (the 12-tester / 14-day closed
+  test is required), PEGI 3 showing where about 12/16 is correct, Play
+  products not yet created, and developer verification still in Draft. First
+  job: find out which track the public listing is on.
+- **Over-the-air updates are off**, so every fix reaches players only through a
+  new binary. That makes Phase 1 the most valuable step.
+- **Apple Ads** (paused): CPA $2.54, product-page conversion 40% against a 66%
+  benchmark, and a modelled value of about $0.46 per install. Do not restart
+  spend (Tier B) until page conversion and D1 retention clear the bar in
+  `marketing/apple-ads/`.
+- **On the branch, not yet shipped:** the Home freeze fix; hidden gamble
+  outcomes; the event, karma and exam fixes; the Android subscription lookup
+  fix; the Android 6 MB → 64 MB save-storage cap; the save-queue performance
+  fix; the 1.6.0 notes (en-US and es-MX); and corrected Data safety answers.
 
-**Google Play Console** (Dashboard, Statistics, Store listing, Store listing
-experiments, Test and release, Policy → App content, Monetize with Play,
-Android vitals, Ratings and reviews, Android developer verification):
-- Which tracks exist and what each serves (versionCode, version, rollout %).
-  Settle the "public listing with 5+ downloads vs internal-only" contradiction.
-- Status of every App content form, and the content rating as currently
-  answered.
-- Whether the 27 products and 2 subscriptions exist and are active (Android
-  ids are in `utils/iapConfig.ts`; note `deeplife_mindset` versus iOS
-  `deeplife_mindset_perk`, and that `revival_pack` has no prefix).
-- Android vitals: ANR rate, crash rate, and the top clusters.
-- Developer verification status and the September deadline.
-- Store listing: title, short and full description, screenshots, feature
-  graphic, localizations. Diff against `marketing/play-store/listing.md` and
-  `LOCALIZATIONS.md`.
-- Store listing visitors, acquisition sources, conversion rate, installs and
-  uninstalls.
+## Phase 0: baseline
 
-**AdMob:** revenue, eCPM, match rate, fill rate and impressions by ad unit and
-platform. Flag any unit with zero requests (a dead integration) or a match
-rate under 50%.
+Read every console once and write the scorecard to
+`tasks/growth-revenue-plan-<YYYY-MM-DD>.md`. Cover the last 28 days against
+the previous 28:
+- **RevenueCat:** revenue, active subscriptions and trials, conversion,
+  refunds, revenue by product, offering and package configuration per
+  platform.
+- **App Store Connect:** impressions, page views, conversion, downloads by
+  source, crashes, retention, every review since 1.5.5.
+- **Play Console:** tracks and builds, App content form status, vitals, store
+  listing traffic and conversion.
+- **AdMob:** revenue, eCPM, match and fill rate per unit.
+- **Firebase:** DAU, the onboarding funnel, and whether purchase and ad-revenue
+  events arrive from signed builds.
 
-**Firebase / Google Analytics:** DAU, the first_open→tutorial funnel from
-`docs/ANALYTICS.md`, and whether purchase and ad-revenue events arrive from
-signed builds.
+## Phase 1: ship 2.15.0 on both platforms
 
-## Phase 2: diagnose
+1. `git fetch`; merge `origin/main` into `claude/great-davinci-cr2nh8`, resolve
+   anything that conflicts, then run `npm install && npm run preflight && npm test`.
+   Open the PR (fill `.github/PULL_REQUEST_TEMPLATE.md`), get CI green, merge.
+2. Run `npx expo export` for both platforms as the bundling check (CLAUDE.md
+   §9). Then run production EAS builds for iOS and Android from `main`.
+3. **iOS:** TestFlight. Smoke-test the Home freeze path (close Welcome Back
+   and the daily reward should follow about half a second later, with the
+   screen still responsive), a purchase in the sandbox, and a rewarded ad.
+   Then create the 1.6.0 record, attach the build, fill the metadata and
+   screenshots, and **ask (Tier B) to submit for review**. Attach the IAPs that
+   still need review.
+4. **Android:** upload the AAB to Internal testing. Verify that a subscription
+   purchase and a one-time purchase complete on a real device, that the Remove
+   Ads entitlement lands, and that a large save still saves.
 
-Answer each question with evidence from Phase 1:
-1. Where do downloads leak: impressions, page conversion, or ratings? Compare
-   against the benchmarks in `marketing/apple-ads/`.
-2. Where does revenue leak: paywall reach, price, trial conversion, missing
-   store products, ad fill? Is the $79.99 Lifetime anchor hurting conversion,
-   as the 1★ review suggests?
-3. What stops a production Android launch today? List the steps in the order
-   they must happen, with the console path for each.
-4. Which of the unshipped fixes on `main`/this branch matter most for ratings
-   (freeze, crash, save loss)? That determines how urgently new builds are
-   needed.
+## Phase 2: launch Android for real
 
-## Phase 3: the plan
+In execution order, marking each item done in the plan file:
+1. Settle which track the public listing is on. If an old build is public,
+   plan its replacement rather than deleting anything.
+2. App content forms: **Tier B batch** (content rating questionnaire answered
+   honestly for crime, dark web and simulated gambling; Data safety from
+   `docs/DATA_SAFETY.md`; Ads: yes; Target audience 13+; no Families
+   programme).
+3. Android developer verification: add the app-signing SHA-256 from App
+   integrity (Tier A, or Tier B if it asks for identity or a fee).
+4. Create and activate all Play products and the 2 subscriptions, including
+   the 7-day trial offer, then attach them in RevenueCat.
+5. Set up the Closed testing track with the 2.15.0 AAB, and recruit at least
+   12 testers through the Beta Hub (`support-site/android/join.html`) and
+   Discord (`discord/`). Record the 14-day clock start date. Draft the
+   recruitment post and post it to channels the repo already owns.
+6. The store listing: title "Deep Life Simulator: Tycoon", screenshots,
+   feature graphic, and the localizations in `LOCALIZATIONS.md`, plus pt-BR
+   (players asked for Portuguese).
+7. When the 14 days pass and Play grants production access, **ask (Tier B)**
+   and apply for production with a staged rollout (20% → 50% → 100%, watching
+   the vitals between steps).
 
-Write `tasks/growth-revenue-plan-<YYYY-MM-DD>.md` containing:
-- A **scorecard** of every metric read, with its source and date.
-- The **top 10 actions** ranked by expected impact on downloads and revenue.
-  For each, give the owner (you in the repo, or the owner in a console), the
-  exact console path or file, the effort, the expected effect and how you will
-  measure it. Keep code-side and console-side actions apart.
-- An **Android launch checklist** in execution order.
-- A **pricing proposal**, if the data supports one: say which products change
-  and why, and keep it as a proposal; price changes are the owner's call.
-- **Localization priorities**, ranked by store traffic by country, from both
-  consoles.
-- A **measurement-gap list**: what could not be answered, and the smallest
-  change that would make it answerable.
+## Phase 3: grow downloads
 
-## Phase 4: code-side follow-through (only after the owner confirms the plan)
+- **Ratings are the bottleneck** (3 on iOS, none on Play). The in-app rating
+  prompt (`lib/review/inAppReview.ts`) ships with 2.15.0. After release, check
+  whether it fires (Firebase) and how the ratings move. Draft honest replies to
+  every 1–2★ review that names something now fixed, and ask Tier B to post
+  them.
+- **Localization:** rank countries by impressions from both consoles.
+  Add the top ones to `marketing/aso/metadata.mjs` and the Play listing
+  (pt-BR first), have `check:aso` validate them, and upload.
+- **Product page conversion:** propose a Product Page Optimization test and a
+  Play icon/screenshot experiment (Tier B to start), using the unused
+  screenshot sets in the repo.
+- Keep paid spend off unless Phase 0 data shows the LTV/CPA gap has closed.
 
-Work on the current `main` after merging or rebasing
-`claude/great-davinci-cr2nh8`. Follow CLAUDE.md: plan in `tasks/todo.md`, one
-focused commit per change with tests, and `npm run preflight` before anything
-release-bound. Likely candidates (confirm each against Phase 1 data first):
-- The Android AsyncStorage size limit (`AsyncStorage_db_size_in_MB` through a
-  config plugin), before the Android launch.
-- A RevenueCat webhook, and turning on production telemetry
-  (`EXPO_PUBLIC_ENABLE_ANALYTICS`), only if the privacy review in
-  `docs/ANALYTICS.md` allows it.
-- Store metadata: `marketing/aso/metadata.mjs` `storeVersion`, the
-  data-safety answers (purchase history collected; remove Sentry from
-  `docs/DATA_SAFETY.md`), and localized listing copy.
-- Whatever Phase 2 shows the paywall or ad flow is losing.
+## Phase 4: grow revenue
 
-Do not trigger EAS builds, submit for review, change prices or start ad spend.
-Those are the owner's actions: prepare them, state them, and let the owner do
-them.
+- **Price and packaging:** using RevenueCat data, write a proposal (Tier B)
+  on the $79.99 Lifetime anchor, the gem-pack ladder and the DeepLife+
+  trial. Include the expected effect and how to measure it. Do not change
+  prices without a "go".
+- **Ads:** fix any AdMob unit with zero requests or a low match rate. Confirm
+  the Android ad units are live. Check the banner "display" events now arrive
+  in RevenueCat (the fix is in 2.15.0).
+- **Measurement gaps:** a RevenueCat webhook (Tier A), and whether production
+  should set `EXPO_PUBLIC_ENABLE_ANALYTICS`. The latter is a repo change: check
+  the privacy review in `docs/ANALYTICS.md`, then make it in a PR.
+- Anything the data shows the paywall or ad flow is losing becomes a repo
+  change: plan it in `tasks/todo.md`, one focused commit with tests,
+  preflight, then a PR.
 
-## Output back to the owner
+## Reporting
 
-Finish with a short chat summary covering:
-- the three biggest findings, each with a number;
-- the top five actions and who does each;
-- what you changed, if anything, with commit hashes;
-- what still needs a decision from the owner.
+Keep `tasks/growth-revenue-plan-<date>.md` current as you go: the scorecard,
+what you did (with console paths and commit hashes), and what is waiting on the
+owner. When you stop, reply in chat with:
+- what shipped;
+- the three biggest numbers you found;
+- each Tier B item waiting for a "go", as a checklist the owner can answer in
+  one message;
+- the next date to look again, such as the end of the 14-day closed test.
