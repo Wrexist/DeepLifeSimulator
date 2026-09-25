@@ -161,7 +161,20 @@ describe('replaying a queue from a previous session', () => {
  */
 describe('the persisted queue is signed', () => {
   it('persists an envelope, not raw JSON', async () => {
+    // The queue journals a save that did NOT complete promptly - a healthy
+    // write never pays for it (QUEUE_PERSIST_GRACE_MS). So fail the first slot
+    // write: the retry path is where the journal is taken.
+    const AsyncStorageMod = (await import('@react-native-async-storage/async-storage')).default;
+    let failedOnce = false;
+    (AsyncStorageMod.setItem as jest.Mock).mockImplementation(async (k: string, v: string) => {
+      if (!failedOnce && k.startsWith('save_slot_1')) {
+        failedOnce = true;
+        throw new Error('disk busy');
+      }
+      store.set(k, v);
+    });
     await queueSave(1, played(120));
+    expect(failedOnce).toBe(true);
 
     // The blob is removed again once the queue drains, so read what was
     // actually written rather than what survives.
@@ -177,6 +190,21 @@ describe('the persisted queue is signed', () => {
     expect(typeof parsed.hmac).toBe('string');
     // The operations themselves live INSIDE the signed payload.
     expect(JSON.parse(parsed.data)[0].slot).toBe(1);
+  });
+
+  it('does not journal a save that completes promptly (no second full serialize)', async () => {
+    const AsyncStorageMod = (await import('@react-native-async-storage/async-storage')).default;
+    (AsyncStorageMod.setItem as jest.Mock).mockImplementation(async (k: string, v: string) => {
+      store.set(k, v);
+    });
+    await queueSave(1, played(130));
+    // Let the grace timer fire: the queue is drained, so it must write nothing.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const journalWrites = (AsyncStorageMod.setItem as jest.Mock).mock.calls.filter(
+      ([key]) => key === 'save_queue_persisted'
+    );
+    expect(journalWrites).toHaveLength(0);
+    expect(store.has('save_slot_1') || [...store.keys()].some((k) => k.startsWith('save_slot_1'))).toBe(true);
   });
 
   it('refuses - and clears - a hand-edited queue', async () => {
