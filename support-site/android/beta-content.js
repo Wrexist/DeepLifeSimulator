@@ -54,14 +54,14 @@ window.DLS_CONTENT = {
 
   // ── FAQ ──────────────────────────────────────────────────────────────────
   faq: [
-    { q: 'Is it free?', a: 'Yes. The beta is free and every tester gets the full game. There are in-app purchases in the shipping build, but nothing is charged to you during the test — and Android launches without ads.' },
+    { q: 'Is it free?', a: 'Yes. The beta is the same free game that is live on Google Play — optional in-app purchases and ads included — and testing never requires buying anything.' },
     { q: 'What do I need?', a: 'An Android phone (Android 7.0 / API 24 or newer) signed into the Google account you want to test with. That account has to be the one on your phone, because Google matches the tester list against it.' },
-    { q: 'How long is the beta?', a: 'Google requires testers to stay opted in for 14 continuous days before the game can go public. Play as much or as little as you like in that window — just do not leave the tester programme early, because that resets the clock for everyone.' },
+    { q: 'How long is the beta?', a: 'It has no end date. The beta is where each new Android build lands before the public update — stay as long as it is useful to you, and leave whenever you like.' },
     { q: 'How do I join?', a: 'Fill in the short form on this page, then tap "Join Google Play beta". You will be opted in and installing inside a minute.' },
     { q: 'Do you need my Google password?', a: 'No. Never. Nobody legitimate will ever ask for it. Google Play handles the opt-in itself — this site only records that you told us you did it.' },
-    { q: 'What happens after the beta?', a: 'The game goes to the public Play Store. Testers keep their save, their badges and their place in the community, and the Ideas board carries straight over.' },
+    { q: 'Is the game already on Google Play?', a: 'Yes — it is live on the public Play Store. The beta is for trying new builds before everyone else and telling us what broke. Your save, your badges and your place in the community stay the same either way.' },
     { q: 'Can I report bugs?', a: 'Please do — it is the entire point. There is a bug form built into your dashboard with the device fields pre-filled.' },
-    { q: 'How do I leave the beta?', a: 'Open the Google Play opt-in link and choose "Leave the programme", then uninstall. If you can, wait until the 14 days are up. You can also delete everything this site holds about you from your dashboard, in one tap.' },
+    { q: 'How do I leave the beta?', a: 'Open the Google Play opt-in link and choose "Leave the programme". You go back to the public version on the next update (Play may ask you to reinstall). You can also delete everything this site holds about you from your dashboard, in one tap.' },
     { q: 'What data do you keep?', a: 'A nickname, whatever contact method you chose to give, and optionally your country and phone model. No passwords, no Google credentials, no tracking across other sites. You can wipe all of it yourself from your dashboard.' },
   ],
 

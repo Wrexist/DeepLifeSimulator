@@ -78,7 +78,7 @@
         '<a href="feedback.html" style="text-decoration:underline">tell us what you think →</a></div>';
     } else {
       next.innerHTML = '<div class="notice ok"><strong>All four done.</strong> ' +
-        'Keep playing, keep sending bugs, and please stay opted in until the 14 days are up.</div>';
+        'Keep playing and keep sending bugs — each report lands on the board before the next update ships.</div>';
     }
 
     // ── missions ───────────────────────────────────────────────────────
