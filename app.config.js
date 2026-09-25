@@ -273,7 +273,11 @@ module.exports = {
       // In-app purchases. expo-iap replaces the deprecated expo-in-app-purchases
       // (which no longer links on SDK 54). Its config plugin wires the StoreKit /
       // Play Billing capability — Hard Rule #4: package in package.json ⇒ plugin here.
-      "expo-iap"
+      "expo-iap",
+      // Raises Android AsyncStorage's 6 MB database cap, which two late-game
+      // save slots exceed (a failed save while the device has free space).
+      // Also committed in android/gradle.properties - see the plugin header.
+      "./plugins/withAsyncStorageSize"
     ],
     experiments: {
       typedRoutes: true
