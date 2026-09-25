@@ -32,7 +32,7 @@ import { Buffer } from 'node:buffer';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AscClient, loadCredentials } from './lib/ascClient.mjs';
 import { fetchAppStoreVersions, liveAppStoreVersion } from './lib/ascRelease.mjs';
-import { renderReleasePost } from '../discord/copy.mjs';
+import { renderReleasePost, playRatingAsk } from '../discord/copy.mjs';
 import { watcherSummary } from './lib/watcherSummary.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -224,6 +224,7 @@ async function main() {
     // read the same announcement without inventing a second template.
     const payload = renderReleasePost({ storeVersion: String(googlePlay), whatsNew: APPLE.whatsNew });
     payload.embeds[0].title = `🚀 Deep Life Simulator ${googlePlay} is live on Google Play`;
+    payload.embeds[0].fields.push(playRatingAsk());
     await postToDiscord(payload);
     state.googlePlayVersion = googlePlay;
     if (!DRY_RUN) writeState(state);
