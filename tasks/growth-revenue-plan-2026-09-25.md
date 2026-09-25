@@ -302,10 +302,29 @@ $2.54 from the cloud pass.
 
 **Ads.**
 
-- Android ad units are live (AdMob: 58 impressions in 7 days).
-- AdMob match rate 96.6%, but RevenueCat logs 1,913 failed loads out of 3,457
-  requests. They count different things; re-check both after 2.15.0, when banner
-  display events should start arriving in RevenueCat.
+- Android ad units are live in 2.13.0 (AdMob: 58 impressions in 7 days). That
+  build came from EAS **cloud**, where the store's values are applied
+  server-side.
+- **Found before the 2.15.0 build: the Android local-build workflow would have
+  shipped an .aab with no ad units.** The units exist only in the EAS
+  production store; the workflow passes them from repo secrets that do not
+  exist, so they arrive empty. `eas build --local` ranks the shell above the
+  store (`{ ...easEnv, ...process.env }`) and the build plugin drops empty
+  values, while preflight runs under `eas env:exec`, which merges the other way
+  and stays green. Fixed in PR #221 (merge it before building).
+- **Both "interstitial" units are the wrong format.** In AdMob, iOS "Ad-win"
+  (`…/2329850711`, set as `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` in the EAS store
+  and repo secrets) and Android "Interstitial" (`…/9488404327`) are
+  *Premierad mellansidesannons* = **rewarded interstitial (beta)**. The app loads
+  that slot through `InterstitialAd`, which cannot serve that format
+  (`services/AdMobService.ts` says so about Ad-win), and preloads it at every
+  AdMob init. So year-end interstitials never show on either platform, and
+  every launch logs a failed load, which likely explains part of RevenueCat's
+  1,913 failed loads. Fix = create a standard "Mellansida" (Interstitial) unit
+  in each AdMob app and put its id in the store (Tier B: it turns on ads players
+  currently never see). Until then the slot does nothing but fail.
+- AdMob match rate 96.6% (7 days, all units). Re-check RevenueCat's failed loads
+  after 2.15.0, when banner display events should start arriving there.
 - AdMob has one unconfirmed app serving ads (see Waiting on the owner).
 
 **Measurement.**

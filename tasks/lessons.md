@@ -5867,3 +5867,16 @@ backslash, so the glob sees `\.claude` and reads `\.` as an escaped dot: the
 pattern no longer matches any real path. It is not a missing test or a broken
 config. Pass the match yourself with forward slashes, e.g.
 `npx jest --ci --testMatch "**/__tests__/tooling/ascRelease.test.ts"`.
+
+## 2026-09-25 — A green preflight can check a different env than the build uses
+
+The Android local-build workflow runs preflight under `eas env:exec`, which
+merges `{ ...process.env, ...easStore }`, and then builds with
+`eas build --local`, which merges `{ ...easStore, ...process.env }` and drops
+empty values. Repo secrets that do not exist arrive as EMPTY variables, so the
+Android ad units (held only in the EAS store) passed the gate and would have
+been erased from the build. When a gate and the thing it guards resolve config
+through different tools, check that both see the same values: read the merge
+order in each tool's source, not the comment above the step. Guard: unset
+empty `EXPO_PUBLIC_*` before `eas build --local`
+(`__tests__/tooling/localBuildEnvLayering.test.ts`).
