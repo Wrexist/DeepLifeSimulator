@@ -69,7 +69,7 @@ runtime, and the only symptom is a funnel step that is permanently empty.
 | Session | `session_start` `session_end` |
 | Onboarding | `onboarding_step` `tutorial_step` `first_week_completed` |
 | Core loop | `week_advanced` `prestige` `death` |
-| Engagement | `daily_reward_claimed` `challenge_completed` `streak_changed` `achievement_unlocked` |
+| Engagement | `daily_reward_claimed` `challenge_completed` `streak_changed` `achievement_unlocked` `review_prompt_requested` |
 | Retention | `retention_day` |
 | Direction | `goal_tapped` `goal_reached` `week_ahead_shown` `return_summary_viewed` |
 | Progression | `progression_stage` |
