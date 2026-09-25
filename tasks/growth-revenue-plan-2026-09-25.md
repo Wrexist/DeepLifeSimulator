@@ -193,13 +193,23 @@ per-ad-unit report was not read (the report table would not render).
       36154178021, 36154185617, 36155478615). The support site deployed
       (36155478559): `/get/` answers 200 and `liveops.json` serves both new
       events.
+- [x] Four more PRs from other sessions, merged at the owner's instruction
+      after green CI: #226 `saveGame` waits for the commit before it reads, so a
+      purchase saved in the same handler is on disk (`a6110e94`; the lead from
+      Phase 4), #225 Restore Purchases names the Google account on Android
+      (`3733b368`), #224 support-site help for Android purchases (`46105c1f`),
+      #223 the Play release post in Discord asks for an honest rating
+      (`ad44e8e5`).
 - [ ] **Production builds: waiting on the owner.** Unblocked now that #221 is
       merged. The local permission guard refused to dispatch the build
       workflows from this session as a production deploy; the exact commands
       are in "Waiting on the owner".
 - [ ] TestFlight smoke test on a device (owner): close Welcome Back and the daily
       reward follows about half a second later with Home still responsive; a
-      sandbox purchase; a rewarded ad.
+      sandbox purchase; a rewarded ad. Then buy an item in the game (YouVideo
+      gear), send the app to the background at once, force-quit, relaunch: the
+      item must still be there. That covers #226, which makes the background
+      save wait one React commit before it reads.
 - [ ] App Store Connect 1.6.0 record, build attached, then submit (Tier B).
 - [ ] Android: 2.15.0 AAB on Internal testing, then on a real device (owner): a
       purchase and a restore, a rewarded ad, a large save and reload, and a cold
@@ -405,10 +415,9 @@ Tier B, waiting for a "go":
    paywall proposal (DeepLife+ Yearly as hero, Lifetime as anchor, no price
    change).
 
-Unverified lead with its own task: YouVideo purchases may be lost on a slot
-switch (`components/computer/GamingApp.tsx:373-374` saves from a ref that
-updates a render late; `components/SettingsModal.tsx:727-735` switches slot
-without saving first).
+Resolved: the lead that YouVideo purchases could be lost on a slot switch
+(`saveGame` read a ref that updates a render late) was confirmed and fixed in
+#226 (`a6110e94`). The device check is in Phase 1.
 
 **Next look: Thursday 2026-10-02.** 2.15.0 vitals, `review_prompt_requested` in
 Firebase, Android trial starts, AdMob Android impressions after the fixed build.
