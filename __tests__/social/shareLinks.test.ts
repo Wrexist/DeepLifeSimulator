@@ -24,6 +24,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import vm from 'vm';
 import {
   APP_STORE_URL,
   PLAY_STORE_URL,
@@ -78,6 +79,70 @@ describe('the share landing page', () => {
     expect(html).toContain("'&referrer=' + encodeURIComponent('utm_source=' + src");
     // Anything that is not lower snake_case is dropped, never forwarded.
     expect(html).toContain('/^[a-z0-9_]{1,32}$/');
+  });
+
+  describe('routing, run for real', () => {
+    // The string checks above prove the destinations are in the file; these
+    // prove the page actually SENDS each reader there. The inline script runs
+    // in a sandbox against a stubbed browser, so a broken branch (a typo in the
+    // UA test, a redirect on desktop, an unsanitised src) fails here rather
+    // than in every share ever sent.
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+
+    function visit(userAgent: string, search: string, maxTouchPoints = 0) {
+      const replaced: string[] = [];
+      const elements: Record<string, { href?: string; className?: string; textContent?: string }> = {
+        play: { href: '', className: 'store' },
+        ios: { href: '', className: 'store' },
+        status: { textContent: '' },
+      };
+      vm.runInNewContext(script, {
+        URLSearchParams,
+        encodeURIComponent,
+        navigator: { userAgent, maxTouchPoints },
+        location: { search, replace: (url: string) => replaced.push(url) },
+        document: { getElementById: (id: string) => elements[id] },
+      });
+      return { replaced, elements };
+    }
+
+    const playFor = (source: string) =>
+      `${PLAY_STORE_URL}&referrer=${encodeURIComponent(
+        `utm_source=${source}&utm_medium=share&utm_campaign=player_share`,
+      )}`;
+
+    const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36';
+    const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
+    const IPAD_DESKTOP_MODE = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15';
+    const WINDOWS = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36';
+
+    it('sends an Android reader to Google Play, tagged with where the share came from', () => {
+      const { replaced, elements } = visit(ANDROID, '?src=obituary');
+      expect(replaced).toEqual([playFor('obituary')]);
+      expect(elements.play.href).toBe(playFor('obituary'));
+    });
+
+    it('sends an iPhone reader to the App Store', () => {
+      expect(visit(IPHONE, '?src=life_card').replaced).toEqual([APP_STORE_URL]);
+    });
+
+    it('treats an iPad in desktop mode as iOS, not as a Mac', () => {
+      expect(visit(IPAD_DESKTOP_MODE, '?src=life_card', 5).replaced).toEqual([APP_STORE_URL]);
+    });
+
+    it('does not redirect a desktop reader - it shows both buttons, Play link still tagged', () => {
+      const { replaced, elements } = visit(WINDOWS, '?src=reddit_tycoon');
+      expect(replaced).toEqual([]);
+      expect(elements.play.href).toBe(playFor('reddit_tycoon'));
+      expect(visit(IPAD_DESKTOP_MODE, '', 0).replaced).toEqual([]); // a real Mac
+    });
+
+    it.each(['', '?src=', '?src=%3Cscript%3E', '?src=a%26utm_source%3Devil', '?src=' + 'x'.repeat(33)])(
+      'falls back to a neutral source for a missing or unsafe src (%s)',
+      (search) => {
+        expect(visit(ANDROID, search).replaced).toEqual([playFor('share')]);
+      },
+    );
   });
 
   it('gives link previews an ABSOLUTE image that this repo actually publishes', () => {
