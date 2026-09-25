@@ -272,10 +272,16 @@ Store:
       market in the data). Name matches the live French Play listing.
 - [ ] de-DE next.
 
-**Product page conversion.** Apple Product Page Optimization can test icons,
-screenshots and previews, not text. Proposal (Tier B to start): control = the
-current set, one treatment = the `screenshots/player-stories-2026-09` storyboard
-set, 50/50, 14 days minimum, success metric = conversion rate in App Analytics.
+**Product page conversion.** The live 1.5.5 screenshots (iTunes lookup, US) are
+**neither repo set**: an older mix whose first two images are "07 phone full of
+lives" and "06 enter the dark web", out of filename order. Both repo sets are
+complete for iPhone 6.9", 6.5" and iPad 13" (10 each): `screenshots/appstore-2026`
+(the runbook's release set, 4 Sept) and `screenshots/player-stories-2026-09`
+(revised 9 Sept after the owner's artwork feedback). Proposal: ship 1.6.0 with
+one of them in filename order (owner's pick; the 9 Sept set is the newer brief),
+then run Apple Product Page Optimization with the other as the treatment (Tier B
+to start): 50/50, 14 days minimum, conversion rate in App Analytics. PPO tests
+icons, screenshots and previews, not text.
 **No Play experiment**: 14 visitors in 28 days cannot reach significance.
 
 **Paid spend: keep it off.** RevenueCat revenue per new customer this period is
@@ -325,7 +331,12 @@ $2.54 from the cloud pass.
   currently never see). Until then the slot does nothing but fail.
 - AdMob match rate 96.6% (7 days, all units). Re-check RevenueCat's failed loads
   after 2.15.0, when banner display events should start arriving there.
-- AdMob has one unconfirmed app serving ads (see Waiting on the owner).
+- **AdMob's unconfirmed app is the Android game itself**: AdMob → Apps → Apps to
+  confirm lists `com.deeplife.simulator` (Android) with "incomplete settings"
+  and 434 ad requests in 7 days. AdMob warns that serving may be limited until
+  setup is completed, i.e. until the AdMob Android app is linked to its Play
+  listing ("Complete setup"). app-ads.txt is fine: published at
+  `https://wrexist.github.io/app-ads.txt` with the right publisher line.
 
 **Measurement.**
 
