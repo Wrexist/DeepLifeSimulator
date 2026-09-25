@@ -200,10 +200,18 @@ per-ad-unit report was not read (the report table would not render).
       (`3733b368`), #224 support-site help for Android purchases (`46105c1f`),
       #223 the Play release post in Discord asks for an honest rating
       (`ad44e8e5`).
-- [ ] **Production builds: waiting on the owner.** Unblocked now that #221 is
-      merged. The local permission guard refused to dispatch the build
-      workflows from this session as a production deploy; the exact commands
-      are in "Waiting on the owner".
+- [x] **Production builds dispatched by the owner, 2026-09-25 21:15 UTC, from
+      `92ba7c95`** (read back by the cloud session on 2026-09-26):
+      - **Android** run 36190578988: gates, build, upload and the Play watch all
+        green (accepted 21:48). Track = the one chosen at dispatch (default
+        internal); confirm in Play Console → Test and release.
+      - **iOS** run 36190564705: gates, build and hand-off to EAS green; the red
+        job is only the watcher, which stopped after 60 m with the submission
+        still `IN_QUEUE` for an EAS worker (the 2.14.1 run did the same and
+        landed later). Not a failed submission: check
+        https://expo.dev/accounts/isacm/projects/deeplife-simulator/submissions/dcee786e-da7c-4ad5-815c-754749db9930
+        and TestFlight before rebuilding. The watcher stays red by design
+        (a "scheduled" release must not read green - `tasks/lessons.md`).
 - [ ] TestFlight smoke test on a device (owner): close Welcome Back and the daily
       reward follows about half a second later with Home still responsive; a
       sandbox purchase; a rewarded ad. Then buy an item in the game (YouVideo
@@ -391,9 +399,8 @@ are on `main`, so dispatch the two local-build workflows with version 2.15.0.
 
 Owner-only actions (no decision needed):
 
-1. Dispatch `eas-build-local-ios.yml` and `eas-build-local-android.yml` with
-   version 2.15.0, submit on, track internal. The local permission guard refused
-   to dispatch them from this session.
+1. ~~Dispatch the 2.15.0 builds~~ done 2026-09-25 21:15. Now: confirm the iOS
+   submission reached TestFlight (EAS link in Phase 1), then smoke-test both.
 2. Sign in to App Store Connect in Chrome (the session had expired).
 3. Create a new Discord webhook and set the `DISCORD_WEBHOOK_UPDATES` repo secret
    (the old webhook was deleted; the watcher fails every run since 2026-09-23).
