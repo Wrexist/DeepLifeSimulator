@@ -94,6 +94,17 @@ describe('extractSaveSlotMeta', () => {
     });
   });
 
+  it('carries lifeStartWeek so the card can show weeks played, not the absolute counter', () => {
+    const meta = extractSaveSlotMeta({ ...meaningfulState, weeksLived: 366, lifeStartWeek: 364 });
+    expect(meta?.lifeStartWeek).toBe(364);
+    expect(extractSaveSlotMeta(meaningfulState)).not.toHaveProperty('lifeStartWeek');
+  });
+
+  it('round-trips lifeStartWeek through storage', async () => {
+    await writeSaveSlotMeta(2, { name: 'A', age: 25, money: 1, weeksLived: 366, lifeStartWeek: 364, updatedAt: 1 });
+    expect((await readSaveSlotMeta(2))?.lifeStartWeek).toBe(364);
+  });
+
   it('clamps NaN / Infinity / negative age, money and weeks to 0', () => {
     const meta = extractSaveSlotMeta({
       userProfile: { firstName: 'X' },

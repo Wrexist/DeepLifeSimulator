@@ -48,6 +48,7 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 import { gameAlert } from '@/utils/gameAlert';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 // Near-black base matched to the in-game home screen (#020617) and the main
 // menu so the whole pre-game flow reads as one dark aesthetic.
@@ -187,6 +188,7 @@ export default function SaveSlots() {
               stats: { money: meta.money },
               date: { age: meta.age },
               weeksLived: meta.weeksLived,
+              lifeStartWeek: meta.lifeStartWeek,
             };
           }
 
@@ -595,7 +597,11 @@ export default function SaveSlots() {
                       </View>
                       <View style={styles.statBlock}>
                         <Text style={styles.statLabel}>Weeks</Text>
-                        <Text style={styles.statValue}>{Math.floor(safeStatNumber(slot.weeksLived))}</Text>
+                        {/* Weeks PLAYED in this life. `weeksLived` is absolute and
+                            seeded from the starting age (CLAUDE.md §4.2), so the raw
+                            value read "364" for an unplayed age-25 life. The raw
+                            counter still drives the cloud-copy comparison above. */}
+                        <Text style={styles.statValue}>{weeksSinceLifeStart(safeStatNumber(slot.weeksLived), slot.lifeStartWeek)}</Text>
                       </View>
                     </View>
                   ) : null}

@@ -19,6 +19,8 @@ export interface SaveSlotData extends SaveSlotSnapshot {
   id: number;
   hasData: boolean;
   error?: boolean;
+  /** `weeksLived` when the life began (v43), from the slot summary when known. */
+  lifeStartWeek?: number;
 }
 
 /** Type guard: does the parsed blob have the expected save-state shape? */
