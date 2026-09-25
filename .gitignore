@@ -158,3 +158,7 @@ __tests__/scratch_probe/
 # shipped, never reviewed - ignore so `git status` stays about real work.
 /tmp-bugaudit/
 /_to_delete/
+
+# Python bytecode (marketing/play-store/promo-events build scripts)
+__pycache__/
+*.pyc
