@@ -1,6 +1,6 @@
 # Whole-app imperfection audit - 26 September 2026
 
-> Follow-through: D01-D14 and V01 now have implementation fixes. See [compact Home evidence](release/evidence/home-compact-2026-09-26.md). See the [save/UI checklist](audit-fixes-2026-09-26.md), [HUD/label checklist](audit-labels-2026-09-26.md) and [latest evidence](release/evidence/audit-labels-2026-09-26.md). Original observations below remain the audit baseline. The 43 remaining V/A/O items remain open, including native acceptance of these fixes.
+> Follow-through: D01-D14 and V01-V02 now have implementation fixes. See [compact Work evidence](release/evidence/work-compact-2026-09-26.md). See [compact Home evidence](release/evidence/home-compact-2026-09-26.md). See the [save/UI checklist](audit-fixes-2026-09-26.md), [HUD/label checklist](audit-labels-2026-09-26.md) and [latest evidence](release/evidence/audit-labels-2026-09-26.md). Original observations below remain the audit baseline. The 42 remaining V/A/O items remain open, including native acceptance of these fixes.
 
 **Audit result: one reproduced high-priority save defect, additional finance and
 feedback defects, and substantial remaining presentation/acceptance work.**
@@ -226,4 +226,4 @@ prestige writer, not evidence those previous fixes were undone.
 5. Obtain the separately authorized signed candidate and close A16-A21 provider/
    device gates; complete candidate/store evidence before any production action.
 
-Next concrete task: V02 Work density, then V03-V05 Life/Profile/creator density. D01-D14 implementation follow-through is recorded above; native acceptance remains open.
+Next concrete task: V03 Life density, then V04-V05 Profile/creator density. D01-D14 implementation follow-through is recorded above; native acceptance remains open.

@@ -1,0 +1,82 @@
+[
+  {
+    "width": 375,
+    "buttons": [
+      {
+        "bounds": {
+          "x": 33,
+          "y": 540,
+          "width": 309,
+          "height": 44
+        },
+        "enabled": true
+      },
+      {
+        "bounds": {
+          "x": 33,
+          "y": 769,
+          "width": 309,
+          "height": 44
+        },
+        "enabled": true
+      },
+      {
+        "bounds": {
+          "x": 33,
+          "y": 980,
+          "width": 309,
+          "height": 44
+        },
+        "enabled": true
+      }
+    ],
+    "nav": {
+      "x": 75,
+      "y": 612,
+      "width": 75,
+      "height": 47
+    },
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$1 500\n0\n2025\nJanuary\nAge 20\nNext week\nTyler Nguyen\nAge 20 | Unemployed | Single\n$1 500\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nWork\nCareer\nStreet Hustle\nCrime Jobs\nSTANDARD CAREERS\nFast Food Worker\n$110/wk\nThe fryer beeps. It never stops beeping.\nLv 1/6\nTops out $230/wk\nClimbs fast\n+3 more\nApply\nLine Cook\n$110/wk\nPrep, service, clean, repeat. The burns stop hurting eventually.\nLv 1/6\nTops out $805/wk\nSteady climb\n+3 more\nApply\nStreet Performer\n$110/wk\nBusking for coins and uploading takes at 2am.\nLv 1/6\nTops out $2 120/wk\nClimbs slow\n+3 more\nApply\nTrainee Agent\n$110/wk\nBuy and sell properties for clients\nLv 1/6\nHappiness -3\nHealth -2\nApply\nRetail Associate\n$110/wk\nThey want - Reputation 5 (you have 0)\nLv 1/6\nTops out $250/wk\nSteady climb\n+3 more\nApply\nFlight Student\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nIntern Reporter\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nVet Assistant\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCounseling Intern\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Designer\n$110/wk\nNeed Computer.\nLv 1/6\nHappiness -3\nHealth -2\nApply\nPrivate\n$120/wk\nReach Fitness 50 to apply.\nFitness 50+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Legal Assistant\n$130/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nProbationary Firefighter\n$130/wk\nReach Fitness 55 to apply.\nFitness 55+\nLv 1/6\nHappiness -3\n+1 more\nApply\nPolice Cadet\n$150/wk\nComplete the required education to apply.\nFitness 50+\nEducation needed\nLv 1/6\n+2 more\nApply\nAccounting Clerk\n$155/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCampaign Volunteer\n$190/wk\nAnother application is pending.\nReputation 20+\nLv 1/6\nHappiness -3\n+1 more\nApply\nDraftsperson\n$2"
+  },
+  {
+    "width": 768,
+    "buttons": [
+      {
+        "bounds": {
+          "x": 39,
+          "y": 618.5,
+          "width": 690,
+          "height": 53
+        },
+        "enabled": true
+      },
+      {
+        "bounds": {
+          "x": 39,
+          "y": 848.5,
+          "width": 690,
+          "height": 53
+        },
+        "enabled": true
+      },
+      {
+        "bounds": {
+          "x": 39,
+          "y": 1078.5,
+          "width": 690,
+          "height": 53
+        },
+        "enabled": true
+      }
+    ],
+    "nav": {
+      "x": 153.59375,
+      "y": 958,
+      "width": 153.59375,
+      "height": 56
+    },
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$1 500\n0\n2025\nJanuary\nAge 20\nNext week\nTyler Nguyen\nAge 20 | Unemployed | Single\n$1 500\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nWork\nCareer\nStreet Hustle\nCrime Jobs\nSTANDARD CAREERS\nFast Food Worker\n$110/wk\nThe fryer beeps. It never stops beeping.\nLv 1/6\nTops out $230/wk\nClimbs fast\n+3 more\nApply\nLine Cook\n$110/wk\nPrep, service, clean, repeat. The burns stop hurting eventually.\nLv 1/6\nTops out $805/wk\nSteady climb\n+3 more\nApply\nStreet Performer\n$110/wk\nBusking for coins and uploading takes at 2am.\nLv 1/6\nTops out $2 120/wk\nClimbs slow\n+3 more\nApply\nTrainee Agent\n$110/wk\nBuy and sell properties for clients\nLv 1/6\nHappiness -3\nHealth -2\nApply\nRetail Associate\n$110/wk\nThey want - Reputation 5 (you have 0)\nLv 1/6\nTops out $250/wk\nSteady climb\n+3 more\nApply\nFlight Student\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nIntern Reporter\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nVet Assistant\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCounseling Intern\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Designer\n$110/wk\nNeed Computer.\nLv 1/6\nHappiness -3\nHealth -2\nApply\nPrivate\n$120/wk\nReach Fitness 50 to apply.\nFitness 50+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Legal Assistant\n$130/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nProbationary Firefighter\n$130/wk\nReach Fitness 55 to apply.\nFitness 55+\nLv 1/6\nHappiness -3\n+1 more\nApply\nPolice Cadet\n$150/wk\nComplete the required education to apply.\nFitness 50+\nEducation needed\nLv 1/6\n+2 more\nApply\nAccounting Clerk\n$155/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCampaign Volunteer\n$190/wk\nAnother application is pending.\nReputation 20+\nLv 1/6\nHappiness -3\n+1 more\nApply\nDraftsperson\n$2"
+  }
+]

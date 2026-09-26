@@ -1539,15 +1539,13 @@ const local = StyleSheet.create({
     // One-line section subtitles - replaced the three InfoButton "?" modals.
     workTabs: {
         marginHorizontal: layoutSpace.md,
-        marginTop: layoutSpace.compact,
+        marginTop: layoutSpace.xs,
         marginBottom: layoutSpace.xs,
     },
-    // Horizontal padding for the tab content, now that the whole page (hero +
-    // sub-tabs + list) lives in one ScrollView. Matches the old inner-scroll
-    // padding (responsiveSpacing.lg == scale(24)); the page ScrollView owns the
-    // bottom safe-area padding.
+    // Align the board with its tabs and current-job card; the wider content
+    // area keeps salaries and requirements readable on compact phones.
     tabContent: {
-        paddingHorizontal: layoutSpace.lg,
+        paddingHorizontal: layoutSpace.md,
         paddingTop: layoutSpace.sm,
     },
     // Current Job hero - reference-style ring card.

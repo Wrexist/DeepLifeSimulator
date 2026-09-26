@@ -21,7 +21,12 @@ const scenes = {
 export type SceneName = keyof typeof scenes;
 
 /** Local renders of original 3D models. Native-driver depth; no WebGL runtime. */
-export default function SceneCard({ scene, title, subtitle }: { scene: SceneName; title: string; subtitle: string }) {
+type SceneCardProps = { scene: SceneName } & (
+  | { thumbnail: true; title?: never; subtitle?: never }
+  | { thumbnail?: false; title: string; subtitle: string }
+);
+
+export default function SceneCard({ scene, title, subtitle, thumbnail = false }: SceneCardProps) {
   const { theme } = useTheme();
   const reduced = useReducedMotion();
   const focused = useIsFocused();
@@ -41,19 +46,21 @@ export default function SceneCard({ scene, title, subtitle }: { scene: SceneName
     motion.start();
     return () => { motion.stop(); drift.setValue(0); };
   }, [drift, reduced, focused, active]);
-  return <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
-    <View style={styles.line} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine color={theme.textSecondary} /></View>
-    <View style={styles.copy}>
+  return <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }, thumbnail && styles.thumbnail]}>
+    {!thumbnail && <View style={styles.line} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine color={theme.textSecondary} /></View>}
+    {!thumbnail && <View style={styles.copy}>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
-    </View>
+    </View>}
     <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-      style={[styles.art, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.01] }) }] }]}>
+      style={[styles.art, thumbnail && styles.thumbnailArt, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.01] }) }] }]}>
       <Image source={scenes[scene]} style={styles.image} resizeMode="contain" />
     </Animated.View>
   </View>;
 }
 const styles = StyleSheet.create({
+  thumbnail: { width: scale(72), minHeight: 0, marginBottom: 0, borderWidth: 0, backgroundColor: 'transparent', flexShrink: 0 },
+  thumbnailArt: { width: scale(72), height: scale(56) },
   card: { flexDirection: 'row', alignItems: 'center', minHeight: scale(96), borderWidth: 1, borderRadius: responsiveBorderRadius.md, overflow: 'hidden', marginBottom: layoutSpace.compact },
   copy: { flex: 1, padding: layoutSpace.md, paddingRight: 0, gap: layoutSpace.sm },
   title: { ...tier2 },

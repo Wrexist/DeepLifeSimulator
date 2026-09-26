@@ -1,0 +1,44 @@
+node : PASS __tests__/careers/requirementLabels.test.ts (11.371 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand __tests__/render/workJ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...t.ts (11.371 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  √ uses catalogue names for every advanced career gate (25 ms)
+  √ describes the real executive gate as cumulative courses (1 ms)
+  √ keeps unfamiliar catalogue extensions readable (2 ms)
+
+PASS __tests__/render/workJobCardTolls.test.tsx (5.922 s)
+  render - Work job cards name their weekly stat toll
+    √ labels the happiness and health toll instead of a bare number (110 ms)
+
+PASS __tests__/economy/workTabCareerLists.test.ts
+  the advanced id set is derived, not transcribed
+    √ matches the catalog exactly (1 ms)
+    √ the screen derives it rather than listing ids by hand (1 ms)
+    √ grows on its own when a career is added to the catalog
+  the two catalogs are disjoint, so the partition is total
+    √ no career is in both INITIAL_CAREERS and ADVANCED_CAREERS (1 ms)
+    √ every catalogued career lands in exactly one list (3 ms)
+    √ politician, celebrity and athlete are reachable again
+  an advanced career the player holds renders once, from their own entry
+    √ the advanced section defers to renderCareerCard for a held career
+    √ and the stub it falls back to quotes pay in the shared money (1 ms)
+  the Current Job hero quotes the paycheck
+    √ reads paidWeeklyCareerSalary, not the ladder base (1 ms)
+
+PASS __tests__/render/workTabDefault.test.ts
+  Work tab
+    √ lands on the Career tab
+    √ renders Career as the first segment
+    √ no longer force-switches the tab from an effect (1 ms)
+    √ still offers all three segments (the control) (1 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        19.658 s
+Ran all test suites matching /__tests__\\render\\workJobCardTolls.test.tsx|__tests__\\render\\workTabDefault.test.ts|__
+tests__\\economy\\workTabCareerLists.test.ts|__tests__\\careers\\requirementLabels.test.ts/i.
+EXIT_STATUS=0

@@ -6,7 +6,8 @@
 - [x] D07/D08/D10/D11: Pulse identity, enrollment contrast, locked-control semantics and reduced motion. Family target is 44 points high.
 - [x] D09/D13/D14: separate 44-point gem controls, life-relative record labels and canonical career requirement names. 22 focused tests, source/test types and compact/tablet browser evidence pass. [Evidence](release/evidence/audit-labels-2026-09-26.md).
 - [x] V01 compact Home: first goal is 80px higher and fully visible at 375x667; first-job CTA remains 44px. 17 focused tests, source types, lint and phone/tablet checks pass. [Evidence and screenshots](release/evidence/home-compact-2026-09-26.md).
-- [ ] Next: V02 Work density, then Life/Profile/creator. [Remaining register](whole-app-audit-2026-09-26.md): 43 V/A/O items remain open, including native acceptance.
+- [x] V02 Work: first eligible Apply is 80px higher and visible at 375x667; salary, requirements and 44px action retained. 17 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/work-compact-2026-09-26.md).
+- [ ] Next: V03 Life density, then Profile/creator. [Remaining register](whole-app-audit-2026-09-26.md): 42 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

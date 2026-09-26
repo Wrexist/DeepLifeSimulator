@@ -87,6 +87,9 @@ export default function JobCard({
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
   const descLine = locked && lockReason ? lockReason : description;
+  const showArt = emphasis === 'primary' && !locked;
+  const careerScene = /food|cook|chef|restaurant/i.test(title) ? 'cafe'
+    : /doctor|nurse|medical/i.test(title) ? 'clinic' : 'studio';
 
   const [expanded, setExpanded] = useState(false);
   const hiddenCount = metadata.length - MAX_VISIBLE_CHIPS;
@@ -94,7 +97,7 @@ export default function JobCard({
 
   return (
     <View style={styles.card}>
-      {emphasis === 'primary' && !locked && <SceneCard scene={accent === 'career' ? (/food|cook|chef|restaurant/i.test(title) ? 'cafe' : /doctor|nurse|medical/i.test(title) ? 'clinic' : 'studio') : accent === 'street' ? 'cafe' : 'city'} title={accent === 'career' ? 'On the clock' : 'Around town'} subtitle={accent === 'career' ? 'Check the pay and requirements below.' : 'Review the cost before you commit.'} />}
+      {showArt && accent !== 'career' && <SceneCard scene={accent === 'street' ? 'cafe' : 'city'} title="Around town" subtitle="Review the cost before you commit." />}
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
@@ -109,10 +112,13 @@ export default function JobCard({
           </View>
         </View>
 
-        {descLine ? (
-          <Text style={styles.description} numberOfLines={3}>
-            {descLine}
-          </Text>
+        {descLine || (showArt && accent === 'career') ? (
+          <View style={styles.descriptionRow}>
+            <Text style={[styles.description, styles.descriptionText]} numberOfLines={3}>
+              {descLine}
+            </Text>
+            {showArt && accent === 'career' && <SceneCard scene={careerScene} thumbnail />}
+          </View>
         ) : null}
 
         {metadata.length > 0 ? (
@@ -209,6 +215,8 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
     color: 'rgba(226, 232, 240, 0.68)',
   },
+  descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: layoutSpace.sm },
+  descriptionText: { flex: 1 },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
