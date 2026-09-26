@@ -1,0 +1,47 @@
+node : PASS __tests__/progression/achievementStoreWiring.test.ts (131.662 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand __tests__/progression/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/....ts (131.662 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  no live surface decides anything from the dead achievement flag
+    √ has no `a.completed` filter over an achievements array outside tests (12705 ms)
+  the surfaces that summarise a life read the live store
+    √ inheritance carries the achievements the player actually claimed (9 ms)
+    √ reports nothing for a player who genuinely has claimed nothing (2 ms)
+    √ is not fooled by the deprecated array being populated (192 ms)
+
+PASS __tests__/progression/weeksInThisLifeSweep.test.tsx (26.239 s)
+  weeksSinceLifeStart - the primitive
+    √ subtracts the baseline (2 ms)
+    √ an age-18 life is unchanged - the baseline is 0 (1 ms)
+    √ a pre-v43 save with no baseline keeps the behaviour it has today (3 ms)
+    √ never goes negative, and degrades a corrupt counter to 0 (4 ms)
+    √ is exactly what `weeksInThisLife` computes from a state (5 ms)
+  the no-job nudge waits for the player to actually be jobless a while
+    √ never fires a no-job tip - FirstSessionCoach owns that message now (37 ms)
+  the first-session gates do not compare the absolute counter to a literal
+    √ app/(tabs)/home.tsx (212 ms)
+    √ components/ContextualTip.tsx (69 ms)
+    √ components/BannerAd.tsx (144 ms)
+    √ components/AchievementsProgress.tsx (92 ms)
+    √ lib/analytics/AnalyticsTracker.tsx (96 ms)
+    √ lib/progress/featureUnlocks.ts (47 ms)
+    √ the guard would actually catch the bug (the control) (30 ms)
+
+PASS __tests__/progression/deadAchievementSweep.test.ts
+  no no-op achievement sweep on the progression screen
+    √ does not call checkAchievements (31 ms)
+    √ does not rebuild an achievementSignal for it (2 ms)
+    √ and the stale P2-7 sweep comment is gone (21 ms)
+    √ still reads the LIVE achievement store (the control) (1 ms)
+    √ checkAchievements is still exported by the context (the control) (119 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       22 passed, 22 total
+Snapshots:   0 total
+Time:        166.837 s
+Ran all test suites matching /__tests__\\progression\\deadAchievementSweep.test.ts|__tests__\\progression\\weeksInThisL
+ifeSweep.test.tsx|__tests__\\progression\\achievementStoreWiring.test.ts/i.
+Exit status: 0

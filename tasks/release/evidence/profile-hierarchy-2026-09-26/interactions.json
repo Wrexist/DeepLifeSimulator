@@ -1,0 +1,19 @@
+{
+  "results": [
+    "Live achievement headline fully above navigation",
+    "Life-relative summary and full stats disclosure",
+    "Portrait opens and cancels without applying",
+    "Catalogue expands; search and completed-only empty states remain reachable",
+    "Legacy Pass opens and closes",
+    "Settings opens and closes",
+    "Help & support opens and closes",
+    "First-life Prestige opens the shop and closes"
+  ],
+  "errors": [],
+  "achievementCard": {
+    "x": 16,
+    "y": 358,
+    "width": 343,
+    "height": 94
+  }
+}
