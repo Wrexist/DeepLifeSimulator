@@ -4,7 +4,7 @@
   "size": 512,
   "format": "webp",
   "runtimeDirectory": "assets/images/portraits",
-  "notes": "Original generated static portraits. Cosmetic only; does not change gameplay identity or vector inheritance. No runtime network.",
+  "notes": "Archived generated static portraits, superseded in the runtime by illustrated-characters-v1 on 2026-09-26. Cosmetic only; does not change gameplay identity or vector inheritance. No runtime network.",
   "assets": [
     {
       "id": "ember",

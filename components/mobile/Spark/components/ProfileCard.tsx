@@ -1,8 +1,8 @@
-import { uiPalette } from '@/lib/config/theme';
+import { colors, uiPalette } from '@/lib/config/theme';
 /**
  * ProfileCard - single swipeable dating profile card.
  *
- * Used inside SwipeScreen's card stack. Renders one DatingProfile with photo,
+ * Used inside SwipeScreen's card stack. Renders one DatingProfile with an illustrated avatar,
  * name + age, distance, bio, interests pills, and "LIKE" / "NOPE" / "SUPER"
  * watermark stamps that fade in as the user drags.
  *
@@ -18,19 +18,6 @@ import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { SPARK_COLORS } from '../styles/sparkTheme';
 import type { DatingProfile } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-
-// Scrim fade steps, top→bottom. Alphas stay small where the step edge crosses
-// the photo's midsection and only grow near the identity text, so the stacked
-// flat layers read as a fade rather than horizontal bands.
-const SCRIM_STEPS = [
-  { height: '64%', alpha: 0.1 },
-  { height: '50%', alpha: 0.12 },
-  { height: '38%', alpha: 0.16 },
-  { height: '28%', alpha: 0.2 },
-  { height: '19%', alpha: 0.26 },
-  { height: '13%', alpha: 0.34 },
-  { height: '8%', alpha: 0.44 },
-] as const;
 
 interface ProfileCardProps {
   profile: DatingProfile;
@@ -54,48 +41,32 @@ const WEALTH_LABEL: Record<string, string> = {
 export default function ProfileCard({
   profile, likeOpacity, nopeOpacity, superOpacity, catfishSuspected,
 }: ProfileCardProps) {
-  const { theme, isDark } = useTheme();
+  const { isDark } = useTheme();
 
   return (
     // Anatomy: outer carries the L2 glass shadow + radius + border + solid fill;
-    // inner clips the photo/overlays (never put overflow:hidden on the shadow view).
+    // inner clips the artwork/overlays (never put overflow:hidden on the shadow view).
     <View
       style={[
         getGlassCard(isDark, 12),
         styles.card,
         {
-          backgroundColor: theme.surface,
-          borderColor: isDark ? theme.glassBorder : theme.border,
+          // Artwork cards retain their navy field in either app theme.
+          backgroundColor: colors.dark.surface,
+          borderColor: colors.dark.border,
         },
       ]}
     >
       <View style={styles.cardInner}>
-        {/* The card used to be a full-bleed portrait. A vector face is square
-            and circular, so it is centred on the card's own field instead of
-            stretched to fill - and sits high enough to clear the text scrim. */}
+        {/* Artwork and identity occupy separate rows so text never covers the face. */}
         <View style={styles.photo}>
           <CharacterAvatar
             seed={profile.id}
             sex={profile.gender}
             age={profile.age}
-            size={scale(196)}
+            size={scale(104)}
           />
         </View>
-
-        {/* Bottom scrim so identity text stays legible on any photo. Stacked
-            translucent steps rather than a gradient - gentle alpha jumps up top
-            (over the face), heavier ones only near the text so no single edge
-            reads as a band, and the Gradient fallback (which renders colors[0]
-            flat) can never turn the scrim into a solid slab. */}
-        {SCRIM_STEPS.map((s) => (
-          <View
-            key={s.height}
-            pointerEvents="none"
-            style={[styles.scrimStep, { height: s.height, backgroundColor: `rgba(0,0,0,${s.alpha})` }]}
-          />
-        ))}
-        {/* Lit top edge - hero-only highlight (dark mode). */}
-        {isDark ? <View pointerEvents="none" style={styles.topHairline} /> : null}
 
         {/* Catfish suspicion chip */}
         {catfishSuspected ? (
@@ -182,27 +153,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   photo: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
+    minHeight: scale(120),
     alignItems: 'center',
-    // Sits above centre so the identity text and its scrim do not cover the face.
-    justifyContent: 'flex-start',
-    paddingTop: '14%',
-  },
-  // Stacked scrim layers (fallback gradient renders flat, so we fake the fade).
-  scrimStep: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  topHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    paddingTop: responsiveSpacing.sm,
   },
   catfishChip: {
     position: 'absolute',
@@ -251,11 +206,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   identityBlock: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: responsiveSpacing.lg,
+    padding: responsiveSpacing.md,
     gap: 6,
   },
   nameRow: {

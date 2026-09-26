@@ -49,7 +49,7 @@ const METRICS = {
     // HUD's primary action for information the player cannot act on.
     // 153 -> 152 on 2026-09-02 (Program 5): Streaming's dashboard link became a
     // GradientButton (no JSX gradient) and its old hero link went.
-    max: 145,
+    max: 144,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },

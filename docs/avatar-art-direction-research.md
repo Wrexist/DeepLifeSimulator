@@ -1,3 +1,5 @@
+> Current decision (2026-09-26): the user selected one illustrated family. Six saved portrait IDs now use curated modular presets; custom/NPC faces share the same matte finish. See `art/illustrated-characters-v1/manifest.json` and `tasks/avatar-family-2026-09-26.md`. The evaluation below is historical.
+
 # Avatar art direction — research and decision
 
 Follow-up to `avatar-redesign-proposal.md`. That doc chose the right
