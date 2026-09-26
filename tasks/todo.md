@@ -12,6 +12,7 @@
 - [x] V05 creator: portrait controls are 233.5px higher at 375x667; compact preview, plain surfaces, optional aging and a footer that reserves space. 59 focused tests, source types, lint and portrait/custom draft interactions pass. [Evidence](release/evidence/creator-layout-2026-09-26.md).
 - [x] V06: one illustrated family for portrait presets, custom avatars and NPCs; aging, stored DNA and reduced motion preserved. 172 focused tests pass. [Evidence and screenshots](release/evidence/avatar-family-2026-09-26.md).
 - [x] V07: five original fictional media illustrations shared by YouVideo and Streaming; 48.8% smaller cover files. 34 focused tests and browser upload/stream journeys pass. [Evidence and screenshots](release/evidence/media-identity-2026-09-26.md).
+- [x] V07 revision: bold creator thumbnails, compact red YouVideo composer and violet Streaming console with primary actions visible at 320/375/768px. 40 focused tests pass. [Evidence and screenshots](release/evidence/creator-platform-2026-09-27.md).
 - [ ] Next: V08 asset consistency. [Remaining register](whole-app-audit-2026-09-26.md): 37 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 

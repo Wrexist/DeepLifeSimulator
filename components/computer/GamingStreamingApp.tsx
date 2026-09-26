@@ -1,6 +1,7 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { MEDIA_ART } from './mediaArtAssets';
 import { mediaArtForTopic, STREAM_ART_KEYS } from '@/lib/content/mediaArtwork';
-import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { uiPalette, creatorBrand, getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingStreamingApp - "Streaming", the live half of the creator career.
  *
@@ -20,8 +21,7 @@ import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/them
  * broadcast is running the live console leads it in place of the box-art hero,
  * so the one thing the channel is doing right now is never a tab away.
  *
- * ONE gradient in the file: the Go Live console's primary action (the
- * dashboard's "Go live" is the shared GradientButton primitive). The real-time
+ * Solid violet actions keep the broadcast console readable. The real-time
  * drain loop and the stale-session resolver are untouched.
  *
  * Tabs: Dashboard / Go Live / History / Shop   (+ category & broadcast pages)
@@ -83,8 +83,6 @@ import {
   getGlassIconContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import Gradient from '@/components/ui/Gradient';
-import GradientButton from '@/components/ui/GradientButton';
 import ProgressRing from '@/components/ui/ProgressRing';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -106,14 +104,9 @@ import {
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
 
-const LinearGradient = Gradient;
 
-// One identity colour, shared with the sibling YouVideo app - the two are the
-// halves of one creator career, and a private fuchsia palette only made them
-// look like different products. The deep stop below is the second colour of
-// the ONE gradient in this file (the Go Live action).
-const IDENTITY = accent.purple;
-const IDENTITY_DEEP = '#7C3AED';
+// Canonical creator-platform accents; live state retains semantic red.
+const IDENTITY = creatorBrand.stream.accent;
 const LIVE_RED = accent.danger; // live indicator (semantic red)
 
 type IconCmp = React.ComponentType<{ size?: number; color?: string }>;
@@ -431,7 +424,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           {s.uploadedAt != null ? (
             <View style={[styles.weekChip, { borderColor: theme.border }]}>
               <Calendar size={scale(10)} color={theme.textMuted} />
-              <Text style={[styles.weekChipText, { color: theme.textSecondary }]}>Wk {s.uploadedAt}</Text>
+              <Text style={[styles.weekChipText, { color: theme.textSecondary }]}>{formatLifeWeek(s.uploadedAt, gameState.lifeStartWeek)}</Text>
             </View>
           ) : null}
         </View>
@@ -490,7 +483,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                     <Text style={styles.heroChannelName} numberOfLines={1}>Your Channel</Text>
                     <View style={styles.heroLevelChip}>
                       <Award size={scale(11)} color={IDENTITY} />
-                      <Text style={styles.heroLevelText}>Level {level} Partner</Text>
+                      <Text style={styles.heroLevelText}>Level {level} creator</Text>
                     </View>
                   </View>
                 </View>
@@ -502,14 +495,12 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   console (category + energy gate live there), which is why it
                   is never disabled here - the gate would be a lie this far
                   from the control. */}
-              <GradientButton
-                label="Go live"
-                onPress={() => setActiveTab('live')}
-                colors={[IDENTITY, IDENTITY, IDENTITY_DEEP]}
-                glow={IDENTITY}
-                icon={<Play size={scale(15)} color={uiPalette.white} />}
-                accessibilityLabel="Open the Go Live console"
-              />
+              <TouchableOpacity onPress={() => setActiveTab('live')} activeOpacity={0.8}
+                accessibilityRole="button" accessibilityLabel="Open the Go Live console"
+                style={[styles.publishBtn, { backgroundColor: creatorBrand.stream.action }]}>
+                <Play size={scale(15)} color={uiPalette.white} />
+                <Text style={styles.publishBtnText}>Go live</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -757,6 +748,36 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
+        {/* Broadcast console - weekly cap + hype + the one loud Go Live CTA. */}
+        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.capRow}>
+            <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
+            <Text style={[styles.capValue, { color: capped ? accent.warning : theme.text }]}>{streamsThisWeek} / 5</Text>
+          </View>
+          <ProgressBar value={streamsThisWeek / 5} color={capped ? accent.warning : IDENTITY} height={scale(7)} label="Streams this week" />
+          <View style={[styles.hintRow, { marginTop: sp.sm }]}>
+            <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
+            <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
+              Energy {Math.round(energy)} · streaming drains it live. Tap Stop any time to bank your earnings.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleGoLive}
+            disabled={!canGo || capped}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Go live"
+            accessibilityState={{ disabled: !canGo || capped }}
+            style={[styles.publishBtnWrap, canGo && !capped && getPlatformShadows(5, 0.3, 2, 8)]}
+          >
+            <View style={[styles.publishBtn, { backgroundColor: canGo && !capped ? creatorBrand.stream.action : theme.surfaceElevated }]}>
+              <Play size={scale(15)} color={canGo && !capped ? 'white' : theme.textMuted} />
+              <Text style={[styles.publishBtnText, { color: canGo && !capped ? 'white' : theme.textMuted }]}>
+                {capped ? 'Weekly cap reached' : canGo ? 'Go live' : `Need ${LIVE_MIN_ENERGY} energy`}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
         {/* Category - the SELECTION control, so it lives here and nowhere else. */}
         <View style={styles.section}>
           <SectionTitle title="Category" subtitle="Pick what you are streaming." />
@@ -779,16 +800,15 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 >
                   <View style={styles.gameTileClip}>
                     <Image source={MEDIA_ART[STREAM_ART_KEYS[g.id]]} style={styles.gameTileImg} resizeMode="cover" />
-                    <View pointerEvents="none" style={styles.gameTileScrim} />
                     {selected ? (
                       <View style={styles.gameTileCheck}>
                         <Radio size={scale(12)} color={uiPalette.white} />
                       </View>
                     ) : null}
-                    <View pointerEvents="none" style={styles.gameTileLabel}>
-                      <Text style={styles.gameTileName} numberOfLines={1}>{g.name}</Text>
-                      <Text style={styles.gameTileHint} numberOfLines={1}>{g.viewersHint}</Text>
-                    </View>
+                  </View>
+                  <View pointerEvents="none" style={styles.gameTileLabel}>
+                    <Text style={[styles.gameTileName, { color: theme.text }]} numberOfLines={1}>{g.name}</Text>
+                    <Text style={[styles.gameTileHint, { color: theme.textSecondary }]} numberOfLines={1}>{g.viewersHint}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -796,13 +816,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Broadcast console - weekly cap + hype + the one loud Go Live CTA. */}
-        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.capRow}>
-            <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
-            <Text style={[styles.capValue, { color: capped ? accent.warning : theme.text }]}>{streamsThisWeek} / 5</Text>
-          </View>
-          <ProgressBar value={streamsThisWeek / 5} color={capped ? accent.warning : IDENTITY} height={scale(7)} label="Streams this week" />
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
           <View style={styles.hypeHeadRow}>
             <View style={[styles.hintRow, { flex: 1 }]}>
               <Flame size={scale(12)} color={accent.warning} />
@@ -820,33 +834,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             label="Hype-train chance"
             style={styles.hypeBar}
           />
-          <View style={[styles.hintRow, { marginTop: sp.sm }]}>
-            <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
-            <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
-              Energy {Math.round(energy)} · streaming drains it live. Tap Stop any time to bank your earnings.
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleGoLive}
-            disabled={!canGo || capped}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Go live"
-            accessibilityState={{ disabled: !canGo || capped }}
-            style={[styles.publishBtnWrap, canGo && !capped && getPlatformShadows(5, 0.3, 2, 8)]}
-          >
-            <LinearGradient
-              colors={canGo && !capped ? [IDENTITY, IDENTITY_DEEP] : [theme.surfaceElevated, theme.surfaceElevated]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.publishBtn}
-            >
-              <Play size={scale(15)} color={canGo && !capped ? 'white' : theme.textMuted} />
-              <Text style={[styles.publishBtnText, { color: canGo && !capped ? 'white' : theme.textMuted }]}>
-                {capped ? 'Weekly cap reached' : canGo ? 'Go live' : `Need ${LIVE_MIN_ENERGY} energy`}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     );
@@ -1093,7 +1080,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 {s.uploadedAt != null ? (
                   <View style={styles.viewersPill}>
                     <Calendar size={scale(11)} color={uiPalette.white} />
-                    <Text style={styles.viewersPillText}>Week {s.uploadedAt}</Text>
+                    <Text style={styles.viewersPillText}>{formatLifeWeek(s.uploadedAt, gameState.lifeStartWeek)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -1202,7 +1189,7 @@ function qualityColor(tier: string): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
-  scrollPad: { padding: sp.md, gap: sp.lg, paddingBottom: sp['3xl'] },
+  scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
   tabs: { marginHorizontal: sp.md, marginTop: sp.sm, marginBottom: sp.sm },
   // Segmented control directly under the top bar; it has its own container
   // (glass tabs), so the top bar drops its bottom border.
@@ -1219,7 +1206,7 @@ const styles = StyleSheet.create({
   monitorInner: { borderRadius: br['2xl'], overflow: 'hidden' },
   // Fixed clamped height (not aspectRatio) so the hero can't balloon on wide
   // frames; scale() caps at 1.8x, preserving the ~16:9 look on phones.
-  heroMedia: { width: '100%', height: scale(210), position: 'relative', justifyContent: 'space-between' },
+  heroMedia: { width: '100%', height: scale(160), position: 'relative', justifyContent: 'space-between' },
   mediaFill: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   mediaScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.42)' },
   mediaTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: sp.sm },
@@ -1262,7 +1249,7 @@ const styles = StyleSheet.create({
   monitorTierChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
   monitorTierText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, letterSpacing: 0.4 },
   monitorGame: { fontSize: fs['2xl'], fontWeight: '800', color: uiPalette.white },
-  monitorMetaRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginTop: 2 },
+  monitorMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.md, marginTop: 2 },
   monitorMeta: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   monitorMetaText: { fontSize: fs.sm, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
 
@@ -1271,7 +1258,7 @@ const styles = StyleSheet.create({
   gameTileClip: { width: '100%', height: scale(88), position: 'relative', justifyContent: 'flex-end' },
   gameTileImg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   gameTileScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.4)' },
-  gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY },
+  gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: creatorBrand.stream.action },
   gameTileLabel: { padding: sp.sm, gap: 1 },
   gameTileName: { fontSize: fs.sm, fontWeight: '700', color: uiPalette.white },
   gameTileHint: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
@@ -1288,7 +1275,7 @@ const styles = StyleSheet.create({
   hypeMax: { fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hypeBar: { marginTop: sp.xs },
   publishBtnWrap: { borderRadius: br.full },
-  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: scale(48) },
+  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: Math.max(44, scale(48)) },
   publishBtnText: { fontSize: fs.md, fontWeight: '600', color: uiPalette.white },
 
   // ── History summary + VOD cards ──

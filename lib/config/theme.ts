@@ -390,3 +390,9 @@ export const actionColors = {
   success: '#047857',
   danger: '#B91C1C',
 } as const;
+
+/** Fictional creator platforms: recognizable video red and broadcast violet. */
+export const creatorBrand = {
+  video: { accent: '#FF6974', action: '#B91C32' },
+  stream: { accent: '#BD8AFF', action: '#7136C4' },
+} as const;
