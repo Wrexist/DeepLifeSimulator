@@ -6,8 +6,9 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, t
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { formatMoney } from '@/utils/moneyFormatting';
 import Gradient from '@/components/ui/Gradient';
+import { parseAmount } from '@/utils/parseAmount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const LinearGradient = Gradient;
 
@@ -50,19 +51,20 @@ export default function AmountInputModal({
 }: Props) {
   const isBtc = currency === 'btc';
   const unitPrefix = isBtc ? '₿' : '$';
-  const formatAmount = (n: number) => (isBtc ? `₿${n.toFixed(4)}` : formatMoney(n));
+  const formatAmount = (n: number) => `${unitPrefix}${n.toLocaleString('en-US', { maximumFractionDigits: 20 })}`;
   const theme = getThemeColors(darkMode);
   const [text, setText] = useState('');
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (visible) setText('');
   }, [visible]);
 
-  const amount = parseFloat(text) || 0;
-  const valid = (allowZero ? amount >= 0 : amount > 0) && (maxAmount == null || amount <= maxAmount);
+  const amount = parseAmount(text);
+  const valid = amount !== null && (allowZero ? amount >= 0 : amount > 0) && (maxAmount == null || amount <= maxAmount);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
@@ -83,12 +85,14 @@ export default function AmountInputModal({
           </View>
           {subtitle && <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>}
 
-          <View style={[styles.inputWrap, { borderColor: valid ? theme.border : accent.danger, backgroundColor: theme.surfaceElevated }]}>
+          <View style={[styles.inputWrap, { borderColor: valid || text === '' ? theme.border : accent.danger, backgroundColor: theme.surfaceElevated }]}>
             <Text style={[styles.currency, { color: theme.textSecondary }]}>{unitPrefix}</Text>
             <TextInput
               value={text}
               onChangeText={setText}
               keyboardType="decimal-pad"
+              accessibilityLabel={`${title} amount in ${isBtc ? 'bitcoin' : 'dollars'}`}
+              accessibilityHint="Use a period for decimals and optional commas for thousands."
               placeholder="0"
               placeholderTextColor={theme.textMuted}
               style={[styles.input, { color: theme.text }]}
@@ -109,6 +113,8 @@ export default function AmountInputModal({
               {presets.map((p) => (
                 <TouchableOpacity
                   key={p}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set amount to ${formatAmount(p)}`}
                   onPress={() => setText(String(p))}
                   style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
                 >
@@ -117,6 +123,8 @@ export default function AmountInputModal({
               ))}
               {maxAmount != null && maxAmount > 0 && (
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Set maximum amount"
                   onPress={() => setText(isBtc ? String(Number(maxAmount.toFixed(6))) : String(Math.floor(maxAmount)))}
                   style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
                 >
@@ -126,13 +134,19 @@ export default function AmountInputModal({
             </View>
           )}
 
-          {maxAmount != null && amount > maxAmount && (
-            <Text style={styles.error}>Exceeds available {formatAmount(maxAmount)}</Text>
+          {text.trim() !== '' && amount === null && (
+            <Text accessibilityRole="alert" style={styles.error}>Enter a valid amount, such as 1,000.50.</Text>
+          )}
+          {maxAmount != null && amount !== null && amount > maxAmount && (
+            <Text accessibilityRole="alert" style={styles.error}>Exceeds available {formatAmount(maxAmount)}</Text>
           )}
 
           <TouchableOpacity
             disabled={!valid}
-            onPress={() => onConfirm(amount)}
+            accessibilityRole="button"
+            accessibilityLabel={valid ? `${confirmLabel} ${formatAmount(amount!)}` : confirmLabel}
+            accessibilityState={{ disabled: !valid }}
+            onPress={() => { if (valid && amount !== null) onConfirm(amount); }}
             activeOpacity={0.7}
             style={[styles.confirmWrap, valid && getPlatformShadows(5, 0.3, 2, 8)]}
           >
@@ -142,7 +156,7 @@ export default function AmountInputModal({
               end={{ x: 1, y: 0 }}
               style={styles.confirm}
             >
-              <Text style={[styles.confirmText, !valid && { color: theme.textMuted }]}>{confirmLabel}</Text>
+              <Text style={[styles.confirmText, !valid && { color: theme.textMuted }]}>{valid && amount !== null ? `${confirmLabel} ${formatAmount(amount)}` : confirmLabel}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -203,6 +217,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   preset: {
+    minHeight: touchTargets.minimum,
+    justifyContent: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,

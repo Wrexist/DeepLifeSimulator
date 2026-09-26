@@ -93,7 +93,7 @@ describe('launchCampaign energy', () => {
   it('refuses below the cost, naming it', () => {
     const cap = captureUpdater();
     const res = launchCampaign(cap.setGameState, stateWith(CAMPAIGN_ENERGY_COST - 1), COMPANY_ID, 'social', 5_000, 4);
-    expect(res.success).toBe(false);
+    expect(res.status).toBe('rejected');
     expect(res.message).toContain('energy');
   });
 
@@ -101,7 +101,7 @@ describe('launchCampaign energy', () => {
     const state = stateWith(50);
     const cap = captureUpdater();
     const res = launchCampaign(cap.setGameState, state, COMPANY_ID, 'social', 5_000, 4);
-    expect(res.success).toBe(true);
+    expect(res.status).toBe('queued');
     const committed = cap.run(state);
     expect(committed.stats.energy).toBe(50 - CAMPAIGN_ENERGY_COST);
     expect(committed.hustleApp!.companies[COMPANY_ID].activeCampaigns).toHaveLength(1);

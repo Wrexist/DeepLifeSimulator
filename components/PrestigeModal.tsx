@@ -26,11 +26,14 @@ interface PrestigeModalProps {
 }
 
 function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
-  const { gameState, executePrestige } = useGame();
+  const { gameState, executePrestige, saveGame } = useGame();
   const [selectedPath, setSelectedPath] = useState<'reset' | 'child'>('reset');
   const [selectedChildId, setSelectedChildId] = useState<string | undefined>();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [pendingSave, setPendingSave] = useState<{ points: number; level: number; heir: boolean } | null>(null);
   // The apex moment of the whole game. Values are CAPTURED at confirm time
   // because executePrestige resets the state this modal reads from.
   const [celebration, setCelebration] = useState<{
@@ -160,7 +163,20 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     if (!visible && celebration) setCelebration(null);
   }, [visible, celebration]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (savingRef.current) return;
+    if (pendingSave) {
+      savingRef.current = true;
+      setSaving(true);
+      try {
+        if (await saveGame(true)) {
+          setCelebration(pendingSave);
+          setPendingSave(null);
+          setShowConfirmation(false);
+        }
+      } finally { savingRef.current = false; setSaving(false); }
+      return;
+    }
     if (selectedPath === 'child' && !selectedChildId && children.length > 0) {
       return;
     }
@@ -182,10 +198,18 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     const newLevel = prestigeLevel + 1;
     const heir = selectedPath === 'child' && !!selectedChildId;
 
-    haptic.heavy();
-    executePrestige(selectedPath, selectedChildId);
-    setShowConfirmation(false);
-    setCelebration({ points: earnedPoints, level: newLevel, heir });
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const outcome = await executePrestige(selectedPath, selectedChildId);
+      const result = { points: earnedPoints, level: newLevel, heir };
+      if (outcome === 'saved') {
+        setShowConfirmation(false);
+        setCelebration(result);
+      } else if (outcome === 'save-failed') {
+        setPendingSave(result);
+      }
+    } finally { savingRef.current = false; setSaving(false); }
   };
 
   const handleCelebrationDone = () => {
@@ -210,7 +234,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={celebration ? handleCelebrationDone : onClose}
+      onRequestClose={saving || pendingSave ? () => {} : celebration ? handleCelebrationDone : onClose}
     >
       <View style={styles.overlay}>
         <Animated.View
@@ -223,7 +247,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
           ]}
         >
           {/* Main Content */}
-          <View style={styles.content}>
+          <View style={styles.content} pointerEvents={saving ? 'none' : 'auto'}>
             {/* Elegant Header */}
             <View style={styles.header}>
               <View style={styles.headerContent}>
@@ -242,7 +266,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                   <Text style={styles.subtitle}>{formatMoney(currentNetWorth)} Net Worth</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity disabled={saving || !!pendingSave} onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <X size={20} color={uiPalette.muted} />
               </TouchableOpacity>
             </View>
@@ -670,9 +694,11 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
             </ScrollView>
 
             {/* Action Buttons */}
+            {pendingSave && <Text accessibilityRole="alert" style={styles.subtitle}>Your new life needs saving. Retry without resetting again.</Text>}
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.cancelButton}
+                disabled={saving || !!pendingSave}
                 onPress={showConfirmation ? () => setShowConfirmation(false) : onClose}
                 activeOpacity={0.7}
               >
@@ -686,21 +712,23 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                   (selectedPath === 'child' && children.length > 0 && !selectedChildId) && styles.buttonDisabled,
                 ]}
                 onPress={() => {
-                  if (selectedPath === 'child' && children.length > 0 && !selectedChildId) {
+                  if (saving || (!pendingSave && selectedPath === 'child' && children.length > 0 && !selectedChildId)) {
                     return;
                   }
-                  if (showConfirmation) {
-                    handleConfirm();
+                  if (showConfirmation || pendingSave) {
+                    void handleConfirm();
                   } else {
                     setShowConfirmation(true);
                   }
                 }}
                 activeOpacity={0.8}
-                disabled={selectedPath === 'child' && children.length > 0 && !selectedChildId}
+                accessibilityRole="button"
+                accessibilityState={{ busy: saving, disabled: saving }}
+                disabled={saving || (!pendingSave && selectedPath === 'child' && children.length > 0 && !selectedChildId)}
               >
                 <Crown size={18} color={uiPalette.white} />
                 <Text style={styles.prestigeButtonText}>
-                  Prestige
+                  {saving ? 'Saving...' : pendingSave ? 'Retry save' : 'Prestige'}
                 </Text>
               </TouchableOpacity>
             </View>

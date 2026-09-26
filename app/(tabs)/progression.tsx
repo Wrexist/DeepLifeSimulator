@@ -312,7 +312,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           id="progression.lifeStats"
           title="Life Stats"
           compact
-          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${gameState.weeksLived} weeks`}
+          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${weeksInThisLife(gameState)} weeks`}
         >
         <View style={styles.statsGrid}>
           <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />

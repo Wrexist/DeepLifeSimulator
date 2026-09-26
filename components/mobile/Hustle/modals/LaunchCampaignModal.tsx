@@ -5,7 +5,7 @@ import { uiPalette , withAlpha } from '@/lib/config/theme';
  * Five campaign kinds with different ROI / brand-lift / cost-floor profiles.
  * Live ROI preview updates as the player edits spend.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Megaphone, Radio, Smartphone, Sparkles, Zap } from 'lucide-react-native';
 import BaseModal from '@/components/ui/BaseModal';
@@ -18,6 +18,7 @@ import { launchCampaign, cancelCampaign, CAMPAIGN_ENERGY_COST } from '@/contexts
 import { campaignCostFloor, projectCampaignROI } from '@/lib/business/hustleLogic';
 import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
+import { parseAmount } from '@/utils/parseAmount';
 import type { HustleCampaignKind } from '@/contexts/game/types';
 
 const KINDS: { id: HustleCampaignKind; name: string; icon: any; blurb: string }[] = [
@@ -42,12 +43,32 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
   const [duration, setDuration] = useState('4');
   const [resultMsg, setResultMsg] = useState<string | null>(null);
 
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const launchPending = useRef(false);
+
+  useEffect(() => {
+    if (!pendingId) return;
+    const committed = gameState.hustleApp?.companies?.[companyId]?.activeCampaigns.some(c => c.id === pendingId);
+    if (committed) {
+      hustleHaptics.success();
+      void saveGame?.();
+      setResultMsg('Campaign launched');
+      setSelectedKind(null);
+      setSpend('');
+    } else {
+      hustleHaptics.error();
+      setResultMsg('Campaign was not launched. Check your company, cash and energy, then try again. Nothing was charged.');
+    }
+    launchPending.current = false;
+    setPendingId(null);
+  }, [pendingId, gameState, companyId, saveGame]);
+
   const company = (gameState.companies ?? []).find((c: any) => c.id === companyId);
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const active = overlay?.activeCampaigns ?? [];
 
-  const spendNum = parseInt(spend || '0', 10);
-  const durationNum = Math.max(1, parseInt(duration || '4', 10));
+  const spendNum = parseAmount(spend) ?? 0;
+  const durationNum = (/^\d+$/.test(duration) ? Number(duration) : 0);
   const projectedROI = selectedKind
     ? projectCampaignROI(selectedKind, spendNum, company?.weeklyIncome ?? 0)
     : 0;
@@ -55,6 +76,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
   // Energy gates alongside cash (2026-08-24) - the disabled button and the
   // action's own refusal must agree on both.
   const canLaunch =
+    !pendingId && Number.isSafeInteger(durationNum) && durationNum >= 1 &&
     selectedKind != null &&
     spendNum >= floor &&
     (gameState.stats?.money ?? 0) >= spendNum &&
@@ -68,19 +90,18 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
   }, []);
 
   const handleLaunch = useCallback(() => {
-    if (!selectedKind) return;
+    if (!selectedKind || launchPending.current) return;
+    launchPending.current = true;
     const r = launchCampaign(setGameState, gameState, companyId, selectedKind, spendNum, durationNum);
-    if (r.success) {
-      hustleHaptics.success();
-      saveGame?.();
-      setResultMsg(r.message);
-      setSelectedKind(null);
-      setSpend('');
+    if (r.status === 'queued' && r.campaignId) {
+      setResultMsg(null);
+      setPendingId(r.campaignId);
     } else {
+      launchPending.current = false;
       hustleHaptics.error();
       setResultMsg(r.message);
     }
-  }, [selectedKind, spendNum, durationNum, setGameState, gameState, companyId, saveGame]);
+  }, [selectedKind, spendNum, durationNum, setGameState, gameState, companyId]);
 
   const handleCancel = useCallback((id: string) => {
     cancelCampaign(setGameState, companyId, id);
@@ -160,6 +181,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                     value={spend}
                     onChangeText={(t) => { setSpend(t); setResultMsg(null); }}
                     keyboardType="numeric"
+                    accessibilityLabel="Campaign spend per week in dollars"
                     placeholder={`min $${floor.toLocaleString()}`}
                     placeholderTextColor={theme.textMuted}
                     style={[styles.composerInput, { color: theme.text, borderColor: theme.border }]}
@@ -171,6 +193,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                     value={duration}
                     onChangeText={(t) => { setDuration(t); setResultMsg(null); }}
                     keyboardType="numeric"
+                    accessibilityLabel="Campaign duration in weeks"
                     placeholder="4"
                     placeholderTextColor={theme.textMuted}
                     style={[styles.composerInput, { color: theme.text, borderColor: theme.border }]}
@@ -184,19 +207,19 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                   disabled={!canLaunch}
                   accessibilityRole="button"
                   accessibilityLabel="Launch campaign"
-                  accessibilityState={{ disabled: !canLaunch }}
+                  accessibilityState={{ disabled: !canLaunch, busy: !!pendingId }}
                   style={[
                     styles.cta,
                     { backgroundColor: canLaunch ? HUSTLE_COLORS.accent : theme.border, opacity: canLaunch ? 1 : 0.6 },
                   ]}
                 >
                   <Text style={styles.ctaText}>
-                    {canLaunch ? `Launch · $${spendNum.toLocaleString()}` : 'Need more cash'}
+                    {canLaunch ? `Launch · $${spendNum.toLocaleString()}` : pendingId ? 'Launching...' : 'Check spend, duration and energy'}
                   </Text>
                 </Pressable>
-                {resultMsg ? <Text style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text> : null}
               </View>
             ) : null}
+            {resultMsg ? <Text accessibilityRole="alert" style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text> : null}
       </View>
     </BaseModal>
   );

@@ -1,5 +1,7 @@
 # Whole-app imperfection audit - 26 September 2026
 
+> Follow-through: D01-D06 and D12 have implementation fixes in the [audit-fix checklist](audit-fixes-2026-09-26.md), with the Bank portion of D11 also addressed. See [current fix evidence](release/evidence/audit-fixes-2026-09-26.md). The original observations below are preserved as the audit baseline; native acceptance and the remaining 51 register items are still open (D11 partially complete).
+
 **Audit result: one reproduced high-priority save defect, additional finance and
 feedback defects, and substantial remaining presentation/acceptance work.**
 The app is more coherent, but green CI is not evidence that all journeys are safe
@@ -224,5 +226,4 @@ prestige writer, not evidence those previous fixes were undone.
 5. Obtain the separately authorized signed candidate and close A16-A21 provider/
    device gates; complete candidate/store evidence before any production action.
 
-Next concrete task: a focused prestige persistence fix with the held-mutex
-reproduction converted into a regression that expects the write to wait.
+Next concrete task: unify Pulse with the selected player portrait (D07), then fix the remaining accessible-control issues D08-D11. Prestige/finance follow-through is recorded above.

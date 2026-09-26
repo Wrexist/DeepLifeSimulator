@@ -95,7 +95,8 @@ import {
 } from '@/utils/scaling';
 import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
-import StatStrip from '@/components/ui/StatStrip';
+import StatStrip, { StatTile } from '@/components/ui/StatStrip';
+import { formatMoney } from '@/utils/moneyFormatting';
 import SectionTitle from '@/components/ui/SectionTitle';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import Chip from '@/components/ui/Chip';
@@ -583,23 +584,26 @@ export default function StatisticsApp({ onBack }: Props) {
               >
                 <Flame size={scale(24)} color={accent.success} />
               </ProgressRing>
-              <StatStrip
-                style={styles.fireStats}
-                items={[
-                  { label: 'FIRE number', value: formatStatMoney(fire.fireNumber) },
-                  { label: 'Years to FIRE', value: fire.yearsToFIRE >= 999 ? '-' : `${Math.max(0, fire.yearsToFIRE)}y` },
-                  { label: 'Savings rate', value: `${Math.round(fire.savingsRate)}%` },
-                ]}
-              />
+              <StatTile style={styles.fireStats} label="FIRE target" value={formatMoney(fire.fireNumber)} hero />
             </View>
             <StatStrip
               items={[
-                { label: 'Lean', value: formatStatMoney(fire.milestones.leanFIRE) },
-                { label: 'Regular', value: formatStatMoney(fire.milestones.regularFIRE) },
-                { label: 'Fat', value: formatStatMoney(fire.milestones.fatFIRE) },
+                { label: 'Estimated years', value: fire.yearsToFIRE >= 999 ? '-' : `${Math.max(0, fire.yearsToFIRE)}y` },
+                { label: 'Estimated savings rate', value: `${Math.round(fire.savingsRate)}%` },
+              ]}
+            />
+            <StatStrip
+              items={[
+                { label: 'Lean', value: formatMoney(fire.milestones.leanFIRE) },
+                { label: 'Regular', value: formatMoney(fire.milestones.regularFIRE) },
+                { label: 'Fat', value: formatMoney(fire.milestones.fatFIRE) },
                 { label: 'Coast', value: `${Math.round(fire.coastFIREProgress)}%` },
               ]}
             />
+            <Text style={{ color: theme.textSecondary, fontSize: fs.sm }}>
+              Planning estimate: expenses assume 70% of salary, with a $15,600 annual minimum.
+              Savings pace uses your current bank savings divided by weeks played in this life (minimum one week), not recorded deposits. Coast uses half the FIRE target.
+            </Text>
           </View>
         </CollapsibleSection>
       </View>
@@ -1337,7 +1341,7 @@ const styles = StyleSheet.create({
 
   // FIRE
   fireBody: { flexDirection: 'row', alignItems: 'center', gap: sp.lg },
-  fireStats: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
+  fireStats: { flex: 1 },
 
   // Life expectancy modifiers
 
