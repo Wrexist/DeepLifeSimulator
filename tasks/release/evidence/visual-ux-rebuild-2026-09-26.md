@@ -54,7 +54,8 @@ No realtime 3D renderer or network avatar service is added to the app.
   heavy weights 652, all at unchanged ceilings. Content and calendar gates: exit 0.
 - Earlier full preflight invocations correctly failed on the now-fixed test types,
   lint imports and final theme annotation. Final gate reruns above are clean;
-  a complete preflight rerun and current-head CI are tracked on the draft PR.
+  complete `npm run preflight` rerun on code revision `fe47c98f`: exit 0.
+  GitHub preflight and quality are also green on that revision.
 
 During verification, fixed duplicate Contacts list headers, portrait/frame
 scaling on tablet, excessive tablet enlargement, stale static navigation tests,
@@ -91,3 +92,9 @@ quality passed; update/preflight found the direct expo-asset peer and three
 remaining lint warnings. Both causes are fixed in the follow-up. The subsequent theme annotation error
 is also fixed and the combined source/test type check passes. Inspect the PR
 checks for the final head; browser/unit evidence does not close native gates.
+
+Handoff: all implementation and local verification are complete. GitHub full-test
+and coverage jobs were still running at the last inspection; no failing result
+was reported on `fe47c98f`. The final evidence-only commit does not change app
+code. Next: confirm those checks, then arrange the explicitly authorized signed
+build/device acceptance. No build dispatch or production release was performed.
