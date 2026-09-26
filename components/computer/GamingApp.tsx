@@ -1,3 +1,5 @@
+import { MEDIA_ART } from './mediaArtAssets';
+import { videoArtKey } from '@/lib/content/mediaArtwork';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingApp (YouVideo) - the video half of the creator career.
@@ -163,16 +165,6 @@ const PC_ICON: Record<keyof GamingStreamingState['pcUpgradeLevels'], IconType> =
   network: Wifi,
 };
 
-// Thumbnail art pool - matched by keyword, else a stable per-video hash so each
-// video keeps ONE consistent cover (presentational, like an avatar color).
-const GAME_THUMBS: { keys: string[]; src: ImageSourcePropType; label: string }[] = [
-  { keys: ['fortnite'], src: require('@/assets/images/Games/Fortnite.webp'), label: 'Fortnite' },
-  { keys: ['minecraft'], src: require('@/assets/images/Games/Minecraft.webp'), label: 'Minecraft' },
-  { keys: ['valorant'], src: require('@/assets/images/Games/Valorant.webp'), label: 'Valorant' },
-  { keys: ['league', 'legends', 'lol'], src: require('@/assets/images/Games/League of Legends.webp'), label: 'League of Legends' },
-  { keys: ['among'], src: require('@/assets/images/Games/Among us.webp'), label: 'Among Us' },
-];
-
 const SORTS: { key: SortType; label: string; icon: IconType }[] = [
   { key: 'recent', label: 'Recent', icon: Clock },
   { key: 'views', label: 'Most viewed', icon: Eye },
@@ -195,22 +187,8 @@ const GAME_OPTIONS = [
   'Reaction',
 ];
 
-function hashStr(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function thumbIndexFor(v: Video): number {
-  const hay = `${v.title ?? ''} ${v.game ?? ''} ${v.gameId ?? ''}`.toLowerCase();
-  for (let i = 0; i < GAME_THUMBS.length; i++) {
-    if (GAME_THUMBS[i].keys.some((k) => hay.includes(k))) return i;
-  }
-  return hashStr(v.id || v.title || 'x') % GAME_THUMBS.length;
-}
-
 function videoThumb(v: Video): ImageSourcePropType {
-  return GAME_THUMBS[thumbIndexFor(v)].src;
+  return MEDIA_ART[videoArtKey(v)];
 }
 
 function compact(n: number): string {

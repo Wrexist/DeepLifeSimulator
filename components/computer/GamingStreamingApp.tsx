@@ -1,3 +1,5 @@
+import { MEDIA_ART } from './mediaArtAssets';
+import { mediaArtForTopic, STREAM_ART_KEYS } from '@/lib/content/mediaArtwork';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingStreamingApp - "Streaming", the live half of the creator career.
@@ -99,7 +101,6 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
-  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
@@ -167,28 +168,10 @@ const GAME_OPTIONS = [
   { id: 'speedrun', name: 'Speedrun', viewersHint: 'Big spikes if PB' },
 ];
 
-// Real box art for each category. require() needs static literals (Metro), so
-// every asset is spelled out. Each of the five categories maps to one game.
-const GAME_ART: Record<string, ImageSourcePropType> = {
-  fps: require('@/assets/images/Games/Among us.webp'),
-  rpg: require('@/assets/images/Games/League of Legends.webp'),
-  esports: require('@/assets/images/Games/Valorant.webp'),
-  creative: require('@/assets/images/Games/Minecraft.webp'),
-  speedrun: require('@/assets/images/Games/Fortnite.webp'),
-};
-
-// Resolve box art from a stored stream's game string (matches the category
-// name first, then keyword-falls-back so legacy history still gets a thumbnail).
+// Shared original artwork; saved category names and IDs are unchanged.
 function gameArtFor(name: string): ImageSourcePropType {
-  const opt = GAME_OPTIONS.find((o) => o.name === name);
-  if (opt && GAME_ART[opt.id]) return GAME_ART[opt.id];
-  const n = (name || '').toLowerCase();
-  if (n.includes('valorant') || n.includes('compet') || n.includes('fps') || n.includes('esport')) return GAME_ART.esports;
-  if (n.includes('among') || n.includes('chat')) return GAME_ART.fps;
-  if (n.includes('mine') || n.includes('craft') || n.includes('creat') || n.includes('art')) return GAME_ART.creative;
-  if (n.includes('league') || n.includes('rpg') || n.includes('moba')) return GAME_ART.rpg;
-  if (n.includes('fortnite') || n.includes('speed') || n.includes('run') || n.includes('race')) return GAME_ART.speedrun;
-  return GAME_ART.esports;
+  const option = GAME_OPTIONS.find(o => o.name === name || o.id === name);
+  return MEDIA_ART[option ? STREAM_ART_KEYS[option.id] : mediaArtForTopic(name) ?? 'competitive'];
 }
 
 // "Quick (30 min)" -> ["Quick", "30 min"] (still used by the broadcast detail
@@ -746,7 +729,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         >
           <View style={styles.monitorInner}>
             <View style={styles.heroMedia}>
-              <Image source={GAME_ART[selectedGame.id]} style={styles.mediaFill} resizeMode="cover" />
+              <Image source={MEDIA_ART[STREAM_ART_KEYS[selectedGame.id]]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: 'rgba(15,23,42,0.72)' }]}>
@@ -795,7 +778,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   ]}
                 >
                   <View style={styles.gameTileClip}>
-                    <Image source={GAME_ART[g.id]} style={styles.gameTileImg} resizeMode="cover" />
+                    <Image source={MEDIA_ART[STREAM_ART_KEYS[g.id]]} style={styles.gameTileImg} resizeMode="cover" />
                     <View pointerEvents="none" style={styles.gameTileScrim} />
                     {selected ? (
                       <View style={styles.gameTileCheck}>
@@ -1025,7 +1008,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         >
           <View style={styles.monitorInner}>
             <View style={styles.heroMedia}>
-              <Image source={GAME_ART[g.id]} style={styles.mediaFill} resizeMode="cover" />
+              <Image source={MEDIA_ART[STREAM_ART_KEYS[g.id]]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
               <View style={styles.mediaTopRow}>
                 <View style={styles.catBadge}>

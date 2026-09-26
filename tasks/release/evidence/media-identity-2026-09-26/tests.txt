@@ -1,0 +1,56 @@
+node : PASS lib/content/__tests__/mediaArtwork.test.ts (60.32 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js lib/content/__tests__/mediaArtwork ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS lib/conten...st.ts (60.32 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  √ maps Fortnite speedrun to the matching original artwork (7 ms)
+  √ maps Minecraft tutorial to the matching original artwork (1 ms)
+  √ maps Valorant match to the matching original artwork (1 ms)
+  √ maps League of Legends to the matching original artwork
+  √ maps Among Us to the matching original artwork (1 ms)
+  √ maps Just Chatting to the matching original artwork
+  √ maps RPG Marathon to the matching original artwork
+  √ maps Competitive to the matching original artwork
+  √ maps Creative / Art to the matching original artwork
+  √ maps Speedrun to the matching original artwork
+  √ maps Boss Fight to the matching original artwork
+  √ maps Lore Deep Dive to the matching original artwork
+  √ maps Reaction to the matching original artwork
+  √ maps Pocket Borough to the matching original artwork
+  √ preserves the legacy fps category as chat without confusing FPS content (1 ms)
+  √ unknown old videos keep a deterministic cover without changing saved data (3 ms)
+  √ matches words rather than assigning art to unrelated title fragments (1 ms)
+
+PASS __tests__/render/liveStreamSurvivesTabAway.render.test.tsx (18.119 s)
+  the predicate that tells a tab switch from an app relaunch
+    √ a session stamped after this runtime began is OURS (2 ms)
+    √ a session from before this runtime is stale
+    √ a session with no marker at all keeps the old, safe behaviour
+    √ is false when nothing is live (1 ms)
+  render - the Streaming app on mount
+    √ LEAVES a broadcast this runtime started still live (261 ms)
+    √ still finalizes a session that survived an app kill (73 ms)
+
+PASS lib/content/__tests__/streamMeta.test.ts
+  rollingAverageViewers
+    √ returns 0 for empty history (3 ms)
+    √ is the mean of the recorded viewers (1 ms)
+    √ only averages the most-recent window (newest-first) (1 ms)
+    √ ignores non-finite viewer values
+  nextHypeStreak
+    √ starts at 1 for a first-ever stream (no lastStreamWeek) (1 ms)
+    √ increments on a consecutive week (1 ms)
+    √ is unchanged when streaming again the same week
+    √ resets to 1 after a multi-week gap
+  hypeChanceForStreak
+    √ is the base chance at streak 1 (1 ms)
+    √ rises with the streak
+    √ never exceeds the 25% ceiling however long the streak (1 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       34 passed, 34 total
+Snapshots:   0 total
+Time:        84.457 s
+Exit status: 0

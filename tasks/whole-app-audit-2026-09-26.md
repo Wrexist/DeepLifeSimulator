@@ -1,6 +1,6 @@
 # Whole-app imperfection audit - 26 September 2026
 
-> Follow-through: D01-D14 and V01-V06 now have implementation fixes. See [avatar family evidence](release/evidence/avatar-family-2026-09-26.md). See [creator layout evidence](release/evidence/creator-layout-2026-09-26.md). See [Profile hierarchy evidence](release/evidence/profile-hierarchy-2026-09-26.md). See [compact Life evidence](release/evidence/life-compact-2026-09-26.md). See [compact Work evidence](release/evidence/work-compact-2026-09-26.md). See [compact Home evidence](release/evidence/home-compact-2026-09-26.md). See the [save/UI checklist](audit-fixes-2026-09-26.md), [HUD/label checklist](audit-labels-2026-09-26.md) and [latest evidence](release/evidence/audit-labels-2026-09-26.md). Original observations below remain the audit baseline. The 38 remaining V/A/O items remain open, including native acceptance of these fixes.
+> Follow-through: D01-D14 and V01-V07 now have implementation fixes. See [media identity evidence](release/evidence/media-identity-2026-09-26.md). See [avatar family evidence](release/evidence/avatar-family-2026-09-26.md). See [creator layout evidence](release/evidence/creator-layout-2026-09-26.md). See [Profile hierarchy evidence](release/evidence/profile-hierarchy-2026-09-26.md). See [compact Life evidence](release/evidence/life-compact-2026-09-26.md). See [compact Work evidence](release/evidence/work-compact-2026-09-26.md). See [compact Home evidence](release/evidence/home-compact-2026-09-26.md). See the [save/UI checklist](audit-fixes-2026-09-26.md), [HUD/label checklist](audit-labels-2026-09-26.md) and [latest evidence](release/evidence/audit-labels-2026-09-26.md). Original observations below remain the audit baseline. The 37 remaining V/A/O items remain open, including native acceptance of these fixes.
 
 **Audit result: one reproduced high-priority save defect, additional finance and
 feedback defects, and substantial remaining presentation/acceptance work.**
@@ -226,4 +226,4 @@ prestige writer, not evidence those previous fixes were undone.
 5. Obtain the separately authorized signed candidate and close A16-A21 provider/
    device gates; complete candidate/store evidence before any production action.
 
-Next concrete task: V07 media identity. D01-D14 implementation follow-through is recorded above; native acceptance remains open.
+Next concrete task: V08 asset consistency. D01-D14 implementation follow-through is recorded above; native acceptance remains open.
