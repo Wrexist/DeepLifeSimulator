@@ -19,9 +19,9 @@ remains in `pre-sync-local-work-2026-09-26`; do not pop it into this branch.
   selection and randomization, with no network rendering or save migration.
 - [x] Migrate remaining presentation literals to canonical tokens; verify both
   dark/light contrast and preserve distinctive fictional app branding.
-- [ ] Run type, route, lint/UI/content gates and relevant rendering, onboarding,
+- [x] Run type, route, lint/UI/content gates and relevant rendering, onboarding,
   avatar, save, weekly, purchase and navigation tests. Inspect phone/tablet web UI.
-- [ ] Record exact results, native acceptance gaps and PR checks; no production
+- [x] Record exact results, native acceptance gaps and PR checks; no production
   merge, OTA, paid build or store submission is authorized.
 
 ## Findings and boundaries

@@ -45,7 +45,16 @@ No realtime 3D renderer or network avatar service is added to the app.
 - Expo Doctor: exit 0, 18/18 checks. CI identified the required direct
   expo-asset peer; declaring SDK-matched ~12.0.13 fixes native linking metadata.
   The same version was already installed transitively. Repeated npm ci: exit 0.
-- Final focused source/startup tests and final full preflight are running.
+- Final focused checks: 16 suites / 141 tests pass, exit 0, 28.928 s. Includes
+  startup, shared rendering, navigation, curated-avatar migration, audio and encoding.
+- Final combined source/test TypeScript check: exit 0. The adaptive portrait
+  stylesheet uses the actual dark-or-light theme return type, rather than the
+  existing dark-only ThemeColors alias.
+- Route check: 17 routes, exit 0. UI ratchet: gradients 152, raw font sizes 94,
+  heavy weights 652, all at unchanged ceilings. Content and calendar gates: exit 0.
+- Earlier full preflight invocations correctly failed on the now-fixed test types,
+  lint imports and final theme annotation. Final gate reruns above are clean;
+  a complete preflight rerun and current-head CI are tracked on the draft PR.
 
 During verification, fixed duplicate Contacts list headers, portrait/frame
 scaling on tablet, excessive tablet enlargement, stale static navigation tests,
@@ -79,5 +88,6 @@ Existing release gates R06/R08/R09 and production-provider verification stay ope
 
 Draft PR: https://github.com/Wrexist/DeepLifeSimulator/pull/229. Initial CI
 quality passed; update/preflight found the direct expo-asset peer and three
-remaining lint warnings. Both causes are fixed in the follow-up. Final-head
-checks will be recorded after they complete.
+remaining lint warnings. Both causes are fixed in the follow-up. The subsequent theme annotation error
+is also fixed and the combined source/test type check passes. Inspect the PR
+checks for the final head; browser/unit evidence does not close native gates.

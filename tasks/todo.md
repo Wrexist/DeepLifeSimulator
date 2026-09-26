@@ -12,7 +12,8 @@ Branch `codex/visual-ux-rebuild-2026-09-26`, based on current main `9e729ac2`.
 - [x] Seven original sound effects, real Settings switch and committed-week feedback.
 - [x] Browser phone/tablet inspection, creator modes, portrait save/reload, Bank and week feedback.
 - [x] Production iOS export: 4,051 modules, 13.7 MB Hermes bundle, exit 0.
-- [ ] Final full-suite/preflight result and draft PR checks.
+- [x] Full-suite evidence and focused follow-up recorded; draft PR #229 opened.
+- [ ] Confirm final-head CI green, then complete native acceptance before merging.
 - [ ] Exact signed native build acceptance: audio/silent switch/interruption,
   VoiceOver/Larger Text, compact iPhone/iPad, purchases/restore/ads, old saves and
   background/kill/relaunch. No paid build, OTA or submission authorized here.

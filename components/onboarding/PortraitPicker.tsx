@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useTheme, type ThemeColors } from '@/hooks/useTheme';
+import { useTheme } from '@/hooks/useTheme';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { PORTRAITS, type PortraitId } from '@/lib/avatar/portraits';
@@ -38,7 +38,7 @@ export default function PortraitPicker({ value, onChange }: { value: PortraitId;
     <Text style={styles.note}>Curated portraits keep their illustrated appearance. Choose Custom for editable features that age with your life.</Text>
   </View>;
 }
-const createStyles = (theme: ThemeColors) => StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet.create({
   root: { gap: scale(12) }, heading: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
   copy: { flex: 1, alignItems: 'center', gap: scale(4) },
   name: { color: theme.text, fontSize: fontScale(16), fontWeight: '600' },
