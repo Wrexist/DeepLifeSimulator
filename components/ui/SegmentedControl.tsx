@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 /**
  * SegmentedControl - the one shared tab/segment control for the app's in-screen
  * tab bars (Market, Work, Computer). Dark-glass container, tinted active
@@ -14,8 +15,9 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Lock } from 'lucide-react-native';
-import { accent } from '@/lib/config/theme';
-import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { useTheme } from '@/hooks/useTheme';
+import { accent, withAlpha } from '@/lib/config/theme';
+
 
 export interface Segment<T extends string> {
   key: T;
@@ -64,8 +66,7 @@ interface SegmentedControlProps<T extends string> {
   scrollable?: boolean;
 }
 
-const MUTED = 'rgba(226, 232, 240, 0.45)';
-const ACTIVE_TEXT = '#F8FAFC';
+
 
 export default function SegmentedControl<T extends string>({
   segments,
@@ -77,6 +78,10 @@ export default function SegmentedControl<T extends string>({
   compact = false,
   scrollable = false,
 }: SegmentedControlProps<T>) {
+  const { theme } = useTheme();
+  const MUTED = theme.textSecondary;
+  const ACTIVE_TEXT = theme.text;
+  const material = { backgroundColor: theme.surfaceInset, borderColor: theme.border };
   const body = segments.map((seg) => {
         // A locked segment can never also be the active one in practice - the
         // unlock tier only ever rises - but if it somehow were, "locked" wins
@@ -91,7 +96,7 @@ export default function SegmentedControl<T extends string>({
                 styles.tab,
                 compact && styles.tabCompact,
                 scrollable && styles.tabScroll,
-                active && { backgroundColor: activeColor + '2E' },
+                active && { backgroundColor: withAlpha(activeColor, 0.24) },
                 locked && styles.tabLocked,
               ]}
               onPress={() => (locked ? onLockedPress?.(seg.key, seg.lockReason || '') : onChange(seg.key))}
@@ -104,7 +109,7 @@ export default function SegmentedControl<T extends string>({
               accessibilityLabel={locked ? `${seg.label}, locked. ${seg.lockReason || ''}`.trim() : seg.label}
             >
               {Icon ? <Icon size={compact ? scale(14) : scale(16)} color={active ? activeColor : MUTED} /> : null}
-              <Text style={[styles.text, compact && styles.textCompact, { color: active ? ACTIVE_TEXT : MUTED }]} numberOfLines={1}>
+              <Text style={[styles.text, compact && styles.textCompact, { color: active ? ACTIVE_TEXT : MUTED }]} >
                 {seg.label}
               </Text>
             </TouchableOpacity>
@@ -127,7 +132,7 @@ export default function SegmentedControl<T extends string>({
         // (screenshot report, 2026-09-04). The non-scrollable branch is a plain
         // View and was never affected, which is why only the two `scrollable`
         // callers (Bank Pro, LuxuryApp) showed it.
-        style={[styles.container, compact && styles.containerCompact, styles.scrollSelf, style]}
+        style={[styles.container, material, compact && styles.containerCompact, styles.scrollSelf, style]}
         contentContainerStyle={styles.scrollContent}
         accessibilityRole="tablist"
       >
@@ -136,7 +141,7 @@ export default function SegmentedControl<T extends string>({
     );
   }
   return (
-    <View style={[styles.container, compact && styles.containerCompact, style]} accessibilityRole="tablist">
+    <View style={[styles.container, material, compact && styles.containerCompact, style]} accessibilityRole="tablist">
       {body}
     </View>
   );
@@ -149,15 +154,15 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: scale(4),
-    gap: scale(4),
+    padding: layoutSpace.xs,
+    gap: layoutSpace.xs,
   },
   // Subordinate (nested) look: flatter fill, tighter padding, no rim.
   containerCompact: {
     backgroundColor: 'rgba(15, 23, 42, 0.32)',
     borderColor: 'transparent',
-    padding: scale(3),
-    gap: scale(3),
+    padding: layoutSpace.xs,
+    gap: layoutSpace.xs,
   },
   /**
    * Hold the horizontal control to its content height. See the note at the
@@ -170,8 +175,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexDirection: 'row',
-    gap: scale(4),
-    paddingRight: scale(4),
+    gap: layoutSpace.xs,
+    paddingRight: layoutSpace.xs,
   },
   /**
    * Content-width segments for the scrollable variant - in LONGHAND, because
@@ -195,7 +200,7 @@ const styles = StyleSheet.create({
     flexBasis: 'auto',
   },
   tabScroll: {
-    paddingHorizontal: scale(12),
+    paddingHorizontal: layoutSpace.compact,
     // `styles.tab` sets `flex: 1` for the SHARED-row variant; a scrolling row
     // must not share, or the same basis-0% collapse applies one level down.
     flexGrow: 0,
@@ -213,25 +218,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: scale(6),
+    gap: layoutSpace.xs,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.sm,
     minHeight: scale(40),
   },
   tabCompact: {
-    gap: scale(5),
+    gap: layoutSpace.xs,
     paddingVertical: responsiveSpacing.xs,
-    minHeight: scale(32),
+    minHeight: Math.max(44, scale(40)),
   },
   // Matches the dimming the app grids use for locked entries.
   tabLocked: {
-    opacity: 0.45,
+    opacity: 0.75,
   },
   text: {
-    fontSize: fontScale(12.5),
+    fontSize: fontScale(12),
     fontWeight: '600',
   },
   textCompact: {
-    fontSize: fontScale(11.5),
+    fontSize: fontScale(12),
   },
 });

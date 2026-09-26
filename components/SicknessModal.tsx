@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -176,7 +177,7 @@ function SicknessModal() {
       case 'mild': return '#F59E0B';
       case 'serious': return '#EF4444';
       case 'critical': return '#DC2626';
-      default: return '#64748B';
+      default: return uiPalette.lightMuted;
     }
   };
 
@@ -197,7 +198,7 @@ function SicknessModal() {
       case 'energy': return <Zap size={16} color={STAT_IDENTITY.energy.color} />;
       case 'happiness': return <Smile size={16} color={STAT_IDENTITY.happiness.color} />;
       case 'fitness': return <Dumbbell size={16} color={STAT_IDENTITY.fitness.color} />;
-      default: return <Activity size={16} color="#64748B" />;
+      default: return <Activity size={16} color={uiPalette.lightMuted} />;
     }
   };
 
@@ -322,8 +323,8 @@ function SicknessModal() {
               <View style={styles.header}>
                 <View style={styles.headerLeft}>
                   <View style={styles.headerIconContainer}>
-                    <Stethoscope size={24} color={darkMode ? '#60A5FA' : '#3B82F6'} />
-                    <Sparkles size={12} color={darkMode ? '#60A5FA' : '#3B82F6'} style={styles.sparkleIcon} />
+                    <Stethoscope size={24} color={darkMode ? uiPalette.blue : '#3B82F6'} />
+                    <Sparkles size={12} color={darkMode ? uiPalette.blue : '#3B82F6'} style={styles.sparkleIcon} />
                   </View>
                   <View>
                     <Text style={[styles.title, darkMode && styles.titleDark]}>
@@ -342,7 +343,7 @@ function SicknessModal() {
                   {...CLOSE_BUTTON_A11Y}
                 >
                   <View style={[styles.closeButtonInner, darkMode && styles.closeButtonInnerDark]}>
-                    <X size={18} color={darkMode ? '#FFFFFF' : '#1E293B'} />
+                    <X size={18} color={darkMode ? uiPalette.white : uiPalette.surface} />
                   </View>
                 </TouchableOpacity>
               </View>
@@ -436,7 +437,7 @@ function SicknessModal() {
                       end={{ x: 1, y: 1 }}
                       style={styles.treatmentButtonGradient}
                     >
-                      <Stethoscope size={20} color="#FFFFFF" />
+                      <Stethoscope size={20} color={uiPalette.white} />
                       <Text style={styles.treatmentButtonText}>Visit Doctor</Text>
                       <Text style={styles.treatmentButtonPrice}>${doctorPrice.toLocaleString()}</Text>
                     </LinearGradient>
@@ -472,7 +473,7 @@ function SicknessModal() {
                       end={{ x: 1, y: 1 }}
                       style={styles.treatmentButtonGradient}
                     >
-                      <Heart size={20} color="#FFFFFF" />
+                      <Heart size={20} color={uiPalette.white} />
                       <Text style={styles.treatmentButtonText}>Hospital Stay</Text>
                       <Text style={styles.treatmentButtonPrice}>${hospitalPrice.toLocaleString()}</Text>
                     </LinearGradient>
@@ -530,7 +531,7 @@ function SicknessModal() {
                         {template && template.description && (
                           <View style={styles.diseaseDescription}>
                             <View style={styles.descriptionHeader}>
-                              <Info size={14} color="#FFFFFF" />
+                              <Info size={14} color={uiPalette.white} />
                               <Text style={[styles.descriptionTitle, darkMode && styles.descriptionTitleDark]}>
                                 Description
                               </Text>
@@ -545,7 +546,7 @@ function SicknessModal() {
                         {(contractedWeek !== null || duration > 0) && (
                           <View style={styles.diseaseTimeline}>
                             <View style={styles.timelineHeader}>
-                              <Clock size={14} color="#FFFFFF" />
+                              <Clock size={14} color={uiPalette.white} />
                               <Text style={[styles.timelineTitle, darkMode && styles.timelineTitleDark]}>
                                 Timeline
                               </Text>

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -114,7 +115,7 @@ export default function LoadingButton({
       accessibilityState={accessibilityProps.accessibilityState}
     >
       <LinearGradient
-        colors={(isDisabled ? ['#94A3B8', '#64748B'] : colors) as unknown as readonly [string, string]}
+        colors={(isDisabled ? [uiPalette.muted, uiPalette.lightMuted] : colors) as unknown as readonly [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[
@@ -130,7 +131,7 @@ export default function LoadingButton({
           {loading && (
             <ActivityIndicator
               size="small"
-              color="#FFFFFF"
+              color={uiPalette.white}
               style={styles.spinner}
             />
           )}
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
     marginRight: responsiveSpacing.xs,
   },
   text: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(148, 163, 184, 0.35)',
   },
   textTonal: {
-    color: '#E2E8F0',
+    color: uiPalette.line,
   },
 });
 

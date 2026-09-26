@@ -673,7 +673,7 @@ describe('the device surfaces are gated on OWNERSHIP, not on a chapter', () => {
     }
   });
 
-  it('the real gate still lives in the layout (the control)', () => {
+  it('the stable Apps tab keeps ownership enforcement in its launchers', () => {
     // If this ever disappears, the Apps tab becomes ungated entirely and the
     // tier-0 rows above stop being safe.
     const fs = require('fs') as typeof import('fs');
@@ -682,8 +682,12 @@ describe('the device surfaces are gated on OWNERSHIP, not on a chapter', () => {
       path.join(__dirname, '..', '..', 'app/(tabs)/_layout.tsx'), 'utf8',
     );
 
-    expect(layout).toMatch(/const ownsAnyDevice = ownsSmartphone \|\| ownsComputer;/);
-    expect(layout).toMatch(/href: \(isInPrison \|\| !ownsAnyDevice\) \? null : undefined/);
+    expect(layout).toMatch(/name="apps"/);
+    for (const route of ['mobile', 'computer']) {
+      const screen = fs.readFileSync(path.join(__dirname, '..', '..', 'app/(tabs)', `${route}.tsx`), 'utf8');
+      expect(screen).toContain('NoDeviceState');
+      expect(screen).toMatch(/\?\.owned/);
+    }
   });
 
   it('the app GRID inside them is still tier-gated (the control)', () => {

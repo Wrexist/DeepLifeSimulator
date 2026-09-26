@@ -1,3 +1,5 @@
+import FinanceOverview from '@/components/finance/FinanceOverview';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * AdvancedBankApp - "Bank Pro" desktop banking screen.
  *
@@ -52,7 +54,7 @@ import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import {
@@ -984,7 +986,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 {/* A gradient from a colour to itself is a flat fill with a
                     shader attached - so it is a flat fill. */}
                 <View style={[styles.ctaInner, { backgroundColor: pal.hex }]}>
-                  <Coins size={scale(16)} color="#fff" />
+                  <Coins size={scale(16)} color={uiPalette.white} />
                   <Text style={styles.ctaText}>Deposit</Text>
                 </View>
               </TouchableOpacity>
@@ -1204,7 +1206,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
       >
-        {activeTab === 'overview' && renderStatement()}
+        {activeTab === 'overview' && <><FinanceOverview />{renderStatement()}</>}
         {activeTab === 'accounts' && renderAccounts()}
         {activeTab === 'borrow' && renderBorrow()}
         {activeTab === 'budget' && renderBudget()}
@@ -1892,7 +1894,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
   },
-  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '600' },
+  ctaText: { color: uiPalette.white, fontSize: responsiveFontSize.md, fontWeight: '600' },
   detailSecondaryRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,

@@ -1,3 +1,6 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * GradientButton - a modern, tactile CTA with real depth.
  *
@@ -10,7 +13,7 @@
 import React, { useRef } from 'react';
 import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
-import { fontScale, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+
 import { haptic } from '@/utils/haptics';
 
 interface GradientButtonProps {
@@ -48,15 +51,16 @@ export default function GradientButton({
   accessibilityLabel,
   emphasis = 'primary',
 }: GradientButtonProps) {
+  const reduced = useReducedMotion();
   const secondary = emphasis === 'secondary';
   const press = useRef(new Animated.Value(0)).current;
   const idRef = useRef(`gb${_gid++}`);
   const gid = idRef.current;
 
-  const scaleAnim = press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] });
+  const scaleAnim = press.interpolate({ inputRange: [0, 1], outputRange: [1, reduced ? 1 : 0.97] });
 
   const animateTo = (v: number) =>
-    Animated.timing(press, { toValue: v, duration: 90, useNativeDriver: true }).start();
+    Animated.timing(press, { toValue: v, duration: reduced ? 0 : 140, useNativeDriver: true }).start();
 
   // Colored glow gives the depth/immersion; suppressed when disabled. The glow
   // view carries the SAME borderRadius so the shadow is rounded (not a hard
@@ -117,9 +121,9 @@ export default function GradientButton({
                 {/* Glass shine: soft white highlight that fades out by mid-height
                     (full-height + rounded so there's no hard cut-off line). */}
                 <SvgLinearGradient id={`${gid}-shine`} x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.2} />
-                  <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={0} />
-                  <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+                  <Stop offset="0" stopColor={uiPalette.white} stopOpacity={0.2} />
+                  <Stop offset="0.5" stopColor={uiPalette.white} stopOpacity={0} />
+                  <Stop offset="1" stopColor={uiPalette.white} stopOpacity={0} />
                 </SvgLinearGradient>
               </Defs>
               {/* Rounded rects (rx/ry = the button radius) so the gradient shape
@@ -173,9 +177,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: scale(7),
-    paddingVertical: verticalScale(8),
-    paddingHorizontal: scale(14),
+    gap: layoutSpace.sm,
+    paddingVertical: layoutSpace.sm,
+    paddingHorizontal: layoutSpace.compact,
   },
   label: {
     fontSize: fontScale(13),
@@ -183,7 +187,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   labelActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   labelDisabled: {
     color: 'rgba(226, 232, 240, 0.5)',

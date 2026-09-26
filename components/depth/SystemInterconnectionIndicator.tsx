@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * System Interconnection Indicator
  * Visual indicator showing system effects when performing actions
@@ -111,15 +112,15 @@ export default function SystemInterconnectionIndicator({
         style={styles.header}
       >
         <View style={styles.headerContent}>
-          <LinkIcon size={scale(16)} color={darkMode ? '#60A5FA' : '#3B82F6'} />
+          <LinkIcon size={scale(16)} color={darkMode ? uiPalette.blue : '#3B82F6'} />
           <Text style={[styles.headerText, darkMode && styles.headerTextDark]}>
             Affects {activeInterconnections.length} system{activeInterconnections.length !== 1 ? 's' : ''}
           </Text>
           {!compact && (
             expanded ? (
-              <ChevronUp size={scale(16)} color={darkMode ? '#94A3B8' : '#64748B'} />
+              <ChevronUp size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             ) : (
-              <ChevronDown size={scale(16)} color={darkMode ? '#94A3B8' : '#64748B'} />
+              <ChevronDown size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             )
           )}
         </View>
@@ -150,13 +151,13 @@ function InterconnectionItem({
   const isPositive = interconnection.effectType === 'positive';
   const SourceIcon = SYSTEM_ICONS[interconnection.sourceSystem] || LinkIcon;
   const TargetIcon = SYSTEM_ICONS[interconnection.targetSystem] || LinkIcon;
-  const iconColor = darkMode ? '#CBD5E1' : '#334155';
+  const iconColor = darkMode ? uiPalette.secondary : uiPalette.slate;
 
   return (
     <View style={[styles.item, darkMode && styles.itemDark]}>
       <View style={styles.itemContent}>
         <SourceIcon size={scale(14)} color={iconColor} />
-        <ArrowRight size={scale(12)} color={darkMode ? '#94A3B8' : '#64748B'} />
+        <ArrowRight size={scale(12)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
         <TargetIcon size={scale(14)} color={iconColor} />
         <View style={styles.effectIndicator}>
           {isPositive ? (
@@ -175,13 +176,13 @@ function InterconnectionItem({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: responsiveBorderRadius.md,
     overflow: 'hidden',
     marginVertical: responsiveSpacing.xs,
   },
   containerDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   header: {
     paddingHorizontal: responsivePadding.small,
@@ -195,24 +196,24 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#334155',
+    color: uiPalette.slate,
     flex: 1,
   },
   headerTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   interconnectionsList: {
     paddingHorizontal: responsivePadding.small,
     paddingBottom: responsiveSpacing.sm,
   },
   item: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: responsiveBorderRadius.sm,
     padding: responsiveSpacing.sm,
     marginBottom: responsiveSpacing.xs,
   },
   itemDark: {
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
   },
   itemContent: {
     flexDirection: 'row',
@@ -224,10 +225,10 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     flex: 1,
   },
   itemTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },});
 

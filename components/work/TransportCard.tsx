@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * TransportCard - rent your way into delivery work.
  *
@@ -16,7 +18,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Bike, Zap, TrendingUp, X } from 'lucide-react-native';
-import { fontScale, scale } from '@/utils/scaling';
+
 import {
   SCOOTER_RENTAL_PLANS,
   getActiveRental,
@@ -114,72 +116,72 @@ export default function TransportCard({ gameState, onRent, onEndRental }: Transp
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: scale(14),
-    padding: scale(14),
-    marginBottom: scale(12),
+    borderRadius: layoutRadius.lg,
+    padding: layoutSpace.compact,
+    marginBottom: layoutSpace.compact,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(125, 211, 160, 0.28)',
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: scale(7) },
-  header: { color: '#F8FAFC', fontSize: fontScale(14), fontWeight: '800', flex: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: layoutSpace.sm },
+  header: { color: uiPalette.paper, fontSize: fontScale(14), fontWeight: '800', flex: 1 },
   tierLabel: { color: '#7DD3A0', fontSize: fontScale(12), fontWeight: '700' },
   deliveryLine: {
     color: 'rgba(226, 232, 240, 0.7)',
     fontSize: fontScale(12),
     fontWeight: '600',
-    marginTop: scale(5),
+    marginTop: layoutSpace.xs,
   },
   deliveryLineNone: { color: 'rgba(248, 113, 113, 0.85)' },
   advice: {
     color: 'rgba(251, 191, 36, 0.95)',
     fontSize: fontScale(11.5),
     fontWeight: '700',
-    marginTop: scale(6),
+    marginTop: layoutSpace.xs,
   },
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scale(10),
-    gap: scale(10),
+    marginTop: layoutSpace.sm,
+    gap: layoutSpace.sm,
   },
   activeInfo: { flex: 1 },
-  activeName: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '800' },
+  activeName: { color: uiPalette.paper, fontSize: fontScale(13), fontWeight: '800' },
   activeCost: { color: 'rgba(226, 232, 240, 0.6)', fontSize: fontScale(11.5), fontWeight: '600' },
   endButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(7),
-    borderRadius: scale(9),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.sm,
+    borderRadius: layoutRadius.md,
     backgroundColor: 'rgba(248, 113, 113, 0.12)',
   },
   endButtonText: { color: '#FCA5A5', fontSize: fontScale(12), fontWeight: '700' },
   planRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(10),
-    marginTop: scale(10),
-    paddingTop: scale(10),
+    gap: layoutSpace.sm,
+    marginTop: layoutSpace.sm,
+    paddingTop: layoutSpace.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(148, 163, 184, 0.18)',
   },
   planRowLocked: { opacity: 0.5 },
   planInfo: { flex: 1 },
-  planName: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '800' },
+  planName: { color: uiPalette.paper, fontSize: fontScale(13), fontWeight: '800' },
   planBlurb: {
     color: 'rgba(226, 232, 240, 0.6)',
     fontSize: fontScale(11.5),
     fontWeight: '600',
-    marginTop: scale(2),
+    marginTop: layoutSpace.xs,
   },
-  planMeta: { flexDirection: 'row', alignItems: 'center', gap: scale(4), marginTop: scale(5) },
+  planMeta: { flexDirection: 'row', alignItems: 'center', gap: layoutSpace.xs, marginTop: layoutSpace.xs },
   planMetaText: {
     color: 'rgba(226, 232, 240, 0.6)',
     fontSize: fontScale(11),
     fontWeight: '700',
-    marginRight: scale(6),
+    marginRight: layoutSpace.xs,
   },
   planCta: { color: '#7DD3A0', fontSize: fontScale(13), fontWeight: '800' },
   planCtaLocked: { color: 'rgba(226, 232, 240, 0.45)', fontSize: fontScale(11.5) },

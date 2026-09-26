@@ -1,9 +1,10 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CreditCard as CardIcon, Gift } from 'lucide-react-native';
 import { CreditCard } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -18,10 +19,10 @@ interface Props {
 // a two-tone side stripe; with the stripe gone the second tone had no reader,
 // so the pair became dead data rather than a design intent.
 const TIER_COLOR: Record<string, string> = {
-  starter: '#64748b',
+  starter: uiPalette.lightMuted,
   standard: accent.info,
   gold: '#ca8a04',
-  platinum: '#475569',
+  platinum: uiPalette.lightSecondary,
 };
 
 export default function CreditCardRow({ card, darkMode, onPress }: Props) {

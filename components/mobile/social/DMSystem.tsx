@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * DM System Component for Social App
  * 
@@ -562,7 +563,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  case'quest':
  return { icon: Star, color: '#EAB308', label: 'Quest'};
  default:
- return { icon: MessageCircle, color:'#94A3B8', label: 'Message'};
+ return { icon: MessageCircle, color:uiPalette.muted, label: 'Message'};
  }
  };
 
@@ -591,7 +592,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  accessibilityRole="button"
  accessibilityLabel="Back"
  >
- <ArrowLeft size={scale(24)} color="#F8FAFC" />
+ <ArrowLeft size={scale(24)} color={uiPalette.paper} />
  </TouchableOpacity>
  <Text style={styles.headerTitle}>Messages</Text>
  {totalUnread > 0 && (
@@ -603,11 +604,11 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
  {/* Search */}
  <View style={styles.searchContainer}>
- <Search size={scale(18)} color="#94A3B8" />
+ <Search size={scale(18)} color={uiPalette.muted} />
  <TextInput
  style={styles.searchInput}
  placeholder="Search messages..."
- placeholderTextColor="#94A3B8"
+ placeholderTextColor={uiPalette.muted}
  value={searchQuery}
  onChangeText={setSearchQuery}
  />
@@ -617,7 +618,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <ScrollView style={styles.conversationsScroll} showsVerticalScrollIndicator={false}>
  {filteredConversations.length === 0 ? (
  <View style={styles.emptyState}>
- <Mail size={scale(48)} color="#94A3B8" />
+ <Mail size={scale(48)} color={uiPalette.muted} />
  <Text style={styles.emptyStateText}>No messages yet</Text>
  <Text style={styles.emptyStateSubtext}>
  Mysterious contacts will reach out with tips and secrets...
@@ -701,7 +702,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  accessibilityRole="button"
  accessibilityLabel="Back to messages"
  >
- <ArrowLeft size={scale(24)} color="#F8FAFC" />
+ <ArrowLeft size={scale(24)} color={uiPalette.paper} />
  </TouchableOpacity>
  <View style={styles.threadHeaderInfo}>
  <Text style={styles.threadHeaderName}>{selectedConversation.senderName}</Text>
@@ -746,7 +747,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  colors={['#F59E0B','#D97706']}
  style={styles.revealClueButtonGradient}
  >
- <Eye size={14} color="#FFF"/>
+ <Eye size={14} color={uiPalette.white}/>
  <Text style={styles.revealClueButtonText}>Reveal Clue</Text>
  </LinearGradient>
  </TouchableOpacity>
@@ -778,7 +779,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <TextInput
  style={styles.messageInput}
  placeholder="Reply..."
- placeholderTextColor="#94A3B8"
+ placeholderTextColor={uiPalette.muted}
  value={messageInput}
  onChangeText={setMessageInput}
  multiline
@@ -791,7 +792,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  accessibilityLabel="Send message"
  accessibilityState={{ disabled: !messageInput.trim() }}
  >
- <Send size={scale(20)} color={messageInput.trim() ?'#3B82F6': '#94A3B8'} />
+ <Send size={scale(20)} color={messageInput.trim() ?'#3B82F6': uiPalette.muted} />
  </TouchableOpacity>
  </View>
  </View>
@@ -814,7 +815,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <View style={styles.modalOverlay}>
  <View style={styles.clueModal}>
  <LinearGradient
- colors={[`${clueInfo.color}40`,'#1E293B']}
+ colors={[`${clueInfo.color}40`,uiPalette.surface]}
  style={styles.clueModalGradient}
  >
  {/* Header */}
@@ -883,7 +884,7 @@ function formatTimestamp(timestamp: number): string {
 const styles = StyleSheet.create({
  container: {
  flex: 1,
- backgroundColor: '#0F172A',
+ backgroundColor: uiPalette.navy,
  },
  
  // Conversation List styles
@@ -897,7 +898,7 @@ const styles = StyleSheet.create({
  paddingTop: scale(16),
  paddingBottom: scale(12),
  borderBottomWidth: 1,
- borderBottomColor: '#334155',
+ borderBottomColor: uiPalette.slate,
  },
  backButton: {
  padding: scale(8),
@@ -907,7 +908,7 @@ const styles = StyleSheet.create({
  flex: 1,
  fontSize: fontScale(20),
  fontWeight: 'bold',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  },
  unreadBadge: {
  backgroundColor: '#3B82F6',
@@ -916,14 +917,14 @@ const styles = StyleSheet.create({
  paddingVertical: scale(2),
  },
  unreadBadgeText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(12),
  fontWeight: 'bold',
  },
  searchContainer: {
  flexDirection: 'row',
  alignItems: 'center',
- backgroundColor: '#1E293B',
+ backgroundColor: uiPalette.surface,
  borderRadius: scale(20),
  margin: scale(16),
  paddingHorizontal: scale(16),
@@ -931,7 +932,7 @@ const styles = StyleSheet.create({
  },
  searchInput: {
  flex: 1,
- color: '#F8FAFC',
+ color: uiPalette.paper,
  fontSize: fontScale(14),
  marginLeft: scale(10),
  },
@@ -943,13 +944,13 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  padding: scale(16),
  borderBottomWidth: 1,
- borderBottomColor: '#334155',
+ borderBottomColor: uiPalette.slate,
  },
  avatar: {
  width: scale(50),
  height: scale(50),
  borderRadius: scale(25),
- backgroundColor: '#334155',
+ backgroundColor: uiPalette.slate,
  alignItems: 'center',
  justifyContent: 'center',
  position: 'relative',
@@ -982,16 +983,16 @@ const styles = StyleSheet.create({
  conversationName: {
  fontSize: fontScale(15),
  fontWeight: '600',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  },
  conversationHandle: {
  fontSize: fontScale(13),
- color: '#94A3B8',
+ color: uiPalette.muted,
  marginTop: scale(2),
  },
  conversationPreview: {
  fontSize: fontScale(13),
- color: '#94A3B8',
+ color: uiPalette.muted,
  marginTop: scale(4),
  },
  clueTypeBadge: {
@@ -1005,7 +1006,7 @@ const styles = StyleSheet.create({
  },
  conversationTime: {
  fontSize: fontScale(12),
- color: '#94A3B8',
+ color: uiPalette.muted,
  },
  unreadDot: {
  backgroundColor: '#3B82F6',
@@ -1017,7 +1018,7 @@ const styles = StyleSheet.create({
  marginTop: scale(6),
  },
  unreadDotText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(11),
  fontWeight: 'bold',
  },
@@ -1029,12 +1030,12 @@ const styles = StyleSheet.create({
  emptyStateText: {
  fontSize: fontScale(18),
  fontWeight: '600',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  marginTop: scale(16),
  },
  emptyStateSubtext: {
  fontSize: fontScale(14),
- color: '#94A3B8',
+ color: uiPalette.muted,
  textAlign: 'center',
  marginTop: scale(8),
  },
@@ -1050,7 +1051,7 @@ const styles = StyleSheet.create({
  paddingTop: scale(16),
  paddingBottom: scale(12),
  borderBottomWidth: 1,
- borderBottomColor: '#334155',
+ borderBottomColor: uiPalette.slate,
  },
  threadHeaderInfo: {
  flex: 1,
@@ -1058,11 +1059,11 @@ const styles = StyleSheet.create({
  threadHeaderName: {
  fontSize: fontScale(16),
  fontWeight: 'bold',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  },
  threadHeaderHandle: {
  fontSize: fontScale(13),
- color: '#94A3B8',
+ color: uiPalette.muted,
  },
  mysteriousTag: {
  flexDirection: 'row',
@@ -1093,7 +1094,7 @@ const styles = StyleSheet.create({
  marginBottom: scale(12),
  },
  otherMessage: {
- backgroundColor: '#334155',
+ backgroundColor: uiPalette.slate,
  alignSelf: 'flex-start',
  borderBottomLeftRadius: scale(4),
  ...getPlatformShadows(3, 0.18, 2, 6),
@@ -1106,15 +1107,15 @@ const styles = StyleSheet.create({
  },
  messageText: {
  fontSize: fontScale(14),
- color: '#F8FAFC',
+ color: uiPalette.paper,
  lineHeight: fontScale(20),
  },
  playerMessageText: {
- color: '#FFF',
+ color: uiPalette.white,
  },
  messageTime: {
  fontSize: fontScale(11),
- color: '#94A3B8',
+ color: uiPalette.muted,
  marginTop: scale(6),
  },
  playerMessageTime: {
@@ -1133,7 +1134,7 @@ const styles = StyleSheet.create({
  paddingHorizontal: scale(12),
  },
  revealClueButtonText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(12),
  fontWeight: '600',
  marginLeft: scale(6),
@@ -1157,17 +1158,17 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  padding: scale(12),
  borderTopWidth: 1,
- borderTopColor: '#334155',
- backgroundColor: '#0F172A',
+ borderTopColor: uiPalette.slate,
+ backgroundColor: uiPalette.navy,
  ...getPlatformShadows(8, 0.3, -4, 16),
  },
  messageInput: {
  flex: 1,
- backgroundColor: '#1E293B',
+ backgroundColor: uiPalette.surface,
  borderRadius: scale(20),
  paddingHorizontal: scale(16),
  paddingVertical: scale(10),
- color: '#F8FAFC',
+ color: uiPalette.paper,
  fontSize: fontScale(14),
  maxHeight: scale(100),
  },
@@ -1211,7 +1212,7 @@ const styles = StyleSheet.create({
  clueModalType: {
  fontSize: fontScale(18),
  fontWeight: 'bold',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  },
  clueModalContent: {
  backgroundColor: 'rgba(0,0,0,0.3)',
@@ -1221,7 +1222,7 @@ const styles = StyleSheet.create({
  },
  clueModalHint: {
  fontSize: fontScale(16),
- color: '#F8FAFC',
+ color: uiPalette.paper,
  fontWeight: '600',
  marginBottom: scale(16),
  },
@@ -1230,7 +1231,7 @@ const styles = StyleSheet.create({
  },
  clueRewardLabel: {
  fontSize: fontScale(12),
- color: '#94A3B8',
+ color: uiPalette.muted,
  marginBottom: scale(4),
  },
  clueRewardValue: {
@@ -1241,12 +1242,12 @@ const styles = StyleSheet.create({
  clueActionSection: {},
  clueActionLabel: {
  fontSize: fontScale(12),
- color: '#94A3B8',
+ color: uiPalette.muted,
  marginBottom: scale(4),
  },
  clueActionValue: {
  fontSize: fontScale(14),
- color: '#60A5FA',
+ color: uiPalette.blue,
  fontWeight: '600',
  },
  clueModalButton: {
@@ -1256,7 +1257,7 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  },
  clueModalButtonText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(16),
  fontWeight: 'bold',
  },

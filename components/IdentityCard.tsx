@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { View,
   Text,
@@ -86,7 +87,7 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
               hitSlop={hitSlopToMinTarget(scale(40))}
               {...CLOSE_BUTTON_A11Y}
             >
-              <X size={scale(24)} color={darkMode ? '#fff' : '#000'} />
+              <X size={scale(24)} color={darkMode ? uiPalette.white : '#000'} />
             </TouchableOpacity>
           </View>
           
@@ -524,7 +525,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // The one number that moves week to week rides under net worth, signed
   // and coloured by direction; the breakdown stays one tap away in Details.
   const cashFlowLabel = `${cashFlow >= 0 ? '+' : '-'}${formatMoney(Math.abs(cashFlow))}`;
-  const cashFlowColor = cashFlow > 0 ? '#34D399' : cashFlow < 0 ? '#F87171' : '#94A3B8';
+  const cashFlowColor = cashFlow > 0 ? '#34D399' : cashFlow < 0 ? '#F87171' : uiPalette.muted;
 
   return (
     <View style={styles.cardContainer}>
@@ -537,6 +538,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           worth, with this week's cash flow under it). Everything that is
           reference lives behind Details, closed by default. */}
       <View style={[styles.card, styles.strip]}>
+        <Image source={require('@/assets/images/home/city.webp')} style={styles.heroBackdrop} resizeMode="contain" accessible={false} />
         <View style={styles.stripAvatar}>
           {/* The ring lives on a wrapper: the avatar is an SVG, so a border on
               the element itself would not follow the circular clip. */}
@@ -548,7 +550,8 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               seed={name}
               sex={sex}
               age={date?.age ?? 0}
-              size={48}
+              size={scale(80)}
+              circular={false}
               alive
             />
           </View>
@@ -571,14 +574,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 accessibilityHint="Opens the Prestige Shop"
               >
                 <View style={[styles.prestigeBadgeGradient, { backgroundColor: '#F59E0B' }]}>
-                  <Crown size={14} color="#FFFFFF" />
+                  <Crown size={14} color={uiPalette.white} />
                   <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
                 </View>
               </TouchableOpacity>
             ) : (
               <View style={styles.prestigeBadge}>
                 <View style={[styles.prestigeBadgeGradient, { backgroundColor: '#F59E0B' }]}>
-                  <Crown size={14} color="#FFFFFF" />
+                  <Crown size={14} color={uiPalette.white} />
                   <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
                 </View>
               </View>
@@ -591,8 +594,8 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           <Text style={[styles.name, styles.nameDark]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
             {name}
           </Text>
-          <Text style={styles.stripMeta} numberOfLines={1}>
-            {job} · {relationshipStatus}
+          <Text style={styles.stripMeta} numberOfLines={2}>
+            Age {Math.floor(date?.age ?? 18)} | {job} | {relationshipStatus}
           </Text>
           {/* Login-streak badge - surfaces the daily-reward streak outside the
               popup so loss aversion can do its job. */}
@@ -620,7 +623,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             {t('game.netWorth')}
           </Text>
           <Text style={[styles.stripFlow, { color: cashFlowColor }]} numberOfLines={1}>
-            {cashFlowLabel}/wk
+            {cashFlowLabel}/wk forecast
           </Text>
         </TouchableOpacity>
       </View>
@@ -703,7 +706,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               {t('game.weeklyCashFlow')}: {formatMoney(cashFlow)}
             </Text>
           </View>
-          <ChevronRight size={20} color="#94A3B8" />
+          <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowPerks(true)}>
           <View style={styles.listItemContent}>
@@ -712,7 +715,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               {perksCount} {t('game.perks')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#94A3B8" />
+          <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowTraits(true)}>
           <View style={styles.listItemContent}>
@@ -721,7 +724,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               {traitsCount} {t('game.traits')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#94A3B8" />
+          <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
         {gameState.mindset?.activeTraitId && (
           <TouchableOpacity style={styles.listItem} onPress={() => setShowMindset(true)}>
@@ -731,7 +734,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 Mindset: {MINDSET_TRAITS.find(t => t.id === gameState.mindset?.activeTraitId)?.name || 'Unknown'}
               </Text>
             </View>
-            <ChevronRight size={20} color="#94A3B8" />
+            <ChevronRight size={20} color={uiPalette.muted} />
           </TouchableOpacity>
         )}
         {hasRememberedLives(gameState.previousLives, archivedLifeCount) && (
@@ -744,7 +747,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                   : `Remembered lives (${archivedLifeCount})`}
               </Text>
             </View>
-            <ChevronRight size={20} color="#94A3B8" />
+            <ChevronRight size={20} color={uiPalette.muted} />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.listItem} onPress={() => setShowModifiers(true)}>
@@ -754,7 +757,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               {t('game.weeklyModifiers')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#94A3B8" />
+          <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
       </View>
       </CollapsibleSection>
@@ -834,7 +837,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           </Text>
           {passiveInfo.breakdown.stocks > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <TrendingUp size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <TrendingUp size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Stocks: {formatMoney(passiveInfo.breakdown.stocks)}
               </Text>
@@ -842,7 +845,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.realEstate > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Home size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <Home size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                   Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
@@ -866,7 +869,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.companies > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Building2 size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <Building2 size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Companies: {formatMoney(passiveInfo.breakdown.companies)}
               </Text>
@@ -881,7 +884,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.socialMedia > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Smartphone size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <Smartphone size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Social Media: {formatMoney(passiveInfo.breakdown.socialMedia)}
               </Text>
@@ -889,7 +892,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.patents > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <FlaskConical size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <FlaskConical size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Patents: {formatMoney(passiveInfo.breakdown.patents)}
               </Text>
@@ -897,7 +900,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.businessOpportunities > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <Sparkles size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Business Opportunities: {formatMoney(passiveInfo.breakdown.businessOpportunities)}
               </Text>
@@ -908,7 +911,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               list money the section total no longer contains. */}
           {luxuryYield > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <Sparkles size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Luxury Yield: {formatMoney(luxuryYield)}
               </Text>
@@ -916,7 +919,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.gamingStreaming > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+              <Gamepad2 size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
               </Text>

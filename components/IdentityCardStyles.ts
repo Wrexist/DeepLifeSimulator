@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Styles for IdentityCard. Extracted verbatim to slim the component file.
  * Static module-level StyleSheet.
@@ -18,7 +19,7 @@ export const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.lg,
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     ...Platform.select({
       web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)' } as any,
       default: {
@@ -32,8 +33,14 @@ export const styles = StyleSheet.create({
     borderWidth: 0,
   },
   /** The compact identity strip (Program 4): avatar · name + facts · net worth. */
+  heroBackdrop: { position: 'absolute', right: 0, top: 0, width: '60%', height: '100%', opacity: 0.12 },
   strip: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    overflow: 'hidden',
+    minHeight: scale(144),
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
     alignItems: 'center',
     gap: scale(12),
     padding: responsiveSpacing.md,
@@ -44,17 +51,20 @@ export const styles = StyleSheet.create({
   },
   stripText: {
     flex: 1,
-    minWidth: 0,
-    gap: scale(2),
+    minWidth: scale(120),
+    gap: scale(8),
   },
   stripMeta: {
     ...tier4,
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   stripWorth: {
-    alignItems: 'flex-end',
     flexShrink: 0,
-    maxWidth: '42%',
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: scale(8),
     minHeight: scale(44),
     justifyContent: 'center',
   },
@@ -62,13 +72,13 @@ export const styles = StyleSheet.create({
     fontSize: fontScale(17),
     lineHeight: fontScale(22),
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.2,
   },
   stripWorthLabel: {
     ...tier4,
-    color: '#64748B',
+    color: uiPalette.muted,
   },
   stripFlow: {
     ...tier4,
@@ -79,9 +89,9 @@ export const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
   },
   avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: scale(84),
+    height: scale(84),
+    borderRadius: scale(24),
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     // Now wraps an SVG rather than being an <Image>: centre and clip the child
@@ -114,7 +124,7 @@ export const styles = StyleSheet.create({
     ...tier2,
     fontSize: fontScale(16),
     lineHeight: fontScale(21),
-    color: '#0F172A',
+    color: uiPalette.navy,
     // Light mode: subtle text shadow for name
     ...Platform.select({
       web: { textShadow: '0px 1px 2px rgba(0,0,0,0.1)' } as any,
@@ -127,17 +137,17 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   nameDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     textShadowColor: 'transparent',
   },
   text: {
     fontSize: responsiveFontSize.lg,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 2,
     fontWeight: '600',
   },
   textDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -175,12 +185,12 @@ export const styles = StyleSheet.create({
   statValue: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     textAlign: 'center',
     letterSpacing: -0.2,
   },
   statValueDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   list: {
     borderRadius: responsiveBorderRadius.xl,
@@ -215,11 +225,11 @@ export const styles = StyleSheet.create({
   },
   listLabel: {
     fontSize: fontScale(14),
-    color: '#334155',
+    color: uiPalette.slate,
     marginLeft: responsiveSpacing.sm,
   },
   listLabelDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   modalOverlay: {
     flex: 1,
@@ -235,12 +245,12 @@ export const styles = StyleSheet.create({
     maxWidth: scale(600),
     height: '90%',
     maxHeight: scale(800),
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
     overflow: 'hidden',
     ...getShadow(20, '#000'),
   },
   modalDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   modalHeaderNew: {
     flexDirection: 'row',
@@ -261,11 +271,11 @@ export const styles = StyleSheet.create({
   modalTitleNew: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
     flexShrink: 1,
   },
   modalTitleNewDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   modalCloseButton: {
     padding: scale(8),
@@ -283,11 +293,11 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
-    color: '#1E293B',
+    color: uiPalette.surface,
     textAlign: 'center',
   },
   modalTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   modalContent: {
     flex: 1,
@@ -303,47 +313,47 @@ export const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: fontScale(22),
     fontWeight: '700',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginBottom: scale(18),
     lineHeight: fontScale(28),
   },
   modalSectionTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: scale(12),
     padding: scale(18),
     marginBottom: scale(14),
     gap: scale(10),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
     minHeight: scale(50),
   },
   modalItemDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   modalText: {
     fontSize: fontScale(17),
-    color: '#1E293B',
+    color: uiPalette.surface,
     flex: 1,
     fontWeight: '600',
     lineHeight: fontScale(24),
   },
   modalTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   modalSubText: {
     fontSize: fontScale(15),
-    color: '#64748B',
+    color: uiPalette.muted,
     flex: 1,
     lineHeight: fontScale(22),
   },
   modalSubTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   negativeText: {
     color: '#DC2626',
@@ -355,23 +365,23 @@ export const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: responsiveFontSize.lg,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '600',
   },
 
   // Trait bonus styles
   traitContainer: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: scale(12),
     padding: scale(18),
     marginBottom: scale(14),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
     minHeight: scale(60),
   },
   traitContainerDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   traitHeader: {
     flexDirection: 'row',
@@ -381,12 +391,12 @@ export const styles = StyleSheet.create({
   traitName: {
     fontSize: fontScale(17),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginLeft: responsiveSpacing.xs,
     lineHeight: fontScale(24),
   },
   traitNameDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   traitBonuses: {
     marginLeft: responsiveSpacing.lg,
@@ -396,7 +406,7 @@ export const styles = StyleSheet.create({
   },
   bonusText: {
     fontSize: fontScale(15),
-    color: '#64748B',
+    color: uiPalette.muted,
     lineHeight: fontScale(22),
   },
   modalSubSection: {
@@ -416,7 +426,7 @@ export const styles = StyleSheet.create({
     marginLeft: scale(12),
   },
   bonusTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   positiveBonus: {
     color: '#10B981',
@@ -489,7 +499,7 @@ export const styles = StyleSheet.create({
   prestigeBadgeText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   streakBadge: {
     flexDirection: 'row',

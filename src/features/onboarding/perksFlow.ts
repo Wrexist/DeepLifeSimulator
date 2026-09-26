@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Perk selection logic for the onboarding Perks screen.
  *
@@ -178,7 +179,7 @@ export function getStatColor(stat: string): string {
     case 'Income Boost':
       return STAT_IDENTITY.money.color;
     default:
-      return STAT_IDENTITY[stat]?.color ?? '#64748B';
+      return STAT_IDENTITY[stat]?.color ?? uiPalette.lightMuted;
   }
 }
 

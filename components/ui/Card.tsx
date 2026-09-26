@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , scale, responsiveBorderRadius } from '@/utils/scaling';
 /**
  * Card - THE home-feed card container. One card, one border.
  *
@@ -20,10 +21,12 @@
  * consumer's `import Card from` trip `import/no-named-as-default` - nine
  * lint warnings for one avoidable ambiguity.
  */
+import { useTheme } from '@/hooks/useTheme';
+import { colors, withAlpha } from '@/lib/config/theme';
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { scale, responsiveBorderRadius } from '@/utils/scaling';
+
 
 /** The shared container style, for cards whose root must stay a touchable. */
 export const cardStyle: ViewStyle = {
@@ -32,14 +35,14 @@ export const cardStyle: ViewStyle = {
   // neighbours (IdentityCard, the coach) - the one card type on Home that
   // was visibly narrower than the rest. Education's Cards had been overriding
   // this to 0 for the same reason. Containers own the gutter; cards fill it.
-  marginBottom: scale(12),
-  padding: scale(14),
+  marginBottom: layoutSpace.compact,
+  padding: layoutSpace.md,
   borderRadius: responsiveBorderRadius.lg,
-  backgroundColor: 'rgba(30, 41, 59, 0.75)',
+  backgroundColor: colors.dark.surface,
   borderWidth: 1,
   // The neutral hairline - the one border color a feed card gets.
-  borderColor: 'rgba(255, 255, 255, 0.08)',
-  gap: scale(12),
+  borderColor: colors.dark.border,
+  gap: layoutSpace.compact,
 };
 
 export function Card({
@@ -49,7 +52,8 @@ export function Card({
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const { theme } = useTheme();
+  return <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }, style]}>{children}</View>;
 }
 
 /**
@@ -72,7 +76,7 @@ export function IconBubble({
     <View
       style={[
         styles.iconBubble,
-        { backgroundColor: `${color}21`, borderColor: `${color}66` },
+        { backgroundColor: withAlpha(color, 0.13), borderColor: withAlpha(color, 0.4) },
         style,
       ]}
     >
@@ -86,7 +90,7 @@ const styles = StyleSheet.create({
   iconBubble: {
     width: scale(40),
     height: scale(40),
-    borderRadius: scale(12),
+    borderRadius: layoutRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

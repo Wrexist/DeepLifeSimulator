@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * PostDetailScreen - full view of a single post + its comment thread.
  *
@@ -140,7 +141,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
               }}
               style={styles.avatar}
               placeholderColor={PULSE_COLORS.tierCelebrity}
-              placeholderTextColor="#FFFFFF"
+              placeholderTextColor={uiPalette.white}
             />
             <View style={styles.authorMeta}>
               <Text style={[styles.handle, { color: theme.text }]}>@{String(handle ?? '').replace(/^@+/, '')}</Text>
@@ -235,7 +236,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
             style={[styles.sendBtn, !draft.trim() && styles.sendBtnDisabled, { backgroundColor: PULSE_COLORS.tierCelebrity }]}
             hitSlop={6}
           >
-            <Send size={fontScale(16)} color="#FFFFFF" />
+            <Send size={fontScale(16)} color={uiPalette.white} />
           </Pressable>
         </View>
         {error ? (

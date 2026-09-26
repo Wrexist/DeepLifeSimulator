@@ -1,3 +1,4 @@
+import SceneCard from '@/components/ui/SceneCard';
 /**
  * DashboardScreen - multi-company overview.
  *
@@ -177,6 +178,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
+        <SceneCard scene="studio" title="Build something of your own" subtitle="Your ideas. Your decisions. Your business." />
         {/* Hero - the ONE number, one sentence about it, and the bars. */}
         <View
           style={[

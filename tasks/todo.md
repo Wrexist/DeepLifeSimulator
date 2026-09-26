@@ -1,5 +1,26 @@
 # Current work
 
+## Premium presentation, characters, 3D destinations and audio - 26 September 2026
+
+Branch `codex/visual-ux-rebuild-2026-09-26`, based on current main `9e729ac2`.
+[Checklist](visual-ux-rebuild-2026-09-26.md) and
+[evidence](release/evidence/visual-ux-rebuild-2026-09-26.md).
+
+- [x] Shared presentation tokens/primitives, five-tab navigation and main-screen polish.
+- [x] Six curated GPT portraits; preserve custom avatar codec, genetics and old saves.
+- [x] Six original 3D destinations, bundled renders, reduced-motion-aware movement.
+- [x] Seven original sound effects, real Settings switch and committed-week feedback.
+- [x] Browser phone/tablet inspection, creator modes, portrait save/reload, Bank and week feedback.
+- [x] Production iOS export: 4,051 modules, 13.7 MB Hermes bundle, exit 0.
+- [ ] Final full-suite/preflight result and draft PR checks.
+- [ ] Exact signed native build acceptance: audio/silent switch/interruption,
+  VoiceOver/Larger Text, compact iPhone/iPad, purchases/restore/ads, old saves and
+  background/kill/relaunch. No paid build, OTA or submission authorized here.
+
+Prior local work remains in named stash `pre-sync-local-work-2026-09-26`.
+Do not pop it into the presentation branch. Schema remains 51; HUD structure,
+canonical weekly/save/purchase owners and production release state are unchanged.
+
 ## Purchases lost on reload (YouVideo, App Store 1.2.5 CA) — 25 September 2026
 
 Branch `claude/intelligent-davinci-386ee7`. `saveGame()` read `gameStateRef`,

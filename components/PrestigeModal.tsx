@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
@@ -242,7 +243,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X size={20} color="#94A3B8" />
+                <X size={20} color={uiPalette.muted} />
               </TouchableOpacity>
             </View>
 
@@ -403,7 +404,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         styles.pathIconContainer,
                         selectedPath === 'reset' && styles.pathIconContainerSelected,
                       ]}>
-                        <RotateCcw size={22} color={selectedPath === 'reset' ? '#3B82F6' : '#94A3B8'} />
+                        <RotateCcw size={22} color={selectedPath === 'reset' ? '#3B82F6' : uiPalette.muted} />
                       </View>
                       <View style={styles.pathTextContainer}>
                         <Text style={[
@@ -427,7 +428,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                     </View>
                     <View style={styles.pathBenefits}>
                       <View style={styles.benefitItem}>
-                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#94A3B8'} />
+                        <Check size={14} color={selectedPath === 'reset' ? uiPalette.blue : uiPalette.muted} />
                         <Text style={[
                           styles.benefitText,
                           selectedPath === 'reset' && styles.benefitTextSelected,
@@ -436,7 +437,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         </Text>
                       </View>
                       <View style={styles.benefitItem}>
-                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#94A3B8'} />
+                        <Check size={14} color={selectedPath === 'reset' ? uiPalette.blue : uiPalette.muted} />
                         <Text style={[
                           styles.benefitText,
                           selectedPath === 'reset' && styles.benefitTextSelected,
@@ -445,7 +446,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         </Text>
                       </View>
                       <View style={styles.benefitItem}>
-                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#94A3B8'} />
+                        <Check size={14} color={selectedPath === 'reset' ? uiPalette.blue : uiPalette.muted} />
                         <Text style={[
                           styles.benefitText,
                           selectedPath === 'reset' && styles.benefitTextSelected,
@@ -490,7 +491,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                         selectedPath === 'child' && styles.pathIconContainerSelected,
                         children.length === 0 && styles.pathIconContainerDisabled,
                       ]}>
-                        <Users size={22} color={selectedPath === 'child' ? '#8B5CF6' : children.length === 0 ? '#475569' : '#94A3B8'} />
+                        <Users size={22} color={selectedPath === 'child' ? '#8B5CF6' : children.length === 0 ? uiPalette.lightSecondary : uiPalette.muted} />
                       </View>
                       <View style={styles.pathTextContainer}>
                         <Text style={[
@@ -520,7 +521,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                       <>
                         <View style={styles.pathBenefits}>
                           <View style={styles.benefitItem}>
-                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#94A3B8'} />
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : uiPalette.muted} />
                             <Text style={[
                               styles.benefitText,
                               selectedPath === 'child' && styles.benefitTextSelected,
@@ -529,7 +530,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                             </Text>
                           </View>
                           <View style={styles.benefitItem}>
-                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#94A3B8'} />
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : uiPalette.muted} />
                             <Text style={[
                               styles.benefitText,
                               selectedPath === 'child' && styles.benefitTextSelected,
@@ -538,7 +539,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                             </Text>
                           </View>
                           <View style={styles.benefitItem}>
-                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#94A3B8'} />
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : uiPalette.muted} />
                             <Text style={[
                               styles.benefitText,
                               selectedPath === 'child' && styles.benefitTextSelected,
@@ -697,7 +698,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 activeOpacity={0.8}
                 disabled={selectedPath === 'child' && children.length > 0 && !selectedChildId}
               >
-                <Crown size={18} color="#FFFFFF" />
+                <Crown size={18} color={uiPalette.white} />
                 <Text style={styles.prestigeButtonText}>
                   Prestige
                 </Text>
@@ -766,7 +767,7 @@ const styles = StyleSheet.create({
     maxHeight: 700,
   },
   content: {
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
@@ -813,11 +814,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: fontScale(14),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 4,
     fontWeight: '500',
   },
@@ -876,7 +877,7 @@ const styles = StyleSheet.create({
   },
   pointsValue: {
     ...tier1Value,
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   breakdown: {
     gap: 12,
@@ -891,7 +892,7 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: fontScale(13),
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     fontWeight: '500',
   },
   breakdownValue: {
@@ -910,7 +911,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...tier2,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: 16,
   },
   pathSectionTitle: {
@@ -940,12 +941,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginTop: 4,
   },
   statLabel: {
     fontSize: fontScale(11),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 4,
     fontWeight: '500',
   },
@@ -998,25 +999,25 @@ const styles = StyleSheet.create({
   },
   pathTitle: {
     ...tier2,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: 6,
   },
   pathTitleSelected: {
-    color: '#60A5FA',
+    color: uiPalette.blue,
   },
   pathTitleDisabled: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   pathDescription: {
     fontSize: fontScale(13),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     lineHeight: fontScale(20),
   },
   pathDescriptionSelected: {
     color: '#93C5FD',
   },
   pathDescriptionDisabled: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   checkmarkContainer: {
     width: 32,
@@ -1039,7 +1040,7 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontWeight: '500',
   },
   benefitTextSelected: {
@@ -1088,7 +1089,7 @@ const styles = StyleSheet.create({
   childName: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
   },
   childNameSelected: {
@@ -1096,7 +1097,7 @@ const styles = StyleSheet.create({
   },
   childAge: {
     fontSize: fontScale(10),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 4,
   },
   bonusesCard: {
@@ -1124,12 +1125,12 @@ const styles = StyleSheet.create({
   bonusBadgeText: {
     fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#60A5FA',
+    color: uiPalette.blue,
     textTransform: 'capitalize',
   },
   moreBonuses: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     alignSelf: 'center',
     fontWeight: '500',
   },
@@ -1138,13 +1139,13 @@ const styles = StyleSheet.create({
   },
   confirmationTitle: {
     ...tier1Title,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: 20,
     textAlign: 'center',
   },
   confirmationText: {
     fontSize: fontScale(15),
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     marginBottom: 16,
     fontWeight: '500',
     lineHeight: fontScale(22),
@@ -1166,7 +1167,7 @@ const styles = StyleSheet.create({
   },
   listBullet: {
     fontSize: fontScale(16),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 2,
   },
   warningItem: {
@@ -1233,7 +1234,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   prestigeButton: {
     flex: 1,
@@ -1259,17 +1260,17 @@ const styles = StyleSheet.create({
   prestigeButtonText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.2,
     flexShrink: 1,
   },
   buttonDisabled: {
     opacity: 0.5,
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
   },
   celebrationFill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
     justifyContent: 'center',
     alignItems: 'center',
     padding: responsiveSpacing.lg,
@@ -1300,7 +1301,7 @@ const styles = StyleSheet.create({
   celebrationTitle: {
     fontSize: responsiveFontSize['4xl'],
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: responsiveSpacing.sm,
   },
   celebrationPoints: {
@@ -1311,7 +1312,7 @@ const styles = StyleSheet.create({
   },
   celebrationBody: {
     fontSize: responsiveFontSize.md,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     textAlign: 'center',
     lineHeight: fontScale(22),
     marginBottom: responsiveSpacing.xl,
@@ -1328,7 +1329,7 @@ const styles = StyleSheet.create({
   celebrationButtonText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.2,
   },
 });

@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 /**
  * AppHeader - the one top bar for every launcher-hosted app.
  *
@@ -24,7 +25,7 @@ import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-nativ
 import { ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { accent, withAlpha } from '@/lib/config/theme';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+
 
 interface AppHeaderProps {
   title: string;
@@ -155,9 +156,9 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     minHeight: scale(32),

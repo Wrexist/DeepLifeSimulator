@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * The appearance editor - the part of character creation where you choose a face.
  *
@@ -337,8 +338,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(59, 130, 246, 0.22)',
     borderColor: 'rgba(96, 165, 250, 0.85)',
   },
-  categoryLabel: { fontSize: fontScale(12), fontWeight: '700', color: '#CBD5E1' },
-  categoryLabelSelected: { color: '#FFFFFF' },
+  categoryLabel: { fontSize: fontScale(12), fontWeight: '700', color: uiPalette.secondary },
+  categoryLabelSelected: { color: uiPalette.white },
 
   /**
    * The paired colour strip. Deliberately smaller than the option rail and
@@ -370,8 +371,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: verticalScale(2),
   },
-  railTitle: { fontSize: fontScale(13), fontWeight: '800', color: '#F8FAFC' },
-  railCount: { fontSize: fontScale(11), fontWeight: '600', color: '#94A3B8' },
+  railTitle: { fontSize: fontScale(13), fontWeight: '800', color: uiPalette.paper },
+  railCount: { fontSize: fontScale(11), fontWeight: '600', color: uiPalette.muted },
 
   // A fixed height is what stops the page reflowing when you switch from Hair
   // (28 options) to Mouth (4).
@@ -390,7 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     overflow: 'visible',
   },
-  tileSelected: { borderColor: '#60A5FA', backgroundColor: 'rgba(59, 130, 246, 0.16)' },
+  tileSelected: { borderColor: uiPalette.blue, backgroundColor: 'rgba(59, 130, 246, 0.16)' },
 
   swatchFill: {
     width: THUMB,
@@ -405,20 +406,20 @@ const styles = StyleSheet.create({
     width: scale(19),
     height: scale(19),
     borderRadius: scale(10),
-    backgroundColor: '#60A5FA',
+    backgroundColor: uiPalette.blue,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#0F172A',
+    borderColor: uiPalette.navy,
   },
 
   cellLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     textAlign: 'center',
   },
-  cellLabelSelected: { color: '#E2E8F0' },
+  cellLabelSelected: { color: uiPalette.line },
 });
 
 const AppearanceEditor = React.memo(AppearanceEditorImpl);

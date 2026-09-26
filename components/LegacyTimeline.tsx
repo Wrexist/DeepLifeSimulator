@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * LegacyTimeline Component
  * 
@@ -144,11 +145,11 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
       case 'happiness':
         return { text: 'Lost Will to Live', color: '#8B5CF6', icon: Heart };
       case 'old_age':
-        return { text: 'Old Age', color: '#64748B', icon: Calendar };
+        return { text: 'Old Age', color: uiPalette.lightMuted, icon: Calendar };
       case 'accident':
         return { text: 'Accident', color: '#F59E0B', icon: Zap };
       default:
-        return { text: 'Unknown', color: '#64748B', icon: X };
+        return { text: 'Unknown', color: uiPalette.lightMuted, icon: X };
     }
   };
 
@@ -158,7 +159,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <LinearGradient
-          colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9']}
+          colors={settings.darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.white, uiPalette.lightSurface]}
           style={styles.container}
         >
           {/* Header */}
@@ -175,7 +176,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
               hitSlop={hitSlopToMinTarget(scale(40))}
               {...CLOSE_BUTTON_A11Y}
             >
-              <X size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+              <X size={scale(24)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             </TouchableOpacity>
           </View>
 
@@ -243,7 +244,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
             {sortedLives.length === 0 ? (
               <View style={styles.emptyState}>
-                <Crown size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
+                <Crown size={scale(48)} color={settings.darkMode ? uiPalette.muted : uiPalette.muted} />
                 <Text style={[styles.emptyText, settings.darkMode && styles.emptyTextDark]}>
                   No previous generations yet
                 </Text>
@@ -275,8 +276,8 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                         <LinearGradient
                           colors={
                             settings.darkMode
-                              ? ['#334155', '#1E293B']
-                              : ['#F9FAFC', '#F1F5F9']
+                              ? [uiPalette.slate, uiPalette.surface]
+                              : ['#F9FAFC', uiPalette.lightSurface]
                           }
                           style={styles.cardGradient}
                         >
@@ -294,7 +295,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                               )}
                               {life.timestamp && (
                                 <View style={styles.dateBadge}>
-                                  <Calendar size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                                  <Calendar size={scale(12)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                                   <Text style={[styles.dateText, settings.darkMode && styles.dateTextDark]}>
                                     {formatDate(life.timestamp)}
                                   </Text>
@@ -303,9 +304,9 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                             </View>
                             <View style={styles.expandButton}>
                               {isExpanded ? (
-                                <ChevronUp size={scale(20)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                                <ChevronUp size={scale(20)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                               ) : (
-                                <ChevronDown size={scale(20)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                                <ChevronDown size={scale(20)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                               )}
                             </View>
                           </View>
@@ -388,7 +389,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                               {life.careerHistory && life.careerHistory.length > 0 && (
                                 <View style={styles.careerSection}>
                                   <View style={styles.sectionHeader}>
-                                    <Briefcase size={scale(14)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                                    <Briefcase size={scale(14)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                                     <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
                                       Career History
                                     </Text>
@@ -550,10 +551,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   closeButton: {
     padding: scale(8),
@@ -571,7 +572,7 @@ const styles = StyleSheet.create({
   currentGenText: {
     fontSize: fontScale(14),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   legacySummary: {
     marginBottom: scale(16),
@@ -583,29 +584,29 @@ const styles = StyleSheet.create({
   summaryStat: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     padding: scale(12),
     borderRadius: scale(12),
   },
   summaryStatDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   summaryValue: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginTop: scale(4),
   },
   summaryValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   summaryLabel: {
     fontSize: fontScale(10),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   summaryLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   scrollView: {
     flex: 1,
@@ -618,20 +619,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(16),
   },
   emptyTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   emptySubtext: {
     fontSize: fontScale(14),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: scale(8),
     textAlign: 'center',
   },
   emptySubtextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   timeline: {
     paddingBottom: scale(20),
@@ -646,11 +647,11 @@ const styles = StyleSheet.create({
     top: scale(60),
     width: 2,
     height: '100%',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     zIndex: 0,
   },
   timelineLineDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   generationCard: {
     borderRadius: scale(16),
@@ -731,7 +732,7 @@ const styles = StyleSheet.create({
   rememberedTitle: {
     fontSize: fontScale(13),
     fontWeight: '800',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     marginBottom: scale(4),
   },
@@ -749,11 +750,11 @@ const styles = StyleSheet.create({
   rememberedName: {
     fontSize: fontScale(12.5),
     fontWeight: '700',
-    color: '#334155',
+    color: uiPalette.slate,
   },
   rememberedMeta: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   genNumber: {
@@ -768,10 +769,10 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   dateTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   expandButton: {
     padding: scale(4),
@@ -793,20 +794,20 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(4),
   },
   statLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   statValue: {
     fontSize: fontScale(15),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginTop: scale(2),
   },
   statValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   expandedContent: {
     borderTopWidth: 1,
@@ -831,10 +832,10 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: fontScale(12),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
   detailTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   careerSection: {
     marginBottom: scale(12),
@@ -848,10 +849,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
   sectionTitleDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   careerList: {
     gap: scale(4),
@@ -869,10 +870,10 @@ const styles = StyleSheet.create({
   },
   careerText: {
     fontSize: fontScale(12),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
   careerTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   eventsSection: {
     marginBottom: scale(12),
@@ -882,11 +883,11 @@ const styles = StyleSheet.create({
   },
   eventText: {
     fontSize: fontScale(12),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     lineHeight: fontScale(18),
   },
   eventTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   deathReason: {
     flexDirection: 'row',
@@ -901,10 +902,10 @@ const styles = StyleSheet.create({
   },
   deathReasonLabel: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   deathReasonLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   deathReasonText: {
     fontSize: fontScale(14),
@@ -942,10 +943,10 @@ const styles = StyleSheet.create({
   achievementsTitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   achievementsTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   achievementsList: {
     flexDirection: 'row',
@@ -968,12 +969,12 @@ const styles = StyleSheet.create({
   },
   moreAchievements: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontStyle: 'italic',
     alignSelf: 'center',
   },
   moreAchievementsDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

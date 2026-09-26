@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * NextGoalsCard - "what should I be working toward?"
  *
@@ -32,7 +33,7 @@ const HORIZON_META: Record<
   { label: string; color: string; tint: string; Icon: typeof Target }
 > = {
   now: { label: 'NOW', color: '#34D399', tint: 'rgba(52, 211, 153, 0.13)', Icon: Target },
-  soon: { label: 'SOON', color: '#60A5FA', tint: 'rgba(96, 165, 250, 0.13)', Icon: Flag },
+  soon: { label: 'SOON', color: uiPalette.blue, tint: 'rgba(96, 165, 250, 0.13)', Icon: Flag },
   dream: { label: 'DREAM', color: '#C084FC', tint: 'rgba(192, 132, 252, 0.13)', Icon: Sparkles },
 };
 
@@ -68,7 +69,7 @@ function GoalRow({ goal, onPress }: { goal: RecommendedGoal; onPress: () => void
         </View>
         <Text style={styles.rowProgress}>{goal.progressLabel}</Text>
       </View>
-      <ChevronRight size={scale(16)} color="#64748B" />
+      <ChevronRight size={scale(16)} color={uiPalette.lightMuted} />
     </TouchableOpacity>
   );
 }
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
   // Container from components/ui/Card; crest from IconBubble.
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
   kicker: { color: '#38BDF8', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
+  title: { color: uiPalette.paper, fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
   list: { gap: scale(10) },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: scale(10) },
   rowIcon: {
@@ -200,8 +201,8 @@ const styles = StyleSheet.create({
     marginTop: scale(2),
   },
   rowKicker: { fontSize: fontScale(9), fontWeight: '800', letterSpacing: 0.6 },
-  rowTitle: { color: '#F1F5F9', fontSize: fontScale(13), fontWeight: '700', marginTop: scale(1) },
-  rowRationale: { color: '#94A3B8', fontSize: fontScale(10.5), marginTop: scale(2) },
+  rowTitle: { color: uiPalette.lightSurface, fontSize: fontScale(13), fontWeight: '700', marginTop: scale(1) },
+  rowRationale: { color: uiPalette.muted, fontSize: fontScale(10.5), marginTop: scale(2) },
   barBg: {
     height: scale(4),
     borderRadius: scale(2),
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2) },
-  rowProgress: { color: '#CBD5E1', fontSize: fontScale(10.5), fontWeight: '600', marginTop: scale(4) },
+  rowProgress: { color: uiPalette.secondary, fontSize: fontScale(10.5), fontWeight: '600', marginTop: scale(4) },
   reachedRow: {
     flexDirection: 'row',
     alignItems: 'center',

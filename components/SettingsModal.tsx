@@ -1,3 +1,7 @@
+import { Volume2, VolumeX , X, Vibrate,
+  VibrateOff,
+  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated, Platform } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -10,9 +14,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Vibrate,
-  VibrateOff,
-  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -286,13 +288,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // is dark-first and immersive) and produced a broken half-themed look. Saves
   // are coerced back to dark on load (utils/saveValidation.ts).
   const settingItems = [
-    // Sound Effects toggle REMOVED, for the same reason as the group named
-    // above: it controlled nothing. The app ships no audio backend and no
-    // audio assets, so `playSound` is a no-op in every build - a switch the
-    // player can flip that changes nothing is worse than no switch. The
-    // `soundEnabled` FIELD stays on GameState (removing it would need a
-    // migration, and it is the natural home for the setting if audio ever
-    // ships); only the misleading control is gone.
+    {
+      id: 'soundEnabled',
+      title: 'Sound Effects',
+      description: 'Soft feedback for weeks, rewards and important actions. Respects silent mode.',
+      icon: settings.soundEnabled ? Volume2 : VolumeX,
+      type: 'toggle' as const,
+      value: settings.soundEnabled !== false,
+    },
     {
       id: 'hapticFeedback',
       title: t('settings.hapticFeedback'),
@@ -576,13 +579,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
               <View style={styles.titleContainer}>
                 <View style={styles.glassTitleIcon}>
                   <View style={styles.glassOverlay} />
-                  <Settings size={24} color="#FFFFFF" />
+                  <Settings size={24} color={uiPalette.white} />
                 </View>
                 <Text style={[styles.title,  styles.titleDark]}>{t('settings.title')}</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.glassCloseButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <View style={styles.glassOverlay} />
-                <X size={20} color="#FFFFFF" />
+                <X size={20} color={uiPalette.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -601,12 +604,12 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     end={{ x: 1, y: 1 }}
                     style={styles.activeTabGradient}
                   >
-                    <Settings size={16} color="#FFFFFF" style={styles.tabIcon} />
+                    <Settings size={16} color={uiPalette.white} style={styles.tabIcon} />
                     <Text style={styles.activeSettingsTabText}>Settings</Text>
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Settings size={16} color="#94A3B8" style={styles.tabIcon} />
+                    <Settings size={16} color={uiPalette.muted} style={styles.tabIcon} />
                     <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Settings</Text>
                   </View>
                 )}
@@ -623,12 +626,12 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     end={{ x: 1, y: 1 }}
                     style={styles.activeTabGradient}
                   >
-                    <Target size={16} color="#FFFFFF" style={styles.tabIcon} />
+                    <Target size={16} color={uiPalette.white} style={styles.tabIcon} />
                     <Text style={styles.activeSettingsTabText}>Life Goals</Text>
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Target size={16} color="#94A3B8" style={styles.tabIcon} />
+                    <Target size={16} color={uiPalette.muted} style={styles.tabIcon} />
                     <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Life Goals</Text>
                   </View>
                 )}
@@ -653,7 +656,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Megaphone}
                   label="What's New"
-                  accent="#60A5FA"
+                  accent={uiPalette.blue}
                   onPress={openWhatsNew}
                   accessibilityLabel="See what's new in the latest update"
                 />
@@ -678,12 +681,12 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                         <View style={styles.settingInfo}>
                           <View style={styles.settingHeader}>
                             <LinearGradient
-                              colors={item.value ? ['#10B981', '#059669'] as const : ['#94A3B8', '#475569'] as const}
+                              colors={item.value ? ['#10B981', '#059669'] as const : [uiPalette.muted, uiPalette.lightSecondary] as const}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.settingIconContainer}
                             >
-                              <item.icon size={18} color="#FFFFFF" />
+                              <item.icon size={18} color={uiPalette.white} />
                             </LinearGradient>
                             <View style={styles.settingTextContainer}>
                               <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
@@ -699,9 +702,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                           <Switch
                             value={item.value}
                             onValueChange={(value) => handleToggle(item.id, value)}
-                            trackColor={{ false: '#475569', true: '#10B981' }}
-                            thumbColor={item.value ? '#FFFFFF' : '#F1F5F9'}
-                            ios_backgroundColor="#475569"
+                            trackColor={{ false: uiPalette.lightSecondary, true: '#10B981' }}
+                            thumbColor={item.value ? uiPalette.white : uiPalette.lightSurface}
+                            ios_backgroundColor={uiPalette.lightSecondary}
                             accessibilityLabel={item.title}
                             accessibilityHint={`Toggle ${item.title.toLowerCase()}. Currently ${item.value ? 'enabled' : 'disabled'}`}
                             accessibilityRole="switch"
@@ -724,7 +727,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Save}
                   label={t('settings.switchSaveSlot')}
-                  accent="#60A5FA"
+                  accent={uiPalette.blue}
                   onPress={() => {
                     onClose();
                     // R3-S1: leaving a live game for the slot picker. Without
@@ -776,7 +779,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     style={styles.discordButton}
                   >
                     <View style={styles.discordButtonContent}>
-                      <MessageCircle size={20} color="#FFFFFF" style={styles.discordButtonIcon} />
+                      <MessageCircle size={20} color={uiPalette.white} style={styles.discordButtonIcon} />
                       <View style={styles.discordButtonTextContainer}>
                         <Text style={styles.discordButtonText}>
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
@@ -811,7 +814,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Gift}
                   label="Redeem Code"
-                  accent="#60A5FA"
+                  accent={uiPalette.blue}
                   onPress={handleRedeemOfferCode}
                   accessibilityLabel="Redeem an App Store code"
                 />
@@ -862,7 +865,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   <SettingsActionButton
                     icon={Shield}
                     label={isOpeningAdPrivacy ? 'Opening privacy choices...' : 'Ad Privacy Choices'}
-                    accent="#94A3B8"
+                    accent={uiPalette.muted}
                     onPress={handleAdPrivacy}
                     disabled={isOpeningAdPrivacy}
                   />
@@ -870,7 +873,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Shield}
                   label="Privacy Policy"
-                  accent="#94A3B8"
+                  accent={uiPalette.muted}
                   onPress={() => {
                     Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
                       gameAlert('Error', `Could not open privacy policy. Please visit ${PRIVACY_POLICY_URL} in your browser.`);
@@ -885,7 +888,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Shield}
                   label={preparingPrivacy ? 'Preparing request...' : 'Request Personal Data Deletion'}
-                  accent="#94A3B8"
+                  accent={uiPalette.muted}
                   disabled={preparingPrivacy}
                   onPress={() => { void preparePrivacyRequest(); }}
                 />
@@ -898,7 +901,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     <SettingsActionButton
                       icon={MessageCircle}
                       label="Open Email Draft"
-                      accent="#94A3B8"
+                      accent={uiPalette.muted}
                       onPress={() => {
                         Linking.openURL(privacyRequestMailUrl(privacyRequest)).catch(() => {
                           gameAlert('Email unavailable', `Copy the request text and email ${SUPPORT_EMAIL}. No request has been sent.`);
@@ -908,7 +911,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     <SettingsActionButton
                       icon={X}
                       label="Hide Request Details"
-                      accent="#94A3B8"
+                      accent={uiPalette.muted}
                       onPress={() => setPrivacyRequest(null)}
                     />
                   </View>
@@ -985,7 +988,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     colors={['#818CF8', '#6366F1', '#4F46E5']}
                     style={styles.rewardGemCircle}
                   >
-                    <Sparkles size={scale(28)} color="#FFFFFF" />
+                    <Sparkles size={scale(28)} color={uiPalette.white} />
                   </LinearGradient>
                 </Animated.View>
 

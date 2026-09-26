@@ -1,9 +1,11 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { Crown } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 - use the safe fallback.
 const LinearGradient = Gradient;
 
@@ -103,7 +105,7 @@ export default function CrimeSkillCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: verticalScale(10),
+    marginBottom: layoutSpace.sm,
     borderRadius: responsiveBorderRadius.md,
     overflow: 'hidden',
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
@@ -112,17 +114,17 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: responsiveSpacing.md,
-    gap: verticalScale(10),
+    gap: layoutSpace.sm,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: layoutSpace.compact,
   },
   iconWrap: {
     width: scale(44),
     height: scale(44),
-    borderRadius: scale(12),
+    borderRadius: layoutRadius.lg,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
     right: -scale(4),
     width: scale(18),
     height: scale(18),
-    borderRadius: scale(9),
+    borderRadius: layoutRadius.md,
     backgroundColor: 'rgba(15, 23, 42, 0.95)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(251, 191, 36, 0.6)',
@@ -147,7 +149,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
   },
   treeName: {
@@ -159,7 +161,7 @@ const styles = StyleSheet.create({
   headerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
+    gap: layoutSpace.sm,
   },
   levelText: {
     fontSize: fontScale(13),
@@ -170,9 +172,9 @@ const styles = StyleSheet.create({
   pointsPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(5),
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(3),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: scale(999),
     borderWidth: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
@@ -180,7 +182,7 @@ const styles = StyleSheet.create({
   pointsDot: {
     width: scale(6),
     height: scale(6),
-    borderRadius: scale(3),
+    borderRadius: layoutRadius.sm,
   },
   pointsText: {
     fontSize: fontScale(11),
@@ -189,13 +191,13 @@ const styles = StyleSheet.create({
   },
   progressBg: {
     height: scale(6),
-    borderRadius: scale(3),
+    borderRadius: layoutRadius.sm,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: scale(3),
+    borderRadius: layoutRadius.sm,
   },
   footerRow: {
     flexDirection: 'row',

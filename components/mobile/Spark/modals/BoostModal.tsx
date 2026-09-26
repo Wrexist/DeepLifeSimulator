@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * BoostModal - gem-spend confirmation for activating profile boost.
  *
@@ -10,7 +11,7 @@ import { Zap, Gem } from 'lucide-react-native';
 import BaseModal from '@/components/ui/BaseModal';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { boostProfile } from '@/contexts/game/actions/SparkActions';
 import { SPARK_COLORS } from '../styles/sparkTheme';
@@ -85,7 +86,7 @@ export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
         {canAfford ? (
           <View style={styles.ctaRow}>
             <Text style={styles.ctaText}>{`Boost for ${BOOST_COST}`}</Text>
-            <Gem size={fontScale(16)} color="#FFFFFF" />
+            <Gem size={fontScale(16)} color={uiPalette.white} />
           </View>
         ) : (
           <Text style={styles.ctaText}>Not enough gems</Text>
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   ctaDisabled: { opacity: 0.6 },
   ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

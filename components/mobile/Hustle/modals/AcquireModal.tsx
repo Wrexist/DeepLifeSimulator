@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * AcquireModal - list pending acquisition offers + accept/decline.
  */
@@ -8,7 +9,7 @@ import BaseModal from '@/components/ui/BaseModal';
 import EmptyState from '@/components/ui/EmptyState';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import {
   acceptAcquisition,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(13),
     fontWeight: '600',
   },

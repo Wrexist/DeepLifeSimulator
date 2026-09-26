@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Styles for SettingsModal.
  *
@@ -36,7 +37,7 @@ export const styles = StyleSheet.create({
     backdropFilter: 'none',
   },
   modal: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '100%',
@@ -128,10 +129,10 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   closeButton: {
     borderRadius: scale(20),
@@ -188,15 +189,15 @@ export const styles = StyleSheet.create({
   settingTitle: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 2,
   },
   settingTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   settingDescription: {
     fontSize: responsiveFontSize.sm,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
     lineHeight: fontScale(18),
     ...Platform.select({
@@ -209,7 +210,7 @@ export const styles = StyleSheet.create({
     }),
   },
   settingDescriptionDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     ...Platform.select({
       web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
       default: {
@@ -225,7 +226,7 @@ export const styles = StyleSheet.create({
   // Enhanced Tab Styles
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: responsiveBorderRadius.lg,
     padding: 4,
     marginBottom: responsiveSpacing.lg,
@@ -242,7 +243,7 @@ export const styles = StyleSheet.create({
     }),
   },
   tabContainerDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   settingsTab: {
     flex: 1,
@@ -282,15 +283,15 @@ export const styles = StyleSheet.create({
   settingsTabText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '500',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   settingsTabTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   activeSettingsTabText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   
   // Enhanced Action Button Styles
@@ -332,7 +333,7 @@ export const styles = StyleSheet.create({
   },
   glassActionLabel: {
     flex: 1,
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontWeight: '600',
     fontSize: responsiveFontSize.base,
   },
@@ -433,13 +434,13 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   discordButtonText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '700',
     fontSize: responsiveFontSize.base + 2,
     textAlign: 'center',
   },
   discordButtonRewardText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '500',
     fontSize: responsiveFontSize.sm,
     marginTop: 2,
@@ -464,7 +465,7 @@ export const styles = StyleSheet.create({
     }),
   },
   discordBadgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '700',
     fontSize: responsiveFontSize.xs,
     letterSpacing: 0.5,
@@ -540,7 +541,7 @@ export const styles = StyleSheet.create({
   rewardTitle: {
     fontSize: fontScale(22),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.5,
     marginBottom: scale(8),
   },
@@ -586,7 +587,7 @@ export const styles = StyleSheet.create({
   rewardDismissText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.5,
   },
   actionButtonDisabled: {

@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * StatBreakdownModal - the shared chassis for the HUD stat breakdown modals
  * (Energy / Health / Happiness / Bank / Money / Gems).
@@ -16,7 +18,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TrendingDown, TrendingUp } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
+
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import BaseModal from '@/components/ui/BaseModal';
 import { useTheme } from '@/hooks/useTheme';
@@ -98,9 +100,9 @@ export default function StatBreakdownModal({
 }: StatBreakdownModalProps) {
   const { theme, isDark } = useTheme();
 
-  const cardBg = isDark ? '#334155' : '#F1F5F9';
-  const itemBg = isDark ? '#334155' : '#F8FAFC';
-  const itemBorder = isDark ? '#475569' : '#E2E8F0';
+  const cardBg = isDark ? uiPalette.slate : uiPalette.lightSurface;
+  const itemBg = isDark ? uiPalette.slate : uiPalette.paper;
+  const itemBorder = isDark ? uiPalette.lightSecondary : uiPalette.line;
 
   const renderSectionIcon = (section: StatBreakdownSection) => {
     if (section.kind === 'income') {
@@ -244,23 +246,23 @@ export default function StatBreakdownModal({
 
 const styles = StyleSheet.create({
   totalCard: {
-    padding: scale(16),
+    padding: layoutSpace.md,
     borderRadius: responsiveBorderRadius.md,
-    marginBottom: scale(14),
+    marginBottom: layoutSpace.compact,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   totalLabel: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    marginBottom: scale(6),
+    marginBottom: layoutSpace.xs,
   },
   totalValue: {
     fontSize: fontScale(28),
     fontWeight: '800',
-    marginBottom: scale(8),
+    marginBottom: layoutSpace.sm,
   },
   totalBreakdown: {
-    gap: scale(3),
+    gap: layoutSpace.xs,
   },
   totalBreakdownText: {
     fontSize: fontScale(12),
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
   netChangeText: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    marginTop: scale(4),
+    marginTop: layoutSpace.xs,
   },
   netChangePositive: {
     color: '#10B981',
@@ -282,33 +284,33 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   section: {
-    marginBottom: scale(14),
+    marginBottom: layoutSpace.compact,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
-    marginBottom: scale(8),
+    gap: layoutSpace.xs,
+    marginBottom: layoutSpace.sm,
   },
   sectionTitle: {
     fontSize: fontScale(15),
     fontWeight: '700',
   },
   itemCard: {
-    padding: scale(12),
+    padding: layoutSpace.compact,
     borderRadius: responsiveBorderRadius.md,
-    marginBottom: scale(8),
+    marginBottom: layoutSpace.sm,
     borderWidth: 1,
   },
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(10),
+    gap: layoutSpace.sm,
   },
   itemIconContainer: {
     width: scale(36),
     height: scale(36),
-    borderRadius: scale(18),
+    borderRadius: layoutRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -318,7 +320,7 @@ const styles = StyleSheet.create({
   itemLabel: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    marginBottom: scale(3),
+    marginBottom: layoutSpace.xs,
   },
   itemDescription: {
     fontSize: fontScale(12),
@@ -334,7 +336,7 @@ const styles = StyleSheet.create({
   // When a sub-value (gain/loss) stacks under the value, the value picks up
   // the small gap Bank used between the two lines.
   itemValueStacked: {
-    marginBottom: scale(3),
+    marginBottom: layoutSpace.xs,
   },
   subValueText: {
     fontSize: fontScale(12),
@@ -348,17 +350,17 @@ const styles = StyleSheet.create({
   },
   monoFootnote: {
     fontSize: fontScale(12),
-    marginTop: scale(6),
+    marginTop: layoutSpace.xs,
     fontFamily: 'monospace',
   },
   summaryCard: {
-    padding: scale(14),
+    padding: layoutSpace.compact,
     borderRadius: responsiveBorderRadius.md,
   },
   summaryTitle: {
     fontSize: fontScale(15),
     fontWeight: '700',
-    marginBottom: scale(8),
+    marginBottom: layoutSpace.sm,
   },
   summaryText: {
     fontSize: fontScale(12),

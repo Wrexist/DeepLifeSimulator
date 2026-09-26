@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckCircle, Clock, AlertCircle, Save } from 'lucide-react-native';
@@ -142,7 +143,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
       case 'error':
         return '#EF4444';
       default:
-        return '#64748B';
+        return uiPalette.lightMuted;
     }
   };
 
@@ -290,24 +291,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   detailsContainer: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: uiPalette.line,
   },
   detailsContainerDark: {
-    borderTopColor: '#334155',
+    borderTopColor: uiPalette.slate,
   },
   detailText: {
     fontSize: responsiveFontSize.xs,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 4,
   },
   detailTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

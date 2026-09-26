@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * StoriesRail - horizontal scroller above the feed.
  *
@@ -99,14 +100,14 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
                   age={gameState.date?.age}
                 />
                 <View style={[styles.plusBadge, { backgroundColor: PULSE_COLORS.accent }]}>
-                  <Plus size={fontScale(12)} color="#FFFFFF" strokeWidth={3} />
+                  <Plus size={fontScale(12)} color={uiPalette.white} strokeWidth={3} />
                 </View>
               </View>
             )}
           </Animated.View>
           {isLive ? (
             <View style={styles.liveTag}>
-              <Radio size={fontScale(10)} color="#FFFFFF" strokeWidth={3} />
+              <Radio size={fontScale(10)} color={uiPalette.white} strokeWidth={3} />
               <Text style={styles.liveTagText}>LIVE</Text>
             </View>
           ) : (
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarLetter: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(20),
     fontWeight: '600',
   },
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#0F172A',
+    borderColor: uiPalette.navy,
   },
   label: {
     fontSize: fontScale(10),
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveTagText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
     letterSpacing: 0.5,

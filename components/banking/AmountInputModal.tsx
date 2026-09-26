@@ -1,9 +1,10 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
 import Gradient from '@/components/ui/Gradient';
@@ -136,7 +137,7 @@ export default function AmountInputModal({
             style={[styles.confirmWrap, valid && getPlatformShadows(5, 0.3, 2, 8)]}
           >
             <LinearGradient
-              colors={valid ? [accent.info, '#60a5fa'] : [theme.surfaceElevated, theme.surfaceElevated]}
+              colors={valid ? [accent.info, uiPalette.blue] : [theme.surfaceElevated, theme.surfaceElevated]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.confirm}

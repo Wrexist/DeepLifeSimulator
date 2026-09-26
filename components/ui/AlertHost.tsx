@@ -1,3 +1,5 @@
+import { responsiveBorderRadius as layoutRadius , fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AlertHost - renders the app's in-game alerts, one at a time.
  *
@@ -23,7 +25,7 @@ import { AlertCircle, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-reac
 import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { haptic } from '@/utils/haptics';
 import {
@@ -48,7 +50,7 @@ const EASE_OUT = Easing?.bezier ? Easing.bezier(0.23, 1, 0.32, 1) : undefined;
 type Tone = 'default' | 'warning' | 'danger' | 'success';
 
 const TONE_ACCENT: Record<Tone, readonly [string, string]> = {
-  default: ['#3B82F6', '#60A5FA'],
+  default: ['#3B82F6', uiPalette.blue],
   warning: ['#F59E0B', '#FBBF24'],
   danger: ['#EF4444', '#F87171'],
   success: ['#10B981', '#34D399'],
@@ -265,7 +267,7 @@ export default function AlertHost() {
             end={{ x: 1, y: 1 }}
             style={styles.badge}
           >
-            <BadgeIcon size={scale(28)} color="#FFFFFF" strokeWidth={2.2} />
+            <BadgeIcon size={scale(28)} color={uiPalette.white} strokeWidth={2.2} />
           </LinearGradient>
 
           <Text style={[styles.title, { color: theme.text }]} maxFontSizeMultiplier={1.6}>
@@ -300,7 +302,7 @@ const styles = StyleSheet.create({
   card: {
     width: '85%',
     maxWidth: scale(400),
-    borderRadius: scale(20),
+    borderRadius: layoutRadius['2xl'],
     borderWidth: StyleSheet.hairlineWidth,
     padding: responsiveSpacing.lg,
     shadowColor: '#000',
@@ -313,7 +315,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: scale(60),
     height: scale(60),
-    borderRadius: scale(30),
+    borderRadius: layoutRadius['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: responsiveSpacing.md,
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
   },
   ghostBtn: {
     minHeight: touchTargets.minimum,
-    borderRadius: scale(14),
+    borderRadius: layoutRadius.lg,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -356,7 +358,7 @@ const styles = StyleSheet.create({
   },
   filledBtn: {
     minHeight: touchTargets.minimum,
-    borderRadius: scale(14),
+    borderRadius: layoutRadius.lg,
     overflow: 'hidden',
   },
   filledFill: {
@@ -367,7 +369,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   filledText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '700',
   },

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import {
   Animated,
@@ -69,7 +70,7 @@ export default function OnboardingScreenShellV2({
 
       {/* Floating button */}
       {floatingButton ? (
-        <View style={[styles.floatingButtonWrap, { bottom: 20 + insets.bottom }]}>
+        <View style={[styles.floatingButtonWrap, { bottom: 0, paddingBottom: Math.max(16, insets.bottom), paddingTop: 12, backgroundColor: uiPalette.navy }]}>
           {floatingButton}
         </View>
       ) : null}
@@ -99,7 +100,7 @@ export default function OnboardingScreenShellV2({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
     overflow: 'hidden',
   },
   backgroundGradient1: {

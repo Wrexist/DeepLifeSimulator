@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles, Egg, Flag, Utensils, ShoppingBag } from 'lucide-react-native';
@@ -83,7 +84,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
       independence: { name: 'Independence Day', icon: Flag, color: '#3B82F6' },
       halloween: { name: 'Halloween', icon: Ghost, color: '#F59E0B' },
       thanksgiving: { name: 'Thanksgiving', icon: Utensils, color: '#D97706' },
-      blackfriday: { name: 'Black Friday', icon: ShoppingBag, color: '#94A3B8' },
+      blackfriday: { name: 'Black Friday', icon: ShoppingBag, color: uiPalette.muted },
       christmas: { name: 'Christmas', icon: Trees, color: '#10B981' },
     };
     
@@ -143,7 +144,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           ]}>
             <View style={[styles.modalHeader, { backgroundColor: config.color }]}>
               <View style={styles.modalHeaderContent}>
-                <SeasonIcon size={32} color="#FFFFFF" />
+                <SeasonIcon size={32} color={uiPalette.white} />
                 <Text style={styles.modalTitle}>{config.name} Season</Text>
               </View>
               <TouchableOpacity
@@ -153,7 +154,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
-                <X size={24} color="#FFFFFF" />
+                <X size={24} color={uiPalette.white} />
               </TouchableOpacity>
             </View>
 
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: 20,
     width: '100%',
     maxWidth: 400,
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   modalContainerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   modalHeader: {
     padding: 20,
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...tier1Title,
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   closeButton: {
     position: 'absolute',
@@ -298,13 +299,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContentDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   holidaySection: {
     alignItems: 'center',
     marginBottom: 24,
     padding: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: 12,
   },
   /**
@@ -318,23 +319,23 @@ const styles = StyleSheet.create({
    * is the shape to look for.
    */
   holidaySectionDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   holidayName: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 4,
   },
   holidayNameDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   holidayDescription: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
   },
   holidayDescriptionDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   infoSection: {
     gap: 16,
@@ -350,43 +351,43 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: 2,
   },
   infoLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   infoValue: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   infoValueDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   tipSection: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: 12,
     padding: 16,
   },
   tipSectionDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   tipTitle: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 8,
   },
   tipTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   tipText: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: fontScale(20),
   },
   tipTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
 });
 

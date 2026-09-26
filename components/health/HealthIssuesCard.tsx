@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
+import { uiPalette , accent } from '@/lib/config/theme';
 /**
  * Health issues - every active problem and how to fix it, in one card ON the
  * Health screen.
@@ -14,9 +16,9 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import { fontScale, scale } from '@/utils/scaling';
+
 import { tier1Title, vitalState } from '@/lib/config/hierarchy';
-import { accent } from '@/lib/config/theme';
+
 
 interface HealthIssue {
   id: string;
@@ -140,23 +142,23 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: scale(12),
-    borderRadius: scale(16),
-    padding: scale(14),
-    backgroundColor: '#1E293B',
+    marginBottom: layoutSpace.compact,
+    borderRadius: layoutRadius.xl,
+    padding: layoutSpace.compact,
+    backgroundColor: uiPalette.surface,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.35)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
-    marginBottom: scale(8),
+    gap: layoutSpace.sm,
+    marginBottom: layoutSpace.sm,
   },
   title: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     flex: 1,
   },
   titleLead: {
@@ -168,14 +170,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: scale(8),
+    marginBottom: layoutSpace.sm,
   },
   dot: {
     width: scale(8),
     height: scale(8),
-    borderRadius: scale(4),
-    marginTop: scale(5),
-    marginRight: scale(8),
+    borderRadius: layoutRadius.sm,
+    marginTop: layoutSpace.xs,
+    marginRight: layoutSpace.sm,
   },
   rowText: {
     flex: 1,
@@ -183,11 +185,11 @@ const styles = StyleSheet.create({
   issueTitle: {
     fontSize: fontScale(13.5),
     fontWeight: '600',
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
   },
   issueFix: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
-    marginTop: scale(1),
+    color: uiPalette.muted,
+    marginTop: layoutSpace.xs,
   },
 });

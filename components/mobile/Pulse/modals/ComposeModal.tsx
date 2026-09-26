@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ComposeModal - full-sheet composer for new Pulse posts.
  *
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   postBtnText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '600',
   },

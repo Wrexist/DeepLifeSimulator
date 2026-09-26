@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * CreateCompanyScreen - pick an industry to found a company.
  *
@@ -15,7 +16,7 @@ import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
@@ -211,7 +212,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                   </Text>
                   {isSelected ? (
                     <View style={[styles.selectedTick, { backgroundColor: color }]}>
-                      <Check size={fontScale(12)} color="#FFFFFF" strokeWidth={3} />
+                      <Check size={fontScale(12)} color={uiPalette.white} strokeWidth={3} />
                     </View>
                   ) : null}
                 </View>
@@ -352,7 +353,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

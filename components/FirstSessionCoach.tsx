@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 /**
  * First-session coach - one action at a time, driven by what the life IS.
  *
@@ -46,7 +47,7 @@ import { useRouter } from 'expo-router';
 import { Briefcase, ArrowRight, PartyPopper, CalendarCheck } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { haptic } from '@/utils/haptics';
@@ -296,8 +297,8 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
             accessibilityLabel={cta}
             style={[styles.cta, { backgroundColor: tone }]}
           >
-            <Text style={[styles.ctaText, { color: step === 'paid' ? '#172033' : '#FFFFFF' }]}>{cta}</Text>
-            <ArrowRight size={scale(16)} color={step === 'paid' ? '#172033' : '#FFFFFF'} />
+            <Text style={[styles.ctaText, { color: step === 'paid' ? '#172033' : uiPalette.white }]}>{cta}</Text>
+            <ArrowRight size={scale(16)} color={step === 'paid' ? '#172033' : uiPalette.white} />
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -347,5 +348,5 @@ const styles = StyleSheet.create({
     paddingVertical: scale(11),
     borderRadius: scale(12),
   },
-  ctaText: { color: '#FFFFFF', fontSize: fontScale(15), fontWeight: '700' },
+  ctaText: { color: uiPalette.white, fontSize: fontScale(15), fontWeight: '700' },
 });

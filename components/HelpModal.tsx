@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useMemo, useCallback } from 'react';
 import { logger } from '@/utils/logger';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Linking } from 'react-native';
@@ -814,14 +815,14 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
           <View style={styles.header}>
             <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Help</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={24} color={settings.darkMode ? '#CBD5E1' : '#64748B'} />
+              <X size={24} color={settings.darkMode ? uiPalette.secondary : uiPalette.lightMuted} />
             </TouchableOpacity>
           </View>
 
           <TextInput
             style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
             placeholder="Search..."
-            placeholderTextColor={settings.darkMode ? '#94A3B8' : '#64748B'}
+            placeholderTextColor={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted}
             value={search}
             onChangeText={setSearch}
           />
@@ -853,12 +854,12 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
           >
             {hasDeepLifePlusEntitlement(gameState.settings) ? (
               <>
-                <Crown size={20} color="#FFFFFF" fill="#FFFFFF" />
+                <Crown size={20} color={uiPalette.white} fill={uiPalette.white} />
                 <Text style={styles.contactButtonText}>VIP Priority Support</Text>
               </>
             ) : (
               <>
-                <Mail size={20} color="#FFFFFF" />
+                <Mail size={20} color={uiPalette.white} />
                 <Text style={styles.contactButtonText}>Contact Support</Text>
               </>
             )}
@@ -886,14 +887,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
   },
   modal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     width: '90%',
     maxHeight: '80%',
     borderRadius: 12,
     padding: 16,
   },
   modalDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
@@ -905,27 +906,27 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   closeButton: {
     padding: 4,
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: uiPalette.secondary,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginBottom: 12,
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   searchInputDark: {
-    borderColor: '#334155',
-    backgroundColor: '#0F172A',
-    color: '#F8FAFC',
+    borderColor: uiPalette.slate,
+    backgroundColor: uiPalette.navy,
+    color: uiPalette.paper,
   },
   content: {
     flexGrow: 0,
@@ -935,29 +936,29 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...tier2,
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginBottom: 8,
   },
   sectionTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   item: {
     marginBottom: 8,
   },
   itemText: {
     fontSize: fontScale(14),
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   itemTextDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   answer: {
     marginTop: 4,
     fontSize: fontScale(13),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
   answerDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   contactButton: {
     flexDirection: 'row',
@@ -974,7 +975,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1D4ED8',
   },
   contactButtonText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(16),
     fontWeight: '600',
   },

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * MatchesScreen - list of all Spark matches.
  *
@@ -91,7 +92,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
                     </View>
                     {match.superLiked ? (
                       <View style={styles.superBadge}>
-                        <Star size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
+                        <Star size={fontScale(10)} color={uiPalette.white} fill={uiPalette.white} />
                       </View>
                     ) : null}
                     <Text style={[styles.freshName, { color: theme.text }]} numberOfLines={1}>
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#0F172A',
+    borderColor: uiPalette.navy,
   },
   freshName: {
     fontSize: fontScale(11),
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   unreadDotText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
   },

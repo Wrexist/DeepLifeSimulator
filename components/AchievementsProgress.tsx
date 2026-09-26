@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AchievementsProgress Component
  * 
@@ -72,7 +73,7 @@ const CATEGORIES: CategoryInfo[] = [
 ];
 
 const RARITY_CONFIG: Record<RarityType, { label: string; color: string; bgColor: string }> = {
-  common: { label: 'Common', color: '#64748B', bgColor: 'rgba(107, 114, 128, 0.15)' },
+  common: { label: 'Common', color: uiPalette.lightMuted, bgColor: 'rgba(107, 114, 128, 0.15)' },
   rare: { label: 'Rare', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.15)' },
   epic: { label: 'Epic', color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.15)' },
   legendary: { label: 'Legendary', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.15)' },
@@ -159,7 +160,7 @@ function ClaimRewardButton({ onPress, disabled }: ClaimRewardButtonProps) {
             end={{ x: 1, y: 1 }}
             style={styles.claimButton}
           >
-            <Sparkles size={16} color="#FFFFFF" style={styles.claimIcon} />
+            <Sparkles size={16} color={uiPalette.white} style={styles.claimIcon} />
             <Text style={styles.claimText}>Claim Reward</Text>
           </LinearGradient>
         </BlurView>
@@ -324,7 +325,7 @@ export default function AchievementsProgress() {
                 end={{ x: 1, y: 1 }}
                 style={styles.trophyGradient}
               >
-                <Trophy size={responsiveIconSize.lg} color="#FFFFFF" />
+                <Trophy size={responsiveIconSize.lg} color={uiPalette.white} />
               </LinearGradient>
               <Sparkles size={12} color="#6366F1" style={styles.sparkleIcon} />
             </View>
@@ -346,7 +347,7 @@ export default function AchievementsProgress() {
           onPress={() => setShowFilters(!showFilters)}
           style={[styles.filterToggle, showFilters && styles.filterToggleActive]}
         >
-          <Filter size={scale(16)} color={showFilters ? '#FFF' : (darkMode ? '#94A3B8' : '#64748B')} />
+          <Filter size={scale(16)} color={showFilters ? uiPalette.white : (darkMode ? uiPalette.muted : uiPalette.lightMuted)} />
           <Text style={[
             styles.filterToggleText,
             showFilters && styles.filterToggleTextActive,
@@ -395,7 +396,7 @@ export default function AchievementsProgress() {
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
-                  <CategoryIcon size={scale(14)} color={isActive ? '#FFF' : category.color} />
+                  <CategoryIcon size={scale(14)} color={isActive ? uiPalette.white : category.color} />
                   <Text style={[
                     styles.categoryChipText,
                     isActive && styles.categoryChipTextActive,
@@ -416,7 +417,7 @@ export default function AchievementsProgress() {
             {showSecret ? (
               <Eye size={scale(14)} color="#F59E0B" />
             ) : (
-              <EyeOff size={scale(14)} color={darkMode ? '#64748B' : '#94A3B8'} />
+              <EyeOff size={scale(14)} color={darkMode ? uiPalette.lightMuted : uiPalette.muted} />
             )}
             <Text style={[
               styles.secretToggleText,
@@ -433,7 +434,7 @@ export default function AchievementsProgress() {
       <View>
         {sortedAchievements.length === 0 && (
           <View style={styles.emptyState}>
-            <Trophy size={scale(40)} color={darkMode ? '#475569' : '#CBD5E1'} />
+            <Trophy size={scale(40)} color={darkMode ? uiPalette.lightSecondary : uiPalette.secondary} />
             <Text style={[styles.empty, darkMode && styles.cardDescDark]}>
               No achievements found in this category.
             </Text>
@@ -476,7 +477,7 @@ export default function AchievementsProgress() {
                   </Text>
                   {a.isSecret && (
                     <View style={styles.secretBadge}>
-                      <Lock size={scale(10)} color="#94A3B8" />
+                      <Lock size={scale(10)} color={uiPalette.muted} />
                       <Text style={styles.secretBadgeText}>Secret</Text>
                     </View>
                   )}
@@ -491,7 +492,7 @@ export default function AchievementsProgress() {
                         end={{ x: 1, y: 1 }}
                         style={styles.gemContainer}
                       >
-                        <Gem size={responsiveIconSize.sm} color="#FFFFFF" />
+                        <Gem size={responsiveIconSize.sm} color={uiPalette.white} />
                       </LinearGradient>
                       <Text style={[styles.rewardText, { color: '#6366F1' }]}>{a.goldReward}</Text>
                     </View>
@@ -574,7 +575,7 @@ export default function AchievementsProgress() {
 const styles = StyleSheet.create({
   container: {
     marginTop: verticalScale(20),
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.lg,
     ...Platform.select({
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   containerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerBlur: {
@@ -636,25 +637,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: 8,
     padding: 2,
   },
   title: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   statsText: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 2,
   },
   statsTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   controls: {
     flexDirection: 'row',
@@ -676,11 +677,11 @@ const styles = StyleSheet.create({
   },
   filterToggleText: {
     fontSize: fontScale(13),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontWeight: '500',
   },
   filterToggleTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   sortControls: {
     flexDirection: 'row',
@@ -696,14 +697,14 @@ const styles = StyleSheet.create({
   },
   sortButtonText: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   sortButtonTextActive: {
     color: '#6366F1',
     fontWeight: '600',
   },
   controlTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   filtersContainer: {
     marginBottom: responsiveSpacing.md,
@@ -722,18 +723,18 @@ const styles = StyleSheet.create({
     gap: scale(6),
   },
   categoryChipDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   categoryChipText: {
     fontSize: fontScale(12),
     fontWeight: '500',
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   categoryChipTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   categoryChipTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   secretToggle: {
     flexDirection: 'row',
@@ -745,13 +746,13 @@ const styles = StyleSheet.create({
   secretToggleDark: {},
   secretToggleText: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   secretToggleTextActive: {
     color: '#F59E0B',
   },
   secretToggleTextDark: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   emptyState: {
     alignItems: 'center',
@@ -760,13 +761,13 @@ const styles = StyleSheet.create({
   },
   empty: {
     textAlign: 'center',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   card: {
     marginBottom: responsiveSpacing.md,
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Platform.select({
@@ -783,7 +784,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   cardCompleted: {
@@ -844,10 +845,10 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   cardTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   secretBadge: {
     flexDirection: 'row',
@@ -889,21 +890,21 @@ const styles = StyleSheet.create({
   },
   stackText: {
     marginRight: responsiveSpacing.sm,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: responsiveFontSize.sm,
   },
   cardDesc: {
     fontSize: responsiveFontSize.sm,
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     marginBottom: responsiveSpacing.sm,
     lineHeight: fontScale(18),
   },
   cardDescDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   nextText: {
     fontSize: responsiveFontSize.sm,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: responsiveSpacing.xs,
   },
   progressContainer: {
@@ -914,7 +915,7 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: scale(10),
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
     borderRadius: responsiveBorderRadius.sm,
     overflow: 'hidden',
     shadowColor: '#6366F1',
@@ -945,12 +946,12 @@ const styles = StyleSheet.create({
   progressPercent: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     minWidth: scale(40),
     textAlign: 'right',
   },
   progressPercentDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   claimedBadge: {
     flexDirection: 'row',
@@ -971,13 +972,13 @@ const styles = StyleSheet.create({
   },
   narrativeText: {
     fontSize: responsiveFontSize.xs,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 4,
   },
   narrativeTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   claimButtonBlur: {
     borderRadius: responsiveBorderRadius.md,
@@ -1002,7 +1003,7 @@ const styles = StyleSheet.create({
   },
   claimText: {
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: responsiveFontSize.base,
   },
 });

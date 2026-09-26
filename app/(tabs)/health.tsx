@@ -1,3 +1,6 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
+import SceneCard from '@/components/ui/SceneCard';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +15,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import HealthIssuesCard from '@/components/health/HealthIssuesCard';
 import ProgressRing from '@/components/ui/ProgressRing';
-import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
+
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
@@ -37,7 +40,7 @@ function VitalsSummary({ vitals }: { vitals: Vital[] }) {
       {vitals.map((v) => (
         <Text
           key={v.key}
-          style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? '#E2E8F0' }]}
+          style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? uiPalette.line }]}
           accessibilityLabel={`${v.label} ${Math.round(v.value)}, ${vitalState(v.value).word}`}
         >
           {Math.round(v.value)}
@@ -354,6 +357,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             AND critical/low vitals, each with its fix. Self-nulls when clear. */}
         {!treatmentLeads && <HealthIssuesCard />}
 
+        <SceneCard scene={treatmentLeads ? "clinic" : "gym"} title="Make time for yourself" subtitle="Small choices shape a healthier life." />
         {/* Activities */}
         <View style={styles.section}>
           <CollapsibleSection
@@ -450,7 +454,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   content: {
     flex: 1,
@@ -466,35 +470,35 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: responsiveSpacing.md,
-    gap: verticalScale(4),
+    gap: layoutSpace.xs,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   vitalsRingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: responsiveSpacing.xs,
-    paddingBottom: scale(2),
+    paddingBottom: layoutSpace.xs,
   },
   vitalRingCell: {
     flex: 1,
     alignItems: 'center',
-    gap: scale(4),
+    gap: layoutSpace.xs,
   },
   vitalRingValue: {
     fontSize: fontScale(14),
     fontWeight: '800',
-    color: '#F8FAFC',
-    marginTop: scale(5),
+    color: uiPalette.paper,
+    marginTop: layoutSpace.xs,
   },
   vitalRingLabel: {
     fontSize: fontScale(10.5),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     letterSpacing: 0.3,
   },
   vitalsSummary: {
     flexDirection: 'row',
-    gap: scale(10),
+    gap: layoutSpace.sm,
   },
   vitalsSummaryValue: {
     fontSize: fontScale(13),
@@ -502,20 +506,20 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     padding: responsiveSpacing.md,
-    paddingBottom: verticalScale(40),
-    gap: verticalScale(20),
+    paddingBottom: layoutSpace['2xl'],
+    gap: layoutSpace.comfortable,
   },
   section: {
-    gap: verticalScale(10),
+    gap: layoutSpace.sm,
   },
   protectionCard: {
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.35)',
     backgroundColor: 'rgba(34, 197, 94, 0.10)',
-    borderRadius: scale(10),
-    padding: scale(10),
-    marginBottom: scale(10),
-    gap: scale(2),
+    borderRadius: layoutRadius.md,
+    padding: layoutSpace.sm,
+    marginBottom: layoutSpace.sm,
+    gap: layoutSpace.xs,
   },
   protectionTitle: {
     fontSize: fontScale(12),
@@ -531,7 +535,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     color: 'rgba(226, 232, 240, 0.6)',
     lineHeight: fontScale(17),
-    marginBottom: verticalScale(4),
+    marginBottom: layoutSpace.xs,
   },
   sectionDescriptionDark: {
     color: 'rgba(226, 232, 240, 0.6)',
@@ -541,7 +545,7 @@ const styles = StyleSheet.create({
     color: 'rgba(52, 211, 153, 0.75)',
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: verticalScale(4),
+    marginTop: layoutSpace.xs,
     fontVariant: ['tabular-nums'],
   },});
 

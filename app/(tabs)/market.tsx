@@ -1,3 +1,4 @@
+import { uiPalette , accent } from '@/lib/config/theme';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +19,7 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { accent } from '@/lib/config/theme';
+
 import { styles } from '@/components/market/marketScreenStyles';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -474,8 +475,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           <CollapsibleSection
             id="market.housing"
             title="Housing"
-            icon={<Home size={scale(15)} color="#60A5FA" />}
-            tint="#60A5FA"
+            icon={<Home size={scale(15)} color={uiPalette.blue} />}
+            tint={uiPalette.blue}
             summary={currentRental ? currentRental.tier.name : 'Not renting'}
           >
             <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>

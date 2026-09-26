@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
 // CRITICAL: Use fallback instead of direct expo-linear-gradient import to prevent crashes
@@ -816,7 +817,7 @@ Discord: ${DISCORD_URL}`;
                   onPress={this.handleRetry}
                   disabled={this.state.retryCount >= this.maxRetries}
                 >
-                  <RefreshCw size={20} color="#FFFFFF" />
+                  <RefreshCw size={20} color={uiPalette.white} />
                   <Text style={styles.buttonText}>
                     {this.state.retryCount >= this.maxRetries ? 'Max Retries' : 'Try Again'}
                   </Text>
@@ -826,7 +827,7 @@ Discord: ${DISCORD_URL}`;
                   style={[styles.button, styles.homeButton]}
                   onPress={this.handleGoHome}
                 >
-                  <Home size={20} color="#FFFFFF" />
+                  <Home size={20} color={uiPalette.white} />
                   <Text style={styles.buttonText}>Go Home</Text>
                 </TouchableOpacity>
               </View>
@@ -837,7 +838,7 @@ Discord: ${DISCORD_URL}`;
                   style={[styles.button, styles.exportButton]}
                   onPress={this.handleExportLog}
                 >
-                  <Download size={20} color="#FFFFFF" />
+                  <Download size={20} color={uiPalette.white} />
                   <Text style={styles.buttonText}>Export Crash Log</Text>
                 </TouchableOpacity>
 
@@ -845,7 +846,7 @@ Discord: ${DISCORD_URL}`;
                   style={[styles.button, styles.discordButton]}
                   onPress={this.handleOpenDiscord}
                 >
-                  <MessageCircle size={20} color="#FFFFFF" />
+                  <MessageCircle size={20} color={uiPalette.white} />
                   <Text style={styles.buttonText}>Join Discord</Text>
                 </TouchableOpacity>
               </View>
@@ -898,7 +899,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     marginBottom: 30,
     lineHeight: 22,
@@ -947,13 +948,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: 16,
     fontWeight: '600',
   },
   retryInfo: {
     fontSize: 12,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
   },
   recoveryContainer: {
@@ -1019,7 +1020,7 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 13,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     marginBottom: 12,
     paddingHorizontal: 20,

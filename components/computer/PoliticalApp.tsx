@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * PoliticalApp - Remake 5 · Campaign-HQ DNA pass.
  *
@@ -45,7 +46,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import Gradient from '@/components/ui/Gradient';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 
@@ -1614,8 +1615,8 @@ function OfficeTimeline({
             <View style={styles.nodeCol}>
               <View style={[styles.connector, { backgroundColor: topReached ? withAlpha(SKY, 0.5) : theme.border }, isFirst && styles.connectorHidden]} />
               <View style={[styles.node, nodeStyle(r.status, theme)]}>
-                {r.status === 'held' && <Check size={scale(13)} color="#FFFFFF" />}
-                {r.status === 'current' && <Landmark size={scale(13)} color="#FFFFFF" />}
+                {r.status === 'held' && <Check size={scale(13)} color={uiPalette.white} />}
+                {r.status === 'current' && <Landmark size={scale(13)} color={uiPalette.white} />}
                 {r.status === 'next' && <Vote size={scale(12)} color={SKY} />}
                 {r.status === 'locked' && <Lock size={scale(12)} color={theme.textMuted} />}
               </View>

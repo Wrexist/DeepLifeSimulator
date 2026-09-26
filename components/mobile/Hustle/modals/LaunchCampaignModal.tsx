@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * LaunchCampaignModal - pick campaign kind + spend + duration.
  *
@@ -11,7 +12,7 @@ import BaseModal from '@/components/ui/BaseModal';
 import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { launchCampaign, cancelCampaign, CAMPAIGN_ENERGY_COST } from '@/contexts/game/actions/HustleActions';
 import { campaignCostFloor, projectCampaignROI } from '@/lib/business/hustleLogic';
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

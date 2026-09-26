@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ImageWithFallback - drop-in replacement for `<Image source={{ uri }} />`
  * that gracefully degrades to a placeholder when the URI fails to load.
@@ -51,8 +52,8 @@ export default function ImageWithFallback({
   uri,
   fallback,
   style,
-  placeholderColor = '#E2E8F0',
-  placeholderTextColor = '#64748B',
+  placeholderColor = uiPalette.line,
+  placeholderTextColor = uiPalette.lightMuted,
   face,
 }: ImageWithFallbackProps) {
   const [errored, setErrored] = useState(false);

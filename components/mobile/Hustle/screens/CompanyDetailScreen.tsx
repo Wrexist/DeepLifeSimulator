@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * CompanyDetailScreen - single-company deep view (business-dashboard DNA).
  *
@@ -29,7 +30,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import StatStrip, { StatTile } from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getGlassButton, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
@@ -469,7 +470,7 @@ export default function CompanyDetailScreen({
               accessibilityState={{ disabled: !canHireWorker }}
               style={[styles.staffBtn, canHireWorker && getPlatformShadows(5, 0.3, 2, 8), { backgroundColor: HUSTLE_COLORS.accent, opacity: canHireWorker ? 1 : 0.5 }]}
             >
-              <UserPlus size={fontScale(16)} color="#FFFFFF" strokeWidth={2.2} />
+              <UserPlus size={fontScale(16)} color={uiPalette.white} strokeWidth={2.2} />
               <Text style={styles.staffBtnText}>Hire · ${company.workerSalary.toLocaleString()}</Text>
             </Pressable>
             <Pressable
@@ -776,7 +777,7 @@ export default function CompanyDetailScreen({
                 accessibilityState={{ disabled: !canConvertToFamilyBusiness }}
                 style={[styles.staffBtn, canConvertToFamilyBusiness && getPlatformShadows(5, 0.3, 2, 8), { backgroundColor: HUSTLE_COLORS.warning, opacity: canConvertToFamilyBusiness ? 1 : 0.5 }]}
               >
-                <Crown size={fontScale(16)} color="#FFFFFF" strokeWidth={2.2} />
+                <Crown size={fontScale(16)} color={uiPalette.white} strokeWidth={2.2} />
                 <Text style={styles.staffBtnText}>
                   {money < FAMILY_BUSINESS_COST ? `Need $${FAMILY_BUSINESS_COST.toLocaleString()}` : `Convert · $${FAMILY_BUSINESS_COST.toLocaleString()}`}
                 </Text>
@@ -1432,7 +1433,7 @@ const styles = StyleSheet.create({
     minHeight: touchTargets.minimum,
   },
   staffBtnText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(13),
     fontWeight: '600',
   },
@@ -1636,7 +1637,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
     fontVariant: ['tabular-nums'],

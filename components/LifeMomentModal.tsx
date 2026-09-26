@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useRef } from 'react';
 import { Platform, View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -125,7 +126,7 @@ export default function LifeMomentModal() {
     <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
       <View style={styles.overlay}>
         <LinearGradient
-          colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#FFFFFF']}
+          colors={settings.darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.paper, uiPalette.white]}
           style={styles.container}
         >
           {/* ── One scroll surface for the whole card ────────────────────
@@ -264,22 +265,22 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 16,
     textAlign: 'center',
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   situation: {
     fontSize: fontScale(16),
-    color: '#334155',
+    color: uiPalette.slate,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: fontScale(24),
   },
   situationDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   scrollArea: {
     flexShrink: 1,
@@ -305,12 +306,12 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     fontSize: fontScale(16),
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 8,
     fontWeight: '500',
   },
   choiceTextDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   effectsContainer: {
     flexDirection: 'row',
@@ -332,10 +333,10 @@ const styles = StyleSheet.create({
   effectText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   effectTextDark: {
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
   },
 });
 

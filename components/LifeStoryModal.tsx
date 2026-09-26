@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * LifeStoryModal - Auto-generated narrative of the player's life
  *
@@ -80,7 +81,7 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
             style={styles.header}
           >
             <View style={styles.headerContent}>
-              <BookOpen size={24} color="#FFFFFF" />
+              <BookOpen size={24} color={uiPalette.white} />
               <View style={styles.headerText}>
                 <Text style={styles.title}>{story.title}</Text>
                 <Text style={styles.subtitle}>{story.subtitle}</Text>
@@ -88,10 +89,10 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity onPress={handleShare} style={styles.shareButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Share life story">
-                <Share2 size={20} color="#FFFFFF" />
+                <Share2 size={20} color={uiPalette.white} />
               </TouchableOpacity>
               <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
-                <X size={22} color="#FFFFFF" />
+                <X size={22} color={uiPalette.white} />
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -105,7 +106,7 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
             {story.chapters.length === 0 ? (
               <FadeInUp delay={0}>
                 <View style={styles.emptyState}>
-                  <BookOpen size={48} color="#475569" />
+                  <BookOpen size={48} color={uiPalette.lightSecondary} />
                   <Text style={styles.emptyTitle}>Your story is just beginning</Text>
                   <Text style={styles.emptyText}>
                     Keep living your life - every week adds to your story. Make choices, build relationships, and pursue your dreams.
@@ -143,7 +144,7 @@ function ChapterCard({ chapter, index }: { chapter: StoryChapter; index: number 
     ['#EC4899', '#F472B6'],
     ['#10B981', '#34D399'],
     ['#F59E0B', '#FBBF24'],
-    ['#3B82F6', '#60A5FA'],
+    ['#3B82F6', uiPalette.blue],
   ];
   const [c1, c2] = chapterColors[index % chapterColors.length];
 
@@ -166,7 +167,7 @@ function ChapterCard({ chapter, index }: { chapter: StoryChapter; index: number 
 
       {chapter.paragraphs.map((p, i) => (
         <View key={i} style={styles.paragraphRow}>
-          <ChevronRight size={14} color="#64748B" style={{ marginTop: 3 }} />
+          <ChevronRight size={14} color={uiPalette.lightMuted} style={{ marginTop: 3 }} />
           <Text style={styles.paragraph}>{p}</Text>
         </View>
       ))}
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     marginTop: 60,
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: fontScale(13),
@@ -240,18 +241,18 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...tier2,
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     marginTop: 16,
   },
   emptyText: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: fontScale(20),
   },
   chapterCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   chapterNumber: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -282,11 +283,11 @@ const styles = StyleSheet.create({
   },
   chapterTitle: {
     ...tier2,
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
   },
   chapterAge: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontWeight: '500',
   },
   paragraphRow: {
@@ -297,12 +298,12 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: fontScale(14),
     lineHeight: fontScale(21),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginLeft: 8,
     flex: 1,
   },
   closingCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   closingText: {
     fontSize: fontScale(15),
     lineHeight: fontScale(22),
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     fontStyle: 'italic',
     textAlign: 'center',
   },

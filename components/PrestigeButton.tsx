@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useRef, useEffect } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -104,12 +105,12 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#334155', '#1E293B']}
+          colors={[uiPalette.slate, uiPalette.surface]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.button}
         >
-          <Crown size={16} color="#94A3B8" />
+          <Crown size={16} color={uiPalette.muted} />
           <View style={styles.textContainer}>
             <Text style={styles.label}>Prestige</Text>
             <Text style={styles.progressText}>
@@ -156,9 +157,9 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
               },
             ]}
           >
-            <Sparkles size={16} color="#FFFFFF" />
+            <Sparkles size={16} color={uiPalette.white} />
           </Animated.View>
-          <Crown size={20} color="#FFFFFF" />
+          <Crown size={20} color={uiPalette.white} />
           <View style={styles.textContainer}>
             <Text style={styles.availableLabel}>PRESTIGE AVAILABLE!</Text>
             <Text style={styles.availableSubtext}>
@@ -210,17 +211,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   progressText: {
     fontSize: fontScale(10),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 2,
   },
   availableLabel: {
     fontSize: fontScale(13),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.5,
   },
   availableSubtext: {

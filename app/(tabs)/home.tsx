@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsivePadding, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
@@ -24,7 +26,7 @@ import PrestigePreviewCard from '@/components/PrestigePreviewCard';
 import PrestigeModal from '@/components/PrestigeModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
 import PrestigeInfoModal from '@/components/PrestigeInfoModal';
-import { fontScale, responsivePadding, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
+
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
@@ -660,8 +662,8 @@ function HomeScreenContent() {
           {showGoalDetails ? 'Hide details' : 'Show details'}
         </Text>
         {showGoalDetails
-          ? <ChevronUp size={scale(15)} color="#94A3B8" />
-          : <ChevronDown size={scale(15)} color="#94A3B8" />}
+          ? <ChevronUp size={scale(15)} color={uiPalette.muted} />
+          : <ChevronDown size={scale(15)} color={uiPalette.muted} />}
       </TouchableOpacity>
 
     </>
@@ -673,7 +675,7 @@ function HomeScreenContent() {
         style={styles.scrollContainer}
         contentContainerStyle={{
           paddingBottom: scale(100) + insets.bottom,
-          paddingTop: scale(4),
+          paddingTop: layoutSpace.xs,
           paddingHorizontal: responsivePadding.horizontal,
         }}
         showsVerticalScrollIndicator={false}
@@ -688,6 +690,12 @@ function HomeScreenContent() {
         {/* No crown upsell here any more: the HUD's store button and the gem
             chip's + are the store entries. Four concurrent paywall
             affordances on one screen was the audit's monetization finding. */}
+
+        <FadeInUp delay={0}>
+          {/* The prestige badge on the card opens the shop this screen already
+              mounts below, instead of its previous empty onPress. */}
+          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
+        </FadeInUp>
 
         {/* THE LEAD SLOT - see `lead` above. One element, chosen by state,
             with the feed's widest gap under it so the eye lands here first and
@@ -705,11 +713,7 @@ function HomeScreenContent() {
           {lead === 'goals' && <FadeInUp delay={20}>{goalsBlock}</FadeInUp>}
         </View>
 
-        <FadeInUp delay={0}>
-          {/* The prestige badge on the card opens the shop this screen already
-              mounts below, instead of its previous empty onPress. */}
-          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
-        </FadeInUp>
+
 
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
@@ -803,7 +807,7 @@ function HomeScreenContent() {
           >
             <View style={styles.progressLinkIcon}>
               {progressLocked ? (
-                <Lock size={scale(18)} color="#94A3B8" />
+                <Lock size={scale(18)} color={uiPalette.muted} />
               ) : (
                 <Trophy size={scale(20)} color="#F59E0B" />
               )}
@@ -816,7 +820,7 @@ function HomeScreenContent() {
                   : 'Prestige, Legacy Pass, life story & lifetime stats'}
               </Text>
             </View>
-            <ChevronRight size={scale(18)} color="#94A3B8" />
+            <ChevronRight size={scale(18)} color={uiPalette.muted} />
           </TouchableOpacity>
         </FadeInUp>
 
@@ -845,15 +849,15 @@ function HomeScreenContent() {
         >
           <Text style={styles.showMoreText}>{showMore ? 'Show less' : 'Show more'}</Text>
           {showMore
-            ? <ChevronUp size={scale(15)} color="#94A3B8" />
-            : <ChevronDown size={scale(15)} color="#94A3B8" />}
+            ? <ChevronUp size={scale(15)} color={uiPalette.muted} />
+            : <ChevronDown size={scale(15)} color={uiPalette.muted} />}
         </TouchableOpacity>
 
         {/* Banner ad at the end of the scroll content - non-obscuring (scrolls
             with content, never overlaps the tab bar). Self-gating: BannerAd
             renders nothing unless the AdMob SDK is configured and the player
             hasn't bought Remove Ads / Lifetime Premium. */}
-        <BannerAd style={{ marginTop: scale(12) }} />
+        <BannerAd style={{ marginTop: layoutSpace.compact }} />
       </ScrollView>
 
       {/* NOISE: light popup coordination. The root layout owns blocking modals
@@ -959,9 +963,9 @@ const styles = StyleSheet.create({
   progressLinkCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
-    marginBottom: verticalScale(12),
-    padding: scale(14),
+    gap: layoutSpace.compact,
+    marginBottom: layoutSpace.compact,
+    padding: layoutSpace.compact,
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(30, 41, 59, 0.75)',
     borderWidth: 1,
@@ -971,7 +975,7 @@ const styles = StyleSheet.create({
   progressLinkIcon: {
     width: scale(38),
     height: scale(38),
-    borderRadius: scale(19),
+    borderRadius: layoutRadius['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
@@ -979,32 +983,32 @@ const styles = StyleSheet.create({
   progressLinkTitle: {
     fontSize: fontScale(15),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   progressLinkSub: {
     fontSize: fontScale(11.5),
-    color: '#94A3B8',
-    marginTop: scale(2),
+    color: uiPalette.muted,
+    marginTop: layoutSpace.xs,
   },
   showMoreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: scale(6),
+    gap: layoutSpace.xs,
     alignSelf: 'center',
-    marginTop: verticalScale(4),
-    marginBottom: verticalScale(8),
-    paddingVertical: verticalScale(8),
-    paddingHorizontal: scale(16),
+    marginTop: layoutSpace.xs,
+    marginBottom: layoutSpace.sm,
+    paddingVertical: layoutSpace.sm,
+    paddingHorizontal: layoutSpace.md,
   },
   showMoreText: {
     fontSize: fontScale(13),
     fontWeight: '700',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   scrollContainer: {
     flex: 1,

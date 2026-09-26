@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * GoalsCard - ONE answer to "what should I do next?".
  *
@@ -87,7 +88,7 @@ const SYSTEM_META: Record<GoalRowSystem, { color: string; Icon: typeof Target }>
   chapter: { color: '#A855F7', Icon: BookOpen },
   challenge: { color: '#F472B6', Icon: Swords },
   liveops: { color: '#38BDF8', Icon: Sparkles },
-  ambition: { color: '#60A5FA', Icon: Target },
+  ambition: { color: uiPalette.blue, Icon: Target },
   scenario: { color: '#38BDF8', Icon: Flag },
   catalogue: { color: '#34D399', Icon: Compass },
 };
@@ -275,7 +276,7 @@ function Row({ row, lead, onPress }: { row: GoalsCardRow; lead: boolean; onPress
           <Text style={lead ? styles.leadFraction : styles.rowFraction}>{row.fraction}</Text>
         )}
       </View>
-      {onPress ? <ChevronRight size={scale(15)} color="#64748B" /> : null}
+      {onPress ? <ChevronRight size={scale(15)} color={uiPalette.lightMuted} /> : null}
     </>
   );
 
@@ -366,7 +367,7 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
 
 const styles = StyleSheet.create({
   // Container from components/ui/Card.
-  kicker: { ...kicker, color: '#94A3B8' },
+  kicker: { ...kicker, color: uiPalette.muted },
   leadRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
   rowIcon: {
     width: scale(36),
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148, 163, 184, 0.08)',
   },
   leadTitle: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontSize: fontScale(17),
     lineHeight: fontScale(22),
     fontWeight: '700',
@@ -391,17 +392,17 @@ const styles = StyleSheet.create({
     marginTop: scale(7),
     overflow: 'hidden',
   },
-  leadFraction: { ...tier4, color: '#94A3B8', marginTop: scale(4) },
+  leadFraction: { ...tier4, color: uiPalette.muted, marginTop: scale(4) },
   next: {
     gap: rhythm.tight,
     paddingTop: rhythm.tight,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
-  nextKicker: { ...kicker, color: '#64748B' },
+  nextKicker: { ...kicker, color: uiPalette.lightMuted },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   rowDot: { width: scale(8), height: scale(8), borderRadius: scale(4) },
-  rowTitle: { ...tier3, color: '#CBD5E1' },
+  rowTitle: { ...tier3, color: uiPalette.secondary },
   barBg: {
     height: scale(3),
     borderRadius: scale(2),
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(3) },
-  rowFraction: { ...tier4, color: '#64748B', marginTop: scale(2) },
+  rowFraction: { ...tier4, color: uiPalette.lightMuted, marginTop: scale(2) },
 });
 
 export default React.memo(GoalsCard);

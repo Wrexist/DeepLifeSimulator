@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useMemo, useCallback } from 'react';
 import { Platform, View,
   Text,
@@ -49,7 +50,7 @@ const ACHIEVEMENT_CATEGORIES = [
   { id: 'health', label: 'Health', icon: Activity, color: '#06B6D4', gradient: ['#06B6D4', '#0891B2'] },
   { id: 'items', label: 'Items', icon: Package, color: '#F97316', gradient: ['#F97316', '#EA580C'] },
   { id: 'special', label: 'Special', icon: Star, color: '#A855F7', gradient: ['#A855F7', '#9333EA'] },
-  { id: 'secret', label: 'Secret', icon: Lock, color: '#64748B', gradient: ['#64748B', '#475569'] },
+  { id: 'secret', label: 'Secret', icon: Lock, color: uiPalette.lightMuted, gradient: [uiPalette.lightMuted, uiPalette.lightSecondary] },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -185,7 +186,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           >
             <IconComponent
               size={scale(14)}
-              color={isSelected ? '#FFFFFF' : (darkMode ? '#94A3B8' : '#64748B')}
+              color={isSelected ? uiPalette.white : (darkMode ? uiPalette.muted : uiPalette.lightMuted)}
             />
             <Text
               style={[
@@ -250,15 +251,15 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           ]}
         >
           <LinearGradient
-            colors={isCompleted ? categoryInfo.gradient as [string, string] : (darkMode ? ['#334155', '#1E293B'] : ['#F1F5F9', '#E2E8F0']) as [string, string]}
+            colors={isCompleted ? categoryInfo.gradient as [string, string] : (darkMode ? [uiPalette.slate, uiPalette.surface] : [uiPalette.lightSurface, uiPalette.line]) as [string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.achievementIconContainer}
           >
             {isCompleted ? (
-              <IconComponent size={scale(24)} color="#FFFFFF" />
+              <IconComponent size={scale(24)} color={uiPalette.white} />
             ) : (
-              <Lock size={scale(24)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
+              <Lock size={scale(24)} color={darkMode ? uiPalette.muted : uiPalette.muted} />
             )}
           </LinearGradient>
 
@@ -276,7 +277,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
               </Text>
               {isCompleted && (
                 <View style={styles.completedBadge}>
-                  <Check size={scale(12)} color="#FFFFFF" />
+                  <Check size={scale(12)} color={uiPalette.white} />
                 </View>
               )}
             </View>
@@ -301,7 +302,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
 
               {unlockedAt !== undefined && (
                 <View style={styles.unlockedAtContainer}>
-                  <Clock size={scale(12)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
+                  <Clock size={scale(12)} color={darkMode ? uiPalette.muted : uiPalette.muted} />
                   <Text style={[styles.unlockedAtText, darkMode && styles.unlockedAtTextDark]}>
                     Week {unlockedAt}
                   </Text>
@@ -324,7 +325,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
   // Render empty state
   const renderEmptyState = () => (
     <View style={[styles.emptyState, darkMode && styles.emptyStateDark]}>
-      <Award size={scale(48)} color={darkMode ? '#475569' : '#94A3B8'} />
+      <Award size={scale(48)} color={darkMode ? uiPalette.lightSecondary : uiPalette.muted} />
       <Text style={[styles.emptyStateTitle, darkMode && styles.emptyStateTitleDark]}>
         {searchQuery ? 'No Achievements Found' : 'No Achievements Yet'}
       </Text>
@@ -399,11 +400,11 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
       {/* Search and filter bar */}
       <View style={styles.searchFilterRow}>
         <View style={[styles.searchContainer, darkMode && styles.searchContainerDark]}>
-          <Search size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
+          <Search size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.muted} />
           <TextInput
             style={[styles.searchInput, darkMode && styles.searchInputDark]}
             placeholder="Search achievements..."
-            placeholderTextColor={darkMode ? '#94A3B8' : '#94A3B8'}
+            placeholderTextColor={darkMode ? uiPalette.muted : uiPalette.muted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -413,7 +414,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
               accessibilityRole="button"
               accessibilityLabel="Clear search"
             >
-              <X size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
+              <X size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.muted} />
             </TouchableOpacity>
           )}
         </View>
@@ -425,8 +426,8 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           accessibilityLabel="Sort achievements"
           accessibilityState={{ expanded: showSortDropdown }}
         >
-          <Filter size={scale(16)} color={darkMode ? '#94A3B8' : '#64748B'} />
-          <ChevronDown size={scale(14)} color={darkMode ? '#94A3B8' : '#64748B'} />
+          <Filter size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
+          <ChevronDown size={scale(14)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
         </TouchableOpacity>
       </View>
 
@@ -525,14 +526,14 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(16),
     padding: scale(16),
     marginBottom: scale(20),
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   header: {
     flexDirection: 'row',
@@ -548,10 +549,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   statsContainer: {
     alignItems: 'flex-end',
@@ -559,21 +560,21 @@ const styles = StyleSheet.create({
   statsText: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(4),
   },
   statsTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   progressBarSmall: {
     width: scale(60),
     height: scale(4),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     borderRadius: scale(2),
     overflow: 'hidden',
   },
   progressBarSmallDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   progressFillSmall: {
     height: '100%',
@@ -585,13 +586,13 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: scale(8),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     borderRadius: scale(4),
     overflow: 'hidden',
     marginBottom: scale(6),
   },
   progressBarDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   progressFill: {
     height: '100%',
@@ -600,11 +601,11 @@ const styles = StyleSheet.create({
   },
   progressPercentage: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'right',
   },
   progressPercentageDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   searchFilterRow: {
     flexDirection: 'row',
@@ -615,41 +616,41 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: scale(10),
     paddingHorizontal: scale(12),
     gap: scale(8),
   },
   searchContainerDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   searchInput: {
     flex: 1,
     height: scale(40),
     fontSize: fontScale(14),
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   searchInputDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: scale(10),
     paddingHorizontal: scale(12),
     gap: scale(4),
     height: scale(40),
   },
   sortButtonDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   sortDropdown: {
     position: 'absolute',
     top: scale(140),
     right: scale(16),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(12),
     padding: scale(8),
     ...Platform.select({
@@ -666,7 +667,7 @@ const styles = StyleSheet.create({
     minWidth: scale(180),
   },
   sortDropdownDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   sortOption: {
     flexDirection: 'row',
@@ -684,10 +685,10 @@ const styles = StyleSheet.create({
   },
   sortOptionText: {
     fontSize: fontScale(14),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
   sortOptionTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   sortOptionTextSelected: {
     color: '#92400E',
@@ -695,11 +696,11 @@ const styles = StyleSheet.create({
   },
   sortDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     marginVertical: scale(4),
   },
   sortDividerDark: {
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
   },
   categoryScrollView: {
     marginBottom: scale(12),
@@ -712,28 +713,28 @@ const styles = StyleSheet.create({
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     paddingVertical: scale(8),
     paddingHorizontal: scale(12),
     borderRadius: scale(20),
     gap: scale(6),
   },
   categoryChipDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   categoryChipText: {
     fontSize: fontScale(12),
     fontWeight: '500',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   categoryChipTextSelected: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   categoryChipTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   categoryCountBadge: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     paddingHorizontal: scale(6),
     paddingVertical: scale(2),
     borderRadius: scale(10),
@@ -742,15 +743,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   categoryCountBadgeDark: {
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
   },
   categoryCountText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   categoryCountTextSelected: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   secretBanner: {
     flexDirection: 'row',
@@ -778,7 +779,7 @@ const styles = StyleSheet.create({
   },
   achievementCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(12),
     padding: scale(12),
     marginBottom: scale(10),
@@ -793,11 +794,11 @@ const styles = StyleSheet.create({
     }),
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   achievementCardDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   achievementCardLocked: {
     opacity: 0.7,
@@ -822,14 +823,14 @@ const styles = StyleSheet.create({
   achievementName: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
     flex: 1,
   },
   achievementNameDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   achievementNameLocked: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   completedBadge: {
     backgroundColor: '#10B981',
@@ -838,12 +839,12 @@ const styles = StyleSheet.create({
   },
   achievementDescription: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: fontScale(18),
     marginBottom: scale(8),
   },
   achievementDescriptionDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   achievementDescriptionLocked: {
     fontStyle: 'italic',
@@ -870,10 +871,10 @@ const styles = StyleSheet.create({
   },
   unlockedAtText: {
     fontSize: fontScale(11),
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   unlockedAtTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   rewardContainer: {
     flexDirection: 'row',
@@ -894,30 +895,30 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginTop: scale(12),
   },
   emptyStateTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   emptyStateSubtitle: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(4),
     textAlign: 'center',
   },
   emptyStateSubtitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   // Compact mode styles
   compactContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(12),
     padding: scale(12),
     marginBottom: scale(12),
   },
   compactContainerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   compactHeader: {
     flexDirection: 'row',
@@ -929,10 +930,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   compactTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   compactStats: {
     fontSize: fontScale(14),
@@ -950,12 +951,12 @@ const styles = StyleSheet.create({
   compactProgressBar: {
     flex: 1,
     height: scale(6),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     borderRadius: scale(3),
     overflow: 'hidden',
   },
   compactProgressBarDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   compactProgressFill: {
     height: '100%',
@@ -965,12 +966,12 @@ const styles = StyleSheet.create({
   compactPercentage: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     minWidth: scale(36),
     textAlign: 'right',
   },
   compactPercentageDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

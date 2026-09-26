@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ProfileScreen - player's own Pulse profile.
  *
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarInitial: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(36),
     fontWeight: '600',
   },

@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * BitcoinMiningApp - desktop crypto trading + mining dashboard.
  *
@@ -46,7 +47,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Crypto, CryptoOrderSide, CryptoOrderType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding, touchTargets } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import Chip from '@/components/ui/Chip';
@@ -1845,7 +1846,7 @@ function PrimaryCTA({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled }}
     >
-      <Text style={[styles.ctaText, { color: disabled ? theme.textMuted : '#0F172A' }]}>{label}</Text>
+      <Text style={[styles.ctaText, { color: disabled ? theme.textMuted : uiPalette.navy }]}>{label}</Text>
     </TouchableOpacity>
   );
 }

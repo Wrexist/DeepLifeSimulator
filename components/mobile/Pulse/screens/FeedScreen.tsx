@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * FeedScreen - home tab of the Pulse app.
  *
@@ -210,7 +211,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         }}
         style={styles.composerAvatar}
         placeholderColor={PULSE_COLORS.tierCelebrity}
-        placeholderTextColor="#FFFFFF"
+        placeholderTextColor={uiPalette.white}
       />
       <Text style={[styles.composerPrompt, { color: theme.textSecondary }]} numberOfLines={1}>
         What&apos;s on your mind?

@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveSpacing } from '@/utils/scaling';
 /**
  * StatStrip / StatTile - "a number with a label under it", once.
  *
@@ -12,7 +13,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+
 
 export interface StatTileProps {
   label: string;
@@ -80,10 +81,10 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: StyleSheet.hairlineWidth,
-    marginVertical: scale(4),
+    marginVertical: layoutSpace.xs,
   },
   tile: {
-    gap: scale(2),
+    gap: layoutSpace.xs,
   },
   value: {
     fontSize: fontScale(17),

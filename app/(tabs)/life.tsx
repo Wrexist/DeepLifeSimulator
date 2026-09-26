@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsivePadding, scale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -5,7 +7,7 @@ import { Activity, Heart, ShoppingCart, Trophy, Users } from 'lucide-react-nativ
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import ScreenHeader from '@/components/ui/ScreenHeader';
-import { fontScale, responsivePadding, scale } from '@/utils/scaling';
+
 import { useGame } from '@/contexts/GameContext';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { HealthScreenContent } from './health';
@@ -187,12 +189,12 @@ function LifeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   controlWrap: {
     paddingHorizontal: responsivePadding.horizontal,
-    paddingTop: scale(8),
-    paddingBottom: scale(8),
+    paddingTop: layoutSpace.sm,
+    paddingBottom: layoutSpace.sm,
   },
   body: {
     flex: 1,
@@ -208,10 +210,10 @@ const styles = StyleSheet.create({
   familyAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(8),
-    borderRadius: scale(10),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.compact,
+    paddingVertical: layoutSpace.sm,
+    borderRadius: layoutRadius.md,
     backgroundColor: 'rgba(244, 114, 182, 0.12)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(244, 114, 182, 0.35)',

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -111,19 +112,19 @@ function PreviewContent({ apply }: { apply: (w?: number, h?: number) => void }) 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
   },
   statusBar: {
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
   },
   container: { padding: 16, gap: 16 },
   title: { fontSize: 18, fontWeight: '700' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  button: { backgroundColor: '#0F172A', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
-  reset: { backgroundColor: '#334155' },
-  buttonText: { color: '#fff', fontWeight: '700' },
+  button: { backgroundColor: uiPalette.navy, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
+  reset: { backgroundColor: uiPalette.slate },
+  buttonText: { color: uiPalette.white, fontWeight: '700' },
   frameOuter: {
-    borderWidth: 1, borderColor: '#E2E8F0', padding: 8, borderRadius: 12, backgroundColor: '#F8FAFC'
+    borderWidth: 1, borderColor: uiPalette.line, padding: 8, borderRadius: 12, backgroundColor: uiPalette.paper
   },
   frame: { width: '100%', flex: 1 },
   hint: { opacity: 0.7, marginTop: 8 },

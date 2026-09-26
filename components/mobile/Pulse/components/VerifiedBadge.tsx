@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * VerifiedBadge - the blue-check disc, in the Pulse identity colour.
  *
@@ -56,7 +57,7 @@ export default function VerifiedBadge({
           { width: size, height: size, borderRadius: size / 2, backgroundColor: PULSE_COLORS.accent },
         ]}
       >
-        <Check size={size * 0.7} color="#FFFFFF" strokeWidth={3} />
+        <Check size={size * 0.7} color={uiPalette.white} strokeWidth={3} />
       </View>
     </View>
   );

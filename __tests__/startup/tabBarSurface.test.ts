@@ -28,10 +28,10 @@ const LAYOUT = path.join(process.cwd(), 'app', '(tabs)', '_layout.tsx');
 const TABS_DIR = path.join(process.cwd(), 'app', '(tabs)');
 
 /** The only screens allowed to render a bottom-bar button. */
-const VISIBLE_TABS = ['home', 'work', 'apps', 'life'];
+const VISIBLE_TABS = ['home', 'work', 'apps', 'life', 'progression'];
 
 /** Folded into Apps/Life — registered, but never a tab. */
-const FOLDED_TABS = ['mobile', 'computer', 'progression', 'market', 'health'];
+const FOLDED_TABS = ['mobile', 'computer', 'market', 'health'];
 
 const source = fs.readFileSync(LAYOUT, 'utf8');
 
@@ -68,7 +68,7 @@ describe('bottom tab bar surface', () => {
     expect(undeclared).toEqual([]);
   });
 
-  it('declares exactly the four intended tabs plus the five folded routes', () => {
+  it('declares exactly five intended tabs plus four folded routes', () => {
     const declared = declaredScreens().sort();
     expect(declared).toEqual([...VISIBLE_TABS, ...FOLDED_TABS].sort());
   });
@@ -93,8 +93,8 @@ describe('bottom tab bar surface', () => {
     }
   });
 
-  it('keeps the visible bar at four - the wall starts at nine', () => {
-    expect(VISIBLE_TABS).toHaveLength(4);
+  it('keeps the visible bar at five - the wall starts at nine', () => {
+    expect(VISIBLE_TABS).toHaveLength(5);
     expect(VISIBLE_TABS.length).toBeLessThanOrEqual(5);
   });
 });

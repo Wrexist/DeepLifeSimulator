@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * LikesScreen - the "who liked you" inbox that finally delivers the Ultra
  * "See who liked you" perk.
@@ -14,7 +15,7 @@ import Gradient from '@/components/ui/Gradient';
 import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
@@ -132,7 +133,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
                 end={{ x: 1, y: 0 }}
                 style={styles.upsellFill}
               >
-                <Crown size={fontScale(16)} color="#FFFFFF" fill="#FFFFFF" />
+                <Crown size={fontScale(16)} color={uiPalette.white} fill={uiPalette.white} />
                 <Text style={styles.upsellText}>See who liked you</Text>
               </LinearGradient>
             </Pressable>
@@ -173,7 +174,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
               </View>
               {entry.superLiked ? (
                 <View style={styles.superBadge}>
-                  <Star size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
+                  <Star size={fontScale(10)} color={uiPalette.white} fill={uiPalette.white} />
                 </View>
               ) : null}
             </View>
@@ -202,7 +203,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
               hitSlop={8}
               style={[styles.likeBackBtn, { backgroundColor: SPARK_COLORS.accent }]}
             >
-              <Heart size={fontScale(18)} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2} />
+              <Heart size={fontScale(18)} color={uiPalette.white} fill={uiPalette.white} strokeWidth={2} />
             </Pressable>
           </View>
         );
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#0F172A',
+    borderColor: uiPalette.navy,
   },
   likeBody: { flex: 1 },
   likeName: {
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
   },
   upsellText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

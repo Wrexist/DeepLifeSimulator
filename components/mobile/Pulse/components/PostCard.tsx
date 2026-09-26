@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * PostCard - single Pulse post in the feed.
  *
@@ -24,7 +25,7 @@ import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { formatRelativeWeek } from '../utils/formatRelativeTime';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { PULSE_COLORS } from '../styles/pulseTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import type { PulseRecentPost } from '@/contexts/game/types';
 
 interface PostCardProps {
@@ -134,7 +135,7 @@ function PostCard({
           face={{ seed: authorHandle, size: scale(34) }}
           style={styles.avatar}
           placeholderColor={PULSE_COLORS.tierCelebrity}
-          placeholderTextColor="#FFFFFF"
+          placeholderTextColor={uiPalette.white}
         />
         <View style={styles.authorMeta}>
           <Text style={[styles.handle, { color: theme.text }]} numberOfLines={1}>
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(4),
   },
   viralPillText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(9),
     fontWeight: '600',
     letterSpacing: 0.6,

@@ -1,7 +1,8 @@
+import { uiPalette , animation } from '@/lib/config/theme';
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, TextStyle } from 'react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { animation } from '@/lib/config/theme';
+
 
 interface AnimatedMoneyProps {
   value: number;
@@ -132,6 +133,6 @@ export default function AnimatedMoney(props: AnimatedMoneyProps) {
 const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
 });

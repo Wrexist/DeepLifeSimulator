@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors } from '@/lib/config/theme';
 /**
  * Inline deposit / withdraw for an account detail page.
  *
@@ -23,7 +24,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder, LayoutChangeEvent } from 'react-native';
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
 
@@ -290,7 +291,7 @@ export default function AccountTransferPanel({
             { backgroundColor: canSubmit ? tint : theme.surfaceElevated, borderColor: theme.border },
           ]}
         >
-          <Text style={[styles.ctaText, { color: canSubmit ? '#FFFFFF' : theme.textMuted }]}>
+          <Text style={[styles.ctaText, { color: canSubmit ? uiPalette.white : theme.textMuted }]}>
             {blocked
               ? withdrawDisabledReason || 'Locked'
               : amount > 0

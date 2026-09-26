@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingApp (YouVideo) - the video half of the creator career.
  *
@@ -79,7 +80,7 @@ import {
   MAX_PC_TIER,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -893,18 +894,18 @@ function VideoThumb({
       {showPlay ? (
         <View pointerEvents="none" style={styles.thumbPlayWrap}>
           <View style={styles.thumbPlayBtn}>
-            <Play size={scale(18)} color="#fff" />
+            <Play size={scale(18)} color={uiPalette.white} />
           </View>
         </View>
       ) : null}
       <View pointerEvents="none" style={styles.thumbChipRow}>
         <View style={styles.thumbChip}>
-          <Eye size={scale(10)} color="#fff" />
+          <Eye size={scale(10)} color={uiPalette.white} />
           <Text style={styles.thumbChipText}>{compact(v.views)}</Text>
         </View>
         {durStr ? (
           <View style={styles.thumbChip}>
-            <Clock size={scale(10)} color="#fff" />
+            <Clock size={scale(10)} color={uiPalette.white} />
             <Text style={styles.thumbChipText}>{durStr}</Text>
           </View>
         ) : v.game ? (
@@ -1156,11 +1157,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: scale(3),
     backgroundColor: 'rgba(0,0,0,0.66)', paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm,
   },
-  thumbChipText: { color: '#fff', fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  thumbChipText: { color: uiPalette.white, fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   thumbBadge: { position: 'absolute', top: sp.sm, left: sp.sm, paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm },
-  thumbBadgeText: { color: '#fff', fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.6 },
+  thumbBadgeText: { color: uiPalette.white, fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.6 },
   thumbTitleWrap: { padding: sp.md },
-  thumbTitleText: { color: '#fff', fontSize: fs.md, fontWeight: '700' },
+  thumbTitleText: { color: uiPalette.white, fontSize: fs.md, fontWeight: '700' },
 
   // Recent-video rows.
   vRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1 },

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ScandalRecoveryModal - three response options for an active scandal.
  *
@@ -39,7 +40,7 @@ const OPTION_BLURBS: Record<
   silence: {
     title: 'Stay silent',
     Icon: MessageCircleOff,
-    iconColor: '#94A3B8',
+    iconColor: uiPalette.muted,
     preview: 'No active recovery · weekly tick continues to chip away at severity',
   },
   gems: {

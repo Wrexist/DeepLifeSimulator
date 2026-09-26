@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ConfirmDialog - the game's shared confirm/deny popup (purchases, selling,
  * quitting a job, deleting a save). Redesigned to match the in-game sheet
@@ -50,7 +51,7 @@ interface ConfirmDialogProps {
 // The saturated shade leads each pair, so the gradient reads darkest at its
 // start. Values mirror the semantic palette.
 const TYPE_ACCENT: Record<DialogType, readonly [string, string]> = {
-  default: ['#3B82F6', '#60A5FA'],
+  default: ['#3B82F6', uiPalette.blue],
   warning: ['#F59E0B', '#FBBF24'],
   danger: ['#EF4444', '#F87171'],
   success: ['#10B981', '#34D399'],
@@ -115,7 +116,7 @@ export default function ConfirmDialog({
               end={{ x: 1, y: 1 }}
               style={styles.badge}
             >
-              {icon ?? <BadgeIcon size={scale(28)} color="#FFFFFF" strokeWidth={2.2} />}
+              {icon ?? <BadgeIcon size={scale(28)} color={uiPalette.white} strokeWidth={2.2} />}
             </LinearGradient>
           )}
 
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '700',
   },

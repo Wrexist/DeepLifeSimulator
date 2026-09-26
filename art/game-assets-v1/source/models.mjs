@@ -148,7 +148,47 @@ export function business(type) {
   if(type==='factory'){box(g,[2.7,.17,.74],[0,.74,.2],'dark','conveyor-frame');legs(g,2.4,.6,.6,'dark');for(let i=0;i<12;i++)cyl(g,.075,.075,.7,[-1.2+i*.215,.85,.2],'sage','roller').rotation.x=Math.PI/2;for(const x of [-.8,.1,.8])box(g,[.3,.3,.3],[x,1.08,.2],'paper','carton');box(g,[.65,1.1,.7],[-1.32,.65,-1],'teal','machine');box(g,[.38,.27,.03],[-1.32,.98,-.63],'glass','control-panel');}
   put(g,plant(),1.55,1.15,0,.7,.1);return g;
 }
+// Expanded original diorama family. Reuses the established camera/material pipeline.
+function destination(type) {
+  const g=shell('destination-'+type,'chalk');
+  if(type==='gym') {
+    box(g,[2.8,.025,2.2],[0,.12,.1],'teal','exercise-floor',.1);
+    for(const x of [-1,1]) {
+      box(g,[.72,.14,1.35],[x,.25,.1],'dark','treadmill-base');
+      box(g,[.52,.015,1.12],[x,.33,.14],'dark','running-belt');
+      for(const dx of [-.3,.3])cyl(g,.035,.035,.9,[x+dx,.7,-.48],'dark','rail');
+      box(g,[.7,.28,.08],[x,1.13,-.49],'teal','console');
+    }
+    put(g,plant(),1.5,-1.2,0,.65,.1);
+  } else if(type==='clinic') {
+    put(g,bed(),-.8,-.1,0,.85,.1);put(g,desk(),1,-1.1,0,.7,.1);
+    box(g,[.6,.6,.05],[-.9,1.25,-1.65],'cream','health-sign');
+    box(g,[.32,.1,.02],[-.9,1.25,-1.61],'teal','cross-horizontal');
+    box(g,[.1,.32,.02],[-.9,1.25,-1.59],'teal','cross-vertical');
+    put(g,plant(),1.5,1.1,0,.7,.1);
+  } else if(type==='university') {
+    box(g,[2.1,.8,.06],[-.3,1.3,-1.65],'teal','chalkboard');
+    for(const x of [-.9,.8])for(const z of [-.6,.9]) {
+      put(g,desk(),x,z,0,.58,.1);put(g,chair(),x,z+.52,Math.PI,.58,.1);
+    }
+  } else if(type==='cafe') {
+    counter(g,-.7,-1.05);
+    for(const x of [-.7,.95]) {put(g,coffeeTable(),x,.72,0,.65,.1);put(g,chair(),x+.5,.72,-Math.PI/2,.7,.1);}
+    put(g,plant(),1.45,-1.1,0,.85,.1);
+  } else if(type==='studio') {
+    put(g,desk(),.2,-.75,0,1.2,.1);put(g,chair(),.2,.15,Math.PI,1,.1);
+    put(g,plant(),1.4,1,0,1,.1);put(g,briefcase(),-1.3,1,0,1,.1);
+    for(let i=0;i<3;i++)box(g,[.32,.48,.06],[-1.45+i*.4,1.3,-1.65],['clay','teal','gold'][i],'wall-art');
+  } else {
+    put(g,sofa(),-.5,-.7,0,.95,.1);put(g,plant(),1.25,-1,0,1.2,.1);
+    put(g,coffeeTable(),-.3,.55,0,1,.1);put(g,chair(),1.25,.8,-.5,.85,.1);
+    box(g,[1.5,.025,1.8],[-.4,.115,.35],'clay','rug');
+  }
+  return g;
+}
+
 export const catalog = {
+  ...Object.fromEntries(['gym','clinic','university','cafe','studio','lounge'].map(type=>['destination-'+type,{title:type[0].toUpperCase()+type.slice(1),build:()=>destination(type),category:'Destination'}])),
   'city': { title:'Neighborhood', build:city, category:'Home' },
   'room': { title:'Starter room', build:room, category:'Home' },
   'home': { title:'Settled home', build:home, category:'Home' },

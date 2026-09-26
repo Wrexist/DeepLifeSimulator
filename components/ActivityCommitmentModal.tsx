@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useMemo } from 'react';
 import { Platform, View, Text, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -257,7 +258,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
           pointerEvents="box-none"
         >
           <LinearGradient
-            colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
+            colors={settings.darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.white, uiPalette.paper]}
             style={styles.modal}
           >
             {/* Header */}
@@ -281,7 +282,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                 hitSlop={hitSlopToMinTarget(scale(24))}
                 {...CLOSE_BUTTON_A11Y}
               >
-                <X size={24} color={settings.darkMode ? '#FFFFFF' : '#1E293B'} />
+                <X size={24} color={settings.darkMode ? uiPalette.white : uiPalette.surface} />
               </TouchableOpacity>
             </View>
 
@@ -342,7 +343,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               >
                 <LinearGradient
                   colors={(!canChange || (selectedPrimary === commitments?.primary && selectedSecondary === commitments?.secondary)) 
-                    ? ['#94A3B8', '#64748B'] 
+                    ? [uiPalette.muted, uiPalette.lightMuted]
                     : ['#10B981', '#059669']}
                   style={styles.saveButtonGradient}
                 >
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: uiPalette.line,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -421,11 +422,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   subtitle: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   closeButton: {
@@ -465,23 +466,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoCard: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     padding: scale(16),
     borderRadius: scale(12),
     marginBottom: scale(20),
   },
   infoCardDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   infoTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: scale(8),
   },
   infoText: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: fontScale(20),
   },
   areasContainer: {
@@ -489,15 +490,15 @@ const styles = StyleSheet.create({
     marginBottom: scale(16),
   },
   areaCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(12),
     padding: scale(16),
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   areaCardDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   areaHeader: {
     flexDirection: 'row',
@@ -518,12 +519,12 @@ const styles = StyleSheet.create({
   areaLabel: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: scale(2),
   },
   areaDescription: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   badge: {
     paddingHorizontal: scale(8),
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: fontScale(10),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.5,
   },
   levelSection: {
@@ -545,12 +546,12 @@ const styles = StyleSheet.create({
   },
   levelLabel: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(4),
   },
   levelBar: {
     height: scale(8),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     borderRadius: scale(4),
     overflow: 'hidden',
   },
@@ -583,23 +584,23 @@ const styles = StyleSheet.create({
     paddingTop: scale(16),
     paddingBottom: scale(20),
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: uiPalette.line,
   },
   cancelButton: {
     flex: 1,
     paddingVertical: scale(14),
     borderRadius: scale(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButtonDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   cancelButtonText: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   saveButton: {
     flex: 1,
@@ -617,13 +618,13 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   textDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   textDarkSecondary: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
 });
 

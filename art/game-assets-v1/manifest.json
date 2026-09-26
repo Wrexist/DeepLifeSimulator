@@ -347,6 +347,120 @@
       "transparentFraction": 0.675,
       "width": 1200,
       "height": 900
+    },
+    {
+      "id": "destination-gym",
+      "model": "models/destination-gym.glb",
+      "render": "renders/destination-gym.png",
+      "modelBytes": 386464,
+      "renderBytes": 118847,
+      "renderSha256": "ff61354fd37e0e4957bf9c05d6eea26cc4cc4e6895bf81a1511f2ccb5d36dc09",
+      "sha256": "dfcd32d3b642d6ea7706cc1d1f8add12985377a6ef0f326ae4df5721e34e13a4",
+      "triangles": 6964,
+      "meshes": 29,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-clinic",
+      "model": "models/destination-clinic.glb",
+      "render": "renders/destination-clinic.png",
+      "modelBytes": 736168,
+      "renderBytes": 121366,
+      "renderSha256": "cf1346789c018c060aa461663615cad66fd5a1219f27bbfeeb23d9c42e0ccfec",
+      "sha256": "26c162a46426e899231592c12a9591230b8710dec3b7f4adcdb1acb501b5fd8c",
+      "triangles": 10476,
+      "meshes": 47,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-university",
+      "model": "models/destination-university.glb",
+      "render": "renders/destination-university.png",
+      "modelBytes": 540764,
+      "renderBytes": 126126,
+      "renderSha256": "2d41243cff3e04267bdb4e199df594d30a043ed4e63e1e067f9cca80e7692bb2",
+      "sha256": "1b3c6244f2ae15af3d6d6405604039884630b0ffa806028114b35cae522f4a86",
+      "triangles": 17772,
+      "meshes": 97,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-cafe",
+      "model": "models/destination-cafe.glb",
+      "render": "renders/destination-cafe.png",
+      "modelBytes": 496976,
+      "renderBytes": 113871,
+      "renderSha256": "992942046fc9734fe686a5f327e1bbf807915096e958a74c4abdda6c58b8e215",
+      "sha256": "5094c68836fe6c50733c4af569aa054a67a9131bee46ba2dd60f8d18690ece92",
+      "triangles": 10128,
+      "meshes": 50,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-studio",
+      "model": "models/destination-studio.glb",
+      "render": "renders/destination-studio.png",
+      "modelBytes": 658536,
+      "renderBytes": 130856,
+      "renderSha256": "b4257228708bd23352ccecc09d26c0f9cbc7d4f0922899b47ca35d98cfcb0bd5",
+      "sha256": "6e942c58938c8e1f6e4e550c094d6ae6d5a3cc10b53b1e4381cbf15e6adbbfe5",
+      "triangles": 10560,
+      "meshes": 47,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-lounge",
+      "model": "models/destination-lounge.glb",
+      "render": "renders/destination-lounge.png",
+      "modelBytes": 648852,
+      "renderBytes": 142938,
+      "renderSha256": "9ced168243b12b2bd21a81f2eb486b7fc414069ad08cc77644206eefd0f3c783",
+      "sha256": "fd2b7ccd794dd3cb06349f4954d9231349596e44893a3931d7e9eea616688cce",
+      "triangles": 10324,
+      "meshes": 47,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
     }
   ]
 }

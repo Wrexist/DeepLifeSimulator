@@ -1,3 +1,12 @@
+import { responsiveSpacing as layoutSpace ,
+  fontScale,
+  responsiveBorderRadius,
+  responsiveFontSize,
+  responsivePadding,
+  responsiveSpacing,
+  scale,
+} from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -48,14 +57,7 @@ import {
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
-import {
-  fontScale,
-  responsiveBorderRadius,
-  responsiveFontSize,
-  responsivePadding,
-  responsiveSpacing,
-  scale,
-} from '@/utils/scaling';
+
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
@@ -166,7 +168,7 @@ const PerkCard = React.memo(function PerkCard({
             ) : null}
             {isLocked ? (
               <View style={styles.statusOverlay}>
-                <Lock size={scale(15)} color="#94A3B8" />
+                <Lock size={scale(15)} color={uiPalette.muted} />
               </View>
             ) : isPermanent ? (
               <View style={[styles.statusOverlay, styles.statusOverlayAmber]}>
@@ -318,7 +320,7 @@ const MindsetCard = React.memo(function MindsetCard({
                 <Text
                   style={[
                     styles.rarityText,
-                    { color: trait.category === 'personality' ? '#A78BFA' : '#60A5FA' },
+                    { color: trait.category === 'personality' ? '#A78BFA' : uiPalette.blue },
                   ]}
                 >
                   {trait.category === 'personality' ? 'Personality' : 'Financial'}
@@ -450,7 +452,7 @@ export default function Perks() {
       title="Start Your Life"
       onPress={start}
       loading={isStarting}
-      icon={<Play size={24} color="#FFFFFF" />}
+      icon={<Play size={24} color={uiPalette.white} />}
     />
   );
 
@@ -494,7 +496,7 @@ export default function Perks() {
             >
               <Gift
                 size={18}
-                color={activeTab === 'perks' ? '#FFFFFF' : '#94A3B8'}
+                color={activeTab === 'perks' ? uiPalette.white : uiPalette.muted}
               />
               <Text
                 style={[
@@ -528,7 +530,7 @@ export default function Perks() {
             >
               <Brain
                 size={18}
-                color={activeTab === 'mindset' ? '#FFFFFF' : '#94A3B8'}
+                color={activeTab === 'mindset' ? uiPalette.white : uiPalette.muted}
               />
               <Text
                 style={[
@@ -583,7 +585,7 @@ export default function Perks() {
                       accessibilityHint="Shows perks you have not unlocked yet, and how to unlock them"
                       accessibilityState={{ expanded: showLockedPerks }}
                     >
-                      <Lock size={16} color="#94A3B8" />
+                      <Lock size={16} color={uiPalette.muted} />
                       <Text style={styles.lockedShelfLabel}>
                         Locked ({lockedPerks.length})
                       </Text>
@@ -642,7 +644,7 @@ const styles = StyleSheet.create({
   guidanceText: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -667,7 +669,7 @@ const styles = StyleSheet.create({
   recommendedPillText: {
     fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#60A5FA',
+    color: uiPalette.blue,
     letterSpacing: 0.6,
   },
   recommendedPillTextPurple: {
@@ -679,7 +681,7 @@ const styles = StyleSheet.create({
   lockedShelf: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
+    gap: layoutSpace.sm,
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
@@ -691,12 +693,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#E2E8F0',
+    color: uiPalette.line,
   },
   lockedShelfAction: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#60A5FA',
+    color: uiPalette.blue,
   },
   perksContainer: {
     gap: responsiveSpacing.lg,
@@ -730,7 +732,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: scale(132),
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
   },
   heroImage: {
     width: '100%',
@@ -780,7 +782,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   permanentPillText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -789,7 +791,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: responsiveFontSize.xl,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -806,18 +808,18 @@ const styles = StyleSheet.create({
   perkDescription: {
     fontSize: responsiveFontSize.base,
     fontWeight: '500',
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     lineHeight: fontScale(16),
   },
   lockedPerkCard: { opacity: 0.6 },
-  lockedPerkTitle: { color: '#94A3B8' },
-  lockedPerkDescription: { color: '#94A3B8' },
+  lockedPerkTitle: { color: uiPalette.muted },
+  lockedPerkDescription: { color: uiPalette.muted },
 
   permanentPerkCard: { borderWidth: 2, borderColor: '#F59E0B' },
 
   requirementText: {
     fontSize: responsiveFontSize.sm,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontStyle: 'italic',
   },
 
@@ -876,10 +878,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   tabBadge: {
     backgroundColor: '#3B82F6',
@@ -893,7 +895,7 @@ const styles = StyleSheet.create({
   tabBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   mindsetCardSelected: {
     borderColor: 'rgba(96, 165, 250, 0.85)',
@@ -913,7 +915,7 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: responsiveFontSize.base,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontWeight: '500',
   },
 });

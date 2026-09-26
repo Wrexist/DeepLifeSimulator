@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * WeeklyChallengeCard - the front door for a system that had none.
  *
@@ -116,7 +117,7 @@ function WeeklyChallengeCard() {
         {objectives.map((o) => (
           <View key={o.id} style={styles.row}>
             <View style={[styles.checkBubble, o.completed && styles.checkBubbleDone]}>
-              {o.completed ? <Check size={scale(12)} color="#0F172A" /> : null}
+              {o.completed ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, o.completed && styles.rowTitleDone]} numberOfLines={1}>
@@ -147,7 +148,7 @@ function WeeklyChallengeCard() {
       </View>
 
       <View style={styles.footer}>
-        <Timer size={scale(13)} color="#94A3B8" />
+        <Timer size={scale(13)} color={uiPalette.muted} />
         <Text style={styles.footerText}>
           {/* "Complete", not "gems collected" - same reason as the header. A
               challenge minted already-satisfied carries `rewardClaimed: true`
@@ -172,8 +173,8 @@ const styles = StyleSheet.create({
   crestEmoji: { fontSize: fontScale(20) },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
   kicker: { color: '#F472B6', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
-  sub: { color: '#94A3B8', fontSize: fontScale(11), marginTop: scale(1) },
+  title: { color: uiPalette.paper, fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
+  sub: { color: uiPalette.muted, fontSize: fontScale(11), marginTop: scale(1) },
   doneBadge: {
     width: scale(30),
     height: scale(30),
@@ -207,8 +208,8 @@ const styles = StyleSheet.create({
     marginTop: scale(1),
   },
   checkBubbleDone: { backgroundColor: '#34D399', borderColor: '#34D399' },
-  rowTitle: { color: '#E2E8F0', fontSize: fontScale(12.5), fontWeight: '600' },
-  rowTitleDone: { color: '#94A3B8', textDecorationLine: 'line-through' },
+  rowTitle: { color: uiPalette.line, fontSize: fontScale(12.5), fontWeight: '600' },
+  rowTitleDone: { color: uiPalette.muted, textDecorationLine: 'line-through' },
   barBg: {
     height: scale(4),
     borderRadius: scale(2),
@@ -217,9 +218,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#F472B6' },
-  rowDesc: { color: '#94A3B8', fontSize: fontScale(10.5), marginTop: scale(3) },
+  rowDesc: { color: uiPalette.muted, fontSize: fontScale(10.5), marginTop: scale(3) },
   footer: { flexDirection: 'row', alignItems: 'center', gap: scale(7) },
-  footerText: { flex: 1, color: '#94A3B8', fontSize: fontScale(11) },
+  footerText: { flex: 1, color: uiPalette.muted, fontSize: fontScale(11) },
 });
 
 export default React.memo(WeeklyChallengeCard);

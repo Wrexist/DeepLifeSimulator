@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -38,8 +39,8 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
       <LinearGradient
         colors={
           darkMode
-            ? ['#1E293B', '#0F172A']
-            : ['#FFFFFF', '#F1F5F9']
+            ? [uiPalette.surface, uiPalette.navy]
+            : [uiPalette.white, uiPalette.lightSurface]
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -200,19 +201,19 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
     flexShrink: 1,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 2,
   },
   subtitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
   infoButtonText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   shopButton: {
     borderRadius: 8,
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
   shopButtonText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   statsRow: {
     flexDirection: 'row',
@@ -259,20 +260,20 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginTop: 4,
     textAlign: 'center',
   },
   statValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   statLabel: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 2,
   },
   statLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   progressSection: {
     marginTop: 8,
@@ -286,17 +287,17 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   progressLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   progressText: {
     fontSize: fontScale(11),
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   progressTextDark: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   progressBar: {
     height: 6,

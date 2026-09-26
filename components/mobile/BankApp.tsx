@@ -1,3 +1,4 @@
+import FinanceOverview from '@/components/finance/FinanceOverview';
 /**
  * BankApp - mobile (phone-style) banking screen.
  *
@@ -652,6 +653,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           gap: responsiveSpacing.sm,
         }}
       >
+        <FinanceOverview />
         {/* The lead slot. Renders nothing when nothing is due, so the layout
             below is untouched for the player whose bank is quiet. The row is
             the SAME component with the SAME handlers as its section below -

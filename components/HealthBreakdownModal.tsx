@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo } from 'react';
 import { TrendingDown, Briefcase, GraduationCap, Utensils, AlertTriangle, Home } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -105,7 +106,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
         label: `Pending Application: ${pendingApplication.levels?.[0]?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
-        color: '#94A3B8',
+        color: uiPalette.muted,
         description: 'Pending applications do not affect health until you start working',
       });
     }

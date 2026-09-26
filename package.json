@@ -75,6 +75,7 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.1.8",
     "expo": "~54.0.37",
+    "expo-audio": "~1.1.1",
     "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.14",

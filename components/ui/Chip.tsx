@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, scale } from '@/utils/scaling';
 /**
  * Chip - the small labeled pill, once.
  *
@@ -12,7 +13,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { accent, withAlpha } from '@/lib/config/theme';
-import { fontScale, responsiveBorderRadius, scale } from '@/utils/scaling';
+
 
 export type ChipTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
@@ -88,9 +89,9 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     minHeight: scale(26),
@@ -98,8 +99,8 @@ const styles = StyleSheet.create({
   // The md chip IS the app's quiet action (Manage, Found a company, See
   // all), so it meets the 44pt target and its label reads as an action.
   chipMd: {
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(8),
+    paddingHorizontal: layoutSpace.compact,
+    paddingVertical: layoutSpace.sm,
     minHeight: scale(44),
   },
   text: {

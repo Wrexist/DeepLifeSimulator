@@ -1,3 +1,14 @@
+import MotionPressable from '@/components/ui/MotionPressable';
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius ,
+  responsivePadding,
+  responsiveFontSize,
+  responsiveSpacing,
+  responsiveBorderRadius,
+  responsiveIconSize,
+  scale,
+  getTabBarSafePadding,
+} from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AppLauncher - the ONE app grid + fullscreen sub-app host.
  *
@@ -26,7 +37,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   Platform,
   Image,
 } from 'react-native';
@@ -45,16 +56,8 @@ import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import {
-  responsivePadding,
-  responsiveFontSize,
-  responsiveSpacing,
-  responsiveBorderRadius,
-  responsiveIconSize,
-  scale,
-  isTablet,
-  getTabBarSafePadding,
-} from '@/utils/scaling';
+
+import SegmentedControl from '@/components/ui/SegmentedControl';
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import ScreenHeader from '@/components/ui/ScreenHeader';
@@ -62,7 +65,7 @@ import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { appsForHost, resolveAppComponent, type LauncherApp, type LauncherHost } from './appCatalog';
 
-const { width: screenWidth } = Dimensions.get('window');
+
 
 interface AppLauncherProps {
   host: LauncherHost;
@@ -76,6 +79,8 @@ type DecoratedApp = LauncherApp & { locked: boolean; lockReason: string };
 
 export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: AppLauncherProps) {
   const { t } = useTranslation();
+  const { width: screenWidth, fontScale: textScale } = useWindowDimensions();
+  const [category, setCategory] = useState<'all' | 'phone' | 'computer'>('all');
   const { gameState } = useGame();
   const { settings } = gameState;
   const insets = useSafeAreaInsets();
@@ -193,7 +198,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
     // Full-screen host: the game chrome is hidden while an app is open, so the
     // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
-      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? '#0F172A' : '#F8FAFC' }}>
+      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? uiPalette.navy : uiPalette.paper }}>
         {/* One boundary for all 19 apps. Seven of them shipped without their
             own, so a throw in any of those took the whole Apps tab down with
             it; the ones that still wrap themselves simply nest, and the
@@ -207,7 +212,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
 
   // Responsive columns: the desktop grid is denser (3 phone / 4 tablet), the
   // phone grid roomier (2 / 3) - unchanged from the pre-merge screens.
-  const columns = host === 'computer' ? (isTablet() ? 4 : 3) : isTablet() ? 3 : 2;
+  const columns = textScale > 1.3 ? (screenWidth >= 768 ? 3 : 2) : screenWidth >= 768 ? 4 : 3;
   const cardGap = responsiveSpacing.sm;
   const cardWidth = (screenWidth - responsivePadding.horizontal * 2 - cardGap * (columns - 1)) / columns;
 
@@ -216,7 +221,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
     const iconAsset = getAppIconAsset(app.id);
     const name = app.nameKey ? t(app.nameKey) || app.name : app.name;
     return (
-      <TouchableOpacity
+      <MotionPressable
         key={app.id}
         style={[styles.appCard, { width: cardWidth }]}
         onPress={() => {
@@ -229,7 +234,6 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           }
           setActiveApp(app.id);
         }}
-        activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityLabel={app.locked ? `${name}, locked` : `Open ${name}`}
         accessibilityHint={app.locked ? app.lockReason || 'Not available yet' : `Launch the ${name} app`}
@@ -240,7 +244,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
             {/* Padlock badge - reads as locked before the card is tapped. */}
             {app.locked && (
               <View style={styles.appLockBadge}>
-                <Lock size={scale(12)} color="#FFFFFF" />
+                <Lock size={scale(12)} color={uiPalette.white} />
               </View>
             )}
             {iconAsset ? (
@@ -264,7 +268,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
               >
                 <IconGlyph
                   size={responsiveIconSize.lg}
-                  color={app.tint ? '#FFFFFF' : settings.darkMode ? '#CBD5E1' : '#475569'}
+                  color={app.tint ? uiPalette.white : settings.darkMode ? uiPalette.secondary : uiPalette.lightSecondary}
                 />
               </View>
             )}
@@ -281,7 +285,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           )}
         </View>
         <ClaimableBadge count={appBadges[app.id] ?? 0} />
-      </TouchableOpacity>
+      </MotionPressable>
     );
   };
 
@@ -290,17 +294,18 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
       ? {
           title: t('tabs.apps') || 'Apps',
           subtitle: 'Your phone and desktop software',
-          icon: <LayoutGrid size={scale(18)} color="#60A5FA" />,
+          icon: <LayoutGrid size={scale(18)} color={uiPalette.blue} />,
         }
       : {
-          title: t('mobile.mobileApps'),
-          subtitle: 'Everything on your phone',
-          icon: <Smartphone size={scale(18)} color="#60A5FA" />,
+          title: 'Apps',
+          subtitle: 'Your digital world, one tap away',
+          icon: <Smartphone size={scale(18)} color={uiPalette.blue} />,
         };
 
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
-      <ScreenHeader title={header.title} subtitle={header.subtitle} icon={header.icon} tint="#60A5FA" />
+      <ScreenHeader title={header.title} subtitle={header.subtitle} icon={header.icon} tint={uiPalette.blue} />
+      {host === 'computer' && <SegmentedControl style={{ marginHorizontal: responsivePadding.horizontal, marginBottom: layoutSpace.compact }} segments={[{ key: 'all', label: 'All apps' }, { key: 'phone', label: 'Phone' }, { key: 'computer', label: 'Computer' }]} value={category} onChange={setCategory} />}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
@@ -308,7 +313,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
       >
         {/* Macro economy strip - visible where the money apps live; null in normal times. */}
         <EconomyEventBanner context="generic" />
-        {appSections.map((section) => {
+        {appSections.filter(section => category === 'all' || section.key === category).map((section) => {
           const unlocked = section.apps.filter((app) => !app.locked);
           const locked = section.apps.filter((app) => app.locked);
           const expanded = !!expandedLocked[section.key];
@@ -335,11 +340,11 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                     accessibilityHint={expanded ? 'Collapse the locked apps' : 'Show the locked apps and how to unlock them'}
                     accessibilityState={{ expanded }}
                   >
-                    <Lock size={scale(14)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                    <Lock size={scale(14)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                     <Text style={[styles.lockedRowText, settings.darkMode && styles.lockedRowTextDark]}>
                       Locked ({locked.length})
                     </Text>
-                    <ExpandChevron size={scale(16)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                    <ExpandChevron size={scale(16)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                   </TouchableOpacity>
                   {expanded && <View style={styles.appsGrid}>{locked.map(renderTile)}</View>}
                 </>
@@ -361,7 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F4F8',
   },
   containerDark: {
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   scrollView: {
     flex: 1,
@@ -379,11 +384,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     paddingHorizontal: responsiveSpacing.xs,
   },
   appSectionTitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   appsGrid: {
     flexDirection: 'row',
@@ -401,7 +406,7 @@ const styles = StyleSheet.create({
     // still match each other - a wrapped flex row stretches its items to the
     // line's height - so a locked tile grows its own row rather than padding all
     // of them. `minHeight` keeps a short name from collapsing into a stub.
-    minHeight: scale(80),
+    minHeight: scale(104),
     borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
     overflow: 'hidden',
@@ -443,7 +448,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
     width: scale(20),
     height: scale(20),
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
     backgroundColor: 'rgba(15,23,42,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -474,21 +479,21 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     textAlign: 'center',
   },
   appNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   /** The unlock requirement, shown only on tiles inside the locked shelf. */
   lockReason: {
     fontSize: responsiveFontSize.xs,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     marginTop: responsiveSpacing.xs / 2,
   },
   lockReasonDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   /** The collapsed "Locked (N)" disclosure row. */
   lockedRow: {
@@ -509,9 +514,9 @@ const styles = StyleSheet.create({
   lockedRowText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   lockedRowTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });

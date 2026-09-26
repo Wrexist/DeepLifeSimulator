@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ProfileCard - single swipeable dating profile card.
  *
@@ -99,7 +100,7 @@ export default function ProfileCard({
         {/* Catfish suspicion chip */}
         {catfishSuspected ? (
           <View style={styles.catfishChip}>
-            <AlertCircle size={fontScale(12)} color="#FFFFFF" strokeWidth={2.4} />
+            <AlertCircle size={fontScale(12)} color={uiPalette.white} strokeWidth={2.4} />
             <Text style={styles.catfishChipText}>Suspicious profile</Text>
           </View>
         ) : null}
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.85)',
   },
   catfishChipText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
   },
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
   },
   // The card's one headline.
   name: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(28),
     fontWeight: '700',
     flexShrink: 1,
@@ -297,7 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
   wealthChipText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
   },
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
   interestText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(11),
     fontWeight: '500',
   },

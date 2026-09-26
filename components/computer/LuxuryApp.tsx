@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * LuxuryApp - desktop "Luxury & Collectibles" screen (premium redesign).
  *
@@ -55,7 +56,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { logger } from '@/utils/logger';
@@ -210,7 +211,7 @@ function LuxuryCard({
                 </View>
                 {isOwned ? (
                   <View style={[styles.statePill, { backgroundColor: withAlpha(EMERALD, 0.92) }]}>
-                    <BadgeCheck size={scale(12)} color="#FFFFFF" />
+                    <BadgeCheck size={scale(12)} color={uiPalette.white} />
                     <Text style={styles.statePillText}>Owned</Text>
                   </View>
                 ) : (
@@ -261,8 +262,8 @@ function LuxuryCard({
                       : `${item.name} costs ${formatMoney(item.price)}, more than your cash`
                   }
                 >
-                  <ShoppingBag size={scale(14)} color={affordable ? '#FFFFFF' : theme.textMuted} />
-                  <Text style={[styles.buyBtnText, { color: affordable ? '#FFFFFF' : theme.textMuted }]}>
+                  <ShoppingBag size={scale(14)} color={affordable ? uiPalette.white : theme.textMuted} />
+                  <Text style={[styles.buyBtnText, { color: affordable ? uiPalette.white : theme.textMuted }]}>
                     Buy {formatMoney(item.price)}
                   </Text>
                 </TouchableOpacity>
@@ -595,8 +596,8 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
           affordable ? `Buy ${item.name} for ${formatMoney(item.price)}` : `Not enough cash for ${item.name}`
         }
       >
-        <ShoppingBag size={scale(16)} color={affordable ? '#FFFFFF' : theme.textMuted} />
-        <Text style={[styles.sheetCtaText, { color: affordable ? '#FFFFFF' : theme.textMuted }]}>
+        <ShoppingBag size={scale(16)} color={affordable ? uiPalette.white : theme.textMuted} />
+        <Text style={[styles.sheetCtaText, { color: affordable ? uiPalette.white : theme.textMuted }]}>
           {affordable ? `Buy ${formatMoney(item.price)}` : `Need ${formatMoney(item.price - cash)} more`}
         </Text>
       </TouchableOpacity>
@@ -619,7 +620,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 </View>
                 {isOwned ? (
                   <View style={[styles.statePill, { backgroundColor: withAlpha(EMERALD, 0.92) }]}>
-                    <BadgeCheck size={scale(12)} color="#FFFFFF" />
+                    <BadgeCheck size={scale(12)} color={uiPalette.white} />
                     <Text style={styles.statePillText}>Owned</Text>
                   </View>
                 ) : (
@@ -916,7 +917,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         }
         confirmText="Buy"
         cancelText="Cancel"
-        icon={<Crown size={scale(28)} color="#FFFFFF" strokeWidth={2.2} />}
+        icon={<Crown size={scale(28)} color={uiPalette.white} strokeWidth={2.2} />}
         onConfirm={confirmBuy}
         onCancel={() => setPendingBuy(null)}
       />
@@ -999,7 +1000,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
-  pricePillText: { color: '#FFFFFF', fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  pricePillText: { color: uiPalette.white, fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
   statePill: {
     position: 'absolute',
     left: scale(10),
@@ -1011,7 +1012,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: responsiveBorderRadius.full,
   },
-  statePillText: { color: '#FFFFFF', fontSize: responsiveFontSize.xs, fontWeight: '600' },
+  statePillText: { color: uiPalette.white, fontSize: responsiveFontSize.xs, fontWeight: '600' },
   cardBody: { padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   cardTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: responsiveSpacing.xs },
   cardName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600', lineHeight: responsiveFontSize.md * 1.3 },
@@ -1065,7 +1066,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
-  detailPriceText: { color: '#FFFFFF', fontSize: responsiveFontSize.xl, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  detailPriceText: { color: uiPalette.white, fontSize: responsiveFontSize.xl, fontWeight: '600', fontVariant: ['tabular-nums'] },
   ownershipCard: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   verbRow: {
     flexDirection: 'row',

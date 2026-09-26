@@ -1,0 +1,57 @@
+{
+  "source": "scripts/build-game-audio.mjs",
+  "provenance": "Project-original synthesized sine tones; no third-party samples.",
+  "sampleRate": 22050,
+  "channels": 1,
+  "assets": [
+    {
+      "id": "button_click",
+      "file": "button_click.wav",
+      "bytes": 3572,
+      "duration": 0.08,
+      "sha256": "29b8282a8469502640c6046f183e8d859191589859cf306ecbf839393bcbeaef"
+    },
+    {
+      "id": "success",
+      "file": "success.wav",
+      "bytes": 17906,
+      "duration": 0.40503401360544217,
+      "sha256": "b8f65a12a6fb1feb741a56e2fd597b64a02f498a8455d7681de6e8f8d43583c9"
+    },
+    {
+      "id": "error",
+      "file": "error.wav",
+      "bytes": 11510,
+      "duration": 0.26,
+      "sha256": "bf5f4b02c95c55ffb4b0d9196c3c7fad7284149f6ae1aaf318de2d83e393eaad"
+    },
+    {
+      "id": "notification",
+      "file": "notification.wav",
+      "bytes": 13276,
+      "duration": 0.3000453514739229,
+      "sha256": "afd7bfb6d00f13d8a766e27dbd249dddf4717109015cfea3aac7635026ceb29f"
+    },
+    {
+      "id": "money",
+      "file": "money.wav",
+      "bytes": 10628,
+      "duration": 0.24,
+      "sha256": "9b8cbb7928001a103ee633d2ae3c6a4187dc289d3e1712d3b89db575ce42ccb9"
+    },
+    {
+      "id": "level_up",
+      "file": "level_up.wav",
+      "bytes": 24742,
+      "duration": 0.5600453514739229,
+      "sha256": "68071c6b46e63c771f3d770af8022d01a9bc9489c0aa446b95df8aab0cda7bf2"
+    },
+    {
+      "id": "week",
+      "file": "week.wav",
+      "bytes": 15038,
+      "duration": 0.34,
+      "sha256": "ea1a08de23624f2f503203f9fd1cd75a8156075c3428e39143b2cc5e9cc92a36"
+    }
+  ]
+}

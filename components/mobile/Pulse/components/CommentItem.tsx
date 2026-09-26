@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * CommentItem - single comment row.
  *
@@ -43,7 +44,7 @@ export default function CommentItem({ comment, currentWeeksLived, depth = 0 }: C
         face={comment.authorHandle ? { seed: comment.authorHandle, size: scale(26) } : undefined}
         style={styles.avatar}
         placeholderColor={accentColor}
-        placeholderTextColor="#FFFFFF"
+        placeholderTextColor={uiPalette.white}
       />
 
       {/* Body bubble */}
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(3),
   },
   youBadgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
     letterSpacing: 0.4,

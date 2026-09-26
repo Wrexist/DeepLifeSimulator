@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * NpcProfileSheet - minimal bottom sheet for an NPC tapped from the StoriesRail.
  *
@@ -78,7 +79,7 @@ export default function NpcProfileSheet({ visible, npc, onDismiss }: NpcProfileS
           face={{ seed: npc.id, size: scale(74) }}
           style={styles.avatar}
           placeholderColor={PULSE_COLORS.tierCelebrity}
-          placeholderTextColor="#FFFFFF"
+          placeholderTextColor={uiPalette.white}
         />
 
         <Pressable
@@ -100,7 +101,7 @@ export default function NpcProfileSheet({ visible, npc, onDismiss }: NpcProfileS
             </>
           ) : (
             <>
-              <UserPlus size={fontScale(16)} color="#FFFFFF" strokeWidth={2.4} />
+              <UserPlus size={fontScale(16)} color={uiPalette.white} strokeWidth={2.4} />
               <Text style={[styles.followText, styles.followTextOn]}>Follow</Text>
             </>
           )}
@@ -135,6 +136,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   followTextOn: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });
