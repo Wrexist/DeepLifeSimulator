@@ -1,0 +1,96 @@
+node : PASS __tests__/render/onboarding.render.test.tsx (101.001 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand __tests__/onboarding/c ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...tsx (101.001 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  render - onboarding screens
+    √ MainMenu mounts without throwing (83 ms)
+    √ SaveSlots mounts without throwing (24 ms)
+    √ Scenarios mounts without throwing (122 ms)
+    √ Customize mounts without throwing (65 ms)
+    √ Perks mounts without throwing (114 ms)
+
+PASS __tests__/avatar/curatedPortraits.test.ts
+  curated portrait compatibility
+    √ portrait-v1:ember survives save repair without replacing the inherited custom face (107 ms)
+    √ portrait-v1:cedar survives save repair without replacing the inherited custom face (4 ms)
+    √ portrait-v1:river survives save repair without replacing the inherited custom face (8 ms)
+    √ portrait-v1:dawn survives save repair without replacing the inherited custom face (5 ms)
+    √ portrait-v1:sage survives save repair without replacing the inherited custom face (12 ms)
+    √ portrait-v1:indigo survives save repair without replacing the inherited custom face (8 ms)
+    √ never recognizes a legacy pick or a corrupt id as a new portrait (1 ms)
+    √ randomize always chooses a different valid portrait, even with bad entropy (32 ms)
+
+PASS __tests__/onboarding/appearanceEditor.test.ts
+  shape options are faces, not vocabulary
+    √ every non-colour option renders the avatar itself (2 ms)
+    √ each preview swaps exactly ONE field on the player’s own face
+    √ previews are memoized on the config they draw
+    √ and they do not blink - that is the hero avatar’s job
+    √ colours stay swatches (the deliberate exception)
+    √ skin is the only colour that is still a category of its own
+  outfit previews pull back far enough to show the outfit
+    √ the torso categories are named, and are the colour+shape pair (1 ms)
+    √ and they are the only ones that override the framing
+    √ the override actually pulls back (1 ms)
+    √ VectorAvatar still defaults to the portrait framing for everyone else
+  one owner for feedback, and previews that survive a tap
+    √ the editor does not fire its own selection haptic (1 ms)
+    √ but the category chips keep theirs (the control)
+    √ picking an option does not rebuild every preview in the rail (1 ms)
+  no category is hidden
+    √ the category chips wrap instead of scrolling sideways
+    √ and there are enough of them for that to matter
+    √ the rail says where you are inside the category you opened (1 ms)
+    √ and scrolls your existing choice into view when you open it
+  the option area cannot reflow the page
+    √ the rail is a fixed height
+    √ it is one horizontal row
+    √ the widest and narrowest categories really are that far apart (1 ms)
+  one selected treatment, on both kinds of option
+    √ a ring and a check, applied to the tile rather than per-kind
+    √ and selection is read from the avatar, not from local state (1 ms)
+  the screen still owns the state
+    √ Customize passes the avatar down and takes callbacks back (14 ms)
+    √ and the inline word-chip editor is gone, not just bypassed
+    √ previews age with the character, like the hero does (the control) (1 ms)
+  a colour lives with the thing it colours
+    √ hair and outfit carry their colour; nothing else does (5 ms)
+    √ the paired colours are gone from the category list, not duplicated (1 ms)
+    √ every editable field is still reachable (15 ms)
+    √ the editor renders the strip and writes the tint field, not the shape one (11 ms)
+    √ the strip is smaller than the option rail, and wraps
+
+PASS __tests__/onboarding/customizeIdentity.test.ts
+  Customize identity logic
+    shouldGenerateInitialIdentityName
+      √ returns true when both names are empty (1 ms)
+      √ returns false when first name exists (1 ms)
+      √ returns false when last name exists
+    canContinueFromIdentityDraft
+      √ returns true when both names are non-empty after trimming (1 ms)
+      √ returns false when either name is empty or whitespace
+    shouldRegenerateIdentityNameForSexChange
+      √ returns true for explicit sex change with existing names (1 ms)
+      √ returns false when sex is random
+      √ returns false when both names are empty (1 ms)
+      √ returns false when no auto-generated sex is tracked
+      √ returns false when only one name field has content
+      √ returns false when same explicit sex was already auto-generated
+    applyIdentityDraftToOnboardingState
+      √ applies identity fields while preserving unrelated onboarding state (1 ms)
+  typed names are bounded
+    √ both name fields on Customize carry a cap (2 ms)
+    √ validation still says nothing about length, so nothing contradicts it (48 ms)
+    √ the other free-text names the player supplies are capped too (44 ms)
+    √ the ID card clamps the name to one line (22 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       59 passed, 59 total
+Snapshots:   0 total
+Time:        105.648 s
+Ran all test suites matching /__tests__\\onboarding\\customizeIdentity.test.ts|__tests__\\onboarding\\appearanceEditor.
+test.ts|__tests__\\avatar\\curatedPortraits.test.ts|__tests__\\render\\onboarding.render.test.tsx/i.
+Exit status: 0

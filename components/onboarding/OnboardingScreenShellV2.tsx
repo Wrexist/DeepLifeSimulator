@@ -19,6 +19,10 @@ interface OnboardingScreenShellV2Props {
   floatingButton?: React.ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
   showParticles?: boolean;
+  /** Plain game background for focused editing surfaces. */
+  quiet?: boolean;
+  /** Reserve footer space so controls cannot cover the scrolling editor. */
+  footerInFlow?: boolean;
 }
 
 export default function OnboardingScreenShellV2({
@@ -26,18 +30,20 @@ export default function OnboardingScreenShellV2({
   floatingButton,
   contentContainerStyle,
   showParticles = false,
+  quiet = false,
+  footerInFlow = false,
 }: OnboardingScreenShellV2Props) {
   const insets = useSafeAreaInsets();
   const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
     duration: 1000,
     offsetY: 50,
-    rotateBackground: true,
+    rotateBackground: !quiet,
   });
 
   return (
     <View style={styles.container}>
       {/* Animated background glows - soft, slow-drifting orbs for life. */}
-      <Animated.View
+      {!quiet && <><Animated.View
         style={[
           styles.backgroundGradient1,
           { transform: [{ rotate }] },
@@ -49,6 +55,7 @@ export default function OnboardingScreenShellV2({
           { transform: [{ rotate }] },
         ]}
       />
+      </>}
 
       {/* Main content */}
       <Animated.View
@@ -70,7 +77,7 @@ export default function OnboardingScreenShellV2({
 
       {/* Floating button */}
       {floatingButton ? (
-        <View style={[styles.floatingButtonWrap, { bottom: 0, paddingBottom: Math.max(16, insets.bottom), paddingTop: 12, backgroundColor: uiPalette.navy }]}>
+        <View style={[footerInFlow ? styles.flowFooter : styles.floatingButtonWrap, { bottom: 0, paddingBottom: Math.max(16, insets.bottom), paddingTop: 12, backgroundColor: uiPalette.navy }]}>
           {floatingButton}
         </View>
       ) : null}
@@ -98,6 +105,9 @@ export default function OnboardingScreenShellV2({
 }
 
 const styles = StyleSheet.create({
+  flowFooter: {
+    paddingHorizontal: responsivePadding.horizontal,
+  },
   container: {
     flex: 1,
     backgroundColor: uiPalette.navy,

@@ -9,7 +9,8 @@
 - [x] V02 Work: first eligible Apply is 80px higher and visible at 375x667; salary, requirements and 44px action retained. 17 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/work-compact-2026-09-26.md).
 - [x] V03 Life: first activity is 347px higher and fully visible at 375x667; compact vitals retain icons/values and expand on demand. 46 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/life-compact-2026-09-26.md).
 - [x] V04 Profile: achievements are 521px higher at 375x667; compact portrait, life stats disclosure and optional catalogue prioritize progress. 22 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/profile-hierarchy-2026-09-26.md).
-- [ ] Next: V05 creator density and hierarchy. [Remaining register](whole-app-audit-2026-09-26.md): 40 V/A/O items remain open, including native acceptance.
+- [x] V05 creator: portrait controls are 233.5px higher at 375x667; compact preview, plain surfaces, optional aging and a footer that reserves space. 59 focused tests, source types, lint and portrait/custom draft interactions pass. [Evidence](release/evidence/creator-layout-2026-09-26.md).
+- [ ] Next: V06 avatar family consistency. [Remaining register](whole-app-audit-2026-09-26.md): 39 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

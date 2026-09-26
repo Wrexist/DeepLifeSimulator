@@ -5,19 +5,20 @@ import { responsiveSpacing as layoutSpace ,
   responsivePadding,
   responsiveSpacing,
   scale,
-  verticalScale,
 } from '@/utils/scaling';
+import AppHeader from '@/components/ui/AppHeader';
+import MotionPressable from '@/components/ui/MotionPressable';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import PortraitPicker from '@/components/onboarding/PortraitPicker';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import { isPortraitId, randomPortrait, type PortraitId } from '@/lib/avatar/portraits';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors, actionColors } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,12 +29,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
-import { Dices, Play, Shuffle } from 'lucide-react-native';
-import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import Gradient from '@/components/ui/Gradient';
+import { Dices, ArrowRight, Info, Shuffle } from 'lucide-react-native';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
-import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
-import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import AppearanceEditor from '@/components/onboarding/AppearanceEditor';
 import VectorAvatar from '@/components/avatar/VectorAvatar';
@@ -56,8 +53,6 @@ import type { AvatarConfig, AvatarSex } from '@/lib/avatar/types';
 
 import { gameAlert } from '@/utils/gameAlert';
 
-const BlurView = BlurViewFallback;
-const LinearGradient = Gradient;
 
 type SexualityOption = IdentitySexuality;
 
@@ -303,24 +298,19 @@ export default function Customize() {
   const fullName = `${firstName || 'Unnamed'} ${lastName || ''}`.trim();
 
   return (
-    <OnboardingScreenShellV2
+    <OnboardingScreenShellV2 quiet footerInFlow
       floatingButton={
-        <OnboardingFloatingButton
-          title="Continue To Perks"
-          onPress={handleContinue}
-          icon={<Play size={24} color={uiPalette.white} />}
-        />
+        <MotionPressable accessibilityLabel="Continue To Perks" onPress={handleContinue} style={styles.continueButton}>
+          <Text style={styles.continueLabel}>Continue To Perks</Text>
+          <ArrowRight size={20} color={uiPalette.white} />
+        </MotionPressable>
       }
     >
-      <OnboardingGlassHeader
-        title="Create Character"
+      <AppHeader
+        title="Create character"
         onBack={handleBack}
-        onInfo={() =>
-          gameAlert(
-            'Create Your Character',
-            'Build a face that is yours - it ages with you across the whole life, and your children will inherit it. Name, sex and sexuality shape your story and relationships, not difficulty.'
-          )
-        }
+        backLabel="Go back"
+        right={<MotionPressable accessibilityLabel="More information" onPress={() => gameAlert('Create your character', 'Choose an illustrated portrait or edit a custom avatar. Custom features age with your life and can be inherited by children. Name, sex and sexuality shape relationships, not difficulty.')} style={styles.infoButton}><Info size={20} color={uiPalette.secondary} /></MotionPressable>}
       />
 
       <OnboardingStepBar currentStep={2} totalSteps={3} />
@@ -332,14 +322,8 @@ export default function Customize() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Hero: the live face ──────────────────────────────────────── */}
-        <View style={styles.sectionContainer}>
-          <BlurView intensity={20} style={styles.sectionBlur}>
-            <LinearGradient
-              colors={['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroCard}
-            >
+        <View style={styles.heroCard}>
+              <View style={styles.previewRow}>
               <Animated.View
                 style={[
                   styles.avatarRing,
@@ -359,21 +343,54 @@ export default function Customize() {
                   source={{ avatar: encodeAvatar(avatar), avatarId: artMode === 'portrait' ? portraitId : undefined }}
                   sex={sex}
                   age={scenarioAge}
-                  size={scale(168)}
+                  size={scale(88)}
                   circular
                   alive
                 />
               </Animated.View>
 
-              <Text style={styles.heroName} numberOfLines={1}>
-                {fullName}
-              </Text>
-              <Text style={styles.heroSub}>{artMode === 'portrait' ? 'Your story starts with you' : 'Custom features age with your life'}</Text>
+              <View style={styles.previewCopy}>
+                <Text style={styles.heroName} numberOfLines={2}>{fullName}</Text>
+                <Text style={styles.heroSub}>Age {scenarioAge} | {artMode === 'portrait' ? 'Portrait' : 'Custom avatar'}</Text>
+              </View>
+              </View>
 
-              {/* The claim above, made checkable. The same config rendered at
-                  three ages - this is the whole reason the face is parameters
-                  rather than a picked portrait, so showing it beats saying it. */}
-              {artMode === 'custom' && <View style={styles.ageStrip}>
+              <View style={styles.heroActions}>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Randomize appearance"
+                  onPress={handleRandomizeFace}
+                  style={[styles.pill, styles.pillPrimary]}
+                >
+                  <Dices size={scale(16)} color={uiPalette.white} />
+                  <Text style={styles.pillPrimaryLabel}>Randomize</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Shuffle name"
+                  onPress={handleShuffleName}
+                  style={styles.pill}
+                >
+                  <Shuffle size={scale(16)} color={uiPalette.blue} />
+                  <Text style={styles.pillLabel}>New name</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+        {/* ── Appearance editor ────────────────────────────────────────── */}
+        <View style={styles.sectionCard}>
+              <SegmentedControl segments={[{ key: 'portrait', label: 'Portraits' }, { key: 'custom', label: 'Custom' }]} value={artMode} onChange={setArtMode} />
+              {artMode === 'portrait' ? <PortraitPicker value={portraitId} onChange={id => { haptic.selection(); setPortraitId(id); }} /> : <AppearanceEditor
+                  avatar={avatar} sex={sex} age={scenarioAge} categories={categories}
+                  activeIndex={activeCategory} onChangeCategory={setActiveCategory}
+                  onSelectOption={handleSelectOption} onSelectTint={handleSelectTint}
+                />}
+            </View>
+
+        {artMode === 'custom' && (<CollapsibleSection id="creator.aging" title="Preview aging" compact defaultCollapsed><View style={styles.ageStrip}>
                 {agePreview.map((previewAge, index) => (
                   <Animated.View
                     key={previewAge}
@@ -404,64 +421,10 @@ export default function Customize() {
                     <Text style={styles.ageLabel}>{previewAge}</Text>
                   </Animated.View>
                 ))}
-              </View>
-
-              }
-              <View style={styles.heroActions}>
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  accessibilityRole="button"
-                  accessibilityLabel="Randomize appearance"
-                  onPress={handleRandomizeFace}
-                  style={[styles.pill, styles.pillPrimary]}
-                >
-                  <Dices size={scale(16)} color={uiPalette.white} />
-                  <Text style={styles.pillPrimaryLabel}>Randomize</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  accessibilityRole="button"
-                  accessibilityLabel="Shuffle name"
-                  onPress={handleShuffleName}
-                  style={styles.pill}
-                >
-                  <Shuffle size={scale(16)} color={uiPalette.blue} />
-                  <Text style={styles.pillLabel}>New name</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </BlurView>
-        </View>
-
-        {/* ── Appearance editor ────────────────────────────────────────── */}
-        <View style={styles.sectionContainer}>
-          <BlurView intensity={20} style={styles.sectionBlur}>
-            <LinearGradient
-              colors={['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.sectionCard}
-            >
-              <SegmentedControl segments={[{ key: 'portrait', label: 'Portraits' }, { key: 'custom', label: 'Custom' }]} value={artMode} onChange={setArtMode} />
-              {artMode === 'portrait' ? <PortraitPicker value={portraitId} onChange={id => { haptic.selection(); setPortraitId(id); }} /> : <AppearanceEditor
-                  avatar={avatar} sex={sex} age={scenarioAge} categories={categories}
-                  activeIndex={activeCategory} onChangeCategory={setActiveCategory}
-                  onSelectOption={handleSelectOption} onSelectTint={handleSelectTint}
-                />}
-            </LinearGradient>
-          </BlurView>
-        </View>
+              </View></CollapsibleSection>)}
 
         {/* ── Identity ─────────────────────────────────────────────────── */}
-        <View style={styles.sectionContainer}>
-          <BlurView intensity={20} style={styles.sectionBlur}>
-            <LinearGradient
-              colors={['rgba(30, 41, 59, 0.9)', 'rgba(15, 23, 42, 0.8)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.sectionCard}
-            >
+        <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Identity</Text>
 
               <View style={styles.nameRow}>
@@ -469,6 +432,7 @@ export default function Customize() {
                   <Text style={styles.inputLabel}>First Name</Text>
                   <View style={styles.inputWrap}>
                     <TextInput
+                      accessibilityLabel="First name"
                       placeholder="Enter first name"
                       placeholderTextColor={uiPalette.muted}
                       style={styles.inputText}
@@ -483,6 +447,7 @@ export default function Customize() {
                   <Text style={styles.inputLabel}>Last Name</Text>
                   <View style={styles.inputWrap}>
                     <TextInput
+                      accessibilityLabel="Last name"
                       placeholder="Enter last name"
                       placeholderTextColor={uiPalette.muted}
                       style={styles.inputText}
@@ -544,11 +509,8 @@ export default function Customize() {
               <Text style={styles.helperText}>
                 Sex and sexuality shape your story and relationships - not difficulty.
               </Text>
-            </LinearGradient>
-          </BlurView>
-        </View>
+            </View>
 
-        <View style={{ height: verticalScale(140) }} />
       </ScrollView>
     </OnboardingScreenShellV2>
   );
@@ -559,45 +521,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    gap: responsiveSpacing.lg,
-    paddingHorizontal: responsivePadding.large,
+    gap: layoutSpace.compact,
+    paddingHorizontal: responsivePadding.horizontal,
     paddingTop: responsiveSpacing.sm,
     paddingBottom: responsiveSpacing.lg,
   },
-  sectionContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-      },
-    }),
-    elevation: 12,
-  },
-  sectionBlur: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
   sectionCard: {
-    padding: 20,
-    // Match the parent's rounded clip so the border isn't sliced at the corners.
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: responsiveSpacing.md,
+    padding: layoutSpace.compact,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.dark.border,
+    backgroundColor: uiPalette.surface,
+    gap: layoutSpace.compact,
   },
   heroCard: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    gap: responsiveSpacing.xs,
+    gap: layoutSpace.sm,
   },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: layoutSpace.md },
+  previewCopy: { flex: 1, gap: layoutSpace.sm },
+  infoButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  continueButton: { minHeight: 48, padding: layoutSpace.compact, borderRadius: responsiveBorderRadius.md, backgroundColor: actionColors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: layoutSpace.sm },
+  continueLabel: { fontSize: responsiveFontSize.md, fontWeight: '600', color: uiPalette.white },
   avatarRing: {
     borderRadius: scale(96),
     borderWidth: 1,
@@ -607,16 +551,16 @@ const styles = StyleSheet.create({
   },
   heroName: {
     fontSize: responsiveFontSize.xl,
-    fontWeight: '800',
+    fontWeight: '600',
     color: uiPalette.white,
     marginTop: responsiveSpacing.xs,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   heroSub: {
     fontSize: fontScale(11),
     fontWeight: '600',
     color: uiPalette.muted,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   ageStrip: {
     flexDirection: 'row',
@@ -635,9 +579,11 @@ const styles = StyleSheet.create({
   heroActions: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
-    marginTop: responsiveSpacing.sm,
   },
   pill: {
+    minHeight: 44,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.full,
@@ -659,7 +605,7 @@ const styles = StyleSheet.create({
   },
   pillPrimaryLabel: {
     fontSize: fontScale(12),
-    fontWeight: '800',
+    fontWeight: '600',
     color: uiPalette.white,
   },
   appearanceToggle: {
@@ -674,16 +620,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: responsiveFontSize.xl,
-    fontWeight: '800',
+    fontWeight: '600',
     color: uiPalette.white,
-    ...Platform.select({
-      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 3,
-      },
-    }),
   },
   nameRow: {
     gap: responsiveSpacing.sm,
@@ -701,7 +639,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
-    minHeight: verticalScale(44),
+    minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: responsiveSpacing.sm,
   },
@@ -716,6 +654,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   segment: {
+    minHeight: 44,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -12,6 +12,12 @@ export default function PortraitPicker({ value, onChange }: { value: PortraitId;
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const index = PORTRAITS.findIndex(p => p.id === value);
+  const rail = useRef<ScrollView>(null);
+  useEffect(() => {
+    // Keep the selected portrait visible after arrows, randomize or restoration.
+    const stride = scale(72) + scale(4) * 2 + 4 + scale(8);
+    rail.current?.scrollTo({ x: Math.max(0, index * stride - scale(8)), animated: false });
+  }, [index]);
   const step = (delta: number) => onChange(PORTRAITS[(index + delta + PORTRAITS.length) % PORTRAITS.length].id);
   return <View style={styles.root}>
     <View style={styles.heading}>
@@ -26,7 +32,7 @@ export default function PortraitPicker({ value, onChange }: { value: PortraitId;
         <ChevronRight color={theme.text} size={20} />
       </MotionPressable>
     </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.options}>
+    <ScrollView ref={rail} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.options}>
       {PORTRAITS.map(p => <MotionPressable key={p.id} onPress={() => onChange(p.id)}
         accessibilityLabel={`${p.name}, ${p.description}`} accessibilityState={{ selected: value === p.id }}
         style={[styles.option, { borderColor: value === p.id ? accent.info : theme.border }]}>
@@ -35,7 +41,7 @@ export default function PortraitPicker({ value, onChange }: { value: PortraitId;
         <Text style={styles.caption}>{p.name}</Text>
       </MotionPressable>)}
     </ScrollView>
-    <Text style={styles.note}>Curated portraits keep their illustrated appearance. Choose Custom for editable features that age with your life.</Text>
+    <Text style={styles.note}>Portraits keep this look. Custom avatars have editable features and age over time.</Text>
   </View>;
 }
 const createStyles = (theme: ReturnType<typeof useTheme>['theme']) => StyleSheet.create({
