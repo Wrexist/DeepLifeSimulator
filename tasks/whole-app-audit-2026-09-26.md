@@ -226,4 +226,4 @@ prestige writer, not evidence those previous fixes were undone.
 5. Obtain the separately authorized signed candidate and close A16-A21 provider/
    device gates; complete candidate/store evidence before any production action.
 
-Next concrete task: V08 asset consistency. D01-D14 implementation follow-through is recorded above; native acceptance remains open.
+Next concrete task: V08 luxury artwork consistency. Pet/travel/vehicle artwork is implemented with 52 local assets; [evidence](release/evidence/life-art-2026-09-27.md). V08 remains open for the luxury family. D01-D14 implementation follow-through is recorded above; native acceptance remains open.

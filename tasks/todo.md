@@ -14,7 +14,8 @@
 - [x] V07: five original fictional media illustrations shared by YouVideo and Streaming; 48.8% smaller cover files. 34 focused tests and browser upload/stream journeys pass. [Evidence and screenshots](release/evidence/media-identity-2026-09-26.md).
 - [x] V07 revision: bold creator thumbnails, compact red YouVideo composer and violet Streaming console with primary actions visible at 320/375/768px. 40 focused tests pass. [Evidence and screenshots](release/evidence/creator-platform-2026-09-27.md).
 - [x] Creator UI cleanup: all topics visible, compact reach disclosure, no duplicate status card and stable Streaming selection. 7 focused regressions and 320/375/768px browser journeys pass. [Evidence](release/evidence/creator-ui-cleanup-2026-09-27.md).
-- [ ] Next: V08 asset consistency. [Remaining register](whole-app-audit-2026-09-26.md): 37 V/A/O items remain open, including native acceptance.
+- [x] V08 pet/travel/vehicle batch: 52 local illustrations, shared loading fallback, approved design pinned in AGENTS/presentation guide. 43 focused tests and phone/tablet browser journeys pass. [Evidence and gallery](release/evidence/life-art-2026-09-27.md).
+- [ ] Next: V08 luxury artwork consistency. [Remaining register](whole-app-audit-2026-09-26.md): 37 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

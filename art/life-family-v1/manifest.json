@@ -1,0 +1,890 @@
+{
+  "tool": "built-in image_gen",
+  "review": "Reviewed sheet order and individual runtime crops. Native rendering acceptance remains open.",
+  "assets": [
+    {
+      "family": "pets",
+      "id": "dog",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 2,
+        "top": 2,
+        "width": 276,
+        "height": 277
+      },
+      "file": "assets/images/life-family-v1/pets/dog.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8682,
+      "sha256": "a1fb485a8ba3ea3c0f38905c2ef997dc330abe93457e2e7e99d28b70aa8f2353",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "dog_golden",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 282,
+        "top": 2,
+        "width": 277,
+        "height": 277
+      },
+      "file": "assets/images/life-family-v1/pets/dog_golden.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8986,
+      "sha256": "d41777ca9532e9eb2f6dff6c99be94af1276de904fb65c4e988297fb8637a2bc",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "dog_poodle",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 563,
+        "top": 2,
+        "width": 277,
+        "height": 277
+      },
+      "file": "assets/images/life-family-v1/pets/dog_poodle.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7626,
+      "sha256": "1577942ed27081721abf3f2288411b7015f8a353dfb512ae349ce230ce0169a9",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "cat",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 844,
+        "top": 2,
+        "width": 276,
+        "height": 277
+      },
+      "file": "assets/images/life-family-v1/pets/cat.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7208,
+      "sha256": "5a7d8b438a61d8d98e96e805be025d4ef6208f78e612fc64a17e0b0e27957eca",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "cat_tabby",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 2,
+        "top": 283,
+        "width": 276,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/pets/cat_tabby.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8938,
+      "sha256": "f72591c947bbda0c3fba32d5cbb5dc1f57507b2351639b409c7a37cac541b7a4",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "cat_black",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 282,
+        "top": 283,
+        "width": 277,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/pets/cat_black.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 6194,
+      "sha256": "07944d6ee88459705c0171f015530214e40c3a9dc34712230d8aef4bc7f9613f",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "bird",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 563,
+        "top": 283,
+        "width": 277,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/pets/bird.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7314,
+      "sha256": "1328db5c72e44c7ab891d49d849eaad4c559f96246215dac9feee86c5a51a219",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "bird_parrot",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 844,
+        "top": 283,
+        "width": 276,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/pets/bird_parrot.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8214,
+      "sha256": "4f9c3b6a3cd8c1a5cc4fd4c88baa9b1fd242e9abde29ba0eb03144412c78cfd1",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "bird_canary",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 2,
+        "top": 565,
+        "width": 276,
+        "height": 256
+      },
+      "file": "assets/images/life-family-v1/pets/bird_canary.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 4758,
+      "sha256": "17daf5d78df5a080ebc5e9f703c3b9688c4a41ad956c54fc917e772dc4f5fa2b",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "fish",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 282,
+        "top": 565,
+        "width": 277,
+        "height": 256
+      },
+      "file": "assets/images/life-family-v1/pets/fish.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 6900,
+      "sha256": "43ae7d1ff4048196d087b00c18a893c87391aa38e8f5feb410132b0f6e81bcd7",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "fish_tropical",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 563,
+        "top": 565,
+        "width": 277,
+        "height": 256
+      },
+      "file": "assets/images/life-family-v1/pets/fish_tropical.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7494,
+      "sha256": "c965aeb276cfffcb1a9e1353572b2c332f287b66976c8de26376c80982c11956",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "fish_puffer",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 844,
+        "top": 565,
+        "width": 276,
+        "height": 256
+      },
+      "file": "assets/images/life-family-v1/pets/fish_puffer.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8850,
+      "sha256": "a5a40a1b32220587c6bc497de1e68cb12370dc96c54bbfe8dfc3e1bbca193353",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "hamster",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 2,
+        "top": 825,
+        "width": 276,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/pets/hamster.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8308,
+      "sha256": "eddbf7f7d71fdd22b069eac586b96b36e1ea6518ce5251ac17d6a1ccd0515c49",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "hamster_mouse",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 282,
+        "top": 825,
+        "width": 277,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/pets/hamster_mouse.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7078,
+      "sha256": "cdf31919a76ccf1ec0ad33a568d08e653bf96dbeae15bbd89bd29847168f3338",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "hamster_hedgehog",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 563,
+        "top": 825,
+        "width": 277,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/pets/hamster_hedgehog.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 14032,
+      "sha256": "3333ac742d5f36752e72e29ab1e4e80061cac0c76408c94eab5798dfca1e5493",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "rabbit",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 844,
+        "top": 825,
+        "width": 276,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/pets/rabbit.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 5482,
+      "sha256": "377da2a58f7196b119392b4e98e11e07d4b689e87cf7efa2bc22f2c1cb7e9d6d",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "rabbit_lop",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 2,
+        "top": 1105,
+        "width": 276,
+        "height": 295
+      },
+      "file": "assets/images/life-family-v1/pets/rabbit_lop.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8362,
+      "sha256": "85229ff24e5ff46ddd81a076c0ecfc67773f38fcbaf681be187212d46cfbebd0",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "turtle",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 282,
+        "top": 1105,
+        "width": 277,
+        "height": 295
+      },
+      "file": "assets/images/life-family-v1/pets/turtle.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 9618,
+      "sha256": "9264d37d4b8128b8f0c929e8e0ff1a9cae4e4daddc35755be46733440efc1fdd",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "pets",
+      "id": "turtle_tortoise",
+      "source": "art/life-family-v1/originals/pets.png",
+      "crop": {
+        "left": 563,
+        "top": 1105,
+        "width": 277,
+        "height": 295
+      },
+      "file": "assets/images/life-family-v1/pets/turtle_tortoise.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 10914,
+      "sha256": "992e212aea35abc7394a05c82a8b51404cdd400c8a1a95165340372722b5079d",
+      "sourceSha256": "38578000e7a907fd5b038c09926e06e416fad05faa971f6be2249fc3c40a842c"
+    },
+    {
+      "family": "travel",
+      "id": "local_resort",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 2,
+        "top": 2,
+        "width": 263,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/travel/local_resort.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 14628,
+      "sha256": "063d45d981cb07e9d33990a31c60b3a9fc97164d9ea8110b7355ac4616963008",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "paris",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 269,
+        "top": 2,
+        "width": 289,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/travel/paris.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 13614,
+      "sha256": "8dc1dec8bd5e18e49549f81280ae399eb05657cdaeba719b50c13612f8024d36",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "tokyo",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 562,
+        "top": 2,
+        "width": 290,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/travel/tokyo.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 13180,
+      "sha256": "bf39e12f263140d4befd2502317ff2d55db830ada88b39bcc05b33129c26b57a",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "bali",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 856,
+        "top": 2,
+        "width": 264,
+        "height": 276
+      },
+      "file": "assets/images/life-family-v1/travel/bali.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 14810,
+      "sha256": "40da144e7c865150fd4124229935bc0433bff90b240a1da332961547676d2444",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "new_york",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 2,
+        "top": 282,
+        "width": 263,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/travel/new_york.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 13316,
+      "sha256": "aec8bcbbedbb13e18bb4be34d10f3a8dd42ec7475566391bd4a27fd7a5f0525b",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "swiss_alps",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 269,
+        "top": 282,
+        "width": 289,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/travel/swiss_alps.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 17548,
+      "sha256": "326adcaad57bb9d4eb0f9bdf8384e657b0769b0fc4661eca87e2011923696ef0",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "london",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 562,
+        "top": 282,
+        "width": 290,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/travel/london.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 13278,
+      "sha256": "3fe300f215b99c5162fe282adf32dcca59fb7fd517ed61c67e89bf4681ff343e",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "dubai",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 856,
+        "top": 282,
+        "width": 264,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/travel/dubai.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 9894,
+      "sha256": "6b866d22f18340fac695a546d4c136983e7337f6e43e47d29a1373fd668992e8",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "rome",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 2,
+        "top": 564,
+        "width": 263,
+        "height": 260
+      },
+      "file": "assets/images/life-family-v1/travel/rome.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 15610,
+      "sha256": "a63ea47ff6b0091460a132f0e1269f78beddfb37fd456c90f1d3e91d02b3c763",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "thailand",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 269,
+        "top": 564,
+        "width": 289,
+        "height": 260
+      },
+      "file": "assets/images/life-family-v1/travel/thailand.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 15986,
+      "sha256": "8e33f1c673340b84644da3e52d123e95ff071268af4bc650514cf48d260fc305",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "sydney",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 562,
+        "top": 564,
+        "width": 290,
+        "height": 260
+      },
+      "file": "assets/images/life-family-v1/travel/sydney.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 13716,
+      "sha256": "ce9946524aa52bea54993d1c9bbd7aabf024b96a5fff887bf8cdd3dc4300b648",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "cancun",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 856,
+        "top": 564,
+        "width": 264,
+        "height": 260
+      },
+      "file": "assets/images/life-family-v1/travel/cancun.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 15820,
+      "sha256": "bd9e8504455a1f6c859bd0059f60e13df0f6f55ab500de6865cb927473b9fd9e",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "iceland",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 2,
+        "top": 828,
+        "width": 263,
+        "height": 280
+      },
+      "file": "assets/images/life-family-v1/travel/iceland.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 14774,
+      "sha256": "fd2d03109205d0267f195f5f0b16e9aac5d0ad539e59a0951649f2658b9813f7",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "safari",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 269,
+        "top": 828,
+        "width": 289,
+        "height": 280
+      },
+      "file": "assets/images/life-family-v1/travel/safari.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 17796,
+      "sha256": "72e27634e01650936904287bb48febf5edb5a7b18ca4548d0473eb45c01b239b",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "maldives",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 562,
+        "top": 828,
+        "width": 290,
+        "height": 280
+      },
+      "file": "assets/images/life-family-v1/travel/maldives.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 15504,
+      "sha256": "abf33d036b02d3a21605dd5370cde79dad89a39ec6a9cf594e7f67c7b9de21fc",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "camping_trip",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 856,
+        "top": 828,
+        "width": 264,
+        "height": 280
+      },
+      "file": "assets/images/life-family-v1/travel/camping_trip.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 14960,
+      "sha256": "c469b3704b452de73dd0f4a2f95f69871c24c9ef9fa466cd94f144cb30f63069",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "travel",
+      "id": "road_trip",
+      "source": "art/life-family-v1/originals/travel.png",
+      "crop": {
+        "left": 2,
+        "top": 1112,
+        "width": 263,
+        "height": 288
+      },
+      "file": "assets/images/life-family-v1/travel/road_trip.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 20970,
+      "sha256": "78610b3270a1799df5b369b62dd1dde3da0f8b4ce8d9c357344235a6c97dd2ed",
+      "sourceSha256": "566badbcd32eff1ffc0935d14159c07ecb8f1e6351c336773b720f97e9957917"
+    },
+    {
+      "family": "vehicles",
+      "id": "economy_sedan",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 2,
+        "top": 2,
+        "width": 309,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/economy_sedan.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 6946,
+      "sha256": "3aef1d74dfc3cc3a034be06d0219d3ab2115b07edffaf89578ba55a7960a8669",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "compact_hatchback",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 315,
+        "top": 2,
+        "width": 310,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/compact_hatchback.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7520,
+      "sha256": "45028d79fa0c116fccf5977e804b87cf479d607732d310fe6647af8c18606941",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "used_suv",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 629,
+        "top": 2,
+        "width": 310,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/used_suv.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7646,
+      "sha256": "ef7e6ce0f3c4b2c70f3b585d9603ec4811fc188ad04c3753fe9952ab10dcfa53",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "family_suv",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 943,
+        "top": 2,
+        "width": 309,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/family_suv.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8330,
+      "sha256": "d5a50ea11ef50317693f762a4c5b1472f0b3dfd496212c76f18495fe8d063c24",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "sedan_premium",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 2,
+        "top": 307,
+        "width": 309,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/sedan_premium.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7300,
+      "sha256": "423a2f7180671e16b885eb0b9138097bbf3603007a299963b9f2535153bbb947",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "luxury_sedan",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 315,
+        "top": 307,
+        "width": 310,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/luxury_sedan.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7250,
+      "sha256": "45eab9ce16db90da1c5c9c6aaab13231d532e7bf8882a61329395bff5f78b773",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "luxury_suv",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 629,
+        "top": 307,
+        "width": 310,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/luxury_suv.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8080,
+      "sha256": "5b5669cff06da5ddd083d56b0d1dd0886a90801a118ac189c058f746ab9dc416",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "supercar_entry",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 943,
+        "top": 307,
+        "width": 309,
+        "height": 301
+      },
+      "file": "assets/images/life-family-v1/vehicles/supercar_entry.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7296,
+      "sha256": "7c51ba650a7f19905d6628a6af022173d6198011ba2b414f2c8c00f497e68839",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "exotic_supercar",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 2,
+        "top": 612,
+        "width": 309,
+        "height": 306
+      },
+      "file": "assets/images/life-family-v1/vehicles/exotic_supercar.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7658,
+      "sha256": "77b997a692cb68824640c821be16e3bbe0b8ae1f1d6f12878766be2c874ed28b",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "sports_coupe",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 315,
+        "top": 612,
+        "width": 310,
+        "height": 306
+      },
+      "file": "assets/images/life-family-v1/vehicles/sports_coupe.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 7148,
+      "sha256": "544b1d70fbaae2f1b9ece679cb92b2579140b70a21e656050c9e1a433d3f684b",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "muscle_car",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 629,
+        "top": 612,
+        "width": 310,
+        "height": 306
+      },
+      "file": "assets/images/life-family-v1/vehicles/muscle_car.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 6506,
+      "sha256": "a90e4e8685b4ea8e62c309c38858987c4bd5b40f3bdcfdb3cc6f8ca9f474876f",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "standard_motorcycle",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 943,
+        "top": 612,
+        "width": 309,
+        "height": 306
+      },
+      "file": "assets/images/life-family-v1/vehicles/standard_motorcycle.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 8126,
+      "sha256": "c284610a53f8a95d776758a7bfd72202b947284940f68da9429cd231c3e1be9c",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "sport_motorcycle",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 2,
+        "top": 922,
+        "width": 309,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/vehicles/sport_motorcycle.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 10352,
+      "sha256": "c043fd29e8d4efc6f5415c816e844a7e619e2e9402c58b1e38bbf2ce62c8ab39",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "cruiser_motorcycle",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 315,
+        "top": 922,
+        "width": 310,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/vehicles/cruiser_motorcycle.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 10244,
+      "sha256": "324f72cfb1646bd982a9b2596c9e43fd8323543931beec78e805d3b058f6af1b",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    },
+    {
+      "family": "vehicles",
+      "id": "utility_helicopter",
+      "source": "art/life-family-v1/originals/utility_helicopter.png",
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 1254,
+        "height": 1254
+      },
+      "file": "assets/images/life-family-v1/vehicles/utility_helicopter.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 6336,
+      "sha256": "46ce87b3b38a54cbd5b3e27df87f9a6362b03a3fb226db4f7f526f3289ae8b70",
+      "sourceSha256": "f908ddd3756a1ab0c9221aecb4bf8913ab8f8fe7214ee44799d7a3fe33ea9cc0"
+    },
+    {
+      "family": "vehicles",
+      "id": "light_jet",
+      "source": "art/life-family-v1/originals/vehicles.png",
+      "crop": {
+        "left": 943,
+        "top": 922,
+        "width": 309,
+        "height": 278
+      },
+      "file": "assets/images/life-family-v1/vehicles/light_jet.webp",
+      "width": 256,
+      "height": 256,
+      "bytes": 4894,
+      "sha256": "35221efc80986996f2c23c0c7fab2978f9a6d920238e2fd71d77517b4b4b029b",
+      "sourceSha256": "7733f9982a8983e6bc397ccfc42d80ffdd571160958973512aae82086ee4c441"
+    }
+  ]
+}

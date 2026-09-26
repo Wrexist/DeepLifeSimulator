@@ -1,9 +1,10 @@
+import CatalogArt from '@/components/ui/CatalogArt';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * PetApp - Tamagotchi / Fitness DNA pass (Remake 12).
  *
  * Skeleton (deliberately NOT "eyebrow hero + uniform rows"):
- *   - Pets tab   → a portrait STAGE: the active companion's emoji on a soft
+ *   - Pets tab   → a portrait STAGE: the active companion's portrait on a soft
  *                  radial mat flanked by TWO ProgressRings (Health / Happiness),
  *                  bond-level stars, a chunky care pad (Feed/Play/Sleep/Vet),
  *                  and a Stories-style avatar RAIL for every other companion.
@@ -351,7 +352,7 @@ export default function PetApp({ onBack }: PetAppProps) {
             every vital in full - they are what you read when you go looking,
             not what you decide the next tap on. */}
         <View style={styles.heroInner}>
-          <StageCore health={health} happiness={happiness} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
+          <StageCore health={health} happiness={happiness} breedId={p.type} theme={theme} darkMode={darkMode} />
 
           <Text style={[styles.stageName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
           <Text style={[styles.stageSub, { color: theme.textSecondary }]}>
@@ -472,7 +473,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                 style={[getGlassCard(darkMode, 6), styles.memoryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
                 <View style={[getGlassIconContainer(darkMode, 40), styles.goldBubbleSoft]}>
-                  <Text style={styles.memoryEmoji}>{findBreed(p.type)?.emoji ?? '🐾'}</Text>
+                  <CatalogArt family="pets" id={p.type} style={styles.memoryPortrait} />
                 </View>
                 <View style={styles.headerText}>
                   <Text style={[styles.cardName, { color: theme.text }]}>{p.name}</Text>
@@ -518,7 +519,7 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <StageCore health={p.health ?? 0} happiness={p.happiness ?? 0} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
+            <StageCore health={p.health ?? 0} happiness={p.happiness ?? 0} breedId={p.type} theme={theme} darkMode={darkMode} />
             <Text style={[styles.stageName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
             <Text style={[styles.stageSub, { color: theme.textSecondary }]}>
               {breed?.name ?? 'Unknown'} · {stage} · {ageInYears(p)}y ({ageW}w)
@@ -751,7 +752,7 @@ export default function PetApp({ onBack }: PetAppProps) {
             >
               <View style={styles.tileTop}>
                 <View style={[getGlassIconContainer(darkMode, 44), styles.goldBubbleSoft]}>
-                  <Text style={styles.shopEmoji}>{b.emoji}</Text>
+                  <CatalogArt family="pets" id={b.id} style={styles.shopPortrait} />
                 </View>
                 <Text style={[styles.tilePrice, { color: theme.text }]}>{formatMoney(b.price)}</Text>
               </View>
@@ -1062,18 +1063,18 @@ export default function PetApp({ onBack }: PetAppProps) {
   );
 }
 
-// The dual-ring + emoji-mat core of the stage - reused by the active-pet stage
+// The dual-ring + portrait core of the stage - reused by the active-pet stage
 // and the pet-profile page's identity hero.
 function StageCore({
   health,
   happiness,
-  emoji,
+  breedId,
   theme,
   darkMode,
 }: {
   health: number;
   happiness: number;
-  emoji: string;
+  breedId: string;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
 }) {
@@ -1081,7 +1082,7 @@ function StageCore({
     <View style={styles.stageRow}>
       <VitalRing value={health} color={HEALTH_C} Icon={HeartPulse} label="HEALTH" theme={theme} darkMode={darkMode} />
       <View style={styles.stageMat}>
-        <Text style={styles.stageEmoji}>{emoji}</Text>
+        <CatalogArt family="pets" id={breedId} style={styles.stagePortrait} />
       </View>
       <VitalRing value={happiness} color={HAPPY_C} Icon={Heart} label="HAPPY" theme={theme} darkMode={darkMode} />
     </View>
@@ -1187,7 +1188,6 @@ function CareBtn({
 // Stories-style roster avatar with a health dot.
 function RailAvatar({
   pet,
-  breed,
   active,
   theme,
   darkMode,
@@ -1214,7 +1214,7 @@ function RailAvatar({
       accessibilityState={{ selected: active }}
     >
       <View style={[getGlassIconContainer(darkMode, 56), styles.goldBubbleSoft, active && styles.railActive]}>
-        <Text style={styles.railEmoji}>{breed?.emoji ?? '🐾'}</Text>
+        <CatalogArt family="pets" id={pet.type} style={styles.railPortrait} />
         <View style={[styles.railDot, { backgroundColor: dot, borderColor: theme.surface }]} />
         {pet.isSick ? <View style={[styles.railSick, { borderColor: theme.surface }]} /> : null}
       </View>
@@ -1318,7 +1318,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: fs['2xl'], fontWeight: '600' },
   heroSub: { fontSize: fs.sm, marginTop: 2 },
 
-  // Stage - dual rings flanking the emoji mat.
+  // Stage - dual rings flanking the portrait.
   stageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: sp.xs },
   stageMat: {
     width: scale(96),
@@ -1330,7 +1330,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GOLD_RIM,
   },
-  stageEmoji: { fontSize: scale(56) },
+  stagePortrait: { width: '100%', height: '100%', borderRadius: scale(48) },
+  shopPortrait: { width: scale(44), height: scale(44), borderRadius: br.md },
+  railPortrait: { width: scale(48), height: scale(48), borderRadius: scale(24) },
+  memoryPortrait: { width: scale(32), height: scale(32), borderRadius: br.sm },
   stageName: { fontSize: fs['2xl'], fontWeight: '600', textAlign: 'center', marginTop: sp.xs },
   stageSub: { fontSize: fs.sm, textAlign: 'center', marginTop: 2 },
 

@@ -20,6 +20,17 @@ The main tab bar is stable. Existing simulated applications retain their fullscr
 mode and explicit back navigation; purchase, device and feature gates stay with
 their existing owners. Do not create fake app data to fill the layout.
 
+## Approved design baseline - 27 September 2026
+
+The user explicitly approved the creator UI cleanup as the design to preserve.
+Reference: `tasks/release/evidence/creator-ui-cleanup-2026-09-27/gallery.html`.
+Keep solid navy surfaces, restrained semantic accents, compact artwork, readable
+labels, stable selection geometry and primary actions visible on compact phones.
+Show meaningful choices directly; disclose secondary detail instead of repeating
+status panels. Use the canonical spacing/radius tokens and 44-point minimum
+interactive targets. Preserve the recognizable HUD. Extend this direction to
+other screens rather than replacing it with a new visual theme.
+
 ## Character identity
 
 `CharacterAvatar` accepts existing vector identities plus six optional

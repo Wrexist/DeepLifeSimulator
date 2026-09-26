@@ -168,6 +168,7 @@ export const financeColors = {
 
 /** Compatible names for fixed-theme art/chrome. Prefer getThemeColors in UI. */
 export const uiPalette = {
+  artCanvas: '#102334', // Bundled catalogue artwork and its letterbox surround.
   navy: palette.dark900,
   surface: palette.dark800,
   raised: palette.dark700,

@@ -1,0 +1,8 @@
+{
+  "checks": [
+    "Adopted Dog named Milo using the canonical adoption action; portrait renders in active stage",
+    "Opened matching resort artwork and booked existing domestic trip",
+    "Earned driving license through existing action; opened Economy Sedan purchase quote"
+  ],
+  "errors": []
+}

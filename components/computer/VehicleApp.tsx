@@ -1,3 +1,4 @@
+import CatalogArt from '@/components/ui/CatalogArt';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
@@ -27,7 +28,7 @@ import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/them
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
   Car, ShoppingBag, Shield, Fuel, Wrench, AlertCircle, IdCard,
   ChevronRight, Gauge, Zap, Star,
@@ -60,7 +61,6 @@ import {
   VEHICLE_TEMPLATES,
   INSURANCE_PLANS,
   DRIVERS_LICENSE,
-  getVehicleTemplate,
   calculateVehicleSellPrice,
   calculateRepairCost,
   calculateRepairCostAfterInsurance,
@@ -360,14 +360,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
   // --- Vehicle art (require() image from the template, keyed by id) --------
   const renderArt = (v: Vehicle, height: number, radius: number) => {
-    const image = getVehicleTemplate(v.id)?.image;
+
     return (
       <View style={[styles.artStage, { height: scale(height), backgroundColor: theme.surfaceElevated, borderRadius: radius }]}>
-        {image ? (
-          <Image source={image} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-        ) : (
-          <Car size={scale(48)} color={theme.textMuted} />
-        )}
+        <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
       </View>
     );
   };
@@ -487,7 +483,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   const renderFleetCard = (v: Vehicle) => {
     const cond = v.condition ?? 100;
     const isActive = v.id === activeVehicleId;
-    const image = getVehicleTemplate(v.id)?.image;
+
     return (
       <View
         key={v.id}
@@ -505,11 +501,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           style={styles.fleetHeader}
         >
           <View style={[styles.thumbStage, { backgroundColor: theme.surfaceElevated }]}>
-            {image ? (
-              <Image source={image} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-            ) : (
-              <Car size={scale(22)} color={theme.textMuted} />
-            )}
+            <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.fleetNameRow}>
@@ -845,11 +837,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 ]}
               >
                 <View style={[styles.dealerArtStage, { backgroundColor: theme.surfaceElevated }]}>
-                  {t.image ? (
-                    <Image source={t.image} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-                  ) : (
-                    <Car size={scale(40)} color={theme.textMuted} />
-                  )}
+                  <CatalogArt family="vehicles" id={t.id} style={{ width: '100%', height: '100%' }} />
                   <View style={[styles.dealerTypeBadge, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }]}>
                     <Text style={[styles.dealerTypeText, { color: accent.amber }]}>{t.type}</Text>
                   </View>
