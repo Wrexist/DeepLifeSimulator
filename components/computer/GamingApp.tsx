@@ -63,7 +63,6 @@ import {
   CircuitBoard,
   Coins,
   Upload,
-  Zap,
   Check,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -531,7 +530,7 @@ export default function GamingApp({ onBack }: Props) {
                 <Chip label={`Trending: ${trendingTopic}`} icon={<Flame size={scale(11)} color={accent.warning} />} tone="warning" />
               ) : null}
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topicRail}>
+            <View style={styles.topicRail}>
               {GAME_OPTIONS.map((g) => {
                 const active = selectedGame === g;
                 const hot = g === trendingTopic;
@@ -540,7 +539,7 @@ export default function GamingApp({ onBack }: Props) {
                     key={g}
                     label={g}
                     size="md"
-                    style={{ minHeight: 44 }}
+                    style={styles.topicOption}
                     icon={hot ? <Flame size={scale(11)} color={accent.warning} /> : undefined}
                     tint={active ? creatorBrand.video.accent : hot ? accent.warning : undefined}
                     selected={active}
@@ -549,7 +548,7 @@ export default function GamingApp({ onBack }: Props) {
                   />
                 );
               })}
-            </ScrollView>
+            </View>
 
             <TouchableOpacity onPress={handlePublish} disabled={publishDisabled} activeOpacity={0.8}
               accessibilityRole="button" accessibilityLabel="Record and upload"
@@ -566,40 +565,21 @@ export default function GamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Projected performance - real algorithm baseline (non-viral). */}
-        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Projected reach</Text>
-          <View style={styles.aGrid}>
-            <AnalyticStat Icon={Eye} label="Est. views" value={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)}`} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={Users} label="Est. subs" value={`+${compact(projectedRange.lowSubs)}–${compact(projectedRange.highSubs)}`} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={TrendingUp} label="At tier" value={quality.tier.toUpperCase()} valueColor={qualityColor(quality.tier)} theme={theme} darkMode={darkMode} />
-          </View>
-          <Text style={[styles.recordHint, { color: theme.textMuted }]}>
-            Recording costs 15 energy. Every upload performs a little differently - most land in this range, a lucky few go viral. Revenue scales with your {quality.tier.toUpperCase()} gear.
+        <CollapsibleSection
+          id="youvideo-reach-details"
+          title="Estimated reach"
+          summary={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)} views`}
+          defaultCollapsed
+          tint={creatorBrand.video.accent}
+        >
+          <KeyValueRow label="Estimated views" value={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)}`} />
+          <KeyValueRow label="New subscribers" value={`+${compact(projectedRange.lowSubs)}–${compact(projectedRange.highSubs)}`} />
+          <KeyValueRow label="Gear tier" value={quality.tier.toUpperCase()} />
+          <Text style={[styles.recordHint, { color: theme.textSecondary }]}>
+            Estimates vary with your topic and gear. Viral uploads can exceed this range.
           </Text>
-        </View>
-
-        {/* Weekly upload meter + energy - anti-exploit cap made visible. */}
-        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.meterHeadRow}>
-            <Text style={[styles.meterLabel, { color: theme.textSecondary }]}>Uploads this week</Text>
-            <Text style={[styles.meterValue, { color: capped ? accent.warning : theme.text }]}>{uploadsThisWeek}/{WEEKLY_VIDEO_CAP}</Text>
-          </View>
-          <ProgressBar
-            value={uploadsThisWeek / WEEKLY_VIDEO_CAP}
-            color={capped ? accent.warning : creatorBrand.video.accent}
-            height={scale(8)}
-            label="Uploads this week"
-          />
-          <View style={styles.energyRow}>
-            <Zap size={scale(13)} color={energy < 15 ? accent.danger : accent.warning} />
-            <Text style={[styles.energyText, { color: theme.textSecondary }]}>
-              Energy {Math.round(energy)} <Text style={{ color: theme.textMuted }}>/ 15 needed</Text>
-            </Text>
-            <View style={{ flex: 1 }} />
-            <Chip label="Upgrade gear" icon={<Cpu size={scale(12)} color={creatorBrand.video.accent} />} tint={creatorBrand.video.accent} onPress={() => goTab('studio')} />
-          </View>
-        </View>
+          <Chip label="Upgrade gear" icon={<Cpu size={scale(12)} color={creatorBrand.video.accent} />} tint={creatorBrand.video.accent} onPress={() => goTab('studio')} />
+        </CollapsibleSection>
       </ScrollView>
     );
   };
@@ -1158,13 +1138,14 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
   composerHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   composerInner: { padding: sp.sm },
-  topicRail: { gap: sp.xs, paddingVertical: sp.xs },
-  previewThumb: { width: '100%', height: scale(144), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
+  topicRail: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  topicOption: { minHeight: 44, borderRadius: br.md, flexBasis: '47%', flexGrow: 1, justifyContent: 'center' },
+  previewThumb: { width: '100%', height: scale(112), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
   input: { minHeight: 44, borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '600', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   topicHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs, marginTop: sp.sm },
-  recordHint: { fontSize: fs.xs, fontStyle: 'italic' },
+  recordHint: { fontSize: fs.sm },
 
   // Meters.
   meterHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

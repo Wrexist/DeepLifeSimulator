@@ -39,6 +39,7 @@ import {
 } from 'react-native';
 import {
   Radio,
+  Check,
   Activity,
   History,
   ShoppingBag,
@@ -758,7 +759,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           <View style={[styles.hintRow, { marginTop: sp.sm }]}>
             <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
             <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
-              Energy {Math.round(energy)} · streaming drains it live. Tap Stop any time to bank your earnings.
+              Energy {Math.round(energy)} · Stop anytime to collect earnings.
             </Text>
           </View>
           <TouchableOpacity
@@ -795,19 +796,19 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   style={[
                     getGlassCard(darkMode, 6),
                     styles.gameTile,
-                    { backgroundColor: theme.surface, borderColor: selected ? IDENTITY : theme.border, borderWidth: selected ? 2 : 1 },
+                    { backgroundColor: theme.surface, borderColor: selected ? IDENTITY : theme.border, borderWidth: 2 },
                   ]}
                 >
                   <View style={styles.gameTileClip}>
                     <Image source={MEDIA_ART[STREAM_ART_KEYS[g.id]]} style={styles.gameTileImg} resizeMode="cover" />
                     {selected ? (
                       <View style={styles.gameTileCheck}>
-                        <Radio size={scale(12)} color={uiPalette.white} />
+                        <Check size={scale(12)} color={uiPalette.white} />
                       </View>
                     ) : null}
                   </View>
                   <View pointerEvents="none" style={styles.gameTileLabel}>
-                    <Text style={[styles.gameTileName, { color: theme.text }]} numberOfLines={1}>{g.name}</Text>
+                    <Text style={[styles.gameTileName, { color: theme.text }]}>{g.name}</Text>
                     <Text style={[styles.gameTileHint, { color: theme.textSecondary }]} numberOfLines={1}>{g.viewersHint}</Text>
                   </View>
                 </TouchableOpacity>
@@ -1254,10 +1255,9 @@ const styles = StyleSheet.create({
   monitorMetaText: { fontSize: fs.sm, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
 
   // ── Game picker tiles ──
-  gameTile: { width: '47.5%', flexGrow: 1, borderRadius: br.xl, overflow: 'hidden' },
+  gameTile: { width: '47.5%', flexGrow: 0, borderRadius: br.lg, overflow: 'hidden' },
   gameTileClip: { width: '100%', height: scale(88), position: 'relative', justifyContent: 'flex-end' },
   gameTileImg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  gameTileScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.4)' },
   gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: creatorBrand.stream.action },
   gameTileLabel: { padding: sp.sm, gap: 1 },
   gameTileName: { fontSize: fs.sm, fontWeight: '700', color: uiPalette.white },
@@ -1270,7 +1270,7 @@ const styles = StyleSheet.create({
   capLabel: { fontSize: fs.sm, fontWeight: '600' },
   capValue: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  recordHint: { fontSize: fs.xs, fontStyle: 'italic', flex: 1 },
+  recordHint: { fontSize: fs.sm, flex: 1 },
   hypeHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.sm },
   hypeMax: { fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hypeBar: { marginTop: sp.xs },
