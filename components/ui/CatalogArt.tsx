@@ -1,15 +1,16 @@
+import { LUXURY_ART } from '@/lib/content/luxuryArtAssets';
 import React, { useState } from 'react';
 import { Image, ImageSourcePropType, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { Car, MapPin, PawPrint } from 'lucide-react-native';
+import { Car, Gem, MapPin, PawPrint } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { uiPalette } from '@/lib/config/theme';
 import { PETS_ART, TRAVEL_ART, VEHICLES_ART } from '@/lib/content/lifeArtAssets';
 
-type Family = 'pets' | 'travel' | 'vehicles';
+type Family = 'pets' | 'travel' | 'vehicles' | 'luxury';
 const maps: Record<Family, Record<string, ImageSourcePropType>> = {
-  pets: PETS_ART, travel: TRAVEL_ART, vehicles: VEHICLES_ART,
+  luxury: LUXURY_ART, pets: PETS_ART, travel: TRAVEL_ART, vehicles: VEHICLES_ART,
 };
-const icons = { pets: PawPrint, travel: MapPin, vehicles: Car };
+const icons = { luxury: Gem, pets: PawPrint, travel: MapPin, vehicles: Car };
 
 /** Decorative artwork: the owning row provides the accessible name and action. */
 export default function CatalogArt({ family, id, style }: {

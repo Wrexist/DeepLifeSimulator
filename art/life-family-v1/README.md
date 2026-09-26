@@ -12,7 +12,7 @@ Approved UI reference: `docs/PRESENTATION_SYSTEM.md`, 27 September 2026.
 | Illustrated player/NPC identities | Retain accepted V06 family and inheritance/aging. | CharacterAvatar |
 | Creator media | Retain accepted media-v2. | mediaArtAssets |
 | Rendered destination rooms | Retain original local scene family. | SceneCard |
-| Luxury catalogue photography | Deferred: outside this pet/travel/vehicle batch. V08 stays open until the remaining family is reconciled. | Existing luxury screens |
+| Luxury catalogue photography | Replaced by the matching 12-item luxury-v2 family in the subsequent batch. | CatalogArt / LUXURY_ART |
 | Food/toy/vet emoji | Retained secondary functional symbols; not animal identities. A separate icon cleanup can migrate them to existing vector icons. | PetApp |
 
 Original sheets and a replacement helicopter live in `originals/`. Exact built-in

@@ -1,3 +1,5 @@
+> Archived photo direction. Active illustrated assets and prompts are in `art/luxury-v2/`; rebuild with `scripts/normalize-luxury-art.cjs`. Do not use these historical prompts for new catalogue art.
+
 # Luxury & Collectibles — AI Artwork Prompts
 
 Art for the Luxury & Collectibles app. Each catalog item gets one bundled image

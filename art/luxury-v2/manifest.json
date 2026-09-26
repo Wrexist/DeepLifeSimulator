@@ -1,0 +1,198 @@
+{
+  "tool": "built-in image_gen",
+  "review": "All twelve source subjects reviewed for category identity, framing and shared lighting. Native image acceptance remains open.",
+  "assets": [
+    {
+      "id": "rare_watch_collection",
+      "source": "art/luxury-v2/originals/collectibles.png",
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 887,
+        "height": 443
+      },
+      "file": "assets/images/luxury-v2/rare_watch_collection.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 33838,
+      "sha256": "c2308aab9bd0190ed4209c8b19d4f318f5e41ead93b73d875c4c2b6661c4b5c7",
+      "sourceSha256": "4c69f1f06c169c951ad6ea07797780690488dec15ebc286a5486edbbe3d9d1f9"
+    },
+    {
+      "id": "museum_diamond",
+      "source": "art/luxury-v2/originals/collectibles.png",
+      "crop": {
+        "left": 887,
+        "top": 0,
+        "width": 887,
+        "height": 443
+      },
+      "file": "assets/images/luxury-v2/museum_diamond.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 22380,
+      "sha256": "64022f9cadba38b06f68ac04c840ee85a131b8e9ecd1817133fd96d27c89bc66",
+      "sourceSha256": "4c69f1f06c169c951ad6ea07797780690488dec15ebc286a5486edbbe3d9d1f9"
+    },
+    {
+      "id": "fine_art_collection",
+      "source": "art/luxury-v2/originals/collectibles.png",
+      "crop": {
+        "left": 0,
+        "top": 443,
+        "width": 887,
+        "height": 444
+      },
+      "file": "assets/images/luxury-v2/fine_art_collection.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 30472,
+      "sha256": "a0dc6ad72c5442ff24b9d72ff9060f34f0286e027e9ba39c11ec32c19f594bcc",
+      "sourceSha256": "4c69f1f06c169c951ad6ea07797780690488dec15ebc286a5486edbbe3d9d1f9"
+    },
+    {
+      "id": "supercar",
+      "source": "art/luxury-v2/originals/collectibles.png",
+      "crop": {
+        "left": 887,
+        "top": 443,
+        "width": 887,
+        "height": 444
+      },
+      "file": "assets/images/luxury-v2/supercar.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 35138,
+      "sha256": "7896dfec78dd8b162aeb7cc040de24e24d20f67e5248bebb8c5fb6cfff0ce741",
+      "sourceSha256": "4c69f1f06c169c951ad6ea07797780690488dec15ebc286a5486edbbe3d9d1f9"
+    },
+    {
+      "id": "racehorse",
+      "source": "art/luxury-v2/originals/estates-transport.png",
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 887,
+        "height": 443
+      },
+      "file": "assets/images/luxury-v2/racehorse.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 46268,
+      "sha256": "1e665cb9417be53584f47172fa44b883750b3c156c1cf7553a2cd0c8afec093d",
+      "sourceSha256": "6fd2908d6b7350b629d5478a1911f9754683b17f80012c41507064a28b877188"
+    },
+    {
+      "id": "vineyard_estate",
+      "source": "art/luxury-v2/originals/estates-transport.png",
+      "crop": {
+        "left": 887,
+        "top": 0,
+        "width": 887,
+        "height": 443
+      },
+      "file": "assets/images/luxury-v2/vineyard_estate.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 71026,
+      "sha256": "ff2dfbe0b48f73cb3de35d17b48b493ef66ed3841ddeab172c97d1e3d138e02e",
+      "sourceSha256": "6fd2908d6b7350b629d5478a1911f9754683b17f80012c41507064a28b877188"
+    },
+    {
+      "id": "luxury_yacht",
+      "source": "art/luxury-v2/originals/estates-transport.png",
+      "crop": {
+        "left": 0,
+        "top": 443,
+        "width": 887,
+        "height": 444
+      },
+      "file": "assets/images/luxury-v2/luxury_yacht.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 42912,
+      "sha256": "ca6008b6426c1585acd24536b303bc4b550601acf7e9010eb8ef2ae53000e14d",
+      "sourceSha256": "6fd2908d6b7350b629d5478a1911f9754683b17f80012c41507064a28b877188"
+    },
+    {
+      "id": "private_jet",
+      "source": "art/luxury-v2/originals/estates-transport.png",
+      "crop": {
+        "left": 887,
+        "top": 443,
+        "width": 887,
+        "height": 444
+      },
+      "file": "assets/images/luxury-v2/private_jet.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 28400,
+      "sha256": "a52c4f0fa05f9a3af2142a08defbc404ada7f904274d83df8e5e02c8b562454a",
+      "sourceSha256": "6fd2908d6b7350b629d5478a1911f9754683b17f80012c41507064a28b877188"
+    },
+    {
+      "id": "private_island",
+      "source": "art/luxury-v2/originals/landmarks.png",
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 887,
+        "height": 443
+      },
+      "file": "assets/images/luxury-v2/private_island.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 72032,
+      "sha256": "b9d68a08616ea09e2a62ad82de4bf4c0b4750444aa71276f78be7054d517855e",
+      "sourceSha256": "ff751a431afd35b8a26486293459f5c8cc4b37dca013060c0b300376d278e601"
+    },
+    {
+      "id": "trophy_penthouse",
+      "source": "art/luxury-v2/originals/landmarks.png",
+      "crop": {
+        "left": 887,
+        "top": 0,
+        "width": 887,
+        "height": 443
+      },
+      "file": "assets/images/luxury-v2/trophy_penthouse.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 66084,
+      "sha256": "e9845c7e9ff1a8f98ec2e29d769f4773003466d42fadfafd19ac59a70dd68c0d",
+      "sourceSha256": "ff751a431afd35b8a26486293459f5c8cc4b37dca013060c0b300376d278e601"
+    },
+    {
+      "id": "mega_yacht",
+      "source": "art/luxury-v2/originals/landmarks.png",
+      "crop": {
+        "left": 0,
+        "top": 443,
+        "width": 887,
+        "height": 444
+      },
+      "file": "assets/images/luxury-v2/mega_yacht.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 63614,
+      "sha256": "fc425457430a86b9cd8ea4679a78d344747d7bc7d0165db9aae7f5af7a2881f7",
+      "sourceSha256": "ff751a431afd35b8a26486293459f5c8cc4b37dca013060c0b300376d278e601"
+    },
+    {
+      "id": "sports_team_stake",
+      "source": "art/luxury-v2/originals/landmarks.png",
+      "crop": {
+        "left": 887,
+        "top": 443,
+        "width": 887,
+        "height": 444
+      },
+      "file": "assets/images/luxury-v2/sports_team_stake.webp",
+      "width": 768,
+      "height": 384,
+      "bytes": 70718,
+      "sha256": "dfcedd7879fd1b0a77e128d8cfbafd14b79d22f94e12727bad061e7e2cc12df6",
+      "sourceSha256": "ff751a431afd35b8a26486293459f5c8cc4b37dca013060c0b300376d278e601"
+    }
+  ]
+}

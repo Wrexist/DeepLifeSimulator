@@ -1,3 +1,4 @@
+import CatalogArt from '@/components/ui/CatalogArt';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * LuxuryApp - desktop "Luxury & Collectibles" screen (premium redesign).
@@ -6,9 +7,8 @@ import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/them
  * as RealEstateApp / GamingApp): browse an artwork-led catalog, buy with in-game
  * cash, and manage owned trophies (each has weekly upkeep + a happiness/prestige
  * benefit). This pass matches the game's redesign wave:
- *  - ARTWORK BANNER per item - a bundled Image (luxuryArt require map) with a
- *    graceful per-tier gradient placeholder (the emoji, large + subtle) until the
- *    real art is imported. Full names fit (2-line title, price off the title row).
+ *  - Bundled illustrated banners with a shared vector fallback.
+ *    Full names fit (2-line title, price off the title row).
  *  - Tiers made visual (ENTRY / PREMIUM / ELITE / ULTRA tinted chips).
  *  - A DETAIL SHEET (tap a card) with the full stats + cost-of-ownership + buy/sell.
  *  - A COLLECTION showcase (value / upkeep / prestige summary) + the resale flow.
@@ -28,7 +28,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import {
   Crown,
@@ -105,7 +104,7 @@ import {
   sellLuxuryItem,
   setLuxuryInsurance,
 } from '@/contexts/game/actions/LuxuryActions';
-import { luxuryArtFor, luxuryTierVisual } from '@/components/computer/luxury/luxuryArt';
+import { luxuryTierVisual } from '@/components/computer/luxury/luxuryArt';
 
 // One identity accent for this app - the shared semantic blue, tinted through
 // `withAlpha`. Emerald = benefit/complete, amber = the cautionary (lossy but
@@ -125,25 +124,9 @@ const TABS: { key: Tab; label: string; icon: IconType }[] = [
 
 const clampUnit = (n: number): number => Math.max(0, Math.min(1, isFinite(n) ? n : 0));
 
-/**
- * Artwork banner - a bundled Image when present, otherwise a flat per-tier wash
- * with the item's emoji as the art. Fills its (sized, overflow-clipped) parent;
- * overlay chips are siblings.
- */
-function ArtworkBanner({ item, emojiSize }: { item: LuxuryItem; emojiSize: number }) {
-  const art = luxuryArtFor(item.id);
-  const tv = luxuryTierVisual(item.tier);
-
-  if (art) {
-    return <Image source={art} style={styles.bannerFill} resizeMode="cover" />;
-  }
-  return (
-    <View style={[styles.bannerFill, { backgroundColor: tv.placeholder }]}>
-      <View pointerEvents="none" style={styles.bannerEmojiWrap}>
-        <Text style={[styles.bannerEmoji, { fontSize: emojiSize }]}>{item.emoji}</Text>
-      </View>
-    </View>
-  );
+/** Local illustrated banners share fallback and accessibility behavior with other catalogues. */
+function ArtworkBanner({ item }: { item: LuxuryItem }) {
+  return <CatalogArt family="luxury" id={item.id} style={styles.bannerFill} />;
 }
 
 /** The two chips a buyer decides on: what it costs weekly, what it is worth in prestige. */
@@ -205,7 +188,7 @@ function LuxuryCard({
               accessibilityLabel={`${item.name}, ${formatMoney(item.price)}${isOwned ? ', owned' : ''}. View details`}
             >
               <View style={[styles.bannerBox, { height: scale(132) }]}>
-                <ArtworkBanner item={item} emojiSize={scale(54)} />
+                <ArtworkBanner item={item} />
                 <View style={[styles.tierChip, { backgroundColor: tv.accentSoft, borderColor: tv.accentBorder }]}>
                   <Text style={[styles.tierChipText, { color: tv.accent }]}>{tv.label}</Text>
                 </View>
@@ -614,7 +597,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
       >
         <View style={styles.sheetBody}>
               <View style={[styles.sheetHeroBox, { height: scale(190), borderColor: theme.border }]}>
-                <ArtworkBanner item={item} emojiSize={scale(88)} />
+                <ArtworkBanner item={item} />
                 <View style={[styles.tierChip, { backgroundColor: tv.accentSoft, borderColor: tv.accentBorder }]}>
                   <Text style={[styles.tierChipText, { color: tv.accent }]}>{tv.label}</Text>
                 </View>
@@ -979,8 +962,6 @@ const styles = StyleSheet.create({
   cardInner: { borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
   bannerBox: { width: '100%' },
   bannerFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
-  bannerEmojiWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  bannerEmoji: { opacity: 0.9, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 18 },
   tierChip: {
     position: 'absolute',
     top: scale(10),

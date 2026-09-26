@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "Opened watch detail, confirmed purchase and found matching owned collection artwork",
+    "Cancelled sale and retained owned item",
+    "Opened Museum-Grade Diamond art detail",
+    "Opened Fine Art Collection art detail",
+    "Opened Hypercar art detail",
+    "Opened Thoroughbred Racehorse art detail",
+    "Opened Vineyard Estate art detail",
+    "Opened Luxury Yacht art detail",
+    "Opened Private Jet art detail",
+    "Opened Private Island art detail",
+    "Opened Trophy Penthouse art detail",
+    "Opened Mega-Yacht art detail",
+    "Opened Pro Sports Team Stake art detail"
+  ],
+  "errors": []
+}
