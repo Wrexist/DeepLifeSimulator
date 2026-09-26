@@ -247,7 +247,7 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
       Icon: Briefcase,
       tone: accent.info,
       title: 'Choose your first job',
-      body: 'Compare weekly pay and requirements in Work, then apply for a job that fits.',
+      body: 'Compare pay and requirements in Work, then apply.',
       cta: 'Find a job',
     },
     pending: {

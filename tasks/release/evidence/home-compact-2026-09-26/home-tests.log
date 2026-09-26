@@ -1,0 +1,38 @@
+node : PASS __tests__/render/components.render.test.tsx (26.089 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand __tests__/render/first ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/....tsx (26.089 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  render - high-traffic components
+    √ TopStatsBar mounts without throwing (70 ms)
+    √ IdentityCard mounts without throwing (40 ms)
+    √ DeathPopup mounts without throwing (25 ms)
+    √ LastWeekRecap mounts without throwing (12 ms)
+
+PASS __tests__/render/cashFlowState.render.test.tsx
+  cash flow receives and refreshes its real state inputs
+    √ shows a newly added luxury upkeep even if no other property changes (68 ms)
+    √ includes the rented home in the cash-flow bill (16 ms)
+    √ recomputes subscription charges at prepaid expiry without replacing the subscription (24 ms)
+    √ refreshes diet costs when a plan is activated (47 ms)
+    √ reports distinct balances and APRs for loans that share the same name (33 ms)
+    √ includes the frozen pension and refreshes it on retirement (36 ms)
+    √ shows standing arrears, which the tick settles before this week bills (57 ms)
+    √ labels projected real-estate income as an occupancy-dependent estimate (35 ms)
+    √ bills warehouse mining power from mined crypto, not cash (46 ms)
+    √ uses the paid work boost and withholds payroll while jailed (45 ms)
+
+PASS __tests__/render/firstSessionCoach.render.test.tsx
+  √ follows application and payroll state without treating passive income as wages (40 ms)
+  √ gives the composed Home card one lead throughout coaching and restores recommendations on dismissal (46 ms)
+  √ anchors the window on this life, not on a baseline stored by an earlier life (5 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        31.142 s
+Ran all test suites matching /__tests__\\render\\firstSessionCoach.render.test.tsx|__tests__\\render\\cashFlowState.ren
+der.test.tsx|__tests__\\render\\components.render.test.tsx/i.
+EXIT_STATUS=0

@@ -343,7 +343,7 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
         if (!coach && visibleRows.length === 0) return null;
         const [leadRow, ...nextRows] = visibleRows;
         return (
-          <Card>
+          <Card style={styles.compactCard}>
             {coach ? <>
               {coach}
               {visibleRows.length > 0 && <View style={styles.next}>
@@ -366,6 +366,7 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  compactCard: { padding: scale(12), gap: rhythm.tight },
   // Container from components/ui/Card.
   kicker: { ...kicker, color: uiPalette.muted },
   leadRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },

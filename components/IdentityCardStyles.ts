@@ -41,6 +41,17 @@ export const styles = StyleSheet.create({
   stripAvatar: {
     position: 'relative',
   },
+  compactStrip: {
+    minHeight: 0,
+    padding: responsiveSpacing.compact,
+    gap: responsiveSpacing.sm,
+    marginBottom: 0,
+  },
+  compactAvatar: { width: scale(52), height: scale(52) },
+  compactAvatarGlow: { width: scale(48), height: scale(48), borderRadius: scale(24) },
+  compactText: { minWidth: 0, gap: responsiveSpacing.xs },
+  compactDetails: { marginBottom: 0 },
+  scenarioNote: { marginVertical: responsiveSpacing.sm },
   stripText: {
     flex: 1,
     minWidth: scale(120),

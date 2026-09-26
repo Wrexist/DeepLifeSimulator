@@ -694,7 +694,7 @@ function HomeScreenContent() {
         <FadeInUp delay={0}>
           {/* The prestige badge on the card opens the shop this screen already
               mounts below, instead of its previous empty onPress. */}
-          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
+          <IdentityCard compact onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
         </FadeInUp>
 
         {/* THE LEAD SLOT - see `lead` above. One element, chosen by state,

@@ -1,0 +1,10 @@
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\IdentityCardStyles.ts
+  110:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  136:61  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  207:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  495:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+✖ 4 problems (0 errors, 4 warnings)
+
+EXIT_STATUS=0

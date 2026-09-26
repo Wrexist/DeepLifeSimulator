@@ -108,6 +108,8 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
 }
 
 interface IdentityCardProps {
+  /** Home gives the next action priority; Profile retains the full record. */
+  compact?: boolean;
   /**
    * Opens the Prestige Shop. Optional so the card still renders standalone (the
    * render smoke test mounts it with no props); when it is absent the prestige
@@ -119,7 +121,7 @@ interface IdentityCardProps {
   onOpenPrestigeShop?: () => void;
 }
 
-function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
+function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps) {
   // Sprint 2 perf: subscribe only to the slices this card reads (directly,
   // through the destructure below, in the cash-flow modal JSX, and via the
   // economy helpers) instead of the whole gameState. One shallow-equal
@@ -539,30 +541,30 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           aligned, one line of facts, and the one number that moves (net
           worth, with this week's cash flow under it). Everything that is
           reference lives behind Details, closed by default. */}
-      <View style={[styles.card, styles.strip]}>
+      <View style={[styles.card, styles.strip, compact && styles.compactStrip]}>
         <View style={styles.heroBackdrop} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine /></View>
-        <View style={styles.recordHeader}>
+        {!compact && <View style={styles.recordHeader}>
           <Text style={styles.recordLabel}>DEEP LIFE</Text>
           <Text style={styles.recordLabel}>Week {weeksInThisLife(gameState) + 1}</Text>
-        </View>
+        </View>}
         <View style={styles.stripAvatar}>
           {/* The ring lives on a wrapper: the avatar is an SVG, so a border on
               the element itself would not follow the circular clip. */}
           <View
-            style={[styles.avatar, equippedFrame ? { borderColor: equippedFrame.color } : null]}
+            style={[styles.avatar, compact && styles.compactAvatar, equippedFrame ? { borderColor: equippedFrame.color } : null]}
           >
             <CharacterAvatar
               source={userProfile}
               seed={name}
               sex={sex}
               age={date?.age ?? 0}
-              size={scale(64)}
+              size={scale(compact ? 48 : 64)}
               circular={false}
               alive
             />
           </View>
           <View
-            style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
+            style={[styles.avatarGlow, compact && styles.compactAvatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
             /* The badge used to be a TouchableOpacity whose onPress was an empty
@@ -594,7 +596,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             )
           )}
         </View>
-        <View style={styles.stripText}>
+        <View style={[styles.stripText, compact && styles.compactText]}>
           {/* Player-typed name - clamp to one line so a long one cannot push
               the facts under it out of the strip. */}
           <Text style={[styles.name, styles.nameDark]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
@@ -637,14 +639,19 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
       {/* Reference, not news: the five identity facts and the breakdown
           rows. Closed on first view - a player who knows their own age and
           sex should not scroll past them to reach the goal card - and the
-          summary line keeps the scenario and age readable either way. */}
+          Home keeps the life week in the summary. The starting scenario is
+          explicitly labelled inside, separate from the player's current job. */}
       <CollapsibleSection
         id="identity.facts"
         title="Details"
         compact
         defaultCollapsed
-        summary={`${scenario?.title || t('common.unknown')} · ${t('game.age')} ${Math.floor(date?.age ?? 18)}`}
+        summary={compact ? `Week ${weeksInThisLife(gameState) + 1}` : `Starting scenario: ${scenario?.title || t('common.unknown')}`}
+        style={compact ? styles.compactDetails : undefined}
       >
+        <Text style={[styles.stripMeta, styles.scenarioNote]}>
+          Starting scenario: {scenario?.title || t('common.unknown')}
+        </Text>
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>

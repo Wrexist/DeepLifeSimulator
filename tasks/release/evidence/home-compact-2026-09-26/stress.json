@@ -1,0 +1,24 @@
+[
+  {
+    "width": 320,
+    "horizontalOverflow": false,
+    "cta": {
+      "x": 25,
+      "y": 414,
+      "width": 270,
+      "height": 44
+    },
+    "note": "320px preview; scrolling is expected"
+  },
+  {
+    "width": 375,
+    "horizontalOverflow": false,
+    "cta": {
+      "x": 29,
+      "y": 468,
+      "width": 317,
+      "height": 44
+    },
+    "note": "DOM-only long-name layout stress; not a save or native Dynamic Type test"
+  }
+]
