@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * BoostPostModal - gem-spend modal that supercharges a post.
  *
@@ -67,7 +68,7 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
             !canAfford && styles.ctaDisabled,
           ]}
         >
-          <Gem size={fontScale(16)} color="#FFFFFF" />
+          <Gem size={fontScale(16)} color={uiPalette.white} />
           <Text style={styles.ctaText}>
             {canAfford ? `Spend ${GEM_COST} to boost` : 'Not enough gems'}
           </Text>
@@ -75,7 +76,7 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
       }
     >
       <View style={[styles.badge, { backgroundColor: PULSE_COLORS.accent }]}>
-        <Zap size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
+        <Zap size={scale(28)} color={uiPalette.white} strokeWidth={2.4} />
       </View>
 
       <StatStrip
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

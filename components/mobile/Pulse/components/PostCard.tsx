@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * PostCard - single Pulse post in the feed.
  *
@@ -24,7 +25,8 @@ import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { formatRelativeWeek } from '../utils/formatRelativeTime';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { PULSE_COLORS } from '../styles/pulseTheme';
-import { withAlpha } from '@/lib/config/theme';
+
+import type { AvatarSource } from '@/lib/avatar/resolve';
 import type { PulseRecentPost } from '@/contexts/game/types';
 
 interface PostCardProps {
@@ -33,6 +35,8 @@ interface PostCardProps {
   authorHandle: string;
   /** Avatar / profile photo URI. Falls back to a tinted placeholder circle. */
   authorPhoto?: string;
+  authorSource?: AvatarSource;
+  authorAge?: number;
   /** Current weeksLived for relative-time rendering. */
   currentWeeksLived: number;
   /** Tap on the comment icon → open PostDetailScreen with this post's id. */
@@ -66,7 +70,7 @@ interface PostCardProps {
  * 2026-07-30 audit PERF-2.
  */
 function PostCard({
-  post, authorHandle, authorPhoto, currentWeeksLived, onOpenDetail, onBoost, isPlayerPost,
+  post, authorHandle, authorPhoto, authorSource, authorAge, currentWeeksLived, onOpenDetail, onBoost, isPlayerPost,
   onLike: onLikeOverride, onRepost: onRepostOverride,
 }: PostCardProps) {
   const setGameState = useSetGameState();
@@ -131,10 +135,10 @@ function PostCard({
           fallback={authorHandle}
           // Seeded from the handle so the same author keeps one face down the
           // whole feed. Without this the feed is a column of grey letters.
-          face={{ seed: authorHandle, size: scale(34) }}
+          face={{ source: authorSource, age: authorAge, seed: authorHandle, size: scale(34) }}
           style={styles.avatar}
           placeholderColor={PULSE_COLORS.tierCelebrity}
-          placeholderTextColor="#FFFFFF"
+          placeholderTextColor={uiPalette.white}
         />
         <View style={styles.authorMeta}>
           <Text style={[styles.handle, { color: theme.text }]} numberOfLines={1}>
@@ -355,7 +359,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(4),
   },
   viralPillText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(9),
     fontWeight: '600',
     letterSpacing: 0.6,

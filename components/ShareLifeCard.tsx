@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors } from '@/lib/config/theme';
 /**
  * Share Your Life Card Component
  *
@@ -29,7 +30,7 @@ import { GameState } from '@/contexts/game/types';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
-import { getThemeColors } from '@/lib/config/theme';
+
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { logger } from '@/utils/logger';
 import { shareUrlFor } from '@/lib/config/appConfig';
@@ -262,7 +263,7 @@ ${shareUrlFor('life_card')}
  buttonText: {
  fontSize: fontScale(14),
  fontWeight: '600',
- color: '#FFFFFF',
+ color: uiPalette.white,
  },
  loadingOverlay: {
  position: 'absolute',
@@ -361,10 +362,10 @@ ${shareUrlFor('life_card')}
  activeOpacity={0.7}
  >
  {isSharing ? (
- <ActivityIndicator color="#FFFFFF" size="small" />
+ <ActivityIndicator color={uiPalette.white} size="small" />
  ) : (
  <>
- <Share2 size={16} color="#FFFFFF" />
+ <Share2 size={16} color={uiPalette.white} />
  <Text style={styles.buttonText}>Share</Text>
  </>
  )}

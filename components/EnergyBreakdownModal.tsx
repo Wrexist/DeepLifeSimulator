@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo } from 'react';
 import { Briefcase, GraduationCap, Coffee, Home, Utensils } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -50,7 +51,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
         label: `Pending Application: ${pendingLevel?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
-        color: '#94A3B8',
+        color: uiPalette.muted,
         description: 'Pending applications do not drain energy until you start working',
       });
     }

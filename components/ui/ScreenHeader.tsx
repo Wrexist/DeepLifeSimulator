@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace, fontScale, responsiveSpacing, scale } from '@/utils/scaling';
 /**
  * ScreenHeader - the one screen-title pattern.
  *
@@ -17,7 +18,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+
 
 interface ScreenHeaderProps {
   title: string;
@@ -30,15 +31,10 @@ interface ScreenHeaderProps {
   style?: ViewStyle;
 }
 
-/** Alpha suffixes for the bubble fill and its hairline, as 8-digit hex. */
-const FILL_ALPHA = '1F'; // ~12%
-const BORDER_ALPHA = '59'; // ~35%
-
 export default function ScreenHeader({
   title,
   subtitle,
   icon,
-  tint,
   right,
   style,
 }: ScreenHeaderProps) {
@@ -48,13 +44,7 @@ export default function ScreenHeader({
     <View style={[styles.header, style]}>
       {icon ? (
         <View
-          style={[
-            styles.iconBubble,
-            {
-              backgroundColor: tint ? `${tint}${FILL_ALPHA}` : theme.surfaceElevated,
-              borderColor: tint ? `${tint}${BORDER_ALPHA}` : theme.border,
-            },
-          ]}
+          style={styles.iconBubble}
           accessibilityElementsHidden
           importantForAccessibility="no"
         >
@@ -64,7 +54,7 @@ export default function ScreenHeader({
       <View style={styles.textWrap}>
         <Text
           style={[styles.title, { color: theme.text }]}
-          numberOfLines={1}
+          numberOfLines={2}
           maxFontSizeMultiplier={1.5}
           accessibilityRole="header"
         >
@@ -73,7 +63,7 @@ export default function ScreenHeader({
         {subtitle ? (
           <Text
             style={[styles.subtitle, { color: theme.textSecondary }]}
-            numberOfLines={1}
+            numberOfLines={2}
             maxFontSizeMultiplier={1.5}
           >
             {subtitle}
@@ -89,16 +79,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
-    paddingHorizontal: responsiveSpacing.lg,
+    gap: layoutSpace.compact,
+    paddingHorizontal: responsiveSpacing.md,
     paddingTop: responsiveSpacing.md,
     paddingBottom: responsiveSpacing.sm,
   },
   iconBubble: {
-    width: scale(38),
-    height: scale(38),
-    borderRadius: scale(11),
-    borderWidth: StyleSheet.hairlineWidth,
+    width: scale(24),
+    height: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -110,14 +98,14 @@ const styles = StyleSheet.create({
   // holds or the goal they are on - so the least informative element on the
   // screen won the squint test every time (Program 4).
   title: {
-    fontSize: fontScale(17),
-    lineHeight: fontScale(22),
+    fontSize: fontScale(20),
+    lineHeight: fontScale(24),
     fontWeight: '600',
     letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: fontScale(12.5),
-    marginTop: scale(1),
+    fontSize: fontScale(12),
+    marginTop: layoutSpace.xs,
   },
   right: {
     marginLeft: 'auto',

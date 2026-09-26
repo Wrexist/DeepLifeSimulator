@@ -27,9 +27,9 @@ const palette = {
   black: '#000000',
 
   // Dark mode backgrounds (current default)
-  dark900: '#0F172A',   // deepest bg
-  dark800: '#1E293B',   // card bg
-  dark700: '#334155',   // elevated surface
+  dark900: '#071321',   // navy canvas
+  dark800: '#102235',   // solid card material
+  dark700: '#243B53',   // elevated surface
   dark600: '#475569',   // subtle border
   dark500: '#64748B',   // muted text
 
@@ -41,9 +41,9 @@ const palette = {
   light400: '#94A3B8',
 
   // Brand / Accent
-  primary: '#6366F1',    // indigo
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
+  primary: '#168BFF',
+  primaryLight: '#62B4FF',
+  primaryDark: '#0864C8',
 
   // Semantic
   success: '#10B981',
@@ -81,6 +81,9 @@ export const colors = {
     background: palette.dark900,
     surface: palette.dark800,
     surfaceElevated: palette.dark700,
+    surfaceInteractive: '#163149',
+    surfaceSelected: '#123F64',
+    surfaceInset: '#0B1B2C',
     border: 'rgba(255, 255, 255, 0.1)',
     borderStrong: 'rgba(255, 255, 255, 0.2)',
     text: palette.white,
@@ -100,6 +103,9 @@ export const colors = {
     background: palette.light50,
     surface: palette.white,
     surfaceElevated: palette.light100,
+    surfaceInteractive: '#E8F1FA',
+    surfaceSelected: '#D8EAFF',
+    surfaceInset: '#EFF4F9',
     border: 'rgba(0, 0, 0, 0.08)',
     borderStrong: 'rgba(0, 0, 0, 0.15)',
     text: palette.dark900,
@@ -147,6 +153,35 @@ export const accent = {
   // reach 4.5:1 both ways, so keep it to icons, large text, and states that are
   // also signified by something other than color.
   muted: '#7C8BA1',
+} as const;
+
+/** Financial identity. Use in summaries, charts and action icons. */
+export const financeColors = {
+  cash: palette.successLight,
+  investment: '#A78BFA',
+  property: '#F472B6',
+  vehicle: '#FB923C',
+  business: '#38BDF8',
+  premium: palette.gems,
+  debt: palette.dangerLight,
+} as const;
+
+/** Compatible names for fixed-theme art/chrome. Prefer getThemeColors in UI. */
+export const uiPalette = {
+  navy: palette.dark900,
+  surface: palette.dark800,
+  raised: palette.dark700,
+  ink: '#0F172A',
+  slate: '#334155',
+  muted: palette.light400,
+  secondary: palette.light300,
+  white: palette.white,
+  paper: palette.light50,
+  lightSurface: palette.light100,
+  line: palette.light200,
+  lightMuted: palette.dark500,
+  lightSecondary: palette.dark600,
+  blue: palette.infoLight,
 } as const;
 
 /**
@@ -347,4 +382,11 @@ export const animation = {
     gentle: { damping: 15, stiffness: 150 },
     bouncy: { damping: 10, stiffness: 200 },
   },
+} as const;
+
+/** Solid action fills paired with white labels; quieter than page-level gradients. */
+export const actionColors = {
+  primary: palette.primaryDark,
+  success: '#047857',
+  danger: '#B91C1C',
 } as const;

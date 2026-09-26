@@ -117,10 +117,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   nudge: {
-    fontSize: fontScale(13),
+    fontSize: fontScale(14),
     textAlign: 'center',
     marginTop: responsiveSpacing.xs,
-    lineHeight: fontScale(18),
+    lineHeight: fontScale(20),
   },
   cta: {
     marginTop: responsiveSpacing.md,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   ctaWrap: {
     marginTop: responsiveSpacing.md,
@@ -185,8 +185,8 @@ const emptyCardStyles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    fontSize: fontScale(13),
+    fontSize: fontScale(14),
     textAlign: 'center',
-    lineHeight: fontScale(18),
+    lineHeight: fontScale(20),
   },
 });

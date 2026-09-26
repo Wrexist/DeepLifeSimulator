@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 /**
  * AppHeader - the one top bar for every launcher-hosted app.
  *
@@ -24,7 +25,7 @@ import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-nativ
 import { ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { accent, withAlpha } from '@/lib/config/theme';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+
 
 interface AppHeaderProps {
   title: string;
@@ -52,7 +53,7 @@ export default function AppHeader({ title, onBack, backLabel = 'Back', right, ce
       </TouchableOpacity>
       <Text
         style={[styles.title, { color: theme.text }, centered && styles.titleCentered]}
-        numberOfLines={1}
+        numberOfLines={2}
         accessibilityRole="header"
       >
         {title}
@@ -99,7 +100,7 @@ export function HeaderChip({
       <TouchableOpacity
         onPress={onPress}
         hitSlop={6}
-        style={[styles.chip, { backgroundColor: fill, borderColor: rim }]}
+        style={[styles.chip, styles.interactiveChip, { backgroundColor: fill, borderColor: rim }]}
         accessibilityRole="button"
         accessibilityLabel={`${label} ${value}`}
       >
@@ -148,6 +149,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   right: {
+    maxWidth: '50%',
+    flexShrink: 1,
     minWidth: touchTargets.minimum,
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -155,14 +158,16 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     minHeight: scale(32),
   },
+  interactiveChip: { minHeight: touchTargets.minimum },
   chipText: {
+    flexShrink: 1,
     fontSize: fontScale(13),
     fontWeight: '600',
     fontVariant: ['tabular-nums'],

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Platform,
@@ -72,9 +73,9 @@ const C = {
   cardSolid: 'rgba(30, 41, 59, 1)',
   border: 'rgba(51, 65, 85, 0.8)', // slate-700
   borderSoft: 'rgba(51, 65, 85, 0.45)',
-  text: '#E2E8F0', // slate-200
-  textDim: '#94A3B8', // slate-400
-  textFaint: '#64748B', // slate-500
+  text: uiPalette.line, // slate-200
+  textDim: uiPalette.muted, // slate-400
+  textFaint: uiPalette.lightMuted, // slate-500
   accent: '#6366F1', // indigo-500
   accentSoft: 'rgba(99, 102, 241, 0.16)',
   green: '#10B981',
@@ -830,7 +831,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
                     <Text style={styles.godLabel}>God Mode (no stat drain)</Text>
                     <Text style={styles.godDesc}>Locks health/happiness/energy/fitness at 100 across weeks.</Text>
                   </View>
-                  <Switch value={preventDrain} onValueChange={setPreventDrain} trackColor={{ false: C.border, true: C.green }} thumbColor="#FFFFFF" />
+                  <Switch value={preventDrain} onValueChange={setPreventDrain} trackColor={{ false: C.border, true: C.green }} thumbColor={uiPalette.white} />
                 </View>
 
                 {isSkipping && (
@@ -869,7 +870,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
 
                 <View style={styles.runAllRow}>
                   <TouchableOpacity style={styles.runAllBtn} onPress={runAll} disabled={runningAll} activeOpacity={0.85}>
-                    {runningAll ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Play size={16} color="#FFFFFF" />}
+                    {runningAll ? <ActivityIndicator size="small" color={uiPalette.white} /> : <Play size={16} color={uiPalette.white} />}
                     <Text style={styles.runAllText}>{runningAll ? 'Running…' : 'RUN ALL'}</Text>
                   </TouchableOpacity>
                   {simSummary.ran > 0 && (
@@ -941,7 +942,7 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   input: { flex: 1, backgroundColor: C.cardSolid, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 6, color: C.text, fontSize: 14 },
   inputBtn: { backgroundColor: C.accent, borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center' },
-  inputBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  inputBtnText: { color: uiPalette.white, fontWeight: '700', fontSize: 13 },
   godRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.borderSoft, padding: 12, marginBottom: 12, gap: 12 },
   godLabel: { fontSize: 14, fontWeight: '600', color: C.text },
   godDesc: { fontSize: 11, color: C.textFaint, marginTop: 2 },
@@ -958,7 +959,7 @@ const styles = StyleSheet.create({
   emptyText: { color: C.textFaint, fontSize: 13, textAlign: 'center', marginTop: 20 },
   runAllRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   runAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.accent, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 10 },
-  runAllText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14, letterSpacing: 0.4 },
+  runAllText: { color: uiPalette.white, fontWeight: '800', fontSize: 14, letterSpacing: 0.4 },
   summaryPills: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
   pillText: { fontSize: 13, fontWeight: '700' },

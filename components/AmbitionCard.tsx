@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AmbitionCard - the in-game front door for the Life Ambition chosen at
  * character creation.
@@ -53,7 +54,7 @@ function AmbitionCard() {
         </View>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
-            <Target size={scale(13)} color="#60A5FA" />
+            <Target size={scale(13)} color={uiPalette.blue} />
             <Text style={styles.kicker}>LIFE AMBITION</Text>
           </View>
           <Text style={styles.title}>{ambition.name}</Text>
@@ -72,7 +73,7 @@ function AmbitionCard() {
         {milestones.map((m) => (
           <View key={m.id} style={styles.row}>
             <View style={[styles.checkBubble, m.complete && styles.checkBubbleDone]}>
-              {m.complete ? <Check size={scale(12)} color="#0F172A" /> : null}
+              {m.complete ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, m.complete && styles.rowTitleDone]} numberOfLines={1}>
@@ -163,9 +164,9 @@ const styles = StyleSheet.create({
   },
   crestEmoji: { fontSize: fontScale(24) },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
-  kicker: { fontSize: fontScale(9.5), fontWeight: '800', color: '#60A5FA', letterSpacing: 0.6 },
-  title: { fontSize: fontScale(15.5), fontWeight: '800', color: '#F8FAFC', marginTop: scale(1) },
-  sub: { fontSize: fontScale(11.5), color: '#94A3B8', marginTop: scale(2) },
+  kicker: { fontSize: fontScale(9.5), fontWeight: '800', color: uiPalette.blue, letterSpacing: 0.6 },
+  title: { fontSize: fontScale(15.5), fontWeight: '800', color: uiPalette.paper, marginTop: scale(1) },
+  sub: { fontSize: fontScale(11.5), color: uiPalette.muted, marginTop: scale(2) },
   doneBadge: {
     width: scale(34),
     height: scale(34),
@@ -188,9 +189,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkBubbleDone: { backgroundColor: '#34D399', borderColor: '#34D399' },
-  rowTitle: { fontSize: fontScale(13), fontWeight: '600', color: '#E2E8F0' },
+  rowTitle: { fontSize: fontScale(13), fontWeight: '600', color: uiPalette.line },
   rowTitleDone: { color: '#34D399' },
-  rowDesc: { fontSize: fontScale(10.5), color: '#94A3B8', marginTop: scale(1) },
+  rowDesc: { fontSize: fontScale(10.5), color: uiPalette.muted, marginTop: scale(1) },
   barBg: {
     height: scale(4),
     borderRadius: scale(2),
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(251, 191, 36, 0.4)',
   },
-  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: '#F8FAFC' },
+  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: uiPalette.paper },
   rewardHint: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
   rewardChips: { flexDirection: 'row', alignItems: 'center', gap: scale(6), flexWrap: 'wrap' },
   rewardChip: {
@@ -229,8 +230,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(8),
     paddingVertical: scale(3),
   },
-  rewardChipText: { fontSize: fontScale(11), fontWeight: '800', color: '#F8FAFC' },
-  rewardHintText: { fontSize: fontScale(11), color: '#94A3B8', fontWeight: '600' },
+  rewardChipText: { fontSize: fontScale(11), fontWeight: '800', color: uiPalette.paper },
+  rewardHintText: { fontSize: fontScale(11), color: uiPalette.muted, fontWeight: '600' },
   doneText: { fontSize: fontScale(12), color: '#FBBF24', fontWeight: '700' },
 });
 

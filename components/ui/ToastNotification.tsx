@@ -1,3 +1,4 @@
+import { uiPalette , accent, shadows, typography } from '@/lib/config/theme';
 import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -11,7 +12,7 @@ import {
 import Gradient from '@/components/ui/Gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
-import { accent, shadows, typography } from '@/lib/config/theme';
+
 import {
   responsiveSpacing,
   responsiveFontSize,
@@ -68,32 +69,32 @@ export default function ToastNotification({
         return {
           gradient: [accent.success, '#059669'],
           icon: CheckCircle,
-          iconColor: '#FFFFFF',
+          iconColor: uiPalette.white,
         };
       case 'error':
         return {
           gradient: [accent.danger, '#DC2626'],
           icon: AlertCircle,
-          iconColor: '#FFFFFF',
+          iconColor: uiPalette.white,
         };
       case 'warning':
         return {
           gradient: [accent.warning, '#D97706'],
           // Friendly rounded icon instead of the alarming warning triangle.
           icon: AlertCircle,
-          iconColor: '#FFFFFF',
+          iconColor: uiPalette.white,
         };
       case 'info':
         return {
           gradient: [accent.info, '#1D4ED8'],
           icon: Info,
-          iconColor: '#FFFFFF',
+          iconColor: uiPalette.white,
         };
       default:
         return {
           gradient: [accent.info, '#1D4ED8'],
           icon: Info,
-          iconColor: '#FFFFFF',
+          iconColor: uiPalette.white,
         };
     }
   };
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: responsiveFontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
     // Bold, matching the card typography the rest of the HUD uses ('700'
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.sm,
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: responsiveFontSize.xs,
     fontWeight: typography.weight.semibold,
   },

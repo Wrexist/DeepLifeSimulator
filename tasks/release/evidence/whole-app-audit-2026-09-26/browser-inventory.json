@@ -1,0 +1,3998 @@
+[
+  {
+    "name": "home",
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$996K\n0\n2025\nJanuary\nAge 20\nNext week\nDEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nHome\nWork\nApps\nLife\nProfile",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Open Shop",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 19.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Open Settings",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 67.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "New Year, Winter season",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 115.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Health level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 19.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Happiness level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 75.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Energy level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 131.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Your current money balance",
+        "role": "button",
+        "w": 87.3125,
+        "h": 32,
+        "x": 19.1875,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Gems: 0",
+        "role": "button",
+        "w": 74.0625,
+        "h": 32,
+        "x": 114.5,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Buy gems",
+        "role": "button",
+        "w": 16,
+        "h": 16,
+        "x": 159.5625,
+        "y": 163,
+        "disabled": false
+      },
+      {
+        "label": "Advance to next week",
+        "role": "button",
+        "w": 124,
+        "h": 40,
+        "x": 231.8125,
+        "y": 118,
+        "disabled": false
+      },
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 321,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 390,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 532,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 619,
+        "disabled": false
+      },
+      {
+        "label": "Home",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 0,
+        "y": 612
+      },
+      {
+        "label": "Work",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 75,
+        "y": 612
+      },
+      {
+        "label": "Apps",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 150,
+        "y": 612
+      },
+      {
+        "label": "Life",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 225,
+        "y": 612
+      },
+      {
+        "label": "Profile",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 300,
+        "y": 612
+      }
+    ]
+  },
+  {
+    "name": "work",
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$996K\n0\n2025\nJanuary\nAge 20\nNext week\nDEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nWork\nCareer\nStreet Hustle\nCrime Jobs\nSTANDARD CAREERS\nOn the clock\nCheck the pay and requirements below.\nFast Food Worker\n$110/wk\nThe fryer beeps. It never stops beeping.\nLv 1/6\nTops out $230/wk\nClimbs fast\n+3 more\nApply\nLine Cook\n$110/wk\nPrep, service, clean, repeat. The burns stop hurting eventually.\nLv 1/6\nTops out $805/wk\nSteady climb\n+3 more\nApply\nStreet Performer\n$110/wk\nBusking for coins and uploading takes at 2am.\nLv 1/6\nTops out $2 120/wk\nClimbs slow\n+3 more\nApply\nTrainee Agent\n$110/wk\nBuy and sell properties for clients\nLv 1/6\nHappiness -3\nHealth -2\nApply\nJunior Designer\n$110/wk\nCreate visual designs and brand identities\nLv 1/6\nHappiness -3\nHealth -2\nApply\nRetail Associate\n$110/wk\nThey want - Reputation 5 (you have 0)\nLv 1/6\nTops out $250/wk\nSteady climb\n+3 more\nApply\nFlight Student\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nIntern Reporter\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nVet Assistant\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCounseling Intern\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nPrivate\n$120/wk\nReach Fitness 50 to apply.\nFitness 50+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Legal Assistant\n$130/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nProbationary Firefighter\n$130/wk\nReach Fitness 55 to apply.\nFitness 55+\nLv 1/6\nHappiness -3\n+1 more\nApply\nPolice Cadet\n$150/wk\nComplete the required education to apply.\nFitness 50+\nEducation needed\nLv 1/6\n+2 more\nApply\nAccounting Clerk\n$155/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCampaign Volunteer\n$190/wk\nAnother application is pending.\nReputation 20+\nLv 1/6\nHappiness -3\n+1 more\nApply\nDraftsperson\n$200/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nTeaching Assistant\n$220/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBank Teller\n$230/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nRookie\n$270/wk\nReach Fitness 60 to apply.\nFitness 60+\nLv 1/6\nHappiness -3\n+1 more\nApply\nNursing Assistant\n$300/wk\nComplete the required education to apply.\nFitness 40+\nEducation needed\nLv 1/6\n+2 more\nApply\nInfluencer\n$310/wk\nAnother application is pending.\nReputation 30+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Developer\n$1 100/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nParalegal\n$1 400/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nMedical Intern\n$1 700/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBusiness Intern\n$1 750/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nADVANCED CAREERS\nJunior Executive\n$3 850/wk\nRequires - Education: masters_degree, mba · Experience: 260 weeks · Reputation: 50+ · Net Worth: $500 000+\nElite career\nApply\nResearch Assistant\n$1 150/wk\nRequires - Education: phd · Reputation: 40+ · Achievement: scholar\nElite career\nApply\nJunior Designer\n$1 050/wk\nRequires - Education: business_degree · Experience: 156 weeks · Reputation: 35+ · Achievement: social_celebrity\nElite career\nApply\nAnalyst\n$1 925/wk\nRequires - Education: masters_degree, mba · Reputation: 45+ · Net Worth: $1 000 000+\nElite career\nApply\nResident\n$1 150/wk\nRequires - Education: medical_school · Experience: 312 weeks · Reputation: 60+\nElite career\nApply\nHome\nWork\nApps\nLife\nProfile",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Open Shop",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 19.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Open Settings",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 67.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "New Year, Winter season",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 115.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Health level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 19.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Happiness level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 75.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Energy level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 131.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Your current money balance",
+        "role": "button",
+        "w": 87.3125,
+        "h": 32,
+        "x": 19.1875,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Gems: 0",
+        "role": "button",
+        "w": 74.0625,
+        "h": 32,
+        "x": 114.5,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Buy gems",
+        "role": "button",
+        "w": 16,
+        "h": 16,
+        "x": 159.5625,
+        "y": 163,
+        "disabled": false
+      },
+      {
+        "label": "Advance to next week",
+        "role": "button",
+        "w": 124,
+        "h": 40,
+        "x": 231.8125,
+        "y": 118,
+        "disabled": false
+      },
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 321,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 390,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 532,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 619,
+        "disabled": false
+      },
+      {
+        "label": "Career",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Street Hustle",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Crime Jobs",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Standard Careers",
+        "role": "button",
+        "w": 327,
+        "h": 38,
+        "x": 24,
+        "y": 322,
+        "disabled": false
+      },
+      {
+        "label": "Show 3 more details",
+        "role": "button",
+        "w": 46.8125,
+        "h": 16,
+        "x": 41,
+        "y": 580,
+        "disabled": false
+      },
+      {
+        "label": "Apply",
+        "role": "button",
+        "w": 293,
+        "h": 44,
+        "x": 41,
+        "y": 608,
+        "disabled": false
+      },
+      {
+        "label": "Home",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 0,
+        "y": 612
+      },
+      {
+        "label": "Work",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 75,
+        "y": 612
+      },
+      {
+        "label": "Apps",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 150,
+        "y": 612
+      },
+      {
+        "label": "Life",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 225,
+        "y": 612
+      },
+      {
+        "label": "Profile",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 300,
+        "y": 612
+      }
+    ]
+  },
+  {
+    "name": "apps",
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$996K\n0\n2025\nJanuary\nAge 20\nNext week\nDEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nWork\nCareer\nStreet Hustle\nCrime Jobs\nSTANDARD CAREERS\nOn the clock\nCheck the pay and requirements below.\nFast Food Worker\n$110/wk\nThe fryer beeps. It never stops beeping.\nLv 1/6\nTops out $230/wk\nClimbs fast\n+3 more\nApply\nLine Cook\n$110/wk\nPrep, service, clean, repeat. The burns stop hurting eventually.\nLv 1/6\nTops out $805/wk\nSteady climb\n+3 more\nApply\nStreet Performer\n$110/wk\nBusking for coins and uploading takes at 2am.\nLv 1/6\nTops out $2 120/wk\nClimbs slow\n+3 more\nApply\nTrainee Agent\n$110/wk\nBuy and sell properties for clients\nLv 1/6\nHappiness -3\nHealth -2\nApply\nJunior Designer\n$110/wk\nCreate visual designs and brand identities\nLv 1/6\nHappiness -3\nHealth -2\nApply\nRetail Associate\n$110/wk\nThey want - Reputation 5 (you have 0)\nLv 1/6\nTops out $250/wk\nSteady climb\n+3 more\nApply\nFlight Student\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nIntern Reporter\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nVet Assistant\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCounseling Intern\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nPrivate\n$120/wk\nReach Fitness 50 to apply.\nFitness 50+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Legal Assistant\n$130/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nProbationary Firefighter\n$130/wk\nReach Fitness 55 to apply.\nFitness 55+\nLv 1/6\nHappiness -3\n+1 more\nApply\nPolice Cadet\n$150/wk\nComplete the required education to apply.\nFitness 50+\nEducation needed\nLv 1/6\n+2 more\nApply\nAccounting Clerk\n$155/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCampaign Volunteer\n$190/wk\nAnother application is pending.\nReputation 20+\nLv 1/6\nHappiness -3\n+1 more\nApply\nDraftsperson\n$200/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nTeaching Assistant\n$220/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBank Teller\n$230/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nRookie\n$270/wk\nReach Fitness 60 to apply.\nFitness 60+\nLv 1/6\nHappiness -3\n+1 more\nApply\nNursing Assistant\n$300/wk\nComplete the required education to apply.\nFitness 40+\nEducation needed\nLv 1/6\n+2 more\nApply\nInfluencer\n$310/wk\nAnother application is pending.\nReputation 30+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Developer\n$1 100/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nParalegal\n$1 400/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nMedical Intern\n$1 700/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBusiness Intern\n$1 750/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nADVANCED CAREERS\nJunior Executive\n$3 850/wk\nRequires - Education: masters_degree, mba · Experience: 260 weeks · Reputation: 50+ · Net Worth: $500 000+\nElite career\nApply\nResearch Assistant\n$1 150/wk\nRequires - Education: phd · Reputation: 40+ · Achievement: scholar\nElite career\nApply\nJunior Designer\n$1 050/wk\nRequires - Education: business_degree · Experience: 156 weeks · Reputation: 35+ · Achievement: social_celebrity\nElite career\nApply\nAnalyst\n$1 925/wk\nRequires - Education: masters_degree, mba · Reputation: 45+ · Net Worth: $1 000 000+\nElite career\nApply\nResident\n$1 150/wk\nRequires - Education: medical_school · Experience: 312 weeks · Reputation: 60+\nElite career\nApply\nApps\nYour phone and desktop software\nAll apps\nPhone\nComputer\nPHONE\nSpark\nContacts\nDeepMail\nPulse\nStocks\nBank\nPets\nCOMPUTER\nEducation\nHustle\nCrypto\nReal Estate\nDark Web\nYouVideo\nStreaming\nTravel\nPolitical Office\nStatistics\nGarage\nLuxury\nHome\nWork\nApps\nLife\nProfile",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Open Shop",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 19.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Open Settings",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 67.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "New Year, Winter season",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 115.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Health level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 19.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Happiness level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 75.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Energy level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 131.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Your current money balance",
+        "role": "button",
+        "w": 87.3125,
+        "h": 32,
+        "x": 19.1875,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Gems: 0",
+        "role": "button",
+        "w": 74.0625,
+        "h": 32,
+        "x": 114.5,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Buy gems",
+        "role": "button",
+        "w": 16,
+        "h": 16,
+        "x": 159.5625,
+        "y": 163,
+        "disabled": false
+      },
+      {
+        "label": "Advance to next week",
+        "role": "button",
+        "w": 124,
+        "h": 40,
+        "x": 231.8125,
+        "y": 118,
+        "disabled": false
+      },
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 321,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 390,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 532,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 619,
+        "disabled": false
+      },
+      {
+        "label": "Career",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Street Hustle",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Crime Jobs",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Standard Careers",
+        "role": "button",
+        "w": 327,
+        "h": 38,
+        "x": 24,
+        "y": 322,
+        "disabled": false
+      },
+      {
+        "label": "Show 3 more details",
+        "role": "button",
+        "w": 46.8125,
+        "h": 16,
+        "x": 41,
+        "y": 580,
+        "disabled": false
+      },
+      {
+        "label": "Apply",
+        "role": "button",
+        "w": 293,
+        "h": 44,
+        "x": 41,
+        "y": 608,
+        "disabled": false
+      },
+      {
+        "label": "All apps",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Phone",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Computer",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Open Spark",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open Contacts",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 133,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open DeepMail",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 250,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open Pulse",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Stocks",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 133,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Bank",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 250,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Pets",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 586,
+        "disabled": false
+      },
+      {
+        "label": "Home",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 0,
+        "y": 612
+      },
+      {
+        "label": "Work",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 75,
+        "y": 612
+      },
+      {
+        "label": "Apps",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 150,
+        "y": 612
+      },
+      {
+        "label": "Life",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 225,
+        "y": 612
+      },
+      {
+        "label": "Profile",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 300,
+        "y": 612
+      }
+    ]
+  },
+  {
+    "name": "life",
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$996K\n0\n2025\nJanuary\nAge 20\nNext week\nDEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nWork\nCareer\nStreet Hustle\nCrime Jobs\nSTANDARD CAREERS\nOn the clock\nCheck the pay and requirements below.\nFast Food Worker\n$110/wk\nThe fryer beeps. It never stops beeping.\nLv 1/6\nTops out $230/wk\nClimbs fast\n+3 more\nApply\nLine Cook\n$110/wk\nPrep, service, clean, repeat. The burns stop hurting eventually.\nLv 1/6\nTops out $805/wk\nSteady climb\n+3 more\nApply\nStreet Performer\n$110/wk\nBusking for coins and uploading takes at 2am.\nLv 1/6\nTops out $2 120/wk\nClimbs slow\n+3 more\nApply\nTrainee Agent\n$110/wk\nBuy and sell properties for clients\nLv 1/6\nHappiness -3\nHealth -2\nApply\nJunior Designer\n$110/wk\nCreate visual designs and brand identities\nLv 1/6\nHappiness -3\nHealth -2\nApply\nRetail Associate\n$110/wk\nThey want - Reputation 5 (you have 0)\nLv 1/6\nTops out $250/wk\nSteady climb\n+3 more\nApply\nFlight Student\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nIntern Reporter\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nVet Assistant\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCounseling Intern\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nPrivate\n$120/wk\nReach Fitness 50 to apply.\nFitness 50+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Legal Assistant\n$130/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nProbationary Firefighter\n$130/wk\nReach Fitness 55 to apply.\nFitness 55+\nLv 1/6\nHappiness -3\n+1 more\nApply\nPolice Cadet\n$150/wk\nComplete the required education to apply.\nFitness 50+\nEducation needed\nLv 1/6\n+2 more\nApply\nAccounting Clerk\n$155/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCampaign Volunteer\n$190/wk\nAnother application is pending.\nReputation 20+\nLv 1/6\nHappiness -3\n+1 more\nApply\nDraftsperson\n$200/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nTeaching Assistant\n$220/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBank Teller\n$230/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nRookie\n$270/wk\nReach Fitness 60 to apply.\nFitness 60+\nLv 1/6\nHappiness -3\n+1 more\nApply\nNursing Assistant\n$300/wk\nComplete the required education to apply.\nFitness 40+\nEducation needed\nLv 1/6\n+2 more\nApply\nInfluencer\n$310/wk\nAnother application is pending.\nReputation 30+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Developer\n$1 100/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nParalegal\n$1 400/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nMedical Intern\n$1 700/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBusiness Intern\n$1 750/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nADVANCED CAREERS\nJunior Executive\n$3 850/wk\nRequires - Education: masters_degree, mba · Experience: 260 weeks · Reputation: 50+ · Net Worth: $500 000+\nElite career\nApply\nResearch Assistant\n$1 150/wk\nRequires - Education: phd · Reputation: 40+ · Achievement: scholar\nElite career\nApply\nJunior Designer\n$1 050/wk\nRequires - Education: business_degree · Experience: 156 weeks · Reputation: 35+ · Achievement: social_celebrity\nElite career\nApply\nAnalyst\n$1 925/wk\nRequires - Education: masters_degree, mba · Reputation: 45+ · Net Worth: $1 000 000+\nElite career\nApply\nResident\n$1 150/wk\nRequires - Education: medical_school · Experience: 312 weeks · Reputation: 60+\nElite career\nApply\nApps\nYour phone and desktop software\nAll apps\nPhone\nComputer\nPHONE\nSpark\nContacts\nDeepMail\nPulse\nStocks\nBank\nPets\nCOMPUTER\nEducation\nHustle\nCrypto\nReal Estate\nDark Web\nYouVideo\nStreaming\nTravel\nPolitical Office\nStatistics\nGarage\nLuxury\nYour Life\nFamily\nHealth\nMarket\nStats\nYOUR VITALS\n100\nHealth\n100\nEnergy\n100\nHappiness\n10\nFitness\nOff the clock\nChoose an activity. Check its energy and cost.\nHealth Activities\nInvest in your mental and physical health\nWalk in Park\nFree\nPeaceful walk to clear your mind\n+3\nHealth\n+1\nHappiness\n+1\nFitness\n−5\nEnergy\nDO\nMeditation Session\nFree\nFind inner peace and reduce stress\n+2\nHealth\n+2\nHappiness\n−3\nEnergy\nDO\nYoga Class\n$100\nImprove flexibility and mental clarity\n+6\nHealth\n+2\nHappiness\n+2\nFitness\n−6\nEnergy\nDO\nSpa Massage\n$300\nRelax and rejuvenate your body\n+8\nHealth\n+3\nHappiness\n−4\nEnergy\nDO\nDoctor Visit\n$500\nRegular checkup (50% chance to cure health issues)  •  Chance to cure diseases\n+25\nHealth\n+1\nHappiness\n−5\nEnergy\nDO\nTherapy Session\n$400\nProfessional mental health support\n+3\nHealth\n+4\nHappiness\n−5\nEnergy\nDO\nHospital Stay\n$2000\nCures all health issues except cancer  •  Cures all health issues\n+40\nHealth\n−5\nHappiness\n−8\nEnergy\nDO\nExperimental Treatment\n$12000\nCutting-edge medical procedure  •  Only treatment for critical conditions\n+30\nHealth\n+4\nHappiness\n−8\nEnergy\nDO\nFlu Vaccination\n$50\nAnnual flu shot to prevent influenza\n+5\nHealth\n+0\nHappiness\n−2\nEnergy\nDO\nPneumonia Vaccine\n$150\nVaccination to prevent pneumonia\n+8\nHealth\n+1\nHappiness\n−2\nEnergy\nDO\nWellness Retreat\n$30000\nMulti-day wellness experience\n+20\nHealth\n+8\nHappiness\n−6\nEnergy\nDO\nGym Session\nCurrent Fitness: 10\nGym Membership Required\nBuy a Gym Membership in Life → Market to access the gym.\nDiet Plans\nChoose an automatic daily diet plan\nBasic Diet\n$17500 / wk\nSimple, healthy meals\n+3\nHealth\n+2\nEnergy\nSELECT\nPremium Diet\n$42000 / wk\nOrganic, high-quality ingredients\n+8\nHealth\n+5\nEnergy\n+3\nHappiness\nSELECT\nAthlete Diet\n$70000 / wk\nHigh-protein, performance-focused\n+12\nHealth\n+8\nEnergy\n+5\nHappiness\nSELECT\nHome\nWork\nApps\nLife\nProfile",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Open Shop",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 19.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Open Settings",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 67.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "New Year, Winter season",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 115.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Health level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 19.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Happiness level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 75.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Energy level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 131.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Your current money balance",
+        "role": "button",
+        "w": 87.3125,
+        "h": 32,
+        "x": 19.1875,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Gems: 0",
+        "role": "button",
+        "w": 74.0625,
+        "h": 32,
+        "x": 114.5,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Buy gems",
+        "role": "button",
+        "w": 16,
+        "h": 16,
+        "x": 159.5625,
+        "y": 163,
+        "disabled": false
+      },
+      {
+        "label": "Advance to next week",
+        "role": "button",
+        "w": 124,
+        "h": 40,
+        "x": 231.8125,
+        "y": 118,
+        "disabled": false
+      },
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 321,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 390,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 532,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 619,
+        "disabled": false
+      },
+      {
+        "label": "Career",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Street Hustle",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Crime Jobs",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Standard Careers",
+        "role": "button",
+        "w": 327,
+        "h": 38,
+        "x": 24,
+        "y": 322,
+        "disabled": false
+      },
+      {
+        "label": "Show 3 more details",
+        "role": "button",
+        "w": 46.8125,
+        "h": 16,
+        "x": 41,
+        "y": 580,
+        "disabled": false
+      },
+      {
+        "label": "Apply",
+        "role": "button",
+        "w": 293,
+        "h": 44,
+        "x": 41,
+        "y": 608,
+        "disabled": false
+      },
+      {
+        "label": "All apps",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Phone",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Computer",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Open Spark",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open Contacts",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 133,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open DeepMail",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 250,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open Pulse",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Stocks",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 133,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Bank",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 250,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Pets",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 586,
+        "disabled": false
+      },
+      {
+        "label": "Family",
+        "role": "button",
+        "w": 81.796875,
+        "h": 35,
+        "x": 277.203125,
+        "y": 208,
+        "disabled": false
+      },
+      {
+        "label": "Health",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 264
+      },
+      {
+        "label": "Market",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 264
+      },
+      {
+        "label": "Stats",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 264
+      },
+      {
+        "label": "Your Vitals",
+        "role": "button",
+        "w": 309,
+        "h": 38,
+        "x": 33,
+        "y": 350,
+        "disabled": false
+      },
+      {
+        "label": "Health Activities",
+        "role": "button",
+        "w": 343,
+        "h": 44,
+        "x": 16,
+        "y": 663,
+        "disabled": false
+      },
+      {
+        "label": "Home",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 0,
+        "y": 612
+      },
+      {
+        "label": "Work",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 75,
+        "y": 612
+      },
+      {
+        "label": "Apps",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 150,
+        "y": 612
+      },
+      {
+        "label": "Life",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 225,
+        "y": 612
+      },
+      {
+        "label": "Profile",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 300,
+        "y": 612
+      }
+    ]
+  },
+  {
+    "name": "profile",
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$996K\n0\n2025\nJanuary\nAge 20\nNext week\nDEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nWork\nCareer\nStreet Hustle\nCrime Jobs\nSTANDARD CAREERS\nOn the clock\nCheck the pay and requirements below.\nFast Food Worker\n$110/wk\nThe fryer beeps. It never stops beeping.\nLv 1/6\nTops out $230/wk\nClimbs fast\n+3 more\nApply\nLine Cook\n$110/wk\nPrep, service, clean, repeat. The burns stop hurting eventually.\nLv 1/6\nTops out $805/wk\nSteady climb\n+3 more\nApply\nStreet Performer\n$110/wk\nBusking for coins and uploading takes at 2am.\nLv 1/6\nTops out $2 120/wk\nClimbs slow\n+3 more\nApply\nTrainee Agent\n$110/wk\nBuy and sell properties for clients\nLv 1/6\nHappiness -3\nHealth -2\nApply\nJunior Designer\n$110/wk\nCreate visual designs and brand identities\nLv 1/6\nHappiness -3\nHealth -2\nApply\nRetail Associate\n$110/wk\nThey want - Reputation 5 (you have 0)\nLv 1/6\nTops out $250/wk\nSteady climb\n+3 more\nApply\nFlight Student\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nIntern Reporter\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nVet Assistant\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCounseling Intern\n$110/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nPrivate\n$120/wk\nReach Fitness 50 to apply.\nFitness 50+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Legal Assistant\n$130/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nProbationary Firefighter\n$130/wk\nReach Fitness 55 to apply.\nFitness 55+\nLv 1/6\nHappiness -3\n+1 more\nApply\nPolice Cadet\n$150/wk\nComplete the required education to apply.\nFitness 50+\nEducation needed\nLv 1/6\n+2 more\nApply\nAccounting Clerk\n$155/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nCampaign Volunteer\n$190/wk\nAnother application is pending.\nReputation 20+\nLv 1/6\nHappiness -3\n+1 more\nApply\nDraftsperson\n$200/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nTeaching Assistant\n$220/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBank Teller\n$230/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nRookie\n$270/wk\nReach Fitness 60 to apply.\nFitness 60+\nLv 1/6\nHappiness -3\n+1 more\nApply\nNursing Assistant\n$300/wk\nComplete the required education to apply.\nFitness 40+\nEducation needed\nLv 1/6\n+2 more\nApply\nInfluencer\n$310/wk\nAnother application is pending.\nReputation 30+\nLv 1/6\nHappiness -3\n+1 more\nApply\nJunior Developer\n$1 100/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nParalegal\n$1 400/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nMedical Intern\n$1 700/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nBusiness Intern\n$1 750/wk\nComplete the required education to apply.\nEducation needed\nLv 1/6\nHappiness -3\n+1 more\nApply\nADVANCED CAREERS\nJunior Executive\n$3 850/wk\nRequires - Education: masters_degree, mba · Experience: 260 weeks · Reputation: 50+ · Net Worth: $500 000+\nElite career\nApply\nResearch Assistant\n$1 150/wk\nRequires - Education: phd · Reputation: 40+ · Achievement: scholar\nElite career\nApply\nJunior Designer\n$1 050/wk\nRequires - Education: business_degree · Experience: 156 weeks · Reputation: 35+ · Achievement: social_celebrity\nElite career\nApply\nAnalyst\n$1 925/wk\nRequires - Education: masters_degree, mba · Reputation: 45+ · Net Worth: $1 000 000+\nElite career\nApply\nResident\n$1 150/wk\nRequires - Education: medical_school · Experience: 312 weeks · Reputation: 60+\nElite career\nApply\nApps\nYour phone and desktop software\nAll apps\nPhone\nComputer\nPHONE\nSpark\nContacts\nDeepMail\nPulse\nStocks\nBank\nPets\nCOMPUTER\nEducation\nHustle\nCrypto\nReal Estate\nDark Web\nYouVideo\nStreaming\nTravel\nPolitical Office\nStatistics\nGarage\nLuxury\nYour Life\nFamily\nHealth\nMarket\nStats\nYOUR VITALS\n100\nHealth\n100\nEnergy\n100\nHappiness\n10\nFitness\nOff the clock\nChoose an activity. Check its energy and cost.\nHealth Activities\nInvest in your mental and physical health\nWalk in Park\nFree\nPeaceful walk to clear your mind\n+3\nHealth\n+1\nHappiness\n+1\nFitness\n−5\nEnergy\nDO\nMeditation Session\nFree\nFind inner peace and reduce stress\n+2\nHealth\n+2\nHappiness\n−3\nEnergy\nDO\nYoga Class\n$100\nImprove flexibility and mental clarity\n+6\nHealth\n+2\nHappiness\n+2\nFitness\n−6\nEnergy\nDO\nSpa Massage\n$300\nRelax and rejuvenate your body\n+8\nHealth\n+3\nHappiness\n−4\nEnergy\nDO\nDoctor Visit\n$500\nRegular checkup (50% chance to cure health issues)  •  Chance to cure diseases\n+25\nHealth\n+1\nHappiness\n−5\nEnergy\nDO\nTherapy Session\n$400\nProfessional mental health support\n+3\nHealth\n+4\nHappiness\n−5\nEnergy\nDO\nHospital Stay\n$2000\nCures all health issues except cancer  •  Cures all health issues\n+40\nHealth\n−5\nHappiness\n−8\nEnergy\nDO\nExperimental Treatment\n$12000\nCutting-edge medical procedure  •  Only treatment for critical conditions\n+30\nHealth\n+4\nHappiness\n−8\nEnergy\nDO\nFlu Vaccination\n$50\nAnnual flu shot to prevent influenza\n+5\nHealth\n+0\nHappiness\n−2\nEnergy\nDO\nPneumonia Vaccine\n$150\nVaccination to prevent pneumonia\n+8\nHealth\n+1\nHappiness\n−2\nEnergy\nDO\nWellness Retreat\n$30000\nMulti-day wellness experience\n+20\nHealth\n+8\nHappiness\n−6\nEnergy\nDO\nGym Session\nCurrent Fitness: 10\nGym Membership Required\nBuy a Gym Membership in Life → Market to access the gym.\nDiet Plans\nChoose an automatic daily diet plan\nBasic Diet\n$17500 / wk\nSimple, healthy meals\n+3\nHealth\n+2\nEnergy\nSELECT\nPremium Diet\n$42000 / wk\nOrganic, high-quality ingredients\n+8\nHealth\n+5\nEnergy\n+3\nHappiness\nSELECT\nAthlete Diet\n$70000 / wk\nHigh-protein, performance-focused\n+12\nHealth\n+8\nEnergy\n+5\nHappiness\nSELECT\nProfile\nYour story. Your progress. Your legacy.\nDEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nYour look\nSettings\nHelp & support\nPrestige\nLv 0\n0 points · shop\nLegacy Pass\nTier 0/25\nAchievements\n0/159\n0% complete\nLIFE STATS\n20\nAge\n0\nWeeks Lived\n2\nRelationships\n3\nItems Owned\nAchievements\n0/42\n0% Complete\nAll\n52\nWealth\n7\nCareer\n13\nEducation\n4\nSocial\n6\nHealth\n4\nItems\n4\nSpecial\n4\nSecret\n10\nFirst Payday\nEarn your first hard-earned dollar\nWealth\nHundredaire\nReach $100 in savings\nWealth\nThousandaire\nSave up $1,000\nWealth\nFive Figures\nAccumulate $10,000 in wealth\nWealth\nSix Figures\nHit $100,000 net worth\nWealth\nMillionaire\nBecome a millionaire\nWealth\nDeca-Millionaire\nSave $10,000,000\nWealth\nFirst Job\nGet your first job\nCareer\nStreet Smart\nComplete 10 street gigs\nCareer\nCareer Starter\nLand a career job\nCareer\nMoving Up\nEarn a promotion\nCareer\nEntrepreneur\nStart your own company\nCareer\nUpgrade Complete\nPurchase your first company upgrade\nCareer\nFully Equipped\nBuy every company upgrade\nCareer\nFirst Hire\nHire your first worker\nCareer\nTeam Builder\nHire 5 company workers\nCareer\nIndustry Mogul\nReach $50,000 weekly company income\nCareer\nPolitical Legend\nReach the highest level in the politician career\nCareer\nCelebrity Icon\nReach the highest level in the celebrity career\nCareer\nAthletic Champion\nReach the highest level in the athlete career\nCareer\nGraduate\nComplete high school\nEducation\nCollege Graduate\nFinish university\nEducation\nSpecialist\nComplete a specialized degree\nEducation\nLifelong Learner\nComplete 3 different educations\nEducation\nSocial Butterfly\nMake your first friend\nSocial\nPopular\nHave 5 relationships\nSocial\nLover\nFind a romantic partner\nSocial\nMarried\nGet married\nSocial\nParent\nHave a child\nSocial\nBest Friend\nReach 100 relationship with a friend\nSocial\nFitness Buff\nReach 50 fitness\nHealth\nAthlete\nReach 100 fitness\nHealth\nHealthy Lifestyle\nUse a diet plan for 4 weeks\nHealth\nWellness Guru\nComplete 20 health activities\nHealth\nFirst Purchase\nBuy your first item\nItems\nTech Savvy\nOwn smartphone and computer\nItems\nLuxury Life\nOwn car, house, and yacht\nItems\nCollector\nOwn all available items\nItems\nSurvivor\nLive to age 65\nSpecial\nCentenarian\nLive to age 100\nSpecial\nCrypto Investor\nOwn $10,000 worth of cryptocurrency\nSpecial\nGold Hoarder\nCollect 100 Gems\nSpecial\nThe Centenarian\nDie at exactly age 100\nSecret\nBillion Dollar Baby\nEarn $1 billion in net worth in a single life\nSecret\nJack of All Trades\nReach level 3 in all crime skills\nSecret\nPerfect Life\nSurvive 10 years (520 weeks) with all stats above 90\nSecret\nReal Estate Mogul\nOwn 10 or more properties simultaneously\nSecret\nStarted From the Bottom\nReach $1M net worth starting from $0\nSecret\nTrue Love\nGet married with a relationship score of 100\nSecret\nCriminal Mastermind\nComplete 100 underground jobs\nSecret\nThe Immortal\nSurvive to age 150 or beyond\nSecret\nEaster Egg Hunter\nUnlock all 9 other secret achievements\nSecret\nTOOLS & MORE\nLife Skills\nHobbies\nYour Story\nCommitments\nNotifications\nHome\nWork\nApps\nLife\nProfile",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Open Shop",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 19.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Open Settings",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 67.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "New Year, Winter season",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 115.1875,
+        "y": 24,
+        "disabled": false
+      },
+      {
+        "label": "Health level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 19.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Happiness level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 75.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Energy level",
+        "role": "button",
+        "w": 40,
+        "h": 57,
+        "x": 131.1875,
+        "y": 80,
+        "disabled": false
+      },
+      {
+        "label": "Your current money balance",
+        "role": "button",
+        "w": 87.3125,
+        "h": 32,
+        "x": 19.1875,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Gems: 0",
+        "role": "button",
+        "w": 74.0625,
+        "h": 32,
+        "x": 114.5,
+        "y": 155,
+        "disabled": false
+      },
+      {
+        "label": "Buy gems",
+        "role": "button",
+        "w": 16,
+        "h": 16,
+        "x": 159.5625,
+        "y": 163,
+        "disabled": false
+      },
+      {
+        "label": "Advance to next week",
+        "role": "button",
+        "w": 124,
+        "h": 40,
+        "x": 231.8125,
+        "y": 118,
+        "disabled": false
+      },
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 321,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 390,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 532,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 619,
+        "disabled": false
+      },
+      {
+        "label": "Career",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Street Hustle",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Crime Jobs",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Standard Careers",
+        "role": "button",
+        "w": 327,
+        "h": 38,
+        "x": 24,
+        "y": 322,
+        "disabled": false
+      },
+      {
+        "label": "Show 3 more details",
+        "role": "button",
+        "w": 46.8125,
+        "h": 16,
+        "x": 41,
+        "y": 580,
+        "disabled": false
+      },
+      {
+        "label": "Apply",
+        "role": "button",
+        "w": 293,
+        "h": 44,
+        "x": 41,
+        "y": 608,
+        "disabled": false
+      },
+      {
+        "label": "All apps",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 265
+      },
+      {
+        "label": "Phone",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 265
+      },
+      {
+        "label": "Computer",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 265
+      },
+      {
+        "label": "Open Spark",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open Contacts",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 133,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open DeepMail",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 250,
+        "y": 346,
+        "disabled": false
+      },
+      {
+        "label": "Open Pulse",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Stocks",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 133,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Bank",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 250,
+        "y": 466,
+        "disabled": false
+      },
+      {
+        "label": "Open Pets",
+        "role": "button",
+        "w": 109,
+        "h": 104,
+        "x": 16,
+        "y": 586,
+        "disabled": false
+      },
+      {
+        "label": "Family",
+        "role": "button",
+        "w": 81.796875,
+        "h": 35,
+        "x": 277.203125,
+        "y": 208,
+        "disabled": false
+      },
+      {
+        "label": "Health",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 264
+      },
+      {
+        "label": "Market",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 264
+      },
+      {
+        "label": "Stats",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 264
+      },
+      {
+        "label": "Your Vitals",
+        "role": "button",
+        "w": 309,
+        "h": 38,
+        "x": 33,
+        "y": 350,
+        "disabled": false
+      },
+      {
+        "label": "Health Activities",
+        "role": "button",
+        "w": 343,
+        "h": 44,
+        "x": 16,
+        "y": 663,
+        "disabled": false
+      },
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 401,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 470,
+        "disabled": false
+      },
+      {
+        "label": "Your look",
+        "role": "button",
+        "w": 103.796875,
+        "h": 48,
+        "x": 16,
+        "y": 544,
+        "disabled": false
+      },
+      {
+        "label": "Settings",
+        "role": "button",
+        "w": 96.640625,
+        "h": 48,
+        "x": 127.796875,
+        "y": 544,
+        "disabled": false
+      },
+      {
+        "label": "Help & support",
+        "role": "button",
+        "w": 136.203125,
+        "h": 48,
+        "x": 16,
+        "y": 600,
+        "disabled": false
+      },
+      {
+        "label": "Home",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 0,
+        "y": 612
+      },
+      {
+        "label": "Work",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 75,
+        "y": 612
+      },
+      {
+        "label": "Apps",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 150,
+        "y": 612
+      },
+      {
+        "label": "Life",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 225,
+        "y": 612
+      },
+      {
+        "label": "Profile",
+        "role": "tab",
+        "w": 75,
+        "h": 47,
+        "x": 300,
+        "y": 612
+      }
+    ]
+  },
+  {
+    "name": "spark",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nspark\nUpgrade\nEmma Davis\n26\n5 mi\nArt Director\nMaster's Degree\nWealthy\nArtist by day, dreamer by night I create beauty and seek someone who appreciates the finer things in life.\nArt\nMusic\nPhotography\nWine\nLIKE\nNOPE\nSUPER\nSarah Johnson\n24\n2 mi\nMarketing Manager\nBachelor's Degree\nComfortable\nLove hiking and coffee Looking for someone who shares my passion for adventure and good conversation.\nHiking\nCoffee\nTravel\nPhotography\n30 swipes left · 1 super\nRewind\nBoost\nSwipe\nMatches\nLikes\nProfile",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back to phone home",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Spark Premium Upgrade",
+        "role": "button",
+        "w": 86.15625,
+        "h": 44,
+        "x": 280.84375,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Rewind last swipe",
+        "role": "button",
+        "w": 86.3125,
+        "h": 44,
+        "x": 184,
+        "y": 454,
+        "disabled": false
+      },
+      {
+        "label": "Boost your profile",
+        "role": "button",
+        "w": 76.6875,
+        "h": 44,
+        "x": 274.3125,
+        "y": 454,
+        "disabled": false
+      },
+      {
+        "label": "Pass",
+        "role": "button",
+        "w": 56,
+        "h": 56,
+        "x": 77.5,
+        "y": 522,
+        "disabled": false
+      },
+      {
+        "label": "Like",
+        "role": "button",
+        "w": 56,
+        "h": 56,
+        "x": 165.5,
+        "y": 522,
+        "disabled": false
+      },
+      {
+        "label": "Super-like",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 253.5,
+        "y": 528,
+        "disabled": false
+      },
+      {
+        "label": "Swipe",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 16,
+        "y": 599
+      },
+      {
+        "label": "Matches",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 101.75,
+        "y": 599
+      },
+      {
+        "label": "Likes",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 187.5,
+        "y": 599
+      },
+      {
+        "label": "Profile",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 273.25,
+        "y": 599
+      }
+    ]
+  },
+  {
+    "name": "contacts",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nContacts\nPersonal\nNetwork\nFavors\nAttention\nYour circle\nCatch up with someone you know.\nYOUR RELATIONSHIPS\nClosest to you\n2\nPeople\n50\nAvg bond\n0 strong\nMom\nParent · caring\nNo recent contact\n50\nDad\nParent · strict\nNo recent contact\n50",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Personal",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Network",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 65
+      },
+      {
+        "label": "Favors",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Attention",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 65
+      },
+      {
+        "label": "Mom, expand profile",
+        "role": "button",
+        "w": 309,
+        "h": 56,
+        "x": 33,
+        "y": 465,
+        "disabled": false
+      },
+      {
+        "label": "Dad, expand profile",
+        "role": "button",
+        "w": 309,
+        "h": 56,
+        "x": 33,
+        "y": 579,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "deepmail",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nPrimary\nFinance\nPromotions\nSocial\nYour inbox is clear\nPayslips, statements and invoices arrive as the weeks pass.",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Open mail folders",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Search mail",
+        "role": "INPUT",
+        "w": 227,
+        "h": 17,
+        "x": 84,
+        "y": 21.5,
+        "disabled": false
+      },
+      {
+        "label": "Close mail",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 323,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Primary",
+        "role": "tab",
+        "w": 84.25,
+        "h": 44,
+        "x": 13,
+        "y": 73
+      },
+      {
+        "label": "Finance",
+        "role": "tab",
+        "w": 84.25,
+        "h": 44,
+        "x": 101.25,
+        "y": 73
+      },
+      {
+        "label": "Promotions",
+        "role": "tab",
+        "w": 84.25,
+        "h": 44,
+        "x": 189.5,
+        "y": 73
+      },
+      {
+        "label": "Social",
+        "role": "tab",
+        "w": 84.25,
+        "h": 44,
+        "x": 277.75,
+        "y": 73
+      }
+    ]
+  },
+  {
+    "name": "pulse",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\npulse\n0\nYou\nMom\nDad\nWhat's on your mind?\n@cameronw\nnow\nJust discovered this amazing new coffee shop!\n19\n1\n2\n@quinnm\nnow\nWeekend plans? Let me know!\n939\n30\n22\n@harperw\nnow\nJust discovered this amazing new coffee shop!\n182\n7\n17\n@julesy\nnow\nLife update: All good!\n12\n1\n1\n@skylarb\nnow\nNew favorite song on repeat\n25\n1\n3\n@valorr\nnow\nGood vibes only!\n26\n1\n0\n@sagea\nnow\nCoffee shop vibes\n256\n15\n51\nHome\nTrending\nAlerts\nDMs",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back to phone home",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Followers 0",
+        "role": "button",
+        "w": 49.21875,
+        "h": 44,
+        "x": 317.78125,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Go live",
+        "role": "button",
+        "w": 72,
+        "h": 78,
+        "x": 16,
+        "y": 68,
+        "disabled": false
+      },
+      {
+        "label": "Mom's story",
+        "role": "button",
+        "w": 72,
+        "h": 78,
+        "x": 104,
+        "y": 68,
+        "disabled": false
+      },
+      {
+        "label": "Dad's story",
+        "role": "button",
+        "w": 72,
+        "h": 78,
+        "x": 192,
+        "y": 68,
+        "disabled": false
+      },
+      {
+        "label": "Compose a post",
+        "role": "button",
+        "w": 343,
+        "h": 50,
+        "x": 16,
+        "y": 163,
+        "disabled": false
+      },
+      {
+        "label": "Like (19)",
+        "role": "button",
+        "w": 49.53125,
+        "h": 24,
+        "x": 61.65625,
+        "y": 318,
+        "disabled": false
+      },
+      {
+        "label": "Repost (2)",
+        "role": "button",
+        "w": 44.671875,
+        "h": 24,
+        "x": 268.640625,
+        "y": 318,
+        "disabled": false
+      },
+      {
+        "label": "Like (939)",
+        "role": "button",
+        "w": 58.0625,
+        "h": 24,
+        "x": 57.703125,
+        "y": 464,
+        "disabled": false
+      },
+      {
+        "label": "Repost (22)",
+        "role": "button",
+        "w": 51.328125,
+        "h": 24,
+        "x": 265.9375,
+        "y": 464,
+        "disabled": false
+      },
+      {
+        "label": "Like (182)",
+        "role": "button",
+        "w": 56.15625,
+        "h": 24,
+        "x": 59.515625,
+        "y": 610,
+        "disabled": false
+      },
+      {
+        "label": "Repost (17)",
+        "role": "button",
+        "w": 49.265625,
+        "h": 24,
+        "x": 266.203125,
+        "y": 610,
+        "disabled": false
+      },
+      {
+        "label": "Home",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 16,
+        "y": 615
+      },
+      {
+        "label": "Trending",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 101.75,
+        "y": 615
+      },
+      {
+        "label": "Alerts",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 187.5,
+        "y": 615
+      },
+      {
+        "label": "DMs",
+        "role": "tab",
+        "w": 85.75,
+        "h": 44,
+        "x": 273.25,
+        "y": 615
+      }
+    ]
+  },
+  {
+    "name": "stocks",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nStocks\n$996.5K\nMarket\nPortfolio\nOrders\n0\nAdvancing\n0\nDeclining\n0\nYou own\nSector rotation\nTech\n• Neutral\n9 stocks\nFinance\n• Neutral\n3 stocks\nHealth\n• Neutral\n3 stocks\nConsumer\n• Neutral\n5 stocks\nIndustrial\n• Neutral\n2 stocks\nEnergy\n• Neutral\n3 stocks\nAll stocks\nA–Z\nMovers\nPrice\nAAPL\nTech\n0.60% yield\n$150.25\n-\nAMZN\nTech\nTech\n$145.82\n-\nBA\nIndustrial\nIndustrial\n$185.60\n-\nCAT\nIndustrial\n1.80% yield\n$298.40\n-\nCVX\nEnergy\n4.10% yield\n$156.80\n-\nDIS\nConsumer\nConsumer\n$89.45\n-\nGOOGL\nTech\nTech\n$2,751\n-\nHD\nConsumer\n2.20% yield\n$298.75\n-\nIBM\nTech\n4.80% yield\n$142.30\n-\nJNJ\nHealth\n2.80% yield\n$158.90\n-\nJPM\nFinance\n2.50% yield\n$142.85\n-\nKO\nConsumer\n3.10% yield\n$58.75\n-\nMA\nFinance\n0.50% yield\n$412.30\n-\nMETA\nTech\nTech\n$324.15\n-\nMSFT\nTech\n0.80% yield\n$310.45\n-\nNFLX\nTech\nTech\n$485.20\n-\nNVDA\nTech\nTech\n$432.50\n-\nPFE\nHealth\n6.10% yield\n$27.60\n-\nPG\nConsumer\n2.40% yield\n$152.40\n-\nSLB\nEnergy\n2.50% yield\n$44.15\n-\nTSLA\nTech\nTech\n$245.67\n-\nUNH\nHealth\n1.50% yield\n$512.30\n-\nV\nFinance\n0.80% yield\n$245.80\n-\nWMT\nConsumer\n1.50% yield\n$86.30\n-\nXOM\nEnergy\n3.40% yield\n$112.40\n-",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Market",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Portfolio",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 65
+      },
+      {
+        "label": "Orders",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 65
+      },
+      {
+        "label": "Tech sector, Neutral, 9 stocks",
+        "role": "button",
+        "w": 167.5,
+        "h": 86,
+        "x": 16,
+        "y": 248,
+        "disabled": false
+      },
+      {
+        "label": "Finance sector, Neutral, 3 stocks",
+        "role": "button",
+        "w": 167.5,
+        "h": 86,
+        "x": 191.5,
+        "y": 248,
+        "disabled": false
+      },
+      {
+        "label": "Health sector, Neutral, 3 stocks",
+        "role": "button",
+        "w": 167.5,
+        "h": 86,
+        "x": 16,
+        "y": 342,
+        "disabled": false
+      },
+      {
+        "label": "Consumer sector, Neutral, 5 stocks",
+        "role": "button",
+        "w": 167.5,
+        "h": 86,
+        "x": 191.5,
+        "y": 342,
+        "disabled": false
+      },
+      {
+        "label": "Industrial sector, Neutral, 2 stocks",
+        "role": "button",
+        "w": 167.5,
+        "h": 86,
+        "x": 16,
+        "y": 436,
+        "disabled": false
+      },
+      {
+        "label": "Energy sector, Neutral, 3 stocks",
+        "role": "button",
+        "w": 167.5,
+        "h": 86,
+        "x": 191.5,
+        "y": 436,
+        "disabled": false
+      },
+      {
+        "label": "A–Z",
+        "role": "button",
+        "w": 111.671875,
+        "h": 44,
+        "x": 16,
+        "y": 586,
+        "disabled": false
+      },
+      {
+        "label": "Movers",
+        "role": "button",
+        "w": 111.671875,
+        "h": 44,
+        "x": 131.671875,
+        "y": 586,
+        "disabled": false
+      },
+      {
+        "label": "Price",
+        "role": "button",
+        "w": 111.671875,
+        "h": 44,
+        "x": 247.34375,
+        "y": 586,
+        "disabled": false
+      },
+      {
+        "label": "AAPL, $150.25",
+        "role": "button",
+        "w": 341,
+        "h": 58,
+        "x": 17,
+        "y": 639,
+        "disabled": false
+      },
+      {
+        "label": "Add AAPL to watchlist",
+        "role": "button",
+        "w": 32,
+        "h": 32,
+        "x": 287,
+        "y": 651.5,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "bank",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nBank Pro\n650\nStatement\nAccounts\nBorrow\nBudget\nTax\nNET WORTH\n$996.5K\nYour wealth history will appear as this life progresses.\nAssets & debts\nACCOUNT STATEMENT\nWeek 104\n$996.5K\nAssets\ncash · bank · holdings\n$0\nLiabilities\ncards · loans\n$996.5K\nNet worth\nassets − liabilities\nNet worth composition\nITEM\nVALUE\nCash on hand\n$996.5K\nBank deposits · 2 accounts\n$0\nNet worth\n$996.5K\nActivity summary\nWeekly income\n$0/wk\nInterest earned\n+$0\nInterest paid\n-$0\nLate fees paid\n-$0\nCredit standing\nCredit Score\n650\nFair\n300\n850\nView full credit report\nAccounts\n2 open · $0 on deposit\nOpen\nACCOUNT\nBALANCE\nEveryday Checking\nChecking\n$0\nSavings\nSavings · 2.00% APR\n$0\nManage accounts & goals",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Credit score 650",
+        "role": "button",
+        "w": 39.65625,
+        "h": 44,
+        "x": 327.34375,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Statement",
+        "role": "tab",
+        "w": 99.78125,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Accounts",
+        "role": "tab",
+        "w": 94.03125,
+        "h": 40,
+        "x": 124.78125,
+        "y": 65
+      },
+      {
+        "label": "Borrow",
+        "role": "tab",
+        "w": 83.4375,
+        "h": 40,
+        "x": 222.8125,
+        "y": 65
+      },
+      {
+        "label": "Budget",
+        "role": "tab",
+        "w": 83.421875,
+        "h": 40,
+        "x": 310.25,
+        "y": 65
+      },
+      {
+        "label": "Tax",
+        "role": "tab",
+        "w": 61.75,
+        "h": 40,
+        "x": 397.671875,
+        "y": 65
+      },
+      {
+        "label": "View assets and debts",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 257,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "pets",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nPets\n$996.5K\nPets\nShop\nVet\nCompete\nYou don't have a companion yet\nAdopt one in the Shop - a healthy pet lifts your happiness and health every week.\nBrowse the shop\nCompanion bonus\n0\nHappiness / wk\n0\nHealth / wk\n0\nHealthy pets\n0 companions\n0 sick\n0 vaccinated",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Pets",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 73
+      },
+      {
+        "label": "Shop",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 73
+      },
+      {
+        "label": "Vet",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 73
+      },
+      {
+        "label": "Compete",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 73
+      },
+      {
+        "label": "Browse the shop",
+        "role": "button",
+        "w": 155.265625,
+        "h": 44,
+        "x": 109.859375,
+        "y": 327,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "education",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nEducation\n$996.5K\nCatalog\nEnrolled\nEarned\nBack to class\nCompare tuition and entry requirements.\nFoundational\n1\nHigh School Diploma\nRequired for most jobs.\nFree\n2yr\nEnroll\nCertificates & Academies\n2\nPolice Academy\nLaw enforcement training.\n$12K\n30w\nEnroll\nLegal Studies\nParalegal track.\n$18K\n46w\nEnroll\nUndergraduate\n3\nEntrepreneurship\nStart and run companies.\n$30K\n1.4yr\nEnroll\nBusiness Degree\nTeacher / nurse track.\n$48K\n1.7yr\nEnroll\nComputer Science\nSoftware engineering track.\n$72K\n2yr\nEnroll\nGraduate\n2\nMaster's Degree\nSpecialized - opens senior roles.\n$90K\n2.3yr\nEnroll\nMBA\nRequired for corporate executive careers.\n$120K\n2.9yr\nEnroll\nProfessional & Doctoral\n3\nMedical School\nDoctor track.\n$150K\n3.5yr\nEnroll\nLaw School\nLawyer track.\n$132K\n3yr\nEnroll\nPhD\nResearch doctorate.\n$180K\n4yr\nEnroll",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Catalog",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 73
+      },
+      {
+        "label": "Enrolled",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 73
+      },
+      {
+        "label": "Earned",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 73
+      },
+      {
+        "label": "Enroll in High School Diploma",
+        "role": "button",
+        "w": 343,
+        "h": 102,
+        "x": 16,
+        "y": 322,
+        "disabled": false
+      },
+      {
+        "label": "Enroll in Police Academy",
+        "role": "button",
+        "w": 343,
+        "h": 102,
+        "x": 16,
+        "y": 494,
+        "disabled": false
+      },
+      {
+        "label": "Enroll in Legal Studies",
+        "role": "button",
+        "w": 343,
+        "h": 102,
+        "x": 16,
+        "y": 604,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "hustle",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nhustle\n$996.5K\nYour first business\nCompare startup costs before choosing a company.\nYou don't run any companies yet.\nChoose a business type and review its costs before investing.\nFound a company",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Found a company",
+        "role": "button",
+        "w": 163.390625,
+        "h": 44,
+        "x": 105.796875,
+        "y": 371,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "crypto",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nCrypto\n$996.5k\nTrade\nMine\nUpgrades\nPortfolio\nStable\nLow volatility. Steady price action.\n16\nweeks left\nMarkets\n8 coins · 0 held\nBTC\nBitcoin\nStable regime\n$42,150\n+0.00%\nETH\nEthereum\nStable regime\n$2,581\n+0.00%\nXRP\nRipple\nStable regime\n$0.5200\n+0.00%\nADA\nCardano\nStable regime\n$0.3800\n+0.00%\nSOL\nSolana\nStable regime\n$98.45\n+0.00%\nDOT\nPolkadot\nStable regime\n$5.23\n+0.00%\nMATIC\nPolygon\nStable regime\n$0.8500\n+0.00%\nLINK\nChainlink\nStable regime\n$14.20\n+0.00%\nOpen Orders\n0 active\nNo open orders. Tap a coin above to open its chart and place a market, limit, or stop order.\nRecent Fills\nNo fills yet.",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Trade",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 73
+      },
+      {
+        "label": "Mine",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 73
+      },
+      {
+        "label": "Upgrades",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 73
+      },
+      {
+        "label": "Portfolio",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 73
+      }
+    ]
+  },
+  {
+    "name": "real-estate",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nReal Estate\n$996.5K\nPortfolio\nRent\nBrowse\nActivity\nPORTFOLIO EQUITY\n$0\n0 properties · Value $0\n$0\nWeekly rent\n0\nOwned\n+$0\nAppreciation\nYour properties\nYou don't own any property yet.\nBuying is the only way to earn rent instead of paying it.\nBrowse listings",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Portfolio",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Rent",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 65
+      },
+      {
+        "label": "Browse",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Activity",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 65
+      },
+      {
+        "label": "Browse listings",
+        "role": "button",
+        "w": 144.5,
+        "h": 44,
+        "x": 115.25,
+        "y": 573,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "dark-web",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nonion:~/market\n0\nmarket\ngear\njobs\nwallet\nmarket@onion\n$ whoami\n> buyer_rep = 0/100  ░░░░░░░░░░\n> access = common\n> balance = 0.0000 ₿\n[ VENDORS ]\nthreat.monitor\n0\nband=Cold\n░░░░░░░░░░░░░░░░\n> raid_risk = 0% / wk\n> decay = -0 / wk (opsec Lv1)\n$ ls -la ./listings [0]\n// no listings - vendors rotate stock each week\n$ tail -f forum.log\n// log empty",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "market",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 74
+      },
+      {
+        "label": "gear",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 74
+      },
+      {
+        "label": "jobs",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 74
+      },
+      {
+        "label": "wallet",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 74
+      },
+      {
+        "label": "Browse vendor directory",
+        "role": "button",
+        "w": 109.890625,
+        "h": 44,
+        "x": 33,
+        "y": 286,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "youvideo",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nYouVideo\n$996.5K\nRecord\nChannel\nVideos\nStudio\nNew video\nSTARTER\nPREVIEW\n100\nTutorial\nUntitled video\nTOPIC\nTrending: Reaction\nTutorial\nSpeedrun\nBoss Fight\nLore Deep Dive\nTop 10 List\nReaction\nRecord & upload\nProjected reach\n70–160\nEst. views\n+0–0\nEst. subs\nSTARTER\nAt tier\nRecording costs 15 energy. Every upload performs a little differently - most land in this range, a lucky few go viral. Revenue scales with your STARTER gear.\nUploads this week\n0/5\nEnergy 100 / 15 needed\nUpgrade gear",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Record",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Channel",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 65
+      },
+      {
+        "label": "Videos",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Studio",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 65
+      },
+      {
+        "label": "Video title…",
+        "role": "INPUT",
+        "w": 293,
+        "h": 38,
+        "x": 41,
+        "y": 373,
+        "disabled": false
+      },
+      {
+        "label": "Tutorial",
+        "role": "button",
+        "w": 70.515625,
+        "h": 44,
+        "x": 41,
+        "y": 461,
+        "disabled": false
+      },
+      {
+        "label": "Speedrun",
+        "role": "button",
+        "w": 82.546875,
+        "h": 44,
+        "x": 115.515625,
+        "y": 461,
+        "disabled": false
+      },
+      {
+        "label": "Boss Fight",
+        "role": "button",
+        "w": 86.4375,
+        "h": 44,
+        "x": 202.0625,
+        "y": 461,
+        "disabled": false
+      },
+      {
+        "label": "Lore Deep Dive",
+        "role": "button",
+        "w": 115.96875,
+        "h": 44,
+        "x": 41,
+        "y": 509,
+        "disabled": false
+      },
+      {
+        "label": "Top 10 List",
+        "role": "button",
+        "w": 87.15625,
+        "h": 44,
+        "x": 160.96875,
+        "y": 509,
+        "disabled": false
+      },
+      {
+        "label": "Reaction (trending, boosted reach)",
+        "role": "button",
+        "w": 92,
+        "h": 44,
+        "x": 41,
+        "y": 557,
+        "disabled": false
+      },
+      {
+        "label": "Record and upload",
+        "role": "button",
+        "w": 293,
+        "h": 44,
+        "x": 41,
+        "y": 613,
+        "disabled": "true"
+      }
+    ]
+  },
+  {
+    "name": "streaming",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nStreaming\n$996.5K\nDashboard\nGo Live\nHistory\nShop\nOFFLINE\n0 avg\nYour Channel\nLevel 1 Partner\nGo live\n0\nFollowers\n0\nSubs\n$0\n$ / wk\nStream health\nUpgrade\nSTARTER\nsetup\n0\n%\nLevel 1\n0 XP\nGear\n0\nRig\n0\nAll revenue\n$0 lifetime",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Dashboard",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 73
+      },
+      {
+        "label": "Go Live",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 73
+      },
+      {
+        "label": "History",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 73
+      },
+      {
+        "label": "Shop",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 73
+      },
+      {
+        "label": "Open the Go Live console",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 369,
+        "disabled": false
+      },
+      {
+        "label": "Upgrade",
+        "role": "button",
+        "w": 65.21875,
+        "h": 26,
+        "x": 276.78125,
+        "y": 553,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "travel",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nTravel\n$996.5K\nDestinations\nMy Trip\nBusiness\nPassport\nDEPARTURES\n17\nDestinations\n0\nVisited\n0\nTrips taken\nNo passport · domestic only\nYour travel edge\nFares\nStandard\nTrip speed\nStandard\nOwn a vehicle or pass a transport policy to unlock cheaper, faster trips.\nBuy a passport\n$500 for a passport · international destinations\nWhere to next\nTap a destination for fares, effects and what can happen.\n🏖️\nRST\nLocal Resort\nLocal\n$500\n1 wk\n🗼\nCDG\nParis\nFrance\nPassport\n$2 500\n1 wk\n🏯\nHND\nTokyo\nJapan\nPassport\n$3 500\n1 wk\n🏝️\nDPS\nBali\nIndonesia\nPassport\n$2 000\n1 wk\n🗽\nJFK\nNew York City\nUSA\nPassport\n$3 000\n1 wk\n🏔️\nZRH\nSwiss Alps\nSwitzerland\nPassport\n$4 000\n1 wk\n🎡\nLHR\nLondon\nUnited Kingdom\nPassport\n$2 800\n1 wk\n🏙️\nDXB\nDubai\nUAE\nPassport\n$5 000\n1 wk\n🏛️\nFCO\nRome\nItaly\nPassport\n$2 200\n1 wk\n🛕\nBKK\nBangkok & Islands\nThailand\nPassport\n$1 800\n2 wks\n🌊\nSYD\nSydney\nAustralia\nPassport\n$4 500\n2 wks\n🐚\nCUN\nCancun\nMexico\nPassport\n$1 500\n1 wk\n🌋\nKEF\nIceland\nIceland\nPassport\n$3 500\n1 wk\n🦁\nNBO\nAfrican Safari\nKenya\nPassport\n$6 000\n2 wks\n🐠\nMLE\nMaldives\nMaldives\nPassport\n$8 000\n2 wks\n🏕️\nCMP\nCamping Trip\nLocal\n$200\n1 wk\n🚗\nRTR\nRoad Trip\nLocal\n$400\n1 wk",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Destinations",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "My Trip",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 65
+      },
+      {
+        "label": "Business",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Passport",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 65
+      },
+      {
+        "label": "Purchase passport for $500",
+        "role": "button",
+        "w": 343,
+        "h": 84,
+        "x": 16,
+        "y": 439,
+        "disabled": false
+      },
+      {
+        "label": "Local Resort, Local. View details",
+        "role": "button",
+        "w": 167.5,
+        "h": 180,
+        "x": 16,
+        "y": 605,
+        "disabled": false
+      },
+      {
+        "label": "Paris, France. View details",
+        "role": "button",
+        "w": 167.5,
+        "h": 180,
+        "x": 191.5,
+        "y": 605,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "political-office",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nPolitics\n$996.5K\nOffice\nCareer\nPolicies\nInfluence\nCAMPAIGN HEADQUARTERS\nAPPROVAL\nDivisive\n50\n%\nCURRENT OFFICE\nCitizen\n0 won\nCareer ladder\nCitizen\nIn office\nCouncil Member\nNext office · $5 000 to run\nView full career ladder\n0\nLobbyists\n0\nAlliances\n0\nInfluence\n0\nPolicies\nRun for Council Member · $5 000\nMore\nFund a campaign push\nJoin a party",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Office",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Career",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 65
+      },
+      {
+        "label": "Policies",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Influence",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 65
+      },
+      {
+        "label": "View the full career ladder",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 513,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "statistics",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nStatistics\nWk 104\nOverview\nSystems\nMilestones\nPlanning\nNET WORTH\n$996 500\n0% vs prior weeks\nPeak\n$1 001 500\nweek 104\nVitals\n100\nHealth\n100\nHappiness\n10\nFitness\nRecords\n2 personal bests\nWeekly earnings\n$0/wk\n0%\n$0\nRecent avg\n0wk\nSample\n$0\nBaseline\nCareer\n0\nRoles\n0\nWeeks worked\n$0\nCareer $\nLifetime money\n$0\nEarned\n$0\nSpent\n$0\nTop salary\nLife snapshot\n0\nCompanies\n0\nProperties\n0\nRelationships\nChildren\n0\nDestinations\n0\nPosts\n0",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Overview",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Systems",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 105.25,
+        "y": 65
+      },
+      {
+        "label": "Milestones",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Planning",
+        "role": "tab",
+        "w": 80.25,
+        "h": 40,
+        "x": 273.75,
+        "y": 65
+      },
+      {
+        "label": "Net worth detail",
+        "role": "button",
+        "w": 343,
+        "h": 166,
+        "x": 16,
+        "y": 134,
+        "disabled": false
+      },
+      {
+        "label": "Vitals detail",
+        "role": "button",
+        "w": 343,
+        "h": 168,
+        "x": 16,
+        "y": 316,
+        "disabled": false
+      },
+      {
+        "label": "Records, 2 personal bests",
+        "role": "button",
+        "w": 343,
+        "h": 84,
+        "x": 16,
+        "y": 500,
+        "disabled": false
+      },
+      {
+        "label": "Weekly earnings detail",
+        "role": "button",
+        "w": 343,
+        "h": 185,
+        "x": 16,
+        "y": 600,
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "name": "garage",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nVehicles\n$996.5K\nGarage\nDealership\nInsurance\nDealership\n16 models available · finance or pay cash\nAll\nCars\nSports\nLuxury\nBikes\nGet your driver's license\nCosts $500 · Required to own any vehicle.\nPay $500\nCar\nEconomy Sedan\nA reliable, fuel-efficient sedan perfect for daily commuting.\n+2 rep\n+10% speed\n$25/wk\n$15K\nLicense needed\nCar\nCompact Hatchback\nNimble city car with great gas mileage and easy parking.\n+3 rep\n+12% speed\n$30/wk\n$18K\nLicense needed\nCar\nUsed SUV\nA pre-owned SUV with plenty of room for family and cargo.\n+4 rep\n+8% speed\n$45/wk\n$22K\nLicense needed\nCar\nFamily SUV\nSpacious SUV with modern safety features and comfort.\n+8 rep\n+15% speed\n$60/wk\n$45K\nLicense needed\nCar\nPremium Sedan\nLuxurious interior with advanced technology package.\n+10 rep\n+18% speed\n$65/wk\n$52K\nLicense needed\nLuxury\nLuxury Sedan\nExecutive-class sedan with premium materials and performance.\n+20 rep\n+22% speed\n$120/wk\n$85K\nRequires reputation ≥ 25\nLicense needed\nLuxury\nLuxury SUV\nCommanding presence with best-in-class comfort and capability.\n+22 rep\n+20% speed\n$140/wk\n$95K\nRequires reputation ≥ 30\nLicense needed\nLuxury\nEntry Supercar\nYour first step into exotic car ownership. Heads will turn.\n+30 rep\n+30% speed\n$200/wk\n$150K\nRequires reputation ≥ 40\nLicense needed\nLuxury\nExotic Supercar\nItalian craftsmanship meets raw power. A true status symbol.\n+40 rep\n+40% speed\n$350/wk\n$250K\nRequires reputation ≥ 50\nLicense needed\nSports\nSports Coupe\nSleek two-door with thrilling performance and sharp handling.\n+15 rep\n+25% speed\n$80/wk\n$55K\nLicense needed\nSports\nMuscle Car\nAmerican muscle with a roaring V8 engine. Pure adrenaline.\n+18 rep\n+28% speed\n$90/wk\n$65K\nLicense needed\nMotorcycle\nStandard Motorcycle\nAffordable and practical two-wheeled transportation.\n+5 rep\n+20% speed\n$15/wk\n$8 000\nLicense needed\nMotorcycle\nSport Motorcycle\nHigh-performance sport bike for thrill seekers.\n+10 rep\n+35% speed\n$25/wk\n$15K\nLicense needed\nMotorcycle\nCruiser Motorcycle\nClassic cruiser style with comfortable long-distance riding.\n+12 rep\n+18% speed\n$35/wk\n$25K\nLicense needed\nPlane\nUtility Helicopter\nA light twin. Lands where roads do not go - if you have a pad for it.\n+8 rep\n+15% speed\n$3 200/wk\n$2.5M\nLicense needed\nPlane\nLight Jet\nSix seats and real range. Wants a runway of its own.\n+14 rep\n+20% speed\n$9 000/wk\n$12M\nLicense needed",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Garage",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Dealership",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 133.328125,
+        "y": 65
+      },
+      {
+        "label": "Insurance",
+        "role": "tab",
+        "w": 108.328125,
+        "h": 40,
+        "x": 245.65625,
+        "y": 65
+      },
+      {
+        "label": "Filter: All",
+        "role": "button",
+        "w": 41.53125,
+        "h": 44,
+        "x": 33,
+        "y": 207,
+        "disabled": false
+      },
+      {
+        "label": "Filter: Cars",
+        "role": "button",
+        "w": 51.359375,
+        "h": 44,
+        "x": 78.53125,
+        "y": 207,
+        "disabled": false
+      },
+      {
+        "label": "Filter: Sports",
+        "role": "button",
+        "w": 64.171875,
+        "h": 44,
+        "x": 133.890625,
+        "y": 207,
+        "disabled": false
+      },
+      {
+        "label": "Filter: Luxury",
+        "role": "button",
+        "w": 65.984375,
+        "h": 44,
+        "x": 202.0625,
+        "y": 207,
+        "disabled": false
+      },
+      {
+        "label": "Filter: Bikes",
+        "role": "button",
+        "w": 56.359375,
+        "h": 44,
+        "x": 272.046875,
+        "y": 207,
+        "disabled": false
+      },
+      {
+        "label": "Pay 500 dollars for a driver's license",
+        "role": "button",
+        "w": 81,
+        "h": 44,
+        "x": 261,
+        "y": 312,
+        "disabled": false
+      },
+      {
+        "label": "Buy Economy Sedan for $15K",
+        "role": "button",
+        "w": 343,
+        "h": 282,
+        "x": 16,
+        "y": 400,
+        "disabled": "true"
+      }
+    ]
+  },
+  {
+    "name": "luxury",
+    "errors": [],
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nLuxury & Collectibles\n$996.5K\nBrowse\nCollection (0)\nLUXURY LIFE\n0 / 6 collectibles\nor $0 / $150M in trophies\nBuy\nENTRY\n$250K\nRare Watch Collection\n+1 happiness\n$120/wk\n+2 prestige\nBuy $250K\nENTRY\n$600K\nMuseum-Grade Diamond\n+1 happiness\n$200/wk\n+3 prestige\nBuy $600K\nPREMIUM\n$1.2M\nFine Art Collection\n+2 happiness\n$600/wk\n+3 prestige\nBuy $1.2M\nPREMIUM\n$2.5M\nHypercar\n+2 happiness\n$1 400/wk\n+4 prestige\nBuy $2.5M\nPREMIUM\n$6M\nThoroughbred Racehorse\n+2 happiness\n$4 500/wk\n+5 prestige\nBuy $6M\nELITE\n$15M\nVineyard Estate\n+3 happiness\n$8 000/wk\n+6 prestige\nBuy $15M\nELITE\n$32M\nLuxury Yacht\n+3 happiness\n$20K/wk\n+7 prestige\nBuy $32M\nELITE\n$65M\nPrivate Jet\n+4 happiness\n$42K/wk\n+8 prestige\nBuy $65M\nULTRA\n$120M\nPrivate Island\n+4 happiness\n$60K/wk\n+9 prestige\nBuy $120M\nULTRA\n$180M\nTrophy Penthouse\n+4 happiness\n$70K/wk\n+10 prestige\nBuy $180M\nULTRA\n$300M\nMega-Yacht\n+5 happiness\n$150K/wk\n+12 prestige\nBuy $300M\nULTRA\n$500M\nPro Sports Team Stake\n+5 happiness\n$200K/wk\n+15 prestige\nBuy $500M",
+    "overflow": false,
+    "controls": [
+      {
+        "label": "Net Worth $996.5K, Cash Flow +$30",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 129,
+        "disabled": false
+      },
+      {
+        "label": "Details",
+        "role": "button",
+        "w": 343,
+        "h": 38,
+        "x": 16,
+        "y": 198,
+        "disabled": false
+      },
+      {
+        "label": "Find a job",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 340,
+        "disabled": false
+      },
+      {
+        "label": "Earn $500. 0/3 goals",
+        "role": "button",
+        "w": 309,
+        "h": 45,
+        "x": 33,
+        "y": 427,
+        "disabled": false
+      },
+      {
+        "label": "Show details",
+        "role": "button",
+        "w": 128.265625,
+        "h": 33,
+        "x": 123.359375,
+        "y": 505,
+        "disabled": false
+      },
+      {
+        "label": "Your Progress",
+        "role": "button",
+        "w": 343,
+        "h": 82,
+        "x": 16,
+        "y": 578,
+        "disabled": false
+      },
+      {
+        "label": "Back",
+        "role": "button",
+        "w": 44,
+        "h": 44,
+        "x": 8,
+        "y": 8,
+        "disabled": false
+      },
+      {
+        "label": "Browse",
+        "role": "tab",
+        "w": 164.5,
+        "h": 40,
+        "x": 21,
+        "y": 65
+      },
+      {
+        "label": "Collection (0)",
+        "role": "tab",
+        "w": 164.5,
+        "h": 40,
+        "x": 189.5,
+        "y": 65
+      },
+      {
+        "label": "Rare Watch Collection, $250K. View details",
+        "role": "button",
+        "w": 341,
+        "h": 237.5,
+        "x": 17,
+        "y": 332,
+        "disabled": false
+      },
+      {
+        "label": "Buy Rare Watch Collection for $250K",
+        "role": "button",
+        "w": 309,
+        "h": 44,
+        "x": 33,
+        "y": 569.5,
+        "disabled": false
+      },
+      {
+        "label": "Museum-Grade Diamond, $600K. View details",
+        "role": "button",
+        "w": 341,
+        "h": 237.5,
+        "x": 17,
+        "y": 647.5,
+        "disabled": false
+      }
+    ]
+  }
+]

@@ -1,3 +1,5 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * VehicleApp - desktop vehicle screen. Car-marketplace DNA.
  *
@@ -35,7 +37,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Vehicle } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -300,7 +302,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           cash >= DRIVERS_LICENSE.cost && getPlatformShadows(5, 0.3, 2, 8),
         ]}
       >
-        <Text style={[styles.btnText, { color: cash >= DRIVERS_LICENSE.cost ? '#FFFFFF' : theme.textMuted }]}>
+        <Text style={[styles.btnText, { color: cash >= DRIVERS_LICENSE.cost ? uiPalette.white : theme.textMuted }]}>
           Pay ${DRIVERS_LICENSE.cost}
         </Text>
       </TouchableOpacity>
@@ -348,7 +350,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             enabled && getPlatformShadows(5, 0.3, 2, 8),
           ]}
         >
-          <Text style={[styles.btnText, { color: enabled ? '#FFFFFF' : theme.textMuted }]}>
+          <Text style={[styles.btnText, { color: enabled ? uiPalette.white : theme.textMuted }]}>
             ${PILOT_LICENSE.cost.toLocaleString()}
           </Text>
         </TouchableOpacity>
@@ -759,7 +761,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 <DetailRow label="Plan" value={ins.type} theme={theme} capitalize />
                 <DetailRow label="Coverage" value={`${ins.coveragePercent}%`} theme={theme} />
                 <DetailRow label="Monthly cost" value={formatMoney(ins.monthlyCost ?? 0)} theme={theme} />
-                <DetailRow label="Expires" value={`Week ${ins.expiresWeek} · ${insWeeksLeft} wk left`} theme={theme} />
+                <DetailRow label="Expires" value={`${formatLifeWeek(ins.expiresWeek, gameState.lifeStartWeek)} · ${insWeeksLeft} wk left`} theme={theme} />
               </>
             ) : (
               <DetailRow label="Status" value="No active insurance" theme={theme} valueColor={accent.danger} />

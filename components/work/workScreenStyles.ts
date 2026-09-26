@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Styles for the Work screen (app/(tabs)/work.tsx).
  *
@@ -13,7 +14,7 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
     background: {
         flex: 1,
-        backgroundColor: '#020617',
+        backgroundColor: uiPalette.navy,
     },
     container: {
         flex: 1,

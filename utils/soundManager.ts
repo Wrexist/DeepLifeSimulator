@@ -1,315 +1,134 @@
-import { Platform } from 'react-native';
+import type { AudioPlayer, AudioSource } from 'expo-audio';
 import { logger } from '@/utils/logger';
 
-// NOTE: this manager used to "fall back" to expo-haptics whenever a sound was
-// missing — which, with no audio backend installed, meant every playSound()
-// fired a haptic that bypassed the player's haptic setting and doubled the one
-// the feedback system already pairs with each sound. Sound is sound: with no
-// audio backend or asset, playSound() is a silent no-op. Haptics live solely
-// in `utils/haptics.ts`.
+// Optional on older signed binaries. Never import a new native module at startup.
+type AudioBackend = typeof import('expo-audio');
+const sources: Record<string, AudioSource> = {
+  button_click: require('@/assets/audio/button_click.wav'),
+  success: require('@/assets/audio/success.wav'),
+  error: require('@/assets/audio/error.wav'),
+  notification: require('@/assets/audio/notification.wav'),
+  money: require('@/assets/audio/money.wav'),
+  level_up: require('@/assets/audio/level_up.wav'),
+  week: require('@/assets/audio/week.wav'),
+};
+const volume = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 
-// Optional import for expo-av - without it every playSound() is a silent no-op.
-// Typed as `any` because expo-av is not in package.json; the static
-// `typeof import('expo-av').Audio` annotation can't resolve.
-let Audio: any | null = null;
-try {
-  Audio = require('expo-av').Audio;
-} catch (error) {
-  logger.warn('expo-av not available - sound effects are disabled');
-}
+export class SoundManager {
+  private enabled = false; // The mounted settings bridge opts in after loading the save.
+  private backend: AudioBackend | null = null;
+  private initialization: Promise<void> | null = null;
+  private sounds = new Map<string, AudioPlayer>();
+  private busy = new Set<string>();
+  private lastPlayed = new Map<string, number>();
+  private backgroundMusic: AudioPlayer | null = null;
+  private masterVolume = 0.65;
+  private sfxVolume = 0.65;
+  private musicVolume = 0.3;
+  private epoch = 0;
 
-class SoundManager {
-  private isEnabled: boolean = true;
-  private isInitialized: boolean = false;
-  private sounds: Map<string, any> = new Map(); // Audio.Sound type when expo-av is available
-  private backgroundMusic: any = null; // Audio.Sound type when expo-av is available
-  
-  // Volume controls
-  private masterVolume: number = 1.0;
-  private sfxVolume: number = 1.0;
-  private musicVolume: number = 0.5;
-  
-  // Computed effective volumes
-  private get effectiveSfxVolume(): number {
-    return this.masterVolume * this.sfxVolume;
-  }
-  
-  private get effectiveMusicVolume(): number {
-    return this.masterVolume * this.musicVolume;
-  }
-
-  async initialize(): Promise<void> {
-    try {
-      if (this.isInitialized) return;
-
-      // Set audio mode for better performance
-      if (Platform.OS !== 'web' && Audio) {
-        try {
-          await Audio.setAudioModeAsync({
-            playsInSilentModeIOS: true,
-            staysActiveInBackground: false,
-            shouldDuckAndroid: true,
-          });
-        } catch (error) {
-          logger.warn('Failed to set audio mode:', { error });
-        }
-      }
-
-      this.isInitialized = true;
-      logger.info('Sound manager initialized successfully');
-    } catch (error) {
-      logger.warn('Failed to initialize sound manager:', { error });
-      this.isEnabled = false;
-    }
-  }
-
-  async loadSound(soundId: string, source: any): Promise<void> {
-    try {
-      if (!this.isInitialized) await this.initialize();
-      if (!this.isEnabled) return;
-
-      // Unload existing sound if present
-      if (this.sounds.has(soundId)) {
-        await this.unloadSound(soundId);
-      }
-
-      if (Platform.OS !== 'web' && source && Audio) {
-        try {
-          const { sound } = await Audio.Sound.createAsync(source, {
-            shouldPlay: false,
-            volume: this.effectiveSfxVolume,
-          });
-          this.sounds.set(soundId, sound);
-          logger.debug(`Sound loaded: ${soundId}`);
-        } catch (error) {
-          logger.warn(`Failed to load sound ${soundId}:`, { error });
-        }
-      }
-    } catch (error) {
-      logger.warn(`Failed to load sound ${soundId}:`, { error });
-    }
-  }
-
-  async playSound(soundId: string): Promise<void> {
-    try {
-      if (!this.isEnabled || !this.isInitialized) return;
-
-      if (Platform.OS !== 'web' && Audio) {
-        const sound = this.sounds.get(soundId);
-        if (sound) {
-          try {
-            await sound.replayAsync();
-          } catch (error) {
-            logger.warn(`Failed to play sound ${soundId}:`, { error });
-          }
-        }
-      }
-    } catch (error) {
-      logger.warn(`Failed to play sound ${soundId}:`, { error });
-    }
-  }
-
-  async unloadSound(soundId: string): Promise<void> {
-    try {
-      const sound = this.sounds.get(soundId);
-      if (sound && Audio) {
-        try {
-          await sound.unloadAsync();
-        } catch (error) {
-          logger.warn(`Failed to unload sound ${soundId}:`, { error });
-        }
-      }
-      this.sounds.delete(soundId);
-      logger.debug(`Sound unloaded: ${soundId}`);
-    } catch (error) {
-      logger.warn(`Failed to unload sound ${soundId}:`, { error });
-    }
-  }
-
-  async unloadAllSounds(): Promise<void> {
-    try {
-      if (Audio) {
-        for (const [soundId, sound] of this.sounds.entries()) {
-          try {
-            await sound.unloadAsync();
-          } catch (error) {
-            logger.warn(`Failed to unload sound ${soundId}:`, { error });
-          }
-        }
-      }
-      this.sounds.clear();
-      logger.info('All sounds unloaded');
-    } catch (error) {
-      logger.warn('Failed to unload all sounds:', { error });
-    }
-  }
-
-  async playBackgroundMusic(source: any, loop: boolean = true): Promise<void> {
-    try {
-      if (!this.isInitialized) await this.initialize();
-      if (!this.isEnabled) return;
-
-      // Stop existing background music
-      await this.stopBackgroundMusic();
-
-      if (Platform.OS !== 'web' && source && Audio) {
-        try {
-          const { sound } = await Audio.Sound.createAsync(source, {
-            shouldPlay: true,
-            isLooping: loop,
-            volume: this.musicVolume,
-          });
-          this.backgroundMusic = sound;
-          logger.info('Background music started');
-        } catch (error) {
-          logger.warn('Failed to play background music:', { error });
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to play background music:', { error });
-    }
-  }
-
-  async stopBackgroundMusic(): Promise<void> {
-    try {
-      if (this.backgroundMusic && Audio) {
-        try {
-          await this.backgroundMusic.stopAsync();
-          await this.backgroundMusic.unloadAsync();
-        } catch (error) {
-          logger.warn('Failed to stop background music:', { error });
-        }
-        this.backgroundMusic = null;
-        logger.info('Background music stopped');
-      }
-    } catch (error) {
-      logger.warn('Failed to stop background music:', { error });
-    }
-  }
-
-  async setBackgroundMusicVolume(volume: number): Promise<void> {
-    try {
-      this.musicVolume = Math.max(0, Math.min(1, volume));
-      if (this.backgroundMusic && Audio) {
-        try {
-          await this.backgroundMusic.setVolumeAsync(this.musicVolume);
-        } catch (error) {
-          logger.warn('Failed to set background music volume:', { error });
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to set background music volume:', { error });
-    }
-  }
-
-  setEnabled(enabled: boolean): void {
-    this.isEnabled = enabled;
-    logger.info(`Sound ${enabled ? 'enabled' : 'disabled'}`);
-  }
-
-  // Master volume controls all audio
-  setMasterVolume(volume: number): void {
-    this.masterVolume = Math.max(0, Math.min(1, volume));
-    this.updateAllVolumes();
-    logger.info(`Master volume set to ${this.masterVolume}`);
-  }
-
-  getMasterVolume(): number {
-    return this.masterVolume;
-  }
-
-  // SFX volume for sound effects
-  setSfxVolume(volume: number): void {
-    this.sfxVolume = Math.max(0, Math.min(1, volume));
-    this.updateAllVolumes();
-    logger.info(`SFX volume set to ${this.sfxVolume}`);
-  }
-
-  getSfxVolume(): number {
-    return this.sfxVolume;
-  }
-
-  // Music volume for background music
-  setMusicVolume(volume: number): void {
-    this.musicVolume = Math.max(0, Math.min(1, volume));
-    this.updateBackgroundMusicVolume();
-    logger.info(`Music volume set to ${this.musicVolume}`);
-  }
-
-  getMusicVolume(): number {
-    return this.musicVolume;
-  }
-
-  // Update all loaded sound volumes
-  private async updateAllVolumes(): Promise<void> {
-    if (Audio) {
-      this.sounds.forEach(async (sound) => {
-        try {
-          await sound.setVolumeAsync(this.effectiveSfxVolume);
-        } catch (error) {
-          logger.warn('Failed to update sound volume:', { error });
-        }
-      });
-    }
-    await this.updateBackgroundMusicVolume();
-  }
-
-  // Update background music volume
-  private async updateBackgroundMusicVolume(): Promise<void> {
-    if (this.backgroundMusic && Audio) {
+  initialize(): Promise<void> {
+    if (this.initialization) return this.initialization;
+    this.initialization = (async () => {
       try {
-        await this.backgroundMusic.setVolumeAsync(this.effectiveMusicVolume);
+        const backend: AudioBackend = require('expo-audio');
+        await backend.setAudioModeAsync({ playsInSilentMode: false, shouldPlayInBackground: false, allowsRecording: false, interruptionMode: 'mixWithOthers' });
+        this.backend = backend;
+        for (const [id, source] of Object.entries(sources)) await this.loadSound(id, source);
       } catch (error) {
-        logger.warn('Failed to update music volume:', { error });
+        this.backend = null;
+        logger.warn('Audio unavailable on this build; gameplay continues silently', { error });
       }
+    })();
+    return this.initialization;
+  }
+
+  async loadSound(id: string, source: AudioSource): Promise<void> {
+    if (!this.backend) return;
+    await this.unloadSound(id);
+    const player = this.backend.createAudioPlayer(source);
+    player.volume = this.masterVolume * this.sfxVolume;
+    this.sounds.set(id, player);
+  }
+
+  async playSound(id: string): Promise<void> {
+    if (!this.enabled || this.busy.has(id)) return;
+    // Tiny rate limit avoids stacked clicks / overlapping reward fanfare.
+    const now = Date.now();
+    if (now - (this.lastPlayed.get(id) ?? -Infinity) < 120) return;
+    const epoch = this.epoch;
+    this.busy.add(id);
+    try {
+      await this.initialize();
+      const player = this.sounds.get(id);
+      if (!player || !this.enabled || epoch !== this.epoch) return;
+      await player.seekTo(0);
+      if (!this.enabled || epoch !== this.epoch) return;
+      player.volume = this.masterVolume * this.sfxVolume;
+      player.play();
+      this.lastPlayed.set(id, now);
+    } catch (error) { logger.debug('Sound playback unavailable', { error }); }
+    finally { this.busy.delete(id); }
+  }
+
+  async unloadSound(id: string): Promise<void> {
+    const player = this.sounds.get(id);
+    this.sounds.delete(id);
+    try { player?.remove(); } catch { /* A released native player is harmless. */ }
+  }
+  async unloadAllSounds(): Promise<void> {
+    this.epoch++;
+    for (const id of this.sounds.keys()) await this.unloadSound(id);
+    await this.stopBackgroundMusic();
+    this.initialization = null;
+  }
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (!enabled) {
+      this.epoch++;
+      for (const player of this.sounds.values()) { try { player.pause(); } catch { /* Already released. */ } }
+      try { this.backgroundMusic?.pause(); } catch { /* Already released. */ }
     }
   }
-
-  // Legacy method for backwards compatibility
-  setVolume(volume: number): void {
-    this.setMasterVolume(volume);
+  isSoundEnabled(): boolean { return this.enabled; }
+  private updateVolumes(): void {
+    for (const player of this.sounds.values()) player.volume = this.masterVolume * this.sfxVolume;
+    if (this.backgroundMusic) this.backgroundMusic.volume = this.masterVolume * this.musicVolume;
   }
-
-  isSoundEnabled(): boolean {
-    return this.isEnabled;
-  }
-
-  getVolume(): number {
-    return this.masterVolume;
-  }
-
-  // Apply volume settings from game state
+  setMasterVolume(value: number): void { this.masterVolume = volume(value); this.updateVolumes(); }
+  getMasterVolume(): number { return this.masterVolume; }
+  setSfxVolume(value: number): void { this.sfxVolume = volume(value); this.updateVolumes(); }
+  getSfxVolume(): number { return this.sfxVolume; }
+  setMusicVolume(value: number): void { this.musicVolume = volume(value); this.updateVolumes(); }
+  getMusicVolume(): number { return this.musicVolume; }
+  setVolume(value: number): void { this.setMasterVolume(value); }
+  getVolume(): number { return this.masterVolume; }
   applyVolumeSettings(settings: { masterVolume?: number; sfxVolume?: number; musicVolume?: number }): void {
-    if (settings.masterVolume !== undefined) this.masterVolume = settings.masterVolume;
-    if (settings.sfxVolume !== undefined) this.sfxVolume = settings.sfxVolume;
-    if (settings.musicVolume !== undefined) this.musicVolume = settings.musicVolume;
-    this.updateAllVolumes();
+    if (settings.masterVolume !== undefined) this.masterVolume = volume(settings.masterVolume);
+    if (settings.sfxVolume !== undefined) this.sfxVolume = volume(settings.sfxVolume);
+    if (settings.musicVolume !== undefined) this.musicVolume = volume(settings.musicVolume);
+    this.updateVolumes();
   }
-
-  // Predefined haptic feedback effects
-  async playButtonClick(): Promise<void> {
-    await this.playSound('button_click');
+  async playBackgroundMusic(source: AudioSource, loop = true): Promise<void> {
+    const epoch = this.epoch;
+    await this.initialize();
+    await this.stopBackgroundMusic();
+    if (!this.enabled || !this.backend || epoch !== this.epoch) return;
+    this.backgroundMusic = this.backend.createAudioPlayer(source);
+    this.backgroundMusic.loop = loop;
+    this.backgroundMusic.volume = this.masterVolume * this.musicVolume;
+    this.backgroundMusic.play();
   }
-
-  async playSuccess(): Promise<void> {
-    await this.playSound('success');
+  async stopBackgroundMusic(): Promise<void> {
+    try { this.backgroundMusic?.remove(); } finally { this.backgroundMusic = null; }
   }
-
-  async playError(): Promise<void> {
-    await this.playSound('error');
-  }
-
-  async playNotification(): Promise<void> {
-    await this.playSound('notification');
-  }
-
-  async playMoney(): Promise<void> {
-    await this.playSound('money');
-  }
-
-  async playLevelUp(): Promise<void> {
-    await this.playSound('level_up');
-  }
+  async setBackgroundMusicVolume(value: number): Promise<void> { this.setMusicVolume(value); }
+  async playButtonClick(): Promise<void> { await this.playSound('button_click'); }
+  async playSuccess(): Promise<void> { await this.playSound('success'); }
+  async playError(): Promise<void> { await this.playSound('error'); }
+  async playNotification(): Promise<void> { await this.playSound('notification'); }
+  async playMoney(): Promise<void> { await this.playSound('money'); }
+  async playLevelUp(): Promise<void> { await this.playSound('level_up'); }
 }
 
 // Export singleton instance
@@ -342,6 +161,6 @@ export const playMoney = (): Promise<void> => soundManager.playMoney();
 export const playLevelUp = (): Promise<void> => soundManager.playLevelUp();
 
 // Background music helpers
-export const playBackgroundMusic = (source: any, loop?: boolean): Promise<void> => soundManager.playBackgroundMusic(source, loop);
+export const playBackgroundMusic = (source: AudioSource, loop?: boolean): Promise<void> => soundManager.playBackgroundMusic(source, loop);
 export const stopBackgroundMusic = (): Promise<void> => soundManager.stopBackgroundMusic();
 export const setBackgroundMusicVolume = (volume: number): Promise<void> => soundManager.setBackgroundMusicVolume(volume);

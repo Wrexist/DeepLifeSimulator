@@ -1,3 +1,4 @@
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 /**
  * usePressableScale — press animation hook using React Native Animated API
  *
@@ -33,11 +34,13 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
     spring = false,
   } = options;
 
+  const reduced = useReducedMotion();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const onPressIn = useCallback(() => {
     if (doHaptic) haptic.light();
 
+    if (reduced) { scaleAnim.setValue(1); return; }
     if (spring) {
       Animated.spring(scaleAnim, {
         toValue: scale,
@@ -51,9 +54,10 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
         useNativeDriver: true,
       }).start();
     }
-  }, [scale, duration, spring, doHaptic, scaleAnim]);
+  }, [scale, duration, spring, doHaptic, scaleAnim, reduced]);
 
   const onPressOut = useCallback(() => {
+    if (reduced) { scaleAnim.setValue(1); return; }
     if (spring) {
       // `gentle` (stiffness 150) is deliberately softer than the old inline
       // 200: press-in snaps, release settles - the standard asymmetry.
@@ -69,7 +73,7 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
         useNativeDriver: true,
       }).start();
     }
-  }, [duration, spring, scaleAnim]);
+  }, [duration, spring, scaleAnim, reduced]);
 
   const animatedStyle = { transform: [{ scale: scaleAnim }] };
 

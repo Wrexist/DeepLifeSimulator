@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * RewardedAdModal - watch ad for a follower boost.
  *
@@ -192,7 +193,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
           </View>
 
           <View style={[styles.heroBadge, { backgroundColor: PULSE_COLORS.accent }]}>
-            <Play size={scale(32)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />
+            <Play size={scale(32)} color={uiPalette.white} strokeWidth={2.4} fill={uiPalette.white} />
           </View>
 
           <Text style={[styles.title, { color: theme.text }]}>Watch ad → followers</Text>
@@ -224,7 +225,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
             accessibilityLabel="Watch ad"
             style={[styles.cta, { backgroundColor: PULSE_COLORS.accent }]}
           >
-            <Play size={fontScale(14)} color="#FFFFFF" fill="#FFFFFF" />
+            <Play size={fontScale(14)} color={uiPalette.white} fill={uiPalette.white} />
             <Text style={styles.ctaText}>Watch ad</Text>
           </Pressable>
         </View>
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(14),
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

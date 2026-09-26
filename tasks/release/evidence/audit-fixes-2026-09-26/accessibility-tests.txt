@@ -1,0 +1,52 @@
+node : PASS __tests__/render/screens.render.test.tsx (17.394 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath __tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/....tsx (17.394 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  render - in-game tab screens
+    √ home mounts without throwing (115 ms)
+    √ work mounts without throwing (78 ms)
+    √ apps (merged device tab) mounts without throwing (4 ms)
+    √ life (merged personal tab) mounts without throwing (43 ms)
+    √ market mounts without throwing (37 ms)
+    √ computer mounts without throwing (194 ms)
+    √ health mounts without throwing (38 ms)
+    √ mobile mounts without throwing (6 ms)
+    √ progression mounts without throwing (163 ms)
+  render - the Market is one list under section headers
+    √ renders items, food and housing in a single tree, no tab press needed (32 ms)
+    √ the filter bar and its dead ends are gone (34 ms)
+  render - Market prices use the app-wide money format
+    √ formats the item price instead of interpolating the number (29 ms)
+
+PASS __tests__/components/avatarPhotoFallback.test.tsx
+  √ keeps stored portrait identity when an uploaded photo fails, and retries a replacement URI (5 ms)
+
+PASS __tests__/render/segmentedControlLock.render.test.tsx
+  a locked segment routes taps to onLockedPress, not onChange
+    √ tapping it explains itself and does NOT switch the segment (14 ms)
+    √ a locked tap with no handler wired does not throw (7 ms)
+    √ announces itself as locked, with the reason, to a screen reader (12 ms)
+    √ stays in the control rather than disappearing (4 ms)
+    √ a locked segment never renders as the active one (4 ms)
+  the control - an unlocked segment is exactly as it was
+    √ tapping an unlocked segment still calls onChange (4 ms)
+    √ segments with no `locked` field at all behave as before (5 ms)
+
+PASS __tests__/render/enrollmentCost.render.test.tsx
+  √ honors changed reduced-motion preference while enrollment is open (10 ms)
+  enrollment cost decision
+    √ shows the cash left after tuition before confirmation (15 ms)
+    √ reveals the actual payment, total cost and immediate repayment when choosing loan (14 ms)
+    √ allows a broke player to choose a loan, while cash confirmation is blocked (13 ms)
+    √ does not attribute policy/award assistance to GPA or offer unnecessary debt (11 ms)
+    √ blocks a stale modal when the life ends and keeps Close available (12 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       26 passed, 26 total
+Snapshots:   0 total
+Time:        18.507 s, estimated 38 s
+Ran all test suites within paths "__tests__/render/segmentedControlLock.render.test.tsx", "__tests__/render/enrollmentC
+ost.render.test.tsx", "__tests__/components/avatarPhotoFallback.test.tsx", "__tests__/render/screens.render.test.tsx".

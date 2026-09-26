@@ -24,6 +24,17 @@ it('restores the two-column HUD: direct utilities and long-press quick actions',
   expect(button('Advance to next week')).toBeDefined();
   expect(button('Health level')).toBeDefined();
 
+  // Purchase and readout have separate, non-nested touch ownership.
+  const buyGems = button('Buy gems')!;
+  const gemBalance = r.renderer.root.findAllByType(TouchableOpacity)
+    .find(node => node.props.accessibilityLabel?.startsWith('Gems:'))!;
+  expect(buyGems).toBeDefined();
+  expect(gemBalance.findAllByType(TouchableOpacity)).not.toContain(buyGems);
+  expect(styles.gemPurchaseTarget.width).toBeGreaterThanOrEqual(44);
+  expect(styles.gemPurchaseTarget.minHeight).toBeGreaterThanOrEqual(44);
+  expect(styles.gemBalanceTarget.minWidth).toBeGreaterThanOrEqual(44);
+  expect(styles.gemBalanceTarget.minHeight).toBeGreaterThanOrEqual(44);
+
   // Long press still opens the vital quick actions in the floating container.
   act(() => button('Energy level')!.props.onLongPress());
   expect(button('Rest')).toBeDefined();

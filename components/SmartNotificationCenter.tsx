@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { Platform, View,
   Text,
@@ -121,10 +122,10 @@ export default function SmartNotificationCenter({
       case 'milestone': return <Calendar size={20} color="#3B82F6" />;
       case 'warning': return <AlertCircle size={20} color="#F59E0B" />;
       case 'tip': return <Lightbulb size={20} color="#F59E0B" />;
-      case 'reminder': return <Bell size={20} color="#64748B" />;
+      case 'reminder': return <Bell size={20} color={uiPalette.lightMuted} />;
       case 'celebration': return <PartyPopper size={20} color="#8B5CF6" />;
       case 'suggestion': return <MessageSquare size={20} color="#06B6D4" />;
-      default: return <Info size={20} color="#64748B" />;
+      default: return <Info size={20} color={uiPalette.lightMuted} />;
     }
   };
 
@@ -133,8 +134,8 @@ export default function SmartNotificationCenter({
       case 'critical': return '#DC2626';
       case 'high': return '#EF4444';
       case 'medium': return '#F59E0B';
-      case 'low': return '#64748B';
-      default: return '#64748B';
+      case 'low': return uiPalette.lightMuted;
+      default: return uiPalette.lightMuted;
     }
   };
 
@@ -146,8 +147,8 @@ export default function SmartNotificationCenter({
       case 'career': return '#F59E0B';
       case 'family': return '#8B5CF6';
       case 'education': return '#06B6D4';
-      case 'general': return '#64748B';
-      default: return '#64748B';
+      case 'general': return uiPalette.lightMuted;
+      default: return uiPalette.lightMuted;
     }
   };
 
@@ -196,7 +197,7 @@ export default function SmartNotificationCenter({
             ]}
           >
             <LinearGradient
-              colors={gameState.settings.darkMode ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#FFFFFF']}
+              colors={gameState.settings.darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.paper, uiPalette.white]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.gradient}
@@ -218,7 +219,7 @@ export default function SmartNotificationCenter({
                     }}
                     style={styles.headerButton}
                   >
-                    <Settings size={20} color={gameState.settings.darkMode ? '#FFFFFF' : '#334155'} />
+                    <Settings size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
@@ -228,7 +229,7 @@ export default function SmartNotificationCenter({
                     }}
                     style={styles.headerButton}
                   >
-                    <X size={20} color={gameState.settings.darkMode ? '#FFFFFF' : '#334155'} />
+                    <X size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -254,7 +255,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showTips ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#64748B" />
+                        <X size={20} color={uiPalette.lightMuted} />
                       )}
                     </TouchableOpacity>
 
@@ -271,7 +272,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showMilestones ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#64748B" />
+                        <X size={20} color={uiPalette.lightMuted} />
                       )}
                     </TouchableOpacity>
 
@@ -288,7 +289,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showWarnings ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#64748B" />
+                        <X size={20} color={uiPalette.lightMuted} />
                       )}
                     </TouchableOpacity>
 
@@ -305,7 +306,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showSuggestions ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#64748B" />
+                        <X size={20} color={uiPalette.lightMuted} />
                       )}
                     </TouchableOpacity>
                   </View>
@@ -355,7 +356,7 @@ export default function SmartNotificationCenter({
               <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
                 {filteredNotifications.length === 0 ? (
                   <View style={styles.emptyState}>
-                    <BellOff size={48} color="#64748B" />
+                    <BellOff size={48} color={uiPalette.lightMuted} />
                     <Text style={[styles.emptyStateText, gameState.settings.darkMode && styles.emptyStateTextDark]}>
                       No notifications
                     </Text>
@@ -470,11 +471,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...tier1Title,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginLeft: 12,
   },
   headerTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   headerActions: {
     flexDirection: 'row',
@@ -488,21 +489,21 @@ const styles = StyleSheet.create({
   settingsPanel: {
     marginHorizontal: 20,
     marginBottom: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: 12,
     padding: 16,
   },
   settingsPanelDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   settingsTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#334155',
+    color: uiPalette.slate,
     marginBottom: 12,
   },
   settingsTitleDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   settingsList: {
     gap: 8,
@@ -520,10 +521,10 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: fontScale(14),
-    color: '#334155',
+    color: uiPalette.slate,
   },
   settingLabelDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   clearButton: {
     flexDirection: 'row',
@@ -551,7 +552,7 @@ const styles = StyleSheet.create({
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: 20,
   },
   filterButtonActive: {
@@ -560,10 +561,10 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: fontScale(14),
     fontWeight: '500',
-    color: '#334155',
+    color: uiPalette.slate,
   },
   filterButtonTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   notificationsList: {
     flex: 1,
@@ -576,23 +577,23 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     ...tier2,
-    color: '#334155',
+    color: uiPalette.slate,
     marginTop: 16,
   },
   emptyStateTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   emptyStateSubtext: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 4,
     textAlign: 'center',
   },
   emptyStateSubtextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   notificationCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -609,7 +610,7 @@ const styles = StyleSheet.create({
     }),
   },
   notificationCardDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -630,19 +631,19 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 4,
   },
   notificationTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   notificationMessage: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: fontScale(20),
   },
   notificationMessageDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   notificationMeta: {
     alignItems: 'center',
@@ -666,20 +667,20 @@ const styles = StyleSheet.create({
   notificationCategory: {
     fontSize: fontScale(12),
     fontWeight: '500',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textTransform: 'capitalize',
   },
   notificationCategoryDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   notificationPriority: {
     fontSize: fontScale(12),
     fontWeight: '500',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textTransform: 'capitalize',
   },
   notificationPriorityDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

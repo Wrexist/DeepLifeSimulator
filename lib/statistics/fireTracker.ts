@@ -1,5 +1,6 @@
 import type { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 // Shared planning basis (income-producing / liquidatable assets only) — see
 // planningNetWorth.ts for why this is deliberately NOT the canonical netWorth().
 import { calculatePlanningNetWorth as calculateNetWorth } from './planningNetWorth';
@@ -59,7 +60,7 @@ export function calculateFIRETracker(state: GameState): FIRETrackerResult {
   const progressToFIRE = Math.max(0, Math.min(100, (currentNetWorth / fireNumber) * 100));
 
   // Calculate savings rate
-  const weeklySavings = (state.bankSavings || 0) / Math.max(1, state.weeksLived || 1);
+  const weeklySavings = (state.bankSavings || 0) / Math.max(1, weeksSinceLifeStart(state.weeksLived, state.lifeStartWeek));
   const savingsRate = weeklyIncome > 0
     ? Math.max(0, Math.min(100, (weeklySavings / weeklyIncome) * 100))
     : 0;

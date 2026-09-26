@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useRef, useEffect } from 'react';
 import { Platform, Modal,
   View,
@@ -80,7 +81,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9']}
+            colors={darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.white, uiPalette.lightSurface]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -99,7 +100,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={darkMode ? '#FFFFFF' : '#1E293B'} />
+                <X size={24} color={darkMode ? uiPalette.white : uiPalette.surface} />
               </TouchableOpacity>
             </View>
 
@@ -107,7 +108,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
             <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
               {history.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Crown size={48} color="#94A3B8" />
+                  <Crown size={48} color={uiPalette.muted} />
                   <Text style={[styles.emptyText, darkMode && styles.emptyTextDark]}>
                     No prestige history yet
                   </Text>
@@ -132,8 +133,8 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                           index === 0
                             ? ['#F59E0B', '#D97706']
                             : darkMode
-                            ? ['#334155', '#1E293B']
-                            : ['#F1F5F9', '#E2E8F0']
+                            ? [uiPalette.slate, uiPalette.surface]
+                            : [uiPalette.lightSurface, uiPalette.line]
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -142,7 +143,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                         <View style={styles.historyHeader}>
                           <View style={styles.historyHeaderLeft}>
                             <View style={styles.prestigeNumberBadge}>
-                              <Crown size={16} color="#FFFFFF" />
+                              <Crown size={16} color={uiPalette.white} />
                               <Text style={styles.prestigeNumberText}>#{record.prestigeNumber}</Text>
                             </View>
                             <View style={styles.historyInfo}>
@@ -156,7 +157,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                                 Prestige #{record.prestigeNumber}
                               </Text>
                               <View style={styles.historyMeta}>
-                                <Calendar size={12} color="#94A3B8" />
+                                <Calendar size={12} color={uiPalette.muted} />
                                 <Text
                                   style={[
                                     styles.historyDate,
@@ -318,18 +319,18 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 4,
   },
   subtitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   closeButton: {
     width: 36,
@@ -348,20 +349,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...tier2,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 16,
   },
   emptyTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   emptySubtext: {
     fontSize: fontScale(14),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 8,
     textAlign: 'center',
   },
   emptySubtextDark: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   historyCard: {
     marginBottom: 16,
@@ -399,21 +400,21 @@ const styles = StyleSheet.create({
   prestigeNumberText: {
     fontSize: fontScale(12),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyInfo: {
     flex: 1,
   },
   historyTitle: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 4,
   },
   historyTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyTitleLatest: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyMeta: {
     flexDirection: 'row',
@@ -422,10 +423,10 @@ const styles = StyleSheet.create({
   },
   historyDate: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   historyDateDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   pathBadge: {
     flexDirection: 'row',
@@ -439,10 +440,10 @@ const styles = StyleSheet.create({
   pathText: {
     fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   pathTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyStats: {
     gap: 8,
@@ -455,19 +456,19 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   statLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   statValue: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginLeft: 'auto',
   },
   statValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   achievementsSection: {
     marginTop: 12,
@@ -478,11 +479,11 @@ const styles = StyleSheet.create({
   achievementsTitle: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: 8,
   },
   achievementsTitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   achievementsList: {
     flexDirection: 'row',
@@ -497,10 +498,10 @@ const styles = StyleSheet.create({
   },
   achievementText: {
     fontSize: fontScale(10),
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   achievementTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });
 

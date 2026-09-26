@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * SubscriptionModal - the DeepLife+ premium paywall.
  *
@@ -101,9 +102,9 @@ const SHEET_BG = '#0B1120';
 const CARD_BG = '#111A2E';
 const CARD_BORDER = 'rgba(255, 255, 255, 0.08)';
 const ICON_BG = 'rgba(255, 255, 255, 0.06)';
-const TEXT = '#F8FAFC';
-const TEXT_MUTED = '#94A3B8';
-const TEXT_DIM = '#64748B';
+const TEXT = uiPalette.paper;
+const TEXT_MUTED = uiPalette.muted;
+const TEXT_DIM = uiPalette.lightMuted;
 
 const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   no_ads: Ban,

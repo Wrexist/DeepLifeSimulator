@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * StoriesRail - horizontal scroller above the feed.
  *
@@ -14,6 +15,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import type { AvatarSource } from '@/lib/avatar/resolve';
 import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
 
 interface StoriesRailProps {
@@ -82,6 +84,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
               /* Live is a red ring - one colour, the same red as the LIVE tag. */
               <View style={[styles.ringInner, { backgroundColor: PULSE_COLORS.danger }]}>
                 <Avatar
+                  source={gameState.userProfile}
                   uri={gameState.userProfile?.profilePhoto}
                   fallback="Y"
                   seed={gameState.userProfile?.name}
@@ -92,6 +95,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
             ) : (
               <View style={[styles.ringInnerStatic, { borderColor: theme.border }]}>
                 <Avatar
+                  source={gameState.userProfile}
                   uri={gameState.userProfile?.profilePhoto}
                   fallback="Y"
                   seed={gameState.userProfile?.name}
@@ -99,14 +103,14 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
                   age={gameState.date?.age}
                 />
                 <View style={[styles.plusBadge, { backgroundColor: PULSE_COLORS.accent }]}>
-                  <Plus size={fontScale(12)} color="#FFFFFF" strokeWidth={3} />
+                  <Plus size={fontScale(12)} color={uiPalette.white} strokeWidth={3} />
                 </View>
               </View>
             )}
           </Animated.View>
           {isLive ? (
             <View style={styles.liveTag}>
-              <Radio size={fontScale(10)} color="#FFFFFF" strokeWidth={3} />
+              <Radio size={fontScale(10)} color={uiPalette.white} strokeWidth={3} />
               <Text style={styles.liveTagText}>LIVE</Text>
             </View>
           ) : (
@@ -142,7 +146,8 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
   );
 }
 
-function Avatar({ uri, fallback, seed, sex, age }: {
+function Avatar({ uri, fallback, seed, sex, age, source }: {
+  source?: AvatarSource;
   uri?: string;
   fallback: string;
   /** Identity for the generated face shown when there is no photo. */
@@ -158,7 +163,7 @@ function Avatar({ uri, fallback, seed, sex, age }: {
       <ImageWithFallback
         uri={uri}
         fallback={fallback}
-        face={seed ? { seed, sex, age, size: BUBBLE - 8 } : undefined}
+        face={seed ? { source, seed, sex, age, size: BUBBLE - 8 } : undefined}
         style={styles.avatar}
       />
     );
@@ -218,7 +223,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarLetter: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(20),
     fontWeight: '600',
   },
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#0F172A',
+    borderColor: uiPalette.navy,
   },
   label: {
     fontSize: fontScale(10),
@@ -250,7 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveTagText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
     letterSpacing: 0.5,

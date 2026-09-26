@@ -34,10 +34,10 @@ const computerTab = stripComments(
 );
 const mobileTab = stripComments(fs.readFileSync(path.join(ROOT, 'app/(tabs)/mobile.tsx'), 'utf8'));
 
-describe('the category toggle is gone', () => {
-  it('no segmented control and no category state to get stuck in', () => {
+describe('the launcher defaults to all apps', () => {
+  it('optional filters never hide phone apps by default', () => {
     for (const code of [launcher, computerTab, mobileTab]) {
-      expect(code).not.toMatch(/SegmentedControl/);
+      if (code === launcher) expect(code).toContain("useState<'all' | 'phone' | 'computer'>('all')");
       expect(code).not.toMatch(/'Desktop Apps'/);
       expect(code).not.toMatch(/appCategory/);
     }

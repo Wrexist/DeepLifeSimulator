@@ -1,3 +1,6 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import FinanceOverview from '@/components/finance/FinanceOverview';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * AdvancedBankApp - "Bank Pro" desktop banking screen.
  *
@@ -52,7 +55,7 @@ import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import {
@@ -446,7 +449,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 <FileText size={scale(13)} color={accent.info} />
                 <Text style={[styles.mastheadEyebrow, { color: theme.textMuted }]}>ACCOUNT STATEMENT</Text>
               </View>
-              <Chip label={`Week ${gameState.weeksLived}`} icon={<Calendar size={scale(11)} color={theme.textMuted} />} />
+              <Chip label={formatLifeWeek(gameState.weeksLived, gameState.lifeStartWeek)} icon={<Calendar size={scale(11)} color={theme.textMuted} />} />
             </View>
 
             <StatStrip
@@ -812,7 +815,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const enabledBills = banking.billPayRules.filter((r) => r.enabled);
     const weeklyBills = enabledBills.filter((r) => r.cadence === 'weekly').reduce((s, r) => s + r.amount, 0);
     const nextDue = enabledBills.length > 0 ? Math.min(...enabledBills.map((r) => r.nextDueWeek)) : null;
-    const nextDueText = nextDue == null ? '-' : nextDue - gameState.weeksLived <= 0 ? 'Now' : `wk ${nextDue}`;
+    const nextDueText = nextDue == null ? '-' : nextDue - gameState.weeksLived <= 0 ? 'Now' : formatLifeWeek(nextDue, gameState.lifeStartWeek);
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
@@ -957,7 +960,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                   />
                 )}
                 <Chip
-                  label={isLocked ? `Locked · wk ${account.lockUntilWeek}` : 'Active'}
+                  label={isLocked ? `Locked · ${formatLifeWeek(account.lockUntilWeek, gameState.lifeStartWeek)}` : 'Active'}
                   tone={isLocked ? 'warning' : 'success'}
                   icon={<Lock size={scale(10)} color={isLocked ? accent.warning : accent.success} />}
                 />
@@ -984,7 +987,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 {/* A gradient from a colour to itself is a flat fill with a
                     shader attached - so it is a flat fill. */}
                 <View style={[styles.ctaInner, { backgroundColor: pal.hex }]}>
-                  <Coins size={scale(16)} color="#fff" />
+                  <Coins size={scale(16)} color={uiPalette.white} />
                   <Text style={styles.ctaText}>Deposit</Text>
                 </View>
               </TouchableOpacity>
@@ -1038,7 +1041,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             <StatStrip
               items={[
                 { label: 'Balance', value: formatMoneyExact(account.balance) },
-                { label: 'Opened', value: `Week ${account.openedWeek}` },
+                { label: 'Opened', value: formatLifeWeek(account.openedWeek, gameState.lifeStartWeek) },
                 { label: 'Age', value: ageLabel },
               ]}
             />
@@ -1155,7 +1158,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <CreditScoreBreakdown theme={theme} darkMode={darkMode} breakdown={cs.componentBreakdown} />
 
           {/* Recent inquiries - surfaced from state for the first time. */}
-          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated wk ${cs.lastUpdatedWeek}`} />} />
+          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated ${formatLifeWeek(cs.lastUpdatedWeek, gameState.lifeStartWeek)}`} />} />
           {inquiries.length === 0 ? (
             <EmptyCard theme={theme} darkMode={darkMode}>No recent credit inquiries. A clean file keeps this factor high.</EmptyCard>
           ) : (
@@ -1172,7 +1175,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                     icon={FileText}
                     tintHex={accent.info}
                     label={inquiryLabel(inq.type)}
-                    sub={`Week ${inq.weeksLived} · ${agoText}`}
+                    sub={`${formatLifeWeek(inq.weeksLived, gameState.lifeStartWeek)} · ${agoText}`}
                   />
                 );
               })}
@@ -1204,7 +1207,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
       >
-        {activeTab === 'overview' && renderStatement()}
+        {activeTab === 'overview' && <><FinanceOverview />{renderStatement()}</>}
         {activeTab === 'accounts' && renderAccounts()}
         {activeTab === 'borrow' && renderBorrow()}
         {activeTab === 'budget' && renderBudget()}
@@ -1892,7 +1895,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
   },
-  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '600' },
+  ctaText: { color: uiPalette.white, fontSize: responsiveFontSize.md, fontWeight: '600' },
   detailSecondaryRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,

@@ -1,0 +1,43 @@
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
+import { TouchableOpacity, Modal } from 'react-native';
+import PrestigeModal from '@/components/PrestigeModal';
+import { createTestGameState } from '../helpers/createTestGameState';
+import { haptic } from '@/utils/haptics';
+
+const mockExecute = jest.fn();
+const mockSave = jest.fn();
+const mockState = createTestGameState({ stats: { money: 1e9 } });
+jest.mock('@/contexts/game', () => ({ useGame: () => ({ gameState: mockState, executePrestige: mockExecute, saveGame: mockSave }) }));
+jest.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
+jest.mock('@/components/LifeStoryModal', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/components/ui/AlertHost', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/components/ui/ConfettiBurst', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/utils/haptics', () => ({ haptic: { light: jest.fn(), heavy: jest.fn(), success: jest.fn() } }));
+
+it('waits for durability and retries saving without invoking prestige again', async () => {
+  let finish!: (outcome: string) => void;
+  mockExecute.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  mockSave.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  const close = jest.fn();
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<PrestigeModal visible onClose={close} />); });
+  const action = () => renderer.root.findAllByType(TouchableOpacity).find(n => n.props.accessibilityState?.busy !== undefined)!;
+  act(() => action().props.onPress());
+  act(() => { action().props.onPress(); action().props.onPress(); });
+  expect(mockExecute).toHaveBeenCalledTimes(1);
+  expect(action().props.disabled).toBe(true);
+  expect(haptic.success).not.toHaveBeenCalled();
+  await act(async () => { finish('save-failed'); });
+  expect(JSON.stringify(renderer.toJSON())).toContain('Retry save');
+  act(() => renderer.root.findByType(Modal).props.onRequestClose());
+  expect(close).not.toHaveBeenCalled();
+  await act(async () => { action().props.onPress(); });
+  expect(haptic.success).not.toHaveBeenCalled();
+  await act(async () => { action().props.onPress(); });
+  expect(mockExecute).toHaveBeenCalledTimes(1);
+  expect(mockSave).toHaveBeenCalledTimes(2);
+  expect(mockSave).toHaveBeenCalledWith(true);
+  expect(haptic.success).toHaveBeenCalledTimes(1);
+  act(() => renderer.unmount());
+});

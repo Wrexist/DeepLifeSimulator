@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Skill Tree Modal Component
  * 
@@ -91,7 +92,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
         row: 0,
         column: 1,
         icon: Users,
-        color: ['#3B82F6', '#60A5FA'],
+        color: ['#3B82F6', uiPalette.blue],
         category: 'career',
       },
       {
@@ -233,7 +234,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
         column: 0,
         requires: ['stamina'],
         icon: Shield,
-        color: ['#3B82F6', '#60A5FA'],
+        color: ['#3B82F6', uiPalette.blue],
         category: 'health',
       },
       {
@@ -297,7 +298,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
         column: 0,
         requires: ['budgeting'],
         icon: TrendingUp,
-        color: ['#3B82F6', '#60A5FA'],
+        color: ['#3B82F6', uiPalette.blue],
         category: 'finance',
       },
       {
@@ -361,7 +362,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
         column: 0,
         requires: ['quick_learner'],
         icon: Target,
-        color: ['#3B82F6', '#60A5FA'],
+        color: ['#3B82F6', uiPalette.blue],
         category: 'education',
       },
       {
@@ -612,7 +613,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
               colors={(isActive ? category.color : ['transparent', 'transparent']) as unknown as readonly [string, string, ...string[]]}
               style={styles.categoryTabGradient}
             >
-              <CategoryIcon size={20} color={isActive ? '#FFF' : settings.darkMode ? '#94A3B8' : '#64748B'} />
+              <CategoryIcon size={20} color={isActive ? uiPalette.white : settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[
                 styles.categoryTabText,
                 isActive && styles.categoryTabTextActive,
@@ -654,8 +655,8 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
         <LinearGradient
           colors={
             (status === 'unlocked' ? node.color :
-            status === 'available' ? ['#334155', '#1E293B'] :
-            ['#1E293B', '#0F172A']) as unknown as readonly [string, string, ...string[]]
+            status === 'available' ? [uiPalette.slate, uiPalette.surface] :
+            [uiPalette.surface, uiPalette.navy]) as unknown as readonly [string, string, ...string[]]
           }
           style={[
             styles.node,
@@ -665,7 +666,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
         >
           {status === 'locked' && (
             <View style={styles.lockOverlay}>
-              <Lock size={16} color="#64748B" />
+              <Lock size={16} color={uiPalette.lightMuted} />
             </View>
           )}
           {status === 'unlocked' && (
@@ -675,7 +676,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           )}
           <NodeIcon
             size={24}
-            color={status === 'unlocked' ? '#FFF' : status === 'available' ? '#60A5FA' : '#64748B'}
+            color={status === 'unlocked' ? uiPalette.white : status === 'available' ? uiPalette.blue : uiPalette.lightMuted}
           />
         </LinearGradient>
         <Text style={[
@@ -710,7 +711,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 left: reqNode.column * scale(100) + scale(55),
                 width: Math.abs(node.column - reqNode.column) * scale(100),
                 height: Math.abs(node.row - reqNode.row) * scale(100),
-                borderColor: isActive ? '#10B981' : '#334155',
+                borderColor: isActive ? '#10B981' : uiPalette.slate,
               },
             ]}
           />
@@ -731,7 +732,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           colors={selectedNode.color as unknown as readonly [string, string, ...string[]]}
           style={styles.detailsHeader}
         >
-          <NodeIcon size={32} color="#FFF" />
+          <NodeIcon size={32} color={uiPalette.white} />
           <View style={styles.detailsHeaderText}>
             <Text style={styles.detailsTitle}>{selectedNode.name}</Text>
             <Text style={styles.detailsCategory}>
@@ -810,7 +811,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 colors={['#10B981', '#059669']}
                 style={styles.unlockButtonGradient}
               >
-                <Zap size={18} color="#FFF" />
+                <Zap size={18} color={uiPalette.white} />
                 <Text style={styles.unlockButtonText}>Unlock Skill</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -862,7 +863,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
               further. */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
-              <Brain size={28} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+              <Brain size={28} color={settings.darkMode ? uiPalette.blue : '#3B82F6'} />
               <Text
                 style={[styles.headerTitle, settings.darkMode && styles.textDark]}
                 numberOfLines={1}
@@ -891,7 +892,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 hitSlop={hitSlopToMinTarget(scale(24))}
                 {...CLOSE_BUTTON_A11Y}
               >
-              <X size={24} color={settings.darkMode ? '#F8FAFC' : '#0F172A'} />
+              <X size={24} color={settings.darkMode ? uiPalette.paper : uiPalette.navy} />
             </TouchableOpacity>
           </View>
 
@@ -936,13 +937,13 @@ const styles = StyleSheet.create({
   container: {
     width: screenWidth * 0.95,
     height: screenHeight * 0.9,
-    backgroundColor: '#FFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(20),
     overflow: 'hidden',
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
   },
   header: {
     flexDirection: 'row',
@@ -950,7 +951,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: scale(16),
     borderBottomWidth: 1,
-    borderBottomColor: '#475569',
+    borderBottomColor: uiPalette.lightSecondary,
   },
   headerContent: {
     flexDirection: 'row',
@@ -966,7 +967,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginLeft: scale(10),
   },
   headerStats: {
@@ -1005,7 +1006,7 @@ const styles = StyleSheet.create({
   categoryTabs: {
     maxHeight: scale(60),
     borderBottomWidth: 1,
-    borderBottomColor: '#475569',
+    borderBottomColor: uiPalette.lightSecondary,
   },
   categoryTabsContent: {
     paddingHorizontal: scale(12),
@@ -1028,10 +1029,10 @@ const styles = StyleSheet.create({
   categoryTabText: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   categoryTabTextActive: {
-    color: '#FFF',
+    color: uiPalette.white,
   },
   categoryBadge: {
     backgroundColor: 'rgba(0,0,0,0.1)',
@@ -1045,10 +1046,10 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   categoryBadgeTextActive: {
-    color: '#FFF',
+    color: uiPalette.white,
   },
   treeContainer: {
     flex: 1,
@@ -1097,13 +1098,13 @@ const styles = StyleSheet.create({
   },
   nodeSelected: {
     borderWidth: 3,
-    borderColor: '#60A5FA',
+    borderColor: uiPalette.blue,
   },
   lockOverlay: {
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: scale(10),
     padding: scale(4),
   },
@@ -1111,7 +1112,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#FFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(10),
     padding: scale(2),
   },
@@ -1119,7 +1120,7 @@ const styles = StyleSheet.create({
     marginTop: scale(6),
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#334155',
+    color: uiPalette.slate,
     textAlign: 'center',
     maxWidth: scale(70),
   },
@@ -1127,12 +1128,12 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   nodeNameLocked: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   detailsPanel: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: uiPalette.line,
     // Was `maxHeight: scale(200)` - a flat cap on a column ending in the Unlock
     // button, which is the shape `__tests__/render/modalListsShrink.test.ts`
     // exists to keep out: a fixed cap cannot give space back, so the overflow
@@ -1151,8 +1152,8 @@ const styles = StyleSheet.create({
     paddingBottom: scale(12),
   },
   detailsPanelDark: {
-    backgroundColor: '#1E293B',
-    borderTopColor: '#334155',
+    backgroundColor: uiPalette.surface,
+    borderTopColor: uiPalette.slate,
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -1166,7 +1167,7 @@ const styles = StyleSheet.create({
   detailsTitle: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
-    color: '#FFF',
+    color: uiPalette.white,
   },
   detailsCategory: {
     fontSize: fontScale(12),
@@ -1178,7 +1179,7 @@ const styles = StyleSheet.create({
   },
   detailsDescription: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(8),
   },
   detailsEffect: {
@@ -1222,7 +1223,7 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
   },
   unlockButtonText: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '600',
     marginLeft: scale(6),
@@ -1233,10 +1234,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   textDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   textMuted: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

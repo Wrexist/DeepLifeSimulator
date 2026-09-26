@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingStreamingApp - "Streaming", the live half of the creator career.
  *
@@ -74,7 +75,7 @@ import {
   isLiveSessionFromThisRuntime,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import {
   getGlassCard,
   getGlassIconContainer,
@@ -429,7 +430,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         <Image source={gameArtFor(s.game)} style={styles.vodThumb} resizeMode="cover" />
         <View pointerEvents="none" style={styles.thumbScrim} />
         <View pointerEvents="none" style={styles.vodDurBadge}>
-          <Clock size={scale(9)} color="#fff" />
+          <Clock size={scale(9)} color={uiPalette.white} />
           <Text style={styles.vodDurText}>{s.duration}m</Text>
         </View>
       </View>
@@ -492,7 +493,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   <Text style={styles.statusPillText}>{isLive ? 'LIVE' : 'OFFLINE'}</Text>
                 </View>
                 <View style={styles.viewersPill}>
-                  <Eye size={scale(12)} color="#fff" />
+                  <Eye size={scale(12)} color={uiPalette.white} />
                   <Text style={styles.viewersPillText}>{fmt(channel?.averageViewers)} avg</Text>
                 </View>
               </View>
@@ -500,7 +501,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View style={styles.mediaBottom}>
                 <View style={styles.heroIdRow}>
                   <View style={styles.heroAvatar}>
-                    <Radio size={scale(18)} color="#fff" />
+                    <Radio size={scale(18)} color={uiPalette.white} />
                   </View>
                   <View style={styles.flex1}>
                     <Text style={styles.heroChannelName} numberOfLines={1}>Your Channel</Text>
@@ -523,7 +524,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 onPress={() => setActiveTab('live')}
                 colors={[IDENTITY, IDENTITY, IDENTITY_DEEP]}
                 glow={IDENTITY}
-                icon={<Play size={scale(15)} color="#fff" />}
+                icon={<Play size={scale(15)} color={uiPalette.white} />}
                 accessibilityLabel="Open the Go Live console"
               />
             </View>
@@ -651,7 +652,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   <Text style={styles.statusPillText}>LIVE</Text>
                 </View>
                 <View style={styles.viewersPill}>
-                  <Eye size={scale(12)} color="#fff" />
+                  <Eye size={scale(12)} color={uiPalette.white} />
                   <Text style={styles.viewersPillText}>{fmt(liveViewers)} watching</Text>
                 </View>
               </View>
@@ -708,7 +709,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           accessibilityLabel="Stop stream"
           style={[styles.publishBtn, { backgroundColor: LIVE_RED }]}
         >
-          <Square size={scale(14)} color="#fff" />
+          <Square size={scale(14)} color={uiPalette.white} />
           <Text style={styles.publishBtnText}>Stop stream</Text>
         </TouchableOpacity>
       </>
@@ -798,7 +799,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                     <View pointerEvents="none" style={styles.gameTileScrim} />
                     {selected ? (
                       <View style={styles.gameTileCheck}>
-                        <Radio size={scale(12)} color="#fff" />
+                        <Radio size={scale(12)} color={uiPalette.white} />
                       </View>
                     ) : null}
                     <View pointerEvents="none" style={styles.gameTileLabel}>
@@ -1028,11 +1029,11 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View pointerEvents="none" style={styles.mediaScrim} />
               <View style={styles.mediaTopRow}>
                 <View style={styles.catBadge}>
-                  <Gamepad2 size={scale(11)} color="#fff" />
+                  <Gamepad2 size={scale(11)} color={uiPalette.white} />
                   <Text style={styles.statusPillText}>CATEGORY</Text>
                 </View>
                 <View style={styles.viewersPill}>
-                  <Eye size={scale(12)} color="#fff" />
+                  <Eye size={scale(12)} color={uiPalette.white} />
                   <Text style={styles.viewersPillText}>{st.count ? `${fmt(st.avg)} avg` : 'New'}</Text>
                 </View>
               </View>
@@ -1108,7 +1109,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 </View>
                 {s.uploadedAt != null ? (
                   <View style={styles.viewersPill}>
-                    <Calendar size={scale(11)} color="#fff" />
+                    <Calendar size={scale(11)} color={uiPalette.white} />
                     <Text style={styles.viewersPillText}>Week {s.uploadedAt}</Text>
                   </View>
                 ) : null}
@@ -1241,17 +1242,17 @@ const styles = StyleSheet.create({
   mediaTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: sp.sm },
   mediaBottom: { padding: sp.md, gap: sp.xs },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: scale(5), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm },
-  statusPillText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', letterSpacing: 0.6 },
+  statusPillText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, letterSpacing: 0.6 },
   catBadge: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm, backgroundColor: withAlpha(IDENTITY, 0.85) },
   viewersPill: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
-  viewersPillText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
+  viewersPillText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, fontVariant: ['tabular-nums'] },
 
   // Hero identity + stat strip (over media).
   heroIdRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   heroAvatar: { width: scale(38), height: scale(38), borderRadius: scale(19), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY, borderWidth: 2, borderColor: 'rgba(255,255,255,0.65)' },
-  heroChannelName: { fontSize: fs.lg, fontWeight: '700', color: '#fff' },
+  heroChannelName: { fontSize: fs.lg, fontWeight: '700', color: uiPalette.white },
   heroLevelChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.5)' },
-  heroLevelText: { fontSize: fs.xs, fontWeight: '700', color: '#fff' },
+  heroLevelText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white },
   heroFooter: { padding: sp.md },
 
   // ── Stream health card ──
@@ -1276,8 +1277,8 @@ const styles = StyleSheet.create({
 
   // ── Go Live monitor ──
   monitorTierChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
-  monitorTierText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
-  monitorGame: { fontSize: fs['2xl'], fontWeight: '800', color: '#fff' },
+  monitorTierText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, letterSpacing: 0.4 },
+  monitorGame: { fontSize: fs['2xl'], fontWeight: '800', color: uiPalette.white },
   monitorMetaRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginTop: 2 },
   monitorMeta: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   monitorMetaText: { fontSize: fs.sm, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
@@ -1289,7 +1290,7 @@ const styles = StyleSheet.create({
   gameTileScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.4)' },
   gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY },
   gameTileLabel: { padding: sp.sm, gap: 1 },
-  gameTileName: { fontSize: fs.sm, fontWeight: '700', color: '#fff' },
+  gameTileName: { fontSize: fs.sm, fontWeight: '700', color: uiPalette.white },
   gameTileHint: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
 
   // ── Duration tiles ──
@@ -1305,14 +1306,14 @@ const styles = StyleSheet.create({
   hypeBar: { marginTop: sp.xs },
   publishBtnWrap: { borderRadius: br.full },
   publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: scale(48) },
-  publishBtnText: { fontSize: fs.md, fontWeight: '600', color: '#fff' },
+  publishBtnText: { fontSize: fs.md, fontWeight: '600', color: uiPalette.white },
 
   // ── History summary + VOD cards ──
   vodCard: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1 },
   vodThumbWrap: { width: scale(104), height: scale(72), borderRadius: br.lg, overflow: 'hidden', position: 'relative' },
   vodThumb: { width: '100%', height: '100%' },
   vodDurBadge: { position: 'absolute', right: scale(4), bottom: scale(4), flexDirection: 'row', alignItems: 'center', gap: scale(3), paddingHorizontal: scale(5), paddingVertical: 2, borderRadius: br.sm, backgroundColor: 'rgba(2,6,23,0.72)' },
-  vodDurText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
+  vodDurText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, fontVariant: ['tabular-nums'] },
   vodBody: { flex: 1, gap: sp.xs },
   vodMeta: { fontSize: fs.xs, fontVariant: ['tabular-nums'] },
   vodGame: { fontSize: fs.md, fontWeight: '600', flex: 1 },
@@ -1326,7 +1327,7 @@ const styles = StyleSheet.create({
   // ── Detail sub-views ──
   detailSub: { fontSize: fs.sm, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   bigPeakRow: { flexDirection: 'row', alignItems: 'baseline', gap: sp.xs, marginTop: 2 },
-  bigPeakVal: { fontSize: fs['3xl'], fontWeight: '800', color: '#fff', fontVariant: ['tabular-nums'] },
+  bigPeakVal: { fontSize: fs['3xl'], fontWeight: '800', color: uiPalette.white, fontVariant: ['tabular-nums'] },
   bigPeakLabel: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
 
   // ── Best stream ──

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Platform } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
@@ -980,7 +981,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
               end={{ x: 1, y: 1 }}
               style={styles.balancePill}
             >
-              <Gem size={scale(14)} color="#F8FAFC" />
+              <Gem size={scale(14)} color={uiPalette.paper} />
               <Text style={styles.balanceValue}>{gems.toLocaleString()}</Text>
               <Text style={styles.balanceLabel}>Gems</Text>
             </LinearGradient>
@@ -1005,7 +1006,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
                   accessibilityLabel={`${tabItem.label} tab`}
                 >
                   <View style={styles.tabContent}>
-                    <Icon size={scale(13)} color={isSelected ? '#F8FAFC' : 'rgba(226, 232, 240, 0.55)'} />
+                    <Icon size={scale(13)} color={isSelected ? uiPalette.paper : 'rgba(226, 232, 240, 0.55)'} />
                     <Text style={[styles.tabLabel, isSelected && styles.tabLabelActive]}>{tabItem.label}</Text>
                   </View>
                   {isSelected ? <View style={[styles.tabUnderline, { backgroundColor: tabItem.color }]} /> : null}
@@ -1196,7 +1197,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.4,
   },
   subtitle: {
@@ -1219,7 +1220,7 @@ const styles = StyleSheet.create({
   balanceValue: {
     fontSize: fontScale(15),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
   },
@@ -1264,7 +1265,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   tabLabelActive: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontWeight: '700',
   },
   tabUnderline: {
@@ -1307,7 +1308,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(251, 191, 36, 0.4)',
     marginBottom: verticalScale(12),
   },
-  offerCenterTitle: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '700' },
+  offerCenterTitle: { color: uiPalette.paper, fontSize: fontScale(13), fontWeight: '700' },
   offerCenterSub: { color: 'rgba(226, 232, 240, 0.6)', fontSize: fontScale(10.5), marginTop: verticalScale(1) },
   promoBanner: {
     flexDirection: 'row',

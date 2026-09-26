@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * DailyGemClaim - the daily gem drop shown on the identity card. Everyone can
  * claim once per UTC day; the amount is tiered (DeepLife+ members 250, free
@@ -104,7 +105,7 @@ function DayDot({
           <Check size={scale(12)} color={INK} strokeWidth={3} />
         </Animated.View>
       ) : cell.status === 'missed' ? (
-        <X size={scale(11)} color="#FFFFFF" strokeWidth={3} />
+        <X size={scale(11)} color={uiPalette.white} strokeWidth={3} />
       ) : null}
     </Animated.View>
   );
@@ -427,7 +428,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(250, 204, 21, 0.20)',
   },
   stripCell: { alignItems: 'center', gap: scale(5), flex: 1 },
-  stripLabel: { color: '#94A3B8', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.3 },
+  stripLabel: { color: uiPalette.muted, fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.3 },
   dot: DOT_BASE,
 
   // Claim button / chip

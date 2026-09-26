@@ -1,0 +1,73 @@
+node : PASS __tests__/components/campaignFeedback.test.tsx (11.874 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath __tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/....tsx (11.874 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  √ acknowledges only a committed launch: none race (71 ms)
+  √ acknowledges only a committed launch: energy race (15 ms)
+  √ acknowledges only a committed launch: money race (19 ms)
+  √ acknowledges only a committed launch: company race (12 ms)
+
+PASS __tests__/save/prestigePersistence.test.ts
+  √ waits for the owning mutex, blocks double submission, and a queued autosave cannot undo prestige (310 ms)
+  √ refuses a changed slot while waiting without resetting either life (63 ms)
+  √ requires the protected outgoing backup before resetting (44 ms)
+  √ reports failed durability and retries only saving, without a second reset or XP award (70 ms)
+  √ refuses a newer action arriving during backup instead of overwriting it (67 ms)
+
+PASS __tests__/components/prestigeSaveFeedback.test.tsx
+  √ waits for durability and retries saving without invoking prestige again (39 ms)
+
+PASS __tests__/components/amountInputModal.test.tsx
+  √ confirms the entire grouped amount, rejects invalid text and exposes accessible controls (16 ms)
+  √ requires explicit zero when clearing a budget (6 ms)
+  complete amount parsing
+    √ parses 1,000 without truncation (2 ms)
+    √ parses 12,345.67 without truncation
+    √ parses .000001 without truncation (1 ms)
+    √ parses  0  without truncation
+    √ parses 1234.50 without truncation (1 ms)
+    √ rejects
+    √ rejects   (1 ms)
+    √ rejects 1,2 (1 ms)
+    √ rejects 1,000oops
+    √ rejects 1.2.3
+    √ rejects -10
+    √ rejects Infinity
+    √ rejects 1e3
+    √ rejects $100
+    √ rejects NaN
+    √ rejects 999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999
+999999999999999999999999999999999999999999999999999999999
+
+PASS lib/statistics/__tests__/fireTracker.test.ts
+  calculateFIRETracker (salary is WEEKLY)
+    √ a $2,000/wk earner gets a FIRE number in the low millions, not pinned at $390k (1 ms)
+    √ savings rate stays within 0-100% (1 ms)
+    √ FIRE number scales with income (1 ms)
+    √ falls back to the expense floor when there is no salary
+  FIRE life-relative planning
+    √ gives identical savings pace and forecast after four played weeks at different starting ages (1 ms)
+    √ keeps a finite estimate on the first week (1 ms)
+
+PASS __tests__/economy/hustleEnergyCosts.test.ts
+  launchCampaign energy
+    √ refuses below the cost, naming it (2 ms)
+    √ charges exactly the cost on launch (3 ms)
+    √ write-side recheck: an exhausted prev commits nothing (7 ms)
+  hireCandidate energy
+    √ refuses an interview below the cost (3 ms)
+    √ charges on an ACCEPTED offer (3 ms)
+    √ charges on a DECLINED offer too - the interview happened (2 ms)
+
+Test Suites: 6 passed, 6 total
+Tests:       40 passed, 40 total
+Snapshots:   0 total
+Time:        17.587 s, estimated 54 s
+Ran all test suites within paths "__tests__/components/amountInputModal.test.tsx", "__tests__/components/campaignFeedba
+ck.test.tsx", "__tests__/components/prestigeSaveFeedback.test.tsx", "__tests__/save/prestigePersistence.test.ts", "lib/
+statistics/__tests__/fireTracker.test.ts", "__tests__/economy/hustleEnergyCosts.test.ts".

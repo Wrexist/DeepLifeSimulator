@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * MemoryBookModal Component
  * 
@@ -46,7 +47,7 @@ interface Props {
 // Category colors for memory cards
 const MEMORY_COLORS: Record<string, { gradient: string[]; accent: string; icon: any }> = {
   wisdom: { gradient: ['#8B5CF6', '#6366F1'], accent: '#A78BFA', icon: Star },
-  skill: { gradient: ['#3B82F6', '#2563EB'], accent: '#60A5FA', icon: Zap },
+  skill: { gradient: ['#3B82F6', '#2563EB'], accent: uiPalette.blue, icon: Zap },
   fortune: { gradient: ['#10B981', '#059669'], accent: '#34D399', icon: Gift },
   legacy: { gradient: ['#F59E0B', '#D97706'], accent: '#FBBF24', icon: Crown },
   love: { gradient: ['#EC4899', '#DB2777'], accent: '#F472B6', icon: Heart },
@@ -217,7 +218,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
                 {/* Inherited By Indicator */}
                 {inheritedBy.length > 0 && (
                   <View style={styles.inheritedContainer}>
-                    <Users size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+                    <Users size={scale(12)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                     <Text style={[styles.inheritedText, settings.darkMode && styles.textDarkSecondary]}>
                       Passed to: {inheritedBy.join(', ')}
                     </Text>
@@ -236,7 +237,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
             <View style={[styles.lockedCardInner, settings.darkMode && styles.lockedCardInnerDark]}>
               <View style={styles.lockedContent}>
                 <View style={styles.lockedIconContainer}>
-                  <Lock size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
+                  <Lock size={scale(24)} color={settings.darkMode ? uiPalette.muted : uiPalette.muted} />
                 </View>
                 <View style={styles.lockedTextContainer}>
                   <Text style={[styles.lockedTitle, settings.darkMode && styles.textDark]}>
@@ -278,7 +279,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
               colors={memoryStyle.gradient}
               style={styles.detailHeader}
             >
-              <MemoryIcon size={scale(32)} color="#FFFFFF" />
+              <MemoryIcon size={scale(32)} color={uiPalette.white} />
               <Text style={styles.detailTitle}>{selectedMemory.title}</Text>
               <TouchableOpacity
                 style={styles.detailCloseButton}
@@ -286,7 +287,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
                 hitSlop={hitSlopToMinTarget(scale(36))}
                 {...CLOSE_BUTTON_A11Y}
               >
-                <X size={scale(20)} color="#FFFFFF" />
+                <X size={scale(20)} color={uiPalette.white} />
               </TouchableOpacity>
             </LinearGradient>
 
@@ -353,7 +354,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <LinearGradient
-          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
+          colors={settings.darkMode ? [uiPalette.navy, uiPalette.surface] : [uiPalette.lightSurface, uiPalette.white]}
           style={styles.content}
         >
           {/* Header */}
@@ -375,7 +376,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
               hitSlop={hitSlopToMinTarget(scale(40))}
               {...CLOSE_BUTTON_A11Y}
             >
-              <X size={scale(24)} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
+              <X size={scale(24)} color={settings.darkMode ? uiPalette.white : '#000000'} />
             </TouchableOpacity>
           </View>
 
@@ -388,7 +389,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Lock size={scale(16)} color="#94A3B8" />
+              <Lock size={scale(16)} color={uiPalette.muted} />
               <Text style={[styles.statValue, settings.darkMode && styles.textDark]}>{stats.locked}</Text>
               <Text style={[styles.statLabel, settings.darkMode && styles.textDarkSecondary]}>Locked</Text>
             </View>
@@ -412,9 +413,9 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
                 ]}
                 onPress={() => setFilter(f)}
               >
-                {f === 'unlocked' && <Unlock size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#64748B')} />}
-                {f === 'locked' && <Lock size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#64748B')} />}
-                {f === 'all' && <BookOpen size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#64748B')} />}
+                {f === 'unlocked' && <Unlock size={scale(14)} color={filter === f ? uiPalette.white : (settings.darkMode ? uiPalette.muted : uiPalette.lightMuted)} />}
+                {f === 'locked' && <Lock size={scale(14)} color={filter === f ? uiPalette.white : (settings.darkMode ? uiPalette.muted : uiPalette.lightMuted)} />}
+                {f === 'all' && <BookOpen size={scale(14)} color={filter === f ? uiPalette.white : (settings.darkMode ? uiPalette.muted : uiPalette.lightMuted)} />}
                 <Text
                   style={[
                     styles.filterText,
@@ -434,7 +435,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
               filteredMemories.map((memory, index) => renderMemoryCard(memory, index))
             ) : (
               <View style={styles.emptyState}>
-                <Sparkles size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#CBD5E1'} />
+                <Sparkles size={scale(48)} color={settings.darkMode ? uiPalette.muted : uiPalette.secondary} />
                 <Text style={[styles.emptyTitle, settings.darkMode && styles.textDark]}>
                   No Memories Found
                 </Text>
@@ -493,11 +494,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   subtitle: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   closeButton: {
@@ -507,13 +508,13 @@ const styles = StyleSheet.create({
   },
   statsBar: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: scale(16),
     padding: scale(12),
     marginBottom: scale(16),
   },
   statsBarDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   statItem: {
     flex: 1,
@@ -523,11 +524,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   statLabel: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   statDivider: {
     width: 1,
@@ -548,21 +549,21 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
     paddingHorizontal: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
   },
   filterButtonDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   filterActive: {
     backgroundColor: '#7C3AED',
   },
   filterText: {
     fontSize: fontScale(13),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     fontWeight: '500',
   },
   filterTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '600',
   },
   scrollContainer: {
@@ -583,12 +584,12 @@ const styles = StyleSheet.create({
     borderRadius: scale(16),
   },
   cardInner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(14),
     padding: scale(16),
   },
   cardInnerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -615,11 +616,11 @@ const styles = StyleSheet.create({
   memoryTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   ancestorSource: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   genTag: {
@@ -633,7 +634,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: fontScale(14),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     lineHeight: fontScale(20),
     marginBottom: scale(10),
   },
@@ -666,7 +667,7 @@ const styles = StyleSheet.create({
   },
   inheritedText: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   viewMoreContainer: {
     flexDirection: 'row',
@@ -679,7 +680,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   lockedCardInner: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: scale(16),
     padding: scale(16),
     flexDirection: 'row',
@@ -687,7 +688,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lockedCardInnerDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   lockedContent: {
     flexDirection: 'row',
@@ -709,11 +710,11 @@ const styles = StyleSheet.create({
   lockedTitle: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
   lockedDescription: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: scale(2),
   },
   genTagLocked: {
@@ -724,7 +725,7 @@ const styles = StyleSheet.create({
   },
   genTagLockedText: {
     fontSize: fontScale(11),
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   emptyState: {
     alignItems: 'center',
@@ -734,20 +735,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     marginTop: scale(16),
   },
   emptyText: {
     fontSize: fontScale(14),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: scale(8),
     textAlign: 'center',
   },
   textDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   textDarkSecondary: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   // Detail Modal Styles
   detailOverlay: {
@@ -760,12 +761,12 @@ const styles = StyleSheet.create({
   detailContainer: {
     width: '100%',
     maxWidth: scale(380),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(20),
     overflow: 'hidden',
   },
   detailContainerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   detailHeader: {
     padding: scale(20),
@@ -775,7 +776,7 @@ const styles = StyleSheet.create({
   detailTitle: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginTop: scale(10),
     textAlign: 'center',
   },
@@ -796,14 +797,14 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   detailDescription: {
     fontSize: fontScale(15),
-    color: '#334155',
+    color: uiPalette.slate,
     lineHeight: fontScale(22),
   },
   originCard: {
@@ -826,19 +827,19 @@ const styles = StyleSheet.create({
   effectCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     padding: scale(12),
     borderRadius: scale(12),
   },
   effectCardValue: {
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginTop: scale(6),
   },
   effectCardLabel: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
 });

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Contextual tips - a small inline banner on Home that fires when the player is
  * genuinely stuck (a vital critically low, broke, or a promotion waiting).
@@ -106,7 +107,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Dismiss tip"
             >
-                <X size={14} color="#64748B" />
+                <X size={14} color={uiPalette.lightMuted} />
             </TouchableOpacity>
         </View>
     );
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     tipContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#1E293B',
+        backgroundColor: uiPalette.surface,
         borderRadius: 12,
         padding: responsiveSpacing.sm,
         marginBottom: responsiveSpacing.sm,
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     tipText: {
         flex: 1,
         fontSize: fontScale(12),
-        color: '#CBD5E1',
+        color: uiPalette.secondary,
         lineHeight: fontScale(16),
     },
 });

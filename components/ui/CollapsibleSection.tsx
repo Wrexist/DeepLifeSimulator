@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 /**
  * CollapsibleSection - a section header that folds its content away.
  *
@@ -24,7 +25,7 @@ import { Animated, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-na
 import { ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+
 import { animation } from '@/lib/config/theme';
 import { haptic } from '@/utils/haptics';
 import {
@@ -232,10 +233,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(10),
+    gap: layoutSpace.sm,
     minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.xs,
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
   },
   headerCompact: {
     minHeight: scale(38),
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
   iconBubble: {
     width: scale(34),
     height: scale(34),
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   iconBubbleCompact: {
     width: scale(28),
     height: scale(28),
-    borderRadius: scale(8),
+    borderRadius: layoutRadius.md,
   },
   title: {
     fontSize: fontScale(17),
@@ -283,6 +284,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   chevron: {
-    marginLeft: scale(4),
+    marginLeft: layoutSpace.xs,
   },
 });

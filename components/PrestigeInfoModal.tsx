@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useRef, useEffect, useMemo } from 'react';
 import { Platform, Modal,
   View,
@@ -276,7 +277,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9']}
+            colors={darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.white, uiPalette.lightSurface]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -290,7 +291,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
-                <X size={24} color={darkMode ? '#FFFFFF' : '#1E293B'} />
+                <X size={24} color={darkMode ? uiPalette.white : uiPalette.surface} />
               </TouchableOpacity>
             </View>
 
@@ -416,10 +417,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   closeButton: {
     width: 36,
@@ -441,17 +442,17 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   summaryLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   summaryValue: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   summaryValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   bonusesList: {
     maxHeight: screenWidth * 1.2,
@@ -468,17 +469,17 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   categoryTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   categoryCount: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   categoryCountDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   bonusItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
@@ -498,19 +499,19 @@ const styles = StyleSheet.create({
   bonusName: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     flex: 1,
   },
   bonusNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   bonusEffect: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginLeft: 24,
   },
   bonusEffectDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   emptyState: {
     padding: 40,
@@ -518,11 +519,11 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontScale(16),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
   },
   emptyTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

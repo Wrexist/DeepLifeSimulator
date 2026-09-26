@@ -1,0 +1,51 @@
+node : PASS __tests__/save/saveInSameHandlerPersistsAction.test.ts (10.775 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath __tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...t.ts (10.775 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  a save made in the same handler as the action persists the action
+    √ a YouVideo accessory bought and saved in one handler survives Switch save slot -> reload (95 ms)
+    √ an unsaved purchase survives Settings -> save slots -> reload (33 ms)
+    √ a save still waiting for its commit does not write a newly loaded life into the slot it was requested for (20 ms)
+    √ R3-S1 still holds: a save requested while autosave is suspended writes nothing (13 ms)
+    √ a save waiting for its commit settles when the provider unmounts instead of hanging (13 ms)
+
+PASS __tests__/monetization/iapDurableFulfillment.test.ts
+  √ falls back to disk when the real IAPHandler save resolves false (118 ms)
+  √ leaves a failed revive retryable when disk persistence throws (18 ms)
+  √ does not duplicate an unsaved live grant when both saves fail and a later autosave precedes retry (228 ms)
+  √ does not duplicate after the live save succeeds but the disk follow-up throws (217 ms)
+  √ retries a cold grant without duplicating quantities when the completed ledger write is lost (6 ms)
+  √ keeps pending follow-up retryable even if load promoted the receipt marker into the completed ledger (5 ms)
+  √ an entitlements-only live restore does not mark the skipped quantities as granted (5 ms)
+  √ real handler rejects a bound purchase when another slot is active at reducer execution (3 ms)
+  √ real handler does not save its delayed purchase into a newly selected slot (9 ms)
+
+PASS __tests__/save/queueReplayLockTimeout.test.ts
+  √ retains timed-out replay outside the live queue, then retries under ownership (journal changed: false) (51 ms)
+  √ retains timed-out replay outside the live queue, then retries under ownership (journal changed: true) (45 ms)
+
+PASS __tests__/save/saveBeforeLeaving.test.ts
+  saving before leaving the active life
+    √ waits for durable completion before navigating (1 ms)
+    √ keeps the life open when the writer refuses (1 ms)
+    √ never navigates after a failed write (7 ms)
+    √ does not navigate if the player dismissed Settings during the save (1 ms)
+
+PASS __tests__/monetization/iapNoDoubleGrant.test.ts
+  IAP applyBenefit - no double grant
+    √ warm path: grants a consumable exactly once when the in-memory updater is registered (5 ms)
+    √ cold path: still grants exactly once via disk when no in-memory updater is registered (3 ms)
+
+PASS __tests__/save/stalledWriter.test.ts
+  √ a stalled writer cannot overwrite a newer save after its watchdog expires (2 ms)
+
+Test Suites: 6 passed, 6 total
+Tests:       23 passed, 23 total
+Snapshots:   0 total
+Time:        12.398 s
+Ran all test suites within paths "__tests__/save/saveInSameHandlerPersistsAction.test.ts", "__tests__/save/saveBeforeLe
+aving.test.ts", "__tests__/save/queueReplayLockTimeout.test.ts", "__tests__/save/stalledWriter.test.ts", "__tests__/mon
+etization/iapDurableFulfillment.test.ts", "__tests__/monetization/iapNoDoubleGrant.test.ts".

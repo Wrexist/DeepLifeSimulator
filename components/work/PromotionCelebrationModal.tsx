@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * PromotionCelebrationModal - the payoff moment for a career promotion.
  *
@@ -41,7 +43,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { haptic } from '@/utils/haptics';
 import { playSound } from '@/utils/soundManager';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { fontScale, scale } from '@/utils/scaling';
+
 import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
 import type { PromotionDetails } from '@/contexts/game/types';
 
@@ -441,10 +443,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    borderRadius: scale(26),
-    paddingTop: scale(28),
-    paddingBottom: scale(22),
-    paddingHorizontal: scale(22),
+    borderRadius: layoutRadius['2xl'],
+    paddingTop: layoutSpace.lg,
+    paddingBottom: layoutSpace.comfortable,
+    paddingHorizontal: layoutSpace.comfortable,
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1,
@@ -473,7 +475,7 @@ const styles = StyleSheet.create({
     height: scale(112),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: scale(4),
+    marginBottom: layoutSpace.xs,
   },
   rays: {
     ...StyleSheet.absoluteFillObject,
@@ -489,7 +491,7 @@ const styles = StyleSheet.create({
   medallion: {
     width: scale(66),
     height: scale(66),
-    borderRadius: scale(33),
+    borderRadius: layoutRadius['2xl'],
     overflow: 'hidden',
     ...Platform.select({
       ios: { shadowColor: GOLD, shadowOpacity: 0.85, shadowRadius: 26, shadowOffset: { width: 0, height: 0 } },
@@ -507,7 +509,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     fontWeight: '800',
     letterSpacing: scale(3),
-    marginBottom: scale(10),
+    marginBottom: layoutSpace.sm,
     textAlign: 'center',
   },
   fromTitle: {
@@ -516,21 +518,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     textDecorationLine: 'line-through',
-    marginBottom: scale(4),
+    marginBottom: layoutSpace.xs,
   },
   toTitle: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(21),
     fontWeight: '800',
     textAlign: 'center',
     letterSpacing: scale(0.2),
   },
   salaryBlock: {
-    marginTop: scale(18),
+    marginTop: layoutSpace.md,
     alignItems: 'center',
     alignSelf: 'stretch',
-    paddingVertical: scale(14),
-    borderRadius: scale(16),
+    paddingVertical: layoutSpace.compact,
+    borderRadius: layoutRadius.xl,
     backgroundColor: 'rgba(232, 193, 92, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(232, 193, 92, 0.2)',
@@ -540,12 +542,12 @@ const styles = StyleSheet.create({
     fontSize: fontScale(10),
     fontWeight: '700',
     letterSpacing: scale(1.6),
-    marginBottom: scale(4),
+    marginBottom: layoutSpace.xs,
   },
   salaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
+    gap: layoutSpace.sm,
   },
   salaryValue: {
     color: GOLD_LIGHT,
@@ -557,14 +559,14 @@ const styles = StyleSheet.create({
     color: 'rgba(226, 232, 240, 0.42)',
     fontSize: fontScale(11),
     fontWeight: '600',
-    marginTop: scale(3),
+    marginTop: layoutSpace.xs,
   },
   raiseChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(3),
-    paddingHorizontal: scale(7),
-    paddingVertical: scale(3),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: scale(999),
     backgroundColor: 'rgba(125, 211, 160, 0.14)',
   },
@@ -575,13 +577,13 @@ const styles = StyleSheet.create({
   },
   pipRow: {
     flexDirection: 'row',
-    gap: scale(6),
-    marginTop: scale(18),
+    gap: layoutSpace.xs,
+    marginTop: layoutSpace.md,
   },
   pip: {
     width: scale(22),
     height: scale(4),
-    borderRadius: scale(2),
+    borderRadius: layoutRadius.sm,
     backgroundColor: 'rgba(148, 163, 184, 0.22)',
   },
   pipLit: {
@@ -591,16 +593,16 @@ const styles = StyleSheet.create({
     color: 'rgba(226, 232, 240, 0.6)',
     fontSize: fontScale(12),
     fontWeight: '600',
-    marginTop: scale(8),
+    marginTop: layoutSpace.sm,
   },
   cta: {
-    marginTop: scale(20),
+    marginTop: layoutSpace.comfortable,
     alignSelf: 'stretch',
-    borderRadius: scale(14),
+    borderRadius: layoutRadius.lg,
     overflow: 'hidden',
   },
   ctaFill: {
-    paddingVertical: scale(13),
+    paddingVertical: layoutSpace.compact,
     alignItems: 'center',
   },
   ctaText: {

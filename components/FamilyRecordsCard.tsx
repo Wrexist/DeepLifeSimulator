@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * FamilyRecordsCard - the dynasty's personal bests, and where this life
  * stands against them.
@@ -86,19 +87,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(251, 191, 36, 0.28)',
     gap: scale(10),
   },
-  cardLight: { backgroundColor: '#FFFFFF', borderColor: 'rgba(217, 119, 6, 0.3)' },
+  cardLight: { backgroundColor: uiPalette.white, borderColor: 'rgba(217, 119, 6, 0.3)' },
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(7) },
-  title: { color: '#F8FAFC', fontSize: fontScale(13.5), fontWeight: '800', letterSpacing: 0.3 },
-  titleLight: { color: '#1E293B' },
+  title: { color: uiPalette.paper, fontSize: fontScale(13.5), fontWeight: '800', letterSpacing: 0.3 },
+  titleLight: { color: uiPalette.surface },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
-  rowLabel: { color: '#E2E8F0', fontSize: fontScale(12), fontWeight: '600' },
-  rowLabelLight: { color: '#334155' },
-  rowHolder: { color: '#94A3B8', fontSize: fontScale(10.5), marginTop: scale(1) },
+  rowLabel: { color: uiPalette.line, fontSize: fontScale(12), fontWeight: '600' },
+  rowLabelLight: { color: uiPalette.slate },
+  rowHolder: { color: uiPalette.muted, fontSize: fontScale(10.5), marginTop: scale(1) },
   rowValues: { alignItems: 'flex-end' },
-  rowBest: { color: '#F8FAFC', fontSize: fontScale(12.5), fontWeight: '700' },
-  rowBestLight: { color: '#1E293B' },
+  rowBest: { color: uiPalette.paper, fontSize: fontScale(12.5), fontWeight: '700' },
+  rowBestLight: { color: uiPalette.surface },
   rowBeaten: { color: '#34D399' },
-  rowCurrent: { color: '#64748B', fontSize: fontScale(10), marginTop: scale(1) },
+  rowCurrent: { color: uiPalette.lightMuted, fontSize: fontScale(10), marginTop: scale(1) },
 });
 
 export default React.memo(FamilyRecordsCard);

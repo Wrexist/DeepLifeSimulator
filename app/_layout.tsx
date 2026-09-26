@@ -1,3 +1,5 @@
+import GameAudioBridge from '@/components/feedback/GameAudioBridge';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Root Layout Component
  *
@@ -1464,6 +1466,7 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
         </ExpoRouterErrorBoundary>
       </View>
       {/* Global popups & overlays */}
+      <GameAudioBridge />
       <AchievementToast />
       {/* Only show game-related popups when in an active game session (not in main menu/onboarding) */}
       {/* Lazy load conditional modals to reduce bundler memory pressure */}
@@ -1520,23 +1523,23 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
   },
   safeAreaDark: {
     // #020617 matches the app's canvas (MainMenu, home). The ONLY visible part
     // of this background is the bottom home-indicator inset strip (edges pad
     // 'bottom'), which read as a stray gray bar under every screen when it was
     // the lighter #0F172A.
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   statusBar: {
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
   },
   statusBarDark: {
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
   },
   safeAreaFatal: {
-    backgroundColor: '#0f172a',
+    backgroundColor: uiPalette.navy,
   },
   fatalScrollContainer: {
     flexGrow: 1,
@@ -1551,12 +1554,12 @@ const styles = StyleSheet.create({
   fatalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: uiPalette.white,
     textAlign: 'center',
   },
   fatalSubtitle: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: uiPalette.muted,
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -1575,7 +1578,7 @@ const styles = StyleSheet.create({
   },
   fatalStack: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: uiPalette.muted,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     backgroundColor: 'rgba(0,0,0,0.3)',
     padding: 12,
@@ -1584,7 +1587,7 @@ const styles = StyleSheet.create({
   },
   fatalHint: {
     fontSize: 14,
-    color: '#64748b',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1601,7 +1604,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   fatalButtonText: {
-    color: '#fff',
+    color: uiPalette.white,
     fontWeight: '600',
     fontSize: 16,
   },

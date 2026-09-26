@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: fontScale(16),
-    color: '#334155',
+    color: uiPalette.slate,
     textAlign: 'center',
     fontWeight: '500',
   },

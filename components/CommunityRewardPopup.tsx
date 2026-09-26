@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * CommunityRewardPopup - the one-time "join our Discord for a cash reward"
  * invite, shown once early in a life and never again.
@@ -143,7 +144,7 @@ export default function CommunityRewardPopup({
             end={{ x: 1, y: 1 }}
             style={styles.heroBadge}
           >
-            <DiscordLogo size={scale(38)} color="#FFFFFF" />
+            <DiscordLogo size={scale(38)} color={uiPalette.white} />
           </LinearGradient>
 
           <Text style={[styles.title, { color: theme.text }]}>Join our Discord</Text>
@@ -196,7 +197,7 @@ export default function CommunityRewardPopup({
               end={{ x: 1, y: 0 }}
               style={styles.ctaFill}
             >
-              <DiscordLogo size={scale(20)} color="#FFFFFF" />
+              <DiscordLogo size={scale(20)} color={uiPalette.white} />
               <Text style={styles.ctaText}>{joinLabel}</Text>
             </LinearGradient>
           </Pressable>
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '800',
   },

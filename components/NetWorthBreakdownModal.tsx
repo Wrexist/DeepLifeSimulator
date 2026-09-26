@@ -1,3 +1,5 @@
+import { financeColors , uiPalette } from '@/lib/config/theme';
+
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package, Landmark, Bitcoin, Gem } from 'lucide-react-native';
@@ -22,15 +24,15 @@ interface NetWorthBreakdownModalProps {
  * tested (`__tests__/economy/netWorthItemisation.test.ts`).
  */
 const GROUP_PRESENTATION: Record<NetWorthGroup, { label: string; icon: LucideIcon; color: string }> = {
-  cash: { label: 'Cash', icon: DollarSign, color: '#10B981' },
+  cash: { label: 'Cash', icon: DollarSign, color: financeColors.cash },
   savings: { label: 'Bank Savings', icon: Wallet, color: '#3B82F6' },
   accounts: { label: 'Your Accounts', icon: Landmark, color: '#0EA5E9' },
   crypto: { label: 'Crypto', icon: Bitcoin, color: '#F97316' },
-  stocks: { label: 'Stocks', icon: TrendingUp, color: '#22C55E' },
+  stocks: { label: 'Stocks', icon: TrendingUp, color: financeColors.investment },
   luxury: { label: 'Luxury', icon: Gem, color: '#EC4899' },
-  property: { label: 'Real Estate', icon: Home, color: '#8B5CF6' },
-  vehicle: { label: 'Vehicles', icon: Car, color: '#F59E0B' },
-  business: { label: 'Businesses', icon: Building2, color: '#EF4444' },
+  property: { label: 'Real Estate', icon: Home, color: financeColors.property },
+  vehicle: { label: 'Vehicles', icon: Car, color: financeColors.vehicle },
+  business: { label: 'Businesses', icon: Building2, color: financeColors.business },
   hardware: { label: 'Hardware', icon: Package, color: '#6366F1' },
   item: { label: 'Items', icon: Package, color: '#14B8A6' },
 };
@@ -94,8 +96,8 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
               style={[
                 styles.assetCard,
                 {
-                  backgroundColor: isDark ? '#334155' : '#F8FAFC',
-                  borderColor: isDark ? '#475569' : '#E2E8F0',
+                  backgroundColor: isDark ? uiPalette.slate : uiPalette.paper,
+                  borderColor: isDark ? uiPalette.lightSecondary : uiPalette.line,
                 },
               ]}
             >
@@ -137,7 +139,7 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
       </View>
 
       {/* Summary */}
-      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+      <View style={[styles.summaryCard, { backgroundColor: isDark ? uiPalette.slate : uiPalette.lightSurface }]}>
         <Text style={[styles.summaryTitle, { color: theme.text }]}>
           How Net Worth is Calculated
         </Text>

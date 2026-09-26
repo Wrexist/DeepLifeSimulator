@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveSpacing } from '@/utils/scaling';
 /**
  * KeyValueRow - "label on the left, value on the right", once.
  *
@@ -11,7 +12,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+
 
 export default function KeyValueRow({
   label,
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: responsiveSpacing.sm,
-    paddingVertical: scale(8),
+    paddingVertical: layoutSpace.sm,
   },
   labelBlock: { flex: 1, gap: 2 },
   label: { fontSize: fontScale(13) },

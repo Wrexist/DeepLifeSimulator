@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace , fontScale, scale } from '@/utils/scaling';
+import { uiPalette , accent as themeAccent } from '@/lib/config/theme';
 /**
  * ProgressRing - a premium circular-progress ring for long-running/ongoing
  * state (e.g. a career's promotion progress). React Native port of the classic
@@ -20,8 +22,8 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { accent as themeAccent } from '@/lib/config/theme';
-import { fontScale, scale } from '@/utils/scaling';
+
+
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -73,9 +75,9 @@ export default function ProgressRing({
   accentColor = themeAccent.info,
   positiveColor = themeAccent.success,
   trackColor = 'rgba(148, 163, 184, 0.22)',
-  surfaceColor = '#0F172A',
+  surfaceColor = uiPalette.navy,
   borderColor = 'rgba(255, 255, 255, 0.12)',
-  inkColor = '#F8FAFC',
+  inkColor = uiPalette.paper,
   showPill = true,
   ambient = true,
   label,
@@ -235,8 +237,8 @@ const styles = StyleSheet.create({
     bottom: -scale(6),
     flexDirection: 'row',
     alignItems: 'baseline',
-    paddingHorizontal: scale(9),
-    paddingVertical: scale(2),
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: scale(999),
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -249,6 +251,6 @@ const styles = StyleSheet.create({
   pillPct: {
     fontSize: fontScale(9),
     fontWeight: '700',
-    marginLeft: scale(1),
+    marginLeft: layoutSpace.xs,
   },
 });

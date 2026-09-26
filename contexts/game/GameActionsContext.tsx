@@ -257,7 +257,7 @@ interface GameActionsContextType {
  hasPermanentPerk: (perkId: string) => Promise<boolean>;
 
  // Prestige
- executePrestige: (chosenPath: 'reset' | 'child', childId?: string) => void;
+ executePrestige: (chosenPath: 'reset' | 'child', childId?: string) => Promise<'saved' | 'rejected' | 'save-failed'>;
 }
 
 const GameActionsContext = createContext<GameActionsContextType | undefined>(undefined);
@@ -287,6 +287,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Refs for AppState listener (prevents stale closures)
  const gameStateRef = useRef<GameState | null>(null);
  const isSavingRef = useRef(false);
+ const prestigeInFlightRef = useRef(false);
+ const actionsMountedRef = useRef(true);
  const saveGameRef = useRef<((force?: boolean) => Promise<boolean>) | null>(null);
  // The slot the player last selected, published when it is selected rather
  // than when it commits - `saveGame` checks it after waiting for a commit.
@@ -307,6 +309,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const saveCommitSeqRef = useRef(0);
  const saveCommitWaitersRef = useRef<{ seq: number; release: () => void }[]>([]);
  const waitForPendingCommit = useCallback((): Promise<void> => new Promise<void>((release) => {
+ if (!actionsMountedRef.current) { release(); return; }
  const seq = ++saveCommitSeqRef.current;
  saveCommitWaitersRef.current.push({ seq, release });
  setSaveCommitSeq(seq);
@@ -319,7 +322,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // this - a test awaiting it inside the act() that dispatched it - waits
  // forever. __tests__/save/saveInSameHandlerPersistsAction.test.ts
  await waitForPendingCommit();
- const currentState = gameStateRef.current;
+ let currentState = gameStateRef.current;
  if (!currentState) {
  logger.warn('Cannot save: game state is null');
  return false;
@@ -354,6 +357,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let saveMutexToken: MutexToken | undefined;
  try {
  saveMutexToken = await saveLoadMutex.acquire('save');
+ // A prestige/load may have completed while this save waited for ownership.
+ // Never put the pre-lock life back on disk or cross a selected-slot change.
+ if (getSelectedSlot() !== currentSlot || isLifeAutosaveSuspended()) return false;
+ currentState = gameStateRef.current;
+ if (!currentState || isPristineUnstartedState(currentState)) return false;
  // CRITICAL: Validate state before saving to prevent saving corrupted state.
  // R2-F: autoFix=false. The repair branch below runs explicitly when validation
  // fails, so the eager clone inside autoFix=true was a 30-80ms hitch on every
@@ -4710,10 +4718,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // No commit follows an unmount, so a waiting save would wait forever. Let it
  // go with the last committed state - what it would have read before.
- useEffect(() => () => {
+ useEffect(() => {
+ actionsMountedRef.current = true;
+ return () => {
+ actionsMountedRef.current = false;
  const pending = saveCommitWaitersRef.current;
  saveCommitWaitersRef.current = [];
  for (const waiter of pending) waiter.release();
+ };
  }, []);
 
  useEffect(() => {
@@ -5541,34 +5553,52 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }, []);
 
- // Execute prestige - reset character based on chosen path
- // C-7: Use gameStateRef to prevent stale closure passing stale state to executePrestigeFunction
- const executePrestigeAction = useCallback((chosenPath: 'reset' | 'child', childId?: string) => {
- const currentState = gameStateRef.current;
- if (!currentState) {
- logger.error('[executePrestige] gameState is null');
- return;
- }
-
+ // Prestige owns the same mutex as loads, receipt writes and ordinary saves.
+ // The protected backup includes unsaved actions in the outgoing life.
+ const executePrestigeAction = useCallback(async (chosenPath: 'reset' | 'child', childId?: string): Promise<'saved' | 'rejected' | 'save-failed'> => {
+ if (prestigeInFlightRef.current) return 'rejected';
+ prestigeInFlightRef.current = true;
+ const requestedState = gameStateRef.current;
+ const requestedSlot = getSelectedSlot();
+ let token: MutexToken | undefined;
+ let applied = false;
  try {
- haptic.heavy(); // Prestige - major life event
- // executePrestige returns the ORIGINAL state when the attempt is rejected
- // (e.g. net worth below threshold). Only award the marquee Legacy Pass XP
- // (LEGACY_PASS_XP.prestige) when the prestige actually happened.
- const prestigedState = executePrestigeFunction(currentState, chosenPath, childId);
- if (prestigedState === currentState) {
- logger.warn('[executePrestige] Prestige rejected; skipping Legacy Pass XP grant');
- return;
+ await waitForPendingCommit();
+ token = await saveLoadMutex.acquire('save');
+ const currentState = gameStateRef.current;
+ if (!actionsMountedRef.current || !currentState || !requestedState || !isWritableSlot(requestedSlot) ||
+     requestedSlot !== currentSlot || getSelectedSlot() !== requestedSlot ||
+     isLifeAutosaveSuspended() ||
+     currentState.lineageId !== requestedState.lineageId ||
+     currentState.prestige?.prestigeLevel !== requestedState.prestige?.prestigeLevel) {
+ throw new Error('The active life changed. Reopen prestige for the current life.');
  }
+ const prestigedState = executePrestigeFunction(currentState, chosenPath, childId);
+ if (prestigedState === currentState) return 'rejected';
  const newGameState = awardLegacyPassXp(prestigedState, LEGACY_PASS_XP.prestige);
- // The new life carries no persisted market (both prestige paths spread
- // `initialGameState`), so open the shared module board on catalogue prices
- // immediately instead of waiting for the first tick's guard - otherwise the
- // market screen shows the PREVIOUS life's prices until a week is advanced.
- resetStockPrices();
+ const { createBackupFromState } = await import('@/utils/saveBackup');
+ const backup = await createBackupFromState(requestedSlot, currentState, 'before_prestige');
+ if (!backup) throw new Error('Could not protect your outgoing life. Please try again.');
+ // A callback may update this life while its backup is being written. Refuse
+ // rather than replacing that newer state with a stale prestige calculation.
+ await waitForPendingCommit();
+ if (!actionsMountedRef.current || gameStateRef.current !== currentState || getSelectedSlot() !== requestedSlot || isLifeAutosaveSuspended()) {
+ throw new Error('Your life changed while preparing prestige. Please try again.');
+ }
  setGameState(newGameState);
- logger.info(`[executePrestige] Prestige executed: path=${chosenPath}, childId=${childId || 'none'}`);
-
+ applied = true;
+ resetStockPrices();
+ await waitForPendingCommit();
+ const committed = gameStateRef.current;
+ if (!actionsMountedRef.current || !committed || getSelectedSlot() !== requestedSlot) throw new Error('The active save slot changed.');
+ // forceSave rejects on failure; queueSave only promises that an attempt has
+ // settled, including permanent failure, so it cannot acknowledge prestige.
+ await forceSave(requestedSlot, {
+ ...committed,
+ lastSaved: new Date().toISOString(),
+ version: Math.max(committed.version ?? STATE_VERSION, STATE_VERSION),
+ }, false);
+ haptic.heavy();
  // Surface any prestige achievements this prestige awarded. The award itself
  // already happened inside executePrestige (points + claimed store); here we
  // just diff the claimed store to announce them via the same friendly,
@@ -5605,52 +5635,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- // Save after prestige - same rule: an unknown slot is not slot 1.
- if (!isWritableSlot(currentSlot)) {
- logger.error('[PRESTIGE] Refusing to save: no valid slot is loaded', { currentSlot });
- throw new Error('Cannot save your prestige: no save slot is loaded.');
- }
- const slotToUse = currentSlot;
-
- // Snapshot the pre-prestige life BEFORE the rebuilt state is written.
- // Prestige is the single most destructive thing a player can do on purpose -
- // it rebuilds the whole state - and it was the one destructive path with no
- // backup call at all, so a mis-tapped prestige was unrecoverable. Awaited so
- // the copy exists before the overwrite; 'before_prestige' is rotation-exempt,
- // so the next few autosaves cannot evict it. Non-blocking on failure: a
- // backup problem must not cost the player the prestige they earned.
- // 2026-07-29 audit BRC-4.
- // `executePrestige` is synchronous, so this is a promise the save below
- // CHAINS onto rather than a fire-and-forget - otherwise the queued write
- // could drain first and the snapshot would copy the post-prestige state.
- const prePrestigeSnapshot = import('@/utils/saveBackup')
- .then((m) => m.snapshotOutgoingSave(slotToUse, 'before_prestige'))
- .catch((snapshotError) => {
- logger.warn('[PRESTIGE] Pre-prestige snapshot failed (non-critical)', { error: snapshotError });
- return null;
- });
-
- // P0-11: never downgrade an already-migrated version (see saveGame for rationale).
- const prestigeStateVersion = (newGameState as { version?: unknown }).version;
- const inMemoryPrestigeVersion = typeof prestigeStateVersion === 'number' ? prestigeStateVersion : 0;
- const versionToWrite = inMemoryPrestigeVersion >= STATE_VERSION ? inMemoryPrestigeVersion : STATE_VERSION;
- const gameData = {
-...newGameState,
- lastSaved: new Date().toISOString(),
- updatedAt: Date.now(),
- version: versionToWrite,
- };
- // Ordered after the snapshot so the backup captures the life being replaced.
- prePrestigeSnapshot
- .then(() => queueSave(slotToUse, gameData))
- .catch(err => {
- logger.error('[executePrestige] Failed to queue save:', err);
- });
+ return 'saved';
  } catch (error) {
- logger.error('[executePrestige] Error:', error);
- showError('Prestige Error', 'Failed to execute prestige. Please try again.');
+ logger.error('[executePrestige] Failed:', error);
+ if (actionsMountedRef.current) showError(applied ? 'New life needs saving' : 'Prestige not completed', applied
+ ? 'Your new life is open, but its save did not finish. Retry saving before continuing. Your previous life has a protected backup.'
+ : 'Your life has not been reset. Wait for any other save to finish, then try again.');
+ return applied ? 'save-failed' : 'rejected';
+ } finally {
+ if (token !== undefined) saveLoadMutex.release(token);
+ prestigeInFlightRef.current = false;
  }
- }, [setGameState, currentSlot, showError, showInfoBanner]);
+ }, [setGameState, currentSlot, getSelectedSlot, showError, showInfoBanner, waitForPendingCommit]);
 
  const value = useMemo<GameActionsContextType>(() => ({
  nextWeek,

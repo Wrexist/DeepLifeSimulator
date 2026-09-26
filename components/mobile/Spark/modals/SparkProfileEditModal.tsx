@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * SparkProfileEditModal - edit the player's own Spark dating profile.
  *
@@ -160,8 +161,8 @@ export default function SparkProfileEditModal({ visible, onDismiss }: SparkProfi
                   : { borderColor: theme.border, opacity: atCap ? 0.4 : 1 },
               ]}
             >
-              {selected ? <Check size={fontScale(12)} color="#FFFFFF" strokeWidth={3} /> : null}
-              <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : theme.textSecondary }]}>
+              {selected ? <Check size={fontScale(12)} color={uiPalette.white} strokeWidth={3} /> : null}
+              <Text style={[styles.chipText, { color: selected ? uiPalette.white : theme.textSecondary }]}>
                 {interest}
               </Text>
             </Pressable>
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
   },
   saveBtnText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(16),
     fontWeight: '600',
   },

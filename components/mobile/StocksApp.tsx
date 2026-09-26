@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 /**
  * StocksApp - mobile stock trading, Apple Stocks DNA.
  *
@@ -32,7 +33,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -1051,4 +1052,4 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
-  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },});
+  tradeCtaText: { color: uiPalette.white, fontSize: responsiveFontSize.md, fontWeight: '600' },});

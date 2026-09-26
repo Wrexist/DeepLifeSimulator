@@ -1,4 +1,71 @@
+# Audit fixes - 26 September 2026
+
+- [x] Implement D01-D06 and D12: mutex-owned prestige, durable celebration/retry, strict money entry, committed campaign feedback and life-relative planning/Profile counts.
+- [x] Verify 40 focused regressions and capture compact phone/tablet changes.
+- [x] Save/finance CI: 826 suites / 10,047 tests / 308 snapshots; preflight and quality passed. Further UI follow-through: 26 focused tests and source/test types pass; results in [fix evidence](release/evidence/audit-fixes-2026-09-26.md).
+- [x] D07/D08/D10/D11: Pulse identity, enrollment contrast, locked-control semantics and reduced motion. Family target is 44 points high.
+- [x] D09/D13/D14: separate 44-point gem controls, life-relative record labels and canonical career requirement names. 22 focused tests, source/test types and compact/tablet browser evidence pass. [Evidence](release/evidence/audit-labels-2026-09-26.md).
+- [ ] Next: V01 compact Home hierarchy, then Work/Life/Profile/creator density. [Remaining register](whole-app-audit-2026-09-26.md): 44 V/A/O items remain open, including native acceptance.
+- No production deployment or signed native acceptance.
+
+# Whole-app audit - 26 September 2026
+
+- [x] Audit current source, 5 tabs / 19 app entries, nested/onboarding states and core save/game logic.
+- [x] Compile [58-item prioritized register](whole-app-audit-2026-09-26.md) with screenshots, reproductions and native acceptance gaps.
+- [x] Original D01-D14 implementation follow-through is recorded above; the audit below remains historical evidence.
+- Audit only; no gameplay fix or production release performed. Current code CI: 822 suites / 10,016 tests / 308 snapshots passed.
+
+# HUD circle edge refinement - 26 September 2026
+
+- [x] Replace nested rounded clipping with inset vector circles; retain icons and hit targets.
+- [x] Check phone/tablet browser renders and focused HUD tests.
+- [ ] Verify the curves on a signed iPhone build.
+- Evidence: [circle edges](release/evidence/hud-circle-edges-2026-09-26.md).
+
+# Whole-game polish follow-through - 26 September 2026
+
+- Cleaned HUD utility circles per screenshot: one round surface, no inner bloom;
+  gold store keeps its footprint without an expanding pulse.
+- Settings now leads with preferences, uses shared tabs, has clearer switches and
+  a compact header. Slot switching awaits a durable save and explains failure.
+- Shared modal, button, app-header, stat-strip and empty-state refinements;
+  Contacts/Mail/Hustle polish, specific Market labels, and direct-link lock checks.
+- Browser: all five tabs and all 19 app entry screens at compact phone/tablet sizes;
+  computer purchase survives save-slot switch/reload. Isolated QA fixture labelled.
+- [Acceptance inventory and evidence](release/evidence/game-polish-2026-09-26.md).
+- Next: nested transaction/player journeys and native accessibility/provider
+  acceptance. No merge, OTA, paid build or store submission performed.
+
+# Identity refinement ? 2026-09-26
+
+- Implemented original street-line artwork across menu, player record and compact destination strips; removed generic motivational copy and oversized title badges. Approved HUD and save schema 51 unchanged.
+- Evidence: [identity checklist](deeplife-identity-2026-09-26.md), [remaining work](visual-ux-remaining-2026-09-26.md). Signed-device acceptance is still outstanding.
+
 # Current work
+
+## Premium presentation, characters, 3D destinations and audio - 26 September 2026
+
+Branch `codex/visual-ux-rebuild-2026-09-26`, based on current main `9e729ac2`.
+[Checklist](visual-ux-rebuild-2026-09-26.md) and
+[evidence](release/evidence/visual-ux-rebuild-2026-09-26.md).
+
+- [x] Shared presentation tokens/primitives, five-tab navigation and main-screen polish.
+- [x] Six curated GPT portraits; preserve custom avatar codec, genetics and old saves.
+- [x] Six original 3D destinations, bundled renders, reduced-motion-aware movement.
+- [x] Seven original sound effects, real Settings switch and committed-week feedback.
+- [x] Browser phone/tablet inspection, creator modes, portrait save/reload, Bank and week feedback.
+- [x] Production iOS export: 4,051 modules, 13.7 MB Hermes bundle, exit 0.
+- [x] Full-suite evidence and focused follow-up (16 suites / 141 tests) recorded; draft PR #229 opened.
+- [x] Complete local preflight exits 0; GitHub preflight/quality green on code `fe47c98f`.
+- [x] Final-head CI on `1a95a49b`: 821 suites / 10,011 tests / 308 snapshots; coverage, preflight and quality pass.
+- [ ] Complete remaining product polish and native acceptance: [prioritized next work](visual-ux-remaining-2026-09-26.md).
+- [ ] Exact signed native build acceptance: audio/silent switch/interruption,
+  VoiceOver/Larger Text, compact iPhone/iPad, purchases/restore/ads, old saves and
+  background/kill/relaunch. No paid build, OTA or submission authorized here.
+
+Prior local work remains in named stash `pre-sync-local-work-2026-09-26`.
+Do not pop it into the presentation branch. Schema remains 51; HUD structure,
+canonical weekly/save/purchase owners and production release state are unchanged.
 
 ## Purchases lost on reload (YouVideo, App Store 1.2.5 CA) — 25 September 2026
 
@@ -13,7 +80,7 @@ a reload drops the purchase.
 - [x] Save + integration (53 suites / 587), stress + startup (55 / 908), full suite on the merged tree (816 / 817; the red one is the wall-clock tick benchmark, also red on `main` on this Windows machine, A/B shows no cost). Type-checks 0. Lessons entry written.
 - [x] `npm run preflight`: `main` was at 703 lint warnings against a 701 ceiling (two new `require()`s in `lib/review/__tests__/inAppReview.test.ts`, from #220). Fixed with the repo's line-level disable convention rather than raising the ceiling.
 - [ ] PR with the save-system risk box; watch CI's tick-timing number against `main`'s 3.98 ms/tick.
-- [ ] Follow-up (not this PR): "Switch save slot" should save before it suspends. Market purchases (`buyItem` / `buyFood`) never call `saveGame`, so a switch within 2 minutes of one still loses it.
+- [x] Follow-up implemented on PR #229: Settings saves durably before suspending for the slot picker. Provider regression and real browser computer-purchase/switch/reload verified.
 - [ ] Follow-up (not this PR): drop the now-redundant `setTimeout(0)` / 200 ms pre-save yields (home, work, DeathPopup, Discord grant, restoreFromCloud, resolveEvent).
 
 ## Home freeze + four-lens audit — 25 September 2026

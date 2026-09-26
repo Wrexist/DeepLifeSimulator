@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ImageScrim - a real bottom fade over artwork.
  *
@@ -78,7 +79,7 @@ const CURVE: readonly [number, number][] = [
 export default function ImageScrim({
   height = 0.45,
   strength = 0.72,
-  color = '#0F172A',
+  color = uiPalette.navy,
 }: ImageScrimProps) {
   const gid = useMemo(() => `scrim-${(_gid += 1)}`, []);
 

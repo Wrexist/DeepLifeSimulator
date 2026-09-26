@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -85,7 +86,7 @@ const ACCENT_BUTTON: Record<ShopAccent, [string, string, string]> = {
   perks: ['#F59E0B', '#D97706', '#B45309'], // perks - amber
 };
 
-const DISABLED_GRADIENT: [string, string] = ['#1E293B', '#0F172A'];
+const DISABLED_GRADIENT: [string, string] = [uiPalette.surface, uiPalette.navy];
 
 export default function ShopItemCard({
   title,
@@ -158,7 +159,7 @@ export default function ShopItemCard({
           <Text
             style={[
               hero ? styles.heroPrice : styles.price,
-              { color: owned ? 'rgba(226, 232, 240, 0.45)' : '#F8FAFC' },
+              { color: owned ? 'rgba(226, 232, 240, 0.45)' : uiPalette.paper },
             ]}
           >
             {priceLabel}
@@ -188,7 +189,7 @@ export default function ShopItemCard({
         end={{ x: 1, y: 1 }}
         style={hero ? styles.heroButton : styles.button}
       >
-        {owned ? <Check size={scale(14)} color="#FFFFFF" style={{ marginRight: scale(6) }} /> : null}
+        {owned ? <Check size={scale(14)} color={uiPalette.white} style={{ marginRight: scale(6) }} /> : null}
         <Text style={[styles.buttonText, buttonDisabled && styles.buttonTextDisabled]}>{buttonText}</Text>
       </LinearGradient>
     </TouchableOpacity>
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(15),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
   },
   description: {
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: fontScale(18),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.3,
   },
   heroDescription: {
@@ -480,7 +481,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: fontScale(12),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     textAlign: 'center',

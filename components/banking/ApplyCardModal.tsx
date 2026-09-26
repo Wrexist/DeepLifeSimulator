@@ -1,10 +1,11 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, CreditCard, Gift, AlertCircle } from 'lucide-react-native';
 import { CreditCardTier } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 
 interface CardProduct {
   tier: CreditCardTier;
@@ -28,7 +29,7 @@ const PRODUCTS: CardProduct[] = [
     rewardsRate: 0.005,
     minCreditScore: 580,
     annualFee: 0,
-    color: '#64748b',
+    color: uiPalette.lightMuted,
   },
   {
     tier: 'standard',
@@ -65,7 +66,7 @@ const PRODUCTS: CardProduct[] = [
     // dark surface even on the icon. Now the tier colour is also the row's
     // border it has to actually be visible, so this uses the lighter slate
     // that CreditCardRow already switched to for the same reason.
-    color: '#475569',
+    color: uiPalette.lightSecondary,
   },
 ];
 

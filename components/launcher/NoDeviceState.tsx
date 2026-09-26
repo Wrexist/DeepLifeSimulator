@@ -1,3 +1,11 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius ,
+  responsivePadding,
+  responsiveFontSize,
+  responsiveSpacing,
+  scale,
+  fontScale,
+} from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * The "you don't own this device yet" empty state, shared by both launcher
  * wrappers. Not a dead end: the CTA points straight at the surface that sells
@@ -9,13 +17,7 @@ import { Monitor, Smartphone } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import {
-  responsivePadding,
-  responsiveFontSize,
-  responsiveSpacing,
-  scale,
-  fontScale,
-} from '@/utils/scaling';
+
 
 export default function NoDeviceState({ device }: { device: 'computer' | 'phone' }) {
   const { t } = useTranslation();
@@ -27,7 +29,7 @@ export default function NoDeviceState({ device }: { device: 'computer' | 'phone'
   return (
     <View style={[styles.container, darkMode && styles.containerDark]}>
       <View style={styles.iconContainer}>
-        <DeviceIcon size={scale(80)} color={darkMode ? '#64748B' : '#94A3B8'} />
+        <DeviceIcon size={scale(80)} color={darkMode ? uiPalette.lightMuted : uiPalette.muted} />
       </View>
       <Text style={[styles.title, darkMode && styles.titleDark]}>
         {device === 'computer' ? t('computer.noComputerAvailable') : t('mobile.noPhoneAvailable')}
@@ -56,10 +58,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: responsivePadding.xlarge,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
   },
   containerDark: {
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   iconContainer: {
     marginBottom: responsiveSpacing.xl,
@@ -68,30 +70,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginBottom: responsiveSpacing.md,
     textAlign: 'center',
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   message: {
     fontSize: responsiveFontSize.base,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     lineHeight: responsiveFontSize.base * 1.4,
   },
   messageDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   cta: {
-    marginTop: scale(20),
+    marginTop: layoutSpace.comfortable,
     borderWidth: 1,
     borderColor: '#3B82F6',
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderRadius: scale(12),
-    paddingVertical: scale(12),
-    paddingHorizontal: scale(24),
+    borderRadius: layoutRadius.lg,
+    paddingVertical: layoutSpace.compact,
+    paddingHorizontal: layoutSpace.lg,
     minHeight: scale(44),
     alignItems: 'center',
     justifyContent: 'center',

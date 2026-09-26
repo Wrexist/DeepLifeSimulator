@@ -116,7 +116,7 @@ describeSim('Mid-game strategy comparison (manual)', () => {
   it('deploys the same $30k five ways for 150 weeks', async () => {
     const capital = Number(process.env.CAPITAL ?? 30_000);
     const weeks = Number(process.env.WEEKS ?? 150);
-    const seeds = (process.env.SEEDS ?? '1').split(',').map((s) => Number(s.trim())).filter(Number.isFinite);
+    const seeds = (process.env.SEEDS ?? '1').split(',').map((s: string) => Number(s.trim())).filter(Number.isFinite);
     const results: SimResult[] = [];
     for (const [name, make] of Object.entries(STRATEGIES)) {
       for (const seed of seeds) {

@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * PetApp - Tamagotchi / Fitness DNA pass (Remake 12).
  *
@@ -69,7 +70,7 @@ import {
   enterCompetition,
 } from '@/contexts/game/actions/PetActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { vitalState, CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import {
   responsiveFontSize as fs,
@@ -102,7 +103,7 @@ const WEEKS_PER_YEAR = 52; // display constant only - mirrors lib/pets/lifecycle
 // different opacities; `withAlpha` derives them from the one token instead.
 const GOLD = accent.gold;
 // Dark ink for text on solid gold (white on gold fails contrast).
-const GOLD_INK = '#0F172A';
+const GOLD_INK = uiPalette.navy;
 const GOLD_FILL = withAlpha(GOLD, 0.15);
 const GOLD_FILL_SOFT = withAlpha(GOLD, 0.12);
 const GOLD_RIM = withAlpha(GOLD, 0.3);

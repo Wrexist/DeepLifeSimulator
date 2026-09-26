@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * HireEmployeeModal - candidate list + offer flow.
  *
@@ -12,7 +13,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { hireCandidate, refreshCandidates, fireNamedHire } from '@/contexts/game/actions/HustleActions';
 import { evaluateOffer } from '@/lib/business/hustleLogic';
@@ -343,7 +344,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

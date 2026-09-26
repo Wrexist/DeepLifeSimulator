@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Four layout/consistency defects reported from TestFlight screenshots on
  * 2026-09-04. Each is pinned here because each was invisible to the type
@@ -137,11 +138,11 @@ describe('the seasonal card', () => {
   });
 
   it('never renders the holiday name in the panel colour', () => {
-    const nameDark = indicator.match(/holidayNameDark:\s*\{\s*color:\s*'(#[0-9A-Fa-f]{6})'/);
-    const panelDark = indicator.match(/holidaySectionDark:\s*\{\s*backgroundColor:\s*'(#[0-9A-Fa-f]{6})'/);
+    const nameDark = indicator.match(/holidayNameDark:\s*\{\s*color:\s*uiPalette\.(\w+)/);
+    const panelDark = indicator.match(/holidaySectionDark:\s*\{\s*backgroundColor:\s*uiPalette\.(\w+)/);
     expect(nameDark).not.toBeNull();
     expect(panelDark).not.toBeNull();
-    expect(nameDark![1].toLowerCase()).not.toBe(panelDark![1].toLowerCase());
+    expect(uiPalette[nameDark![1] as keyof typeof uiPalette]).not.toBe(uiPalette[panelDark![1] as keyof typeof uiPalette]);
   });
 
   it('has an icon for every holiday the calendar can return', () => {

@@ -1,3 +1,4 @@
+import { uiPalette , accent, colors } from '@/lib/config/theme';
 /**
  * LegacyPassModal - the seasonal Legacy Pass UI (dual free/premium track).
  *
@@ -13,7 +14,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
-import { accent, colors } from '@/lib/config/theme';
+
 import {
   ensureCurrentSeason,
   getTierForXp,
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(9), paddingVertical: scale(3), margin: scale(12),
   },
   bestValueText: { fontSize: fontScale(9.5), fontWeight: '900', color: '#3B2F00', letterSpacing: 0.6 },
-  heroTitle: { fontSize: fontScale(24), fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
+  heroTitle: { fontSize: fontScale(24), fontWeight: '900', color: uiPalette.white, letterSpacing: 0.2 },
   heroSub: { fontSize: fontScale(12.5), fontWeight: '600', color: 'rgba(241,245,249,0.92)', marginTop: scale(4), lineHeight: fontScale(18) },
   heroCta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(6),
@@ -581,7 +582,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(8),
     borderRadius: responsiveBorderRadius.md, paddingVertical: scale(10), marginBottom: scale(12),
   },
-  claimAllText: { color: '#FFFFFF', fontSize: fontScale(14), fontWeight: '800' },
+  claimAllText: { color: uiPalette.white, fontSize: fontScale(14), fontWeight: '800' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), marginTop: scale(4), marginBottom: scale(12) },
   dividerLine: { flex: 1, height: StyleSheet.hairlineWidth * 2 },
   dividerText: { fontSize: fontScale(11.5), fontWeight: '700', letterSpacing: 0.3 },

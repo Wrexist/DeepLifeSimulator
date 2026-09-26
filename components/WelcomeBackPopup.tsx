@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef } from 'react';
 import { Platform, Modal,
   View,
@@ -262,8 +263,8 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
 
           <LinearGradient
             colors={isDarkMode
-              ? ['#1E293B', '#0F172A', '#0F172A']
-              : ['#FFFFFF', '#F8FAFC', '#EFF6FF']
+              ? [uiPalette.surface, uiPalette.navy, uiPalette.navy]
+              : [uiPalette.white, uiPalette.paper, '#EFF6FF']
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -306,12 +307,12 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                     colors={['#3B82F6', '#2563EB', '#1D4ED8']}
                     style={styles.iconGradient}
                   >
-                    <Home size={scale(40)} color="#FFFFFF" strokeWidth={2.5} />
+                    <Home size={scale(40)} color={uiPalette.white} strokeWidth={2.5} />
                   </LinearGradient>
 
                   {/* Sparkle accents */}
                   <View style={[styles.sparkleAccent, styles.sparkleTopLeft]}>
-                    <Sparkles size={scale(14)} color="#60A5FA" fill="#60A5FA" />
+                    <Sparkles size={scale(14)} color={uiPalette.blue} fill={uiPalette.blue} />
                   </View>
                   <View style={[styles.sparkleAccent, styles.sparkleTopRight]}>
                     <Sparkles size={scale(12)} color="#93C5FD" fill="#93C5FD" />
@@ -325,7 +326,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                   {getWelcomeMessage()}
                 </Text>
                 <View style={styles.timeAwayContainer}>
-                  <Clock size={scale(16)} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+                  <Clock size={scale(16)} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
                   <Text style={[styles.timeAway, isDarkMode && styles.timeAwayDark]}>
                     Last played: {getTimeAwayText()}
                   </Text>
@@ -521,7 +522,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 style={styles.continueButtonGradient}
               >
                 <Text style={styles.continueButtonText}>{nextGoal ? nextGoal.title : 'Continue Playing'}</Text>
-                <ArrowRight size={scale(20)} color="#FFFFFF" />
+                <ArrowRight size={scale(20)} color={uiPalette.white} />
               </LinearGradient>
             </TouchableOpacity>
           </LinearGradient>
@@ -642,12 +643,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     textAlign: 'center',
     marginBottom: responsiveSpacing.sm,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   timeAwayContainer: {
     flexDirection: 'row',
@@ -656,12 +657,12 @@ const styles = StyleSheet.create({
   },
   timeAway: {
     fontSize: responsiveFontSize.sm,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     fontWeight: '500',
   },
   timeAwayDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   statsContainer: {
     width: '100%',
@@ -697,20 +698,20 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: responsiveFontSize.xs,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontWeight: '500',
     marginBottom: scale(2),
   },
   statLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   statValue: {
     fontSize: responsiveFontSize.base,
-    color: '#1E293B',
+    color: uiPalette.surface,
     fontWeight: '700',
   },
   statValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   infoContainer: {
     width: '100%',
@@ -735,12 +736,12 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: responsiveFontSize.sm,
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     flex: 1,
     fontWeight: '500',
   },
   infoTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   continueButton: {
     width: '100%',
@@ -770,7 +771,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });
 

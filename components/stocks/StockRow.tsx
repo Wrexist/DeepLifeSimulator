@@ -1,10 +1,11 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Line, Polyline } from 'react-native-svg';
 import { ChevronRight, Star } from 'lucide-react-native';
 import { Sector, sectorForSymbol } from '@/lib/stocks/sectors';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 
 interface Props {
@@ -35,7 +36,7 @@ export const SECTOR_COLOR: Record<Sector, string> = {
   finance: accent.success,
   healthcare: accent.purple,
   consumer: accent.warning,
-  industrial: '#94a3b8',
+  industrial: uiPalette.muted,
   energy: '#fbbf24',
 };
 
@@ -116,7 +117,7 @@ export function ChangeChip({ changePct, darkMode, size = 'sm' }: { changePct?: n
   const up = (changePct ?? 0) > 0;
   const down = (changePct ?? 0) < 0;
   const bg = !has ? theme.surfaceElevated : up ? accent.success : down ? accent.danger : theme.surfaceElevated;
-  const fg = has && (up || down) ? '#FFFFFF' : theme.textMuted;
+  const fg = has && (up || down) ? uiPalette.white : theme.textMuted;
   const label = has ? `${up ? '+' : ''}${((changePct as number) * 100).toFixed(2)}%` : '-';
   return (
     <View style={[size === 'md' ? styles.changeChipMd : styles.changeChipSm, { backgroundColor: bg }]}>

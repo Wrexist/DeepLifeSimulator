@@ -1,0 +1,52 @@
+{
+  "family": "portrait-v1",
+  "generator": "Built-in GPT Image generation",
+  "size": 512,
+  "format": "webp",
+  "runtimeDirectory": "assets/images/portraits",
+  "notes": "Original generated static portraits. Cosmetic only; does not change gameplay identity or vector inheritance. No runtime network.",
+  "assets": [
+    {
+      "id": "ember",
+      "prompt": "Use case: stylized-concept. Asset: Deep Life Simulator portrait-v1/ember, one square 1024x1024 game portrait. Premium original stylized 2.5D soft-3D mobile life-simulator character, friendly expressive young adult man with fair warm skin, brown swept wavy hair, hazel eyes, charcoal hoodie over muted teal shirt. Front-facing head and shoulders, slight three-quarter turn, eyes facing camera; entire hair visible with 8% top breathing room; head centered at x50%, eyes y40%, shoulders cut at bottom; head occupies 55% width. Polished clean rounded forms, subtle tactile textures, not photorealistic or uncanny. Soft warm studio key from upper left, restrained cool blue rim light. Solid deep navy #0B1423 studio background with very subtle illumination behind head. No props. No text, no logo, no watermark, no border. Original art direction, no imitation of existing game/movie characters. This is an individual runtime avatar, not a contact sheet.",
+      "file": "assets/images/portraits/ember.webp",
+      "bytes": 30466,
+      "sha256": "98680e244ad339a6394433eec9d8fa4d137e7855aacc76a171dbe63700ea61c7"
+    },
+    {
+      "id": "cedar",
+      "prompt": "Create one standalone square game portrait for Deep Life Simulator, portrait-v1/cedar. The attached ember portrait is STYLE/FRAMING reference only, not the same person. Match its camera, shoulder crop, head scale, original premium soft 3D / 2.5D mobile-game rendering, navy studio background, warm upper-left soft key and cool rim light. Subject: a friendly young adult Black man, deep warm brown skin, short tightly curled black hair, neatly shaped short beard, brown eyes, muted olive overshirt over a charcoal shirt. Expressive relaxed welcoming face, eyes looking at viewer. Entire hair visible. Clean polished forms, stylized human, not photorealistic. No text, logo, watermark, borders, props or contact sheet. This belongs to the exact same art family as reference.",
+      "file": "assets/images/portraits/cedar.webp",
+      "bytes": 31956,
+      "sha256": "b4efc186f1c6008750d548a314ca8ea6006a5212f796371f8d7ebf9c47e12d96"
+    },
+    {
+      "id": "river",
+      "prompt": "Create one standalone square game portrait for Deep Life Simulator, portrait-v1/river. The attached ember portrait is STYLE/FRAMING reference only, not the same person. Match its camera, shoulder crop, head scale, original premium soft 3D / 2.5D mobile-game rendering, navy studio background, warm upper-left soft key and cool rim light. Subject: a friendly young adult East Asian man, light-medium warm skin, straight black hair swept to the side, clean shaven, dark brown eyes, slate-blue crewneck. Expressive relaxed welcoming face, eyes looking at viewer. Entire hair visible. Clean polished forms, stylized human, not photorealistic. No text, logo, watermark, borders, props or contact sheet. This belongs to the exact same art family as reference.",
+      "file": "assets/images/portraits/river.webp",
+      "bytes": 29168,
+      "sha256": "966087831cb85d66e4a16050a6db9e375c23fb8af486db28ef0eebe62b6e2e21"
+    },
+    {
+      "id": "dawn",
+      "prompt": "Create one standalone square game portrait for Deep Life Simulator, portrait-v1/dawn. The attached ember portrait is STYLE/FRAMING reference only, not the same person. Match its camera, shoulder crop, head scale, original premium soft 3D / 2.5D mobile-game rendering, navy studio background, warm upper-left soft key and cool rim light. Subject: a friendly young adult Black woman, medium-dark warm brown skin, beautiful shoulder-length natural dark curls, brown eyes, muted teal jacket over a cream shirt. Expressive relaxed welcoming face, eyes looking at viewer. Entire hair visible. Clean polished forms, stylized human, not photorealistic. No text, logo, watermark, borders, props or contact sheet. This belongs to the exact same art family as reference.",
+      "file": "assets/images/portraits/dawn.webp",
+      "bytes": 36090,
+      "sha256": "f903d082ba04e25c8e7d8b8fde44be7e24c290abda60ae27e6da205f5c6085b8"
+    },
+    {
+      "id": "sage",
+      "prompt": "Create one standalone square game portrait for Deep Life Simulator, portrait-v1/sage. The attached ember portrait is STYLE/FRAMING reference only, not the same person. Match its camera, shoulder crop, head scale, original premium soft 3D / 2.5D mobile-game rendering, navy studio background, warm upper-left soft key and cool rim light. Subject: a friendly young adult woman, fair freckled skin, auburn chin-length bob, green eyes, muted rust cardigan over a charcoal shirt. Expressive relaxed welcoming face, eyes looking at viewer. Entire hair visible. Clean polished forms, stylized human, not photorealistic. No text, logo, watermark, borders, props or contact sheet. This belongs to the exact same art family as reference.",
+      "file": "assets/images/portraits/sage.webp",
+      "bytes": 40504,
+      "sha256": "67fa2f13e974bbb64749f2c3bb43c2f4d36ec1631330b49382fbe3fca846b0cd"
+    },
+    {
+      "id": "indigo",
+      "prompt": "Create one standalone square game portrait for Deep Life Simulator, portrait-v1/indigo. The attached ember portrait is STYLE/FRAMING reference only, not the same person. Match its camera, shoulder crop, head scale, original premium soft 3D / 2.5D mobile-game rendering, navy studio background, warm upper-left soft key and cool rim light. Subject: a friendly androgynous young adult, warm medium-brown skin, short textured dark hair, round thin glasses, dark eyes, muted indigo overshirt. Expressive relaxed welcoming face, eyes looking at viewer. Entire hair visible. Clean polished forms, stylized human, not photorealistic. No text, logo, watermark, borders, props or contact sheet. This belongs to the exact same art family as reference.",
+      "file": "assets/images/portraits/indigo.webp",
+      "bytes": 31968,
+      "sha256": "b74600a5f2b69cd1a4635c01ca5a9544c35f94e07d97becd371432b4831cf168"
+    }
+  ]
+}

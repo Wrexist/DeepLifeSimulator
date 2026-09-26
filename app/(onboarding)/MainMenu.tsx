@@ -1,3 +1,6 @@
+import LifeLine from '@/components/ui/LifeLine';
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
@@ -16,7 +19,7 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { ChevronRight, Megaphone, Play, Plus, Save, Settings, Zap } from 'lucide-react-native';
+import { ChevronRight, Megaphone, Play, Plus, Save, Settings } from 'lucide-react-native';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
@@ -41,7 +44,7 @@ import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { lastPlayedLabel } from '@/utils/lastPlayed';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
 import { haptic } from '@/utils/haptics';
 
 // What's New popup is a leaf component (changelog data + RN primitives only, no
@@ -65,7 +68,7 @@ const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 // native gradient TurboModule crashes on iOS 26), which turned the old "glow"
 // into a hard seam and the CTA into a washed-out flat panel. Flat by design so
 // it can never regress under that fallback.
-const PAGE_BG = '#020617';
+const PAGE_BG = uiPalette.navy;
 
 // Real installed app version, read the way the rest of the app does
 // (utils/versionCheck.ts). Baked into expoConfig at build time - no fragile
@@ -231,7 +234,7 @@ function PrimaryActionCard({
     >
       <View style={styles.primaryCard}>
         <View style={styles.primaryIconChip}>
-          {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Icon size={scale(24)} color="#FFFFFF" />}
+          {loading ? <ActivityIndicator color={uiPalette.white} size="small" /> : <Icon size={scale(24)} color={uiPalette.white} />}
         </View>
         <View style={styles.primaryTextWrap}>
           {badge}
@@ -276,7 +279,7 @@ function SecondaryActionCard({
       style={styles.secondaryCard}
     >
       <View style={styles.secondaryIconChip}>
-        <Icon size={scale(22)} color="#60A5FA" />
+        <Icon size={scale(22)} color={uiPalette.blue} />
       </View>
       <View style={styles.secondaryTextWrap}>
         <Text style={styles.secondaryTitle} numberOfLines={1}>
@@ -286,7 +289,7 @@ function SecondaryActionCard({
           {subtitle}
         </Text>
       </View>
-      <ChevronRight size={scale(20)} color="#64748B" />
+      <ChevronRight size={scale(20)} color={uiPalette.lightMuted} />
     </TouchableOpacity>
   );
 }
@@ -310,7 +313,7 @@ function TertiaryTile({
       onPress={onPress}
       style={styles.tertiaryTile}
     >
-      <Icon size={scale(18)} color="#94A3B8" />
+      <Icon size={scale(18)} color={uiPalette.muted} />
       <Text style={styles.tertiaryLabel} numberOfLines={1}>
         {label}
       </Text>
@@ -789,8 +792,9 @@ export default function MainMenu() {
 
           {/* Brand block - crisp text on the flat dark base, no lighter panel. */}
           <View style={styles.hero}>
+            <View style={styles.brandIllustration} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine /></View>
             <HeroLine index={0} reduced={reduced}>
-              <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+              <Text style={styles.eyebrow}>ONE WEEK AT A TIME</Text>
             </HeroLine>
             <HeroLine index={1} reduced={reduced}>
               <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
@@ -799,7 +803,7 @@ export default function MainMenu() {
             </HeroLine>
             <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                SIMULATOR
+                TYCOON
               </Text>
             </HeroLine>
           </View>
@@ -965,12 +969,13 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
   },
+  brandIllustration: { width: scale(280), height: scale(72), marginBottom: layoutSpace.md },
   eyebrow: {
-    color: '#60A5FA',
+    color: uiPalette.blue,
     fontSize: fontScale(12),
     fontWeight: '700',
     letterSpacing: scale(3),
-    marginBottom: verticalScale(12),
+    marginBottom: layoutSpace.compact,
   },
   // Poster-grade brand type WITHOUT bundling font files: Avenir Next Heavy
   // ships built into iOS - smooth, wide geometric curves at maximum weight,
@@ -980,7 +985,7 @@ const styles = StyleSheet.create({
   // fontWeight, or iOS synthesizes a faux bold on top; Android falls back to
   // the previous system-font weights.
   brandTop: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontSize: fontScale(48),
     letterSpacing: scale(1),
     textAlign: 'center',
@@ -990,11 +995,11 @@ const styles = StyleSheet.create({
     }),
   },
   brandBottom: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: fontScale(21),
     letterSpacing: scale(8),
     textAlign: 'center',
-    marginTop: verticalScale(4),
+    marginTop: layoutSpace.xs,
     ...Platform.select({
       ios: { fontFamily: 'AvenirNext-DemiBold' },
       default: { fontWeight: '600' as const },
@@ -1024,13 +1029,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     backgroundColor: '#3B82F6',
-    paddingVertical: verticalScale(18),
+    paddingVertical: layoutSpace.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
   primaryIconChip: {
     width: scale(48),
     height: scale(48),
-    borderRadius: scale(14),
+    borderRadius: layoutRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
@@ -1044,13 +1049,13 @@ const styles = StyleSheet.create({
   savedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
-    marginBottom: verticalScale(4),
+    gap: layoutSpace.xs,
+    marginBottom: layoutSpace.xs,
   },
   savedDot: {
     width: scale(6),
     height: scale(6),
-    borderRadius: scale(3),
+    borderRadius: layoutRadius.sm,
     backgroundColor: '#6EE7B7',
   },
   savedBadgeText: {
@@ -1060,10 +1065,10 @@ const styles = StyleSheet.create({
     letterSpacing: scale(1),
   },
   primaryTitle: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(20),
     fontWeight: '800',
-    marginBottom: verticalScale(2),
+    marginBottom: layoutSpace.xs,
   },
   primarySubtitle: {
     color: 'rgba(255, 255, 255, 0.85)',
@@ -1082,14 +1087,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 41, 59, 0.9)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingVertical: verticalScale(15),
+    paddingVertical: layoutSpace.md,
     paddingHorizontal: responsiveSpacing.lg,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   secondaryIconChip: {
     width: scale(44),
     height: scale(44),
-    borderRadius: scale(13),
+    borderRadius: layoutRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(59, 130, 246, 0.14)',
@@ -1101,13 +1106,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryTitle: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontSize: fontScale(17),
     fontWeight: '700',
-    marginBottom: verticalScale(2),
+    marginBottom: layoutSpace.xs,
   },
   secondarySubtitle: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: fontScale(12),
     fontWeight: '500',
   },
@@ -1122,16 +1127,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: scale(8),
+    gap: layoutSpace.sm,
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingVertical: verticalScale(14),
+    paddingVertical: layoutSpace.compact,
     paddingHorizontal: responsiveSpacing.md,
   },
   tertiaryLabel: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     fontSize: fontScale(13),
     fontWeight: '600',
   },
@@ -1142,7 +1147,7 @@ const styles = StyleSheet.create({
     right: responsiveSpacing.lg,
     width: scale(44),
     height: scale(44),
-    borderRadius: scale(22),
+    borderRadius: layoutRadius['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
@@ -1157,7 +1162,7 @@ const styles = StyleSheet.create({
     right: scale(9),
     width: scale(10),
     height: scale(10),
-    borderRadius: scale(5),
+    borderRadius: layoutRadius.sm,
     backgroundColor: '#34D399',
     borderWidth: 1.5,
     borderColor: '#0B1220',

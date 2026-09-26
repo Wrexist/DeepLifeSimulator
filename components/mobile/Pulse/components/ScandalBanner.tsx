@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ScandalBanner - sticky banner shown when an active scandal exists.
  *
@@ -53,7 +54,7 @@ export default function ScandalBanner({ scandal, onPress }: ScandalBannerProps) 
     >
       <View style={[styles.banner, { backgroundColor: fill }]}>
         <View style={styles.iconWrap}>
-          <AlertTriangle size={responsiveIconSize.md} color="#FFFFFF" strokeWidth={2.2} />
+          <AlertTriangle size={responsiveIconSize.md} color={uiPalette.white} strokeWidth={2.2} />
         </View>
         <View style={styles.textWrap}>
           <Text style={styles.title} numberOfLines={1}>
@@ -91,7 +92,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '600',
   },

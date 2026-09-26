@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * VerifiedProUpsellModal - Pulse Verified Pro, an IN-GAME cash subscription.
  *
@@ -118,7 +119,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
       }
     >
       <View style={[styles.badge, { backgroundColor: PULSE_COLORS.accent }]}>
-        <Crown size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
+        <Crown size={scale(28)} color={uiPalette.white} strokeWidth={2.4} />
       </View>
 
       <View style={styles.perksList}>
@@ -258,12 +259,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   planLabelPrimary: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(13),
     fontWeight: '600',
   },
   planPricePrimary: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(16),
     fontWeight: '600',
     marginTop: 2,

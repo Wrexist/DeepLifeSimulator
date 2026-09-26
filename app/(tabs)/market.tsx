@@ -1,3 +1,4 @@
+import { uiPalette , accent } from '@/lib/config/theme';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +19,7 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { accent } from '@/lib/config/theme';
+
 import { styles } from '@/components/market/marketScreenStyles';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -232,6 +233,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 handleSell(item.id, item.name);
               }
             }}
+            accessibilityLabel={`Sell ${item.name}`}
             title={`Sell (${formatMoney(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5)})`}
             loading={loadingStates[item.id] || false}
             variant="secondary"
@@ -258,6 +260,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               }
             }}
             title={t('market.buy')}
+            accessibilityLabel={`Buy ${item.name} for ${formatMoney(inflatedPrice)}`}
             loading={loadingStates[item.id] || false}
             disabled={!canAffordItem(item.price)}
             // The recommended item is the one saturated Buy on the list; the
@@ -353,6 +356,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             }
           }}
           title={t('market.buy')}
+          accessibilityLabel={`Buy ${food.name}`}
           disabled={!canAfford(food.price)}
           // When food leads (energy critical) the first meal is the primary.
           variant={isLead ? 'primary' : 'secondary'}
@@ -474,8 +478,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           <CollapsibleSection
             id="market.housing"
             title="Housing"
-            icon={<Home size={scale(15)} color="#60A5FA" />}
-            tint="#60A5FA"
+            icon={<Home size={scale(15)} color={uiPalette.blue} />}
+            tint={uiPalette.blue}
             summary={currentRental ? currentRental.tier.name : 'Not renting'}
           >
             <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>

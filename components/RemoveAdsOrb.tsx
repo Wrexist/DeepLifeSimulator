@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * RemoveAdsOrb - a small circular OFFER that drifts in from the LEFT edge and
  * sells the Remove Ads IAP. Sibling of `AdRewardOrb`: same footprint and
@@ -145,7 +146,7 @@ export default function RemoveAdsOrb() {
         style={styles.orb}
       >
         <View style={styles.orbCircle}>
-          <Ban size={scale(20)} color="#FFFFFF" strokeWidth={2.3} />
+          <Ban size={scale(20)} color={uiPalette.white} strokeWidth={2.3} />
         </View>
         <View style={styles.orbLabel}>
           <Text style={styles.orbAmount} numberOfLines={1}>No ads</Text>
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4F46E5',
   },
   orbLabel: { flexShrink: 1 },
-  orbAmount: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '600', fontVariant: ['tabular-nums'] },
+  orbAmount: { color: uiPalette.paper, fontSize: fontScale(13), fontWeight: '600', fontVariant: ['tabular-nums'] },
   orbSub: { color: 'rgba(226,232,240,0.72)', fontSize: fontScale(11), fontWeight: '500' },
   orbClose: { marginLeft: scale(4), padding: scale(2) },
 });

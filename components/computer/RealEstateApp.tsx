@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * RealEstateApp - desktop real-estate screen. "Zillow DNA" pass, on the shared
  * primitives (AppHeader, SegmentedControl, StatStrip, Chip, SectionTitle,
@@ -53,7 +54,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { kicker, rhythm, tier1Title } from '@/lib/config/hierarchy';
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -507,11 +508,11 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               <Image source={propertyImage(p)} style={styles.photo} resizeMode="cover" />
               <View pointerEvents="none" style={[styles.photoPill, styles.photoPillTL]}>
                 <Tag size={scale(11)} color={IDENTITY} />
-                <Text style={[styles.photoPillText, { color: '#fff' }]}>For sale</Text>
+                <Text style={[styles.photoPillText, { color: uiPalette.white }]}>For sale</Text>
               </View>
               <View pointerEvents="none" style={[styles.photoPill, styles.photoPillTR]}>
-                <Building size={scale(11)} color="#fff" />
-                <Text style={[styles.photoPillText, { color: '#fff' }]}>{propertyTypeLabel(p)}</Text>
+                <Building size={scale(11)} color={uiPalette.white} />
+                <Text style={[styles.photoPillText, { color: uiPalette.white }]}>{propertyTypeLabel(p)}</Text>
               </View>
               <View pointerEvents="none" style={[styles.pricePill]}>
                 <Text style={styles.pricePillText}>{formatMoney(value)}</Text>
@@ -904,11 +905,11 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             <Image source={propertyImage(p)} style={styles.detailPhoto} resizeMode="cover" />
             <View pointerEvents="none" style={[styles.photoPill, styles.photoPillTL]}>
               {p.owned ? <KeyRound size={scale(11)} color={IDENTITY} /> : <Tag size={scale(11)} color={IDENTITY} />}
-              <Text style={[styles.photoPillText, { color: '#fff' }]}>{p.owned ? 'Owned' : 'For sale'}</Text>
+              <Text style={[styles.photoPillText, { color: uiPalette.white }]}>{p.owned ? 'Owned' : 'For sale'}</Text>
             </View>
             <View pointerEvents="none" style={[styles.photoPill, styles.photoPillTR]}>
-              <Building size={scale(11)} color="#fff" />
-              <Text style={[styles.photoPillText, { color: '#fff' }]}>{propertyTypeLabel(p)}</Text>
+              <Building size={scale(11)} color={uiPalette.white} />
+              <Text style={[styles.photoPillText, { color: uiPalette.white }]}>{propertyTypeLabel(p)}</Text>
             </View>
             <View pointerEvents="none" style={styles.detailPricePill}>
               <Text style={styles.detailPriceText}>{formatMoney(value)}</Text>
@@ -937,7 +938,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               accessibilityLabel={`Buy ${p.name}`}
             >
               <View style={[styles.cta, { backgroundColor: IDENTITY }]}>
-                <Tag size={scale(16)} color="#fff" />
+                <Tag size={scale(16)} color={uiPalette.white} />
                 <Text style={styles.ctaText}>Buy this home · {formatMoney(value)}</Text>
               </View>
             </TouchableOpacity>
@@ -950,7 +951,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               accessibilityLabel={`Manage ${p.name}`}
             >
               <View style={[styles.cta, { backgroundColor: IDENTITY }]}>
-                <Wrench size={scale(16)} color="#fff" />
+                <Wrench size={scale(16)} color={uiPalette.white} />
                 <Text style={styles.ctaText}>Manage property</Text>
               </View>
             </TouchableOpacity>
@@ -1395,7 +1396,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0,0,0,0.62)',
   },
-  pricePillText: { color: '#fff', fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  pricePillText: { color: uiPalette.white, fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
   listingBody: { padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   listingName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600' },
   specStrip: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm, flexWrap: 'wrap' },
@@ -1419,7 +1420,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0,0,0,0.62)',
   },
-  detailPriceText: { color: '#fff', fontSize: responsiveFontSize['2xl'], fontWeight: '600', fontVariant: ['tabular-nums'] },
+  detailPriceText: { color: uiPalette.white, fontSize: responsiveFontSize['2xl'], fontWeight: '600', fontVariant: ['tabular-nums'] },
   detailTitle: { fontSize: responsiveFontSize.xl, fontWeight: '700' },
   detailMeta: { fontSize: responsiveFontSize.sm },
   ctaWrap: {
@@ -1434,7 +1435,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.full,
   },
-  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '600' },
+  ctaText: { color: uiPalette.white, fontSize: responsiveFontSize.md, fontWeight: '600' },
   rentStatusCard: { padding: scale(14), borderRadius: scale(14), borderWidth: 1, gap: scale(6) },
   rentStatusTitle: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   rentCard: { padding: scale(14), borderRadius: scale(14), borderWidth: 1, gap: scale(8) },

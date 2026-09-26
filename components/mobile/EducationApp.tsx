@@ -1,3 +1,5 @@
+import SceneCard from '@/components/ui/SceneCard';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * EducationApp - mobile education screen.
  *
@@ -34,7 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Education, GameState, Loan } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -345,6 +347,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
+      <SceneCard scene="university" title="Back to class" subtitle="Compare tuition and entry requirements." />
       {/* This tab's mandatory colourful element (the event banner) is its colour
           moment, so it carries NO Recipe B hero. */}
       <EconomyEventBanner context="generic" />
@@ -1052,8 +1055,8 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
                 itself, which is decoration on a button that is already one
                 colour. */}
             <View style={styles.primaryCta}>
-              <Zap size={scale(16)} color={study.disabled ? theme.textMuted : '#FFFFFF'} />
-              <Text style={[styles.primaryCtaText, { color: study.disabled ? theme.textMuted : '#FFFFFF' }]} numberOfLines={1}>
+              <Zap size={scale(16)} color={study.disabled ? theme.textMuted : uiPalette.white} />
+              <Text style={[styles.primaryCtaText, { color: study.disabled ? theme.textMuted : uiPalette.white }]} numberOfLines={1}>
                 {study.label}
               </Text>
             </View>

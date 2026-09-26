@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -44,7 +45,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
       <View style={styles.overlay}>
         <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
           <LinearGradient
-            colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
+            colors={settings.darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.white, uiPalette.paper]}
             style={styles.modalGradient}
           >
             {/* Header */}
@@ -65,7 +66,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={settings.darkMode ? '#CBD5E1' : '#64748B'} />
+                <X size={24} color={settings.darkMode ? uiPalette.secondary : uiPalette.lightMuted} />
               </TouchableOpacity>
             </View>
 
@@ -138,7 +139,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                 disabled={youthPills <= 0}
               >
                 <LinearGradient
-                  colors={youthPills > 0 ? ['#8B5CF6', '#7C3AED'] : ['#94A3B8', '#64748B']}
+                  colors={youthPills > 0 ? ['#8B5CF6', '#7C3AED'] : [uiPalette.muted, uiPalette.lightMuted]}
                   style={styles.useButtonGradient}
                 >
                   <Image 
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     padding: responsivePadding.horizontal,
   },
   modal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: responsiveBorderRadius.lg,
     width: '90%',
     maxWidth: scale(400),
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   modalGradient: {
     borderRadius: responsiveBorderRadius.lg,
@@ -212,18 +213,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: responsiveFontSize.sm,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 2,
   },
   subtitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   closeButton: {
     padding: responsiveSpacing.sm,
@@ -247,11 +248,11 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: responsiveFontSize.base,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontWeight: '600',
   },
   infoLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   pillCountContainer: {
     flexDirection: 'row',
@@ -269,21 +270,21 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   infoValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   description: {
     marginBottom: responsiveSpacing.md,
   },
   descriptionText: {
     fontSize: responsiveFontSize.sm,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: responsiveFontSize.sm * 1.5,
   },
   descriptionTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   warningCard: {
     borderRadius: responsiveBorderRadius.md,
@@ -307,19 +308,19 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
     alignItems: 'center',
   },
   cancelButtonDark: {
-    borderColor: '#334155',
+    borderColor: uiPalette.slate,
   },
   cancelButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   cancelButtonTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   useButton: {
     flex: 1,
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
   useButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   headerIcon: {
     width: 24,

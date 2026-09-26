@@ -1,3 +1,4 @@
+import { uiPalette , accent } from '@/lib/config/theme';
 /**
  * AchievementsSummaryCard - compact Home summary of achievements.
  *
@@ -30,7 +31,7 @@ import { Trophy, ChevronRight, Gem, Sparkles, Target } from 'lucide-react-native
 import { useAchievements } from '@/hooks/useAchievements';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { cardStyle } from '@/components/ui/Card';
-import { accent } from '@/lib/config/theme';
+
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
@@ -81,7 +82,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
             <Text style={styles.claimChipText}>{claimableCount}</Text>
           </View>
         )}
-        <ChevronRight size={scale(16)} color="#64748B" />
+        <ChevronRight size={scale(16)} color={uiPalette.lightMuted} />
       </View>
 
       <View style={styles.body}>
@@ -163,8 +164,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerText: { flex: 1, minWidth: 0 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700' },
-  sub: { color: '#94A3B8', fontSize: fontScale(11.5), marginTop: scale(1), fontWeight: '500' },
+  title: { color: uiPalette.paper, fontSize: fontScale(15), fontWeight: '700' },
+  sub: { color: uiPalette.muted, fontSize: fontScale(11.5), marginTop: scale(1), fontWeight: '500' },
 
   claimChip: {
     flexDirection: 'row', alignItems: 'center', gap: scale(3),
@@ -179,11 +180,11 @@ const styles = StyleSheet.create({
   },
 
   body: { flexDirection: 'row', alignItems: 'center', gap: scale(14), marginTop: scale(13) },
-  ringNum: { color: '#F8FAFC', fontSize: fontScale(14), fontWeight: '800', lineHeight: fontScale(16) },
-  ringOf: { color: '#94A3B8', fontSize: fontScale(9), fontWeight: '600' },
+  ringNum: { color: uiPalette.paper, fontSize: fontScale(14), fontWeight: '800', lineHeight: fontScale(16) },
+  ringOf: { color: uiPalette.muted, fontSize: fontScale(9), fontWeight: '600' },
 
   list: { flex: 1, gap: scale(10) },
-  empty: { color: '#94A3B8', fontSize: fontScale(11), fontStyle: 'italic' },
+  empty: { color: uiPalette.muted, fontSize: fontScale(11), fontStyle: 'italic' },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(9) },
   rowIcon: {
     width: scale(24), height: scale(24), borderRadius: scale(12),
@@ -193,13 +194,13 @@ const styles = StyleSheet.create({
   rowIconProgress: { backgroundColor: 'rgba(129,140,248,0.15)', borderColor: 'rgba(129,140,248,0.32)' },
   rowMid: { flex: 1, minWidth: 0, gap: scale(4) },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
-  rowTitle: { flex: 1, color: '#E2E8F0', fontSize: fontScale(12), fontWeight: '700' },
+  rowTitle: { flex: 1, color: uiPalette.line, fontSize: fontScale(12), fontWeight: '700' },
   rowClaim: { color: '#FBBF24', fontSize: fontScale(10), fontWeight: '700' },
   rowBarRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-  rowBar: { flex: 1, height: scale(4), borderRadius: scale(2), backgroundColor: '#334155', overflow: 'hidden' },
+  rowBar: { flex: 1, height: scale(4), borderRadius: scale(2), backgroundColor: uiPalette.slate, overflow: 'hidden' },
   rowBarFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#818CF8' },
   rowPct: {
-    color: '#94A3B8', fontSize: fontScale(9.5), fontWeight: '700',
+    color: uiPalette.muted, fontSize: fontScale(9.5), fontWeight: '700',
     fontVariant: ['tabular-nums'], minWidth: scale(24), textAlign: 'right',
   },
   reward: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },

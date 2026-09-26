@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useMemo } from 'react';
 import { scale, fontScale } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
@@ -101,7 +102,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
+          colors={settings.darkMode ? [uiPalette.navy, uiPalette.surface] : [uiPalette.lightSurface, uiPalette.white]}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -114,7 +115,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
                 hitSlop={hitSlopToMinTarget(scale(24))}
                 {...CLOSE_BUTTON_A11Y}
               >
-              <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
+              <X size={24} color={settings.darkMode ? uiPalette.white : '#000000'} />
             </TouchableOpacity>
           </View>
 
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   closeButton: {
     padding: 5,
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontScale(16),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   generationLabel: {
     flexDirection: 'row',
@@ -203,14 +204,14 @@ const styles = StyleSheet.create({
   genText: {
     fontSize: fontScale(14),
     fontWeight: 'bold',
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     marginRight: 10,
     width: 100,
   },
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
   },
   membersGrid: {
     flexDirection: 'row',
@@ -219,11 +220,11 @@ const styles = StyleSheet.create({
   },
   nodeContainer: {
     width: '48%', // 2 columns
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
     marginBottom: 8,
   },
   nodeSelected: {
@@ -231,13 +232,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   nodeLight: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
   },
   avatarContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -248,31 +249,31 @@ const styles = StyleSheet.create({
   },
   nodeName: {
     ...tier2,
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   nodeDetails: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   expandedDetails: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#475569',
+    borderTopColor: uiPalette.lightSecondary,
   },
   detailText: {
     fontSize: fontScale(12),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     marginBottom: 2,
   },
   textDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   textDarkSecondary: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   nodeDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
 });

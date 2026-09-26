@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * DangerZone - Restart game and bug report buttons with confirmation modal.
  * Extracted from SettingsModal to reduce its size.
@@ -137,7 +138,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
                 end={{ x: 1, y: 1 }}
                 style={styles.dangerIconContainer}
               >
-                <Shield size={20} color="#FFFFFF" />
+                <Shield size={20} color={uiPalette.white} />
               </LinearGradient>
               <Text style={styles.dangerTitle}>{t('settings.dangerZone')}</Text>
             </View>
@@ -154,7 +155,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
                 end={{ x: 1, y: 1 }}
                 style={styles.button}
               >
-                <Bug size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                <Bug size={18} color={uiPalette.white} style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>{t('settings.reportBug')}</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -171,7 +172,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
                 end={{ x: 1, y: 1 }}
                 style={styles.button}
               >
-                <RotateCcw size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                <RotateCcw size={18} color={uiPalette.white} style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>{t('settings.restartGame')}</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -196,7 +197,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
                 hitSlop={hitSlopToMinTarget(scale(24))}
                 {...CLOSE_BUTTON_A11Y}
               >
-                <X size={24} color="#CBD5E1" />
+                <X size={24} color={uiPalette.secondary} />
               </TouchableOpacity>
             </View>
 
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   overlay: {
     flex: 1,
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   confirmModal: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '90%',
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   closeButton: {
     borderRadius: scale(20),
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
   },
   confirmDescription: {
     fontSize: responsiveFontSize.base,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginBottom: responsiveSpacing.lg,
     // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
     lineHeight: fontScale(22),
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   confirmButton: {
     paddingVertical: 10,
@@ -346,6 +347,6 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });

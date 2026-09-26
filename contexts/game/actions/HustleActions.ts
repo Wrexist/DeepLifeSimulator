@@ -447,34 +447,40 @@ export const launchCampaign = (
   kind: HustleCampaignKind,
   spendPerWeek: number,
   durationWeeks: number,
-): { success: boolean; message: string; projectedROI?: number } => {
+): { status: 'queued' | 'rejected'; message: string; campaignId?: string; projectedROI?: number } => {
+  if (!Number.isFinite(spendPerWeek) || !Number.isSafeInteger(durationWeeks) || durationWeeks < 1) {
+    return { status: 'rejected', message: 'Enter a valid spend and whole number of weeks' };
+  }
   const floor = campaignCostFloor(kind);
   if (spendPerWeek < floor) {
-    return { success: false, message: `Min spend for ${kind} campaign is $${floor.toLocaleString()}/week` };
+    return { status: 'rejected', message: `Min spend for ${kind} campaign is $${floor.toLocaleString()}/week` };
   }
   const company = gameState.companies?.find((c) => c.id === companyId);
-  if (!company) return { success: false, message: 'Company not found' };
+  if (!company) return { status: 'rejected', message: 'Company not found' };
 
   const upfront = spendPerWeek;
   if ((gameState.stats?.money ?? 0) < upfront) {
-    return { success: false, message: 'Insufficient cash for first week of spend' };
+    return { status: 'rejected', message: 'Insufficient cash for first week of spend' };
   }
   // Running a campaign is WORK (2026-08-24): the owner briefs creative, signs
   // off spend, watches the numbers. Charging energy puts business management
   // inside the same weekly budget street jobs, study and dates draw on -
   // the lightweight slice of a time economy, without touching passive income.
   if ((gameState.stats?.energy ?? 0) < CAMPAIGN_ENERGY_COST) {
-    return { success: false, message: `Too tired to run a campaign (needs ${CAMPAIGN_ENERGY_COST} energy)` };
+    return { status: 'rejected', message: `Too tired to run a campaign (needs ${CAMPAIGN_ENERGY_COST} energy)` };
   }
 
-  const weeksLived = gameState.weeksLived ?? 0;
+  const campaignId = genId('camp');
   const projectedROI = projectCampaignROI(kind, spendPerWeek, company.weeklyIncome ?? 0);
 
   setGameState((prev) => {
+    if (!prev.companies?.some(c => c.id === companyId)) return prev;
+    if (prev.hustleApp?.companies?.[companyId]?.activeCampaigns.some(c => c.id === campaignId)) return prev;
+    const weeksLived = prev.weeksLived ?? 0;
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalCampaignsRun += 1;
       const campaign: HustleCampaign = {
-        id: genId('camp'),
+        id: campaignId,
         kind,
         spendPerWeek,
         startedWeek: weeksLived,
@@ -510,7 +516,8 @@ export const launchCampaign = (
     };
   });
 
-  return { success: true, message: 'Campaign launched', projectedROI };
+  // Queued is not success: the caller acknowledges this ID only after a React commit.
+  return { status: 'queued', message: 'Launching campaign', campaignId, projectedROI };
 };
 
 export const cancelCampaign = (

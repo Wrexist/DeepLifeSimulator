@@ -1,0 +1,14 @@
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeModal.tsx
+    59:6   warning  React Hook useMemo has unnecessary dependencies: 'gameState.bankSavings', 'gameState.realEstate', 'gameState.stats.money', and 'gameState.stocks'. Either exclude them or remove the dependency array    react-hooks/exhaustive-deps
+    79:6   warning  React Hook useMemo has a missing dependency: 'prestigeData'. Either include it or remove the dependency array                                                                                            react-hooks/exhaustive-deps
+   805:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1279:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Pulse\modals\ProfileEditModal.tsx
+  41:9  warning  The 'profile' logical expression could make the dependencies of useMemo Hook (at line 49) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'profile' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Pulse\screens\ProfileScreen.tsx
+  69:9  warning  The 'recentPosts' logical expression could make the dependencies of useCallback Hook (at line 95) change on every render. Move it inside the useCallback callback. Alternatively, wrap the initialization of 'recentPosts' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+✖ 6 problems (0 errors, 6 warnings)

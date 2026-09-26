@@ -125,7 +125,6 @@ export const styles = StyleSheet.create({
  height: isIPad() ? touchTargets.large: touchTargets.minimum,
  marginRight: responsiveSpacing.xs,
  borderRadius: (isIPad() ? touchTargets.large: touchTargets.minimum) / 2,
- overflow: 'hidden',
  backgroundColor: 'transparent',
  },
  iconButtonDark: {},
@@ -240,9 +239,42 @@ export const styles = StyleSheet.create({
  lineHeight: scale(20),
  flexShrink: 1, // Allow text to shrink if needed
  },
- // Small "+" badge on the gem chip — a static hint that the chip buys gems.
+ // Sibling hit areas share one visual pill; neither intercepts the other's tap.
+ gemChipGroup: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ flexShrink: 1,
+ minHeight: 44,
+ },
+ gemChipBackground: {
+ position: 'absolute',
+ left: 0,
+ right: 0,
+ height: scale(32),
+ borderRadius: 999,
+ borderWidth: 1,
+ },
+ gemBalanceTarget: {
+ minWidth: 44,
+ minHeight: 44,
+ justifyContent: 'center',
+ flexShrink: 1,
+ },
+ gemBalanceContent: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ paddingLeft: scale(8),
+ paddingRight: scale(4),
+ },
+ gemPurchaseTarget: {
+ width: 44,
+ minHeight: 44,
+ alignItems: 'center',
+ justifyContent: 'center',
+ flexShrink: 0,
+ },
+ // The small badge is decorative; its enclosing button owns the 44-point target.
  gemChipPlus: {
- marginLeft: scale(4),
  width: scale(16),
  height: scale(16),
  borderRadius: scale(8),

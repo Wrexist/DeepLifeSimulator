@@ -1,3 +1,10 @@
+import { advancedRequirementLabels } from '@/src/features/work/requirementLabels';
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius ,
+    scale,
+    fontScale,
+    getTabBarSafePadding,
+} from '@/utils/scaling';
+import { uiPalette , colors as themeColors } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo } from 'react';
 import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
@@ -58,17 +65,13 @@ import {
 } from 'lucide-react-native';
 import JailScreen from '@/components/jail/JailScreen';
 import SkillTalentTree from '@/components/SkillTalentTree';
-import {
-    scale,
-    fontScale,
-    getTabBarSafePadding,
-} from '@/utils/scaling';
+
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
-import { colors as themeColors } from '@/lib/config/theme';
+
 import { styles } from '@/components/work/workScreenStyles';
 // Static, not the lazy `require` this screen used inside the render callback:
 // `advancedCareers.ts` is pure data with no top-level side effects and imports
@@ -1028,7 +1031,7 @@ function WorkScreenContent() {
     // Plain background - the "gradient" this screen shipped with blended
     // #020617 into #020617 (two identical colors), pure decoration cost.
     const workScreenBackground = settings.darkMode
-        ? '#020617'
+        ? uiPalette.navy
         : themeColors.palette.light50;
 
     return (
@@ -1067,7 +1070,7 @@ function WorkScreenContent() {
                                         label={currentJobAtMax ? 'Fully promoted' : `Promotion progress ${currentJob.progress}%`}
                                     >
                                         <View style={[local.heroRingIcon, { borderColor: currentJobAtMax ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)', backgroundColor: currentJobAtMax ? 'rgba(16,185,129,0.14)' : 'rgba(59,130,246,0.14)' }]}>
-                                            <Briefcase size={scale(24)} color={currentJobAtMax ? '#34D399' : '#60A5FA'} />
+                                            <Briefcase size={scale(24)} color={currentJobAtMax ? '#34D399' : uiPalette.blue} />
                                         </View>
                                     </ProgressRing>
 
@@ -1217,7 +1220,7 @@ function WorkScreenContent() {
                                     ) : (
                                         <EmptyState
                                             compact
-                                            icon={<Zap size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            icon={<Zap size={22} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />}
                                             observation="No gigs on the board this week"
                                             nudge="Quick jobs rotate as the weeks pass - advance the week and check back."
                                         />
@@ -1247,7 +1250,7 @@ function WorkScreenContent() {
                                     ) : (
                                         <EmptyState
                                             compact
-                                            icon={<Briefcase size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            icon={<Briefcase size={22} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />}
                                             observation="No open positions right now"
                                             nudge={`The job board rotates - new listings in ${boardRefreshWeeks} ${boardRefreshWeeks === 1 ? 'week' : 'weeks'}.`}
                                         />
@@ -1302,20 +1305,9 @@ function WorkScreenContent() {
                                             const isApplied = false;
                                             const isAccepted = false;
 
-                                            const lockReqs: string[] = [];
-                                            if (isLocked) {
-                                                const req = career.unlockRequirements || career.requirements;
-                                                if ('education' in req && req.education) lockReqs.push(`Education: ${req.education.join(', ')}`);
-                                                if ('experience' in req && req.experience) lockReqs.push(`Experience: ${req.experience} weeks`);
-                                                if ('reputation' in req && req.reputation) lockReqs.push(`Reputation: ${req.reputation}+`);
-                                                if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
-                                                // Never printed before, because this whole block was
-                                                // unreachable - two of the five careers are gated on a
-                                                // claimed achievement and the player was never told.
-                                                if ('achievements' in req && req.achievements && req.achievements.length > 0) {
-                                                    lockReqs.push(`Achievement: ${req.achievements.join(', ')}`);
-                                                }
-                                            }
+                                            const lockReqs = isLocked
+                                                ? advancedRequirementLabels(career.unlockRequirements)
+                                                : [];
 
                                             return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
                                         });
@@ -1343,7 +1335,7 @@ function WorkScreenContent() {
                                             const remainingPoints = availablePoints - spentPoints;
 
                                             const skillMeta: Record<CrimeSkillId, { icon: typeof Eye; treeName: string; accent: [string, string]; totalNodes: number }> = {
-                                                stealth: { icon: Eye, treeName: 'Shadow Arts', accent: ['#475569', '#94A3B8'], totalNodes: 5 },
+                                                stealth: { icon: Eye, treeName: 'Shadow Arts', accent: [uiPalette.lightSecondary, uiPalette.muted], totalNodes: 5 },
                                                 hacking: { icon: Brain, treeName: 'Digital Dominion', accent: ['#0369A1', '#38BDF8'], totalNodes: 5 },
                                                 lockpicking: { icon: Target, treeName: 'Lock Mastery', accent: ['#EA580C', '#FB923C'], totalNodes: 5 },
                                             };
@@ -1383,7 +1375,7 @@ function WorkScreenContent() {
                                     ) : (
                                         <EmptyState
                                             compact
-                                            icon={<Lock size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            icon={<Lock size={22} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />}
                                             observation="No underground jobs available right now"
                                             nudge="Raise your criminal level to unlock more work, or check back later."
                                         />
@@ -1488,16 +1480,16 @@ const local = StyleSheet.create({
     buffRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: scale(6),
-        marginBottom: scale(10),
+        gap: layoutSpace.xs,
+        marginBottom: layoutSpace.sm,
     },
     buffChip: {
         borderWidth: 1,
         borderColor: 'rgba(168, 85, 247, 0.40)',
         backgroundColor: 'rgba(168, 85, 247, 0.12)',
         borderRadius: 999,
-        paddingHorizontal: scale(10),
-        paddingVertical: scale(4),
+        paddingHorizontal: layoutSpace.sm,
+        paddingVertical: layoutSpace.xs,
     },
     buffChipText: {
         fontSize: fontScale(11),
@@ -1508,10 +1500,10 @@ const local = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(148, 163, 184, 0.35)',
         backgroundColor: 'rgba(148, 163, 184, 0.10)',
-        borderRadius: scale(10),
-        padding: scale(10),
-        marginBottom: scale(8),
-        gap: scale(4),
+        borderRadius: layoutRadius.md,
+        padding: layoutSpace.sm,
+        marginBottom: layoutSpace.sm,
+        gap: layoutSpace.xs,
     },
     progressTitle: {
         fontSize: fontScale(12),
@@ -1527,7 +1519,7 @@ const local = StyleSheet.create({
     progressFill: {
         height: '100%',
         borderRadius: 999,
-        backgroundColor: '#94A3B8',
+        backgroundColor: uiPalette.muted,
     },
     recordLine: {
         fontSize: fontScale(11),
@@ -1538,7 +1530,7 @@ const local = StyleSheet.create({
         fontSize: fontScale(12),
         fontWeight: '600',
         color: 'rgba(71, 85, 105, 0.9)',
-        marginBottom: scale(8),
+        marginBottom: layoutSpace.sm,
         marginTop: scale(-2),
     },
     boardNoteDark: {
@@ -1546,27 +1538,27 @@ const local = StyleSheet.create({
     },
     // One-line section subtitles - replaced the three InfoButton "?" modals.
     workTabs: {
-        marginHorizontal: scale(16),
-        marginTop: scale(12),
-        marginBottom: scale(4),
+        marginHorizontal: layoutSpace.md,
+        marginTop: layoutSpace.compact,
+        marginBottom: layoutSpace.xs,
     },
     // Horizontal padding for the tab content, now that the whole page (hero +
     // sub-tabs + list) lives in one ScrollView. Matches the old inner-scroll
     // padding (responsiveSpacing.lg == scale(24)); the page ScrollView owns the
     // bottom safe-area padding.
     tabContent: {
-        paddingHorizontal: scale(24),
-        paddingTop: scale(8),
+        paddingHorizontal: layoutSpace.lg,
+        paddingTop: layoutSpace.sm,
     },
     // Current Job hero - reference-style ring card.
     heroCard: {
-        gap: scale(12),
-        marginHorizontal: scale(16),
-        marginTop: scale(12),
-        marginBottom: scale(6),
-        padding: scale(16),
-        paddingRight: scale(18),
-        borderRadius: scale(16),
+        gap: layoutSpace.compact,
+        marginHorizontal: layoutSpace.md,
+        marginTop: layoutSpace.compact,
+        marginBottom: layoutSpace.xs,
+        padding: layoutSpace.md,
+        paddingRight: layoutSpace.md,
+        borderRadius: layoutRadius.xl,
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -1575,7 +1567,7 @@ const local = StyleSheet.create({
     heroRingIcon: {
         width: scale(44),
         height: scale(44),
-        borderRadius: scale(13),
+        borderRadius: layoutRadius.lg,
         borderWidth: StyleSheet.hairlineWidth,
         alignItems: 'center',
         justifyContent: 'center',
@@ -1583,7 +1575,7 @@ const local = StyleSheet.create({
     heroRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: scale(16),
+        gap: layoutSpace.md,
     },
     heroActionRow: {
         flexDirection: 'row',
@@ -1591,7 +1583,7 @@ const local = StyleSheet.create({
     },
     heroRight: {
         flex: 1,
-        gap: scale(4),
+        gap: layoutSpace.xs,
     },
     heroLabel: {
         ...kicker,
@@ -1599,7 +1591,7 @@ const local = StyleSheet.create({
     },
     heroTitle: {
         ...tier1Title,
-        color: '#F8FAFC',
+        color: uiPalette.paper,
     },
     heroStageSub: {
         ...tier4,
@@ -1613,7 +1605,7 @@ const local = StyleSheet.create({
         fontSize: fontScale(16),
         lineHeight: fontScale(21),
         fontWeight: '600',
-        color: '#E2E8F0',
+        color: uiPalette.line,
         fontVariant: ['tabular-nums'],
     },
     // Action sheet
@@ -1623,42 +1615,42 @@ const local = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheet: {
-        backgroundColor: '#0F172A',
-        borderTopLeftRadius: scale(20),
-        borderTopRightRadius: scale(20),
+        backgroundColor: uiPalette.navy,
+        borderTopLeftRadius: layoutRadius['2xl'],
+        borderTopRightRadius: layoutRadius['2xl'],
         borderTopWidth: StyleSheet.hairlineWidth,
         borderColor: 'rgba(255, 255, 255, 0.1)',
-        paddingHorizontal: scale(16),
-        paddingTop: scale(10),
-        paddingBottom: scale(34),
-        gap: scale(10),
+        paddingHorizontal: layoutSpace.md,
+        paddingTop: layoutSpace.sm,
+        paddingBottom: layoutSpace.xl,
+        gap: layoutSpace.sm,
     },
     sheetHandle: {
         alignSelf: 'center',
         width: scale(38),
         height: scale(4),
-        borderRadius: scale(2),
+        borderRadius: layoutRadius.sm,
         backgroundColor: 'rgba(148, 163, 184, 0.4)',
-        marginBottom: scale(8),
+        marginBottom: layoutSpace.sm,
     },
     sheetTitle: {
         fontSize: fontScale(18),
         fontWeight: '800',
-        color: '#F8FAFC',
+        color: uiPalette.paper,
         letterSpacing: -0.3,
     },
     sheetSubtitle: {
         fontSize: fontScale(13),
         color: 'rgba(226, 232, 240, 0.6)',
-        marginBottom: scale(4),
+        marginBottom: layoutSpace.xs,
     },
     sheetAction: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: scale(12),
-        paddingVertical: scale(14),
-        paddingHorizontal: scale(14),
-        borderRadius: scale(12),
+        gap: layoutSpace.compact,
+        paddingVertical: layoutSpace.compact,
+        paddingHorizontal: layoutSpace.compact,
+        borderRadius: layoutRadius.lg,
         backgroundColor: 'rgba(15, 23, 42, 0.6)',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -1666,12 +1658,12 @@ const local = StyleSheet.create({
     sheetActionText: {
         fontSize: fontScale(15),
         fontWeight: '700',
-        color: '#F8FAFC',
+        color: uiPalette.paper,
     },
     sheetCancel: {
         alignItems: 'center',
-        paddingVertical: scale(13),
-        marginTop: scale(2),
+        paddingVertical: layoutSpace.compact,
+        marginTop: layoutSpace.xs,
     },
     sheetCancelText: {
         fontSize: fontScale(14),

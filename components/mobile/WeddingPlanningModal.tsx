@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -125,7 +126,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               accessibilityRole="button"
               hitSlop={hitSlopToMinTarget(scale(32))}
             >
-              <X size={scale(24)} color={isDarkMode ? '#fff' : '#000'} />
+              <X size={scale(24)} color={isDarkMode ? uiPalette.white : '#000'} />
             </TouchableOpacity>
           </View>
 
@@ -198,7 +199,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                         isDarkMode && styles.venueCardContentDark,
                         isSelected && { borderColor: venueColor, borderWidth: 2 }
                       ]}>
-                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? '#94A3B8' : '#64748B')} />
+                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? uiPalette.muted : uiPalette.lightMuted)} />
                         <Text style={[
                           styles.venueName, 
                           isDarkMode && styles.venueNameDark,
@@ -214,7 +215,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                         </Text>
                         {isSelected && (
                           <View style={[styles.selectedBadge, { backgroundColor: venueColor }]}>
-                            <Check size={scale(14)} color="#FFFFFF" />
+                            <Check size={scale(14)} color={uiPalette.white} />
                           </View>
                         )}
                       </View>
@@ -239,14 +240,14 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                   Guest Count
                 </Text>
                 <View style={[styles.guestInputContainer, isDarkMode && styles.guestInputContainerDark]}>
-                  <Users size={scale(20)} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+                  <Users size={scale(20)} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
                   <TextInput
                     style={[styles.guestInput, isDarkMode && styles.guestInputDark]}
                     value={guestCount}
                     onChangeText={setGuestCount}
                     keyboardType="numeric"
                     placeholder="Enter number of guests"
-                    placeholderTextColor={isDarkMode ? '#94A3B8' : '#64748B'}
+                    placeholderTextColor={isDarkMode ? uiPalette.muted : uiPalette.lightMuted}
                     maxLength={3}
                   />
                   <Text style={[styles.guestHint, isDarkMode && styles.guestHintDark]}>
@@ -275,7 +276,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                     onPress={() => setState(!state)}
                   >
                     <View style={[styles.checkbox, state && styles.checkboxChecked]}>
-                      {state && <Check size={scale(12)} color="#FFFFFF" />}
+                      {state && <Check size={scale(12)} color={uiPalette.white} />}
                     </View>
                     <View style={styles.serviceInfo}>
                       <Text style={[styles.serviceName, isDarkMode && styles.serviceNameDark]}>
@@ -337,10 +338,10 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               disabled={!selectedVenueId || !canAfford}
             >
               <LinearGradient
-                colors={(!selectedVenueId || !canAfford) ? ['#94A3B8', '#64748B'] : ['#EC4899', '#DB2777']}
+                colors={(!selectedVenueId || !canAfford) ? [uiPalette.muted, uiPalette.lightMuted] : ['#EC4899', '#DB2777']}
                 style={styles.confirmButtonGradient}
               >
-                <Heart size={scale(18)} color="#FFFFFF" />
+                <Heart size={scale(18)} color={uiPalette.white} />
                 <Text style={styles.confirmButtonText}>Plan Wedding</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -370,13 +371,13 @@ const styles = StyleSheet.create({
     maxWidth: scale(500),
     height: '90%',
     maxHeight: scale(700),
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(20),
     overflow: 'hidden',
     ...getShadow(20, '#000'),
   },
   containerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   header: {
     flexDirection: 'row',
@@ -394,10 +395,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   closeButton: {
     padding: scale(4),
@@ -408,10 +409,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: scale(16),
     paddingVertical: scale(10),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
   },
   statsBarDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   statItem: {
     flexDirection: 'row',
@@ -420,11 +421,11 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontWeight: '500',
   },
   textMuted: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   moneyText: {
     fontSize: fontScale(13),
@@ -471,7 +472,7 @@ const styles = StyleSheet.create({
     color: '#92400E',
   },
   textDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   section: {
     marginBottom: scale(24),
@@ -479,11 +480,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginBottom: scale(12),
   },
   sectionTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   venueScroll: {
     marginHorizontal: scale(-16),
@@ -496,18 +497,18 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: scale(20),
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: scale(12),
   },
   emptyStateDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   emptyStateText: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   emptyStateTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   venueCard: {
     width: scale(180),
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
   venueCardContent: {
     padding: scale(16),
     borderRadius: scale(12),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',
@@ -527,25 +528,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   venueCardContentDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   venueName: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginTop: scale(8),
     textAlign: 'center',
   },
   venueNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   venueCapacity: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(4),
   },
   venueCapacityDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   venueCost: {
     fontSize: fontScale(14),
@@ -570,19 +571,19 @@ const styles = StyleSheet.create({
     marginTop: scale(12),
     padding: scale(12),
     borderRadius: scale(10),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
   },
   venueDescriptionCardDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   venueDescription: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontStyle: 'italic',
     lineHeight: fontScale(20),
   },
   venueDescriptionDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   guestInputContainer: {
     flexDirection: 'row',
@@ -590,49 +591,49 @@ const styles = StyleSheet.create({
     gap: scale(12),
     padding: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   guestInputContainerDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   guestInput: {
     flex: 1,
     fontSize: fontScale(16),
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   guestInputDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   guestHint: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   guestHintDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   serviceOption: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     marginBottom: scale(8),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   serviceOptionDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   checkbox: {
     width: scale(20),
     height: scale(20),
     borderRadius: scale(6),
     borderWidth: 2,
-    borderColor: '#94A3B8',
+    borderColor: uiPalette.muted,
     marginRight: scale(12),
     justifyContent: 'center',
     alignItems: 'center',
@@ -647,18 +648,18 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: scale(2),
   },
   serviceNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   serviceDescription: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   serviceDescriptionDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   serviceCost: {
     fontSize: fontScale(14),
@@ -671,10 +672,10 @@ const styles = StyleSheet.create({
   costBreakdown: {
     padding: scale(16),
     borderRadius: scale(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
   },
   costBreakdownDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   costRow: {
     flexDirection: 'row',
@@ -689,18 +690,18 @@ const styles = StyleSheet.create({
   },
   costLabel: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   costLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   costValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   costValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   footer: {
     flexDirection: 'row',
@@ -716,19 +717,19 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: scale(14),
     borderRadius: scale(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     alignItems: 'center',
   },
   cancelButtonDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   cancelButtonText: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   cancelButtonTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   confirmButton: {
     flex: 2,
@@ -748,6 +749,6 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });

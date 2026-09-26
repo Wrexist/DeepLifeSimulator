@@ -1,3 +1,5 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import SceneCard from '@/components/ui/SceneCard';
 /**
  * ContactsApp - Social-CRM remake (Remake 11, on top of Slate Glass).
  *
@@ -1115,7 +1117,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {f.kind}
           </Text>
           <Text style={[styles.cardSub, { color: theme.textMuted }]} numberOfLines={1}>
-            {nameForContactId(f.contactId)} · wk {f.createdWeek}{f.expiresWeek ? ` · exp wk ${f.expiresWeek}` : ''}
+            {nameForContactId(f.contactId)} · {formatLifeWeek(f.createdWeek, gameState.lifeStartWeek)}{f.expiresWeek ? ` · expires ${formatLifeWeek(f.expiresWeek, gameState.lifeStartWeek)}` : ''}
           </Text>
           {f.note ? (
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>{f.note}</Text>
@@ -1312,6 +1314,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
              empty. The portfolio hero below still is, because a summary of
              nothing was the reason for the old blanket suppression. */
           <View style={styles.leadWrap}>
+            <SceneCard scene="lounge" title="Your circle" subtitle="Catch up with someone you know." />
             {renderMeetCard()}
             {/* The lead slot. "At risk" used to be a number whose only
                 affordance was a tab switch; the worst at-risk contact now
@@ -1328,7 +1331,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 {renderTriageCard(worstAtRisk)}
               </View>
             ) : null}
-            {personalContacts.length === 0 ? null : statsHero('Relationship portfolio', (
+            {personalContacts.length === 0 ? null : statsHero('Your relationships', (
               <>
                 {topPersonal.length > 0 ? (
                   <View style={styles.clusterRow}>
@@ -1355,7 +1358,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                       })}
                     </View>
                     <Text style={[styles.clusterLabel, { color: theme.textSecondary }]} numberOfLines={2}>
-                      Your inner circle · top {topPersonal.length} by bond
+                      Closest to you
                     </Text>
                   </View>
                 ) : null}
@@ -1887,15 +1890,15 @@ const styles = StyleSheet.create({
   actionBtnText: { fontSize: fs.xs, fontWeight: '600' },
   feedback: { fontSize: fs.xs, fontStyle: 'italic', marginTop: sp.xs },
   // Summary-card interior: clipped so the fill stays inside the radius.
-  heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg },
+  heroInner: { borderRadius: br.lg, overflow: 'hidden', padding: sp.md },
   // The Personal tab's lead slot: the kicker sits `micro` off the card it
   // labels, and the whole promotion sits `major` off the portfolio strip - a
   // hierarchy change, not another card in the band.
-  leadWrap: { gap: rhythm.major },
+  leadWrap: { gap: rhythm.tight },
   leadKicker: { ...kicker, marginBottom: rhythm.micro },
   statsTitle: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sp.sm },
   // Inner-circle avatar stack in the personal hero.
-  clusterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginBottom: sp.md },
+  clusterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginBottom: sp.sm },
   avatarStack: { flexDirection: 'row' },
   clusterAvatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: scale(38), height: scale(38), borderRadius: scale(19), borderWidth: 2 },
   clusterLabel: { flex: 1, fontSize: fs.sm, fontWeight: '600' },

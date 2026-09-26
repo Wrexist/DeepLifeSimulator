@@ -1,3 +1,4 @@
+import { uiPalette , colors, accent } from '@/lib/config/theme';
 /**
  * Family Tab - spouse / partner, children, pregnancy and the parenting loop.
  *
@@ -69,7 +70,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage, cancelEngagement } from '@/contexts/game/actions/DatingActions';
 import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
-import { colors, accent } from '@/lib/config/theme';
+
 import { getLifeStage, WEDDING_REMAINDER_RATE } from '@/lib/config/gameConstants';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -186,7 +187,7 @@ function ActionRow({
  const body = (
  <View style={styles.actionRowBody}>
  <View style={[styles.actionRowIcon, tone === 'primary' && styles.actionRowIconPrimary]}>
- {locked ? <Lock size={scale(16)} color={c.textMuted} /> : <Icon size={scale(18)} color={tone === 'primary' ? '#FFF' : accent.info} />}
+ {locked ? <Lock size={scale(16)} color={c.textMuted} /> : <Icon size={scale(18)} color={tone === 'primary' ? uiPalette.white : accent.info} />}
  </View>
  <View style={styles.actionRowText}>
  <Text style={[styles.actionRowLabel, tone === 'primary' && !locked && styles.actionRowLabelPrimary]}>
@@ -986,7 +987,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  colors={['#F59E0B', '#D97706']}
  style={styles.heirBannerGradient}
  >
- <Crown size={scale(22)} color="#FFF" />
+ <Crown size={scale(22)} color={uiPalette.white} />
  <Text style={styles.heirBannerText}>Eligible Heir</Text>
  </LinearGradient>
  </View>
@@ -1103,7 +1104,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  end={{ x: 1, y: 1 }}
  style={styles.emptyStateCtaFill}
  >
- <Search size={scale(17)} color="#FFF" />
+ <Search size={scale(17)} color={uiPalette.white} />
  <Text style={styles.emptyStateCtaText}>Open the dating app</Text>
  </LinearGradient>
  </TouchableOpacity>
@@ -1379,7 +1380,7 @@ const styles = StyleSheet.create({
  color: c.text,
  },
  actionRowLabelPrimary: {
- color: '#FFF',
+ color: uiPalette.white,
  },
  actionRowHint: {
  fontSize: fontScale(11),
@@ -1517,7 +1518,7 @@ const styles = StyleSheet.create({
  paddingVertical: scale(13),
  },
  emptyStateCtaText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(14),
  fontWeight: '700',
  },
@@ -1702,7 +1703,7 @@ const styles = StyleSheet.create({
  paddingVertical: scale(14),
  },
  heirBannerText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(15),
  fontWeight: '700',
  },

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef } from 'react';
 import { Platform, Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -202,8 +203,8 @@ export default function WeddingPopup() {
                     <Rings size={scale(50)} color="#FFD700" strokeWidth={2} />
                     <Heart 
                       size={scale(50)} 
-                      color="#FFFFFF" 
-                      fill="#FFFFFF" 
+                      color={uiPalette.white}
+                      fill={uiPalette.white}
                       style={styles.heartIcon}
                     />
                   </View>
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(26),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     ...Platform.select({
       web: { textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)' } as any,
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: fontScale(18),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     marginBottom: scale(20),
     lineHeight: fontScale(26),
@@ -362,13 +363,13 @@ const styles = StyleSheet.create({
   celebrationText: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     marginBottom: scale(8),
   },
   celebrationSubtext: {
     fontSize: fontScale(14),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     opacity: 0.9,
     lineHeight: fontScale(20),
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     marginBottom: scale(12),
   },
@@ -397,14 +398,14 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: fontScale(15),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: scale(12),
     flex: 1,
     fontWeight: '500',
   },
   congratulations: {
     fontSize: fontScale(16),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     fontStyle: 'italic',
     lineHeight: fontScale(24),

@@ -1,7 +1,11 @@
+import WeekChangeToast from '@/components/feedback/WeekChangeToast';
+import { responsiveSpacing as layoutSpace , scale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
+import { UserRound , Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Bell, LayoutGrid, Activity } from 'lucide-react-native';
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Platform, View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
+
 import { modalEventCount } from '@/lib/events/routing';
 // M16: read through the leaf selector channel, not `useGame()`. `useGame()`
 // subscribed the whole <Tabs> navigator - every tab screen's parent - to every
@@ -9,7 +13,7 @@ import { modalEventCount } from '@/lib/events/routing';
 // app/(onboarding)/_layout.tsx documents the same reasoning (it also avoids the
 // GameContext barrel's import cycle by importing the leaf module directly).
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { scale } from '@/utils/scaling';
+
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTheme } from '@/hooks/useTheme';
@@ -97,17 +101,17 @@ function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: scale(8),
-          paddingVertical: scale(9),
-          paddingHorizontal: scale(16),
+          gap: layoutSpace.sm,
+          paddingVertical: layoutSpace.sm,
+          paddingHorizontal: layoutSpace.md,
           borderRadius: scale(999),
           backgroundColor: 'rgba(15, 23, 42, 0.92)',
           borderWidth: 1,
           borderColor: 'rgba(96, 165, 250, 0.5)',
         }}
       >
-        <Bell size={scale(15)} color="#60A5FA" />
-        <Text style={{ color: '#F8FAFC', fontWeight: '700', fontSize: scale(13) }}>
+        <Bell size={scale(15)} color={uiPalette.blue} />
+        <Text style={{ color: uiPalette.paper, fontWeight: '700', fontSize: scale(13) }}>
           {count} decision{count === 1 ? '' : 's'} waiting
         </Text>
       </TouchableOpacity>
@@ -120,12 +124,6 @@ export default function TabLayout() {
   // reference, so the navigator re-renders only when one of them actually
   // changes - not on every mutation.
   const jailWeeks = useGameSelector((s) => s?.jailWeeks ?? 0);
-  const ownsSmartphone = useGameSelector((s) =>
-    (s?.items ?? []).some((item) => item.id === 'smartphone' && item.owned)
-  );
-  const ownsComputer = useGameSelector((s) =>
-    (s?.items ?? []).some((item) => item.id === 'computer' && item.owned)
-  );
 
   const showDeathPopup = useGameSelector((s) => s?.showDeathPopup === true);
   const showWeddingPopup = useGameSelector((s) => s?.showWeddingPopup === true);
@@ -221,10 +219,9 @@ export default function TabLayout() {
     }
   }, [isInPrison, currentRoute, router]);
 
-  // Device ownership decides which tabs show (selected above).
-  // The merged Apps tab appears in the bar once the player owns any device.
-  // (Which launcher shows - phone grid vs desktop - is decided inside apps.tsx.)
-  const ownsAnyDevice = ownsSmartphone || ownsComputer;
+  // Apps remains a stable destination. Its launchers enforce device ownership.
+  // Profile is the long-term progression destination; prison still owns navigation.
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -247,8 +244,8 @@ export default function TabLayout() {
           fontWeight: '600',
           marginTop: -2,
         },
-        tabBarActiveTintColor: isDark ? '#60A5FA' : '#3B82F6',
-        tabBarInactiveTintColor: isDark ? '#94A3B8' : '#64748B',
+        tabBarActiveTintColor: isDark ? uiPalette.blue : '#3B82F6',
+        tabBarInactiveTintColor: isDark ? uiPalette.muted : uiPalette.lightMuted,
         // Hide tab bar completely when in prison
         tabBarStyle: (isInPrison || fullscreenApp) ? { display: 'none' } : {
           position: 'absolute',
@@ -256,7 +253,7 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           ...getGlassTabBar(isDark),
-          paddingTop: scale(8),
+          paddingTop: layoutSpace.sm,
           // Sit the icon row lower and tighter. Still clears the home indicator /
           // Android nav bar, but trims the oversized inset padding + tall base
           // height that left the labels floating high with dead space beneath.
@@ -296,14 +293,13 @@ export default function TabLayout() {
         }}
       />
       {/* Apps - merged device tab. Shows the phone grid or (once owned) the
-          desktop launcher with its own Desktop/Mobile sub-toggle. Hidden from
-          the bar until the player owns any device, and while in prison. */}
+          desktop launcher with its own Desktop/Mobile sub-toggle. The bar stays stable; the launcher explains missing devices. Hidden in prison. */}
       <Tabs.Screen
         name="apps"
         options={{
           title: t('tabs.apps') || 'Apps',
           tabBarIcon: ({ size, color }) => <LayoutGrid size={size} color={color} />,
-          href: (isInPrison || !ownsAnyDevice) ? null : undefined,
+          href: isInPrison ? null : undefined,
         }}
       />
       {/* Life - merged personal tab: a Health / Shop / Stats sub-menu that opens
@@ -341,9 +337,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="progression"
         options={{
-          href: null,
-          title: t('tabs.progression') || 'Progress',
-          tabBarIcon: ({ size, color }) => <Trophy size={size} color={color} />,
+          href: isInPrison ? null : undefined,
+          title: 'Profile',
+          tabBarIcon: ({ size, color }) => <UserRound size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -363,6 +359,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <WeekChangeToast />
     {/* R2-H: render exclusively - both modals are <Modal transparent fade>,
         and on a tick that produces both a life moment AND a weekly event,
         their backdrops stack and taps on the lower one are blocked. Let the

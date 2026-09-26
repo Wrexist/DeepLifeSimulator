@@ -1,3 +1,10 @@
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { saveBeforeLeaving } from '@/utils/saveBeforeLeaving';
+import { Volume2, VolumeX , X, Vibrate,
+  VibrateOff,
+  Save, HelpCircle, Calendar, Settings, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated, Platform } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -10,9 +17,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Vibrate,
-  VibrateOff,
-  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -39,7 +44,7 @@ import {
   finalizeDiscordClaim,
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
-import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
+import { suspendLifeAutosave, resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { gameAlert } from '@/utils/gameAlert';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { analytics } from '@/lib/analytics';
@@ -97,18 +102,16 @@ function SettingsActionButton({
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
     >
-      <LinearGradient
-        colors={['rgba(31, 41, 55, 0.85)', 'rgba(17, 24, 39, 0.85)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <View
         style={styles.glassActionButton}
       >
         <View style={[styles.glassActionIconChip, { backgroundColor: `${accent}22`, borderColor: `${accent}55` }]}>
           <Icon size={18} color={accent} />
         </View>
         <Text style={styles.glassActionLabel}>{label}</Text>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -116,6 +119,7 @@ function SettingsActionButton({
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState } = useGameState();
   const { saveGame } = useGameActions();
+  const reducedMotion = useReducedMotion();
   const { openStore } = useGemStore();
   const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   // Both the Remove Ads IAP and DeepLife+ set settings.adsRemoved, so this flag
@@ -133,6 +137,41 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+
+  const [switchingSlot, setSwitchingSlot] = useState(false);
+  const slotSwitchBusy = useRef(false);
+  const settingsVisible = useRef(visible);
+  const settingsRevision = useRef(0);
+  useEffect(() => {
+    settingsVisible.current = visible;
+    return () => { settingsVisible.current = false; settingsRevision.current++; };
+  }, [visible]);
+  const switchSaveSlot = async () => {
+    if (slotSwitchBusy.current) return;
+    const revision = settingsRevision.current;
+    slotSwitchBusy.current = true;
+    setSwitchingSlot(true);
+    let leavingStarted = false;
+    try {
+      const left = await saveBeforeLeaving(saveGame, () => {
+        leavingStarted = true;
+        suspendLifeAutosave('settings -> switch save slot');
+        onClose();
+        const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
+        router.push(saveSlotsPath);
+      }, () => settingsVisible.current && settingsRevision.current === revision);
+      if (!left && settingsVisible.current && settingsRevision.current === revision) {
+        gameAlert('Progress not saved', 'Your life is still open. Try switching slots again after saving completes.');
+      }
+    } catch (error) {
+      if (leavingStarted) resumeLifeAutosave();
+      logger.error('[Settings] Save before slot switch failed', error);
+      if (settingsVisible.current && settingsRevision.current === revision) gameAlert('Could not switch slots', 'Your life is still open. Please try again.');
+    } finally {
+      slotSwitchBusy.current = false;
+      setSwitchingSlot(false);
+    }
+  };
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
@@ -286,13 +325,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // is dark-first and immersive) and produced a broken half-themed look. Saves
   // are coerced back to dark on load (utils/saveValidation.ts).
   const settingItems = [
-    // Sound Effects toggle REMOVED, for the same reason as the group named
-    // above: it controlled nothing. The app ships no audio backend and no
-    // audio assets, so `playSound` is a no-op in every build - a switch the
-    // player can flip that changes nothing is worse than no switch. The
-    // `soundEnabled` FIELD stays on GameState (removing it would need a
-    // migration, and it is the natural home for the setting if audio ever
-    // ships); only the misleading control is gone.
+    {
+      id: 'soundEnabled',
+      title: 'Sound Effects',
+      description: 'Soft feedback for weeks, rewards and important actions. Respects silent mode.',
+      icon: settings.soundEnabled ? Volume2 : VolumeX,
+      type: 'toggle' as const,
+      value: settings.soundEnabled !== false,
+    },
     {
       id: 'hapticFeedback',
       title: t('settings.hapticFeedback'),
@@ -562,7 +602,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType={reducedMotion ? "none" : "fade"}
       onRequestClose={onClose}
       onDismiss={flushPendingStore}
     >
@@ -571,72 +611,76 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
           <View style={styles.modal}>
           {/* Enhanced Header with Glass */}
           <View style={styles.glassHeader}>
-            <View style={styles.glassOverlay} />
             <View style={styles.headerContent}>
               <View style={styles.titleContainer}>
                 <View style={styles.glassTitleIcon}>
-                  <View style={styles.glassOverlay} />
-                  <Settings size={24} color="#FFFFFF" />
+                        <Settings size={24} color={uiPalette.white} />
                 </View>
                 <Text style={[styles.title,  styles.titleDark]}>{t('settings.title')}</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.glassCloseButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <View style={styles.glassOverlay} />
-                <X size={20} color="#FFFFFF" />
+                    <X size={20} color={uiPalette.white} />
               </TouchableOpacity>
             </View>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-            {/* Enhanced Tab Container */}
-            <View style={[styles.tabContainer,  styles.tabContainerDark]}>
-              <TouchableOpacity
-                style={[styles.settingsTab, activeSettingsTab === 'settings' && styles.activeSettingsTab]}
-                onPress={() => setActiveSettingsTab('settings')}
-              >
-                {activeSettingsTab === 'settings' ? (
-                  <LinearGradient
-                    colors={['#6366F1', '#4F46E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Settings size={16} color="#FFFFFF" style={styles.tabIcon} />
-                    <Text style={styles.activeSettingsTabText}>Settings</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Settings size={16} color="#94A3B8" style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Settings</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.settingsTab, activeSettingsTab === 'lifeGoals' && styles.activeSettingsTab]}
-                onPress={() => setActiveSettingsTab('lifeGoals')}
-              >
-                {activeSettingsTab === 'lifeGoals' ? (
-                  <LinearGradient
-                    colors={['#10B981', '#059669']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Target size={16} color="#FFFFFF" style={styles.tabIcon} />
-                    <Text style={styles.activeSettingsTabText}>Life Goals</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Target size={16} color="#94A3B8" style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Life Goals</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+          <ScrollView style={styles.content} pointerEvents={switchingSlot ? 'none' : 'auto'} showsVerticalScrollIndicator={true}>
+            <SegmentedControl
+              segments={[{ key: 'settings', label: 'Settings' }, { key: 'lifeGoals', label: 'Life Goals' }]}
+              value={activeSettingsTab}
+              onChange={setActiveSettingsTab}
+              style={styles.tabContainer}
+            />
 
             {activeSettingsTab === 'settings' ? (
               <>
+                {settingItems.map(item => (
+                  <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
+                    <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
+                      <LinearGradient
+                        colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.settingItemGradient}
+                      >
+                        <View style={styles.settingInfo}>
+                          <View style={styles.settingHeader}>
+                            <LinearGradient
+                              colors={item.value ? ['#10B981', '#059669'] as const : [uiPalette.muted, uiPalette.lightSecondary] as const}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={styles.settingIconContainer}
+                            >
+                              <item.icon size={18} color={uiPalette.white} />
+                            </LinearGradient>
+                            <View style={styles.settingTextContainer}>
+                              <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
+                                {item.title}
+                              </Text>
+                              <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
+                                {item.description}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <View style={styles.switchContainer}>
+                          <Switch
+                            value={item.value}
+                            onValueChange={(value) => handleToggle(item.id, value)}
+                            trackColor={{ false: uiPalette.lightSecondary, true: '#10B981' }}
+                            thumbColor={item.value ? uiPalette.white : uiPalette.lightSurface}
+                            ios_backgroundColor={uiPalette.lightSecondary}
+                            accessibilityLabel={item.title}
+                            accessibilityHint={`Toggle ${item.title.toLowerCase()}. Currently ${item.value ? 'enabled' : 'disabled'}`}
+                            accessibilityRole="switch"
+                            accessibilityState={{ checked: item.value }}
+                          />
+                        </View>
+                      </LinearGradient>
+                    </View>
+                  </View>
+                ))}
+
                 {/* Game Dev Tools - dev/QA only; gated so the simulator graph is stripped from production. */}
                 {DEV_TOOLS_ENABLED && (
                   <SettingsActionButton
@@ -653,7 +697,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Megaphone}
                   label="What's New"
-                  accent="#60A5FA"
+                  accent={uiPalette.blue}
                   onPress={openWhatsNew}
                   accessibilityLabel="See what's new in the latest update"
                 />
@@ -666,53 +710,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="Open help and frequently asked questions"
                 />
 
-                {settingItems.map(item => (
-                  <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
-                    <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
-                      <LinearGradient
-                        colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.settingItemGradient}
-                      >
-                        <View style={styles.settingInfo}>
-                          <View style={styles.settingHeader}>
-                            <LinearGradient
-                              colors={item.value ? ['#10B981', '#059669'] as const : ['#94A3B8', '#475569'] as const}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              style={styles.settingIconContainer}
-                            >
-                              <item.icon size={18} color="#FFFFFF" />
-                            </LinearGradient>
-                            <View style={styles.settingTextContainer}>
-                              <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
-                                {item.title}
-                              </Text>
-                              <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
-                                {item.description}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                        <View style={styles.switchContainer}>
-                          <Switch
-                            value={item.value}
-                            onValueChange={(value) => handleToggle(item.id, value)}
-                            trackColor={{ false: '#475569', true: '#10B981' }}
-                            thumbColor={item.value ? '#FFFFFF' : '#F1F5F9'}
-                            ios_backgroundColor="#475569"
-                            accessibilityLabel={item.title}
-                            accessibilityHint={`Toggle ${item.title.toLowerCase()}. Currently ${item.value ? 'enabled' : 'disabled'}`}
-                            accessibilityRole="switch"
-                            accessibilityState={{ checked: item.value }}
-                          />
-                        </View>
-                      </LinearGradient>
-                    </View>
-                  </View>
-                ))}
-
                 {/* Enhanced Action Buttons */}
                 <SettingsActionButton
                   icon={Users}
@@ -723,18 +720,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
                 <SettingsActionButton
                   icon={Save}
-                  label={t('settings.switchSaveSlot')}
-                  accent="#60A5FA"
-                  onPress={() => {
-                    onClose();
-                    // R3-S1: leaving a live game for the slot picker. Without
-                    // this, a backup restored from that screen is silently
-                    // overwritten by the still-loaded pre-restore state on the
-                    // next background transition.
-                    suspendLifeAutosave('settings -> switch save slot');
-                    const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
-                    router.push(saveSlotsPath);
-                  }}
+                  label={switchingSlot ? 'Saving progress...' : t('settings.switchSaveSlot')}
+                  accent={uiPalette.blue}
+                  disabled={switchingSlot}
+                  onPress={switchSaveSlot}
                 />
 
                 {/* Special Discord Button with Animation */}
@@ -776,7 +765,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     style={styles.discordButton}
                   >
                     <View style={styles.discordButtonContent}>
-                      <MessageCircle size={20} color="#FFFFFF" style={styles.discordButtonIcon} />
+                      <MessageCircle size={20} color={uiPalette.white} style={styles.discordButtonIcon} />
                       <View style={styles.discordButtonTextContainer}>
                         <Text style={styles.discordButtonText}>
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
@@ -811,7 +800,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Gift}
                   label="Redeem Code"
-                  accent="#60A5FA"
+                  accent={uiPalette.blue}
                   onPress={handleRedeemOfferCode}
                   accessibilityLabel="Redeem an App Store code"
                 />
@@ -862,7 +851,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   <SettingsActionButton
                     icon={Shield}
                     label={isOpeningAdPrivacy ? 'Opening privacy choices...' : 'Ad Privacy Choices'}
-                    accent="#94A3B8"
+                    accent={uiPalette.muted}
                     onPress={handleAdPrivacy}
                     disabled={isOpeningAdPrivacy}
                   />
@@ -870,7 +859,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Shield}
                   label="Privacy Policy"
-                  accent="#94A3B8"
+                  accent={uiPalette.muted}
                   onPress={() => {
                     Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
                       gameAlert('Error', `Could not open privacy policy. Please visit ${PRIVACY_POLICY_URL} in your browser.`);
@@ -885,7 +874,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <SettingsActionButton
                   icon={Shield}
                   label={preparingPrivacy ? 'Preparing request...' : 'Request Personal Data Deletion'}
-                  accent="#94A3B8"
+                  accent={uiPalette.muted}
                   disabled={preparingPrivacy}
                   onPress={() => { void preparePrivacyRequest(); }}
                 />
@@ -898,7 +887,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     <SettingsActionButton
                       icon={MessageCircle}
                       label="Open Email Draft"
-                      accent="#94A3B8"
+                      accent={uiPalette.muted}
                       onPress={() => {
                         Linking.openURL(privacyRequestMailUrl(privacyRequest)).catch(() => {
                           gameAlert('Email unavailable', `Copy the request text and email ${SUPPORT_EMAIL}. No request has been sent.`);
@@ -908,7 +897,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     <SettingsActionButton
                       icon={X}
                       label="Hide Request Details"
-                      accent="#94A3B8"
+                      accent={uiPalette.muted}
                       onPress={() => setPrivacyRequest(null)}
                     />
                   </View>
@@ -985,7 +974,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     colors={['#818CF8', '#6366F1', '#4F46E5']}
                     style={styles.rewardGemCircle}
                   >
-                    <Sparkles size={scale(28)} color="#FFFFFF" />
+                    <Sparkles size={scale(28)} color={uiPalette.white} />
                   </LinearGradient>
                 </Animated.View>
 

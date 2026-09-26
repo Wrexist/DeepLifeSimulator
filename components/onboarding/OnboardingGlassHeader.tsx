@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowLeft, Info } from 'lucide-react-native';
@@ -15,7 +16,7 @@ export default function OnboardingGlassHeader({ title, onBack, onInfo }: Onboard
       <TouchableOpacity accessibilityLabel="Go back" onPress={onBack} style={styles.buttonWrap}>
         <View style={styles.glassButton}>
           <View style={styles.glassOverlay} />
-          <ArrowLeft size={24} color="#FFFFFF" />
+          <ArrowLeft size={24} color={uiPalette.white} />
         </View>
       </TouchableOpacity>
 
@@ -27,7 +28,7 @@ export default function OnboardingGlassHeader({ title, onBack, onInfo }: Onboard
         <TouchableOpacity accessibilityLabel="More information" onPress={onInfo} style={styles.buttonWrap}>
           <View style={styles.glassButton}>
             <View style={styles.glassOverlay} />
-            <Info size={20} color="#FFFFFF" />
+            <Info size={20} color={uiPalette.white} />
           </View>
         </TouchableOpacity>
       ) : (
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     // the heaviest object on three wizard screens, above the 18pt cards and
     // the Continue button (Program 4).
     fontSize: responsiveFontSize.xl,
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     flex: 1,
     textAlign: 'center',
     ...Platform.select({

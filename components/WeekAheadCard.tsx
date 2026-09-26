@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * WeekAheadCard - "what is coming?"
  *
@@ -52,7 +53,7 @@ const KIND_ICON: Record<UpcomingKind, typeof CalendarClock> = {
 
 const TONE_COLOR: Record<UpcomingTone, string> = {
   good: '#34D399',
-  neutral: '#94A3B8',
+  neutral: uiPalette.muted,
   caution: '#FBBF24',
 };
 
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
   // Container from components/ui/Card; crest from IconBubble.
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
   kicker: { color: '#A78BFA', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
+  title: { color: uiPalette.paper, fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
   list: { gap: scale(10) },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   rowIcon: {
@@ -147,8 +148,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: 'rgba(148, 163, 184, 0.08)',
   },
-  rowTitle: { color: '#F1F5F9', fontSize: fontScale(12.5), fontWeight: '700' },
-  rowDetail: { color: '#94A3B8', fontSize: fontScale(10.5), marginTop: scale(2) },
+  rowTitle: { color: uiPalette.lightSurface, fontSize: fontScale(12.5), fontWeight: '700' },
+  rowDetail: { color: uiPalette.muted, fontSize: fontScale(10.5), marginTop: scale(2) },
   rowWhen: { fontSize: fontScale(10.5), fontWeight: '800' },
 });
 

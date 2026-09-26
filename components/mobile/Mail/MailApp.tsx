@@ -550,7 +550,7 @@ function MailAppInner({ onBack }: Props) {
                 ? 'No matches'
                 : filter
                   ? `No ${FILTER_LABELS[filter].toLowerCase()} mail`
-                  : 'Nothing here'
+                  : folder === 'inbox' ? 'Your inbox is clear' : `No mail in ${folderLabel.toLowerCase()}`
             }
             nudge={
               searching
@@ -559,8 +559,8 @@ function MailAppInner({ onBack }: Props) {
                   ? FILTER_EMPTY_TEXT[filter]
                   : 'Payslips, statements and invoices arrive as the weeks pass.'
             }
-            ctaLabel={filter ? 'Clear filter' : undefined}
-            onCtaPress={filter ? () => setFilter(null) : undefined}
+            ctaLabel={searching ? 'Clear search' : filter ? 'Clear filter' : undefined}
+            onCtaPress={searching ? () => setQuery('') : filter ? () => setFilter(null) : undefined}
           />
         ) : (
           visible.map((m) => (

@@ -1,12 +1,13 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { uiPalette, accent as themeAccent } from '@/lib/config/theme';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { Check, Heart } from 'lucide-react-native';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 // Aliased: this component's own prop is called `accent` (vitality / diet).
-import { accent as themeAccent } from '@/lib/config/theme';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 - use the safe fallback.
 const LinearGradient = Gradient;
 
@@ -48,14 +49,14 @@ interface HealthCardProps {
 // "selected". Red is danger, green is a gain; neither is a button.
 const ACCENT: Record<HealthAccent, { reward: string; button: [string, string, string]; disabled: [string, string] }> = {
   vitality: {
-    reward: '#E2E8F0',
-    button: ['#60A5FA', '#3B82F6', '#1D4ED8'],
-    disabled: ['#1E293B', '#0F172A'],
+    reward: uiPalette.line,
+    button: [uiPalette.blue, '#3B82F6', '#1D4ED8'],
+    disabled: [uiPalette.surface, uiPalette.navy],
   },
   diet: {
-    reward: '#E2E8F0',
-    button: ['#60A5FA', '#3B82F6', '#1D4ED8'],
-    disabled: ['#1E293B', '#0F172A'],
+    reward: uiPalette.line,
+    button: [uiPalette.blue, '#3B82F6', '#1D4ED8'],
+    disabled: [uiPalette.surface, uiPalette.navy],
   },
 };
 
@@ -160,7 +161,7 @@ export default function HealthCard({
                     <View style={[styles.statIcon, { backgroundColor: meta.color + '18', borderColor: meta.color + '40' }]}>
                       <meta.Icon size={scale(12)} color={meta.color} />
                     </View>
-                    <Text style={[styles.statValue, { color: positive ? '#E2E8F0' : 'rgba(248, 113, 113, 0.95)' }]}>
+                    <Text style={[styles.statValue, { color: positive ? uiPalette.line : 'rgba(248, 113, 113, 0.95)' }]}>
                       {sign}{magnitude}
                     </Text>
                     <Text style={styles.statLabel}>{meta.label}</Text>
@@ -191,7 +192,7 @@ export default function HealthCard({
             </LinearGradient>
           ) : (
             <View style={[styles.button, styles.buttonTonal, locked && styles.buttonTonalLocked]}>
-              {active ? <Check size={scale(14)} color={palette.button[0]} style={{ marginRight: scale(6) }} /> : null}
+              {active ? <Check size={scale(14)} color={palette.button[0]} style={{ marginRight: layoutSpace.xs }} /> : null}
               <Text style={[styles.buttonText, styles.buttonTextTonal, locked && styles.buttonTextLocked]}>{buttonText}</Text>
             </View>
           )}
@@ -219,7 +220,7 @@ export default function HealthCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: verticalScale(10),
+    marginBottom: layoutSpace.sm,
     borderRadius: responsiveBorderRadius.md,
     overflow: 'hidden',
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
@@ -235,9 +236,9 @@ const styles = StyleSheet.create({
     right: scale(12),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(5),
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(3),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: scale(999),
     backgroundColor: 'rgba(52, 211, 153, 0.12)',
     borderWidth: StyleSheet.hairlineWidth,
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   activeDot: {
     width: scale(6),
     height: scale(6),
-    borderRadius: scale(3),
+    borderRadius: layoutRadius.sm,
     backgroundColor: '#34D399',
   },
   activeLabel: {
@@ -259,13 +260,13 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: responsiveSpacing.md,
-    gap: verticalScale(10),
+    gap: layoutSpace.sm,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: scale(12),
+    gap: layoutSpace.compact,
     paddingRight: scale(60), // breathing room for the Active pill
   },
   title: {
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(17),
     lineHeight: fontScale(22),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
   },
   price: {
@@ -290,23 +291,23 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginVertical: verticalScale(2),
+    marginVertical: layoutSpace.xs,
   },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: scale(14),
-    rowGap: verticalScale(8),
+    gap: layoutSpace.compact,
+    rowGap: layoutSpace.sm,
   },
   statCell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: layoutSpace.xs,
   },
   statIcon: {
     width: scale(22),
     height: scale(22),
-    borderRadius: scale(7),
+    borderRadius: layoutRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
@@ -323,7 +324,7 @@ const styles = StyleSheet.create({
     color: 'rgba(226, 232, 240, 0.55)',
   },
   buttonWrap: {
-    marginTop: verticalScale(4),
+    marginTop: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.sm,
     overflow: 'hidden',
   },
@@ -331,7 +332,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: verticalScale(11),
+    paddingVertical: layoutSpace.compact,
   },
   buttonTonal: {
     backgroundColor: 'rgba(96, 165, 250, 0.14)',
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: fontScale(14),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
@@ -360,14 +361,14 @@ const styles = StyleSheet.create({
   feedback: {
     alignSelf: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.88)',
-    paddingHorizontal: scale(12),
-    paddingVertical: verticalScale(6),
+    paddingHorizontal: layoutSpace.compact,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
-    marginTop: verticalScale(2),
+    marginTop: layoutSpace.xs,
   },
   feedbackText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
 });

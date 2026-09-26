@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Ring selection for marriage proposals.
  *
@@ -71,7 +72,7 @@ export default function RingSelectionModal({
               <Text style={[styles.title, darkMode && styles.textDark]}>Choose a Ring</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <X size={24} color={darkMode ? '#F8FAFC' : '#0F172A'} />
+              <X size={24} color={darkMode ? uiPalette.paper : uiPalette.navy} />
             </TouchableOpacity>
           </View>
 
@@ -123,12 +124,12 @@ export default function RingSelectionModal({
             style={[styles.proposeButton, !selected && { opacity: 0.5 }]}
           >
             <LinearGradient
-              colors={selected ? getTierGradient(selected.ring.qualityTier) : ['#64748B', '#475569']}
+              colors={selected ? getTierGradient(selected.ring.qualityTier) : [uiPalette.lightMuted, uiPalette.lightSecondary]}
               style={styles.proposeGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Gem size={18} color="#FFF" />
+              <Gem size={18} color={uiPalette.white} />
               <Text style={styles.proposeText}>
                 {selected
                   ? `Propose with ${selected.ring.name} ($${selected.ring.price.toLocaleString()})`
@@ -150,14 +151,14 @@ const styles = StyleSheet.create({
   },
   content: {
     maxHeight: '85%',
-    backgroundColor: '#FFF',
+    backgroundColor: uiPalette.white,
     borderTopLeftRadius: scale(24),
     borderTopRightRadius: scale(24),
     padding: scale(20),
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   contentDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   header: {
     flexDirection: 'row',
@@ -173,11 +174,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   subtitle: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(12),
   },
   list: {
@@ -186,16 +187,16 @@ const styles = StyleSheet.create({
   ringCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: scale(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
     padding: scale(12),
     marginBottom: scale(8),
   },
   ringCardDark: {
-    backgroundColor: '#0F172A',
-    borderColor: '#334155',
+    backgroundColor: uiPalette.navy,
+    borderColor: uiPalette.slate,
   },
   ringCardDisabled: {
     opacity: 0.45,
@@ -212,11 +213,11 @@ const styles = StyleSheet.create({
   ringName: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   ringDescription: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   ringStatsRow: {
@@ -259,14 +260,14 @@ const styles = StyleSheet.create({
     paddingVertical: scale(14),
   },
   proposeText: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '700',
   },
   textDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   textMuted: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });

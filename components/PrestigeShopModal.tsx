@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { incomeGainFromPurchase, incomeMultiplierHeadroom, isIncomeBonusWasted } from '@/lib/prestige/incomeHeadroom';
 import { inertBonusReason } from '@/lib/prestige/inertBonuses';
@@ -159,14 +160,14 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
       case 'special':
         return ['#EF4444', '#DC2626'];
       default:
-        return ['#64748B', '#475569'];
+        return [uiPalette.lightMuted, uiPalette.lightSecondary];
     }
   };
 
   const getRarityColor = (rarity?: string) => {
     switch (rarity) {
       case 'common':
-        return '#94A3B8';
+        return uiPalette.muted;
       case 'uncommon':
         return '#10B981';
       case 'rare':
@@ -176,7 +177,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
       case 'legendary':
         return '#F59E0B';
       default:
-        return '#64748B';
+        return uiPalette.lightMuted;
     }
   };
 
@@ -248,7 +249,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                 {...CLOSE_BUTTON_A11Y}
               >
                 <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>
-                  <X size={18} color={isDarkMode ? '#FFFFFF' : '#1E293B'} />
+                  <X size={18} color={isDarkMode ? uiPalette.white : uiPalette.surface} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -291,7 +292,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                           },
                         ]}
                       >
-                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#CBD5E1' : '#64748B')} />
+                        <Icon size={16} color={isSelected ? uiPalette.white : (isDarkMode ? uiPalette.secondary : uiPalette.lightMuted)} />
                         <Text style={[styles.categoryTabText, isSelected && styles.categoryTabTextSelected, !isSelected && isDarkMode && styles.categoryTabTextDark]}>
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
@@ -394,7 +395,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                         {p.claimed ? (
                           <Check size={16} color="#10B981" />
                         ) : (
-                          <Sparkles size={16} color={p.claimable ? '#10B981' : '#94A3B8'} />
+                          <Sparkles size={16} color={p.claimable ? '#10B981' : uiPalette.muted} />
                         )}
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontWeight: '700' }]}>
@@ -461,7 +462,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             ) : unlocked ? (
                               <Sparkles size={16} color="#D97706" />
                             ) : (
-                              <Lock size={16} color={isDarkMode ? '#94A3B8' : '#64748B'} />
+                              <Lock size={16} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
                             )}
                             <View style={{ flex: 1 }}>
                               <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontWeight: '700' }]}>
@@ -722,19 +723,19 @@ const styles = StyleSheet.create({
   pointsLabel: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(2),
   },
   pointsLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   pointsText: {
     fontSize: fontScale(24),
     fontWeight: '800',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   pointsTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   closeButton: {
     width: scale(36),
@@ -790,14 +791,14 @@ const styles = StyleSheet.create({
   categoryTabText: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   categoryTabTextSelected: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '700',
   },
   categoryTabTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   bonusesList: {
     flex: 1,
@@ -813,10 +814,10 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontScale(16),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   emptyTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   bonusCard: {
     marginBottom: scale(12),
@@ -856,13 +857,13 @@ const styles = StyleSheet.create({
   bonusName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   bonusNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   bonusNameOwned: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   rarityBadge: {
     paddingHorizontal: scale(8),
@@ -874,12 +875,12 @@ const styles = StyleSheet.create({
   rarityText: {
     fontSize: fontScale(9),
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.5,
   },
   bonusDescription: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: fontScale(20),
     marginBottom: scale(8),
     marginTop: scale(4),
@@ -897,7 +898,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bonusDescriptionDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   bonusDescriptionOwned: {
     color: 'rgba(255, 255, 255, 0.9)',
@@ -907,11 +908,11 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontWeight: '600',
   },
   levelTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   ownedBadge: {
     width: scale(32),
@@ -947,10 +948,10 @@ const styles = StyleSheet.create({
   costText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   costTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   costTextInsufficient: {
     color: '#EF4444',
@@ -973,7 +974,7 @@ const styles = StyleSheet.create({
   purchaseButtonText: {
     fontSize: fontScale(13),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   purchaseButtonTextDisabled: {
     color: 'rgba(255, 255, 255, 0.6)',

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
@@ -39,7 +40,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
+          colors={settings.darkMode ? [uiPalette.navy, uiPalette.surface] : [uiPalette.lightSurface, uiPalette.white]}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -47,7 +48,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
               Legacy & Lineage
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
-              <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
+              <X size={24} color={settings.darkMode ? uiPalette.white : '#000000'} />
             </TouchableOpacity>
           </View>
 
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier1Title,
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   closeButton: {
     padding: 5,
@@ -225,29 +226,29 @@ const styles = StyleSheet.create({
   },
   genValue: {
     ...tier1Value,
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   rankCard: {
     marginTop: 12,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     // Full border on all four sides - a one-sided coloured stripe is banned
     // app-wide (Hard Rule #7).
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',
   },
   rankCardDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderColor: 'rgba(255,255,255,0.10)',
   },
   rankHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rankTitle: {
     ...tier2,
-    ...tier2, fontSize: 16, fontWeight: '800', color: '#0F172A' },
-  rankScore: { fontSize: fontScale(15), fontWeight: '800', color: '#0F172A', fontVariant: ['tabular-nums'] },
-  rankDesc: { fontSize: fontScale(12), color: '#64748B', marginTop: 4 },
-  rankDescDark: { color: '#94A3B8' },
+    ...tier2, fontSize: 16, fontWeight: '800', color: uiPalette.navy },
+  rankScore: { fontSize: fontScale(15), fontWeight: '800', color: uiPalette.navy, fontVariant: ['tabular-nums'] },
+  rankDesc: { fontSize: fontScale(12), color: uiPalette.lightMuted, marginTop: 4 },
+  rankDescDark: { color: uiPalette.muted },
   rankTrack: {
     height: 8,
     borderRadius: 4,
@@ -265,41 +266,41 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   actionButtonDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   actionText: {
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
   },
   sectionDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   sectionTitle: {
     ...tier2,
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginBottom: 12,
   },
   traitsGrid: {
     gap: 8,
   },
   traitCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     padding: 12,
     borderRadius: 8,
   },
@@ -314,11 +315,11 @@ const styles = StyleSheet.create({
   },
   traitName: {
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   traitDesc: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   bonusRow: {
     flexDirection: 'row',
@@ -329,7 +330,7 @@ const styles = StyleSheet.create({
   },
   bonusLabel: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: 4,
   },
   bonusValue: {
@@ -337,13 +338,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontStyle: 'italic',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   textDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   textDarkSecondary: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
 });
 

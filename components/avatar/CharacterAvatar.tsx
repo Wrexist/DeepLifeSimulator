@@ -10,6 +10,9 @@
  * update live, as in the character creator.
  */
 import React, { useMemo } from 'react';
+import { Image } from 'react-native';
+import { isPortraitId } from '@/lib/avatar/portraits';
+import { PORTRAIT_ASSETS } from './portraitAssets';
 import VectorAvatar from './VectorAvatar';
 import { resolveAvatar, resolveNpcAvatar, toAvatarSex, type AvatarSource } from '@/lib/avatar/resolve';
 import { resolveChildAvatar, type ParentSources } from '@/lib/avatar/family';
@@ -61,6 +64,12 @@ function CharacterAvatarImpl({
     if (source) return resolveAvatar(source, fallbackSex);
     return resolveNpcAvatar(seed, sex, fallbackSex);
   }, [source, seed, sex, fallbackSex, parents, drawnSex]);
+
+  if (isPortraitId(source?.avatarId)) {
+    return <Image source={PORTRAIT_ASSETS[source.avatarId]}
+      style={{ width: size, height: size, borderRadius: circular ? size / 2 : size / 5 }}
+      resizeMode="cover" accessibilityIgnoresInvertColors />;
+  }
 
   return (
     <VectorAvatar

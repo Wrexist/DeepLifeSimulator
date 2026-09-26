@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Luxury & Collectibles — artwork wiring + per-tier visual tokens.
  *
@@ -75,7 +76,7 @@ export interface LuxuryTierVisual {
 export const LUXURY_TIER_VISUALS: Record<LuxuryItem['tier'], LuxuryTierVisual> = {
   entry: {
     label: 'ENTRY',
-    accent: '#60A5FA',
+    accent: uiPalette.blue,
     accentSoft: 'rgba(59, 130, 246, 0.16)',
     accentBorder: 'rgba(59, 130, 246, 0.36)',
     placeholder: '#14284A',

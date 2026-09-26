@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -90,7 +91,7 @@ export default function DivorceConfirmModal({
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>Confirm Divorce</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={scale(24)} color={isDarkMode ? '#fff' : '#000'} />
+              <X size={scale(24)} color={isDarkMode ? uiPalette.white : '#000'} />
             </TouchableOpacity>
           </View>
 
@@ -189,8 +190,8 @@ export default function DivorceConfirmModal({
                     >
                       <LinearGradient
                         colors={isSelected 
-                          ? (isDarkMode ? ['#475569', '#334155'] : tierColor)
-                          : (isDarkMode ? ['#334155', '#1E293B'] : ['#F8FAFC', '#F1F5F9'])
+                          ? (isDarkMode ? [uiPalette.lightSecondary, uiPalette.slate] : tierColor)
+                          : (isDarkMode ? [uiPalette.slate, uiPalette.surface] : [uiPalette.paper, uiPalette.lightSurface])
                         }
                         style={styles.lawyerCardGradient}
                       >
@@ -200,12 +201,12 @@ export default function DivorceConfirmModal({
                             <View style={[
                               styles.lawyerTierBadge,
                               { backgroundColor: outcome.lawyer.tier === 'premium' ? '#FFD700' : 
-                                                outcome.lawyer.tier === 'standard' ? '#60A5FA' : '#F59E0B' }
+                                                outcome.lawyer.tier === 'standard' ? uiPalette.blue : '#F59E0B' }
                             ]}>
                               <Star 
                                 size={scale(12)} 
-                                color="#FFFFFF" 
-                                fill={isSelected ? '#FFFFFF' : 'transparent'}
+                                color={uiPalette.white}
+                                fill={isSelected ? uiPalette.white : 'transparent'}
                               />
                             </View>
                             <View style={styles.lawyerNameContainer}>
@@ -469,7 +470,7 @@ export default function DivorceConfirmModal({
               disabled={!canAffordFinal}
             >
               <LinearGradient
-                colors={!canAffordFinal ? ['#94A3B8', '#64748B'] : ['#EF4444', '#DC2626']}
+                colors={!canAffordFinal ? [uiPalette.muted, uiPalette.lightMuted] : ['#EF4444', '#DC2626']}
                 style={styles.confirmButtonGradient}
               >
                 <Text style={styles.confirmButtonText}>
@@ -500,13 +501,13 @@ const styles = StyleSheet.create({
     maxWidth: scale(600),
     height: '90%',
     maxHeight: scale(800),
-    backgroundColor: '#fff',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(20),
     overflow: 'hidden',
     ...getShadow(20, '#000'),
   },
   containerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   header: {
     flexDirection: 'row',
@@ -524,10 +525,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(24),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   closeButton: {
     padding: scale(4),
@@ -577,31 +578,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginBottom: scale(16),
   },
   sectionTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   sectionDescription: {
     fontSize: fontScale(15),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(16),
     lineHeight: fontScale(21),
   },
   sectionDescriptionDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   infoCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: scale(12),
     padding: scale(20),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   infoCardDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   finalCostCard: {
     borderWidth: 2,
@@ -616,18 +617,18 @@ const styles = StyleSheet.create({
   infoLabel: {
     flex: 1,
     fontSize: fontScale(15),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   infoLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   infoValue: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   infoValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   gemValue: {
     color: '#FFD700',
@@ -635,12 +636,12 @@ const styles = StyleSheet.create({
   },
   infoSubtext: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginLeft: scale(26),
     marginTop: scale(4),
   },
   infoSubtextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   gemSubtext: {
     color: '#10B981',
@@ -648,7 +649,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     marginVertical: scale(12),
   },
   totalRow: {
@@ -658,10 +659,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   totalLabelDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   totalValue: {
     fontSize: fontScale(18),
@@ -736,22 +737,22 @@ const styles = StyleSheet.create({
   lawyerName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: scale(4),
   },
   lawyerNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   lawyerNameSelected: {
     color: '#8B5CF6',
   },
   lawyerTagline: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontStyle: 'italic',
   },
   lawyerTaglineDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   selectedBadge: {
     width: scale(24),
@@ -762,7 +763,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedBadgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: 'bold',
     fontSize: fontScale(14),
   },
@@ -777,19 +778,19 @@ const styles = StyleSheet.create({
   },
   lawyerStatLabel: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     flex: 1,
   },
   lawyerStatLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   lawyerStatValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   lawyerStatValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   lawyerOutcome: {
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
@@ -816,18 +817,18 @@ const styles = StyleSheet.create({
   },
   lawyerOutcomeLabel: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   lawyerOutcomeLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   lawyerOutcomeValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   lawyerOutcomeValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   positiveSavings: {
     color: '#10B981',
@@ -855,10 +856,10 @@ const styles = StyleSheet.create({
   lawyerCostLabel: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   lawyerCostLabelDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   lawyerCostValue: {
     fontSize: fontScale(18),
@@ -883,7 +884,7 @@ const styles = StyleSheet.create({
   noLawyerOption: {
     padding: scale(12),
     borderRadius: scale(10),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',
@@ -893,27 +894,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1FAE5',
   },
   noLawyerOptionDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   noLawyerText: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   noLawyerTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   noLawyerTextSelected: {
     color: '#059669',
     fontWeight: 'bold',
   },
   effectsList: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: scale(12),
     padding: scale(12),
   },
   effectsListDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   effectItem: {
     flexDirection: 'row',
@@ -923,10 +924,10 @@ const styles = StyleSheet.create({
   },
   effectText: {
     fontSize: fontScale(15),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   effectTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   errorBox: {
     backgroundColor: '#FEF2F2',
@@ -960,19 +961,19 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: scale(16),
     borderRadius: scale(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     alignItems: 'center',
   },
   cancelButtonDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   cancelButtonText: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   cancelButtonTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   confirmButton: {
     flex: 2,
@@ -989,6 +990,6 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });

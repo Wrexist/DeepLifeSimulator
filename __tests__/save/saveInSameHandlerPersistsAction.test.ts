@@ -1,3 +1,4 @@
+import { saveBeforeLeaving } from '@/utils/saveBeforeLeaving';
 /**
  * A purchase saved from the handler that made it must survive a reload.
  *
@@ -214,6 +215,25 @@ describe('a save made in the same handler as the action persists the action', ()
     expect(reloaded).not.toBeNull();
     expect(reloaded!.gamingStreaming?.equipment.microphone).toBe(true);
     expect(reloaded!.stats.money).toBe(before!.stats.money - PRICE);
+  });
+
+  it('an unsaved purchase survives Settings -> save slots -> reload', async () => {
+    await seedSlot(1, life({ stats: { money: 5000 } }));
+    mounted = mountGame();
+    const before = await load(1);
+    act(() => {
+      expect(buyAccessory(probe().state, probe().setGameState, 'microphone', PRICE).success).toBe(true);
+    });
+    // This action has not called saveGame; the old Settings exit lost it.
+    expect((await readSlot(1)).gamingStreaming?.equipment.microphone ?? false).toBe(false);
+    let leaving!: Promise<boolean>;
+    act(() => {
+      leaving = saveBeforeLeaving(probe().saveGame, () => suspendLifeAutosave('settings -> switch save slot'));
+    });
+    await act(async () => { await expect(leaving).resolves.toBe(true); });
+    const reloaded = await load(1);
+    expect(reloaded?.gamingStreaming?.equipment.microphone).toBe(true);
+    expect(reloaded?.stats.money).toBe(before!.stats.money - PRICE);
   });
 
   it('a save still waiting for its commit does not write a newly loaded life into the slot it was requested for', async () => {

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AmbitionPickerCard - a way into the ambition system for lives that skipped it.
  *
@@ -80,7 +81,7 @@ function AmbitionPickerCard() {
     <Card>
       <View style={styles.header}>
         <IconBubble color="#3B82F6">
-          <Compass size={scale(18)} color="#60A5FA" />
+          <Compass size={scale(18)} color={uiPalette.blue} />
         </IconBubble>
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>LIFE AMBITION</Text>
@@ -102,7 +103,7 @@ function AmbitionPickerCard() {
           }}
           activeOpacity={0.85}
         >
-          <Star size={scale(15)} color="#0F172A" />
+          <Star size={scale(15)} color={uiPalette.navy} />
           <Text style={styles.ctaText}>Pick an Ambition</Text>
         </TouchableOpacity>
       ) : (
@@ -133,7 +134,7 @@ function AmbitionPickerCard() {
                   <Text style={styles.gemChipText}>{a.payoff.gems}</Text>
                 </View>
               ) : (
-                <Check size={scale(14)} color="#64748B" />
+                <Check size={scale(14)} color={uiPalette.lightMuted} />
               )}
             </TouchableOpacity>
           ))}
@@ -146,9 +147,9 @@ function AmbitionPickerCard() {
 const styles = StyleSheet.create({
   // Container from components/ui/Card; crest from IconBubble.
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  kicker: { color: '#60A5FA', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
-  sub: { color: '#94A3B8', fontSize: fontScale(11), marginTop: scale(2), lineHeight: fontScale(15) },
+  kicker: { color: uiPalette.blue, fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
+  title: { color: uiPalette.paper, fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
+  sub: { color: uiPalette.muted, fontSize: fontScale(11), marginTop: scale(2), lineHeight: fontScale(15) },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -156,9 +157,9 @@ const styles = StyleSheet.create({
     gap: scale(7),
     paddingVertical: scale(11),
     borderRadius: scale(12),
-    backgroundColor: '#60A5FA',
+    backgroundColor: uiPalette.blue,
   },
-  ctaText: { color: '#0F172A', fontSize: fontScale(13), fontWeight: '800' },
+  ctaText: { color: uiPalette.navy, fontSize: fontScale(13), fontWeight: '800' },
   list: { maxHeight: scale(280) },
   listContent: { gap: scale(8) },
   option: {
@@ -178,8 +179,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   optionEmoji: { fontSize: fontScale(17) },
-  optionTitle: { color: '#E2E8F0', fontSize: fontScale(13), fontWeight: '700' },
-  optionSub: { color: '#94A3B8', fontSize: fontScale(10.5), marginTop: scale(2) },
+  optionTitle: { color: uiPalette.line, fontSize: fontScale(13), fontWeight: '700' },
+  optionSub: { color: uiPalette.muted, fontSize: fontScale(10.5), marginTop: scale(2) },
   gemChip: {
     flexDirection: 'row',
     alignItems: 'center',
