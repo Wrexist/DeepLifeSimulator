@@ -1,0 +1,46 @@
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(tabs)\work.tsx
+   186:9   warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                                          react-hooks/exhaustive-deps
+   246:47  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   246:47  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   264:72  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   337:59  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   405:51  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1267:71  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\TopStatsBar.tsx
+  364:5  warning  React Hook useEffect has missing dependencies: 'animatedStats.energy', 'animatedStats.happiness', 'animatedStats.health', 'glowAnimations', 'logRender', and 'stats'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  418:2  warning  React Hook React.useMemo has a missing dependency: 'stats'. Either include it or remove the dependency array                                                                                                              react-hooks/exhaustive-deps
+  806:5  warning  React Hook useEffect has missing dependencies: 'date' and 'weekAnimations'. Either include them or remove the dependency array                                                                                            react-hooks/exhaustive-deps
+  932:7  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper                   no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\TopStatsBarStyles.ts
+   23:58  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   40:56  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   76:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  104:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  151:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  384:60  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  425:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\AdvancedBankApp.tsx
+  262:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\VehicleApp.tsx
+  154:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 179) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  154:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 183) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  154:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 187) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  154:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 195) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  209:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                        react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\BankApp.tsx
+  223:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\ContactsApp.tsx
+  295:9  warning  The 'ledger' logical expression could make the dependencies of useMemo Hook (at line 296) change on every render. To fix this, wrap the initialization of 'ledger' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  295:9  warning  The 'ledger' logical expression could make the dependencies of useMemo Hook (at line 297) change on every render. To fix this, wrap the initialization of 'ledger' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  295:9  warning  The 'ledger' logical expression could make the dependencies of useMemo Hook (at line 298) change on every render. To fix this, wrap the initialization of 'ledger' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+✖ 28 problems (0 errors, 28 warnings)
+
+EXIT_STATUS=0

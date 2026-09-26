@@ -1,3 +1,4 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * VehicleApp - desktop vehicle screen. Car-marketplace DNA.
@@ -760,7 +761,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 <DetailRow label="Plan" value={ins.type} theme={theme} capitalize />
                 <DetailRow label="Coverage" value={`${ins.coveragePercent}%`} theme={theme} />
                 <DetailRow label="Monthly cost" value={formatMoney(ins.monthlyCost ?? 0)} theme={theme} />
-                <DetailRow label="Expires" value={`Week ${ins.expiresWeek} · ${insWeeksLeft} wk left`} theme={theme} />
+                <DetailRow label="Expires" value={`${formatLifeWeek(ins.expiresWeek, gameState.lifeStartWeek)} · ${insWeeksLeft} wk left`} theme={theme} />
               </>
             ) : (
               <DetailRow label="Status" value="No active insurance" theme={theme} valueColor={accent.danger} />

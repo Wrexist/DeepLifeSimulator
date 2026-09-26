@@ -669,6 +669,8 @@ function TopStatsBarComponent() {
  </View>
  </TouchableOpacity>
 
+ <View style={styles.gemChipGroup}>
+ <View pointerEvents="none" style={[styles.gemChipBackground, styles.moneyChipQuiet]} />
  <TouchableOpacity
  onPress={() => {
  buttonPress();
@@ -677,16 +679,12 @@ function TopStatsBarComponent() {
  activeOpacity={0.7}
  accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}`}
  accessibilityRole="button"
- accessibilityHint="Tap to see your gem breakdown. Use the plus button to buy gems."
+ accessibilityHint="Opens your gem breakdown"
+ style={styles.gemBalanceTarget}
  >
  <View
  style={[
- styles.moneyChip,
- styles.moneyChipQuiet,
- isVerySmallDevice && {
- paddingHorizontal: scale(6),
- minWidth: scale(55)
- }
+ styles.gemBalanceContent,
  ]}
  >
  <Gem size={14} color="#A5B4FC" style={styles.chipIcon} />
@@ -700,6 +698,8 @@ function TopStatsBarComponent() {
  {formatGems(stats?.gems ?? 0)}
  </Text>
  </View>
+ </View>
+ </TouchableOpacity>
  {/* The + is the ONE store affordance on the chip. Tap-on-chip used to open
      the STORE while every sibling chip's tap opened a breakdown - the only
      gesture inversion in the HUD, and a monetization tap wired to the
@@ -709,16 +709,16 @@ function TopStatsBarComponent() {
  buttonPress();
  openStore('gems');
  }}
- hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
  accessibilityLabel="Buy gems"
  accessibilityRole="button"
  accessibilityHint="Opens the gem store"
- style={styles.gemChipPlus}
+ style={styles.gemPurchaseTarget}
  >
+ <View style={styles.gemChipPlus}>
  <Plus size={12} color="#FFFFFF" />
- </TouchableOpacity>
  </View>
  </TouchableOpacity>
+ </View>
  </View>
  </View>
  </View>

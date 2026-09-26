@@ -1,6 +1,6 @@
 # Whole-app imperfection audit - 26 September 2026
 
-> Follow-through: D01-D08 and D10-D12 have implementation fixes in the [audit-fix checklist](audit-fixes-2026-09-26.md), with the Family target portion of D09 also addressed. See [current fix evidence](release/evidence/audit-fixes-2026-09-26.md). The original observations below are preserved as the audit baseline; native acceptance and the remaining 47 register items are still open (D09 partially complete).
+> Follow-through: D01-D14 now have implementation fixes. See the [save/UI checklist](audit-fixes-2026-09-26.md), [HUD/label checklist](audit-labels-2026-09-26.md) and [latest evidence](release/evidence/audit-labels-2026-09-26.md). Original observations below remain the audit baseline. The 44 V/A/O items remain open, including native acceptance of these fixes.
 
 **Audit result: one reproduced high-priority save defect, additional finance and
 feedback defects, and substantial remaining presentation/acceptance work.**
@@ -226,4 +226,4 @@ prestige writer, not evidence those previous fixes were undone.
 5. Obtain the separately authorized signed candidate and close A16-A21 provider/
    device gates; complete candidate/store evidence before any production action.
 
-Next concrete task: finish the HUD gem-plus hit target in D09, then D13-D14 week/requirement labels. Prestige, finance and accessible-control follow-through is recorded above.
+Next concrete task: V01 compact Home hierarchy, then V02-V05 Work/Life/Profile/creator density. D01-D14 implementation follow-through is recorded above; native acceptance remains open.

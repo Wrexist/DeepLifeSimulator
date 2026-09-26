@@ -1,3 +1,4 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import SceneCard from '@/components/ui/SceneCard';
 /**
  * ContactsApp - Social-CRM remake (Remake 11, on top of Slate Glass).
@@ -1116,7 +1117,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {f.kind}
           </Text>
           <Text style={[styles.cardSub, { color: theme.textMuted }]} numberOfLines={1}>
-            {nameForContactId(f.contactId)} · wk {f.createdWeek}{f.expiresWeek ? ` · exp wk ${f.expiresWeek}` : ''}
+            {nameForContactId(f.contactId)} · {formatLifeWeek(f.createdWeek, gameState.lifeStartWeek)}{f.expiresWeek ? ` · expires ${formatLifeWeek(f.expiresWeek, gameState.lifeStartWeek)}` : ''}
           </Text>
           {f.note ? (
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>{f.note}</Text>

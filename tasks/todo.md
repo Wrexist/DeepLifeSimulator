@@ -4,14 +4,15 @@
 - [x] Verify 40 focused regressions and capture compact phone/tablet changes.
 - [x] Save/finance CI: 826 suites / 10,047 tests / 308 snapshots; preflight and quality passed. Further UI follow-through: 26 focused tests and source/test types pass; results in [fix evidence](release/evidence/audit-fixes-2026-09-26.md).
 - [x] D07/D08/D10/D11: Pulse identity, enrollment contrast, locked-control semantics and reduced motion. Family target is 44 points high.
-- [ ] Next: finish D09 HUD gem-plus target, then D13-D14 display labels. [Remaining register](whole-app-audit-2026-09-26.md): 47 open items, D09 partially complete.
+- [x] D09/D13/D14: separate 44-point gem controls, life-relative record labels and canonical career requirement names. 22 focused tests, source/test types and compact/tablet browser evidence pass. [Evidence](release/evidence/audit-labels-2026-09-26.md).
+- [ ] Next: V01 compact Home hierarchy, then Work/Life/Profile/creator density. [Remaining register](whole-app-audit-2026-09-26.md): 44 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026
 
 - [x] Audit current source, 5 tabs / 19 app entries, nested/onboarding states and core save/game logic.
 - [x] Compile [58-item prioritized register](whole-app-audit-2026-09-26.md) with screenshots, reproductions and native acceptance gaps.
-- [ ] Next: fix the reproduced prestige writer mutex bypass (D01); then grouped-money parsing, FIRE/progression clocks and committed campaign feedback.
+- [x] Original D01-D14 implementation follow-through is recorded above; the audit below remains historical evidence.
 - Audit only; no gameplay fix or production release performed. Current code CI: 822 suites / 10,016 tests / 308 snapshots passed.
 
 # HUD circle edge refinement - 26 September 2026

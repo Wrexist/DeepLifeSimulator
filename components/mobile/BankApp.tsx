@@ -1,3 +1,4 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import FinanceOverview from '@/components/finance/FinanceOverview';
 /**
  * BankApp - mobile (phone-style) banking screen.
@@ -342,7 +343,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                   <Chip label={depositAPRNote(banking.rateEnvironment) ?? ''} tint={pal.hex} />
                 ) : null}
                 <Chip
-                  label={isLocked ? `Locked · wk ${account.lockUntilWeek}` : 'Active'}
+                  label={isLocked ? `Locked · ${formatLifeWeek(account.lockUntilWeek, gameState.lifeStartWeek)}` : 'Active'}
                   tone={isLocked ? 'warning' : 'success'}
                   icon={<Lock size={scale(10)} color={isLocked ? accent.warning : accent.success} />}
                 />
@@ -413,7 +414,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             <StatStrip
               items={[
                 { label: 'Balance', value: formatMoneyExact(account.balance) },
-                { label: 'Opened', value: `Week ${account.openedWeek}` },
+                { label: 'Opened', value: formatLifeWeek(account.openedWeek, gameState.lifeStartWeek) },
                 { label: 'Age', value: ageLabel },
               ]}
             />
@@ -600,7 +601,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           </View>
 
           {/* Recent inquiries */}
-          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated wk ${cs.lastUpdatedWeek}`} />} />
+          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated ${formatLifeWeek(cs.lastUpdatedWeek, gameState.lifeStartWeek)}`} />} />
           {inquiries.length === 0 ? (
             <EmptyText theme={theme} darkMode={darkMode}>No recent credit inquiries. A clean file keeps this factor high.</EmptyText>
           ) : (
@@ -615,7 +616,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.activityLabel, { color: theme.text }]} numberOfLines={1}>{inquiryLabel(inq.type)}</Text>
-                      <Text style={[styles.activityMeta, { color: theme.textMuted }]}>Week {inq.weeksLived} · {agoText}</Text>
+                      <Text style={[styles.activityMeta, { color: theme.textMuted }]}>{formatLifeWeek(inq.weeksLived, gameState.lifeStartWeek)} · {agoText}</Text>
                     </View>
                   </View>
                 );

@@ -1,3 +1,4 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 /**
  * StatisticsApp - Apple Health DNA pass (on top of Slate Glass).
  *
@@ -219,7 +220,7 @@ export default function StatisticsApp({ onBack }: Props) {
       list.push({
         id: 'peak', Icon: Crown, color: accent.gold, label: 'Peak net worth',
         value: formatStatMoney(s.peakNetWorth),
-        sub: s.peakNetWorthWeek ? `Week ${s.peakNetWorthWeek}` : undefined,
+        sub: s.peakNetWorthWeek ? formatLifeWeek(s.peakNetWorthWeek, gameState.lifeStartWeek) : undefined,
       });
     }
     if (s.highestSalary > 0) {
@@ -230,7 +231,7 @@ export default function StatisticsApp({ onBack }: Props) {
       null
     );
     if (bestWeek && bestWeek.value > 0) {
-      list.push({ id: 'bestweek', Icon: Flame, color: accent.success, label: 'Best week', value: formatStatMoney(bestWeek.value), sub: `Week ${bestWeek.week}` });
+      list.push({ id: 'bestweek', Icon: Flame, color: accent.success, label: 'Best week', value: formatStatMoney(bestWeek.value), sub: formatLifeWeek(bestWeek.week, gameState.lifeStartWeek) });
     }
     if (s.totalMoneyEarned > 0) {
       list.push({ id: 'earned', Icon: TrendingUp, color: accent.success, label: 'Lifetime earned', value: formatStatMoney(s.totalMoneyEarned) });
@@ -248,7 +249,7 @@ export default function StatisticsApp({ onBack }: Props) {
       list.push({ id: 'ach', Icon: Award, color: accent.gold, label: 'Achievements', value: `${achProgress.unlocked}/${achProgress.total}`, sub: `${achProgress.percentage}%` });
     }
     return list;
-  }, [s, careerSummary, achProgress]);
+  }, [s, careerSummary, achProgress, gameState.lifeStartWeek]);
 
   const handleBack = () => {
     if (detail) setDetail(null);
@@ -299,7 +300,7 @@ export default function StatisticsApp({ onBack }: Props) {
           <View style={styles.peakRow}>
             <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
             <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString()}</Text>
-            {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>week {s.peakNetWorthWeek}</Text> : null}
+            {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>{formatLifeWeek(s.peakNetWorthWeek, gameState.lifeStartWeek)}</Text> : null}
           </View>
         </View>
       </TouchableOpacity>
@@ -794,7 +795,7 @@ export default function StatisticsApp({ onBack }: Props) {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{prettyJob(h.job)}</Text>
                     <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>
-                      Wk {h.startWeek}{ongoing ? ' · current' : `–${h.endWeek}`} · {h.weeks}w
+                      {formatLifeWeek(h.startWeek, gameState.lifeStartWeek)}{ongoing ? ' · current' : ` – ${formatLifeWeek(h.endWeek, gameState.lifeStartWeek)}`} · {h.weeks}w
                     </Text>
                   </View>
                   {ongoing ? (
@@ -859,7 +860,7 @@ export default function StatisticsApp({ onBack }: Props) {
             <SectionTitle title="Snapshots" />
             {rows.map((r, i) => (
               <View key={`${r.week}-${i}`} style={[styles.snapRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
-                <Text style={[styles.snapWeek, { color: theme.textSecondary }]}>Week {r.week}</Text>
+                <Text style={[styles.snapWeek, { color: theme.textSecondary }]}>{formatLifeWeek(r.week, gameState.lifeStartWeek)}</Text>
                 <Text style={[styles.snapValue, { color: theme.text }]}>${Math.round(r.value).toLocaleString()}</Text>
                 <DeltaChip delta={r.delta} isFirst={r.isFirst} />
               </View>
@@ -955,7 +956,7 @@ export default function StatisticsApp({ onBack }: Props) {
         title={headerTitle}
         onBack={handleBack}
         backLabel={detail ? 'Back to statistics' : 'Back'}
-        right={<HeaderChip label="Week" value={`Wk ${week}`} tint={accent.info} />}
+        right={<HeaderChip label="Week" value={formatLifeWeek(week, gameState.lifeStartWeek)} tint={accent.info} />}
       />
 
       {detail ? (

@@ -1,3 +1,4 @@
+import { advancedRequirementLabels } from '@/src/features/work/requirementLabels';
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius ,
     scale,
     fontScale,
@@ -1304,20 +1305,9 @@ function WorkScreenContent() {
                                             const isApplied = false;
                                             const isAccepted = false;
 
-                                            const lockReqs: string[] = [];
-                                            if (isLocked) {
-                                                const req = career.unlockRequirements || career.requirements;
-                                                if ('education' in req && req.education) lockReqs.push(`Education: ${req.education.join(', ')}`);
-                                                if ('experience' in req && req.experience) lockReqs.push(`Experience: ${req.experience} weeks`);
-                                                if ('reputation' in req && req.reputation) lockReqs.push(`Reputation: ${req.reputation}+`);
-                                                if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
-                                                // Never printed before, because this whole block was
-                                                // unreachable - two of the five careers are gated on a
-                                                // claimed achievement and the player was never told.
-                                                if ('achievements' in req && req.achievements && req.achievements.length > 0) {
-                                                    lockReqs.push(`Achievement: ${req.achievements.join(', ')}`);
-                                                }
-                                            }
+                                            const lockReqs = isLocked
+                                                ? advancedRequirementLabels(career.unlockRequirements)
+                                                : [];
 
                                             return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
                                         });

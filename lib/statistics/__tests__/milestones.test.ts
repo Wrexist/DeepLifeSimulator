@@ -16,10 +16,11 @@ describe('buildMilestones', () => {
   });
 
   it('triggers first-million when peak net worth >= 1M', () => {
-    const s = base({ lifetimeStatistics: { peakNetWorth: 1_500_000, peakNetWorthWeek: 120 } });
+    const s = base({ lifeStartWeek: 104, lifetimeStatistics: { peakNetWorth: 1_500_000, peakNetWorthWeek: 120 } });
     const m = buildMilestones(s).find((x) => x.id === 'first-million');
     expect(m).toBeDefined();
-    expect(m!.context).toBe('Week 120');
+    expect(m!.context).toBe('Week 17');
+    expect(m!.week).toBe(120);
   });
 
   it('also triggers first-ten-million at $10M+', () => {
