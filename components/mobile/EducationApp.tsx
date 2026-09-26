@@ -347,7 +347,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
-      <SceneCard scene="university" title="Invest in yourself" subtitle="Build knowledge. Unlock your next opportunity." />
+      <SceneCard scene="university" title="Back to class" subtitle="Compare tuition and entry requirements." />
       {/* This tab's mandatory colourful element (the event banner) is its colour
           moment, so it carries NO Recipe B hero. */}
       <EconomyEventBanner context="generic" />

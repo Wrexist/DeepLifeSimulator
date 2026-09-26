@@ -357,7 +357,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             AND critical/low vitals, each with its fix. Self-nulls when clear. */}
         {!treatmentLeads && <HealthIssuesCard />}
 
-        <SceneCard scene={treatmentLeads ? "clinic" : "gym"} title="Make time for yourself" subtitle="Small choices shape a healthier life." />
+        <SceneCard scene={treatmentLeads ? "clinic" : "gym"} title={treatmentLeads ? "At the clinic" : "Off the clock"} subtitle={treatmentLeads ? "Review treatment options below." : "Choose an activity. Check its energy and cost."} />
         {/* Activities */}
         <View style={styles.section}>
           <CollapsibleSection

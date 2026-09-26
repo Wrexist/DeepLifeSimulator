@@ -1,9 +1,11 @@
+import LifeLine from './LifeLine';
+import { tier2, tier4 } from '@/lib/config/hierarchy';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Image, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
-import { responsiveSpacing as layoutSpace, scale, responsiveBorderRadius, fontScale } from '@/utils/scaling';
+import { responsiveSpacing as layoutSpace, scale, responsiveBorderRadius } from '@/utils/scaling';
 
 const scenes = {
   gym: require('@/assets/images/scenes/destination-gym.webp'),
@@ -39,21 +41,23 @@ export default function SceneCard({ scene, title, subtitle }: { scene: SceneName
     motion.start();
     return () => { motion.stop(); drift.setValue(0); };
   }, [drift, reduced, focused, active]);
-  return <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+  return <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
+    <View style={styles.line} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine color={theme.textSecondary} /></View>
     <View style={styles.copy}>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
     </View>
     <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-      style={[styles.art, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] }) }] }]}>
+      style={[styles.art, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.01] }) }] }]}>
       <Image source={scenes[scene]} style={styles.image} resizeMode="contain" />
     </Animated.View>
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', minHeight: scale(120), borderWidth: 1, borderRadius: responsiveBorderRadius.xl, overflow: 'hidden', marginBottom: layoutSpace.compact },
+  card: { flexDirection: 'row', alignItems: 'center', minHeight: scale(96), borderWidth: 1, borderRadius: responsiveBorderRadius.md, overflow: 'hidden', marginBottom: layoutSpace.compact },
   copy: { flex: 1, padding: layoutSpace.md, paddingRight: 0, gap: layoutSpace.sm },
-  title: { fontSize: fontScale(16), fontWeight: '600' },
-  subtitle: { fontSize: fontScale(12), lineHeight: fontScale(18) },
-  art: { width: '46%', height: scale(128) }, image: { width: '100%', height: '100%' },
+  title: { ...tier2 },
+  subtitle: { ...tier4 },
+  line: { position: 'absolute', bottom: 0, right: 0, width: '100%', height: scale(72), opacity: 0.1 },
+  art: { width: '36%', height: scale(96) }, image: { width: '100%', height: '100%' },
 });

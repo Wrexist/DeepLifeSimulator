@@ -98,3 +98,21 @@ and coverage jobs were still running at the last inspection; no failing result
 was reported on `fe47c98f`. The final evidence-only commit does not change app
 code. Next: confirm those checks, then arrange the explicitly authorized signed
 build/device acceptance. No build dispatch or production release was performed.
+
+## Screenshot and remaining-work follow-up
+
+Final PR head `1a95a49b` is green: 821 suites, 10,011 tests, 308 snapshots;
+coverage ratchet, preflight and quality pass. Existing skips: 17 suites/32 tests.
+Coverage statements/branches/functions/lines: 60.81 / 43.04 / 52.72 / 62.18%.
+[Gallery](visual-ux-2026-09-26/gallery.html) and
+[complete next-work list](../../visual-ux-remaining-2026-09-26.md).
+The earlier all-implementation-complete wording was too broad relative to the
+original whole-product brief: secondary-screen polish, remaining token migration,
+art/motion acceptance and native/store gates are explicitly listed in that report.
+No new code, native build, merge or production release in this reporting follow-up.
+
+## Authored identity refinement
+
+Original vector street-line artwork now links the menu, player record and destinations. Player week uses weeksInThisLife; no invented chronology. Smaller scene panels, unboxed header icons, concrete action copy, and a quieter identity card. No new dependencies, save migrations or game-rule edits.
+
+Five focused suites: 52 tests passed, exit 0. Source types, changed-file lint and UI ratchet passed. All five tabs checked at 375x667 and 768x1024 with no horizontal overflow or page errors; final menu/Home/Work/Life captures at 390x844 and 768x1024 use identity-* filenames in the screenshot directory. These are browser evidence, not signed iOS acceptance. Prior green full-suite CI describes the prior commit, not this refinement.

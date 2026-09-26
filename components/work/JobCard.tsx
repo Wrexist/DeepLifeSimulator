@@ -94,7 +94,7 @@ export default function JobCard({
 
   return (
     <View style={styles.card}>
-      {emphasis === 'primary' && !locked && <SceneCard scene={accent === 'career' ? (/food|cook|chef|restaurant/i.test(title) ? 'cafe' : /doctor|nurse|medical/i.test(title) ? 'clinic' : 'studio') : accent === 'street' ? 'cafe' : 'city'} title={accent === 'career' ? 'Your next chapter' : 'Make your move'} subtitle={accent === 'career' ? 'Build skills. Open new doors.' : 'An opportunity this week.'} />}
+      {emphasis === 'primary' && !locked && <SceneCard scene={accent === 'career' ? (/food|cook|chef|restaurant/i.test(title) ? 'cafe' : /doctor|nurse|medical/i.test(title) ? 'clinic' : 'studio') : accent === 'street' ? 'cafe' : 'city'} title={accent === 'career' ? 'On the clock' : 'Around town'} subtitle={accent === 'career' ? 'Check the pay and requirements below.' : 'Review the cost before you commit.'} />}
 
       <View style={styles.body}>
         <View style={styles.headerRow}>

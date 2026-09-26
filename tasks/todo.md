@@ -1,3 +1,8 @@
+# Identity refinement ? 2026-09-26
+
+- Implemented original street-line artwork across menu, player record and compact destination strips; removed generic motivational copy and oversized title badges. Approved HUD and save schema 51 unchanged.
+- Evidence: [identity checklist](deeplife-identity-2026-09-26.md), [remaining work](visual-ux-remaining-2026-09-26.md). Signed-device acceptance is still outstanding.
+
 # Current work
 
 ## Premium presentation, characters, 3D destinations and audio - 26 September 2026
@@ -14,7 +19,8 @@ Branch `codex/visual-ux-rebuild-2026-09-26`, based on current main `9e729ac2`.
 - [x] Production iOS export: 4,051 modules, 13.7 MB Hermes bundle, exit 0.
 - [x] Full-suite evidence and focused follow-up (16 suites / 141 tests) recorded; draft PR #229 opened.
 - [x] Complete local preflight exits 0; GitHub preflight/quality green on code `fe47c98f`.
-- [ ] Confirm final-head CI green, then complete native acceptance before merging.
+- [x] Final-head CI on `1a95a49b`: 821 suites / 10,011 tests / 308 snapshots; coverage, preflight and quality pass.
+- [ ] Complete remaining product polish and native acceptance: [prioritized next work](visual-ux-remaining-2026-09-26.md).
 - [ ] Exact signed native build acceptance: audio/silent switch/interruption,
   VoiceOver/Larger Text, compact iPhone/iPad, purchases/restore/ads, old saves and
   background/kill/relaunch. No paid build, OTA or submission authorized here.

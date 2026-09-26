@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { colors, uiPalette } from '@/lib/config/theme';
 /**
  * Styles for IdentityCard. Extracted verbatim to slim the component file.
  * Static module-level StyleSheet.
@@ -20,25 +20,17 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     backgroundColor: uiPalette.surface,
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
-      },
-    }),
-    elevation: 8,
     borderWidth: 0,
   },
   /** The compact identity strip (Program 4): avatar · name + facts · net worth. */
-  heroBackdrop: { position: 'absolute', right: 0, top: 0, width: '60%', height: '100%', opacity: 0.12 },
+  heroBackdrop: { position: 'absolute', right: 0, bottom: 0, width: '70%', height: scale(80), opacity: 0.12 },
+  recordHeader: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', gap: responsiveSpacing.sm },
+  recordLabel: { ...tier4, color: uiPalette.muted, letterSpacing: 1, fontVariant: ['tabular-nums'] },
   strip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     overflow: 'hidden',
-    minHeight: scale(144),
+    minHeight: scale(120),
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.2)',
     alignItems: 'center',
@@ -66,7 +58,10 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(8),
     minHeight: scale(44),
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.dark.border,
+    paddingTop: responsiveSpacing.sm,
   },
   stripWorthValue: {
     fontSize: fontScale(17),
@@ -89,9 +84,9 @@ export const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
   },
   avatar: {
-    width: scale(84),
-    height: scale(84),
-    borderRadius: scale(24),
+    width: scale(68),
+    height: scale(68),
+    borderRadius: responsiveBorderRadius.md,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     // Now wraps an SVG rather than being an <Image>: centre and clip the child

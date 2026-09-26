@@ -1,3 +1,4 @@
+import LifeLine from '@/components/ui/LifeLine';
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
@@ -791,8 +792,9 @@ export default function MainMenu() {
 
           {/* Brand block - crisp text on the flat dark base, no lighter panel. */}
           <View style={styles.hero}>
+            <View style={styles.brandIllustration} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine /></View>
             <HeroLine index={0} reduced={reduced}>
-              <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+              <Text style={styles.eyebrow}>ONE WEEK AT A TIME</Text>
             </HeroLine>
             <HeroLine index={1} reduced={reduced}>
               <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
@@ -801,7 +803,7 @@ export default function MainMenu() {
             </HeroLine>
             <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                SIMULATOR
+                TYCOON
               </Text>
             </HeroLine>
           </View>
@@ -967,6 +969,7 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
   },
+  brandIllustration: { width: scale(280), height: scale(72), marginBottom: layoutSpace.md },
   eyebrow: {
     color: uiPalette.blue,
     fontSize: fontScale(12),

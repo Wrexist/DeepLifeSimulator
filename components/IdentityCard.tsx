@@ -1,3 +1,5 @@
+import LifeLine from '@/components/ui/LifeLine';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { View,
@@ -538,7 +540,11 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           worth, with this week's cash flow under it). Everything that is
           reference lives behind Details, closed by default. */}
       <View style={[styles.card, styles.strip]}>
-        <Image source={require('@/assets/images/home/city.webp')} style={styles.heroBackdrop} resizeMode="contain" accessible={false} />
+        <View style={styles.heroBackdrop} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine /></View>
+        <View style={styles.recordHeader}>
+          <Text style={styles.recordLabel}>DEEP LIFE</Text>
+          <Text style={styles.recordLabel}>Week {weeksInThisLife(gameState) + 1}</Text>
+        </View>
         <View style={styles.stripAvatar}>
           {/* The ring lives on a wrapper: the avatar is an SVG, so a border on
               the element itself would not follow the circular clip. */}
@@ -550,7 +556,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               seed={name}
               sex={sex}
               age={date?.age ?? 0}
-              size={scale(80)}
+              size={scale(64)}
               circular={false}
               alive
             />

@@ -1,4 +1,4 @@
-import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+import { responsiveSpacing as layoutSpace, fontScale, responsiveSpacing, scale } from '@/utils/scaling';
 /**
  * ScreenHeader - the one screen-title pattern.
  *
@@ -31,15 +31,10 @@ interface ScreenHeaderProps {
   style?: ViewStyle;
 }
 
-/** Alpha suffixes for the bubble fill and its hairline, as 8-digit hex. */
-const FILL_ALPHA = '1F'; // ~12%
-const BORDER_ALPHA = '59'; // ~35%
-
 export default function ScreenHeader({
   title,
   subtitle,
   icon,
-  tint,
   right,
   style,
 }: ScreenHeaderProps) {
@@ -49,13 +44,7 @@ export default function ScreenHeader({
     <View style={[styles.header, style]}>
       {icon ? (
         <View
-          style={[
-            styles.iconBubble,
-            {
-              backgroundColor: tint ? `${tint}${FILL_ALPHA}` : theme.surfaceElevated,
-              borderColor: tint ? `${tint}${BORDER_ALPHA}` : theme.border,
-            },
-          ]}
+          style={styles.iconBubble}
           accessibilityElementsHidden
           importantForAccessibility="no"
         >
@@ -96,10 +85,8 @@ const styles = StyleSheet.create({
     paddingBottom: responsiveSpacing.sm,
   },
   iconBubble: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: layoutRadius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: scale(24),
+    height: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
