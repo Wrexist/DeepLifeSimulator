@@ -1,3 +1,5 @@
+Current consolidated register: [whole-app audit, 26 September](whole-app-audit-2026-09-26.md). It supersedes outdated counts and investigation status below; the historical rebuild scope remains useful.
+
 Latest follow-through: [26 September polish evidence](release/evidence/game-polish-2026-09-26.md).
 Save-slot safety is now implemented and browser/provider verified. All 19 app
 entry screens have phone/tablet captures; their nested journeys remain open.

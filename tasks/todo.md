@@ -1,3 +1,10 @@
+# Whole-app audit - 26 September 2026
+
+- [x] Audit current source, 5 tabs / 19 app entries, nested/onboarding states and core save/game logic.
+- [x] Compile [58-item prioritized register](whole-app-audit-2026-09-26.md) with screenshots, reproductions and native acceptance gaps.
+- [ ] Next: fix the reproduced prestige writer mutex bypass (D01); then grouped-money parsing, FIRE/progression clocks and committed campaign feedback.
+- Audit only; no gameplay fix or production release performed. Current code CI: 822 suites / 10,016 tests / 308 snapshots passed.
+
 # HUD circle edge refinement - 26 September 2026
 
 - [x] Replace nested rounded clipping with inset vector circles; retain icons and hit targets.

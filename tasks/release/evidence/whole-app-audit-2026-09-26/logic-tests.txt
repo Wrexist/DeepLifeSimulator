@@ -1,0 +1,66 @@
+node : PASS __tests__/simulation/weeklyRecapCash.test.ts (11.442 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath __tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...t.ts (11.442 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  weekly recap reports cash actually received and paid
+    √ includes the 0 paid for an established undefined tenancy (175 ms)
+    √ includes the 45 paid for an established shared-room tenancy (23 ms)
+    √ includes the 80 paid for an established bedsit tenancy (21 ms)
+    √ does not report another rent payment during the prepaid signing week (39 ms)
+    √ reports only the cash paid when rent becomes overdue (53 ms)
+    √ includes cash used to settle previous arrears (25 ms)
+    √ reports realized landlord income and reconciles the actual cash change (33 ms)
+
+PASS __tests__/actions/weeklyChallengeReward.test.ts
+  Weekly Challenge Reward Pipeline (real nextWeek)
+    √ grants gems + sets rewardClaimed + awards weekly XP exactly once, idempotent on repeat ticks (74 ms)
+
+PASS lib/statistics/__tests__/fireTracker.test.ts
+  calculateFIRETracker (salary is WEEKLY)
+    √ a $2,000/wk earner gets a FIRE number in the low millions, not pinned at $390k (1 ms)
+    √ savings rate stays within 0-100% (1 ms)
+    √ FIRE number scales with income
+    √ falls back to the expense floor when there is no salary (1 ms)
+
+PASS __tests__/dating/anniversaryIdempotence.test.ts
+  checkAnniversary - live-path idempotence
+    √ fires on the exact 1-year boundary and records exactly one milestone (4 ms)
+    √ a second check in the same week does not re-fire, double the milestone, or re-grant happiness (2 ms)
+    √ does not fire one week off the anniversary (2 ms)
+    √ auto-posts the anniversary to Pulse once when the player already posts (3 ms)
+
+PASS __tests__/actions/educationActions.test.ts
+  enrollInProgram - class picker
+    √ populates enrolledClasses from the chosen class ids (cash mode) (5 ms)
+    √ drops class ids not offered by the program (2 ms)
+    √ caps enrolledClasses at 3 even if more ids are passed (3 ms)
+    √ empty classIds keeps enrolledClasses [] (old saves stay valid) (2 ms)
+  toggleStudyGroup
+    √ joining sets the flag and debits the one-time join cost (2 ms)
+    √ is double-tap safe - two same-batch joins debit once (1 ms)
+    √ leaving is free (no refund, no charge) (2 ms)
+    √ rejects joining when the player cannot afford the cost (flag stays off) (2 ms)
+    √ no-ops on a completed program (2 ms)
+
+PASS __tests__/economy/hustleReputationAtomicity.test.ts
+  P1-14: hustle reputation grants are atomic with their money step
+    acceptAcquisition (+3 reputation, costs askingPrice)
+      √ commit path applies money AND reputation in one atomic update (4 ms)
+      √ grants NO reputation when the in-updater money step bails (same-batch funds race) (4 ms)
+    resolveScandal (recall: +4 reputation, costs $50k)
+      √ commit path applies the $50k cost AND +4 reputation atomically (2 ms)
+      √ grants NO reputation when the cost step bails (same-batch funds race) (3 ms)
+    fireNamedHire (-1 reputation, costs 4× salary severance)
+      √ commit path pays severance AND docks -1 reputation atomically (3 ms)
+      √ docks NO reputation when the in-updater severance step bails (same-batch funds race) (3 ms)
+
+Test Suites: 6 passed, 6 total
+Tests:       31 passed, 31 total
+Snapshots:   0 total
+Time:        12.817 s
+Ran all test suites within paths "__tests__/simulation/weeklyRecapCash.test.ts", "__tests__/actions/educationActions.te
+st.ts", "__tests__/economy/hustleReputationAtomicity.test.ts", "__tests__/dating/anniversaryIdempotence.test.ts", "__te
+sts__/actions/weeklyChallengeReward.test.ts", "lib/statistics/__tests__/fireTracker.test.ts".

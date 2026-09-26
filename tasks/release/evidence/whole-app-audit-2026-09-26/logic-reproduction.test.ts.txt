@@ -1,0 +1,33 @@
+import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import { launchCampaign } from '@/contexts/game/actions/HustleActions';
+import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
+import type { GameState } from '@/contexts/game/types';
+
+it('reproduces age-seeded FIRE savings-rate distortion with equal in-life finances', () => {
+  const state = createTestGameState({
+    weeksLived: 4, lifeStartWeek: 0, currentJob: 'audit-job', bankSavings: 1000,
+    careers: [{ id: 'audit-job', level: 0, levels: [{ salary: 1000 }] }] as never,
+  });
+  const age18 = calculateFIRETracker(state);
+  const age20 = calculateFIRETracker({ ...state, weeksLived: 108, lifeStartWeek: 104 });
+  console.log(JSON.stringify({ age18, age20 }));
+  expect(age18.savingsRate).toBe(25);
+  expect(age20.savingsRate).toBeCloseTo(0.9259259);
+  expect(age20.yearsToFIRE).toBeGreaterThan(age18.yearsToFIRE);
+});
+
+it('reproduces campaign success feedback when latest-state energy rejects the launch', () => {
+  const state = createTestGameState({
+    stats: { money: 100000, energy: 50 } as never,
+    companies: [{ id: 'audit-company', weeklyIncome: 5000 }] as never,
+  });
+  state.hustleApp = { ...state.hustleApp!, companies: { 'audit-company': createDefaultCompanyOverlay('audit-company', 0) }, lifetimeStats: { ...state.hustleApp?.lifetimeStats, totalCampaignsRun: 0 } as never };
+  let pending: ((prev: GameState) => GameState) | undefined;
+  const response = launchCampaign((update) => { if (typeof update === 'function') pending = update; }, state, 'audit-company', 'social', 5000, 4);
+  const latest = { ...state, stats: { ...state.stats, energy: 0 } };
+  const committed = pending!(latest);
+  expect(response).toMatchObject({ success: true, message: 'Campaign launched' });
+  expect(committed).toBe(latest);
+  expect(committed.hustleApp!.companies['audit-company'].activeCampaigns).toHaveLength(0);
+});
