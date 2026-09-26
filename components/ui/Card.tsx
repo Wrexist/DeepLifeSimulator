@@ -21,7 +21,6 @@ import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadiu
  * consumer's `import Card from` trip `import/no-named-as-default` - nine
  * lint warnings for one avoidable ambiguity.
  */
-import { useTheme } from '@/hooks/useTheme';
 import { colors, withAlpha } from '@/lib/config/theme';
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -52,8 +51,9 @@ export function Card({
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }) {
-  const { theme } = useTheme();
-  return <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }, style]}>{children}</View>;
+  // Feed cards use fixed navy text/art styling, including in legacy light-mode saves.
+  // Adaptive callers pass their paired surface/text treatment through style.
+  return <View style={[styles.card, style]}>{children}</View>;
 }
 
 /**

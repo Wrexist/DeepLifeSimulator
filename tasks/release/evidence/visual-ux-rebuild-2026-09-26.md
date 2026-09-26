@@ -36,12 +36,23 @@ No realtime 3D renderer or network avatar service is added to the app.
 - Next Week: canonical tick advances $1,500 to $1,530, health 100 to 97 and
   happiness 100 to 95; toast reports +$30, -3 and -5: pass.
 - Creator: curated portrait mode and custom age-aware mode both reachable: pass.
-- Full suite and final preflight: running; final totals will be recorded below.
+- Full suite: exit 1, 820 passed / 1 failed / 17 opt-in suites skipped;
+  10,010 passed / 1 failed / 32 skipped tests, 308 snapshots passed, 1,304.82 s.
+  The sole failure was the new documentation BOM. After removing it (and a BOM
+  in the local scratch PR-body file), the entire encoding suite passes: 5/5,
+  exit 0. No gameplay test failed and no cases were newly skipped.
+- Lint after cleanup: exit 0, zero errors / 700 warnings (unchanged ceiling 701).
+- Expo Doctor: exit 0, 18/18 checks. CI identified the required direct
+  expo-asset peer; declaring SDK-matched ~12.0.13 fixes native linking metadata.
+  The same version was already installed transitively. Repeated npm ci: exit 0.
+- Final focused source/startup tests and final full preflight are running.
 
 During verification, fixed duplicate Contacts list headers, portrait/frame
 scaling on tablet, excessive tablet enlargement, stale static navigation tests,
 unused imports from the token migration and six explicit simulation-parameter
-types. A documentation BOM caught by the encoding test was removed. No test or
+types. A documentation BOM caught by the encoding test was removed. Fixed-navy feed
+cards retain paired light text for old light-mode saves; new portrait controls
+adapt to the modal theme. No test or
 lint floors were lowered, and no failing cases were skipped.
 
 ## Visual evidence
@@ -63,3 +74,10 @@ keyboard/modal priority, VoiceOver/Larger Text/Reduce Motion, old-save upgrade,
 kill/relaunch, purchases/restore/interrupted fulfillment, cloud and ads.
 Browser evidence and a Hermes export cannot establish those results.
 Existing release gates R06/R08/R09 and production-provider verification stay open.
+
+## Review
+
+Draft PR: https://github.com/Wrexist/DeepLifeSimulator/pull/229. Initial CI
+quality passed; update/preflight found the direct expo-asset peer and three
+remaining lint warnings. Both causes are fixed in the follow-up. Final-head
+checks will be recorded after they complete.

@@ -27,7 +27,7 @@ export default function FinanceOverview() {
     return samples.map(p => `${8 + (p.week - start) / duration * 304},${68 - (p.value - min) / range * 56}`).join(' ');
   }, [samples]);
   return <>
-    <Card>
+    <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
       <View style={styles.row}><Wallet size={18} color={financeColors.cash} /><Text style={[styles.label, { color: theme.textSecondary }]}>NET WORTH</Text></View>
       <Text style={[styles.amount, { color: theme.text }]}>{formatMoney(value)}</Text>
       {samples.length >= 2 ? <View accessible accessibilityLabel={`Recorded net worth from week ${samples[0].week} to week ${samples[samples.length - 1].week}: ${formatMoney(samples[0].value)} to ${formatMoney(samples[samples.length - 1].value)}`}>

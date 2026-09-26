@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { ChevronRight, Megaphone, Play, Plus, Save, Settings, Zap } from 'lucide-react-native';
+import { ChevronRight, Megaphone, Play, Plus, Save, Settings } from 'lucide-react-native';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into

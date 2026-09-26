@@ -1,3 +1,4 @@
+import { useTheme } from '@/hooks/useTheme';
 import { gameAlert } from '@/utils/gameAlert';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -14,6 +15,7 @@ import { haptic } from '@/utils/haptics';
 
 /** Mounted only while open. A cancelled selection never writes to the save. */
 export default function PortraitSheet({ onClose }: { onClose: () => void }) {
+  const { theme } = useTheme();
   const profile = useGameSelector(s => s.userProfile);
   const setGameState = useSetGameState();
   const { saveGame } = useGameActions();
@@ -31,8 +33,8 @@ export default function PortraitSheet({ onClose }: { onClose: () => void }) {
     <MotionPressable disabled={saving} onPress={() => { void apply(selected); }} style={styles.confirm} accessibilityLabel="Use this portrait">
       <Text style={styles.confirmText}>{saving ? 'Saving…' : 'Use this portrait'}</Text>
     </MotionPressable>
-    <MotionPressable disabled={saving} onPress={() => { void apply(undefined); }} style={styles.custom} accessibilityLabel="Use my custom avatar">
-      <Text style={styles.confirmText}>Use my custom avatar</Text>
+    <MotionPressable disabled={saving} onPress={() => { void apply(undefined); }} style={[styles.custom, { backgroundColor: theme.surfaceInteractive }]} accessibilityLabel="Use my custom avatar">
+      <Text style={[styles.confirmText, { color: theme.text }]}>Use my custom avatar</Text>
     </MotionPressable>
   </BaseModal>;
 }

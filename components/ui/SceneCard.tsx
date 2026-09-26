@@ -1,10 +1,9 @@
-import { responsiveSpacing as layoutSpace } from '@/utils/scaling';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Image, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, responsiveBorderRadius, fontScale } from '@/utils/scaling';
+import { responsiveSpacing as layoutSpace, scale, responsiveBorderRadius, fontScale } from '@/utils/scaling';
 
 const scenes = {
   gym: require('@/assets/images/scenes/destination-gym.webp'),

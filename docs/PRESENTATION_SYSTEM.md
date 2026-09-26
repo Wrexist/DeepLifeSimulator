@@ -45,7 +45,7 @@ They suppress feedback across a different lineage/generation.
 
 Seven original synthesized WAV cues are reproducible with
 `node scripts/build-game-audio.mjs`. No licensed samples, recording permission or
-background music are required. `expo-audio ~1.1.1` matches SDK 54. Settings and app
+background music are required. `expo-audio ~1.1.1` and its direct `expo-asset ~12.0.13` peer match SDK 54. Settings and app
 lifecycle control playback; the iOS silent switch is respected. Lazy backend
 loading degrades safely on older native binaries. The new audio plugin requires
 a new native build and signed-device playback/interruption verification before
