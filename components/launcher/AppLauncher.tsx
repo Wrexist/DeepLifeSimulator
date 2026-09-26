@@ -95,9 +95,14 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
   // otherwise returning to this tab would re-open the app forever.
   useEffect(() => {
     if (!initialApp) return;
-    setActiveApp(initialApp);
+    const requested = appsForHost(host).find(app => app.id === initialApp);
+    if (requested && isFeatureUnlocked(gameState, `app:${initialApp}`)) {
+      setActiveApp(initialApp);
+    } else if (requested) {
+      gameAlert(requested.name, unlockRequirement(gameState, `app:${initialApp}`));
+    }
     onInitialAppConsumed?.();
-  }, [initialApp, onInitialAppConsumed]);
+  }, [initialApp, onInitialAppConsumed, gameState, host]);
 
   // Run sub-apps full-screen (hide the game TopStatsBar + floating tab bar) so
   // they don't feel sandwiched between the game chrome. Reset on unmount so the
@@ -237,7 +242,6 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
         accessibilityRole="button"
         accessibilityLabel={app.locked ? `${name}, locked` : `Open ${name}`}
         accessibilityHint={app.locked ? app.lockReason || 'Not available yet' : `Launch the ${name} app`}
-        accessibilityState={{ disabled: app.locked }}
       >
         <View style={[styles.appCardInner, settings.darkMode && styles.appCardInnerDark]}>
           <View style={styles.appIconContainer}>
@@ -325,7 +329,9 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                   {section.title}
                 </Text>
               )}
-              <View style={styles.appsGrid}>{unlocked.map(renderTile)}</View>
+              {unlocked.length > 0 ? <View style={styles.appsGrid}>{unlocked.map(renderTile)}</View> : (
+                <Text style={[styles.lockedRowText, settings.darkMode && styles.lockedRowTextDark]}>Apps for this device are locked. Open the list below to see each requirement.</Text>
+              )}
               {locked.length > 0 && (
                 <>
                   <TouchableOpacity

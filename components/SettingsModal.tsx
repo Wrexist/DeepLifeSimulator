@@ -1,6 +1,9 @@
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { saveBeforeLeaving } from '@/utils/saveBeforeLeaving';
 import { Volume2, VolumeX , X, Vibrate,
   VibrateOff,
-  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+  Save, HelpCircle, Calendar, Settings, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
 import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated, Platform } from 'react-native';
@@ -41,7 +44,7 @@ import {
   finalizeDiscordClaim,
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
-import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
+import { suspendLifeAutosave, resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { gameAlert } from '@/utils/gameAlert';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { analytics } from '@/lib/analytics';
@@ -99,18 +102,16 @@ function SettingsActionButton({
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
     >
-      <LinearGradient
-        colors={['rgba(31, 41, 55, 0.85)', 'rgba(17, 24, 39, 0.85)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <View
         style={styles.glassActionButton}
       >
         <View style={[styles.glassActionIconChip, { backgroundColor: `${accent}22`, borderColor: `${accent}55` }]}>
           <Icon size={18} color={accent} />
         </View>
         <Text style={styles.glassActionLabel}>{label}</Text>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -118,6 +119,7 @@ function SettingsActionButton({
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState } = useGameState();
   const { saveGame } = useGameActions();
+  const reducedMotion = useReducedMotion();
   const { openStore } = useGemStore();
   const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   // Both the Remove Ads IAP and DeepLife+ set settings.adsRemoved, so this flag
@@ -135,6 +137,41 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+
+  const [switchingSlot, setSwitchingSlot] = useState(false);
+  const slotSwitchBusy = useRef(false);
+  const settingsVisible = useRef(visible);
+  const settingsRevision = useRef(0);
+  useEffect(() => {
+    settingsVisible.current = visible;
+    return () => { settingsVisible.current = false; settingsRevision.current++; };
+  }, [visible]);
+  const switchSaveSlot = async () => {
+    if (slotSwitchBusy.current) return;
+    const revision = settingsRevision.current;
+    slotSwitchBusy.current = true;
+    setSwitchingSlot(true);
+    let leavingStarted = false;
+    try {
+      const left = await saveBeforeLeaving(saveGame, () => {
+        leavingStarted = true;
+        suspendLifeAutosave('settings -> switch save slot');
+        onClose();
+        const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
+        router.push(saveSlotsPath);
+      }, () => settingsVisible.current && settingsRevision.current === revision);
+      if (!left && settingsVisible.current && settingsRevision.current === revision) {
+        gameAlert('Progress not saved', 'Your life is still open. Try switching slots again after saving completes.');
+      }
+    } catch (error) {
+      if (leavingStarted) resumeLifeAutosave();
+      logger.error('[Settings] Save before slot switch failed', error);
+      if (settingsVisible.current && settingsRevision.current === revision) gameAlert('Could not switch slots', 'Your life is still open. Please try again.');
+    } finally {
+      slotSwitchBusy.current = false;
+      setSwitchingSlot(false);
+    }
+  };
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
@@ -565,7 +602,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType={reducedMotion ? "none" : "fade"}
       onRequestClose={onClose}
       onDismiss={flushPendingStore}
     >
@@ -574,101 +611,29 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
           <View style={styles.modal}>
           {/* Enhanced Header with Glass */}
           <View style={styles.glassHeader}>
-            <View style={styles.glassOverlay} />
             <View style={styles.headerContent}>
               <View style={styles.titleContainer}>
                 <View style={styles.glassTitleIcon}>
-                  <View style={styles.glassOverlay} />
-                  <Settings size={24} color={uiPalette.white} />
+                        <Settings size={24} color={uiPalette.white} />
                 </View>
                 <Text style={[styles.title,  styles.titleDark]}>{t('settings.title')}</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.glassCloseButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <View style={styles.glassOverlay} />
-                <X size={20} color={uiPalette.white} />
+                    <X size={20} color={uiPalette.white} />
               </TouchableOpacity>
             </View>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-            {/* Enhanced Tab Container */}
-            <View style={[styles.tabContainer,  styles.tabContainerDark]}>
-              <TouchableOpacity
-                style={[styles.settingsTab, activeSettingsTab === 'settings' && styles.activeSettingsTab]}
-                onPress={() => setActiveSettingsTab('settings')}
-              >
-                {activeSettingsTab === 'settings' ? (
-                  <LinearGradient
-                    colors={['#6366F1', '#4F46E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Settings size={16} color={uiPalette.white} style={styles.tabIcon} />
-                    <Text style={styles.activeSettingsTabText}>Settings</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Settings size={16} color={uiPalette.muted} style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Settings</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.settingsTab, activeSettingsTab === 'lifeGoals' && styles.activeSettingsTab]}
-                onPress={() => setActiveSettingsTab('lifeGoals')}
-              >
-                {activeSettingsTab === 'lifeGoals' ? (
-                  <LinearGradient
-                    colors={['#10B981', '#059669']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Target size={16} color={uiPalette.white} style={styles.tabIcon} />
-                    <Text style={styles.activeSettingsTabText}>Life Goals</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Target size={16} color={uiPalette.muted} style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Life Goals</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+          <ScrollView style={styles.content} pointerEvents={switchingSlot ? 'none' : 'auto'} showsVerticalScrollIndicator={true}>
+            <SegmentedControl
+              segments={[{ key: 'settings', label: 'Settings' }, { key: 'lifeGoals', label: 'Life Goals' }]}
+              value={activeSettingsTab}
+              onChange={setActiveSettingsTab}
+              style={styles.tabContainer}
+            />
 
             {activeSettingsTab === 'settings' ? (
               <>
-                {/* Game Dev Tools - dev/QA only; gated so the simulator graph is stripped from production. */}
-                {DEV_TOOLS_ENABLED && (
-                  <SettingsActionButton
-                    icon={Code}
-                    label="Game Dev Tools"
-                    accent="#818CF8"
-                    onPress={() => setShowDevTools(true)}
-                    accessibilityLabel="Open Game Dev Tools"
-                  />
-                )}
-
-                {/* What's New - player-facing update log. Opens a sheet NESTED
-                    inside this Settings Modal (the DevToolsModal nesting). */}
-                <SettingsActionButton
-                  icon={Megaphone}
-                  label="What's New"
-                  accent={uiPalette.blue}
-                  onPress={openWhatsNew}
-                  accessibilityLabel="See what's new in the latest update"
-                />
-
-                <SettingsActionButton
-                  icon={HelpCircle}
-                  label="Help & FAQ"
-                  accent="#34D399"
-                  onPress={() => setShowHelp(true)}
-                  accessibilityLabel="Open help and frequently asked questions"
-                />
-
                 {settingItems.map(item => (
                   <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
                     <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
@@ -716,6 +681,35 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </View>
                 ))}
 
+                {/* Game Dev Tools - dev/QA only; gated so the simulator graph is stripped from production. */}
+                {DEV_TOOLS_ENABLED && (
+                  <SettingsActionButton
+                    icon={Code}
+                    label="Game Dev Tools"
+                    accent="#818CF8"
+                    onPress={() => setShowDevTools(true)}
+                    accessibilityLabel="Open Game Dev Tools"
+                  />
+                )}
+
+                {/* What's New - player-facing update log. Opens a sheet NESTED
+                    inside this Settings Modal (the DevToolsModal nesting). */}
+                <SettingsActionButton
+                  icon={Megaphone}
+                  label="What's New"
+                  accent={uiPalette.blue}
+                  onPress={openWhatsNew}
+                  accessibilityLabel="See what's new in the latest update"
+                />
+
+                <SettingsActionButton
+                  icon={HelpCircle}
+                  label="Help & FAQ"
+                  accent="#34D399"
+                  onPress={() => setShowHelp(true)}
+                  accessibilityLabel="Open help and frequently asked questions"
+                />
+
                 {/* Enhanced Action Buttons */}
                 <SettingsActionButton
                   icon={Users}
@@ -726,18 +720,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
                 <SettingsActionButton
                   icon={Save}
-                  label={t('settings.switchSaveSlot')}
+                  label={switchingSlot ? 'Saving progress...' : t('settings.switchSaveSlot')}
                   accent={uiPalette.blue}
-                  onPress={() => {
-                    onClose();
-                    // R3-S1: leaving a live game for the slot picker. Without
-                    // this, a backup restored from that screen is silently
-                    // overwritten by the still-loaded pre-restore state on the
-                    // next background transition.
-                    suspendLifeAutosave('settings -> switch save slot');
-                    const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
-                    router.push(saveSlotsPath);
-                  }}
+                  disabled={switchingSlot}
+                  onPress={switchSaveSlot}
                 />
 
                 {/* Special Discord Button with Animation */}

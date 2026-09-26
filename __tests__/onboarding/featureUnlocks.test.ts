@@ -480,9 +480,11 @@ describe('the grid shows locked apps rather than hiding them', () => {
     expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}gameAlert\(name, app\.lockReason/);
   });
 
-  it('and a screen reader is told it is locked', () => {
+  it('a screen reader hears the lock and can still request its explanation', () => {
     expect(SRC).toMatch(/accessibilityLabel=\{app\.locked \? `\$\{name\}, locked`/);
-    expect(SRC).toMatch(/accessibilityState=\{\{ disabled: app\.locked \}\}/);
+    expect(SRC).toMatch(/accessibilityHint=\{app\.locked \? app\.lockReason/);
+    // The explanation button is operable; claiming disabled hides that affordance.
+    expect(SRC).not.toMatch(/accessibilityState=\{\{ disabled: app\.locked \}\}/);
   });
 });
 

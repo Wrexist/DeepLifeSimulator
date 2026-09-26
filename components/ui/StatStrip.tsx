@@ -40,14 +40,14 @@ export function StatTile({ label, value, sub, tint, align = 'center', hero = fal
       accessibilityRole="text"
       accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}
     >
-      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]} numberOfLines={1}>
+      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]} numberOfLines={2}>
         {value}
       </Text>
-      <Text style={[styles.label, { color: theme.textMuted, textAlign }]} numberOfLines={1}>
+      <Text style={[styles.label, { color: theme.textMuted, textAlign }]} numberOfLines={2}>
         {label}
       </Text>
       {sub ? (
-        <Text style={[styles.sub, { color: theme.textSecondary, textAlign }]} numberOfLines={1}>
+        <Text style={[styles.sub, { color: theme.textSecondary, textAlign }]} numberOfLines={2}>
           {sub}
         </Text>
       ) : null}
@@ -97,10 +97,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   label: {
-    fontSize: fontScale(11),
+    fontSize: fontScale(12),
     fontWeight: '500',
   },
   sub: {
-    fontSize: fontScale(11),
+    fontSize: fontScale(12),
   },
 });

@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { colors, uiPalette } from '@/lib/config/theme';
 /**
  * Styles for SettingsModal.
  *
@@ -62,27 +62,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: 'rgba(0,0,0,0.06)',
     backgroundColor: '#FAFBFC',
   },
-  glassHeader: {
-    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: responsivePadding.large,
-    paddingVertical: responsivePadding.large,
-    position: 'relative',
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        ...getShadow(16, '#000'),
-      },
-      android: {
-        elevation: 12,
-      },
-      web: {
-        ...getShadow(16, '#000'),
-      },
-    }),
-  },
+  glassHeader: { backgroundColor: uiPalette.surface, padding: responsiveSpacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.dark.border },
   glassOverlay: {
     position: 'absolute',
     top: 0,
@@ -92,31 +72,8 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: 20,
   },
-  glassTitleIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: responsiveSpacing.md,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
+  glassTitleIcon: { width: scale(24), height: scale(24), alignItems: 'center', justifyContent: 'center', marginRight: responsiveSpacing.compact },
+  glassCloseButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: uiPalette.raised, alignItems: 'center', justifyContent: 'center' },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -152,37 +109,12 @@ export const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
   },
-  settingItemGradient: {
-    padding: responsivePadding.medium,
-    borderRadius: responsiveBorderRadius.lg,
-  },
+  settingItemGradient: { padding: responsiveSpacing.compact, borderRadius: responsiveBorderRadius.md, flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
   settingInfo: {
     flex: 1,
   },
-  settingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
-  },
-  settingIconContainer: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: responsiveSpacing.sm,
-    ...Platform.select({
-      ios: {
-        ...getShadow(4, '#000'),
-      },
-      android: {
-        elevation: 3,
-      },
-      web: {
-        ...getShadow(4, '#000'),
-      },
-    }),
-  },
+  settingHeader: { flexDirection: 'row', alignItems: 'center' },
+  settingIconContainer: { width: scale(28), height: scale(28), borderRadius: responsiveBorderRadius.sm, alignItems: 'center', justifyContent: 'center', marginRight: responsiveSpacing.sm },
   settingTextContainer: {
     flex: 1,
   },
@@ -195,53 +127,13 @@ export const styles = StyleSheet.create({
   settingTitleDark: {
     color: uiPalette.paper,
   },
-  settingDescription: {
-    fontSize: responsiveFontSize.sm,
-    color: uiPalette.lightMuted,
-    // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
-    lineHeight: fontScale(18),
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
-  },
-  settingDescriptionDark: {
-    color: uiPalette.white,
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
-  },
+  settingDescription: { fontSize: responsiveFontSize.sm, lineHeight: fontScale(18), color: colors.dark.textSecondary },
+  settingDescriptionDark: { color: colors.dark.textSecondary },
   switchContainer: {
     marginLeft: responsiveSpacing.sm,
   },
   // Enhanced Tab Styles
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: uiPalette.lightSurface,
-    borderRadius: responsiveBorderRadius.lg,
-    padding: 4,
-    marginBottom: responsiveSpacing.lg,
-    ...Platform.select({
-      ios: {
-        ...getShadow(4, '#000'),
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        ...getShadow(4, '#000'),
-      },
-    }),
-  },
+  tabContainer: { marginBottom: responsiveSpacing.md },
   tabContainerDark: {
     backgroundColor: uiPalette.slate,
   },
@@ -295,34 +187,10 @@ export const styles = StyleSheet.create({
   },
   
   // Enhanced Action Button Styles
-  actionButtonContainer: {
-    marginBottom: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        ...getShadow(8, '#000'),
-      },
-      android: {
-        elevation: 4,
-      },
-      web: {
-        ...getShadow(8, '#000'),
-      },
-    }),
-  },
+  actionButtonContainer: { marginBottom: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md, overflow: 'hidden' },
   // On-theme glass action row (see SettingsActionButton). Dark surface + a
   // tinted icon chip + left-aligned label — the accent never fills the button.
-  glassActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    gap: responsiveSpacing.md,
-  },
+  glassActionButton: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingVertical: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.compact, backgroundColor: uiPalette.surface, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: colors.dark.border, gap: responsiveSpacing.compact },
   glassActionIconChip: {
     width: scale(36),
     height: scale(36),

@@ -163,15 +163,16 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
 
   if (companies.length === 0) {
     return (
-      <View style={styles.emptyRoot}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
+        <SceneCard scene="studio" title="Your first business" subtitle="Compare startup costs before choosing a company." />
         <EmptyState
           icon={<Building2 size={fontScale(26)} color={HUSTLE_COLORS.accent} />}
           observation="You don't run any companies yet."
-          nudge="Found your first one to start building an empire."
+          nudge="Choose a business type and review its costs before investing."
           ctaLabel="Found a company"
           onCtaPress={handleCreatePress}
         />
-      </View>
+      </ScrollView>
     );
   }
 

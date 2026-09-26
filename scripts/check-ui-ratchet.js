@@ -49,7 +49,7 @@ const METRICS = {
     // HUD's primary action for information the player cannot act on.
     // 153 -> 152 on 2026-09-02 (Program 5): Streaming's dashboard link became a
     // GradientButton (no JSX gradient) and its old hero link went.
-    max: 152,
+    max: 148,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },
@@ -79,7 +79,7 @@ const METRICS = {
     // tier scale (lib/config/hierarchy.ts) putting 600 where 700/800 stood.
     // 693 -> 652 on 2026-09-02 (Program 5): the tier tokens put 600/700 where
     // 800 stood on the prestige, legacy and jail surfaces.
-    max: 652,
+    max: 650,
     goal: 540,
     pattern: /fontWeight:\s*'(?:700|800|900|bold)'/g,
   },

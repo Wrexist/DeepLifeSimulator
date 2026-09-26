@@ -506,7 +506,7 @@ function TopStatsBarComponent() {
  accessibilityRole="button"
  accessibilityHint={ACCESSIBILITY_HINTS.BUTTONS.SETTINGS}
  >
- <LiquidGlassDisc accent="#64748B">
+ <LiquidGlassDisc>
  <Settings size={22} color={iconColor} />
  </LiquidGlassDisc>
  </TouchableOpacity>

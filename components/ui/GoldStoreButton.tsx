@@ -17,11 +17,11 @@
  * app rules those out by name. The shine says "this is the shop"; it does not
  * say "you have missed something".
  *
- * MOTION BUDGET. Two looped animations, both transform/opacity only, both on
+ * MOTION BUDGET. One looped animation, transform only, on
  * the native driver, so the JS thread is untouched while they run. The shine
  * runs for ~1.1s and then rests for ~5s - a continuous sweep reads as a loading
  * spinner and stops being noticed within a minute. `useReducedMotion` disables
- * both entirely and leaves the gold, which is the part that does the work.
+ * it entirely and leaves the gold, which is the part that does the work.
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
@@ -53,9 +53,7 @@ function GoldStoreButton({
 
   // 0 → 1 sweeps the highlight across; held at 0 between passes.
   const shine = useRef(new Animated.Value(0)).current;
-  // A breath, not a bounce: 6% is visible in peripheral vision and invisible
-  // when you are looking straight at it.
-  const pulse = useRef(new Animated.Value(0)).current;
+
 
   useEffect(() => {
     if (reduceMotion) return undefined;
@@ -75,41 +73,20 @@ function GoldStoreButton({
       ]),
     );
 
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(2600),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
     shineLoop.start();
-    pulseLoop.start();
     // Stopping on unmount matters: this button lives in the persistent HUD, so
     // a leaked loop would keep the driver awake for the whole session.
     return () => {
       shineLoop.stop();
-      pulseLoop.stop();
       shine.setValue(0);
-      pulse.setValue(0);
     };
-  }, [reduceMotion, shine, pulse]);
+  }, [reduceMotion, shine]);
 
   const shineTranslate = shine.interpolate({
     inputRange: [0, 1],
     outputRange: [-scale(44), scale(44)],
   });
-  const scalePulse = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
+
 
   return (
     <TouchableOpacity
@@ -120,7 +97,7 @@ function GoldStoreButton({
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
     >
-      <Animated.View style={[styles.fill, { transform: [{ scale: scalePulse }] }]}>
+      <Animated.View style={styles.fill}>
         <Gradient
           colors={GOLD_GRADIENT}
           style={styles.gradient}

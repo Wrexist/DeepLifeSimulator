@@ -1,3 +1,17 @@
+# Whole-game polish follow-through - 26 September 2026
+
+- Cleaned HUD utility circles per screenshot: one round surface, no inner bloom;
+  gold store keeps its footprint without an expanding pulse.
+- Settings now leads with preferences, uses shared tabs, has clearer switches and
+  a compact header. Slot switching awaits a durable save and explains failure.
+- Shared modal, button, app-header, stat-strip and empty-state refinements;
+  Contacts/Mail/Hustle polish, specific Market labels, and direct-link lock checks.
+- Browser: all five tabs and all 19 app entry screens at compact phone/tablet sizes;
+  computer purchase survives save-slot switch/reload. Isolated QA fixture labelled.
+- [Acceptance inventory and evidence](release/evidence/game-polish-2026-09-26.md).
+- Next: nested transaction/player journeys and native accessibility/provider
+  acceptance. No merge, OTA, paid build or store submission performed.
+
 # Identity refinement ? 2026-09-26
 
 - Implemented original street-line artwork across menu, player record and compact destination strips; removed generic motivational copy and oversized title badges. Approved HUD and save schema 51 unchanged.
@@ -42,7 +56,7 @@ a reload drops the purchase.
 - [x] Save + integration (53 suites / 587), stress + startup (55 / 908), full suite on the merged tree (816 / 817; the red one is the wall-clock tick benchmark, also red on `main` on this Windows machine, A/B shows no cost). Type-checks 0. Lessons entry written.
 - [x] `npm run preflight`: `main` was at 703 lint warnings against a 701 ceiling (two new `require()`s in `lib/review/__tests__/inAppReview.test.ts`, from #220). Fixed with the repo's line-level disable convention rather than raising the ceiling.
 - [ ] PR with the save-system risk box; watch CI's tick-timing number against `main`'s 3.98 ms/tick.
-- [ ] Follow-up (not this PR): "Switch save slot" should save before it suspends. Market purchases (`buyItem` / `buyFood`) never call `saveGame`, so a switch within 2 minutes of one still loses it.
+- [x] Follow-up implemented on PR #229: Settings saves durably before suspending for the slot picker. Provider regression and real browser computer-purchase/switch/reload verified.
 - [ ] Follow-up (not this PR): drop the now-redundant `setTimeout(0)` / 200 ms pre-save yields (home, work, DeathPopup, Discord grant, restoreFromCloud, resolveEvent).
 
 ## Home freeze + four-lens audit — 25 September 2026

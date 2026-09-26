@@ -1,4 +1,4 @@
-import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { uiPalette } from '@/lib/config/theme';
 /**
@@ -70,14 +70,14 @@ export default function GradientButton({
   const glowStyle: ViewStyle = disabled || secondary
     ? {}
     : Platform.select<ViewStyle>({
-        web: { boxShadow: `0px ${scale(5)}px ${scale(14)}px ${glow}4D` } as ViewStyle,
+        web: { boxShadow: `0px ${scale(5)}px ${scale(6)}px ${glow}24` } as ViewStyle,
         ios: {
           shadowColor: glow,
           shadowOffset: { width: 0, height: scale(4) },
-          shadowOpacity: 0.4,
-          shadowRadius: scale(10),
+          shadowOpacity: 0.15,
+          shadowRadius: scale(4),
         },
-        android: { elevation: 6 },
+        android: { elevation: 2 },
         default: {},
       }) ?? {};
 
@@ -101,7 +101,7 @@ export default function GradientButton({
         onPressOut={() => animateTo(0)}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled: disabled || !onPress }}
         style={styles.touch}
       >
         <View style={styles.clip}>
@@ -121,7 +121,7 @@ export default function GradientButton({
                 {/* Glass shine: soft white highlight that fades out by mid-height
                     (full-height + rounded so there's no hard cut-off line). */}
                 <SvgLinearGradient id={`${gid}-shine`} x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={uiPalette.white} stopOpacity={0.2} />
+                  <Stop offset="0" stopColor={uiPalette.white} stopOpacity={0.06} />
                   <Stop offset="0.5" stopColor={uiPalette.white} stopOpacity={0} />
                   <Stop offset="1" stopColor={uiPalette.white} stopOpacity={0} />
                 </SvgLinearGradient>
@@ -140,7 +140,7 @@ export default function GradientButton({
                 styles.label,
                 disabled ? styles.labelDisabled : secondary ? { color: colors[0], fontWeight: '600' } : styles.labelActive,
               ]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {label}
             </Text>
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   clip: {
     borderRadius: RADIUS,
     overflow: 'hidden',
-    minHeight: verticalScale(36),
+    minHeight: scale(44),
     justifyContent: 'center',
   },
   disabledFill: {
@@ -182,8 +182,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: layoutSpace.compact,
   },
   label: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: fontScale(13),
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   labelActive: {

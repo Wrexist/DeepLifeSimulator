@@ -116,13 +116,8 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
         accessibilityLabel={holiday ? `${holiday.name}, ${config.name} season` : `${config.name} season`}
         accessibilityHint="Shows the season, the week within it and any active holiday"
       >
-        {/* Liquid glass, season colour on the glyph and in the bloom. The old
-            flat disc carried a 1px white border that anti-aliased into pale
-            crescents around the rim once clipped (owner screenshot,
-            2026-09-18); the shared material has no uniform border, so it cannot
-            come back. The colour still lives in the glyph, not a filled disc,
-            so the control does not compete with the primary action. */}
-        <LiquidGlassDisc accent={config.color}>
+        {/* One round surface; season and holiday colour lives on the glyph. */}
+        <LiquidGlassDisc>
           {holiday && HolidayIcon ? (
             <HolidayIcon size={iconSize} color={holiday.color} />
           ) : (

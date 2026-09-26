@@ -233,6 +233,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 handleSell(item.id, item.name);
               }
             }}
+            accessibilityLabel={`Sell ${item.name}`}
             title={`Sell (${formatMoney(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5)})`}
             loading={loadingStates[item.id] || false}
             variant="secondary"
@@ -259,6 +260,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               }
             }}
             title={t('market.buy')}
+            accessibilityLabel={`Buy ${item.name} for ${formatMoney(inflatedPrice)}`}
             loading={loadingStates[item.id] || false}
             disabled={!canAffordItem(item.price)}
             // The recommended item is the one saturated Buy on the list; the
@@ -354,6 +356,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             }
           }}
           title={t('market.buy')}
+          accessibilityLabel={`Buy ${food.name}`}
           disabled={!canAfford(food.price)}
           // When food leads (energy critical) the first meal is the primary.
           variant={isLead ? 'primary' : 'secondary'}

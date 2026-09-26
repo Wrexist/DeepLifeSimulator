@@ -383,3 +383,10 @@ export const animation = {
     bouncy: { damping: 10, stiffness: 200 },
   },
 } as const;
+
+/** Solid action fills paired with white labels; quieter than page-level gradients. */
+export const actionColors = {
+  primary: palette.primaryDark,
+  success: '#047857',
+  danger: '#B91C1C',
+} as const;

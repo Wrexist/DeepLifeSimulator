@@ -53,7 +53,7 @@ export default function AppHeader({ title, onBack, backLabel = 'Back', right, ce
       </TouchableOpacity>
       <Text
         style={[styles.title, { color: theme.text }, centered && styles.titleCentered]}
-        numberOfLines={1}
+        numberOfLines={2}
         accessibilityRole="header"
       >
         {title}
@@ -100,7 +100,7 @@ export function HeaderChip({
       <TouchableOpacity
         onPress={onPress}
         hitSlop={6}
-        style={[styles.chip, { backgroundColor: fill, borderColor: rim }]}
+        style={[styles.chip, styles.interactiveChip, { backgroundColor: fill, borderColor: rim }]}
         accessibilityRole="button"
         accessibilityLabel={`${label} ${value}`}
       >
@@ -149,6 +149,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   right: {
+    maxWidth: '50%',
+    flexShrink: 1,
     minWidth: touchTargets.minimum,
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -163,7 +165,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: scale(32),
   },
+  interactiveChip: { minHeight: touchTargets.minimum },
   chipText: {
+    flexShrink: 1,
     fontSize: fontScale(13),
     fontWeight: '600',
     fontVariant: ['tabular-nums'],

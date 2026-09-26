@@ -1,3 +1,7 @@
+Latest follow-through: [26 September polish evidence](release/evidence/game-polish-2026-09-26.md).
+Save-slot safety is now implemented and browser/provider verified. All 19 app
+entry screens have phone/tablet captures; their nested journeys remain open.
+
 # Everything remaining after the visual rebuild
 
 Status checked 26 September 2026 against PR #229, head `1a95a49b`.
@@ -83,7 +87,7 @@ Real-time 3D is not required for the agreed 2.5D direction.
 
 ## 3. Save and journey regression follow-ups
 
-- [ ] Reproduce the existing save-slot-switch risk on current code: Settings still
+- [x] Reproduced and fixed the save-slot-switch risk on PR #229. Historical investigation: Settings still
   suspends life autosave and navigates without first explicitly awaiting a save.
   Test a recent market purchase, slot switch and reload. If it loses progress,
   fix through the owning save flow and add a behavioral regression. This is a

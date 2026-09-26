@@ -60,3 +60,18 @@ release; browser playback is insufficient. OTA remains disabled.
 Native acceptance must cover compact iPhone and iPad, Larger Text, VoiceOver,
 Reduce Motion, silent switch/audio interruptions, keyboard, modal priorities,
 old-save/relaunch, purchases/restore and ads on the exact signed build.
+
+## Follow-through: shared controls and Settings
+
+HUD utility buttons use one circular surface; the settings/season glyph has no
+inner bloom, and the store keeps a steady circular footprint. Shared dialogs use
+live window dimensions and reduced-motion preferences. Button labels may wrap,
+secondary actions use paired theme text/surfaces, and actionable controls target
+at least 44 points. Locked-app explanation buttons remain operable and announce
+the lock through their label and requirement hint.
+
+Settings leads with player preferences. Save-slot exit must await a successful
+canonical durable save before suspending life autosave and navigating. A failed
+write leaves the player in the active life; a pending exit cannot be double-tapped.
+
+Current evidence: `tasks/release/evidence/game-polish-2026-09-26.md`.
