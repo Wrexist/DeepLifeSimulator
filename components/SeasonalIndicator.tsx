@@ -241,9 +241,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
 }
 
 const styles = StyleSheet.create({
-  container: {
-    overflow: 'hidden',
-  },
+  container: {},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

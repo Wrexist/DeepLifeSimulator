@@ -1,3 +1,10 @@
+# HUD circle edge refinement - 26 September 2026
+
+- [x] Replace nested rounded clipping with inset vector circles; retain icons and hit targets.
+- [x] Check phone/tablet browser renders and focused HUD tests.
+- [ ] Verify the curves on a signed iPhone build.
+- Evidence: [circle edges](release/evidence/hud-circle-edges-2026-09-26.md).
+
 # Whole-game polish follow-through - 26 September 2026
 
 - Cleaned HUD utility circles per screenshot: one round surface, no inner bloom;

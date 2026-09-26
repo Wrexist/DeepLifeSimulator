@@ -125,7 +125,6 @@ export const styles = StyleSheet.create({
  height: isIPad() ? touchTargets.large: touchTargets.minimum,
  marginRight: responsiveSpacing.xs,
  borderRadius: (isIPad() ? touchTargets.large: touchTargets.minimum) / 2,
- overflow: 'hidden',
  backgroundColor: 'transparent',
  },
  iconButtonDark: {},
