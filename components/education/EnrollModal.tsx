@@ -11,8 +11,9 @@ import {
 } from '@/lib/education/educationSystem';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, actionColors } from '@/lib/config/theme';
 
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 export interface EnrollTemplate {
@@ -47,6 +48,7 @@ function bonusLabel(c: ClassTemplate): string {
 
 export default function EnrollModal({ visible, template, gameState, darkMode, onClose, onConfirm }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [mode, setMode] = useState<'cash' | 'loan'>('cash');
   // Offered classes for this program (derived once per open - getAvailableClasses
   // shuffles, so we freeze it in state to keep the picker stable across renders).
@@ -87,7 +89,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
   const canLoan = !!quote?.loan && !quote.blockedReason;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
@@ -165,8 +167,8 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                 style={[
                   styles.segBtn,
                   {
-                    borderColor: mode === 'cash' && canCash ? accent.success : theme.border,
-                    backgroundColor: mode === 'cash' && canCash ? accent.success : theme.surfaceElevated,
+                    borderColor: mode === 'cash' && canCash ? actionColors.success : theme.border,
+                    backgroundColor: mode === 'cash' && canCash ? actionColors.success : theme.surfaceElevated,
                     opacity: canCash ? 1 : 0.45,
                   },
                 ]}
@@ -187,8 +189,8 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                 style={[
                   styles.segBtn,
                   {
-                    borderColor: mode === 'loan' && canLoan ? accent.info : theme.border,
-                    backgroundColor: mode === 'loan' && canLoan ? accent.info : theme.surfaceElevated,
+                    borderColor: mode === 'loan' && canLoan ? actionColors.primary : theme.border,
+                    backgroundColor: mode === 'loan' && canLoan ? actionColors.primary : theme.surfaceElevated,
                     opacity: canLoan ? 1 : 0.45,
                   },
                 ]}
@@ -307,7 +309,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
               styles.confirm,
               {
                 backgroundColor:
-                  (mode === 'cash' ? canCash : canLoan) ? (mode === 'cash' ? accent.success : accent.info) : theme.border,
+                  (mode === 'cash' ? canCash : canLoan) ? (mode === 'cash' ? actionColors.success : actionColors.primary) : theme.border,
               },
             ]}
           >

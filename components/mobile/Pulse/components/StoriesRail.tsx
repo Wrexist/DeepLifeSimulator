@@ -15,6 +15,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import type { AvatarSource } from '@/lib/avatar/resolve';
 import type { NpcStoryTarget } from '../modals/NpcProfileSheet';
 
 interface StoriesRailProps {
@@ -83,6 +84,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
               /* Live is a red ring - one colour, the same red as the LIVE tag. */
               <View style={[styles.ringInner, { backgroundColor: PULSE_COLORS.danger }]}>
                 <Avatar
+                  source={gameState.userProfile}
                   uri={gameState.userProfile?.profilePhoto}
                   fallback="Y"
                   seed={gameState.userProfile?.name}
@@ -93,6 +95,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
             ) : (
               <View style={[styles.ringInnerStatic, { borderColor: theme.border }]}>
                 <Avatar
+                  source={gameState.userProfile}
                   uri={gameState.userProfile?.profilePhoto}
                   fallback="Y"
                   seed={gameState.userProfile?.name}
@@ -143,7 +146,8 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
   );
 }
 
-function Avatar({ uri, fallback, seed, sex, age }: {
+function Avatar({ uri, fallback, seed, sex, age, source }: {
+  source?: AvatarSource;
   uri?: string;
   fallback: string;
   /** Identity for the generated face shown when there is no photo. */
@@ -159,7 +163,7 @@ function Avatar({ uri, fallback, seed, sex, age }: {
       <ImageWithFallback
         uri={uri}
         fallback={fallback}
-        face={seed ? { seed, sex, age, size: BUBBLE - 8 } : undefined}
+        face={seed ? { source, seed, sex, age, size: BUBBLE - 8 } : undefined}
         style={styles.avatar}
       />
     );

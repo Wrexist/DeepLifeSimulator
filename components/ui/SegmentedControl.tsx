@@ -102,10 +102,9 @@ export default function SegmentedControl<T extends string>({
               onPress={() => (locked ? onLockedPress?.(seg.key, seg.lockReason || '') : onChange(seg.key))}
               activeOpacity={0.85}
               accessibilityRole="tab"
-              // `disabled` is added only when locked rather than always passed
-              // as a boolean, so an unlocked segment's props stay byte-identical
-              // to what the three pre-existing callers already rendered.
-              accessibilityState={locked ? { selected: active, disabled: true } : { selected: active }}
+              disabled={locked && !onLockedPress}
+              accessibilityState={locked ? { selected: active, disabled: !onLockedPress } : { selected: active }}
+              accessibilityHint={locked && onLockedPress ? 'Explains how to unlock this section' : undefined}
               accessibilityLabel={locked ? `${seg.label}, locked. ${seg.lockReason || ''}`.trim() : seg.label}
             >
               {Icon ? <Icon size={compact ? scale(14) : scale(16)} color={active ? activeColor : MUTED} /> : null}

@@ -2,8 +2,9 @@
 
 - [x] Implement D01-D06 and D12: mutex-owned prestige, durable celebration/retry, strict money entry, committed campaign feedback and life-relative planning/Profile counts.
 - [x] Verify 40 focused regressions and capture compact phone/tablet changes.
-- [ ] Complete final broad validation and inspect draft PR checks; results in [fix evidence](release/evidence/audit-fixes-2026-09-26.md).
-- [ ] Next: D07 avatar identity, D08-D11 accessible controls, then D13-D14 display labels. [Remaining register](whole-app-audit-2026-09-26.md): 51 open items, D11 partially complete.
+- [x] Save/finance CI: 826 suites / 10,047 tests / 308 snapshots; preflight and quality passed. Further UI follow-through: 26 focused tests and source/test types pass; results in [fix evidence](release/evidence/audit-fixes-2026-09-26.md).
+- [x] D07/D08/D10/D11: Pulse identity, enrollment contrast, locked-control semantics and reduced motion. Family target is 44 points high.
+- [ ] Next: finish D09 HUD gem-plus target, then D13-D14 display labels. [Remaining register](whole-app-audit-2026-09-26.md): 47 open items, D09 partially complete.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

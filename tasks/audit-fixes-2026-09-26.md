@@ -4,8 +4,9 @@
 - [x] D05/D06: strict amount parsing and accessible amount confirmation.
 - [x] D02/D04/D12: life-relative planning/summary and honest estimate labels.
 - [x] D03: acknowledge committed campaign outcome.
-- [ ] Run focused regressions, integration/full suite and preflight; capture changed UI.
-- [ ] Update audit/todo/evidence and reviewable PR; no production deployment.
+- [x] Run focused regressions, full save/finance CI and preflight; capture changed UI.
+- [x] D07/D08/D10/D11: coherent Pulse identity, enrollment contrast, locked-control semantics and reduced motion. D09 Family target fixed; gem-plus remains open.
+- [x] Update audit/todo/evidence and reviewable PR; no production deployment.
 
 ## Implementation
 
@@ -17,6 +18,6 @@
 
 ## Remaining work
 
-Continue with D07 avatar identity, D08 enrollment contrast, D09 target sizes, D10 locked-control semantics and the remaining enrollment portion of D11. Then D13 historical week labels, D14 career requirement names, V01-V18 presentation work, A01-A22 acceptance cases and O01-O04 maintenance in the [full register](whole-app-audit-2026-09-26.md).
+Continue with the remaining D09 HUD gem-plus hit target, then D13 historical week labels, D14 career requirement names, V01-V18 presentation work, A01-A22 acceptance cases and O01-O04 maintenance in the [full register](whole-app-audit-2026-09-26.md).
 
 Browser screenshots and verification results: [fix evidence](release/evidence/audit-fixes-2026-09-26.md).

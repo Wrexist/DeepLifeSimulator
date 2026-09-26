@@ -1,0 +1,47 @@
+node : PASS __tests__/stress/deathRevivePrestige.stress.test.ts (13.675 s)
+At line:23 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath __tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...t.ts (13.675 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  Death → Revive → Prestige cycle
+    √ Death by health=0: triggered after 4 zero-weeks (228 ms)
+    √ Death by health=0: 3 zero-weeks not enough (57 ms)
+    √ Death by happiness=0: triggered after 4 zero-weeks (62 ms)
+    √ Death triggers ribbon collection update (life classified) (76 ms)
+    √ Revive: with sufficient gems restores stats and deducts the revive cost (8 ms)
+    √ Revive: without enough gems is a no-op (6 ms)
+    √ Revive: an exact balance revives and leaves 0 gems (4 ms)
+    √ Revive: two taps in ONE React batch charge for exactly one revive (6 ms)
+    √ Revive: a SECOND revive after dying again still charges (not over-blocked) (9 ms)
+    √ Revive: after revive the player can continue with nextWeek (16 ms)
+    √ Prestige reset: resets age to ADULTHOOD_AGE (18) and weeksLived to 0 (57 ms)
+    √ Prestige reset: prestige history grows + lifetime stats accumulate (19 ms)
+    √ Prestige child: continues as an heir-eligible child (31 ms)
+    √ Cross-system: dying mid-progression updates lifetimeStatistics + ribbons + checkpoints (42 ms)
+    √ Sequencing: die → revive → progress → prestige all stay clean (70 ms)
+    √ Idempotent death: nextWeek on already-dead character does not double-classify ribbon (5 ms)
+
+PASS __tests__/save/prestigePersistence.test.ts
+  √ waits for the owning mutex, blocks double submission, and a queued autosave cannot undo prestige (182 ms)
+  √ refuses a changed slot while waiting without resetting either life (62 ms)
+  √ requires the protected outgoing backup before resetting (45 ms)
+  √ reports failed durability and retries only saving, without a second reset or XP award (66 ms)
+  √ refuses a newer action arriving during backup instead of overwriting it (54 ms)
+  √ releases ownership if the provider unmounts while the outgoing backup is pending (49 ms)
+
+PASS __tests__/save/saveInSameHandlerPersistsAction.test.ts
+  a save made in the same handler as the action persists the action
+    √ a YouVideo accessory bought and saved in one handler survives Switch save slot -> reload (57 ms)
+    √ an unsaved purchase survives Settings -> save slots -> reload (31 ms)
+    √ a save still waiting for its commit does not write a newly loaded life into the slot it was requested for (19 ms)
+    √ R3-S1 still holds: a save requested while autosave is suspended writes nothing (18 ms)
+    √ a save waiting for its commit settles when the provider unmounts instead of hanging (12 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       27 passed, 27 total
+Snapshots:   0 total
+Time:        16.449 s
+Ran all test suites within paths "__tests__/save/prestigePersistence.test.ts", "__tests__/save/saveInSameHandlerPersist
+sAction.test.ts", "__tests__/stress/deathRevivePrestige.stress.test.ts".

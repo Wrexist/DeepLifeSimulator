@@ -26,6 +26,7 @@ import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { Image, View, Text, StyleSheet, ImageStyle, StyleProp } from 'react-native';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import type { AvatarSource } from '@/lib/avatar/resolve';
 import { fontScale } from '@/utils/scaling';
 
 interface ImageWithFallbackProps {
@@ -45,7 +46,7 @@ interface ImageWithFallbackProps {
    * `size` is explicit because the face is an SVG and cannot inherit a
    * percentage height from `style` the way an <Image> does.
    */
-  face?: { seed: string; sex?: string | null; age?: number; size: number };
+  face?: { source?: AvatarSource | null; seed: string; sex?: string | null; age?: number; size: number };
 }
 
 export default function ImageWithFallback({
@@ -72,7 +73,7 @@ export default function ImageWithFallback({
   if (shouldShowFallback && face?.seed) {
     return (
       <View style={[styles.placeholder, style as StyleProp<ImageStyle>]}>
-        <CharacterAvatar seed={face.seed} sex={face.sex} age={face.age ?? 25} size={face.size} />
+        <CharacterAvatar source={face.source} seed={face.seed} sex={face.sex} age={face.age ?? 25} size={face.size} />
       </View>
     );
   }

@@ -134,6 +134,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
               uri={gameState.userProfile?.profilePhoto}
               fallback={handle}
               face={{
+                source: gameState.userProfile,
                 seed: gameState.userProfile?.name ?? handle,
                 sex: gameState.userProfile?.sex,
                 age: gameState.date?.age,

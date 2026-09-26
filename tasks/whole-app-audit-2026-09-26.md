@@ -1,6 +1,6 @@
 # Whole-app imperfection audit - 26 September 2026
 
-> Follow-through: D01-D06 and D12 have implementation fixes in the [audit-fix checklist](audit-fixes-2026-09-26.md), with the Bank portion of D11 also addressed. See [current fix evidence](release/evidence/audit-fixes-2026-09-26.md). The original observations below are preserved as the audit baseline; native acceptance and the remaining 51 register items are still open (D11 partially complete).
+> Follow-through: D01-D08 and D10-D12 have implementation fixes in the [audit-fix checklist](audit-fixes-2026-09-26.md), with the Family target portion of D09 also addressed. See [current fix evidence](release/evidence/audit-fixes-2026-09-26.md). The original observations below are preserved as the audit baseline; native acceptance and the remaining 47 register items are still open (D09 partially complete).
 
 **Audit result: one reproduced high-priority save defect, additional finance and
 feedback defects, and substantial remaining presentation/acceptance work.**
@@ -226,4 +226,4 @@ prestige writer, not evidence those previous fixes were undone.
 5. Obtain the separately authorized signed candidate and close A16-A21 provider/
    device gates; complete candidate/store evidence before any production action.
 
-Next concrete task: unify Pulse with the selected player portrait (D07), then fix the remaining accessible-control issues D08-D11. Prestige/finance follow-through is recorded above.
+Next concrete task: finish the HUD gem-plus hit target in D09, then D13-D14 week/requirement labels. Prestige, finance and accessible-control follow-through is recorded above.

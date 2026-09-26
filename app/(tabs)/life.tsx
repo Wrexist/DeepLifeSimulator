@@ -1,4 +1,4 @@
-import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsivePadding, scale } from '@/utils/scaling';
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsivePadding, scale, touchTargets } from '@/utils/scaling';
 import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -208,6 +208,8 @@ const styles = StyleSheet.create({
   // Header launcher chip - tinted like the screen's own accent, full border on
   // all four sides (Hard Rule #7).
   familyAction: {
+    minHeight: touchTargets.minimum,
+    minWidth: touchTargets.minimum,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layoutSpace.xs,

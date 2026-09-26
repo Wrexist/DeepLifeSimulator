@@ -50,6 +50,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
 
   const prestigeData = gameState?.prestige;
   const children = gameState?.family?.children || [];
+  const confirmDisabled = saving || (!pendingSave && selectedPath === 'child' && children.length > 0 && !selectedChildId);
 
   // Only calculate net worth when modal is visible to prevent unnecessary calculations
   const currentNetWorth = useMemo(() => {
@@ -709,10 +710,10 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
               <TouchableOpacity
                 style={[
                   styles.prestigeButton,
-                  (selectedPath === 'child' && children.length > 0 && !selectedChildId) && styles.buttonDisabled,
+                  confirmDisabled && styles.buttonDisabled,
                 ]}
                 onPress={() => {
-                  if (saving || (!pendingSave && selectedPath === 'child' && children.length > 0 && !selectedChildId)) {
+                  if (confirmDisabled) {
                     return;
                   }
                   if (showConfirmation || pendingSave) {
@@ -723,8 +724,8 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 }}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityState={{ busy: saving, disabled: saving }}
-                disabled={saving || (!pendingSave && selectedPath === 'child' && children.length > 0 && !selectedChildId)}
+                accessibilityState={{ busy: saving, disabled: confirmDisabled }}
+                disabled={confirmDisabled}
               >
                 <Crown size={18} color={uiPalette.white} />
                 <Text style={styles.prestigeButtonText}>

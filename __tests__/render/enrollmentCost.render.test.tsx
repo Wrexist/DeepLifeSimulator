@@ -4,7 +4,11 @@ import EnrollModal from '@/components/education/EnrollModal';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { EDUCATION_PROGRAMS } from '@/lib/education/programs';
 import { quoteEnrollment } from '@/contexts/game/actions/EducationActions';
+import { Modal } from 'react-native';
 import { formatMoney } from '@/utils/moneyFormatting';
+
+let mockReducedMotion = true;
+jest.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReducedMotion }));
 
 const program = EDUCATION_PROGRAMS.find(p => p.id === 'business_degree')!;
 const state = () => createTestGameState({ stats: { money: 60_000 }, educations: [], loans: [] });
@@ -64,4 +68,15 @@ describe('enrollment cost decision', () => {
     expect(s.onClose).toHaveBeenCalledTimes(1);
     act(() => s.tree.unmount());
   });
+});
+
+
+it('honors changed reduced-motion preference while enrollment is open', () => {
+  mockReducedMotion = true;
+  const s = render();
+  expect(s.tree.root.findByType(Modal).props.animationType).toBe('none');
+  mockReducedMotion = false;
+  act(() => s.tree.update(<EnrollModal {...s.props} />));
+  expect(s.tree.root.findByType(Modal).props.animationType).toBe('fade');
+  act(() => s.tree.unmount());
 });
