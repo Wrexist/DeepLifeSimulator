@@ -239,3 +239,20 @@ it('refuses a newer action arriving during backup instead of overwriting it', as
   expect(probe().state.stats.money).toBe(1e9 + 200);
   expect(prestigeLevel(probe().state)).toBe(0);
 });
+
+
+it('releases ownership if the provider unmounts while the outgoing backup is pending', async () => {
+  const backup = await import('@/utils/saveBackup');
+  let release!: (value: string) => void;
+  jest.mocked(backup.createBackupFromState).mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  let pending!: ReturnType<Probe['executePrestige']>;
+  act(() => { pending = probe().executePrestige('reset'); });
+  for (let i = 0; i < 50 && !release; i++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+  expect(saveLoadMutex.isHeld()).toBe(true);
+  act(() => mounted!.root.unmount());
+  mounted = null;
+  release('protected-backup');
+  await expect(settle(pending)).resolves.toBe('rejected');
+  expect(saveLoadMutex.isHeld()).toBe(false);
+  expect(prestigeLevel(await readSlot(1))).toBe(0);
+});

@@ -288,6 +288,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const gameStateRef = useRef<GameState | null>(null);
  const isSavingRef = useRef(false);
  const prestigeInFlightRef = useRef(false);
+ const actionsMountedRef = useRef(true);
  const saveGameRef = useRef<((force?: boolean) => Promise<boolean>) | null>(null);
  // The slot the player last selected, published when it is selected rather
  // than when it commits - `saveGame` checks it after waiting for a commit.
@@ -308,6 +309,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const saveCommitSeqRef = useRef(0);
  const saveCommitWaitersRef = useRef<{ seq: number; release: () => void }[]>([]);
  const waitForPendingCommit = useCallback((): Promise<void> => new Promise<void>((release) => {
+ if (!actionsMountedRef.current) { release(); return; }
  const seq = ++saveCommitSeqRef.current;
  saveCommitWaitersRef.current.push({ seq, release });
  setSaveCommitSeq(seq);
@@ -4716,10 +4718,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // No commit follows an unmount, so a waiting save would wait forever. Let it
  // go with the last committed state - what it would have read before.
- useEffect(() => () => {
+ useEffect(() => {
+ actionsMountedRef.current = true;
+ return () => {
+ actionsMountedRef.current = false;
  const pending = saveCommitWaitersRef.current;
  saveCommitWaitersRef.current = [];
  for (const waiter of pending) waiter.release();
+ };
  }, []);
 
  useEffect(() => {
@@ -5560,7 +5566,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  await waitForPendingCommit();
  token = await saveLoadMutex.acquire('save');
  const currentState = gameStateRef.current;
- if (!currentState || !requestedState || !isWritableSlot(requestedSlot) ||
+ if (!actionsMountedRef.current || !currentState || !requestedState || !isWritableSlot(requestedSlot) ||
      requestedSlot !== currentSlot || getSelectedSlot() !== requestedSlot ||
      isLifeAutosaveSuspended() ||
      currentState.lineageId !== requestedState.lineageId ||
@@ -5576,7 +5582,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // A callback may update this life while its backup is being written. Refuse
  // rather than replacing that newer state with a stale prestige calculation.
  await waitForPendingCommit();
- if (gameStateRef.current !== currentState || getSelectedSlot() !== requestedSlot || isLifeAutosaveSuspended()) {
+ if (!actionsMountedRef.current || gameStateRef.current !== currentState || getSelectedSlot() !== requestedSlot || isLifeAutosaveSuspended()) {
  throw new Error('Your life changed while preparing prestige. Please try again.');
  }
  setGameState(newGameState);
@@ -5584,7 +5590,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  resetStockPrices();
  await waitForPendingCommit();
  const committed = gameStateRef.current;
- if (!committed || getSelectedSlot() !== requestedSlot) throw new Error('The active save slot changed.');
+ if (!actionsMountedRef.current || !committed || getSelectedSlot() !== requestedSlot) throw new Error('The active save slot changed.');
  // forceSave rejects on failure; queueSave only promises that an attempt has
  // settled, including permanent failure, so it cannot acknowledge prestige.
  await forceSave(requestedSlot, {
@@ -5632,7 +5638,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return 'saved';
  } catch (error) {
  logger.error('[executePrestige] Failed:', error);
- showError(applied ? 'New life needs saving' : 'Prestige not completed', applied
+ if (actionsMountedRef.current) showError(applied ? 'New life needs saving' : 'Prestige not completed', applied
  ? 'Your new life is open, but its save did not finish. Retry saving before continuing. Your previous life has a protected backup.'
  : 'Your life has not been reset. Wait for any other save to finish, then try again.');
  return applied ? 'save-failed' : 'rejected';

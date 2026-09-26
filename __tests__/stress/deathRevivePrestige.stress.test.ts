@@ -107,6 +107,22 @@ async function tick() {
   });
 }
 
+/** Prestige now acknowledges a durable write after multiple React commits.
+ * Pump commits instead of waiting inside the act that dispatches the action.
+ * This lifecycle suite stubs I/O; prestigePersistence covers real signed storage.
+ */
+async function prestige(path: 'reset' | 'child', childId?: string) {
+  let pending!: ReturnType<Probe['game']['executePrestige']>;
+  let complete = false;
+  act(() => { pending = captured!.game.executePrestige(path, childId); });
+  void pending.then(() => { complete = true; });
+  for (let i = 0; i < 200 && !complete; i++) {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+  }
+  expect(complete).toBe(true);
+  await expect(pending).resolves.toBe('saved');
+}
+
 /** Seed an adult character with low/zero health to trigger health-death within 4 ticks. */
 function seedZeroHealth() {
   act(() => captured!.setGameState(prev => ({
@@ -334,7 +350,7 @@ describe('Death → Revive → Prestige cycle', () => {
   });
 
   // ── PRESTIGE: RESET PATH ────────────────────────────────────────────────
-  it('Prestige reset: resets age to ADULTHOOD_AGE (18) and weeksLived to 0', () => {
+  it('Prestige reset: resets age to ADULTHOOD_AGE (18) and weeksLived to 0', async () => {
     mounted = mountGame();
     // Seed mid-life adult with significant progress.
     act(() => captured!.setGameState(prev => ({
@@ -346,7 +362,7 @@ describe('Death → Revive → Prestige cycle', () => {
     })));
     const generationBefore = captured!.state.generationNumber || 1;
 
-    act(() => { captured!.game.executePrestige('reset'); });
+    await prestige('reset');
 
     // Age should be reset to 18, weeksLived back near zero.
     expect(captured!.state.date.age).toBe(18);
@@ -358,7 +374,7 @@ describe('Death → Revive → Prestige cycle', () => {
     assertClean('prestige reset');
   });
 
-  it('Prestige reset: prestige history grows + lifetime stats accumulate', () => {
+  it('Prestige reset: prestige history grows + lifetime stats accumulate', async () => {
     mounted = mountGame();
     act(() => captured!.setGameState(prev => ({
       ...prev,
@@ -368,7 +384,7 @@ describe('Death → Revive → Prestige cycle', () => {
     })));
 
     const beforeTotal = captured!.state.prestige?.totalPrestiges || 0;
-    act(() => { captured!.game.executePrestige('reset'); });
+    await prestige('reset');
     expect((captured!.state.prestige?.totalPrestiges || 0)).toBeGreaterThanOrEqual(beforeTotal + 1);
 
     // History contains the record.
@@ -381,7 +397,7 @@ describe('Death → Revive → Prestige cycle', () => {
   });
 
   // ── PRESTIGE: CHILD PATH ────────────────────────────────────────────────
-  it('Prestige child: continues as an heir-eligible child', () => {
+  it('Prestige child: continues as an heir-eligible child', async () => {
     mounted = mountGame();
     // Seed a state with an adult character + an heir-eligible child.
     const childId = 'heir_jr';
@@ -408,7 +424,7 @@ describe('Death → Revive → Prestige cycle', () => {
       relationships: [...(prev.relationships || []), child],
     })));
 
-    act(() => { captured!.game.executePrestige('child', childId); });
+    await prestige('child', childId);
 
     // After child path, age should be 18 (ADULTHOOD_AGE).
     expect(captured!.state.date.age).toBe(18);
@@ -476,7 +492,7 @@ describe('Death → Revive → Prestige cycle', () => {
     })));
 
     // Prestige reset.
-    act(() => { captured!.game.executePrestige('reset'); });
+    await prestige('reset');
     expect(captured!.state.date.age).toBe(18);
     expect(captured!.state.weeksLived).toBe(0);
     assertClean('die-revive-progress-prestige');
