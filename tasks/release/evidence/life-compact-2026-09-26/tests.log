@@ -1,0 +1,81 @@
+node : PASS __tests__/stress/health.stress.test.ts (58.58 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand __tests__/progression/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...st.ts (58.58 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  Health & Death Stress Tests
+    Test 1: Health at 0 for 1-3 weeks
+      √ should survive with health at 0 for 1 week (13 ms)
+      √ should survive with health at 0 for 2 weeks (3 ms)
+      √ should survive with health at 0 for 3 weeks (3 ms)
+      √ should NOT survive with health at 0 for 4 weeks (3 ms)
+    Test 2: Health death trigger (4+ weeks)
+      √ should trigger death at exactly 4 weeks of 0 health (32 ms)
+      √ should verify death reason is health (5 ms)
+    Test 3: Happiness death trigger
+      √ should survive with happiness at 0 for 3 weeks (4 ms)
+      √ should trigger death at 4 weeks of 0 happiness (4 ms)
+    Test 4: Stat clamping
+      √ should clamp negative health to 0 (6 ms)
+      √ should clamp health over 100 to 100 (2 ms)
+      √ should verify all stats clamp to 0-100 range (82 ms)
+      √ should handle edge cases (exactly 0 and exactly 100) (8 ms)
+    Test 5: Recovery from near-death
+      √ should reset healthZeroWeeks counter upon recovery (2 ms)
+      √ should allow survival after recovery (4 ms)
+      √ should handle multiple near-death recoveries (3 ms)
+    Test 6: Multiple diseases and health effects
+      √ should simulate flu health drain (6 ms)
+      √ should simulate severe disease (cancer) health drain (2 ms)
+      √ should handle multiple simultaneous diseases (2 ms)
+      √ should test cure mechanics (2 ms)
+      √ should verify health cannot go below 0 (2 ms)
+    Stat Stability Tests
+      √ should maintain stat stability over 1000 weeks (508 ms)
+
+PASS __tests__/progression/healthcarePolicyWired.test.ts
+  the healthcare effects are readable at all
+    √ reads both fields off enacted policy (3 ms)
+    √ is all zeroes for a player who has enacted nothing (2 ms)
+    √ bounds a corrupt save rather than granting infinite health or free care (50 ms)
+  the discount reaches the price the player is charged
+    √ takes 25% off a hospital stay (1 ms)
+    √ charges the list price when no policy is enacted (2 ms)
+    √ discounts every medical activity and no wellness one (2 ms)
+    √ rounds down, so the discount is never worse than advertised (2 ms)
+    √ never returns a negative or non-finite price (2 ms)
+  the wiring is present at both call sites
+    √ the week tick adds the weekly health bonus (104 ms)
+    √ the health-activity charge uses the adjusted price for BOTH the gate and the debit (4 ms)
+    √ the screens quote the same price they will be charged (8 ms)
+
+PASS __tests__/ui/sectionCollapse.test.ts
+  section collapse preferences
+    √ falls back to the caller default before anything is stored (5 ms)
+    √ reads a hydrated value synchronously (2 ms)
+    √ keeps the default for sections the store has never seen (2 ms)
+    √ drops non-boolean entries rather than trusting them (2 ms)
+    √ survives a storage read that throws (76 ms)
+    √ applies a write immediately and persists it debounced (22 ms)
+    √ coalesces a burst of toggles into one write (8 ms)
+  hydration arriving late
+    √ notifies a section that rendered before the values landed (3 ms)
+    √ runs the callback immediately when already hydrated (1 ms)
+    √ unsubscribes cleanly, so an unmounted section is never called (6 ms)
+    √ one throwing listener does not stop the rest (6 ms)
+
+PASS __tests__/refactor/relationshipHealthWrap.test.ts
+  applyRelationshipHealth - pre-roll index wrap
+    √ a spouse past the pre-roll length (idx 21) can still break up (not immune) (3 ms)
+    √ a spouse past the buffer can still become disappointed (idx 21 wrap) (2 ms)
+    √ a high draw past the buffer leaves the relationship intact (1 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       46 passed, 46 total
+Snapshots:   0 total
+Time:        65.476 s
+Ran all test suites matching /__tests__\\progression\\healthcarePolicyWired.test.ts|__tests__\\stress\\health.stress.te
+st.ts|__tests__\\refactor\\relationshipHealthWrap.test.ts|__tests__\\ui\\sectionCollapse.test.ts/i.
+Exit status: 0

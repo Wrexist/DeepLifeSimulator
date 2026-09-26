@@ -92,6 +92,7 @@ function LifeScreen() {
             headers when embedded, which used to leave the tab with a bare
             segmented control floating over unlabelled content. */}
         <ScreenHeader
+          style={styles.header}
           title="Your Life"
           icon={<Activity size={scale(18)} color="#F472B6" />}
           tint="#F472B6"
@@ -187,14 +188,17 @@ function LifeScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    paddingTop: layoutSpace.sm,
+  },
   container: {
     flex: 1,
     backgroundColor: uiPalette.navy,
   },
   controlWrap: {
     paddingHorizontal: responsivePadding.horizontal,
-    paddingTop: layoutSpace.sm,
-    paddingBottom: layoutSpace.sm,
+    paddingTop: layoutSpace.xs,
+    paddingBottom: layoutSpace.xs,
   },
   body: {
     flex: 1,

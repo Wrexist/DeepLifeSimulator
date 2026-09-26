@@ -27,25 +27,29 @@ import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
-type Vital = { key: string; label: string; value: number; color: string };
+type Vital = { key: HealthDelta['stat']; label: string; value: number; color: string };
 
 /**
- * The vitals in one line, for the collapsed header. Same four colours as the
- * expanded bars, so the reading survives the fold - a collapsed section that
- * hides the number the player opened the screen for is a worse screen.
+ * Compact vitals retain the HUD's stat icons and the current values. Expanded
+ * rings remain available, and the player's disclosure preference is preserved.
  */
 function VitalsSummary({ vitals }: { vitals: Vital[] }) {
   return (
     <View style={styles.vitalsSummary}>
-      {vitals.map((v) => (
-        <Text
-          key={v.key}
-          style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? uiPalette.line }]}
-          accessibilityLabel={`${v.label} ${Math.round(v.value)}, ${vitalState(v.value).word}`}
-        >
-          {Math.round(v.value)}
-        </Text>
-      ))}
+      {vitals.map((v) => {
+        const Icon = STAT_IDENTITY[v.key].Icon;
+        return (
+          <View key={v.key} style={styles.vitalRingCell}>
+            <Icon size={scale(12)} color={v.color} accessible={false} />
+            <Text
+              style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? uiPalette.line }]}
+              accessibilityLabel={`${v.label} ${Math.round(v.value)}, ${vitalState(v.value).word}`}
+            >
+              {Math.round(v.value)}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -212,7 +216,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // amber face, purple dumbbell). These were four local literals that
   // painted health GREEN on the screen that treats it - the contradiction
   // Program 4 logged and Program 5 closes.
-  const vitals = [
+  const vitals: (Vital & { Icon: typeof STAT_IDENTITY.health.Icon })[] = [
     { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: STAT_IDENTITY.health.color, Icon: STAT_IDENTITY.health.Icon },
     { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
     { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: STAT_IDENTITY.happiness.color, Icon: STAT_IDENTITY.happiness.Icon },
@@ -258,6 +262,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
     return (
       <HealthCard
+        compact
         key={activity.id}
         accent="vitality"
         title={activity.name}
@@ -310,6 +315,8 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             id="health.vitals"
             title="Your Vitals"
             compact
+            defaultCollapsed
+            style={styles.vitalsSection}
             summary={<VitalsSummary vitals={vitals} />}
           >
           {/* Rings, not bars - the same language the HUD uses for the same
@@ -357,17 +364,16 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             AND critical/low vitals, each with its fix. Self-nulls when clear. */}
         {!treatmentLeads && <HealthIssuesCard />}
 
-        <SceneCard scene={treatmentLeads ? "clinic" : "gym"} title={treatmentLeads ? "At the clinic" : "Off the clock"} subtitle={treatmentLeads ? "Review treatment options below." : "Choose an activity. Check its energy and cost."} />
         {/* Activities */}
         <View style={styles.section}>
           <CollapsibleSection
             id="health.activities"
+            compact
             title={t('health.healthActivities')}
             icon={<Activity size={scale(15)} color="#F87171" />}
             tint="#F87171"
             summary={`${visibleActivityCount} available`}
           >
-          <Text style={sectionDescStyle}>{t('health.investMentalPhysical')}</Text>
 
           {/* Protection you have already bought or earned.
               `vaccinations` and `diseaseImmunities` both prevent real illnesses
@@ -391,6 +397,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             is an activity like the ones above, not shopping. The membership
             ITEM is still bought in the Market's Items section. */}
         <View style={styles.section}>
+          <SceneCard scene="gym" title="At the gym" subtitle="Build fitness with a membership and a workout." />
           <GymCard />
         </View>
 
@@ -464,12 +471,15 @@ const styles = StyleSheet.create({
     marginBottom: rhythm.major,
   },
   // Vitals overview
+  vitalsSection: {
+    marginBottom: 0,
+  },
   vitalsCard: {
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: responsiveSpacing.md,
+    padding: layoutSpace.sm,
     gap: layoutSpace.xs,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
@@ -506,8 +516,9 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     padding: responsiveSpacing.md,
+    paddingTop: layoutSpace.sm,
     paddingBottom: layoutSpace['2xl'],
-    gap: layoutSpace.comfortable,
+    gap: layoutSpace.sm,
   },
   section: {
     gap: layoutSpace.sm,

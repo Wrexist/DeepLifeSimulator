@@ -22,6 +22,7 @@ export interface HealthDelta {
 export type HealthAccent = 'vitality' | 'diet';
 
 interface HealthCardProps {
+  compact?: boolean;
   title: string;
   description: string;
   /** Formatted price label, e.g. "$25" or "$45 / wk". */
@@ -70,6 +71,7 @@ const STAT_META: Record<HealthStat, { Icon: typeof Heart; color: string; label: 
 };
 
 export default function HealthCard({
+  compact = false,
   title,
   description,
   priceLabel,
@@ -127,8 +129,8 @@ export default function HealthCard({
         </View>
       ) : null}
 
-      <View style={styles.body}>
-        <View style={styles.headerRow}>
+      <View style={[styles.body, compact && styles.bodyCompact]}>
+        <View style={[styles.headerRow, active && styles.activeHeader]}>
           <Text style={styles.title} numberOfLines={2}>{title}</Text>
           <Text
             style={[
@@ -149,7 +151,7 @@ export default function HealthCard({
 
         {deltas.length > 0 ? (
           <>
-            <View style={styles.divider} />
+            {!compact && <View style={styles.divider} />}
             <View style={styles.statsRow}>
               {deltas.map(({ stat, delta }) => {
                 const meta = STAT_META[stat];
@@ -267,7 +269,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: layoutSpace.compact,
+  },
+  activeHeader: {
     paddingRight: scale(60), // breathing room for the Active pill
+  },
+  bodyCompact: {
+    padding: layoutSpace.compact,
+    gap: layoutSpace.xs,
   },
   title: {
     flex: 1,
@@ -329,6 +337,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
