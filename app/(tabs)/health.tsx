@@ -25,6 +25,7 @@ import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 type Vital = { key: HealthDelta['stat']; label: string; value: number; color: string };
@@ -244,7 +245,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const locked = !canPerformActivity(activity);
     const activityEnergy = energyCostOf(activity);
     const lockReason = !canAfford(activityPrice)
-      ? `Need $${activityPrice}`
+      ? `Need ${formatMoney(activityPrice)}`
       : activityEnergy > 0 && (gameState.stats?.energy ?? 0) < activityEnergy
         ? `Need ${activityEnergy} energy`
         : undefined;
@@ -267,7 +268,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         accent="vitality"
         title={activity.name}
         description={description}
-        priceLabel={activityPrice > 0 ? `$${activityPrice}` : 'Free'}
+        priceLabel={activityPrice > 0 ? formatMoney(activityPrice) : 'Free'}
         deltas={deltas}
         buttonText={locked ? 'Locked' : t('health.do')}
         onPress={() => handleHealthActivityPress(activity)}
@@ -428,14 +429,14 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               ...(plan.happinessGain ? [{ stat: 'happiness' as const, delta: plan.happinessGain }] : []),
             ];
             const locked = !plan.active && !canAfford(weeklyCost);
-            const lockReason = locked ? `Need $${weeklyCost} / wk` : undefined;
+            const lockReason = locked ? `Need ${formatMoney(weeklyCost)}/wk` : undefined;
             return (
               <HealthCard
                 key={plan.id}
                 accent="diet"
                 title={plan.name}
                 description={plan.description}
-                priceLabel={`$${weeklyCost} / wk`}
+                priceLabel={`${formatMoney(weeklyCost)}/wk`}
                 deltas={deltas}
                 buttonText={plan.active ? t('health.active') : t('health.select')}
                 onPress={() => toggleDietPlan(plan.id)}
@@ -448,7 +449,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
           {activeDietPlan ? (
             <Text style={styles.activeDietFooter}>
-              {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}
+              {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} {formatMoney(activeDietPlan.dailyCost * 7)}/wk
             </Text>
           ) : null}
           </CollapsibleSection>

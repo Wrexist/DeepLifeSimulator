@@ -446,7 +446,7 @@ function WorkScreenContent() {
     const renderJobCard = (job: StreetJob, isLead = false) => {
         const lowReward = Math.floor(job.basePayment * 0.7);
         const highReward = Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3));
-        const reward = `$${lowReward}–${highReward}`;
+        const reward = `${formatMoney(lowReward)}–${formatMoney(highReward)} per job`;
         // Same helper the reducer charges with, so the gate, the label and the
         // charge cannot disagree about a transport-discounted delivery run.
         const jobEnergyCost = getStreetJobEnergyCost(gameState, job);

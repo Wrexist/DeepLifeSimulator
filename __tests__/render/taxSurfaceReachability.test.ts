@@ -73,9 +73,8 @@ describe('the phone bank carries tax too - it is not a desktop-only system', () 
     const at = PHONE.indexOf("setSubView({ kind: 'tax' })");
     expect(at).toBeGreaterThan(-1);
     const entry = PHONE.slice(at, at + 700);
-    expect(entry).toMatch(
-      /banking\.taxDueThisYear > 0 \? 'See where your tax goes' : 'How tax works'/
-    );
+    expect(entry).toContain('Income &amp; tax');
+    expect(entry).toContain('accessibilityLabel="View tax breakdown"');
     // The TouchableOpacity itself must not be conditionally rendered. Scoped to
     // the element's own opening tag — the ledger CHIP a few lines above is
     // legitimately gated on `> 0` and is a different control.

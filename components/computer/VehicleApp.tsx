@@ -331,7 +331,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <Text style={[styles.licenseTitle, { color: theme.text }]}>Train for your pilot&apos;s license</Text>
           <Text style={[styles.licenseSub, { color: theme.textMuted }]}>
             {oldEnough
-              ? `Costs $${PILOT_LICENSE.cost.toLocaleString()} · Required to own any aircraft.`
+              ? `Costs ${formatMoney(PILOT_LICENSE.cost)} · Required to own any aircraft.`
               : `Available from age ${PILOT_LICENSE.minAge}.`}
           </Text>
         </View>
