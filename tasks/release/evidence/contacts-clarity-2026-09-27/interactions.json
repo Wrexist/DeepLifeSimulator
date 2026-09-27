@@ -1,0 +1,14 @@
+[
+  {
+    "width": 375,
+    "callCooldown": "passed",
+    "lendingCooldown": "passed",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "callCooldown": "passed",
+    "lendingCooldown": "passed",
+    "errors": []
+  }
+]

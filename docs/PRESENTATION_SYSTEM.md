@@ -100,3 +100,7 @@ Keep precise stock/crypto quotes, per-viewer rates and exact banking/transaction
 ## Education decisions
 
 Use `formatStudyDuration` for exact weeks in the catalogue, enrollment quote and course progress. The quote may shorten the duration for policy benefits; show that reduction explicitly. A zero net quote uses `Enroll free` and omits cash/loan choices. Paid enrollment names both the payment and enrollment action, keeps cash-after-tuition/non-refund information, and discloses loan repayment before confirmation. Name automatic classes before the picker; manual selection replaces the fallback. Preserve canonical quote and enrollment actions.
+
+## Personal contact actions
+
+Call, Hang out, borrowing, lending and non-family bond building use `PersonalContactActions` decision rows. Show money/effect explanations before tapping, with readable reasons for weekly cooldown, insufficient cash or a maximum bond. Explain borrowing as debt and direct both repayment and collection to Favors. These actions have no energy charge; do not invent one. Mood-dependent bond gains must not be presented as a guaranteed flat gain. Keep family eligibility and the canonical atomic handlers intact.

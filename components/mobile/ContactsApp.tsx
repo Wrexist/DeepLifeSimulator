@@ -1,3 +1,4 @@
+import PersonalContactActions, { CONTACT_INTERACTIONS } from '@/components/contacts/PersonalContactActions';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import SceneCard from '@/components/ui/SceneCard';
 /**
@@ -76,7 +77,6 @@ import {
   meetSomeone,
   removeContact as removeContactAction,
   raiseRelationship as raiseRelationshipAction,
-  relationshipBondCost,
   isFamilyRelationship,
   FAVOR_KIND_BY_CONTACT,
   NETWORK_FAVOR_MIN_STRENGTH,
@@ -741,28 +741,18 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
 
         {expanded && (
           <View style={styles.actionsBox}>
-            {/* An expanded card used to open on twenty controls at one weight.
-                It opens on TWO now - the things you do with a person - with the
-                rest grouped behind their own headings below. Every action, cost
-                and gate is exactly what it was; only the order changed. */}
-            <View style={styles.actionsRow}>
-              <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} darkMode={darkMode} />
-              <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} darkMode={darkMode} />
-            </View>
-            {/* The money and bond moves, one step quieter than the two above. */}
-            <View style={styles.actionsRow}>
-              <Chip label="Ask $" size="md" tone="warning" onPress={() => handleAskMoney(c.id)} accessibilityLabel={`Ask ${c.name} for money`} />
-              <Chip label="Lend $100" size="md" tint={accent.purple} onPress={() => handleLendMoney(c.id, 100)} accessibilityLabel={`Lend ${c.name} $100`} />
-              {!isFamilyRelationship(r) ? (
-                <Chip
-                  label={`Bond · $${relationshipBondCost(r.relationshipScore ?? 0).toLocaleString()}`}
-                  size="md"
-                  tone="info"
-                  onPress={() => handleBond(c.id)}
-                  accessibilityLabel={`Raise your bond with ${c.name} for $${relationshipBondCost(r.relationshipScore ?? 0).toLocaleString()}`}
-                />
-              ) : null}
-            </View>
+            <PersonalContactActions
+              relationship={r} money={gameState.stats?.money ?? 0}
+              week={gameState.weeksLived ?? 0} darkMode={darkMode}
+              onAction={(action) => {
+                if (action === 'call' || action === 'hangout') {
+                  const { cost, bonus } = CONTACT_INTERACTIONS[action];
+                  handleSimple(c.id, action, cost, bonus);
+                } else if (action === 'askmoney') handleAskMoney(c.id);
+                else if (action === 'lendmoney') handleLendMoney(c.id, 100);
+                else handleBond(c.id);
+              }}
+            />
             {/* Who they are: nine readouts the NPC-depth tick keeps current.
                 All real, none of it a decision - so it folds away by default. */}
             <CollapsibleSection id={`contact-about-${c.id}`} title="About them" defaultCollapsed compact>
@@ -1243,13 +1233,16 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         {isPersonal ? (
           <TouchableOpacity
             style={[styles.triageBtn, { backgroundColor: withAlpha(accent.amber, 0.16), borderColor: withAlpha(accent.amber, 0.34) }]}
-            onPress={() => handleSimple(c.id, 'call', 0, 3)}
+            onPress={() => handleSimple(c.id, 'call', CONTACT_INTERACTIONS.call.cost, CONTACT_INTERACTIONS.call.bonus)}
             activeOpacity={0.85}
             accessibilityRole="button"
+            disabled={(c.raw as Relationship).actions?.call === (gameState.weeksLived ?? 0)}
+            accessibilityState={{ disabled: (c.raw as Relationship).actions?.call === (gameState.weeksLived ?? 0) }}
             accessibilityLabel={`Call ${c.name} to reconnect`}
+            accessibilityHint="Free; no energy cost. Once per week. Bond gain varies with mood and memories."
           >
             <Phone size={scale(15)} color={accent.amber} />
-            <Text style={[styles.triageBtnText, { color: accent.amber }]}>Call to reconnect · +3 bond</Text>
+            <Text style={[styles.triageBtnText, { color: accent.amber }]}>{(c.raw as Relationship).actions?.call === (gameState.weeksLived ?? 0) ? 'Called this week. Available next week.' : 'Call to reconnect · Free'}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity

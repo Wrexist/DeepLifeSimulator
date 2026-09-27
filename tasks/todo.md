@@ -22,7 +22,8 @@
 - [x] V11 tabs: visible 44-point overflow controls, active-tab reveal on resize, natural-width Travel labels and wrapping fixed labels. 8 focused regressions and Bank/Travel browser journeys pass. [Evidence and screenshots](release/evidence/tab-overflow-2026-09-27.md).
 - [x] V12 currency/units: canonical Health, Work, Statistics and pilot-license prices; explicit weekly/per-job units, corrected weekly salary record. 65 focused tests and phone/tablet checks pass. [Evidence and screenshots](release/evidence/currency-units-2026-09-27.md).
 - [x] V13 Education: Enroll free for zero-cost/fully funded courses, exact weeks throughout and named automatic classes; paid commitments remain explicit. 23 focused tests and phone/tablet enrollment flows pass. [Evidence and screenshots](release/evidence/education-copy-2026-09-27.md).
-- [ ] Next: V14 Contacts action clarity. [Remaining register](whole-app-audit-2026-09-26.md): 31 V/A/O items remain open, including native acceptance.
+- [x] V14 Contacts: visible costs/effects, borrowing and lending obligations, weekly/affordability/max-bond reasons and preserved family eligibility. 26 focused tests and phone/tablet journeys pass. [Evidence and screenshots](release/evidence/contacts-clarity-2026-09-27.md).
+- [ ] Next: V15 Pulse personality. [Remaining register](whole-app-audit-2026-09-26.md): 30 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026
