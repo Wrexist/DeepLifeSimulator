@@ -36,6 +36,7 @@ interface HealthIssue {
 export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
   const diseases = useGameSelector((s) => s.diseases);
   const stats = useGameSelector((s) => s.stats, shallowEqual);
+  const restUsed = useGameSelector((s) => s.settings?.quickActionWeeks?.rest === s.weeksLived);
   const healthZeroWeeks = useGameSelector((s) => s.healthZeroWeeks);
   const happinessZeroWeeks = useGameSelector((s) => s.happinessZeroWeeks);
 
@@ -54,9 +55,15 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
       // The card sits on the Health screen now, so the fix points at the
       // activities below it rather than navigating the player here.
-      const fix = (d.treatmentRequired || hasDeathCountdown)
-        ? 'See a doctor or hospital below to treat it.'
-        : 'Rest and eat well - it should pass, or treat it below.';
+      const fix = !d.curable
+        ? d.treatmentRequired
+          ? 'A doctor or hospital can manage symptoms; this condition cannot be cured.'
+          : 'This condition cannot be cured. Use recovery activities to support your vitals.'
+        : d.severity === 'critical'
+          ? 'Experimental Treatment is required to cure this condition.'
+          : (d.treatmentRequired || hasDeathCountdown)
+            ? 'A doctor may cure it; a hospital cures non-critical, curable illnesses.'
+            : 'This can pass naturally, or you can seek treatment below.';
       issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
     });
 
@@ -69,14 +76,14 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       issues.push({
         id: 'health-zero',
         title: `Health critical - ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
-        fix: "Eat, rest and start a diet plan below before it's too late.",
+        fix: 'Use free Walk in Park or Meditation to raise health if you have energy. Rest restores energy, not health.',
         level: 'critical',
       });
     } else if (vitalState(health).level !== 'fair' && vitalState(health).level !== 'good') {
       issues.push({
         id: 'health-low',
         title: `${vitalState(health).word} health`,
-        fix: 'Improve your diet, rest, and exercise.',
+        fix: 'Walk in Park and Meditation raise health for free; both need energy.',
         level: vitalState(health).level === 'critical' ? 'critical' : 'warning',
       });
     }
@@ -94,7 +101,7 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       issues.push({
         id: 'happiness-low',
         title: `${vitalState(happiness).word} happiness`,
-        fix: 'Spend on hobbies, socialize, or take a break to recover.',
+        fix: 'Meditation and Walk in Park raise happiness for free; both need energy.',
         level: vitalState(happiness).level === 'critical' ? 'critical' : 'warning',
       });
     }
@@ -104,13 +111,15 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       issues.push({
         id: 'energy-low',
         title: `${vitalState(energy).word} energy`,
-        fix: 'Rest, eat, or sleep to recharge.',
+        fix: restUsed
+          ? 'Rest is used for this week. It becomes available after Next week; check food in Market for energy now.'
+          : 'Hold the blue Energy ring above, then choose Rest: free, +14 energy and -5 happiness, once per week.',
         level: vitalState(energy).level === 'critical' ? 'critical' : 'warning',
       });
     }
 
     return issues;
-  }, [diseases, healthZeroWeeks, happinessZeroWeeks, stats?.health, stats?.happiness, stats?.energy]);
+  }, [diseases, healthZeroWeeks, happinessZeroWeeks, restUsed, stats?.health, stats?.happiness, stats?.energy]);
 
   if (healthIssues.length === 0) return null;
 

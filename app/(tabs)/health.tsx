@@ -234,8 +234,14 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   const CURE_IDS = new Set(['doctor', 'hospital', 'experimental']);
   const hasActiveDisease = (gameState.diseases ?? []).some(d => !!d?.name);
   const treatmentLeads = hasActiveDisease || (gameState.stats?.health ?? 100) <= CRITICAL_VITAL;
+  // Recovery must remain reachable when treatment is out of budget. Promote
+  // existing free activities, using the same policy/energy gates as their cards.
+  const freeRecovery = treatmentLeads && (gameState.stats?.health ?? 100) <= CRITICAL_VITAL
+    ? mergedHealthActivities.filter(a => priceOf(a) === 0 && (a.healthGain ?? 0) > 0 && canPerformActivity(a))
+    : [];
+  const recoveryIds = new Set(freeRecovery.map(a => a.id));
   const listedActivities = mergedHealthActivities.filter(
-    a => a.id !== 'vacation' && !(treatmentLeads && CURE_IDS.has(a.id))
+    a => a.id !== 'vacation' && !recoveryIds.has(a.id) && !(treatmentLeads && CURE_IDS.has(a.id))
   );
   const visibleActivityCount = listedActivities.length;
 
@@ -252,13 +258,10 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const isCureActivity = CURE_IDS.has(activity.id);
     const description = isCureActivity
       ? activity.id === 'doctor'
-        ? `${activity.description}  •  ${t('health.chanceToCure')}`
+        ? '50% chance to cure each curable, non-critical illness. Also manages chronic conditions.'
         : activity.id === 'hospital'
-          ? `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
-          // Experimental treatment is the ONLY cure for critical conditions
-          // (cancer/heart/stroke -- hospital excludes them); without this line
-          // a dying player has no signal it exists.
-          : `${activity.description}  •  Only treatment for critical conditions`
+          ? 'Cures curable, non-critical illnesses. Also manages chronic conditions; critical illnesses need experimental treatment.'
+          : 'Cures curable critical illnesses. Does not cure chronic conditions.'
       : activity.description;
 
     return (
@@ -302,9 +305,16 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
       >
         {treatmentLeads && (
           <View style={styles.leadBlock}>
+            {freeRecovery.length > 0 && (
+              <View>
+                <Text style={styles.protectionTitle}>Free recovery</Text>
+                <Text style={sectionDescStyle}>Improve your vitals now. These activities do not replace disease treatment.</Text>
+                {freeRecovery.map((a, i) => renderActivityCard(a, i === 0 ? 'primary' : 'secondary'))}
+              </View>
+            )}
             <HealthIssuesCard lead />
-            {/* The one saturated button on the screen: the first cure. */}
-            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map((a, i) => renderActivityCard(a, i === 0 ? 'primary' : 'secondary'))}
+            {/* Treatments remain available alongside free stat recovery. */}
+            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map((a, i) => renderActivityCard(a, i === 0 && freeRecovery.length === 0 ? 'primary' : 'secondary'))}
           </View>
         )}
 
@@ -435,10 +445,12 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
                 key={plan.id}
                 accent="diet"
                 title={plan.name}
-                description={plan.description}
+                description={plan.active && !canAfford(weeklyCost)
+                  ? `Not enough cash for the next ${formatMoney(weeklyCost)} payment. If still unaffordable when processed, this week's benefits and charge are skipped. The plan stays active.`
+                  : `${plan.description}. Charged each week; benefits apply only when the payment can be covered.`}
                 priceLabel={`${formatMoney(weeklyCost)}/wk`}
                 deltas={deltas}
-                buttonText={plan.active ? t('health.active') : t('health.select')}
+                buttonText={plan.active ? 'Stop plan' : t('health.select')}
                 onPress={() => toggleDietPlan(plan.id)}
                 active={plan.active}
                 locked={locked}

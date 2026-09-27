@@ -122,6 +122,7 @@ export default function HealthCard({
     >
       <BlurViewFallback intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
 
+      <View style={[styles.body, compact && styles.bodyCompact]}>
       {active ? (
         <View style={styles.activeStripe}>
           <View style={styles.activeDot} />
@@ -129,8 +130,7 @@ export default function HealthCard({
         </View>
       ) : null}
 
-      <View style={[styles.body, compact && styles.bodyCompact]}>
-        <View style={[styles.headerRow, active && styles.activeHeader]}>
+        <View style={styles.headerRow}>
           <Text style={styles.title} numberOfLines={2}>{title}</Text>
           <Text
             style={[
@@ -233,9 +233,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(52, 211, 153, 0.45)',
   },
   activeStripe: {
-    position: 'absolute',
-    top: scale(10),
-    right: scale(12),
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: layoutSpace.xs,
@@ -269,9 +267,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: layoutSpace.compact,
-  },
-  activeHeader: {
-    paddingRight: scale(60), // breathing room for the Active pill
   },
   bodyCompact: {
     padding: layoutSpace.compact,

@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "freeRecovery": true,
+    "walk": true,
+    "stopUnaffordableDiet": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "freeRecovery": true,
+    "walk": true,
+    "stopUnaffordableDiet": true,
+    "errors": []
+  }
+]
