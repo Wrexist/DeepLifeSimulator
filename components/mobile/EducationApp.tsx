@@ -1,3 +1,4 @@
+import { formatStudyDuration } from '@/utils/educationFormatting';
 import SceneCard from '@/components/ui/SceneCard';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
@@ -160,16 +161,6 @@ const BAND_COLOR: Record<GpaBand, string> = {
 // ---------------------------------------------------------------------------
 // Pure display helpers
 // ---------------------------------------------------------------------------
-
-/** Friendly programme length: weeks under a year, otherwise years. */
-function formatDuration(weeks: number): string {
-  if (!isFinite(weeks) || weeks <= 0) return '0w';
-  if (weeks >= 52) {
-    const yrs = weeks / 52;
-    return `${Number.isInteger(yrs) ? yrs : yrs.toFixed(1)}yr`;
-  }
-  return `${Math.round(weeks)}w`;
-}
 
 interface GradeInfo {
   gpa: number;
@@ -717,7 +708,7 @@ function CourseCard({ ed, theme, darkMode, study, onOpen, onStudy }: {
                 because that changes what the Study button will do. */}
             <View style={styles.chipRow}>
               <Chip label={`${grade.letter} ${grade.gpa.toFixed(2)}`} tint={grade.color} />
-              <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${weeksLeft}w left`} tint={EDU} />
+              <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${formatStudyDuration(weeksLeft)} left`} tint={EDU} />
               {ed.paused ? (
                 <Chip icon={<Pause size={scale(11)} color={accent.warning} />} label="Paused" tint={accent.warning} />
               ) : (
@@ -787,7 +778,7 @@ function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
               label={entry.cost === 0 ? 'Free' : formatMoney(entry.cost)}
               tint={entry.cost === 0 ? accent.success : EDU}
             />
-            <Chip icon={<Clock size={scale(11)} color={theme.textMuted} />} label={formatDuration(entry.duration)} />
+            <Chip icon={<Clock size={scale(11)} color={theme.textMuted} />} label={formatStudyDuration(entry.duration)} />
           </View>
         </View>
         <View
@@ -915,7 +906,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
               </View>
             ) : (
               <View style={styles.chipRow}>
-                <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${weeksLeft}w left`} tint={EDU} />
+                <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${formatStudyDuration(weeksLeft)} left`} tint={EDU} />
                 <Chip icon={<CalendarDays size={scale(11)} color={theme.textMuted} />} label={`Sem ${ed.semesterNumber ?? 1}`} />
               </View>
             )}
@@ -926,7 +917,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
       {/* Stat grid - surfaces record fields the list rows can't fit. */}
       <View style={styles.detailGrid}>
         <DetailCard theme={theme} darkMode={darkMode}>
-          <StatTile align="left" tint={EDU} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${weeksLeft}w of ${ed.duration}w`} />
+          <StatTile align="left" tint={EDU} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${formatStudyDuration(weeksLeft)} left of ${formatStudyDuration(ed.duration)}`} />
         </DetailCard>
         <DetailCard theme={theme} darkMode={darkMode}>
           <StatTile align="left" tint={grade.color} label="GPA" value={grade.noRecord ? '-' : grade.gpa.toFixed(2)} sub={grade.noRecord ? 'no grade on file' : `${grade.letter} · ${grade.label}`} />

@@ -96,3 +96,7 @@ Use `SegmentedControl` for in-screen tabs. Short fixed groups share the row and 
 Use `utils/moneyFormatting.formatMoney` for summary money, catalogue prices, reward ranges and monetary deltas. Keep the sign before the dollar symbol. Show `/wk` for weekly amounts and `per job` for one-off Work rewards; both ends of a reward range carry the currency symbol. Diet prices, affordability explanations and active-plan summaries must share the same weekly value and formatter. Statistics highest salary is weekly, not annual.
 
 Keep precise stock/crypto quotes, per-viewer rates and exact banking/transaction confirmations at their required precision. Do not round or abbreviate the underlying amount, alter economy formulas, or use formatting as input to a transaction.
+
+## Education decisions
+
+Use `formatStudyDuration` for exact weeks in the catalogue, enrollment quote and course progress. The quote may shorten the duration for policy benefits; show that reduction explicitly. A zero net quote uses `Enroll free` and omits cash/loan choices. Paid enrollment names both the payment and enrollment action, keeps cash-after-tuition/non-refund information, and discloses loan repayment before confirmation. Name automatic classes before the picker; manual selection replaces the fallback. Preserve canonical quote and enrollment actions.

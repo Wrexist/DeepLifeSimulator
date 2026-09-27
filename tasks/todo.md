@@ -21,7 +21,8 @@
 - [x] V10 Finances: one compact overview and canonical assets/debts breakdown; accounts 206px higher in Bank and 994px higher in Bank Pro at 375px. Banking and recorded-history checks pass. [Evidence and screenshots](release/evidence/finance-hierarchy-2026-09-27.md).
 - [x] V11 tabs: visible 44-point overflow controls, active-tab reveal on resize, natural-width Travel labels and wrapping fixed labels. 8 focused regressions and Bank/Travel browser journeys pass. [Evidence and screenshots](release/evidence/tab-overflow-2026-09-27.md).
 - [x] V12 currency/units: canonical Health, Work, Statistics and pilot-license prices; explicit weekly/per-job units, corrected weekly salary record. 65 focused tests and phone/tablet checks pass. [Evidence and screenshots](release/evidence/currency-units-2026-09-27.md).
-- [ ] Next: V13 Education copy. [Remaining register](whole-app-audit-2026-09-26.md): 32 V/A/O items remain open, including native acceptance.
+- [x] V13 Education: Enroll free for zero-cost/fully funded courses, exact weeks throughout and named automatic classes; paid commitments remain explicit. 23 focused tests and phone/tablet enrollment flows pass. [Evidence and screenshots](release/evidence/education-copy-2026-09-27.md).
+- [ ] Next: V14 Contacts action clarity. [Remaining register](whole-app-audit-2026-09-26.md): 31 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

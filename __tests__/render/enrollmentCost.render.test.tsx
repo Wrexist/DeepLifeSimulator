@@ -12,16 +12,36 @@ jest.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReduc
 
 const program = EDUCATION_PROGRAMS.find(p => p.id === 'business_degree')!;
 const state = () => createTestGameState({ stats: { money: 60_000 }, educations: [], loans: [] });
-function render(gameState = state()) {
+function render(gameState = state(), template = program) {
   const onConfirm = jest.fn();
   const onClose = jest.fn();
   let tree!: TestRenderer.ReactTestRenderer;
-  const props = { visible: true, template: program, gameState, darkMode: true, onConfirm, onClose };
+  const props = { visible: true, template, gameState, darkMode: true, onConfirm, onClose };
   act(() => { tree = TestRenderer.create(<EnrollModal {...props} />); });
   return { tree, props, onConfirm, onClose, text: () => JSON.stringify(tree.toJSON()) };
 }
 
 describe('enrollment cost decision', () => {
+  it('enrolls a zero-cash player in a free diploma with the disclosed automatic classes', () => {
+    const diploma = EDUCATION_PROGRAMS.find(p => p.id === 'high_school')!;
+    const s = render(createTestGameState({ stats: { money: 0 }, educations: [] }), diploma);
+    expect(s.text()).toContain('104 weeks');
+    expect(s.text()).toContain('No payment or loan needed');
+    expect(s.tree.root.findAllByProps({ accessibilityLabel: 'Pay cash' })).toHaveLength(0);
+    expect(s.tree.root.findAllByProps({ accessibilityLabel: 'Student loan' })).toHaveLength(0);
+    const offered = s.tree.root.findAllByProps({ accessibilityRole: 'checkbox' });
+    expect(offered.length).toBeGreaterThan(0);
+    expect(s.text()).toContain('On enrollment, we will choose:');
+    act(() => s.tree.root.findByProps({ accessibilityLabel: 'Enroll free' }).props.onPress());
+    expect(s.onConfirm).toHaveBeenCalledWith('cash', expect.any(Array));
+    expect(s.onConfirm.mock.calls[0][1].length).toBeGreaterThan(0);
+    act(() => offered[0].props.onPress());
+    expect(s.text()).toContain('Your 1 selected class will be used');
+    act(() => s.tree.root.findByProps({ accessibilityLabel: 'Enroll free' }).props.onPress());
+    expect(s.onConfirm.mock.calls[1][1]).toHaveLength(1);
+    act(() => s.tree.unmount());
+  });
+
   it('shows the cash left after tuition before confirmation', () => {
     const s = render();
     expect(s.text()).toContain('Cash after tuition');
@@ -55,7 +75,8 @@ describe('enrollment cost decision', () => {
     const s = render(createTestGameState({ educations: [], tuitionWaiverUSD: 48_000 }));
     expect(s.text()).toContain('Tuition fully covered by aid');
     expect(s.text()).not.toContain('your GPA earned');
-    expect(s.tree.root.findByProps({ accessibilityLabel: 'Student loan' }).props.disabled).toBe(true);
+    expect(s.tree.root.findAllByProps({ accessibilityLabel: 'Student loan' })).toHaveLength(0);
+    expect(s.tree.root.findByProps({ accessibilityLabel: 'Enroll free' }).props.disabled).toBe(false);
     act(() => s.tree.unmount());
   });
   it('blocks a stale modal when the life ends and keeps Close available', () => {
