@@ -19,7 +19,13 @@ Four new regressions drive the real provider/weekly transition and actual career
 - Source and test-project TypeScript passed, exit 0.
 - Browser: 375x667 and 768x1024, DPR 2, reduced motion, isolated QA saves. Apply -> advance week -> current job -> cancel quit -> confirm quit -> reapply. Zero page errors. Initial harness hit duplicate Cancel controls during a modal fade; it now targets the confirmation control and allows transitions to settle. Browser evidence does not establish native modal behavior.
 - Lint: zero errors; 33 existing GameActionsContext warnings. Two new duplicate-import warnings were removed from the test file.
-- UI ratchet and diff check passed; ratchet unchanged at 142 gradients / 94 raw sizes / 645 heavy weights. Full regression run is in progress.
+- UI ratchet and diff check passed; ratchet unchanged at 142 gradients / 94 raw sizes / 645 heavy weights. [CI full suite](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/36330167614) passed on code commit `7c752f8b`: 845 suites / 10,134 tests / 308 snapshots, 857.979s; coverage floors passed. The 17 manual/conditional suites and 32 tests already skipped by the repository configuration remain unchanged. Quality and preflight passed.
+
+## Timing validation and runner limits
+
+The local full run was stopped after CI completed: 579 suites had passed and the tick benchmark failed at 1,616ms against the unchanged 1,000ms projected 52-week limit. It is an interrupted run, not a full pass. An earlier single-worker attempt was also interrupted. Separate working-checkout benchmark runs failed at 3,092ms and 2,159ms. No threshold, exclusion or coverage floor was changed.
+
+The pre-change commit `4c31a32f` passed in a separate clean checkout at 890ms. CI ran the career-fix commit's benchmark successfully at 249ms. The same clean checkout switched to `7c752f8b` also passed at 917ms (exit 0, 134.555s). [Timing results](career-lifecycle-2026-09-27/timing-results.json). The threshold failure was not reproduced in that clean checkout or CI; the failed working-checkout runs remain recorded, with their precise environmental cause unproven. The isolated checkout is `C:/Users/IsacC/Downloads/DeepLifeSimulator-career-baseline` and shares the unchanged installed dependencies through a junction. These are Node/test-renderer measurements, not Hermes/device timings.
 
 ## Remaining acceptance
 

@@ -1,0 +1,30 @@
+[
+  {
+    "run": "working-checkout-rerun",
+    "commit": "7c752f8b",
+    "projected52TickMs": 3092,
+    "thresholdMs": 1000,
+    "passed": false
+  },
+  {
+    "run": "working-checkout-confirmation",
+    "commit": "7c752f8b",
+    "projected52TickMs": 2159,
+    "thresholdMs": 1000,
+    "passed": false
+  },
+  {
+    "run": "clean-baseline",
+    "commit": "4c31a32f",
+    "projected52TickMs": 890,
+    "thresholdMs": 1000,
+    "passed": true
+  },
+  {
+    "run": "clean-career-fix",
+    "commit": "7c752f8b",
+    "projected52TickMs": 917,
+    "thresholdMs": 1000,
+    "passed": true
+  }
+]
