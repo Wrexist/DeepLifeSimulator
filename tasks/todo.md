@@ -31,7 +31,8 @@
 - [x] A02 browser/source pass: corrected delayed-hire records, rehire tenure/pay notices and termination history; first pay, promotion, quit/reapply and retirement regressions pass. [Evidence and screenshots](release/evidence/career-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
 - [x] A03 browser/source pass: synchronous Next Week guard, completion-owned busy state, committed-progress ad gating, pending-decision suppression and reduced-motion loading. 64 focused regressions and phone/tablet rapid-tap checks pass. [Evidence and screenshots](release/evidence/weekly-loop-2026-09-27.md). Signed native acceptance remains open.
 - [x] A04 browser/source pass: free recovery leads at critical health; treatment/Rest guidance and active-diet affordability/cancellation clarified; badge overlap fixed. Focused regressions and phone/tablet recovery at $0 pass. [Evidence and screenshots](release/evidence/health-recovery-2026-09-27.md). Native/permutation acceptance remains open.
-- [ ] Next: A05 Market/inventory and equipment. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
+- [x] A05 browser/source pass: owned/shortfall guidance, access-item sale confirmations, canonical resale labels and creator equipment cash gates. 47 focused tests and phone/tablet inventory save-reopen checks pass. [Evidence and screenshots](release/evidence/market-equipment-2026-09-27.md). Native/permutation acceptance remains open.
+- [ ] Next: A06 Full banking lifecycle. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

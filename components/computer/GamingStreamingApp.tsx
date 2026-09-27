@@ -900,6 +900,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
         <SectionTitle title="Accessories" />
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
+          const affordable = gameState.stats.money >= (ACCESSORY_PRICES[k] ?? 0);
+          const locked = owned || !affordable;
           return (
             <View key={k} style={styles.gearRow}>
               <View
@@ -915,18 +917,19 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View style={styles.flex1}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{ACCESSORY_LABELS[k]}</Text>
                 <Text style={[styles.gearMeta, { color: theme.textMuted }]}>
-                  {owned ? 'Owned' : `${formatMoney(ACCESSORY_PRICES[k] ?? 0)} · +${ACCESSORY_QUALITY[k]} quality`}
+                  {owned ? 'Owned' : `${formatMoney(ACCESSORY_PRICES[k] ?? 0)} · +${ACCESSORY_QUALITY[k]} quality${affordable ? '' : ` - Need ${formatMoney((ACCESSORY_PRICES[k] ?? 0) - gameState.stats.money)} more`}`}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => handleAccessory(k)}
-                disabled={owned}
+                disabled={locked}
+                accessibilityState={{ disabled: locked }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={owned ? `${ACCESSORY_LABELS[k]} owned` : `Buy ${ACCESSORY_LABELS[k]}`}
-                style={[styles.gearBtn, owned ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: withAlpha(IDENTITY, 0.14) }]}
+                style={[styles.gearBtn, locked ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: withAlpha(IDENTITY, 0.14) }]}
               >
-                <Text style={[styles.gearBtnText, { color: owned ? theme.textMuted : IDENTITY }]}>{owned ? 'Owned' : 'Buy'}</Text>
+                <Text style={[styles.gearBtnText, { color: locked ? theme.textMuted : IDENTITY }]}>{owned ? 'Owned' : affordable ? 'Buy' : 'Need cash'}</Text>
               </TouchableOpacity>
             </View>
           );
@@ -940,6 +943,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
           const maxed = tier >= MAX_PC_TIER;
           const cost = Math.round(PC_BASE_PRICES[k] * Math.pow(2, tier));
+          const affordable = gameState.stats.money >= cost;
+          const locked = maxed || !affordable;
           return (
             <View key={k} style={styles.gearRow}>
               <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: withAlpha(IDENTITY, 0.15), borderWidth: 1, borderColor: withAlpha(IDENTITY, 0.30) }]}>
@@ -953,21 +958,21 @@ export default function GamingStreamingApp({ onBack }: Props) {
               </View>
               <View style={styles.gearRight}>
                 <Text style={[styles.gearPrice, { color: theme.textMuted }]}>
-                  {maxed ? 'Max tier' : formatMoney(cost)}
+                  {maxed ? 'Max tier' : affordable ? formatMoney(cost) : `Need ${formatMoney(cost - gameState.stats.money)} more`}
                 </Text>
                 <TouchableOpacity
                   onPress={() => handlePCUpgrade(k)}
                   activeOpacity={0.85}
-                  disabled={maxed}
+                  disabled={locked}
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: maxed }}
+                  accessibilityState={{ disabled: locked }}
                   accessibilityLabel={maxed
                     ? `${PC_LABELS[k]} is at max tier`
                     : `Upgrade ${PC_LABELS[k]} to tier ${tier + 1} for ${formatMoney(cost)}`}
-                  style={[styles.gearBtn, { backgroundColor: maxed ? withAlpha(accent.muted, 0.18) : withAlpha(IDENTITY, 0.14) }]}
+                  style={[styles.gearBtn, { backgroundColor: locked ? withAlpha(accent.muted, 0.18) : withAlpha(IDENTITY, 0.14) }]}
                 >
-                  <Text style={[styles.gearBtnText, { color: maxed ? theme.textMuted : IDENTITY }]}>
-                    {maxed ? 'Maxed' : 'Upgrade'}
+                  <Text style={[styles.gearBtnText, { color: locked ? theme.textMuted : IDENTITY }]}>
+                    {maxed ? 'Maxed' : affordable ? 'Upgrade' : 'Need cash'}
                   </Text>
                 </TouchableOpacity>
               </View>
