@@ -1,0 +1,50 @@
+[
+  {
+    "app": "Bank",
+    "width": 320,
+    "lastTabAfterResize": {
+      "x": 199.953125,
+      "y": 57,
+      "width": 52.78125,
+      "height": 44
+    },
+    "arrowsNavigationSelectionResize": "passed",
+    "errors": []
+  },
+  {
+    "app": "Travel",
+    "width": 320,
+    "lastTabAfterResize": {
+      "x": 176.125,
+      "y": 57,
+      "width": 77,
+      "height": 44
+    },
+    "arrowsNavigationSelectionResize": "passed",
+    "errors": []
+  },
+  {
+    "app": "Bank",
+    "width": 375,
+    "lastTabAfterResize": {
+      "x": 243.9375,
+      "y": 65,
+      "width": 61.75,
+      "height": 44
+    },
+    "arrowsNavigationSelectionResize": "passed",
+    "errors": []
+  },
+  {
+    "app": "Travel",
+    "width": 375,
+    "lastTabAfterResize": {
+      "x": 214.96875,
+      "y": 65,
+      "width": 90.8125,
+      "height": 44
+    },
+    "arrowsNavigationSelectionResize": "passed",
+    "errors": []
+  }
+]

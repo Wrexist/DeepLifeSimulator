@@ -12,9 +12,10 @@ import { responsiveSpacing as layoutSpace , fontScale, scale, responsiveBorderRa
  * button beside the whole control. Prefer that shape; per-segment accessories
  * only pay off when the segments genuinely differ in what they offer.
  */
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
-import { Lock } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react-native';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { accent, withAlpha } from '@/lib/config/theme';
 
@@ -58,10 +59,9 @@ interface SegmentedControlProps<T extends string> {
    */
   compact?: boolean;
   /**
-   * Horizontal-scroll variant for apps with more than four segments (a
-   * five-tab bank, a six-tab shop). Segments keep their natural width instead
-   * of sharing the row, so labels never truncate at 360pt. Prefer fewer tabs;
-   * reach for this only when the count is fixed by the domain.
+   * Horizontal scrolling for long labels or larger groups (Travel, Bank, Shop).
+   * Segments keep natural widths; visible arrows appear only when they overflow.
+   * Short fixed groups share the row and allow their text to wrap.
    */
   scrollable?: boolean;
 }
@@ -79,6 +79,36 @@ export default function SegmentedControl<T extends string>({
   scrollable = false,
 }: SegmentedControlProps<T>) {
   const { theme } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const scrollRef = useRef<ScrollView>(null);
+  const offset = useRef(0);
+  const [scrollX, setScrollX] = useState(0);
+  const [outerWidth, setOuterWidth] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [positions, setPositions] = useState<Record<string, { x: number; width: number }>>({});
+  const overflow = outerWidth > 0 && contentWidth > outerWidth - layoutSpace.xs * 2 - 2;
+  const maxScroll = Math.max(0, contentWidth - viewportWidth);
+  const moveTo = (x: number) => {
+    const next = Math.max(0, Math.min(maxScroll, x));
+    offset.current = next;
+    setScrollX(next);
+    scrollRef.current?.scrollTo({ x: next, animated: !reducedMotion });
+  };
+  // Reveal external selections and keep the active label visible after resizing.
+  // Manual scrolling is deliberately not a dependency: browsing other tabs must
+  // not snap the strip back to the selected tab.
+  useEffect(() => {
+    const selected = positions[value];
+    if (!scrollable || !selected || viewportWidth <= 0) return;
+    let next = offset.current;
+    if (selected.x < next) next = selected.x;
+    else if (selected.x + selected.width > next + viewportWidth) next = selected.x + selected.width - viewportWidth;
+    next = Math.max(0, Math.min(Math.max(0, contentWidth - viewportWidth), next));
+    offset.current = next;
+    setScrollX(next);
+    scrollRef.current?.scrollTo({ x: next, animated: !reducedMotion });
+  }, [value, positions, viewportWidth, contentWidth, scrollable, reducedMotion]);
   const MUTED = theme.textSecondary;
   const ACTIVE_TEXT = theme.text;
   const material = { backgroundColor: theme.surfaceInset, borderColor: theme.border };
@@ -90,7 +120,11 @@ export default function SegmentedControl<T extends string>({
         const active = !locked && seg.key === value;
         const Icon = locked ? Lock : seg.icon;
         return (
-          <View key={seg.key} style={[styles.slot, scrollable && styles.slotScroll]}>
+          <View key={seg.key} style={[styles.slot, scrollable && styles.slotScroll]}
+            onLayout={scrollable ? ({ nativeEvent: { layout } }) => setPositions(previous =>
+              previous[seg.key]?.x === layout.x && previous[seg.key]?.width === layout.width
+                ? previous : { ...previous, [seg.key]: { x: layout.x, width: layout.width } }) : undefined}>
+
             <TouchableOpacity
               style={[
                 styles.tab,
@@ -118,25 +152,29 @@ export default function SegmentedControl<T extends string>({
       });
   if (scrollable) {
     return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        // `styles.scrollSelf` LAST-but-one so a caller's `style` can still win.
-        //
-        // React Native's ScrollView carries `flexGrow: 1, flexShrink: 1` in its
-        // own base style. As a direct child of a screen's flex column that makes
-        // a HORIZONTAL tab bar claim a share of the leftover vertical space and
-        // inflate to hundreds of points tall - Bank Pro rendered its five tabs
-        // floating in the middle of an empty box half the viewport high
-        // (screenshot report, 2026-09-04). The non-scrollable branch is a plain
-        // View and was never affected, which is why only the two `scrollable`
-        // callers (Bank Pro, LuxuryApp) showed it.
-        style={[styles.container, material, compact && styles.containerCompact, styles.scrollSelf, style]}
-        contentContainerStyle={styles.scrollContent}
-        accessibilityRole="tablist"
-      >
-        {body}
-      </ScrollView>
+      <View style={[styles.container, material, compact && styles.containerCompact, styles.scrollSelf, style]}
+        onLayout={({ nativeEvent }) => setOuterWidth(nativeEvent.layout.width)}>
+        {overflow && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Show previous tabs"
+          accessibilityState={{ disabled: scrollX <= 1 }} disabled={scrollX <= 1}
+          onPress={() => moveTo(offset.current - viewportWidth * 0.8)}
+          style={[styles.scrollArrow, { backgroundColor: theme.surfaceInteractive }, scrollX <= 1 && styles.arrowDisabled]}>
+          <ChevronLeft size={scale(18)} color={theme.text} />
+        </TouchableOpacity>}
+        <ScrollView ref={scrollRef} horizontal showsHorizontalScrollIndicator={false}
+          style={styles.scrollViewport} contentContainerStyle={styles.scrollContent}
+          onLayout={({ nativeEvent }) => setViewportWidth(nativeEvent.layout.width)}
+          onContentSizeChange={width => setContentWidth(width)}
+          onScroll={({ nativeEvent }) => { offset.current = nativeEvent.contentOffset.x; setScrollX(nativeEvent.contentOffset.x); }}
+          scrollEventThrottle={16} accessibilityRole="tablist">
+          {body}
+        </ScrollView>
+        {overflow && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Show more tabs"
+          accessibilityState={{ disabled: scrollX >= maxScroll - 1 }} disabled={scrollX >= maxScroll - 1}
+          onPress={() => moveTo(offset.current + viewportWidth * 0.8)}
+          style={[styles.scrollArrow, { backgroundColor: theme.surfaceInteractive }, scrollX >= maxScroll - 1 && styles.arrowDisabled]}>
+          <ChevronRight size={scale(18)} color={theme.text} />
+        </TouchableOpacity>}
+      </View>
     );
   }
   return (
@@ -172,6 +210,9 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
   },
+  scrollViewport: { flex: 1, flexGrow: 1, flexShrink: 1 },
+  scrollArrow: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.sm },
+  arrowDisabled: { opacity: 0.35 },
   scrollContent: {
     flexDirection: 'row',
     gap: layoutSpace.xs,
@@ -220,7 +261,7 @@ const styles = StyleSheet.create({
     gap: layoutSpace.xs,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.sm,
-    minHeight: scale(40),
+    minHeight: Math.max(44, scale(40)),
   },
   tabCompact: {
     gap: layoutSpace.xs,
@@ -232,6 +273,8 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   text: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: fontScale(12),
     fontWeight: '600',
   },

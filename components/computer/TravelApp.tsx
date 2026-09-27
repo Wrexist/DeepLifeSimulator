@@ -1150,6 +1150,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           {/* The old bar was four underlined text buttons with no label and no
               tab role - unreachable by name to a screen reader. */}
           <SegmentedControl
+            scrollable
             segments={TABS}
             value={activeTab}
             onChange={setActiveTab}

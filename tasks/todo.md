@@ -19,7 +19,8 @@
 - [x] V09 Stocks: securities start 270px higher on compact phones; sector disclosure retains filters. 27 focused tests, source types and three-width browser interactions pass. [Evidence and screenshots](release/evidence/stocks-hierarchy-2026-09-27.md).
 - [x] Stock curves: distinct seeded illustrative charts from startup, rounded strokes, real quotes/change preserved. 18 focused tests, source types and phone/tablet revisit checks pass. [Screenshots and evidence](release/evidence/stock-curves-2026-09-27.md).
 - [x] V10 Finances: one compact overview and canonical assets/debts breakdown; accounts 206px higher in Bank and 994px higher in Bank Pro at 375px. Banking and recorded-history checks pass. [Evidence and screenshots](release/evidence/finance-hierarchy-2026-09-27.md).
-- [ ] Next: V11 segmented-control overflow and long labels. [Remaining register](whole-app-audit-2026-09-26.md): 34 V/A/O items remain open, including native acceptance.
+- [x] V11 tabs: visible 44-point overflow controls, active-tab reveal on resize, natural-width Travel labels and wrapping fixed labels. 8 focused regressions and Bank/Travel browser journeys pass. [Evidence and screenshots](release/evidence/tab-overflow-2026-09-27.md).
+- [ ] Next: V12 currency formatting and units. [Remaining register](whole-app-audit-2026-09-26.md): 33 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

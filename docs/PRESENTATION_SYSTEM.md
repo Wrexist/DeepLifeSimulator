@@ -86,3 +86,7 @@ canonical durable save before suspending life autosave and navigating. A failed
 write leaves the player in the active life; a pending exit cannot be double-tapped.
 
 Current evidence: `tasks/release/evidence/game-polish-2026-09-26.md`.
+
+## In-screen tab overflow
+
+Use `SegmentedControl` for in-screen tabs. Short fixed groups share the row and allow labels to wrap; every tab is at least 44 points high. Use `scrollable` for long names or larger groups (Bank Pro, Travel, luxury categories). Scrolling groups keep natural label widths, expose previous/more controls only when content overflows, and reveal the selected tab after selection or resize. Arrow scrolling never changes selection. Scroll movement respects reduced motion; locked-tab semantics stay with the existing unlock handler. Native Larger Text and VoiceOver acceptance must still be checked on device.
