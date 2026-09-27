@@ -1,6 +1,6 @@
 # Authorized TestFlight candidate - 27 September 2026
 
-- [ ] Upload all current work and start the macOS local TestFlight workflow for **2.15.0** after build prerequisites pass. [Execution checklist](testflight-2.15.0-2026-09-27.md).
+- [x] Uploaded all current work and started the macOS local TestFlight workflow for **2.15.0**, pinned to 875b63a2 after preflight, quality, full tests and coverage passed. [Run 36352338525](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/36352338525): verification in progress; compilation/submission/Apple processing pending. [Execution checklist](testflight-2.15.0-2026-09-27.md).
 
 # Current audit count - 27 September 2026
 
