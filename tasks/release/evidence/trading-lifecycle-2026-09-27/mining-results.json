@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "buyUpgrade": true,
+    "offlineLoadedAppRealWeekMines": true,
+    "reopenPreservesYield": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "buyUpgrade": true,
+    "offlineLoadedAppRealWeekMines": true,
+    "reopenPreservesYield": true,
+    "errors": []
+  }
+]

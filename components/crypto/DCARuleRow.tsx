@@ -37,7 +37,7 @@ export default function DCARuleRow({ rule, currentWeek, darkMode, onDelete }: Pr
           {formatMoney(rule.amount)} → {rule.cryptoId.toUpperCase()}
         </Text>
         <Text style={[styles.sub, { color: theme.textMuted }]}>
-          {rule.cadence === 'weekly' ? 'Weekly' : 'Monthly'} · {dueText}
+          {rule.cadence === 'weekly' ? 'Weekly' : 'Every 4 weeks'} · {dueText}
         </Text>
         {rule.totalInvested > 0 && (
           <Text style={[styles.stats, { color: theme.textSecondary }]}>

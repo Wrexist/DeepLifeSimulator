@@ -1,3 +1,5 @@
+import { parseAmount } from '@/utils/parseAmount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
@@ -10,6 +12,7 @@ interface Props {
   visible: boolean;
   cryptos: Crypto[];
   accounts: BankAccount[];
+  cashAvailable?: number;
   darkMode: boolean;
   onClose: () => void;
   onSubmit: (input: {
@@ -20,8 +23,9 @@ interface Props {
   }) => void;
 }
 
-export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose, onSubmit }: Props) {
+export default function DCAModal({ visible, cryptos, accounts, cashAvailable, darkMode, onClose, onSubmit }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [cryptoId, setCryptoId] = useState<string>(cryptos[0]?.id ?? '');
   const [amountText, setAmountText] = useState('');
   const [cadence, setCadence] = useState<'weekly' | 'monthly'>('weekly');
@@ -45,11 +49,11 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const amount = parseFloat(amountText) || 0;
-  const canSubmit = cryptoId && amount > 0 && accountId;
+  const amount = parseAmount(amountText) ?? 0;
+  const canSubmit = cryptos.some(c => c.id === cryptoId) && amount > 0 && checkingAccounts.some(a => a.id === accountId);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
@@ -60,15 +64,15 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
         />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
-            <Text style={[styles.title, { color: theme.text }]}>Schedule DCA Buy</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Recurring buy</Text>
             <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
               <X size={scale(20)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-              Auto-buys debit from a bank account on a schedule. Stops once the source account runs dry.
+              Invest a fixed cash amount on each due week. If cash is insufficient, that buy is skipped and retried on the next scheduled date.
             </Text>
 
             <View>
@@ -91,6 +95,7 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
               <View style={[styles.fieldRow, { borderColor: theme.border }]}>
                 <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
                 <TextInput
+                  accessibilityLabel="Recurring buy amount in dollars"
                   value={amountText}
                   onChangeText={setAmountText}
                   keyboardType="decimal-pad"
@@ -111,7 +116,7 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Cadence</Text>
               <View style={styles.chipRow}>
                 <Chip label="Weekly" active={cadence === 'weekly'} theme={theme} onPress={() => setCadence('weekly')} />
-                <Chip label="Monthly" active={cadence === 'monthly'} theme={theme} onPress={() => setCadence('monthly')} />
+                <Chip label="Every 4 weeks" active={cadence === 'monthly'} theme={theme} onPress={() => setCadence('monthly')} />
               </View>
             </View>
 
@@ -126,7 +131,7 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
                   checkingAccounts.map((a) => (
                     <Chip
                       key={a.id}
-                      label={`${a.name} ($${Math.round(a.balance).toLocaleString()})`}
+                      label={`${a.name} ($${Math.round(a.id === 'checking-default' && cashAvailable !== undefined ? cashAvailable : a.balance).toLocaleString()})`}
                       active={accountId === a.id}
                       theme={theme}
                       onPress={() => setAccountId(a.id)}
@@ -135,11 +140,21 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
                 )}
               </View>
             </View>
+            <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+              First buy in {cadence === 'weekly' ? '1 week' : '4 weeks'}. {amount > 0 ? `$${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} per buy.` : 'Enter the amount for each purchase.'}
+            </Text>
+            {amountText.trim() !== '' && parseAmount(amountText) === null && <Text accessibilityRole="alert" style={[styles.warning, { color: accent.danger }]}>Enter a complete amount, such as 1,000.50.</Text>}
           </ScrollView>
 
+          {amount > 0 && <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} {cadence === 'weekly' ? 'every week' : 'every 4 weeks'}
+          </Text>}
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Schedule recurring buy"
+            accessibilityState={{ disabled: !canSubmit }}
             disabled={!canSubmit}
-            onPress={() => onSubmit({ cryptoId, amount, fromAccountId: accountId, cadence })}
+            onPress={() => { if (canSubmit) onSubmit({ cryptoId, amount, fromAccountId: accountId, cadence }); }}
             style={[styles.confirm, { backgroundColor: canSubmit ? accent.info : theme.border }]}
           >
             <Text style={styles.confirmText}>Schedule</Text>
@@ -163,6 +178,9 @@ function Chip({
 }) {
   return (
     <TouchableOpacity
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       style={[
         styles.chip,
@@ -197,7 +215,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  title: { fontSize: responsiveFontSize.lg, fontWeight: '700' },
+  title: {
+    flexShrink: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
   subtitle: { fontSize: responsiveFontSize.sm },
   fieldLabel: {
     fontSize: responsiveFontSize.sm,
@@ -225,6 +244,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   chip: {
+    minHeight: scale(44),
+    justifyContent: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,

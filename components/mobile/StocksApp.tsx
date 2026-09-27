@@ -747,6 +747,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
       <StockTradeModal
         visible={!!tradeTarget}
         symbol={tradeTarget?.symbol ?? null}
+        reservedCash={(stocks?.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'buy').reduce((sum, o) => sum + o.amount * 1.02, 0)}
+        reservedUnits={(stocks?.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'sell' && o.symbol.toUpperCase() === tradeTarget?.symbol.toUpperCase()).reduce((sum, o) => sum + o.amount, 0)}
         midPrice={tradeTarget?.price ?? 0}
         cash={cash}
         ownedShares={tradeTarget ? holdings.find((h) => h.symbol.toUpperCase() === tradeTarget.symbol.toUpperCase())?.shares ?? 0 : 0}

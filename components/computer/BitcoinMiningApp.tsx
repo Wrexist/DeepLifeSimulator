@@ -1622,7 +1622,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         <StatStrip
           items={[
             {
-              label: '24h change',
+              label: 'Weekly change',
               value: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
               tint: change < 0 ? accent.danger : accent.success,
             },
@@ -1702,7 +1702,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
       <PlaceOrderModal
         visible={!!orderCoin}
-        coin={orderCoin}
+        coin={cryptos.find(c => c.id === orderCoin?.id) ?? null}
+        reservedCash={(market.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'buy').reduce((sum, o) => sum + o.amount * 1.01, 0)}
+        reservedUnits={(market.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'sell' && o.cryptoId === orderCoin?.id).reduce((sum, o) => sum + o.amount, 0)}
         cash={cash}
         darkMode={darkMode}
         onClose={() => setOrderCoin(null)}
@@ -1711,6 +1713,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
       <DCAModal
         visible={showDCA}
+        cashAvailable={cash}
         cryptos={cryptos}
         accounts={banking?.accounts ?? []}
         darkMode={darkMode}
