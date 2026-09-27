@@ -1,3 +1,7 @@
+# Authorized TestFlight candidate - 27 September 2026
+
+- [ ] Upload all current work and start the macOS local TestFlight workflow for **2.15.0** after build prerequisites pass. [Execution checklist](testflight-2.15.0-2026-09-27.md).
+
 # Current audit count - 27 September 2026
 
 - User-reported remaining count: **0**. This supersedes earlier 40/26 counts; historical findings and native acceptance evidence remain separate.
@@ -61,6 +65,18 @@
 - [x] Check phone/tablet browser renders and focused HUD tests.
 - [ ] Verify the curves on a signed iPhone build.
 - Evidence: [circle edges](release/evidence/hud-circle-edges-2026-09-26.md).
+
+# Reddit promotion - 26 September 2026
+
+- [ ] 27 September additional posts: concise player copy prepared and MobileGames rules screened; verify 14-day account interval and publish after Reddit login. T3 signed out; Chrome navigation times out. [Drafts and status](../marketing/reddit-player-posts-2026-09-27.md).
+- [x] 27 September: reviewed all three public posts, identified the direct criticism of formulaic AI copy, and prepared a shorter player campaign plus 20-second footage brief. [Campaign and evidence](../marketing/reddit-next-campaign-2026-09-27.md).
+- [ ] Capture first-job gameplay from a verified public build before the next campaign; current local UI changes are not proof of store availability.
+- [x] Published and verified new r/SideProject retrospective and r/aigamedev AI-development discussion; shortened playmygame involvement line and replied to onboarding feedback. [Evening evidence](../marketing/reddit-posts-2026-09-26-evening.md).
+- [x] Screened r/MobileGaming and r/indiegames and skipped them under their live promotion/AI rules. Stop further repeat promotion today; respond to real feedback first.
+- [x] Prepare transparent r/tycoon announcement and inspect today's iOSGaming rules.
+- [x] Published r/playmygame post `1wqv57a` through logged-in Chrome; permalink and initial moderation state verified.
+- [x] Reviewed viral LifeSimulators thread: [findings and revised copy](../marketing/reddit-viral-review-2026-09-26.md). Further posts wait for this evidence to inform content; historical bugs are not current-build findings.
+- Copy and evidence: [selected promotion](../marketing/reddit-selected-2026-09-26.md).
 
 # Whole-game polish follow-through - 26 September 2026
 
