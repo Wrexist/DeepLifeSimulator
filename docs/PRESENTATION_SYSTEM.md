@@ -104,3 +104,7 @@ Use `formatStudyDuration` for exact weeks in the catalogue, enrollment quote and
 ## Personal contact actions
 
 Call, Hang out, borrowing, lending and non-family bond building use `PersonalContactActions` decision rows. Show money/effect explanations before tapping, with readable reasons for weekly cooldown, insufficient cash or a maximum bond. Explain borrowing as debt and direct both repayment and collection to Favors. These actions have no energy charge; do not invent one. Mood-dependent bond gains must not be presented as a guaranteed flat gain. Keep family eligibility and the canonical atomic handlers intact.
+
+## Pulse authored feed
+
+Ambient public copy draws without replacement from a local authored pool; a different post ID does not make repeated text distinct. Known-contact posts prefer recent recorded life events and interactions, then mood/personality copy. Future or stale records must not be presented as current news. Keep posting eligibility, engagement/reward rules, player posts and saved history with their existing owners. New feed writing must not create notifications, rewards or invented player milestones, and requires no AI/network service.

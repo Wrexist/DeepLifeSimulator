@@ -36,36 +36,36 @@ const RANDOM_HANDLES = [
 
 // Random post templates for unknown profiles
 const RANDOM_POST_TEMPLATES = [
- "Just discovered this amazing new coffee shop!",
- "Weekend vibes are hitting different",
- "Working on something exciting, stay tuned!",
- "Life update: Things are looking up!",
- "Can't believe it's already Friday!",
- "New favorite song on repeat",
- "Beautiful weather today!",
- "Just finished a great book! Any recommendations?",
- "Coffee and productivity",
- "Weekend plans? Let me know!",
- "Trying something new today!",
- "Grateful for the little things",
- "Morning workout done!",
- "New restaurant opened nearby, can't wait to try it!",
- "Life's good!",
- "Making the most of today!",
- "Another day, another opportunity!",
- "Living my best life!",
- "Good vibes only!",
- "Friday mood!",
- "Weekend adventures await!",
- "Coffee shop vibes",
- "Nature walk was exactly what I needed",
- "Working on some personal projects",
- "Beautiful sunset today",
- "New hobby discovered!",
- "Weekend plans sorted!",
- "Life update: All good!",
- "Morning motivation!",
- "Evening relaxation",
+  "The self-checkout and I have agreed to disagree about the bagging area.",
+  "Library books are the only subscription I have never regretted.",
+  "My budget has a category called unexpected. It is suspiciously consistent.",
+  "Bought the ingredients for a complicated dinner. Having toast while I think about it.",
+  "Trying the one-song cleaning method. The song may need to be an album.",
+  "Public benches with a good view deserve reviews.",
+  "The little repair shop on the corner fixed it in ten minutes. I had been putting it off for months.",
+  "Would like a weekend that arrives with no suggested activities.",
+  "Someone let me merge without a battle today. Restored a small amount of faith.",
+  "Saved the last episode for the weekend. Now avoiding everybody who has seen it.",
+  "There is a particular kind of peace in an empty laundry basket.",
+  "The best recipe is the one with notes written in the margin.",
+  "I want fewer apps asking how I feel and more buses arriving when they say they will.",
+  "Trying to learn one useful thing instead of reading about twelve.",
+  "A meal made from what was already in the fridge. Unexpectedly proud of this.",
+  "Found an old shopping list in a coat pocket. Apparently past me also needed onions.",
+  "If we make plans, please include whether there will be food.",
+  "The plant has a new leaf. Taking a completely unreasonable amount of credit.",
+  "Putting the phone in another room works annoyingly well.",
+  "The cheapest seat at the local show is still a night out.",
+  "Walking home without headphones. Had forgotten the city has its own soundtrack.",
+  "Anyone else keep a box because it is a really good box?",
+  "Finally asked how to pronounce a name I have been avoiding saying for months.",
+  "A calendar with an empty square in it. Beautiful.",
+  "Trying not to turn every hobby into homework.",
+  "A useful purchase: socks that all match each other.",
+  "The shortcut takes longer if you stop to look at every dog.",
+  "My most ambitious plan for tonight involves clean sheets.",
+  "I trust restaurant recommendations that mention one specific dish.",
+  "Packed lunch is a gift from yesterday me. Occasionally yesterday me is thoughtful."
 ];
 
 // Counter to ensure unique IDs
@@ -156,28 +156,13 @@ export function generateRandomProfilePosts(week: number, count?: number): Social
  // Default to 3-7 posts per week if count not specified
  const postCount = count || Math.floor(Math.random() * 5) + 3; // 3-7 posts
  const posts: SocialPost[] = [];
- const usedIds = new Set<string>();
- const usedNames = new Set<string>(); // Ensure variety in profile names
- 
- for (let i = 0; i < postCount; i++) {
- let attempts = 0;
- let post: SocialPost;
- 
- // Try to get a unique post (different name and ID)
- do {
- post = generateRandomProfilePost(week, i + attempts * 1000);
- attempts++;
- 
- // Allow same name but different post content
- if (attempts > 10) break; // Safety break
- } while (usedIds.has(post.id));
- 
- // Ensure no duplicate IDs
- if (!usedIds.has(post.id)) {
- usedIds.add(post.id);
- usedNames.add(post.authorName);
- posts.push(post);
- }
+ // Draw copy without replacement. Distinct IDs alone do not prevent repeated text.
+ const availableCopy = [...RANDOM_POST_TEMPLATES];
+ for (let i = 0; i < postCount && availableCopy.length > 0; i++) {
+   const post = generateRandomProfilePost(week, i);
+   const index = (Math.abs(Math.floor(week)) + i * 7) % availableCopy.length;
+   post.content = availableCopy.splice(index, 1)[0];
+   posts.push(post);
  }
 
  return posts;

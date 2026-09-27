@@ -1,3 +1,4 @@
+import { contactPostCopy } from '@/lib/social/pulseFeedCopy';
 /**
  * NPC Post Generator
  *
@@ -326,6 +327,7 @@ export function generateNpcPostsForFeed(
   if (relationships.length === 0) return [];
 
   const out: SocialPost[] = [];
+  const usedContent = new Set<string>();
   const lastPostByNpc: Record<string, number> = {};
 
   // Look at existing socialPosts to find when each NPC last posted (weeksLived).
@@ -356,7 +358,11 @@ export function generateNpcPostsForFeed(
     const pseudoRandom = (Math.abs(h) % 10000) / 10000;
     if (pseudoRandom >= 0.25) continue;
 
+    const content = contactPostCopy(rel, nextWeeksLived, usedContent);
+    if (!content) continue;
+    usedContent.add(content);
     const post = generateNPCPost(rel, nextWeeksLived);
+    post.content = content;
     // Anchor the timestamp to game week (not wall clock) so feed time math is consistent.
     post.gameWeek = nextWeeksLived;
     out.push(post);
