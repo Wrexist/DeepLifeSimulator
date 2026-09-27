@@ -35,7 +35,9 @@
 - [x] A06 source/browser pass: full-balance withdrawals, minimum-balance caps, overdraft/cash-ceiling protection and navy notifications above navigation. 267 focused tests and phone/tablet deposit-reopen checks pass. [Evidence and screenshots](release/evidence/banking-lifecycle-2026-09-27.md). Full-suite/device gates recorded separately; native/permutation acceptance remains open.
 - [x] A06 banking follow-through: complete money parsing, debt-capped repayment Max, clear recurring bills and accessible forms. 86 focused tests and phone/tablet account, card, loan and bill journeys passed. [Evidence and screenshots](release/evidence/banking-journeys-2026-09-27.md). Native and broader delinquency permutations remain open.
 - [x] A07 source/browser pass: strict stock/crypto amounts, pending-order commitments, recurring-buy clarity and weekly labels. 230 focused tests and phone/tablet buy/sell/cancel, save-reopen, real weekly recurring-buy and offline-loaded mining journeys passed. [Evidence and screenshots](release/evidence/trading-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
-- [ ] Next: A08 Education lifecycle. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
+- [x] Money-entry sliders: shared drag/preset/Max control across player money forms, including banking. 164 distinct focused tests with Education; phone/tablet stock and account-opening checks passed. [Screenshots and evidence](release/evidence/amount-sliders-2026-09-27.md). Native acceptance remains open.
+- [x] A08 source/browser pass: study costs/readiness, pause guidance and withdrawal confirmation; student-loan continuity and real weekly graduation verified on phone/tablet. [Evidence and screenshots](release/evidence/education-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
+- [ ] Next: A09 Businesses. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

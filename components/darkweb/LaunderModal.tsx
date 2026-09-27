@@ -1,5 +1,6 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, ScrollView, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, Droplets } from 'lucide-react-native';
 import { DarkWebMixerTier } from '@/contexts/game/types';
 import { MIXER_TIERS, effectiveMixerParams, frontDiscount } from '@/lib/darkweb/laundering';
@@ -132,20 +133,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
           <View>
             <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Amount (BTC)</Text>
             <View style={[styles.fieldRow, { borderColor: theme.border }]}>
-              <TextInput
-                value={amountText}
-                onChangeText={setAmountText}
-                keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                placeholder="0.0000"
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { color: theme.text }]}
-              />
+              <AmountSlider value={amountText} onChangeText={setAmountText} accessibilityLabel="Amount" maxAmount={dirtyBtc} unit={'BTC '} precision={8} darkMode={darkMode} />
               <TouchableOpacity onPress={() => setAmountText(String(dirtyBtc))} style={styles.maxBtn}>
                 <Text style={[styles.maxText, { color: theme.textSecondary }]}>MAX</Text>
               </TouchableOpacity>

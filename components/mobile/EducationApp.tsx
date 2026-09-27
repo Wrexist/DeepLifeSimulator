@@ -1,3 +1,4 @@
+import { gameAlert } from '@/utils/gameAlert';
 import { formatStudyDuration } from '@/utils/educationFormatting';
 import SceneCard from '@/components/ui/SceneCard';
 import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
@@ -205,12 +206,15 @@ function computeStudyState(gameState: GameState, ed: Education): StudyState {
   const sessionsThisWeek = gameState.weeklyStudySessions?.[ed.id] ?? 0;
   const capReached = sessionsThisWeek >= 3;
   const lowEnergy = (gameState.stats?.energy ?? 0) < 15;
-  const disabled = !!ed.paused || capReached || lowEnergy;
-  const label = capReached
+  const readyToGraduate = (ed.weeksRemaining ?? ed.duration) <= 0;
+  const disabled = !!ed.paused || readyToGraduate || capReached || lowEnergy;
+  const label = readyToGraduate ? 'Next week: graduate'
+    : ed.paused ? 'Resume to study'
+    : capReached
     ? 'Studied 3/3 this week'
     : lowEnergy
       ? 'Too tired (−15 energy)'
-      : `Study ${sessionsThisWeek}/3 (−15 energy)`;
+      : `Study ${sessionsThisWeek}/3 (−15 energy, −5 happiness)`;
   return { sessionsThisWeek, capReached, lowEnergy, disabled, label };
 }
 
@@ -297,9 +301,14 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   }, [setGameState, queueSave]);
 
   const handleWithdraw = useCallback((id: string) => {
-    withdrawFromProgram(setGameState, id);
-    queueSave();
-    setSelectedId((cur) => (cur === id ? null : cur));
+    gameAlert('Withdraw from program?', 'Course progress will be lost and tuition is not refunded. Any student loan remains payable. You can pause instead to keep your progress.', [
+      { text: 'Keep studying', style: 'cancel' },
+      { text: 'Withdraw', style: 'destructive', onPress: () => {
+        withdrawFromProgram(setGameState, id);
+        queueSave();
+        setSelectedId((cur) => (cur === id ? null : cur));
+      } },
+    ]);
   }, [setGameState, queueSave]);
 
   const handleToggleStudyGroup = useCallback((id: string) => {

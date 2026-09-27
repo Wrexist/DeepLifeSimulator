@@ -1,3 +1,4 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { TextInput, TouchableOpacity, Modal } from 'react-native';
@@ -6,9 +7,11 @@ import AddBillModal from '@/components/banking/AddBillModal';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import { createTestGameState } from '../helpers/createTestGameState';
 
+Object.assign(jest.requireMock('react-native'), { PanResponder: { create: () => ({ panHandlers: {} }) } });
+
 jest.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 const button = (tree: TestRenderer.ReactTestRenderer, label: string) => tree.root.findAllByType(TouchableOpacity).find(n => n.props.accessibilityLabel === label)!;
-const input = (tree: TestRenderer.ReactTestRenderer, label: string) => tree.root.findAllByType(TextInput).find(n => n.props.accessibilityLabel === label)!;
+const input = (tree: TestRenderer.ReactTestRenderer, label: string) => [...tree.root.findAllByType(TextInput), ...tree.root.findAllByType(AmountSlider)].find(n => n.props.accessibilityLabel === label)!;
 
 it('opens an account with the entire grouped deposit and rejects malformed/blank input', () => {
   const open = jest.fn(); let tree!: TestRenderer.ReactTestRenderer;

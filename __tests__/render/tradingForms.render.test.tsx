@@ -1,14 +1,17 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { TextInput, TouchableOpacity, Modal } from 'react-native';
+import { TouchableOpacity, Modal } from 'react-native';
 import StockTradeModal from '@/components/stocks/StockTradeModal';
 import PlaceOrderModal from '@/components/crypto/PlaceOrderModal';
 import DCAModal from '@/components/crypto/DCAModal';
 import { createTestGameState } from '../helpers/createTestGameState';
 
+Object.assign(jest.requireMock('react-native'), { PanResponder: { create: () => ({ panHandlers: {} }) } });
+
 jest.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 const button = (t: TestRenderer.ReactTestRenderer, label: string) => t.root.findAllByType(TouchableOpacity).find(n => n.props.accessibilityLabel === label)!;
-const input = (t: TestRenderer.ReactTestRenderer, label: string) => t.root.findAllByType(TextInput).find(n => n.props.accessibilityLabel === label)!;
+const input = (t: TestRenderer.ReactTestRenderer, label: string) => t.root.findAllByType(AmountSlider).find(n => n.props.accessibilityLabel === label)!;
 
 it.each(['stock', 'crypto'])('%s keeps full amounts and checks pending commitments without blocking market trades', kind => {
   const submit = jest.fn(); let tree!: TestRenderer.ReactTestRenderer;

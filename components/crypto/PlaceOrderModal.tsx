@@ -1,7 +1,8 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { parseAmount } from '@/utils/parseAmount';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { X } from 'lucide-react-native';
 import { Crypto, CryptoOrderSide, CryptoOrderType } from '@/contexts/game/types';
@@ -126,60 +127,18 @@ export default function PlaceOrderModal({ visible, coin, cash, reservedCash = 0,
             />
 
             <Field theme={theme} label={`Amount (${amountUnit})`}>
-              <TextInput
-                accessibilityLabel={side === 'buy' ? 'Trade amount in dollars' : 'Units to sell'}
-                value={amountText}
-                onChangeText={setAmountText}
-                keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                placeholder="0"
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { color: theme.text }]}
-              />
+              <AmountSlider value={amountText} onChangeText={setAmountText} accessibilityLabel={side === 'buy' ? 'Trade amount in dollars' : 'Units to sell'} maxAmount={side === 'buy' ? Math.floor(availableCash / (type === 'market' ? 1 : 1.01) * 100) / 100 : availableUnits} unit={side === 'buy' ? '$' : ''} precision={side === 'buy' ? 2 : 8} darkMode={darkMode} />
             </Field>
 
             {type === 'limit' && (
               <Field theme={theme} label="Limit price (USD)">
-                <TextInput
-                  accessibilityLabel="Limit price in dollars"
-                  value={limitText}
-                  onChangeText={setLimitText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder={midPrice.toFixed(2)}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={limitText} onChangeText={setLimitText} accessibilityLabel="Limit price in dollars" initialRange={Math.max(midPrice * 2, 1)} precision={8} darkMode={darkMode} />
               </Field>
             )}
 
             {type === 'stop' && (
               <Field theme={theme} label="Stop price (USD)">
-                <TextInput
-                  accessibilityLabel="Stop price in dollars"
-                  value={stopText}
-                  onChangeText={setStopText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder={midPrice.toFixed(2)}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={stopText} onChangeText={setStopText} accessibilityLabel="Stop price in dollars" initialRange={Math.max(midPrice * 2, 1)} precision={8} darkMode={darkMode} />
               </Field>
             )}
 

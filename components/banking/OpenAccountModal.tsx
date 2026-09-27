@@ -1,3 +1,4 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { parseAmount } from '@/utils/parseAmount';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect } from 'react';
@@ -157,7 +158,6 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
 
           {selected && (
             <View style={{ gap: responsiveSpacing.sm }}>
@@ -175,24 +175,9 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                   style={[styles.fieldInput, { color: theme.text }]}
                 />
               </View>
-              <View style={[styles.fieldRow, { borderColor: theme.border }]}>
-                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Deposit</Text>
-                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>$</Text>
-                <TextInput
-                  accessibilityLabel="Opening deposit in dollars"
-                  value={depositText}
-                  onChangeText={setDepositText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder={String(selected.minDeposit)}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.fieldInput, { color: theme.text }]}
-                />
+              <View style={{ gap: responsiveSpacing.xs }}>
+                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Opening deposit</Text>
+                <AmountSlider value={depositText} onChangeText={setDepositText} accessibilityLabel="Opening deposit in dollars" maxAmount={availableCash} darkMode={darkMode} />
               </View>
               {depositText.trim() !== '' && deposit === null && (
                 <Text accessibilityRole="alert" style={[styles.meta, { color: accent.danger }]}>Enter a valid amount, such as 1,000.50.</Text>
@@ -203,6 +188,8 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
             </View>
           )}
 
+          </ScrollView>
+          {selected && deposit !== null && <Text style={[styles.meta, { color: theme.textSecondary }]}>{selected.name}: ${deposit.toLocaleString('en-US', { maximumFractionDigits: 2 })} deposit</Text>}
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Open account"

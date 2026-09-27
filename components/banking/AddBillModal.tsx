@@ -1,3 +1,4 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { parseAmount } from '@/utils/parseAmount';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect } from 'react';
@@ -95,22 +96,7 @@ export default function AddBillModal({ visible, accounts, cashAvailable, current
             </Field>
 
             <Field label="Amount" theme={theme}>
-              <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
-              <TextInput
-                accessibilityLabel="Bill amount in dollars"
-                value={amountText}
-                onChangeText={setAmountText}
-                keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                placeholder="50"
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { color: theme.text }]}
-              />
+              <AmountSlider value={amountText} onChangeText={setAmountText} accessibilityLabel="Bill amount in dollars" initialRange={Math.max(cashAvailable ?? 1000, 1000)} darkMode={darkMode} />
             </Field>
 
             {amountText.trim() !== '' && amount === null && (

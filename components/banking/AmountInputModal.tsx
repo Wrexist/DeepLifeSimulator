@@ -1,6 +1,7 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
@@ -42,7 +43,6 @@ export default function AmountInputModal({
   subtitle,
   confirmLabel = 'Confirm',
   maxAmount,
-  presets,
   allowZero = false,
   currency = 'usd',
   darkMode,
@@ -86,53 +86,8 @@ export default function AmountInputModal({
           {subtitle && <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>}
 
           <View style={[styles.inputWrap, { borderColor: valid || text === '' ? theme.border : accent.danger, backgroundColor: theme.surfaceElevated }]}>
-            <Text style={[styles.currency, { color: theme.textSecondary }]}>{unitPrefix}</Text>
-            <TextInput
-              value={text}
-              onChangeText={setText}
-              keyboardType="decimal-pad"
-              accessibilityLabel={`${title} amount in ${isBtc ? 'bitcoin' : 'dollars'}`}
-              accessibilityHint="Use a period for decimals and optional commas for thousands."
-              placeholder="0"
-              placeholderTextColor={theme.textMuted}
-              style={[styles.input, { color: theme.text }]}
-              autoFocus
-              returnKeyType="done"
-              // R3-F: disable autocorrect / autocapitalize on money inputs -
-              // Samsung One UI shows the autocorrect bar above the keyboard
-              // even for decimal-pad, pushing the Confirm button off-screen
-              // on small devices.
-              autoCorrect={false}
-              autoCapitalize="none"
-              spellCheck={false}
-            />
+            <AmountSlider value={text} onChangeText={setText} accessibilityLabel={`${title} amount in ${isBtc ? 'bitcoin' : 'dollars'}`} maxAmount={maxAmount} unit={unitPrefix} precision={isBtc ? 8 : 2} darkMode={darkMode} />
           </View>
-
-          {presets && presets.length > 0 && (
-            <View style={styles.presets}>
-              {presets.map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Set amount to ${formatAmount(p)}`}
-                  onPress={() => setText(String(p))}
-                  style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
-                >
-                  <Text style={[styles.presetText, { color: theme.text }]}>{isBtc ? `₿${p}` : `$${p.toLocaleString()}`}</Text>
-                </TouchableOpacity>
-              ))}
-              {maxAmount != null && maxAmount > 0 && (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="Set maximum amount"
-                  onPress={() => setText(isBtc ? String(Number(maxAmount.toFixed(6))) : String(maxAmount))}
-                  style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
-                >
-                  <Text style={[styles.presetText, { color: theme.text }]}>Max</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
 
           {text.trim() !== '' && amount === null && (
             <Text accessibilityRole="alert" style={styles.error}>Enter a valid amount, such as 1,000.50.</Text>

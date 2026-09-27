@@ -1,0 +1,14 @@
+[
+  {
+    "width": 375,
+    "stockDragBuySellMax": true,
+    "bankOpeningSlider": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "stockDragBuySellMax": true,
+    "bankOpeningSlider": true,
+    "errors": []
+  }
+]

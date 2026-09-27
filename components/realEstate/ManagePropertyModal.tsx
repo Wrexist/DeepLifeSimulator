@@ -1,6 +1,7 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import React, { useState, useEffect } from 'react';
 import { askRentOverage } from '@/lib/realEstate/askRentGuidance';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -138,15 +139,7 @@ export default function ManagePropertyModal({
               </View>
 
               <View style={[styles.inputRow, { borderColor: theme.border }]}>
-                <Text style={[styles.inputPrefix, { color: theme.textSecondary }]}>$</Text>
-                <TextInput
-                  value={rentText}
-                  onChangeText={setRentText}
-                  keyboardType="decimal-pad"
-                  placeholder="Weekly rent"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={rentText} onChangeText={setRentText} accessibilityLabel="Weekly rent in dollars" initialRange={Math.max(value * 0.01, 1000)} darkMode={darkMode} />
                 <Text style={[styles.inputSuffix, { color: theme.textMuted }]}>/wk</Text>
               </View>
 

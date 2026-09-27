@@ -1,8 +1,11 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { TextInput, TouchableOpacity, Modal } from 'react-native';
+import { TouchableOpacity, Modal } from 'react-native';
 import AmountInputModal from '@/components/banking/AmountInputModal';
 import { parseAmount } from '@/utils/parseAmount';
+
+Object.assign(jest.requireMock('react-native'), { PanResponder: { create: () => ({ panHandlers: {} }) } });
 
 jest.mock('@/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 
@@ -19,8 +22,8 @@ it('confirms the entire grouped amount, rejects invalid text and exposes accessi
   const confirm = jest.fn();
   let renderer!: TestRenderer.ReactTestRenderer;
   act(() => { renderer = TestRenderer.create(<AmountInputModal visible title="Deposit" confirmLabel="Deposit" maxAmount={2000} presets={[100]} darkMode onConfirm={confirm} onClose={() => {}} />); });
-  const input = renderer.root.findByType(TextInput);
-  const button = () => renderer.root.findAllByType(TouchableOpacity).find(n => n.props.accessibilityLabel?.startsWith('Deposit'))!;
+  const input = renderer.root.findByType(AmountSlider);
+  const button = () => renderer.root.findAllByType(TouchableOpacity).find(n => /^Deposit(?: \$[\d,]+)?$/.test(n.props.accessibilityLabel ?? ''))!;
   expect(input.props.accessibilityLabel).toBe('Deposit amount in dollars');
   expect(renderer.root.findByType(Modal).props.animationType).toBe('none');
   expect(button().props.disabled).toBe(true);
@@ -42,7 +45,7 @@ it('requires explicit zero when clearing a budget', () => {
   act(() => { renderer = TestRenderer.create(<AmountInputModal visible title="Budget" allowZero darkMode onConfirm={() => {}} onClose={() => {}} />); });
   const button = () => renderer.root.findAllByType(TouchableOpacity).find(n => n.props.accessibilityLabel?.startsWith('Confirm'))!;
   expect(button().props.disabled).toBe(true);
-  act(() => renderer.root.findByType(TextInput).props.onChangeText('0'));
+  act(() => renderer.root.findByType(AmountSlider).props.onChangeText('0'));
   expect(button().props.disabled).toBe(false);
   act(() => renderer.unmount());
 });
@@ -53,8 +56,8 @@ it('Max keeps fractional dollars when withdrawing interest', () => {
   let renderer!: TestRenderer.ReactTestRenderer;
   act(() => { renderer = TestRenderer.create(<AmountInputModal visible title="Withdraw" confirmLabel="Withdraw" maxAmount={0.75} presets={[100]} darkMode onConfirm={confirm} onClose={() => {}} />); });
   const buttons = () => renderer.root.findAllByType(TouchableOpacity);
-  act(() => buttons().find(n => n.props.accessibilityLabel?.startsWith('Set maximum'))!.props.onPress());
-  act(() => buttons().find(n => n.props.accessibilityLabel?.startsWith('Withdraw'))!.props.onPress());
+  act(() => buttons().find(n => n.props.accessibilityLabel === 'Withdraw amount in dollars: Max')!.props.onPress());
+  act(() => buttons().find(n => /^Withdraw \$/.test(n.props.accessibilityLabel ?? ''))!.props.onPress());
   expect(confirm).toHaveBeenCalledWith(0.75);
   act(() => renderer.unmount());
 });

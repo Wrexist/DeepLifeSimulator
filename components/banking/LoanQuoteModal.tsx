@@ -1,7 +1,8 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { parseAmount } from '@/utils/parseAmount';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, AlertCircle } from 'lucide-react-native';
 import { GameState, Loan } from '@/contexts/game/types';
 import { getLoanQuote } from '@/contexts/game/actions/LoanActions';
@@ -136,22 +137,7 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Principal</Text>
               <View style={[styles.inputWrap, { borderColor: theme.border }]}>
-                <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
-                <TextInput
-                  accessibilityLabel="Loan amount in dollars"
-                  value={principalText}
-                  onChangeText={setPrincipalText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder="5,000"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={principalText} onChangeText={setPrincipalText} accessibilityLabel="Loan amount in dollars" initialRange={Math.max(weeklyIncome * 52, 10000)} darkMode={darkMode} />
               </View>
             </View>
 

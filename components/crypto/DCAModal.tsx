@@ -1,7 +1,8 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { parseAmount } from '@/utils/parseAmount';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
 import { BankAccount, Crypto } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -93,22 +94,7 @@ export default function DCAModal({ visible, cryptos, accounts, cashAvailable, da
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Amount per buy (USD)</Text>
               <View style={[styles.fieldRow, { borderColor: theme.border }]}>
-                <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
-                <TextInput
-                  accessibilityLabel="Recurring buy amount in dollars"
-                  value={amountText}
-                  onChangeText={setAmountText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder="100"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={amountText} onChangeText={setAmountText} accessibilityLabel="Recurring buy amount in dollars" initialRange={Math.max(cashAvailable ?? 1000, 1000)} darkMode={darkMode} />
               </View>
             </View>
 

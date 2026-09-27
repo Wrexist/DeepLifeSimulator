@@ -1,3 +1,4 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * HireEmployeeModal - candidate list + offer flow.
@@ -6,7 +7,7 @@ import { uiPalette , withAlpha } from '@/lib/config/theme';
  * player adjust salary + sign-on bonus, then dispatches `hireCandidate`.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Briefcase, RefreshCw } from 'lucide-react-native';
 import BaseModal from '@/components/ui/BaseModal';
 import EmptyState from '@/components/ui/EmptyState';
@@ -192,25 +193,11 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
                 </Text>
                 <View style={styles.offerField}>
                   <Text style={[styles.offerLabel, { color: theme.textSecondary }]}>Salary / week</Text>
-                  <TextInput
-                    value={salaryOffer}
-                    onChangeText={(t) => { setSalaryOffer(t); setResultMsg(null); }}
-                    keyboardType="numeric"
-                    placeholder={String(selected.salaryAsk)}
-                    placeholderTextColor={theme.textMuted}
-                    style={[styles.offerInput, { color: theme.text, borderColor: theme.border }]}
-                  />
+                  <AmountSlider value={salaryOffer} onChangeText={(t) => { setSalaryOffer(t); setResultMsg(null); }} accessibilityLabel="Weekly salary in dollars" initialRange={Math.max(selected.salaryAsk * 2, 1000)} darkMode={!!gameState.settings?.darkMode} />
                 </View>
                 <View style={styles.offerField}>
                   <Text style={[styles.offerLabel, { color: theme.textSecondary }]}>Sign-on bonus (one-time)</Text>
-                  <TextInput
-                    value={bonusOffer}
-                    onChangeText={(t) => { setBonusOffer(t); setResultMsg(null); }}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={theme.textMuted}
-                    style={[styles.offerInput, { color: theme.text, borderColor: theme.border }]}
-                  />
+                  <AmountSlider value={bonusOffer} onChangeText={(t) => { setBonusOffer(t); setResultMsg(null); }} accessibilityLabel="Sign-on bonus in dollars" maxAmount={gameState.stats?.money ?? 0} darkMode={!!gameState.settings?.darkMode} />
                 </View>
                 <Text
                   style={[

@@ -1,3 +1,4 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * LaunchCampaignModal - pick campaign kind + spend + duration.
@@ -177,15 +178,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
               <View style={[styles.composer, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                 <View style={styles.composerField}>
                   <Text style={[styles.composerLabel, { color: theme.textSecondary }]}>Spend / week</Text>
-                  <TextInput
-                    value={spend}
-                    onChangeText={(t) => { setSpend(t); setResultMsg(null); }}
-                    keyboardType="numeric"
-                    accessibilityLabel="Campaign spend per week in dollars"
-                    placeholder={`min $${floor.toLocaleString()}`}
-                    placeholderTextColor={theme.textMuted}
-                    style={[styles.composerInput, { color: theme.text, borderColor: theme.border }]}
-                  />
+                  <AmountSlider value={spend} onChangeText={setSpend} accessibilityLabel="Campaign spend per week in dollars" maxAmount={gameState.stats?.money ?? 0} darkMode={!!gameState.settings?.darkMode} />
                 </View>
                 <View style={styles.composerField}>
                   <Text style={[styles.composerLabel, { color: theme.textSecondary }]}>Duration (weeks)</Text>
