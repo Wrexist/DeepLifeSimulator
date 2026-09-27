@@ -1,3 +1,8 @@
+# Current audit count - 27 September 2026
+
+- User-reported remaining count: **40**. This supersedes the earlier 26-item count; historical evidence below is retained.
+- [x] Character creator layout: tighter categories with 44-point targets, scalable two-line option labels, Next/Done name entry and tablet identity columns. [Evidence and screenshots](release/evidence/character-layout-2026-09-27.md). Native text/keyboard acceptance remains open.
+
 # Audit fixes - 26 September 2026
 
 - [x] Implement D01-D06 and D12: mutex-owned prestige, durable celebration/retry, strict money entry, committed campaign feedback and life-relative planning/Profile counts.

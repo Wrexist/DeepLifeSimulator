@@ -50,7 +50,7 @@ import { uiPalette } from '@/lib/config/theme';
  * about mounting dozens). Switching category unmounts the previous rail.
  */
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Check } from 'lucide-react-native';
 import VectorAvatar from '@/components/avatar/VectorAvatar';
 import { haptic } from '@/utils/haptics';
@@ -125,6 +125,9 @@ function AppearanceEditorImpl({
   onSelectOption,
   onSelectTint,
 }: AppearanceEditorProps) {
+  const { fontScale: systemFontScale } = useWindowDimensions();
+  // Stable across categories, with room for two lines at the chosen text size.
+  const railHeight = THUMB + scale(6) + responsiveSpacing.sm + fontScale(14) * Math.max(1, systemFontScale) * 2;
   const railRef = useRef<ScrollView | null>(null);
   const category = categories[Math.min(activeIndex, categories.length - 1)];
   const selected = (avatar[category.field] as number) ?? 0;
@@ -238,7 +241,7 @@ function AppearanceEditorImpl({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
-        style={styles.railScroll}
+        style={[styles.railScroll, { height: railHeight }]}
       >
         {category.options.map((option, index) => {
           const isSelected = selected === index;
@@ -279,7 +282,7 @@ function AppearanceEditorImpl({
               {category.kind !== 'color' && (
                 <Text
                   style={[styles.cellLabel, isSelected && styles.cellLabelSelected]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {option.label}
                 </Text>
@@ -327,13 +330,15 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   categoryChip: {
+    minWidth: 44,
     minHeight: 44,
+    alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: verticalScale(7),
   },
   categoryChipSelected: {
@@ -378,7 +383,7 @@ const styles = StyleSheet.create({
 
   // A fixed height is what stops the page reflowing when you switch from Hair
   // (28 options) to Mouth (4).
-  railScroll: { height: THUMB + verticalScale(34) },
+  railScroll: { flexGrow: 0 },
   rail: { gap: responsiveSpacing.xs, paddingVertical: verticalScale(2) },
 
   cell: { width: CELL, alignItems: 'center', gap: verticalScale(4) },
@@ -417,6 +422,7 @@ const styles = StyleSheet.create({
 
   cellLabel: {
     fontSize: fontScale(10),
+    lineHeight: fontScale(14),
     fontWeight: '600',
     color: uiPalette.muted,
     textAlign: 'center',

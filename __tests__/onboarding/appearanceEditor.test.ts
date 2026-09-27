@@ -161,11 +161,12 @@ describe('no category is hidden', () => {
 });
 
 describe('the option area cannot reflow the page', () => {
-  it('the rail is a fixed height', () => {
+  it('the rail reserves two scaled label lines independently of option count', () => {
     // Hair has 28 options and Mouth has 4. As a wrapped grid that is a
     // seven-row section collapsing to one, which moved everything below it —
     // and pushed the hero avatar you are judging against off the screen.
-    expect(EDITOR).toMatch(/railScroll: \{ height: THUMB \+ verticalScale\(34\) \}/);
+    expect(EDITOR).toMatch(/fontScale\(14\) \* Math\.max\(1, systemFontScale\) \* 2/);
+    expect(EDITOR).toMatch(/height: railHeight/);
   });
 
   it('it is one horizontal row', () => {

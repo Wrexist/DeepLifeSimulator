@@ -18,6 +18,8 @@ import { uiPalette, colors, actionColors } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Keyboard,
+  useWindowDimensions,
   Easing,
   ScrollView,
   StyleSheet,
@@ -95,6 +97,9 @@ function resolveInitialSex(stored: 'male' | 'female' | 'random' | undefined): Av
 
 export default function Customize() {
   const router = useRouter();
+  const { width, fontScale: systemFontScale } = useWindowDimensions();
+  const wideIdentity = width >= 600 && systemFontScale <= 1.3;
+  const lastNameInput = useRef<TextInput>(null);
   const navigation = useNavigation();
   const { state, setState } = useOnboarding();
   useOnboardingFlowGuard('Customize');
@@ -320,6 +325,8 @@ export default function Customize() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
       >
         {/* ── Hero: the live face ──────────────────────────────────────── */}
         <View style={styles.heroCard}>
@@ -427,12 +434,18 @@ export default function Customize() {
         <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Identity</Text>
 
-              <View style={styles.nameRow}>
-                <View style={styles.nameField}>
+              <View style={[styles.nameRow, wideIdentity && styles.nameRowWide]}>
+                <View style={[styles.nameField, wideIdentity && styles.nameFieldWide]}>
                   <Text style={styles.inputLabel}>First Name</Text>
                   <View style={styles.inputWrap}>
                     <TextInput
                       accessibilityLabel="First name"
+                      autoComplete="given-name"
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                      submitBehavior="submit"
+                      blurOnSubmit={false}
+                      onSubmitEditing={() => lastNameInput.current?.focus()}
                       placeholder="Enter first name"
                       placeholderTextColor={uiPalette.muted}
                       style={styles.inputText}
@@ -443,11 +456,16 @@ export default function Customize() {
                   </View>
                 </View>
 
-                <View style={styles.nameField}>
+                <View style={[styles.nameField, wideIdentity && styles.nameFieldWide]}>
                   <Text style={styles.inputLabel}>Last Name</Text>
                   <View style={styles.inputWrap}>
                     <TextInput
+                      ref={lastNameInput}
                       accessibilityLabel="Last name"
+                      autoComplete="family-name"
+                      autoCapitalize="words"
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
                       placeholder="Enter last name"
                       placeholderTextColor={uiPalette.muted}
                       style={styles.inputText}
@@ -541,7 +559,7 @@ const styles = StyleSheet.create({
   previewCopy: { flex: 1, gap: layoutSpace.sm },
   infoButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   continueButton: { minHeight: 48, padding: layoutSpace.compact, borderRadius: responsiveBorderRadius.md, backgroundColor: actionColors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: layoutSpace.sm },
-  continueLabel: { fontSize: responsiveFontSize.md, fontWeight: '600', color: uiPalette.white },
+  continueLabel: { flexShrink: 1, textAlign: 'center', fontSize: responsiveFontSize.md, fontWeight: '600', color: uiPalette.white },
   avatarRing: {
     borderRadius: scale(96),
     borderWidth: 1,
@@ -599,11 +617,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(96, 165, 250, 0.85)',
   },
   pillLabel: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: fontScale(12),
     fontWeight: '700',
     color: uiPalette.blue,
   },
   pillPrimaryLabel: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: fontScale(12),
     fontWeight: '600',
     color: uiPalette.white,
@@ -623,6 +645,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: uiPalette.white,
   },
+  nameRowWide: { flexDirection: 'row' },
+  nameFieldWide: { flex: 1, minWidth: 0 },
   nameRow: {
     gap: responsiveSpacing.sm,
   },
