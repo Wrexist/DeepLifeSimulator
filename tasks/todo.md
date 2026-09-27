@@ -18,7 +18,8 @@
 - [x] V08 complete: all 12 luxury items now match the illustrated catalogue family; 83.8% smaller art files. 32 focused tests and phone/tablet purchase/collection checks pass. [Evidence and gallery](release/evidence/luxury-art-2026-09-27.md).
 - [x] V09 Stocks: securities start 270px higher on compact phones; sector disclosure retains filters. 27 focused tests, source types and three-width browser interactions pass. [Evidence and screenshots](release/evidence/stocks-hierarchy-2026-09-27.md).
 - [x] Stock curves: distinct seeded illustrative charts from startup, rounded strokes, real quotes/change preserved. 18 focused tests, source types and phone/tablet revisit checks pass. [Screenshots and evidence](release/evidence/stock-curves-2026-09-27.md).
-- [ ] Next: V10 financial hierarchy and duplicate totals. [Remaining register](whole-app-audit-2026-09-26.md): 35 V/A/O items remain open, including native acceptance.
+- [x] V10 Finances: one compact overview and canonical assets/debts breakdown; accounts 206px higher in Bank and 994px higher in Bank Pro at 375px. Banking and recorded-history checks pass. [Evidence and screenshots](release/evidence/finance-hierarchy-2026-09-27.md).
+- [ ] Next: V11 segmented-control overflow and long labels. [Remaining register](whole-app-audit-2026-09-26.md): 34 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

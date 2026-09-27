@@ -163,11 +163,6 @@ function BankAppInner({ onBack }: BankAppProps) {
   // advertise a number the grant does not honour.
   const adCashBonus = getAdCashBonusAmount(gameState);
   const adBonusReady = canClaimAdCashBonus(gameState);
-  const totalBank = banking.accounts.reduce((s, a) => s + a.balance, 0);
-  const totalDebt =
-    banking.creditCards.reduce((s, c) => s + c.balance, 0) +
-    (gameState.loans ?? []).reduce((s, l) => s + l.remaining, 0);
-
   /**
    * The one thing due NOW, if anything is - the Bank's lead slot. At most one,
    * by severity: an overdrawn account (money already gone) > a loan draw that
@@ -198,16 +193,6 @@ function BankAppInner({ onBack }: BankAppProps) {
     if (dueBill) return { kind: 'bill', rule: dueBill };
     return null;
   }, [banking.accounts, banking.billPayRules, gameState.loans, cash, gameState.weeksLived]);
-
-  // Cross-app tile: what the player has working in the market apps (Stocks +
-  // Crypto holdings at current prices), so the Bank is the one money overview.
-  const investedValue = useMemo(() => {
-    const stocksValue = (gameState.stocks?.holdings ?? []).reduce(
-      (s, h) => s + (h.shares ?? 0) * (h.currentPrice ?? 0), 0);
-    const cryptoValue = (gameState.cryptos ?? []).reduce(
-      (s, c) => s + (c.owned ?? 0) * (c.price ?? 0), 0);
-    return stocksValue + cryptoValue;
-  }, [gameState.stocks?.holdings, gameState.cryptos]);
 
   const weeklyIncome = useMemo(() => {
     let income = 0;
@@ -654,7 +639,6 @@ function BankAppInner({ onBack }: BankAppProps) {
           gap: responsiveSpacing.sm,
         }}
       >
-        <FinanceOverview />
         {/* The lead slot. Renders nothing when nothing is due, so the layout
             below is untouched for the player whose bank is quiet. The row is
             the SAME component with the SAME handlers as its section below -
@@ -714,25 +698,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           </View>
         )}
 
-        {/* Three numbers, not nine. The five ledger chips that used to sit
-            under this strip are the tax page's business; what is invested
-            rides along as the Bank tile's second line. */}
-        <View
-          style={[
-            getGlassCard(darkMode, 12),
-            { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius['2xl'] },
-          ]}
-        >
-          <View style={styles.heroInner}>
-            <StatStrip
-              items={[
-                { label: 'Cash', value: formatMoney(cash) },
-                { label: 'Bank', value: formatMoney(totalBank), sub: `${formatMoney(investedValue)} invested` },
-                { label: 'Debt', value: formatMoney(totalDebt), tint: totalDebt > 0 ? accent.danger : undefined },
-              ]}
-            />
-          </View>
-        </View>
+        <FinanceOverview />
 
         <SectionTitle
           title="Accounts"
@@ -787,7 +753,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         >
           <Percent size={scale(15)} color={accent.warning} />
           <Text style={[styles.linkRowText, { color: theme.text }]}>
-            {banking.taxDueThisYear > 0 ? 'See where your tax goes' : 'How tax works'}
+            Income &amp; tax
           </Text>
           <ChevronRight size={scale(16)} color={theme.textMuted} />
         </TouchableOpacity>
@@ -1179,11 +1145,6 @@ export default function BankApp(props: BankAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  heroInner: {
-    borderRadius: responsiveBorderRadius['2xl'],
-    overflow: 'hidden',
-    padding: responsiveSpacing.md,
-  },
   heroEyebrow: {
     fontSize: responsiveFontSize.xs,
     fontWeight: '600',
