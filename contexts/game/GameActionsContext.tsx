@@ -1,3 +1,4 @@
+import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 // cspell:words uuidv Regen UIUX Minigame watchlist Nyke Adidaz Pooma Reebock Cardano Solana Polkadot Chainlink giga tera networth
 // NOTE: Actions have been split into focused context files to reduce bundle size and improve maintainability:
 // - MoneyActionsContext: money, economy, IAP, crypto
@@ -1032,6 +1033,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevCurrentJob: prevState.currentJob,
    careerAcceptDelay: preRolls.careerAcceptDelay,
    prevIsRetired: prevState.isRetired,
+   nextWeeksLived,
+   weeklyPay: career => paidWeeklySalaryForLevel(prevState, career, career.level),
  }), { updatedCareers: prevState.careers || [], newCurrentJob: prevState.currentJob, logMessage: '', hiredNotification: null });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;
@@ -3365,6 +3368,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // itself does when there is no `lifetimeStatistics`).
  lifetimeStatistics: guardTick('lifetimeStatistics', () => applyLifetimeStatistics({
    prevState,
+   hiredCareerId: !prevState.currentJob ? applicationResult.newCurrentJob : undefined,
    newBornChildrenCount: newBornChildren.length,
    // R3-F4: the post-tick relationship array, so the lifetime counter can see
    // this week's growth. Without it `totalRelationships` stayed at 0 forever
@@ -4184,6 +4188,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Handle career special effects: fire_from_job, add_career_warning
  let updatedCurrentJob = prevState.currentJob;
  let updatedCareersFromEvent = prevState.careers;
+ let updatedCareerStatistics = prevState.lifetimeStatistics;
 
  if (choice.special === 'fire_from_job' && prevState.currentJob) {
  // Fire the player from their current job
@@ -4195,6 +4200,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  return c;
  });
+ // Close the previous employment spell before a later rehire can open another.
+ // Preserve paid weeks/earnings; losing a job does not count as paid work.
+ if (updatedCareerStatistics) {
+   const history = [...(updatedCareerStatistics.careerHistory || [])];
+   for (let i = history.length - 1; i >= 0; i--) {
+     if (history[i].job === prevState.currentJob && history[i].endWeek === undefined) {
+       history[i] = { ...history[i], endWeek: prevState.weeksLived || 0 };
+       break;
+     }
+   }
+   updatedCareerStatistics = { ...updatedCareerStatistics, careerHistory: history };
+ }
  logger.info('Player fired from job:', { job: prevState.currentJob });
  }
 
@@ -4457,6 +4474,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  showSicknessModal: showSicknessModal, // Show modal if new disease
  diseaseHistory: updatedDiseaseHistory, // Update disease history
  // Career event effects (firing, warnings)
+ lifetimeStatistics: updatedCareerStatistics,
 ...(updatedCurrentJob!== prevState.currentJob && { currentJob: updatedCurrentJob }),
 ...(updatedCareersFromEvent!== prevState.careers && { careers: updatedCareersFromEvent }),
  };

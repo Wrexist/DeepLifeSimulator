@@ -29,6 +29,9 @@ export interface CareerApplicationsInput {
   /** A retired player never auto-accepts a pending application (belt-and-braces
    *  alongside retirePlayer cancelling pending apps — no salary+pension stack). */
   prevIsRetired?: boolean;
+  nextWeeksLived?: number;
+  /** Canonical boosted weekly pay supplied by the owning tick. */
+  weeklyPay?: (career: Career) => number;
 }
 
 export interface CareerApplicationsResult {
@@ -80,6 +83,7 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
           return {
             ...c,
             accepted: true,
+            ...(input.nextWeeksLived !== undefined ? { startedWeeksLived: input.nextWeeksLived } : {}),
             applicationWeeksPending: undefined, // Clear the counter
           };
         }
@@ -87,10 +91,12 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
       });
       newCurrentJob = pendingCareer.id;
       logMessage = `[WEEK PROGRESSION] Career application accepted: ${pendingCareer.id} after ${weeksPending} weeks`;
-      const entry = pendingCareer.levels?.[0];
+      const level = Math.max(0, Math.min(pendingCareer.level || 0, (pendingCareer.levels?.length || 1) - 1));
+      const entry = pendingCareer.levels?.[level];
       const title = entry?.name || pendingCareer.id;
-      const salary = typeof entry?.salary === 'number' && Number.isFinite(entry.salary) && entry.salary > 0
-        ? ` $${Math.round(entry.salary).toLocaleString()} a week,`
+      const weeklyPay = input.weeklyPay?.(pendingCareer) ?? entry?.salary;
+      const salary = typeof weeklyPay === 'number' && Number.isFinite(weeklyPay) && weeklyPay > 0
+        ? ` $${Math.round(weeklyPay).toLocaleString()} a week,`
         : '';
       hiredNotification = {
         id: `hired-${pendingCareer.id}`,
