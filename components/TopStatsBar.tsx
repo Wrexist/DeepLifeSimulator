@@ -17,11 +17,14 @@ import {
  isAndroidXLarge,
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
-import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import { useGameSelector, useSetGameState, useGameStateGetter, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
+import { modalEventCount } from '@/lib/events/routing';
+import { useError } from '@/contexts/UIUXContext';
+import { logger } from '@/utils/logger';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
@@ -47,7 +50,7 @@ import {
 import SeasonalIndicator from './SeasonalIndicator';
 import usePressableScale from '@/hooks/usePressableScale';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { usePerformanceMonitor, useMemoryCleanup } from '@/utils/performanceOptimization';
+import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
 // Rarely-opened modals - lazy-loaded and only mounted when open, so they no
 // longer sit permanently mounted with visible={false} (which kept their trees
@@ -751,37 +754,25 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // Handle both iPhone Pro Max (428px+) and large Android devices (600px+)
  const isExtraLargeDevice = width > 428 || isAndroidXLarge(); // iPhone 15 Pro Max and large Android phones
  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale();
- // For the interstitial breakpoint: current in-game week + whether ads are removed.
- const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
- // The grace half of the gate measures weeks into THIS life (CLAUDE.md §4.2);
- // pre-v43 saves have no lifeStartWeek and fall back to the absolute counter.
- const lifeStartWeek = useGameSelector((s) => s?.lifeStartWeek);
- const adsRemoved = useGameSelector((s) => s?.settings?.adsRemoved === true);
- // A blocking result modal (death/wedding/jail) - or an auto-mounted
- // LifeMomentModal (app/(tabs)/_layout.tsx renders one whenever the tick sets
- // lifeMoments.pendingMoment) - must never get an interstitial on top of it (an
- // ad over an open RN Modal is the documented iOS freeze). The tick itself can
- // RAISE any of these in the SAME tick, so we read them via a ref the
- // external-store selector keeps current, then check it AFTER the tick: nextWeek()
- // awaits a macrotask past its own setGameState commit, so this component has
- // re-rendered and blockedRef.current reflects the just-ticked state by the call.
- const blockingModalActive = useGameSelector(
-   (s) =>
-     s?.showDeathPopup === true ||
-     s?.showWeddingPopup === true ||
-     (s?.jailWeeks ?? 0) > 0 ||
-     !!s?.lifeMoments?.pendingMoment,
- );
- const blockedRef = useRef(blockingModalActive);
- blockedRef.current = blockingModalActive;
+ // Read committed state at the breakpoint, including events raised by this tick.
+ const getGameState = useGameStateGetter();
+ const { showError } = useError();
  const { buttonPress, haptic } = useFeedback();
  const reduced = useReducedMotion();
 
  // All hooks must be called before any early returns (Rules of Hooks)
- const { addCleanup } = useMemoryCleanup();
  const [isAdvancingWeek, setIsAdvancingWeek] = useState(false);
  const spinValue = useRef(new Animated.Value(0)).current;
- const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+ const advancingRef = useRef(false);
+ const frameRef = useRef<number | null>(null);
+ const mountedRef = useRef(true);
+ useEffect(() => {
+ mountedRef.current = true;
+ return () => {
+ mountedRef.current = false;
+ if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+ };
+ }, []);
 
  const weekAnimations = useRef([
  new Animated.Value(1),
@@ -810,7 +801,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // created an anonymous `Animated.loop(...)` and never called `.stop()`, so
  // every `isAdvancingWeek` toggle stacked another native-driver loop.
  useEffect(() => {
- if (!isAdvancingWeek) {
+ if (!isAdvancingWeek || reduced) {
  spinValue.setValue(0);
  return;
  }
@@ -826,17 +817,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  return () => {
  spinLoop.stop();
  };
- }, [isAdvancingWeek, spinValue]);
-
- // Cleanup timeout on unmount
- useEffect(() => {
- return () => {
- if (timeoutRef.current) {
- clearTimeout(timeoutRef.current);
- timeoutRef.current = null;
- }
- };
- }, []);
+ }, [isAdvancingWeek, reduced, spinValue]);
 
  // Early return if date is not available (after all hooks)
  if (!date) {
@@ -1000,56 +981,41 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  <AnimatedView style={animatedStyle}>
  <TouchableOpacity
  onPress={() => {
- if (isAdvancingWeek) return;
- // Snapshot the week now so we can detect a year boundary after the tick.
- const weeksBefore = weeksLived;
+ // Claim synchronously: two taps can arrive before React renders disabled.
+ if (advancingRef.current) return;
+ advancingRef.current = true;
+ const weeksBefore = getGameState().weeksLived;
  buttonPress();
  haptic('medium');
  setIsAdvancingWeek(true);
- // Clear any prior safety timer before arming a new one.
- if (timeoutRef.current) {
- clearTimeout(timeoutRef.current);
- timeoutRef.current = null;
- }
- // Safety cap: if the tick somehow never settles, re-enable the button so it
- // can't get stuck disabled. Cleared in the finally below on normal completion.
- timeoutRef.current = setTimeout(() => {
- setIsAdvancingWeek(false);
- timeoutRef.current = null;
- }, 5000);
- // Defer the heavy synchronous nextWeek() work to the next frame so React
- // commits the greyed/spinner (disabled) state and PAINTS it before the tick
- // blocks the JS thread - the press registers instantly instead of feeling
- // frozen. Clearing isAdvancingWeek on real completion (await) keeps the
- // spinner honest: a brief flash for fast ticks, a real spin for slow ones.
- const rafId = requestAnimationFrame(() => {
+ // Paint immediate feedback before the canonical simulation runs. Completion,
+ // never a timeout, releases the control while a slow tick is still in flight.
+ frameRef.current = requestAnimationFrame(() => {
+ frameRef.current = null;
  void (async () => {
  try {
  await nextWeek();
- // Natural breakpoint: if an in-game year just turned over, maybe show an
- // interstitial. Self-gated - a no-op when ads are removed, off, not
- // loaded, or within the frequency cap. `blocked` is read AFTER the tick so
- // a death/wedding/jail modal this tick raised suppresses the ad.
- void maybeShowInterstitialForWeek(weeksBefore + 1, {
- adsRemoved,
- blocked: blockedRef.current,
- weeksThisLife: weeksSinceLifeStart(weeksBefore + 1, lifeStartWeek),
+ if (!mountedRef.current) return;
+ const committed = getGameState();
+ // Canonical nextWeek also resolves on a rejected/no-op tick. Only a real
+ // committed week may open an annual ad, and never over a pending decision.
+ if (committed.weeksLived === weeksBefore + 1) {
+ await maybeShowInterstitialForWeek(committed.weeksLived, {
+ adsRemoved: committed.settings?.adsRemoved === true,
+ blocked: committed.showDeathPopup === true || committed.showWeddingPopup === true ||
+   (committed.jailWeeks ?? 0) > 0 || !!committed.lifeMoments?.pendingMoment ||
+   modalEventCount(committed) > 0,
+ weeksThisLife: weeksSinceLifeStart(committed.weeksLived, committed.lifeStartWeek),
  });
- } finally {
- if (timeoutRef.current) {
- clearTimeout(timeoutRef.current);
- timeoutRef.current = null;
  }
- setIsAdvancingWeek(false);
+ } catch (error) {
+ logger.error('Weekly interaction failed:', error);
+ if (mountedRef.current) showError('weekly-interaction', 'Could not finish the weekly transition. Please try again.');
+ } finally {
+ advancingRef.current = false;
+ if (mountedRef.current) setIsAdvancingWeek(false);
  }
  })();
- });
- addCleanup(() => {
- cancelAnimationFrame(rafId);
- if (timeoutRef.current) {
- clearTimeout(timeoutRef.current);
- timeoutRef.current = null;
- }
  });
  }}
  onPressIn={onPressIn}
@@ -1057,7 +1023,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  activeOpacity={0.7}
  disabled={isAdvancingWeek}
  accessibilityLabel={isAdvancingWeek ? 'Advancing to next week' : 'Advance to next week'}
- accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek }}
+ accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek, busy: isAdvancingWeek }}
  >
  {/* LABELED. This is the game's primary action and its highest-frequency
      tap, and it spent its whole life as an unlabeled 20px arrow in a

@@ -29,7 +29,8 @@
 - [x] V18 Semantic colors: fixed cash identity across 15 headers, HUD-aligned pet vitals, explicit signed weekly effects and neutral zero/empty summaries. 30 focused tests, source/test types and phone/tablet adoption checks pass. [Evidence and screenshots](release/evidence/semantic-colors-2026-09-27.md).
 - [x] A01 browser/source pass: retained perk/mindset drafts, rejected non-finite scenario inputs and verified portrait/custom start-save-reload on phone/tablet. [Evidence and screenshots](release/evidence/custom-onboarding-2026-09-27.md). A01 native/permutation acceptance remains open.
 - [x] A02 browser/source pass: corrected delayed-hire records, rehire tenure/pay notices and termination history; first pay, promotion, quit/reapply and retirement regressions pass. [Evidence and screenshots](release/evidence/career-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
-- [ ] Next: A03 Weekly-loop interaction. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
+- [x] A03 browser/source pass: synchronous Next Week guard, completion-owned busy state, committed-progress ad gating, pending-decision suppression and reduced-motion loading. 64 focused regressions and phone/tablet rapid-tap checks pass. [Evidence and screenshots](release/evidence/weekly-loop-2026-09-27.md). Signed native acceptance remains open.
+- [ ] Next: A04 Health and low-cash recovery. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026
