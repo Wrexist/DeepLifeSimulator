@@ -1,5 +1,7 @@
+import { parseAmount } from '@/utils/parseAmount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
 import { BankAccount, BudgetCategory } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -9,6 +11,7 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 interface Props {
   visible: boolean;
   accounts: BankAccount[];
+  cashAvailable?: number;
   currentWeek: number;
   darkMode: boolean;
   onAdd: (rule: {
@@ -33,13 +36,14 @@ const CATEGORIES: { id: BudgetCategory; label: string }[] = [
   { id: 'other', label: 'Other' },
 ];
 
-export default function AddBillModal({ visible, accounts, currentWeek, darkMode, onAdd, onClose }: Props) {
+export default function AddBillModal({ visible, accounts, cashAvailable, currentWeek, darkMode, onAdd, onClose }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [label, setLabel] = useState('');
   const [amountText, setAmountText] = useState('');
   const [category, setCategory] = useState<BudgetCategory>('lifestyle');
   const [cadence, setCadence] = useState<'weekly' | 'monthly'>('monthly');
-  const [accountId, setAccountId] = useState<string>(accounts[0]?.id ?? '');
+  const [accountId, setAccountId] = useState<string>(accounts.find(a => a.type === 'checking')?.id ?? '');
 
   useEffect(() => {
     if (!visible) {
@@ -47,17 +51,18 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
       setAmountText('');
       setCategory('lifestyle');
       setCadence('monthly');
-      setAccountId(accounts[0]?.id ?? '');
+      setAccountId(accounts.find(a => a.type === 'checking')?.id ?? '');
     }
   }, [visible, accounts]);
 
-  const amount = parseFloat(amountText) || 0;
+  const amount = parseAmount(amountText);
   const checkingAccounts = accounts.filter((a) => a.type === 'checking');
-  const canAdd = label.trim().length > 0 && amount > 0 && accountId.length > 0;
+  const selectedAccountId = checkingAccounts.some(a => a.id === accountId) ? accountId : checkingAccounts[0]?.id;
+  const canAdd = label.trim().length > 0 && amount !== null && amount > 0 && !!selectedAccountId;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
           activeOpacity={1}
@@ -73,12 +78,17 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
+            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+              Creates a separate recurring expense. Existing rent and loan payments already run automatically.
+            </Text>
             <Field label="Label" theme={theme}>
               <TextInput
                 value={label}
                 onChangeText={setLabel}
-                placeholder="Netflix, Gym, Phone…"
+                accessibilityLabel="Bill name"
+                maxLength={60}
+                placeholder="Phone plan, club dues…"
                 placeholderTextColor={theme.textMuted}
                 style={[styles.input, { color: theme.text }]}
               />
@@ -87,6 +97,7 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
             <Field label="Amount" theme={theme}>
               <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
               <TextInput
+                accessibilityLabel="Bill amount in dollars"
                 value={amountText}
                 onChangeText={setAmountText}
                 keyboardType="decimal-pad"
@@ -102,6 +113,9 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
               />
             </Field>
 
+            {amountText.trim() !== '' && amount === null && (
+              <Text accessibilityRole="alert" style={[styles.fieldLabel, { color: accent.danger }]}>Enter a valid amount, such as 1,000.50.</Text>
+            )}
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Category</Text>
               <View style={styles.chipRow}>
@@ -121,18 +135,22 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Cadence</Text>
               <View style={styles.chipRow}>
                 <Chip label="Weekly" active={cadence === 'weekly'} theme={theme} onPress={() => setCadence('weekly')} />
-                <Chip label="Monthly" active={cadence === 'monthly'} theme={theme} onPress={() => setCadence('monthly')} />
+                <Chip label="Every 4 weeks" active={cadence === 'monthly'} theme={theme} onPress={() => setCadence('monthly')} />
               </View>
             </View>
 
+            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+              First payment in {cadence === 'weekly' ? '1 week' : '4 weeks'}. Keep the account funded to avoid missed payments and late fees.
+            </Text>
             <View>
+              {checkingAccounts.length === 0 && <Text accessibilityRole="alert" style={[styles.fieldLabel, { color: accent.danger }]}>A checking account is required.</Text>}
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>From account</Text>
               <View style={styles.chipRow}>
                 {checkingAccounts.map((a) => (
                   <Chip
                     key={a.id}
-                    label={`${a.name} ($${Math.round(a.balance).toLocaleString()})`}
-                    active={accountId === a.id}
+                    label={`${a.name} ($${Math.round(a.id === 'checking-default' && cashAvailable !== undefined ? cashAvailable : a.balance).toLocaleString()})`}
+                    active={selectedAccountId === a.id}
                     theme={theme}
                     onPress={() => setAccountId(a.id)}
                   />
@@ -141,25 +159,34 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
             </View>
           </ScrollView>
 
+          {amount !== null && amount > 0 && (
+            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+              ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} {cadence === 'weekly' ? 'every week' : 'every 4 weeks'}
+            </Text>
+          )}
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Add bill"
+            accessibilityState={{ disabled: !canAdd }}
             disabled={!canAdd}
-            onPress={() =>
+            onPress={() => {
+              if (!canAdd || amount === null || !selectedAccountId) return;
               onAdd({
                 label: label.trim(),
                 category,
                 amount,
-                fromAccountId: accountId,
+                fromAccountId: selectedAccountId,
                 cadence,
                 nextDueWeek: currentWeek + (cadence === 'weekly' ? 1 : 4),
                 source: 'subscription',
-              })
-            }
+              });
+            }}
             style={[styles.confirm, { backgroundColor: canAdd ? accent.info : theme.border }]}
           >
             <Text style={styles.confirmText}>Add Bill</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -186,6 +213,9 @@ function Chip({
 }) {
   return (
     <TouchableOpacity
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       style={[
         styles.chip,
@@ -255,6 +285,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   chip: {
+    minHeight: scale(44),
+    justifyContent: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,

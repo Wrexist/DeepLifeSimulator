@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "lockedBeforeMaturity": true,
+    "maturedOnRealWeek156": true,
+    "missedBillAndLoan": true,
+    "fundedRecoveryOnWeek157": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "lockedBeforeMaturity": true,
+    "maturedOnRealWeek156": true,
+    "missedBillAndLoan": true,
+    "fundedRecoveryOnWeek157": true,
+    "errors": []
+  }
+]

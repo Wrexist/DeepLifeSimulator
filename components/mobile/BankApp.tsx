@@ -975,6 +975,7 @@ function BankAppInner({ onBack }: BankAppProps) {
 
       <AddBillModal
         visible={showAddBill}
+        cashAvailable={cash}
         accounts={banking.accounts}
         currentWeek={gameState.weeksLived}
         darkMode={darkMode}
@@ -1100,7 +1101,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         title="Prepay loan"
         subtitle="Pays down principal directly. No prepayment penalty."
         confirmLabel="Prepay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, loans.find(loan => loan.id === prepayLoanId)?.remaining ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPrepayLoanId(null)}
@@ -1121,7 +1122,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         title="Pay credit card"
         subtitle={`Cash on hand: ${formatMoney(cash)}`}
         confirmLabel="Pay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, banking.creditCards.find(card => card.id === payCardId)?.balance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPayCardId(null)}

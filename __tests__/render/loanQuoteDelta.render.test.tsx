@@ -32,7 +32,7 @@ it('shows the checking balance after the loan and the payment share of income', 
 
   const text = JSON.stringify(tree.toJSON());
   expect(text).toContain('Checking after loan');
-  expect(text).toContain(formatMoney((checking?.balance ?? 0) + 10_000));
+  expect(text).toContain(formatMoney(state.stats.money + 10_000));
   expect(text).toContain('Share of weekly income');
 
   act(() => tree.unmount());

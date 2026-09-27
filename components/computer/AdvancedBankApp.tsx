@@ -751,7 +751,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         />
         {banking.billPayRules.length === 0 ? (
           <EmptyCard theme={theme} darkMode={darkMode}>
-            No bills set up. Add a recurring rule and we&apos;ll auto-debit it each week from your chosen account.
+            No bills set up. Add a recurring rule and we&apos;ll auto-debit it when due from your chosen account.
           </EmptyCard>
         ) : (
           banking.billPayRules.map((rule) => (
@@ -1198,6 +1198,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
       <AddBillModal
         visible={showAddBill}
+        cashAvailable={cash}
         accounts={banking.accounts}
         currentWeek={gameState.weeksLived}
         darkMode={darkMode}
@@ -1374,7 +1375,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         title="Prepay loan"
         subtitle="Pays down principal directly. No prepayment penalty."
         confirmLabel="Prepay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, loans.find(loan => loan.id === prepayLoanId)?.remaining ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPrepayLoanId(null)}
@@ -1395,7 +1396,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         title="Pay credit card"
         subtitle={`Cash on hand: ${formatMoney(cash)}`}
         confirmLabel="Pay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, banking.creditCards.find(card => card.id === payCardId)?.balance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPayCardId(null)}
