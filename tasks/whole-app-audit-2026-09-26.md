@@ -1,4 +1,4 @@
-> Current user-reported audit count (27 September): **40 remaining**. Earlier counts below are historical; this pass does not invent additional register entries or close native acceptance. [Character layout follow-through](release/evidence/character-layout-2026-09-27.md).
+> Current user-reported audit count (27 September): **0 remaining**. Native creator acceptance is separately [UNREACHED](release/evidence/creator-native-acceptance-2026-09-27.md). Earlier counts below are historical; this pass does not invent additional register entries or close native acceptance. [Character layout follow-through](release/evidence/character-layout-2026-09-27.md).
 
 # Whole-app imperfection audit - 26 September 2026
 

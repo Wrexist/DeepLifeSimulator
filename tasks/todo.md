@@ -1,6 +1,7 @@
 # Current audit count - 27 September 2026
 
-- User-reported remaining count: **40**. This supersedes the earlier 26-item count; historical evidence below is retained.
+- User-reported remaining count: **0**. This supersedes earlier 40/26 counts; historical findings and native acceptance evidence remain separate.
+- [ ] Native creator keyboard/Larger Text verification: UNREACHED; local and connected remote hosts are Windows, no iPhone/iPad or iOS simulator access detected. [Prepared device protocol and evidence](release/evidence/creator-native-acceptance-2026-09-27.md). Next: connect a native candidate or run a user-assisted device session.
 - [x] Character creator layout: tighter categories with 44-point targets, scalable two-line option labels, Next/Done name entry and tablet identity columns. [Evidence and screenshots](release/evidence/character-layout-2026-09-27.md). Native text/keyboard acceptance remains open.
 
 # Audit fixes - 26 September 2026
