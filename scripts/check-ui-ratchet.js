@@ -79,7 +79,7 @@ const METRICS = {
     // tier scale (lib/config/hierarchy.ts) putting 600 where 700/800 stood.
     // 693 -> 652 on 2026-09-02 (Program 5): the tier tokens put 600/700 where
     // 800 stood on the prestige, legacy and jail surfaces.
-    max: 647,
+    max: 645,
     goal: 540,
     pattern: /fontWeight:\s*'(?:700|800|900|bold)'/g,
   },

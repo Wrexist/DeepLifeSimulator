@@ -1,4 +1,5 @@
-import { responsiveSpacing as layoutSpace , fontScale, responsiveSpacing } from '@/utils/scaling';
+import { textStyles } from '@/lib/config/hierarchy';
+import { responsiveSpacing as layoutSpace , responsiveSpacing } from '@/utils/scaling';
 /**
  * StatStrip / StatTile - "a number with a label under it", once.
  *
@@ -40,14 +41,14 @@ export function StatTile({ label, value, sub, tint, align = 'center', hero = fal
       accessibilityRole="text"
       accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}
     >
-      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]} numberOfLines={2}>
+      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]}>
         {value}
       </Text>
-      <Text style={[styles.label, { color: theme.textMuted, textAlign }]} numberOfLines={2}>
+      <Text style={[styles.label, { color: theme.textMuted, textAlign }]}>
         {label}
       </Text>
       {sub ? (
-        <Text style={[styles.sub, { color: theme.textSecondary, textAlign }]} numberOfLines={2}>
+        <Text style={[styles.sub, { color: theme.textSecondary, textAlign }]}>
           {sub}
         </Text>
       ) : null}
@@ -87,20 +88,16 @@ const styles = StyleSheet.create({
     gap: layoutSpace.xs,
   },
   value: {
-    fontSize: fontScale(17),
-    fontWeight: '600',
+    ...textStyles.h2,
     fontVariant: ['tabular-nums'],
   },
   valueHero: {
-    fontSize: fontScale(28),
-    fontWeight: '600',
-    letterSpacing: -0.4,
+    ...textStyles.numericLarge,
   },
   label: {
-    fontSize: fontScale(12),
-    fontWeight: '500',
+    ...textStyles.caption,
   },
   sub: {
-    fontSize: fontScale(12),
+    ...textStyles.caption,
   },
 });

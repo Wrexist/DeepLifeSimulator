@@ -1,3 +1,4 @@
+import { textStyles } from '@/lib/config/hierarchy';
 /**
  * CompanyTile - dashboard card for a single company.
  *
@@ -100,10 +101,10 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
           <Icon size={fontScale(22)} color={color} strokeWidth={2.2} />
         </View>
         <View style={styles.headerText}>
-          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+          <Text style={[styles.name, { color: theme.text }]}>
             {company.name}
           </Text>
-          <Text style={[styles.industry, { color: theme.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.industry, { color: theme.textSecondary }]}>
             {company.type.charAt(0).toUpperCase() + company.type.slice(1)} · {company.employees} employees
           </Text>
         </View>
@@ -166,7 +167,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
       {scandal ? (
         <View style={[styles.scandalChip, { backgroundColor: withAlpha(HUSTLE_COLORS.danger, 0.13), borderColor: HUSTLE_COLORS.danger }]}>
           <AlertTriangle size={fontScale(11)} color={HUSTLE_COLORS.danger} strokeWidth={2.4} />
-          <Text style={[styles.scandalText, { color: HUSTLE_COLORS.danger }]} numberOfLines={1}>
+          <Text style={[styles.scandalText, { color: HUSTLE_COLORS.danger }]}>
             {scandal.headline}
           </Text>
         </View>
@@ -197,11 +198,10 @@ const styles = StyleSheet.create({
   },
   headerText: { flex: 1 },
   name: {
-    fontSize: fontScale(15),
-    fontWeight: '600',
+    ...textStyles.h3,
   },
   industry: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     marginTop: 2,
   },
   revBlock: {
@@ -209,6 +209,8 @@ const styles = StyleSheet.create({
   },
   revTopRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.xs,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -220,13 +222,11 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   revValue: {
-    fontSize: fontScale(19),
-    fontWeight: '600',
+    ...textStyles.h2,
     fontVariant: ['tabular-nums'],
   },
   revSuffix: {
-    fontSize: fontScale(11),
-    fontWeight: '500',
+    ...textStyles.caption,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -236,14 +236,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricLabel: {
-    fontSize: fontScale(10),
-    textTransform: 'uppercase',
+    ...textStyles.caption,
     letterSpacing: 0.4,
     marginBottom: 2,
   },
   metricValue: {
-    fontSize: fontScale(14),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
   brandRow: {
@@ -266,8 +264,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   scandalText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
+    ...textStyles.caption,
     flexShrink: 1,
   },
 });

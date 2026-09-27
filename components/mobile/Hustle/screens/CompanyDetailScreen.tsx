@@ -1,3 +1,4 @@
+import { textStyles } from '@/lib/config/hierarchy';
 import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * CompanyDetailScreen - single-company deep view (business-dashboard DNA).
@@ -341,7 +342,7 @@ export default function CompanyDetailScreen({
           <AlertTriangle size={fontScale(16)} color={HUSTLE_COLORS.danger} />
           <View style={styles.scandalText}>
             <Text style={[styles.scandalTitle, { color: HUSTLE_COLORS.danger }]}>Active scandal · severity {scandal.severity}</Text>
-            <Text style={[styles.scandalHead, { color: theme.text }]} numberOfLines={1}>{scandal.headline}</Text>
+            <Text style={[styles.scandalHead, { color: theme.text }]}>{scandal.headline}</Text>
           </View>
           <ChevronRight size={fontScale(16)} color={theme.textMuted} />
         </Pressable>
@@ -420,7 +421,7 @@ export default function CompanyDetailScreen({
                     <CharacterAvatar seed={h.candidateId} age={30} size={scale(38)} />
                   </View>
                   <View style={styles.rosterText}>
-                    <Text style={[styles.rosterName, { color: theme.text }]} numberOfLines={1}>
+                    <Text style={[styles.rosterName, { color: theme.text }]}>
                       {cap(h.role)} · ${h.salary.toLocaleString()}/wk
                     </Text>
                     <View style={styles.rosterMeterRow}>
@@ -523,7 +524,7 @@ export default function CompanyDetailScreen({
                   </View>
                   <View style={styles.campaignText}>
                     <View style={styles.campaignTitleRow}>
-                      <Text style={[styles.campaignTitle, { color: theme.text }]} numberOfLines={1}>
+                      <Text style={[styles.campaignTitle, { color: theme.text }]}>
                         {CAMPAIGN_LABEL[camp.kind] ?? cap(camp.kind)}
                       </Text>
                       <Text style={[styles.campaignRoi, { color: roiColor }]}>{roiMult > 0 ? `${roiPct >= 0 ? '+' : ''}${roiPct}% ROI` : 'Below floor'}</Text>
@@ -635,8 +636,8 @@ export default function CompanyDetailScreen({
                   <Star size={fontScale(13)} color={HUSTLE_COLORS.accent} strokeWidth={2.2} />
                 </View>
                 <View style={styles.boardText}>
-                  <Text style={[styles.boardName, { color: theme.text }]} numberOfLines={1}>{b.name}</Text>
-                  <Text style={[styles.boardMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                  <Text style={[styles.boardName, { color: theme.text }]}>{b.name}</Text>
+                  <Text style={[styles.boardMeta, { color: theme.textMuted }]}>
                     {BOARD_ROLE[b.role] ?? cap(b.role)} · {b.votingShare.toFixed(0)}% vote
                   </Text>
                 </View>
@@ -660,8 +661,8 @@ export default function CompanyDetailScreen({
               return (
                 <View key={a.id} style={[styles.acqRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                   <View style={styles.acqText}>
-                    <Text style={[styles.acqName, { color: theme.text }]} numberOfLines={1}>{a.targetName}</Text>
-                    <Text style={[styles.acqMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                    <Text style={[styles.acqName, { color: theme.text }]}>{a.targetName}</Text>
+                    <Text style={[styles.acqMeta, { color: theme.textMuted }]}>
                       {cap(a.targetIndustry)} · +{a.synergyBonusPercent.toFixed(0)}% synergy · {expiresIn}w to decide
                     </Text>
                   </View>
@@ -706,8 +707,8 @@ export default function CompanyDetailScreen({
                 <Crown size={fontScale(15)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
               </View>
               <View style={styles.rdText}>
-                <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>Family business</Text>
-                <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                <Text style={[styles.rdRowTitle, { color: theme.text }]}>Family business</Text>
+                <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
                   Founded gen {familyBusiness.foundedGeneration} · held {familyBusiness.generationsHeld} generation{familyBusiness.generationsHeld === 1 ? '' : 's'}
                 </Text>
               </View>
@@ -738,8 +739,8 @@ export default function CompanyDetailScreen({
               return (
                 <View key={opt.action} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                   <View style={styles.rdText}>
-                    <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{opt.label}</Text>
-                    <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{opt.effect}</Text>
+                    <Text style={[styles.rdRowTitle, { color: theme.text }]}>{opt.label}</Text>
+                    <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>{opt.effect}</Text>
                   </View>
                   <Pressable
                     onPress={() => handleManageFamilyBusiness(opt.action)}
@@ -762,8 +763,8 @@ export default function CompanyDetailScreen({
                 <Gem size={fontScale(15)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
               </View>
               <View style={styles.rdText}>
-                <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>Convert to family business</Text>
-                <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={2}>
+                <Text style={[styles.rdRowTitle, { color: theme.text }]}>Convert to family business</Text>
+                <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
                   A ${FAMILY_BUSINESS_COST.toLocaleString()} legacy that passes to your heirs, compounding brand value and reputation across generations.
                 </Text>
               </View>
@@ -827,10 +828,10 @@ export default function CompanyDetailScreen({
                     </View>
                   </ProgressRing>
                   <View style={styles.actionText}>
-                    <Text style={[styles.actionTitle, { color: theme.text }]} numberOfLines={1}>
+                    <Text style={[styles.actionTitle, { color: theme.text }]}>
                       {def.name}
                     </Text>
-                    <Text style={[styles.actionSub, { color: theme.textSecondary }]} numberOfLines={2}>
+                    <Text style={[styles.actionSub, { color: theme.textSecondary }]}>
                       {def.description} · +${def.weeklyIncomeBonus.toLocaleString()}/wk base (reduced at higher levels)
                     </Text>
                   </View>
@@ -882,8 +883,8 @@ export default function CompanyDetailScreen({
                         <FlaskConical size={fontScale(15)} color={rdAccent} strokeWidth={2.2} />
                       </View>
                       <View style={styles.rdText}>
-                        <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{info.name}</Text>
-                        <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                        <Text style={[styles.rdRowTitle, { color: theme.text }]}>{info.name}</Text>
+                        <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
                           {info.maxConcurrentProjects} project{info.maxConcurrentProjects === 1 ? '' : 's'} · {info.researchSpeedMultiplier}× speed
                         </Text>
                       </View>
@@ -910,8 +911,8 @@ export default function CompanyDetailScreen({
                       <FlaskConical size={fontScale(15)} color={rdAccent} strokeWidth={2.2} />
                     </View>
                     <View style={styles.rdText}>
-                      <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{labInfo!.name}</Text>
-                      <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                      <Text style={[styles.rdRowTitle, { color: theme.text }]}>{labInfo!.name}</Text>
+                      <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
                         {activeProjects.length}/{labInfo!.maxConcurrentProjects} active · {labInfo!.researchSpeedMultiplier}× speed
                       </Text>
                     </View>
@@ -944,7 +945,7 @@ export default function CompanyDetailScreen({
                       return (
                         <View key={p.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                           <View style={styles.rdText}>
-                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech?.name ?? p.technologyId}</Text>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]}>{tech?.name ?? p.technologyId}</Text>
                             <View style={styles.researchBar}>
                               <ProgressBar value={pct / 100} color={rdAccent} height={5} label="Research progress" />
                             </View>
@@ -970,8 +971,8 @@ export default function CompanyDetailScreen({
                       return (
                         <View key={tech.id} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                           <View style={styles.rdText}>
-                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech.name} · T{tech.tier}</Text>
-                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]}>{tech.name} · T{tech.tier}</Text>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
                               {tech.researchTime}w base{incomePct > 0 ? ` · +${incomePct}% income` : ''}
                             </Text>
                           </View>
@@ -1012,8 +1013,8 @@ export default function CompanyDetailScreen({
                       return (
                         <View key={techId} style={[styles.rdRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                           <View style={styles.rdText}>
-                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{tech?.name ?? techId}</Text>
-                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{patented ? 'Patented' : 'Eligible for patent'}</Text>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]}>{tech?.name ?? techId}</Text>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>{patented ? 'Patented' : 'Eligible for patent'}</Text>
                           </View>
                           {patented ? (
                             <Chip
@@ -1049,8 +1050,8 @@ export default function CompanyDetailScreen({
                           <FileText size={fontScale(13)} color={HUSTLE_COLORS.success} strokeWidth={2.2} />
                         </View>
                         <View style={styles.rdText}>
-                          <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{pt.name}</Text>
-                          <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>{pt.duration}w remaining</Text>
+                          <Text style={[styles.rdRowTitle, { color: theme.text }]}>{pt.name}</Text>
+                          <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>{pt.duration}w remaining</Text>
                         </View>
                         <Text style={[styles.rdIncome, { color: HUSTLE_COLORS.success }]}>+${pt.weeklyIncome.toLocaleString()}/wk</Text>
                       </View>
@@ -1073,8 +1074,8 @@ export default function CompanyDetailScreen({
                             <Award size={fontScale(14)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
                           </View>
                           <View style={styles.rdText}>
-                            <Text style={[styles.rdRowTitle, { color: theme.text }]} numberOfLines={1}>{comp.name}</Text>
-                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                            <Text style={[styles.rdRowTitle, { color: theme.text }]}>{comp.name}</Text>
+                            <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
                               1st ${comp.prizes.first.toLocaleString()} · entry ${comp.entryCost.toLocaleString()}
                             </Text>
                           </View>
@@ -1121,8 +1122,8 @@ export default function CompanyDetailScreen({
                       <Package size={fontScale(13)} color={HUSTLE_COLORS.factory} strokeWidth={2.2} />
                     </View>
                     <View style={styles.boardText}>
-                      <Text style={[styles.boardName, { color: theme.text }]} numberOfLines={1}>{s.name}</Text>
-                      <Text style={[styles.boardMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                      <Text style={[styles.boardName, { color: theme.text }]}>{s.name}</Text>
+                      <Text style={[styles.boardMeta, { color: theme.textMuted }]}>
                         ${s.costPerWeek.toLocaleString()}/wk · {contract}
                       </Text>
                     </View>
@@ -1154,10 +1155,10 @@ export default function CompanyDetailScreen({
                     <History size={fontScale(13)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
                   </View>
                   <View style={styles.ledgerText}>
-                    <Text style={[styles.ledgerTitle, { color: theme.text }]} numberOfLines={1}>
+                    <Text style={[styles.ledgerTitle, { color: theme.text }]}>
                       {scandalKindLabel(s.kind)} · {cap(s.resolutionMethod)}
                     </Text>
-                    <Text style={[styles.ledgerMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                    <Text style={[styles.ledgerMeta, { color: theme.textMuted }]}>
                       severity {s.severity} · -${Math.round(s.totalRevenueLoss).toLocaleString()} lost
                     </Text>
                   </View>
@@ -1206,7 +1207,7 @@ export default function CompanyDetailScreen({
                   ]}
                 >
                   {!n.read ? <View style={[styles.unreadDot, { backgroundColor: HUSTLE_COLORS.accent }]} /> : <View style={styles.unreadSpacer} />}
-                  <Text style={[styles.notifText, { color: n.read ? theme.textSecondary : theme.text }]} numberOfLines={2}>
+                  <Text style={[styles.notifText, { color: n.read ? theme.textSecondary : theme.text }]}>
                     {n.text}
                   </Text>
                 </Pressable>
@@ -1251,7 +1252,7 @@ function ActionRow({
       </View>
       <View style={styles.actionText}>
         <Text style={[styles.actionTitle, { color: theme.text }]}>{title}</Text>
-        <Text style={[styles.actionSub, { color: theme.textSecondary }]} numberOfLines={1}>
+        <Text style={[styles.actionSub, { color: theme.textSecondary }]}>
           {subtitle}
         </Text>
       </View>
@@ -1276,7 +1277,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.xl,
   },
   missingText: {
-    fontSize: fontScale(14),
+    ...textStyles.body,
     textAlign: 'center',
   },
   scandalBanner: {
@@ -1295,12 +1296,11 @@ const styles = StyleSheet.create({
   },
   scandalText: { flex: 1 },
   scandalTitle: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
+    ...textStyles.caption,
     letterSpacing: 0.4,
   },
   scandalHead: {
-    fontSize: fontScale(13),
+    ...textStyles.body,
     marginTop: 2,
   },
   scroll: {
@@ -1333,8 +1333,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   compCaption: {
-    fontSize: fontScale(10),
-    fontWeight: '600',
+    ...textStyles.caption,
     marginTop: 4,
     fontVariant: ['tabular-nums'],
   },
@@ -1345,15 +1344,13 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
   },
   deptSubhead: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    ...textStyles.caption,
     letterSpacing: 0.5,
     marginTop: responsiveSpacing.sm,
     marginBottom: 2,
   },
   deptEmpty: {
-    fontSize: fontScale(12),
+    ...textStyles.caption,
     lineHeight: fontScale(17),
     paddingVertical: responsiveSpacing.md,
   },
@@ -1376,8 +1373,7 @@ const styles = StyleSheet.create({
   },
   rosterText: { flex: 1, gap: 3 },
   rosterName: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
   rosterMeterRow: {
@@ -1386,17 +1382,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rosterMeterLabel: {
-    fontSize: fontScale(9),
-    fontWeight: '600',
-    width: scale(38),
-    textTransform: 'uppercase',
+    ...textStyles.caption,
+    minWidth: scale(48),
+    flexShrink: 1,
     letterSpacing: 0.3,
   },
   rosterMeterVal: {
-    fontSize: fontScale(10),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
-    width: scale(20),
+    minWidth: scale(28),
     textAlign: 'right',
   },
   // Generic staff
@@ -1407,15 +1401,14 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   staffCount: {
-    fontSize: fontScale(14),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
   staffCapBar: {
     height: 6,
   },
   staffHint: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     lineHeight: fontScale(15),
   },
   staffBtnRow: {
@@ -1434,8 +1427,7 @@ const styles = StyleSheet.create({
   },
   staffBtnText: {
     color: uiPalette.white,
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   staffBtnOutline: {
     flex: 1,
@@ -1448,8 +1440,7 @@ const styles = StyleSheet.create({
     minHeight: touchTargets.minimum,
   },
   staffBtnOutlineText: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   // Campaigns
   campaignRow: {
@@ -1475,16 +1466,14 @@ const styles = StyleSheet.create({
   },
   campaignTitle: {
     flex: 1,
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   campaignRoi: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
   },
   campaignMeta: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
   },
   campaignBar: {
@@ -1499,15 +1488,12 @@ const styles = StyleSheet.create({
   },
   ipoStat: { flex: 1 },
   ipoStatLabel: {
-    fontSize: fontScale(10),
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    ...textStyles.caption,
     letterSpacing: 0.3,
     marginBottom: 2,
   },
   ipoStatValue: {
-    fontSize: fontScale(16),
-    fontWeight: '600',
+    ...textStyles.h3,
     fontVariant: ['tabular-nums'],
   },
   earningsRow: {
@@ -1533,11 +1519,10 @@ const styles = StyleSheet.create({
   },
   boardText: { flex: 1 },
   boardName: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   boardMeta: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     marginTop: 1,
     fontVariant: ['tabular-nums'],
   },
@@ -1551,8 +1536,7 @@ const styles = StyleSheet.create({
     height: 5,
   },
   boardSatVal: {
-    fontSize: fontScale(10),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
   },
   // Acquisitions inline
@@ -1564,17 +1548,15 @@ const styles = StyleSheet.create({
   },
   acqText: { flex: 1 },
   acqName: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   acqMeta: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     marginTop: 1,
     fontVariant: ['tabular-nums'],
   },
   acqPrice: {
-    fontSize: fontScale(14),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
   // Ledger
@@ -1594,11 +1576,10 @@ const styles = StyleSheet.create({
   },
   ledgerText: { flex: 1 },
   ledgerTitle: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   ledgerMeta: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     marginTop: 1,
     fontVariant: ['tabular-nums'],
   },
@@ -1621,16 +1602,15 @@ const styles = StyleSheet.create({
   },
   actionText: { flex: 1 },
   actionTitle: {
-    fontSize: fontScale(14),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   actionSub: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     marginTop: 2,
   },
   badge: {
     minWidth: 20,
-    height: 20,
+    minHeight: 20,
     paddingHorizontal: 6,
     borderRadius: 10,
     alignItems: 'center',
@@ -1638,8 +1618,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: uiPalette.white,
-    fontSize: fontScale(10),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
   },
   // Upgrades
@@ -1660,8 +1639,7 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   upgradeRingLvl: {
-    fontSize: fontScale(10),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
   },
   upgradeBuyBtn: {
@@ -1674,8 +1652,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   upgradeBuyText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
   },
   // R&D
@@ -1695,24 +1672,21 @@ const styles = StyleSheet.create({
   },
   rdText: { flex: 1 },
   rdRowTitle: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
   rdRowMeta: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
     marginTop: 1,
     fontVariant: ['tabular-nums'],
   },
   rdPct: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
+    ...textStyles.caption,
     fontVariant: ['tabular-nums'],
     minWidth: scale(34),
     textAlign: 'right',
   },
   rdIncome: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
   notifHeaderRow: {
@@ -1725,8 +1699,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
   },
   notifClearText: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
+    ...textStyles.caption,
   },
   notifCard: {
     borderRadius: responsiveBorderRadius.xl,
@@ -1748,6 +1721,6 @@ const styles = StyleSheet.create({
   unreadSpacer: { width: 6 },
   notifText: {
     flex: 1,
-    fontSize: fontScale(13),
+    ...textStyles.body,
   },
 });

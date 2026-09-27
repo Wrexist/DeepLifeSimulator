@@ -1,4 +1,5 @@
-import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { textStyles } from '@/lib/config/hierarchy';
+import { responsiveSpacing as layoutSpace , responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 /**
  * Chip - the small labeled pill, once.
  *
@@ -58,7 +59,7 @@ export default function Chip({
   const body = (
     <>
       {icon}
-      <Text style={[styles.text, size === 'md' && styles.textMd, { color: textColor }]} numberOfLines={1}>
+      <Text style={[styles.text, size === 'md' && styles.textMd, { color: textColor }]}>
         {label}
       </Text>
     </>
@@ -68,7 +69,7 @@ export default function Chip({
     return (
       <TouchableOpacity
         onPress={onPress}
-        style={box}
+        style={[box, styles.interactive]}
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityState={{ selected }}
@@ -86,7 +87,10 @@ export default function Chip({
 }
 
 const styles = StyleSheet.create({
+  interactive: { minHeight: touchTargets.minimum, minWidth: touchTargets.minimum },
   chip: {
+    maxWidth: '100%',
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layoutSpace.xs,
@@ -104,11 +108,10 @@ const styles = StyleSheet.create({
     minHeight: scale(44),
   },
   text: {
-    fontSize: fontScale(11.5),
-    fontWeight: '500',
+    ...textStyles.caption,
+    flexShrink: 1,
   },
   textMd: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
 });

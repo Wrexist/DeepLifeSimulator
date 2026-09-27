@@ -112,3 +112,7 @@ Ambient public copy draws without replacement from a local authored pool; a diff
 ## App navigation headers
 
 AppHeader uses one leading Back/title arrangement, with optional trailing status or actions. Do not opt individual apps into centered title geometry. Branded search/toolbars may keep their specialized layout but must use AppBackButton as the leading control; secondary tools stay trailing. Back retains the existing parent-screen callback and an accurate destination label. Overlay Close remains a dismiss action rather than being conflated with Back. The persistent HUD and primary navigation are unchanged.
+
+## Shared supporting typography
+
+SectionTitle, CollapsibleSection, Chip, KeyValueRow and StatStrip consume the canonical textStyles hierarchy. Use caption (12-point base with a scaled 16-point line box) for readable metadata, body/bodyStrong for rows/actions, and heading/numeric styles for emphasis. Company cards and detail share this ladder. Preserve natural wrapping for costs, requirements, labels and explanations; avoid fixed-height text containers. Interactive chips and compact disclosure headers retain a 44-point minimum target. KeyValueRow includes its supporting explanation in its accessible label. Smaller decorative marks are not substitutes for readable decision information.
