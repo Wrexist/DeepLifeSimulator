@@ -42,7 +42,7 @@ import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
-import { clearHustleNotifications, markHustleNotificationRead } from '@/contexts/game/actions/HustleActions';
+import { clearHustleNotifications, markHustleNotificationRead, quoteIPO } from '@/contexts/game/actions/HustleActions';
 import { LAB_TYPES, getLabUpgradeCost, type LabType } from '@/lib/rd/labs';
 import { getAvailableTechnologies, getTechnologiesForCompany, getTechnologyById } from '@/lib/rd/technologyTree';
 import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competitions';
@@ -123,7 +123,7 @@ export default function CompanyDetailScreen({
     hustleHaptics.tap();
     gameAlert(
       'Sell company',
-      `Sell for ${formatMoney(quote)} (50% of what you've invested)? Staff, upgrades, and any IPO position are gone for good.`,
+      `Sell for ${formatMoney(quote)} (50% of current base and upgrade value)? Staff, upgrades, and any IPO position are gone for good.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -269,6 +269,7 @@ export default function CompanyDetailScreen({
   // is only one step of the payout chain (family brand, legacy generations, the
   // political business perk and government contracts land there too).
   const weekly = companyWeeklyIncomeFor(gameState, company, 1);
+  const ipoQuote = quoteIPO(gameState, companyId);
   const payroll = (overlay?.hiringPipeline?.namedHires ?? []).reduce(
     (sum, h) => sum + (typeof h.salary === 'number' && isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
     0,
@@ -289,7 +290,7 @@ export default function CompanyDetailScreen({
 
   const STAFF_CAP = 30; // matches addWorker's hard cap
   const canHireWorker = company.employees < STAFF_CAP && money >= company.workerSalary;
-  const canRemoveWorker = company.employees > 0;
+  const canRemoveWorker = company.employees > namedHires.length;
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
     ? gameState.economy.priceIndex
     : 1;
@@ -453,14 +454,14 @@ export default function CompanyDetailScreen({
         {/* Generic staff - canonical addWorker/removeWorker */}
         <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
-            {company.employees} / {STAFF_CAP} employees · payroll ${company.workerSalary.toLocaleString()}/hire
+            {company.employees} / {STAFF_CAP} employees · hiring cost ${company.workerSalary.toLocaleString()}/hire
           </Text>
           <View style={styles.staffCapBar}>
             <ProgressBar value={company.employees / STAFF_CAP} color={HUSTLE_COLORS.accent} label="Headcount against the cap" />
           </View>
           <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
             Hiring costs ${company.workerSalary.toLocaleString()} up front. Each employee compounds weekly income:
-            +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing staff is free but lowers income.
+            +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing general staff is free but lowers income. Release named hires through Hiring pipeline; severance applies.
           </Text>
           <View style={styles.staffBtnRow}>
             <Pressable
@@ -610,10 +611,10 @@ export default function CompanyDetailScreen({
             icon={Rocket}
             color={HUSTLE_COLORS.success}
             title="Take public (IPO)"
-            subtitle={weekly >= 10_000 ? 'Eligible - raise capital, dilute ownership' : 'Need $10K/week revenue'}
+            subtitle={ipoQuote.success ? 'Eligible - raise capital, dilute ownership' : ipoQuote.message}
             theme={theme}
             onPress={() => { hustleHaptics.tap(); onOpenIPO(); }}
-            disabled={weekly < 10_000 || !!scandal}
+            disabled={!ipoQuote.success}
           />
         ) : (
           <ActionRow
@@ -686,7 +687,7 @@ export default function CompanyDetailScreen({
           icon={AlertTriangle}
           color={HUSTLE_COLORS.danger}
           title="Sell company"
-          subtitle={`Divest for ${formatMoney(quoteCompanySaleValue(gameState, companyId) ?? 0)} - 50% of invested`}
+          subtitle={`Divest for ${formatMoney(quoteCompanySaleValue(gameState, companyId) ?? 0)} - 50% of current base and upgrades`}
           theme={theme}
           onPress={handleSellCompany}
         />

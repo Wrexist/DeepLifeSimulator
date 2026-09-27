@@ -1,0 +1,11 @@
+{
+  "numPassedTestSuites": 4,
+  "numFailedTestSuites": 0,
+  "numPassedTests": 32,
+  "numFailedTests": 0,
+  "success": true,
+  "seconds": 22.615,
+  "exitCode": 0,
+  "projected52WeekMilliseconds": 734,
+  "unchangedLimitMilliseconds": 1000
+}

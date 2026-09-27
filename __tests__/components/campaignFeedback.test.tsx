@@ -6,6 +6,8 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState, Company } from '@/contexts/game/types';
 import { hustleHaptics } from '@/components/mobile/Hustle/utils/hustleHaptics';
 
+Object.assign(jest.requireMock('react-native'), { PanResponder: { create: (handlers: object) => ({ panHandlers: handlers }) } });
+
 let mockRace: 'none' | 'energy' | 'money' | 'company' = 'none';
 let mockCommitted: GameState;
 const mockSave = jest.fn();

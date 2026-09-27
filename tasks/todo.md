@@ -37,7 +37,8 @@
 - [x] A07 source/browser pass: strict stock/crypto amounts, pending-order commitments, recurring-buy clarity and weekly labels. 230 focused tests and phone/tablet buy/sell/cancel, save-reopen, real weekly recurring-buy and offline-loaded mining journeys passed. [Evidence and screenshots](release/evidence/trading-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
 - [x] Money-entry sliders: shared drag/preset/Max control across player money forms, including banking. 164 distinct focused tests with Education; phone/tablet stock and account-opening checks passed. [Screenshots and evidence](release/evidence/amount-sliders-2026-09-27.md). Native acceptance remains open.
 - [x] A08 source/browser pass: study costs/readiness, pause guidance and withdrawal confirmation; student-loan continuity and real weekly graduation verified on phone/tablet. [Evidence and screenshots](release/evidence/education-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
-- [ ] Next: A09 Businesses. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
+- [x] A09 source/browser pass: committed founding/hiring/IPO/acquisition feedback, exact offer amounts, severance confirmation, protected named headcount and fresh-state transaction guards. Phone/tablet founding, research, real-week campaign progression, sale and low-resource checks passed. [Evidence and screenshots](release/evidence/business-lifecycle-2026-09-27.md). Full-suite timing and native/permutation gates are recorded separately.
+- [ ] Next: A10 Relationships and family. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

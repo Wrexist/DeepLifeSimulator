@@ -229,6 +229,8 @@ export function addWorker(
   if (companyIndex === -1) return;
 
   setGameState(prev => {
+    const companyIndex = (prev.companies ?? []).findIndex(c => c.id === targetId);
+    if (companyIndex === -1) return prev;
     const companies = [...prev.companies];
     const company = companies[companyIndex];
     const { workerSalary, employees, baseWeeklyIncome, workerMultiplier } =
@@ -285,9 +287,12 @@ export function removeWorker(
   if (companyIndex === -1) return;
 
   setGameState(prev => {
+    const companyIndex = (prev.companies ?? []).findIndex(c => c.id === targetId);
+    if (companyIndex === -1) return prev;
     const companies = [...prev.companies];
     const company = companies[companyIndex];
-    if (company.employees <= 0) return prev;
+    const namedCount = prev.hustleApp?.companies?.[targetId]?.hiringPipeline.namedHires.length ?? 0;
+    if (company.employees <= namedCount) return prev;
 
     // ECONOMY FIX: Apply same diminishing returns when removing workers
     const employeeCount = company.employees - 1;

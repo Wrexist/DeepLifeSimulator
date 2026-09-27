@@ -245,7 +245,7 @@ describe('the two banking modals that started this', () => {
   const open = code(path.join(repoRoot, 'components/banking/OpenAccountModal.tsx'));
 
   it('ApplyCardModal shrinks its product list', () => {
-    expect(apply).toMatch(/<ScrollView style=\{\{ flexShrink: 1 \}\}/);
+    expect(apply).toMatch(/<ScrollView\b[^>]*\bstyle=\{\{ flexShrink: 1 \}\}/);
     expect(apply).toMatch(/maxHeight: '90%'/);
   });
 
@@ -254,7 +254,7 @@ describe('the two banking modals that started this', () => {
     // sheet as ApplyCardModal, in the same banking flow, with the same
     // `scale(360)` cap - and unlike ApplyCardModal its sheet had no bound, so
     // it could grow straight past the screen.
-    expect(open).toMatch(/<ScrollView style=\{\{ flexShrink: 1 \}\}/);
+    expect(open).toMatch(/<ScrollView\b[^>]*\bstyle=\{\{ flexShrink: 1 \}\}/);
     expect(open).toMatch(/maxHeight: '90%'/);
   });
 
