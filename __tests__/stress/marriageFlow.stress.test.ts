@@ -464,6 +464,7 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
   it('haveChild: starts pregnancy on a partner with high relationship score', () => {
     mounted = mountGame();
     seedPartner('lover_alex', 90);
+    act(() => { captured!.setGameState(prev => ({ ...prev, relationships: prev.relationships.map(r => r.id === 'lover_alex' ? { ...r, livingTogether: true } : r) })); });
     act(() => { captured!.social.haveChild('lover_alex'); });
 
     const partner = captured!.state.relationships?.find(r => r.id === 'lover_alex');
@@ -486,6 +487,7 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
   it('haveChild: refuses when money < $5000', () => {
     mounted = mountGame();
     seedPartner('lover_alex', 90);
+    act(() => { captured!.setGameState(prev => ({ ...prev, relationships: prev.relationships.map(r => r.id === 'lover_alex' ? { ...r, livingTogether: true } : r) })); });
     act(() => captured!.setGameState(prev => ({ ...prev, stats: { ...prev.stats, money: 1000 } })));
     act(() => { captured!.social.haveChild('lover_alex'); });
     const partner = captured!.state.relationships?.find(r => r.id === 'lover_alex');
@@ -496,6 +498,7 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
   it('haveChild: refuses second pregnancy while already pregnant', () => {
     mounted = mountGame();
     seedPartner('lover_alex', 90);
+    act(() => { captured!.setGameState(prev => ({ ...prev, relationships: prev.relationships.map(r => r.id === 'lover_alex' ? { ...r, livingTogether: true } : r) })); });
     act(() => { captured!.social.haveChild('lover_alex'); });
     expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')?.isPregnant).toBe(true);
 

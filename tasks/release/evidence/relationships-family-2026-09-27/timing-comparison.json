@@ -1,0 +1,24 @@
+{
+  "firstIsolated": {
+    "success": false,
+    "passed": 0,
+    "failed": 1
+  },
+  "baseline": {
+    "success": true,
+    "passed": 1,
+    "failed": 0
+  },
+  "finalCurrent": {
+    "success": true,
+    "passed": 1,
+    "failed": 0
+  },
+  "projected52TicksMs": {
+    "fullConcurrent": 1676.48,
+    "firstIsolated": 1192.88,
+    "baseline": 725,
+    "finalCurrent": 721
+  },
+  "thresholdMs": 1000
+}

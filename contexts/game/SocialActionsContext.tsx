@@ -1,3 +1,4 @@
+import { familyPlanningBlock } from '@/lib/dating/familyPlanning';
 import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { Alert } from 'react-native';
@@ -11,7 +12,6 @@ import { updateMoney as rawUpdateMoney } from './actions/MoneyActions';
 import { updateStats as rawUpdateStats } from './actions/StatsActions';
 import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
-import { formatMoney } from '@/utils/moneyFormatting';
 import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
 
@@ -211,45 +211,9 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
       return;
     }
 
-    // Block if partner is already pregnant
-    if (partner.isPregnant) {
-      Alert.alert('Already Expecting', `${partner.name} is already pregnant! Wait for the baby to arrive.`);
-      return;
-    }
-
-    // Pregnancy cooldown: 40 weeks (~10 months) between children to prevent spam
-    const PREGNANCY_COOLDOWN_WEEKS = 40;
-    const currentWeeksLived = state.weeksLived || 0;
-    const children = state.family?.children || [];
-    if (children.length > 0) {
-      const lastChildBirthWeek = Math.max(
-        ...children.map((c: any) => c.birthWeeksLived || 0)
-      );
-      if (lastChildBirthWeek > 0 && currentWeeksLived - lastChildBirthWeek < PREGNANCY_COOLDOWN_WEEKS) {
-        const weeksRemaining = PREGNANCY_COOLDOWN_WEEKS - (currentWeeksLived - lastChildBirthWeek);
-        Alert.alert(
-          'Too Soon',
-          `You need to wait ${weeksRemaining} more week(s) before trying for another child.`
-        );
-        return;
-      }
-    }
-
-    if (state.stats.money < 5000) {
-      logger.warn(`Not enough money for child: have ${formatMoney(state.stats.money)}, need $5,000`);
-      Alert.alert(
-        'Not Enough Money',
-        `You need at least $5,000 to start a family. You currently have ${formatMoney(state.stats.money)}.`
-      );
-      return;
-    }
-
-    if (partner.relationshipScore < 70) {
-      logger.error('Relationship score too low for child:', partner.relationshipScore);
-      Alert.alert(
-        'Not Ready',
-        `Your relationship with ${partner.name} needs to be stronger before starting a family. Current: ${partner.relationshipScore}/100`
-      );
+    const blocked = familyPlanningBlock(state, partnerId);
+    if (blocked) {
+      Alert.alert('Family Planning', blocked);
       return;
     }
 
@@ -265,19 +229,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     // Start pregnancy instead of instant child creation
     setGameState(prev => {
-      /**
-       * R3-F9: re-check inside the updater.
-       *
-       * `isPregnant`, the 40-week cooldown, the $5,000 cost and the
-       * relationship-score floor were all checked against the stale
-       * `getGameState()`, and this updater re-checked none of them while
-       * unconditionally applying +20 happiness. The only caller sits behind an
-       * `Alert.alert` confirm that dismisses on first press, so landing two
-       * calls in one React batch is impractical - this is the pattern being
-       * closed, not a live exploit. CLAUDE.md §4.4.
-       */
-      const partner = (prev.relationships || []).find(r => r.id === partnerId);
-      if (!partner || partner.isPregnant) return prev;
+      if (familyPlanningBlock(prev, partnerId)) return prev;
 
       return {
       ...prev,

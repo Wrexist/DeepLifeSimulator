@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "planningCostsVisible": true,
+    "cancelUnchanged": true,
+    "pregnancyPersisted": true,
+    "noConceptionCharge": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "planningCostsVisible": true,
+    "cancelUnchanged": true,
+    "pregnancyPersisted": true,
+    "noConceptionCharge": true,
+    "errors": []
+  }
+]
