@@ -19,6 +19,18 @@ describe('validateOnboardingInputs', () => {
     sexuality: 'straight',
   };
 
+  it.each([
+    ['age', NaN], ['age', Infinity], ['age', -Infinity],
+    ['cash', NaN], ['cash', Infinity], ['cash', -Infinity],
+  ])('rejects non-finite scenario %s (%s) before building a life', (field, value) => {
+    const result = validateOnboardingInputs({
+      ...validInputs,
+      scenario: { id: 'invalid-number', start: { age: 20, cash: 500, [field]: value } },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errorTitle).toBe('Invalid Scenario');
+  });
+
   it('passes for valid inputs', () => {
     expect(validateOnboardingInputs(validInputs)).toEqual({ valid: true });
   });

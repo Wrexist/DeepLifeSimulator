@@ -27,7 +27,8 @@
 - [x] V16 Navigation: one leading Back/title layout across app headers; shared 44-point Back in DeepMail root/detail with accurate destination labels. 38 focused tests, source/test types and phone/tablet navigation checks pass. [Evidence and screenshots](release/evidence/navigation-consistency-2026-09-27.md).
 - [x] V17 Typography: Company Detail/cards and five shared component families use canonical text styles, wrapping metadata and 44-point action/disclosure targets. 32 focused tests and 320/375/768px company journeys pass. [Evidence and screenshots](release/evidence/typography-cleanup-2026-09-27.md).
 - [x] V18 Semantic colors: fixed cash identity across 15 headers, HUD-aligned pet vitals, explicit signed weekly effects and neutral zero/empty summaries. 30 focused tests, source/test types and phone/tablet adoption checks pass. [Evidence and screenshots](release/evidence/semantic-colors-2026-09-27.md).
-- [ ] Next: A01 Full custom onboarding. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
+- [x] A01 browser/source pass: retained perk/mindset drafts, rejected non-finite scenario inputs and verified portrait/custom start-save-reload on phone/tablet. [Evidence and screenshots](release/evidence/custom-onboarding-2026-09-27.md). A01 native/permutation acceptance remains open.
+- [ ] Next: A02 Career lifecycle. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

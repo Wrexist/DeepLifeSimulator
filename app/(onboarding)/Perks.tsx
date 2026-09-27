@@ -341,7 +341,7 @@ const MindsetCard = React.memo(function MindsetCard({
 });
 
 export default function Perks() {
-  const { state } = useOnboarding();
+  const { state, setState } = useOnboarding();
   // Perk unlock state comes from the LIVE achievement system. This used to select
   // `s.achievements` - the deprecated catalogue whose `completed` flag has no
   // writer - so all 20 perks were permanently locked. `getSatisfiedAchievementIds`
@@ -364,10 +364,10 @@ export default function Perks() {
   }, []);
 
   const insets = useSafeAreaInsets();
-  const [selected, setSelected] = useState<string[]>(state.perks);
+  const selected = state.perks;
   const [permanentPerks, setPermanentPerks] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('perks');
-  const [selectedMindset, setSelectedMindset] = useState<MindsetId | null>(null);
+  const selectedMindset = state.mindset ?? null;
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -421,14 +421,15 @@ export default function Perks() {
 
   const toggle = useCallback((id: string) => {
     haptic.selection();
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  }, []);
+    setState((prev) => ({
+      ...prev,
+      perks: prev.perks.includes(id) ? prev.perks.filter((p) => p !== id) : [...prev.perks, id],
+    }));
+  }, [setState]);
 
   const selectMindset = useCallback(
-    (id: MindsetId) => setSelectedMindset((prev) => (prev === id ? null : id)),
-    []
+    (id: MindsetId) => setState((prev) => ({ ...prev, mindset: prev.mindset === id ? null : id })),
+    [setState]
   );
 
   // H-7 (R8): synchronous re-entry guard for the start flow. Without it, two
@@ -622,7 +623,7 @@ export default function Perks() {
                 {selectedMindset && (
                   <TouchableOpacity
                     style={styles.clearButton}
-                    onPress={() => setSelectedMindset(null)}
+                    onPress={() => setState(prev => ({ ...prev, mindset: null }))}
                   >
                     <Text style={styles.clearButtonText}>
                       Clear Mindset Selection

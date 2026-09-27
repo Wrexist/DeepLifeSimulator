@@ -700,6 +700,7 @@ export default function MainMenu() {
         // choose them would not have tapped Quick Start.
         ambitionId: undefined,
         perks: [],
+        mindset: null,
       }));
 
       // Straight into the game. This used to `router.push('/(onboarding)/Perks')`
