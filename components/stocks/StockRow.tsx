@@ -1,7 +1,8 @@
 import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Svg, { Line, Polyline } from 'react-native-svg';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import { illustrativeStockTrend } from '@/lib/stocks/illustrativeTrend';
 import { ChevronRight, Star } from 'lucide-react-native';
 import { Sector, sectorForSymbol } from '@/lib/stocks/sectors';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -67,9 +68,8 @@ function formatPrice(n: number): string {
 }
 
 /**
- * Tiny honest trend line. The engine only persists the current quote and last
- * week's close, so this draws the real 2-point week-over-week segment (prev →
- * current) scaled by the size of the move - never a fabricated history array.
+ * Symbol curves are explicitly illustrative, with real weekly direction when
+ * available. Aggregate portfolio callers retain their two-point data segment.
  */
 export function Sparkline({
   changePct,
@@ -77,7 +77,9 @@ export function Sparkline({
   width = scale(44),
   height = scale(26),
   strokeWidth = 2,
+  symbol,
 }: {
+  symbol?: string;
   changePct?: number;
   color: string;
   width?: number;
@@ -91,10 +93,24 @@ export function Sparkline({
   const off = Math.max(-maxOff, Math.min(maxOff, raw));
   const y1 = mid + off; // previous close
   const y2 = mid - off; // current price
+  const values = symbol ? illustrativeStockTrend(symbol, changePct) : undefined;
+  const pad = strokeWidth + 1;
+  const low = values ? Math.min(...values) : 0;
+  const span = values ? Math.max(...values) - low || 1 : 1;
+  const points = values?.map((value, i) => ({
+    x: pad + (i / (values.length - 1)) * (width - pad * 2),
+    y: pad + (1 - (value - low) / span) * (height - pad * 2),
+  }));
+  const last = points?.[points.length - 1];
   return (
     <Svg width={width} height={height} pointerEvents="none">
       <Line x1={0} y1={mid} x2={width} y2={mid} stroke={color} strokeOpacity={0.16} strokeWidth={1} strokeDasharray="2 3" />
-      {has ? (
+      {points ? (
+        <>
+          <Polyline points={points.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          {last && <Circle cx={last.x} cy={last.y} r={strokeWidth * 0.85} fill={color} />}
+        </>
+      ) : has ? (
         <Polyline
           points={`0,${y1} ${width},${y2}`}
           fill="none"
@@ -149,7 +165,7 @@ export default function StockRow({
   const owned = (shares ?? 0) > 0;
   const up = (changePct ?? 0) > 0;
   const down = (changePct ?? 0) < 0;
-  const sparkColor = up ? accent.success : down ? accent.danger : theme.textMuted;
+  const sparkColor = up ? accent.success : down ? accent.danger : accent.info;
   const pnlPct = owned && (averagePrice ?? 0) > 0 ? (price - (averagePrice as number)) / (averagePrice as number) : null;
   const prevClose = changePct != null && isFinite(changePct) && changePct > -1 ? price / (1 + changePct) : null;
   const stateSuffix = sectorState && sectorState !== 'neutral' ? ` · ${STATE_SUFFIX[sectorState]}` : '';
@@ -159,7 +175,7 @@ export default function StockRow({
     (changePct != null && isFinite(changePct)
       ? `, ${up ? 'up' : down ? 'down' : 'flat'} ${(Math.abs(changePct) * 100).toFixed(2)} percent this week`
       : '') +
-    (owned ? `, you own ${shares?.toFixed(2)} shares` : '');
+    (owned ? `, you own ${shares?.toFixed(2)} shares` : '') + ', illustrative trend chart';
 
   const content = (
     <View style={styles.rowContent}>
@@ -199,7 +215,7 @@ export default function StockRow({
         )}
       </View>
 
-      <Sparkline changePct={changePct} color={sparkColor} width={scale(44)} height={scale(26)} />
+      <Sparkline symbol={symbol} changePct={changePct} color={sparkColor} width={scale(44)} height={scale(26)} />
 
       <View style={styles.rightCol}>
         <Text style={[styles.price, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>

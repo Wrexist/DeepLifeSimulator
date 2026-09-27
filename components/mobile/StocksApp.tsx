@@ -331,6 +331,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
           })}
         </View>
 
+        <Text style={[styles.sortChipText, { color: theme.textMuted }]}>Illustrative trends · quotes update weekly</Text>
+
         {visibleMarket.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>
             No stocks in this sector.
@@ -603,7 +605,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const estAnnual = estQuarterly * 4;
     const up = (changePct ?? 0) > 0;
     const down = (changePct ?? 0) < 0;
-    const sparkColor = up ? accent.success : down ? accent.danger : theme.textMuted;
+    const sparkColor = up ? accent.success : down ? accent.danger : accent.info;
     const momentum = state === 'strong' ? 'Sector strong' : state === 'weak' ? 'Sector weak' : 'Sector neutral';
     const watched = isWatched(symbol);
 
@@ -660,7 +662,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
                 this week{prevClose != null ? ` · prev ${formatPrice(prevClose)}` : ''}
               </Text>
             </View>
-            <Sparkline changePct={changePct} color={sparkColor} width={responsiveWidth(64)} height={scale(56)} strokeWidth={2.5} />
+            <Sparkline symbol={symbol} changePct={changePct} color={sparkColor} width={responsiveWidth(64)} height={scale(56)} strokeWidth={2.5} />
+            <Text style={[styles.heroChipLabel, { color: theme.textMuted }]}>Illustrative trend · not price history</Text>
           </HeroCard>
 
           {owned && (

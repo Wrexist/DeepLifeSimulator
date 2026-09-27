@@ -17,6 +17,7 @@
 - [x] V08 pet/travel/vehicle batch: 52 local illustrations, shared loading fallback, approved design pinned in AGENTS/presentation guide. 43 focused tests and phone/tablet browser journeys pass. [Evidence and gallery](release/evidence/life-art-2026-09-27.md).
 - [x] V08 complete: all 12 luxury items now match the illustrated catalogue family; 83.8% smaller art files. 32 focused tests and phone/tablet purchase/collection checks pass. [Evidence and gallery](release/evidence/luxury-art-2026-09-27.md).
 - [x] V09 Stocks: securities start 270px higher on compact phones; sector disclosure retains filters. 27 focused tests, source types and three-width browser interactions pass. [Evidence and screenshots](release/evidence/stocks-hierarchy-2026-09-27.md).
+- [x] Stock curves: distinct seeded illustrative charts from startup, rounded strokes, real quotes/change preserved. 18 focused tests, source types and phone/tablet revisit checks pass. [Screenshots and evidence](release/evidence/stock-curves-2026-09-27.md).
 - [ ] Next: V10 financial hierarchy and duplicate totals. [Remaining register](whole-app-audit-2026-09-26.md): 35 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
