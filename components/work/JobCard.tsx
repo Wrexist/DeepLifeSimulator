@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import SceneCard from '@/components/ui/SceneCard';
+import { workArtwork } from '@/lib/config/workArtwork';
 
 import GradientButton from '@/components/ui/GradientButton';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
@@ -18,6 +19,7 @@ export interface JobCardMetadata {
 }
 
 interface JobCardProps {
+  jobId?: string;
   title: string;
   description: string;
   reward: string;
@@ -69,6 +71,7 @@ const META_TONE: Record<NonNullable<JobCardMetadata['tone']>, string> = {
 };
 
 export default function JobCard({
+  jobId,
   title,
   description,
   reward,
@@ -87,9 +90,8 @@ export default function JobCard({
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
   const descLine = locked && lockReason ? lockReason : description;
-  const showArt = emphasis === 'primary' && !locked;
-  const careerScene = /food|cook|chef|restaurant/i.test(title) ? 'cafe'
-    : /doctor|nurse|medical/i.test(title) ? 'clinic' : 'studio';
+  const scene = workArtwork(jobId, title, accent === 'career');
+  const showArt = !!scene && !locked;
 
   const [expanded, setExpanded] = useState(false);
   const hiddenCount = metadata.length - MAX_VISIBLE_CHIPS;
@@ -97,7 +99,6 @@ export default function JobCard({
 
   return (
     <View style={styles.card}>
-      {showArt && accent !== 'career' && <SceneCard scene={accent === 'street' ? 'cafe' : 'city'} title="Around town" subtitle="Review the cost before you commit." />}
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
@@ -112,12 +113,12 @@ export default function JobCard({
           </View>
         </View>
 
-        {descLine || (showArt && accent === 'career') ? (
+        {descLine || showArt ? (
           <View style={styles.descriptionRow}>
             <Text style={[styles.description, styles.descriptionText]} numberOfLines={3}>
               {descLine}
             </Text>
-            {showArt && accent === 'career' && <SceneCard scene={careerScene} thumbnail />}
+            {showArt && scene && <SceneCard scene={scene} thumbnail />}
           </View>
         ) : null}
 

@@ -1,3 +1,8 @@
+# Gem wallet and contextual work art - 28 September 2026
+
+- [x] Centered HUD gem text; replaced the read-only popup with Top up / Spend gems using existing IAP and upgrade owners. Added ten original matching 3D props and compact action-specific Work art. [Changes, screenshots and verification](gem-wallet-work-art-2026-09-28.md).
+- [ ] Verify this change on the next signed iPhone/iPad candidate: Larger Text, gem IAP purchase/cancel/retry and persisted balance. The previous 2.15.0 build does not contain these edits.
+
 # Authorized TestFlight candidate - 27 September 2026
 
 - [x] Uploaded all current work and started the macOS local TestFlight workflow for **2.15.0**, pinned to 875b63a2 after preflight, quality, full tests and coverage passed. [Run 36352338525](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/36352338525): verification in progress; compilation/submission/Apple processing pending. [Execution checklist](testflight-2.15.0-2026-09-27.md).

@@ -283,6 +283,8 @@ export const styles = StyleSheet.create({
  backgroundColor: 'rgba(255,255,255,0.25)',
  flexShrink: 0,
  },
+ gemNumberContainer: { flexShrink: 1, justifyContent: 'center', alignItems: 'center' },
+ gemNumber: { lineHeight: undefined, includeFontPadding: false, textAlign: 'center', textAlignVertical: 'center', fontVariant: ['tabular-nums'] },
 
  // Right side
  rightSection: {

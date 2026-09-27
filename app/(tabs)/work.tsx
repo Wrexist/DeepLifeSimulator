@@ -536,6 +536,7 @@ function WorkScreenContent() {
 
             return (
                 <JobCard
+                    jobId={job.id}
                     key={job.id}
                     accent="crime"
                     title={job.name}
@@ -592,6 +593,7 @@ function WorkScreenContent() {
 
         return (
             <JobCard
+                jobId={job.id}
                 key={job.id}
                 accent="street"
                 title={job.name}

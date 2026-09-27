@@ -66,7 +66,6 @@ const EnergyBreakdownModal = React.lazy(() => import('./EnergyBreakdownModal'));
 const HappinessBreakdownModal = React.lazy(() => import('./HappinessBreakdownModal'));
 const HealthBreakdownModal = React.lazy(() => import('./HealthBreakdownModal'));
 const MoneyBreakdownModal = React.lazy(() => import('./MoneyBreakdownModal'));
-const GemsBreakdownModal = React.lazy(() => import('./GemsBreakdownModal'));
 
 // Memoized TopStatsBar to prevent unnecessary re-renders
 function TopStatsBarComponent() {
@@ -97,7 +96,7 @@ function TopStatsBarComponent() {
  const { openStore } = useGemStore();
 
  // Single modal state - only one modal open at a time, reduces re-renders
- type ModalName = 'settings'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'gemsBreakdown'| null;
+ type ModalName = 'settings'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'| null;
  const [openModal, setOpenModal] = useState<ModalName>(null);
  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
  const closeModal = useCallback(() => setOpenModal(null), []);
@@ -677,12 +676,12 @@ function TopStatsBarComponent() {
  <TouchableOpacity
  onPress={() => {
  buttonPress();
- setOpenModal('gemsBreakdown');
+ openStore('gems', { wallet: true });
  }}
  activeOpacity={0.7}
  accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}`}
  accessibilityRole="button"
- accessibilityHint="Opens your gem breakdown"
+ accessibilityHint="Opens your gem wallet, top-ups and upgrades"
  style={styles.gemBalanceTarget}
  >
  <View
@@ -691,9 +690,9 @@ function TopStatsBarComponent() {
  ]}
  >
  <Gem size={14} color="#A5B4FC" style={styles.chipIcon} />
- <View style={styles.chipTextContainer}>
+ <View style={styles.gemNumberContainer}>
  <Text maxFontSizeMultiplier={1.3}
- style={styles.chipText}
+ style={[styles.chipText, styles.gemNumber]}
  numberOfLines={1}
  adjustsFontSizeToFit={true}
  minimumFontScale={0.7}
@@ -703,14 +702,11 @@ function TopStatsBarComponent() {
  </View>
  </View>
  </TouchableOpacity>
- {/* The + is the ONE store affordance on the chip. Tap-on-chip used to open
-     the STORE while every sibling chip's tap opened a breakdown - the only
-     gesture inversion in the HUD, and a monetization tap wired to the
-     primary gesture of a stat readout. Now: chip = breakdown, + = buy. */}
+ {/* Separate 44-point targets; both open the wallet without starting a purchase. */}
  <TouchableOpacity
  onPress={() => {
  buttonPress();
- openStore('gems');
+ openStore('gems', { wallet: true });
  }}
  accessibilityLabel="Buy gems"
  accessibilityRole="button"
@@ -737,7 +733,6 @@ function TopStatsBarComponent() {
  {openModal === 'happinessBreakdown' && <HappinessBreakdownModal visible onClose={closeModal} />}
  {openModal === 'healthBreakdown' && <HealthBreakdownModal visible onClose={closeModal} />}
  {openModal === 'moneyBreakdown' && <MoneyBreakdownModal visible onClose={closeModal} />}
- {openModal === 'gemsBreakdown' && <GemsBreakdownModal visible onClose={closeModal} />}
  {openModal === 'prestige' && <PrestigeModal visible onClose={closeModal} />}
  </Suspense>
  )}

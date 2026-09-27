@@ -1,0 +1,32 @@
+[
+  {
+    "width": 320,
+    "gemTarget": {
+      "x": 86.625,
+      "y": 136,
+      "width": 44,
+      "height": 44
+    },
+    "errors": []
+  },
+  {
+    "width": 375,
+    "gemTarget": {
+      "x": 117.328125,
+      "y": 155,
+      "width": 44,
+      "height": 44
+    },
+    "errors": []
+  },
+  {
+    "width": 768,
+    "gemTarget": {
+      "x": 135.234375,
+      "y": 186.5,
+      "width": 44.203125,
+      "height": 44
+    },
+    "errors": []
+  }
+]

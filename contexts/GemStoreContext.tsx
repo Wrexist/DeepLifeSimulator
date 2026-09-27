@@ -20,6 +20,7 @@ const GemShopModal = lazy(() => import('@/components/GemShopModal'));
 export type GemStoreTab = 'upgrades' | 'store' | 'perks' | 'gems';
 
 export interface GemStoreOpenOptions {
+  wallet?: boolean;
   /**
    * Deep-link straight to one product's purchase confirm (the death screen's
    * Revival Pack row). The modal still owns the whole purchase flow - this
@@ -47,11 +48,12 @@ export function GemStoreProvider({ children }: { children: React.ReactNode }) {
   const [openRequest, setOpenRequest] = useState<{
     tab: GemStoreTab;
     purchaseProductId?: string;
+    wallet?: boolean;
   } | null>(null);
 
   const openStore = useCallback(
     (tab: GemStoreTab = 'gems', options?: GemStoreOpenOptions) =>
-      setOpenRequest({ tab, purchaseProductId: options?.purchaseProductId }),
+      setOpenRequest({ tab, purchaseProductId: options?.purchaseProductId, wallet: options?.wallet }),
     [],
   );
   const closeStore = useCallback(() => setOpenRequest(null), []);
@@ -69,6 +71,7 @@ export function GemStoreProvider({ children }: { children: React.ReactNode }) {
           <GemShopModal
             visible
             initialTab={openRequest.tab}
+            wallet={openRequest.wallet}
             initialPurchaseId={openRequest.purchaseProductId}
             onClose={closeStore}
           />

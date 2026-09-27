@@ -1,6 +1,9 @@
 import React from 'react';
+import { act } from 'react-test-renderer';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import GemShopModal from '@/components/GemShopModal';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 
 // useReducedMotion reads AccessibilityInfo, which the jest react-native mock
 // omits — stub it (as ConfirmDialog's render test does) so the render exercises
@@ -35,6 +38,38 @@ jest.mock('lucide-react-native', () => new Proxy(
  * real-$ string we assert on. No iapService mock is needed for a render smoke.
  */
 describe('render - GemShopModal (IAP store)', () => {
+  it('uses the loaded localized price and keeps missing products unavailable', () => {
+    const state = jest.spyOn(iapService, 'getState').mockReturnValue({
+      ...iapService.getState(), isConnected: true,
+      products: [{ productId: IAP_PRODUCTS.GEMS_100, displayPrice: '12,00 kr', priceAmount: 12, currency: 'SEK' }],
+    });
+    const { renderer, unmount } = renderWithProviders(<GemShopModal visible wallet onClose={() => {}} />);
+    try {
+      const text = JSON.stringify(renderer.toJSON());
+      expect(text).toContain('12,00 kr');
+      expect(text).toContain('gems per 1 SEK');
+      expect(text).not.toContain('gems / $1');
+      expect(text).toContain('Price unavailable');
+      expect(text).not.toContain('$4.99');
+    } finally { unmount(); state.mockRestore(); }
+  });
+  it('opens a focused wallet and lets the player browse gem upgrades without a store connection', () => {
+    const { renderer, unmount } = renderWithProviders(<GemShopModal visible wallet onClose={() => {}} />);
+    const text = () => JSON.stringify(renderer.toJSON());
+    expect(text()).toContain('Gem wallet');
+    expect(text()).toContain('100 Gems');
+    expect(text()).toContain('Store unavailable');
+    expect(text()).toContain('Price unavailable');
+    expect(text()).not.toContain('$0.99');
+    expect(text()).not.toContain('Featured tab');
+    act(() => renderer.root.findAllByProps({ accessibilityLabel: 'Spend gems tab' }).find(n => typeof n.props.onPress === 'function')!.props.onPress());
+    expect(text()).toContain('Permanent upgrades');
+    expect(text()).not.toContain('Store unavailable');
+    expect(text()).not.toContain('Gem packs');
+    act(() => renderer.root.findAllByProps({ accessibilityLabel: 'Top up tab' }).find(n => typeof n.props.onPress === 'function')!.props.onPress());
+    expect(text()).toContain('100 Gems');
+    unmount();
+  });
   it('mounts (visible) on the default Gems tab with a known pack at a real-$ price', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <GemShopModal visible onClose={() => {}} />,

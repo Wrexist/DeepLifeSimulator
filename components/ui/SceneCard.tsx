@@ -8,6 +8,16 @@ import { useTheme } from '@/hooks/useTheme';
 import { responsiveSpacing as layoutSpace, scale, responsiveBorderRadius } from '@/utils/scaling';
 
 const scenes = {
+  'work-lost-items': require('@/assets/images/scenes/work-lost-items.webp'),
+  'work-delivery': require('@/assets/images/scenes/work-delivery.webp'),
+  'work-cleaning': require('@/assets/images/scenes/work-cleaning.webp'),
+  'work-garden': require('@/assets/images/scenes/work-garden.webp'),
+  'work-pet-care': require('@/assets/images/scenes/work-pet-care.webp'),
+  'work-study': require('@/assets/images/scenes/work-study.webp'),
+  'work-network': require('@/assets/images/scenes/work-network.webp'),
+  'work-retail': require('@/assets/images/scenes/work-retail.webp'),
+  'work-recycling': require('@/assets/images/scenes/work-recycling.webp'),
+  'work-vehicle': require('@/assets/images/scenes/work-vehicle.webp'),
   gym: require('@/assets/images/scenes/destination-gym.webp'),
   clinic: require('@/assets/images/scenes/destination-clinic.webp'),
   university: require('@/assets/images/scenes/destination-university.webp'),
