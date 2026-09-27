@@ -16,7 +16,8 @@
 - [x] Creator UI cleanup: all topics visible, compact reach disclosure, no duplicate status card and stable Streaming selection. 7 focused regressions and 320/375/768px browser journeys pass. [Evidence](release/evidence/creator-ui-cleanup-2026-09-27.md).
 - [x] V08 pet/travel/vehicle batch: 52 local illustrations, shared loading fallback, approved design pinned in AGENTS/presentation guide. 43 focused tests and phone/tablet browser journeys pass. [Evidence and gallery](release/evidence/life-art-2026-09-27.md).
 - [x] V08 complete: all 12 luxury items now match the illustrated catalogue family; 83.8% smaller art files. 32 focused tests and phone/tablet purchase/collection checks pass. [Evidence and gallery](release/evidence/luxury-art-2026-09-27.md).
-- [ ] Next: V09 Stocks hierarchy. [Remaining register](whole-app-audit-2026-09-26.md): 36 V/A/O items remain open, including native acceptance.
+- [x] V09 Stocks: securities start 270px higher on compact phones; sector disclosure retains filters. 27 focused tests, source types and three-width browser interactions pass. [Evidence and screenshots](release/evidence/stocks-hierarchy-2026-09-27.md).
+- [ ] Next: V10 financial hierarchy and duplicate totals. [Remaining register](whole-app-audit-2026-09-26.md): 35 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

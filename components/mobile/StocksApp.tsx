@@ -57,6 +57,7 @@ import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import StatStrip from '@/components/ui/StatStrip';
 import SectionTitle from '@/components/ui/SectionTitle';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 
 const LinearGradient = Gradient;
 
@@ -274,8 +275,13 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         ]}
       />
 
-      <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle title="Sector rotation" />
+      <CollapsibleSection
+        id="stocks.sectorRotation"
+        title="Sector rotation"
+        defaultCollapsed
+        summary={sectorFilter ? SECTOR_LABEL[sectorFilter] : `${sectorBoard.length} sectors`}
+        style={{ marginBottom: 0 }}
+      >
         <View style={styles.sectorGrid}>
           {sectorBoard.map((b) => (
             <SectorTile
@@ -288,7 +294,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
             />
           ))}
         </View>
-      </View>
+      </CollapsibleSection>
 
       <View style={{ gap: responsiveSpacing.sm }}>
         <View style={styles.listHeader}>
@@ -934,13 +940,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(3),
     paddingHorizontal: responsiveSpacing.sm,
-    minHeight: touchTargets.minimum,
+    minHeight: Math.max(44, touchTargets.minimum),
     borderRadius: responsiveBorderRadius.full,
     backgroundColor: 'rgba(168,85,247,0.14)',
   },
   clearChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   sortRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
-  sortChip: { flex: 1, minHeight: touchTargets.minimum, alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
+  sortChip: { flex: 1, minHeight: Math.max(44, touchTargets.minimum), alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
   sortChipText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Sector board
