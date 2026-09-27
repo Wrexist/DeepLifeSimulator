@@ -24,7 +24,8 @@
 - [x] V13 Education: Enroll free for zero-cost/fully funded courses, exact weeks throughout and named automatic classes; paid commitments remain explicit. 23 focused tests and phone/tablet enrollment flows pass. [Evidence and screenshots](release/evidence/education-copy-2026-09-27.md).
 - [x] V14 Contacts: visible costs/effects, borrowing and lending obligations, weekly/affordability/max-bond reasons and preserved family eligibility. 26 focused tests and phone/tablet journeys pass. [Evidence and screenshots](release/evidence/contacts-clarity-2026-09-27.md).
 - [x] V15 Pulse: 30 authored public posts drawn without repetition, plus context-aware contact voices from actual recent events/interactions and mood/personality. 32 focused tests and phone/tablet feed checks pass. [Evidence and screenshots](release/evidence/pulse-personality-2026-09-27.md).
-- [ ] Next: V16 Navigation consistency. [Remaining register](whole-app-audit-2026-09-26.md): 29 V/A/O items remain open, including native acceptance.
+- [x] V16 Navigation: one leading Back/title layout across app headers; shared 44-point Back in DeepMail root/detail with accurate destination labels. 38 focused tests, source/test types and phone/tablet navigation checks pass. [Evidence and screenshots](release/evidence/navigation-consistency-2026-09-27.md).
+- [ ] Next: V17 Typography and component debt. [Remaining register](whole-app-audit-2026-09-26.md): 28 V/A/O items remain open, including native acceptance.
 - No production deployment or signed native acceptance.
 
 # Whole-app audit - 26 September 2026

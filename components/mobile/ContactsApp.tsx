@@ -1516,7 +1516,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <AppHeader
-        centered
+
         title={inDetail && detailContact ? detailContact.name : 'Contacts'}
         onBack={handleBack}
         backLabel={inDetail ? 'Back to contacts' : 'Back'}

@@ -60,7 +60,7 @@ export default function HustleApp({ onBack }: HustleAppProps) {
           <AppHeader
             title="hustle"
             onBack={onBack}
-            centered
+
             right={<CashChip value={formatMoney(cash)} tint={HUSTLE_COLORS.accent} />}
           />
           <DashboardScreen onOpenCompany={openDetail} onCreateCompany={openCreate} />

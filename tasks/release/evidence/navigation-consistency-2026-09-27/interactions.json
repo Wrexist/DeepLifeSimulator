@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "leadingBack": "passed",
+    "headers": "passed",
+    "mailSearchFoldersAndExit": "passed",
+    "messageDetail": "not exercised: empty fixture inbox",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "leadingBack": "passed",
+    "headers": "passed",
+    "mailSearchFoldersAndExit": "passed",
+    "messageDetail": "not exercised: empty fixture inbox",
+    "errors": []
+  }
+]

@@ -218,7 +218,7 @@ export default function CompanyDetailScreen({
   if (!company) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <AppHeader title="Company" onBack={onBack} backLabel="Back to portfolio" centered />
+        <AppHeader title="Company" onBack={onBack} backLabel="Back to portfolio" />
         <View style={styles.missingWrap}>
           <Text style={[styles.missingText, { color: theme.textSecondary }]}>
             This company is no longer in your portfolio.
@@ -323,7 +323,7 @@ export default function CompanyDetailScreen({
         title={company.name}
         onBack={onBack}
         backLabel="Back to portfolio"
-        centered
+
         right={<CashChip value={formatMoney(money)} tint={HUSTLE_COLORS.accent} />}
       />
 

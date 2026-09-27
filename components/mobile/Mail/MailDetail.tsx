@@ -1,3 +1,4 @@
+import { AppBackButton } from '@/components/ui/AppHeader';
 /**
  * One open message.
  *
@@ -19,7 +20,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
-  ArrowLeft,
   Archive,
   BadgeCheck,
   Star,
@@ -108,15 +108,7 @@ function MailDetail({
   return (
     <View style={s.container}>
       <View style={s.toolbar}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={s.toolBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Back to inbox"
-        >
-          <ArrowLeft size={scale(21)} color={theme.text} />
-        </TouchableOpacity>
+        <AppBackButton onBack={onBack} label="Back to mail" />
         <View style={s.toolSpacer} />
         <TouchableOpacity
           onPress={onArchive}

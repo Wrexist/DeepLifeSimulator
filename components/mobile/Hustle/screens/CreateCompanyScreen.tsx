@@ -129,7 +129,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
         title="Found a company"
         onBack={onBack}
         backLabel="Back to portfolio"
-        centered
+
         right={<CashChip value={formatMoney(playerMoney)} tint={HUSTLE_COLORS.accent} />}
       />
 

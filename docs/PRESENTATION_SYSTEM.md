@@ -108,3 +108,7 @@ Call, Hang out, borrowing, lending and non-family bond building use `PersonalCon
 ## Pulse authored feed
 
 Ambient public copy draws without replacement from a local authored pool; a different post ID does not make repeated text distinct. Known-contact posts prefer recent recorded life events and interactions, then mood/personality copy. Future or stale records must not be presented as current news. Keep posting eligibility, engagement/reward rules, player posts and saved history with their existing owners. New feed writing must not create notifications, rewards or invented player milestones, and requires no AI/network service.
+
+## App navigation headers
+
+AppHeader uses one leading Back/title arrangement, with optional trailing status or actions. Do not opt individual apps into centered title geometry. Branded search/toolbars may keep their specialized layout but must use AppBackButton as the leading control; secondary tools stay trailing. Back retains the existing parent-screen callback and an accurate destination label. Overlay Close remains a dismiss action rather than being conflated with Back. The persistent HUD and primary navigation are unchanged.

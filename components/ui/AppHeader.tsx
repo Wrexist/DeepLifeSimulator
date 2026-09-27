@@ -33,34 +33,34 @@ interface AppHeaderProps {
   /** Screen-reader label for the back control. Default "Back". */
   backLabel?: string;
   right?: React.ReactNode;
-  /** Centre the title (Contacts/Hustle style). Default: leading, next to the arrow. */
-  centered?: boolean;
   style?: ViewStyle;
 }
 
-export default function AppHeader({ title, onBack, backLabel = 'Back', right, centered = false, style }: AppHeaderProps) {
+export default function AppHeader({ title, onBack, backLabel = 'Back', right, style }: AppHeaderProps) {
   const { theme } = useTheme();
   return (
     <View style={[styles.bar, style]}>
-      <TouchableOpacity
-        onPress={onBack}
-        hitSlop={8}
-        style={styles.back}
-        accessibilityRole="button"
-        accessibilityLabel={backLabel}
-      >
-        <ArrowLeft size={scale(22)} color={theme.text} />
-      </TouchableOpacity>
+      <AppBackButton onBack={onBack} label={backLabel} />
       <Text
-        style={[styles.title, { color: theme.text }, centered && styles.titleCentered]}
+        style={[styles.title, { color: theme.text }]}
         numberOfLines={2}
         accessibilityRole="header"
       >
         {title}
       </Text>
-      {/* A trailing slot that is always laid out keeps a centred title centred. */}
-      <View style={styles.right}>{right ?? (centered ? <View style={styles.back} /> : null)}</View>
+      {right != null && <View style={styles.right}>{right}</View>}
     </View>
+  );
+}
+
+/** Shared leading navigation control, also used by branded search/toolbars. */
+export function AppBackButton({ onBack, label = 'Back' }: { onBack: () => void; label?: string }) {
+  const { theme } = useTheme();
+  return (
+    <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.back}
+      activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={label}>
+      <ArrowLeft size={scale(22)} color={theme.text} />
+    </TouchableOpacity>
   );
 }
 
@@ -144,9 +144,6 @@ const styles = StyleSheet.create({
     fontSize: fontScale(18),
     fontWeight: '600',
     letterSpacing: 0.1,
-  },
-  titleCentered: {
-    textAlign: 'center',
   },
   right: {
     maxWidth: '50%',
