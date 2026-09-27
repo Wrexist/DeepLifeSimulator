@@ -1668,7 +1668,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         title={detailTitle}
         onBack={handleBack}
         backLabel={subView ? 'Back to Crypto' : 'Back'}
-        right={<CashChip value={formatMoneyCompact(cash)} tint={AMBER} />}
+        right={<CashChip value={formatMoneyCompact(cash)} />}
       />
 
       {/* Tab strip only anchors the top-level views; detail pages are anchored by

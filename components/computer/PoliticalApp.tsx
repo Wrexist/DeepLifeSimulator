@@ -1400,7 +1400,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         title={detailTitle}
         onBack={() => (subView ? setSubView(null) : onBack())}
         backLabel={subView ? 'Back to Politics' : 'Back'}
-        right={<CashChip value={formatMoney(cash)} tint={SKY} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       {!subView && (

@@ -1140,7 +1140,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         title={headerTitle}
         onBack={() => (detailId ? setDetailId(null) : onBack())}
         backLabel={detailId ? 'Back to destinations' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       {detailDest ? (

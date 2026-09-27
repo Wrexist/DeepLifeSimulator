@@ -325,7 +325,7 @@ export default function CompanyDetailScreen({
         onBack={onBack}
         backLabel="Back to portfolio"
 
-        right={<CashChip value={formatMoney(money)} tint={HUSTLE_COLORS.accent} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       {/* Sticky scandal banner */}

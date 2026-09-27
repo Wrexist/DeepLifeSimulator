@@ -24,7 +24,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { accent, withAlpha } from '@/lib/config/theme';
+import { financeColors, withAlpha } from '@/lib/config/theme';
 
 
 interface AppHeaderProps {
@@ -120,9 +120,9 @@ export function HeaderChip({
   );
 }
 
-/** The default cash readout; `accent.success` green unless the app has an identity tint. */
-export function CashChip({ value, tint = accent.success, onPress }: { value: string; tint?: string; onPress?: () => void }) {
-  return <HeaderChip label="Cash" value={value} tint={tint} onPress={onPress} />;
+/** Cash has one financial identity; app branding belongs to navigation and actions. */
+export function CashChip({ value, onPress }: { value: string; onPress?: () => void }) {
+  return <HeaderChip label="Cash" value={value} tint={financeColors.cash} onPress={onPress} />;
 }
 
 const styles = StyleSheet.create({

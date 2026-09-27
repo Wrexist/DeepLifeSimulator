@@ -803,7 +803,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
       <AppHeader
         title="Luxury & Collectibles"
         onBack={onBack}
-        right={<CashChip value={formatMoney(cash)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       <SegmentedControl

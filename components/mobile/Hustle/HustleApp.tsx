@@ -17,7 +17,6 @@ import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { HUSTLE_COLORS } from './styles/hustleTheme';
 import DashboardScreen from './screens/DashboardScreen';
 import CompanyDetailScreen from './screens/CompanyDetailScreen';
 import CreateCompanyScreen from './screens/CreateCompanyScreen';
@@ -61,7 +60,7 @@ export default function HustleApp({ onBack }: HustleAppProps) {
             title="hustle"
             onBack={onBack}
 
-            right={<CashChip value={formatMoney(cash)} tint={HUSTLE_COLORS.accent} />}
+            right={<CashChip value={formatMoney(cash)} />}
           />
           <DashboardScreen onOpenCompany={openDetail} onCreateCompany={openCreate} />
         </>

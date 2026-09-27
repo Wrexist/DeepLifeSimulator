@@ -1062,7 +1062,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         title={inDetail ? detailProperty?.name ?? 'Listing' : 'Real Estate'}
         onBack={goBack}
         backLabel={inDetail ? 'Back to listings' : 'Back'}
-        right={<CashChip value={formatMoney(cash)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       {!inDetail && (

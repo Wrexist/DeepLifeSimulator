@@ -966,7 +966,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         title={headerTitle}
         onBack={() => (inDetail ? setDetailVehicleId(null) : onBack())}
         backLabel={inDetail ? 'Back to garage' : 'Back'}
-        right={<CashChip value={formatMoney(cash)} tint={accent.amber} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       {!inDetail && (

@@ -130,7 +130,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
         onBack={onBack}
         backLabel="Back to portfolio"
 
-        right={<CashChip value={formatMoney(playerMoney)} tint={HUSTLE_COLORS.accent} />}
+        right={<CashChip value={formatMoney(playerMoney)} />}
       />
 
       <ScrollView

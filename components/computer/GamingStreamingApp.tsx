@@ -1140,7 +1140,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         title={headerTitle}
         onBack={goBack}
         backLabel={inDetail ? 'Back to Streaming' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       {inCategory ? (

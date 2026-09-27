@@ -116,3 +116,7 @@ AppHeader uses one leading Back/title arrangement, with optional trailing status
 ## Shared supporting typography
 
 SectionTitle, CollapsibleSection, Chip, KeyValueRow and StatStrip consume the canonical textStyles hierarchy. Use caption (12-point base with a scaled 16-point line box) for readable metadata, body/bodyStrong for rows/actions, and heading/numeric styles for emphasis. Company cards and detail share this ladder. Preserve natural wrapping for costs, requirements, labels and explanations; avoid fixed-height text containers. Interactive chips and compact disclosure headers retain a 44-point minimum target. KeyValueRow includes its supporting explanation in its accessible label. Smaller decorative marks are not substitutes for readable decision information.
+
+## Semantic colors versus app branding
+
+CashChip always uses financeColors.cash; app-specific tint overrides are not part of its API. Keep fictional app identity on navigation, artwork and actions. Pet health/happiness/energy use STAT_IDENTITY, matching the HUD. Stat identity answers which attribute; signed weekly effects answer which direction, with Weekly gain/Weekly loss/No change text alongside color. Zero effects and zero sick/vaccinated counts are neutral. Critical illness labels remain explicit; no game thresholds or effects change with presentation.

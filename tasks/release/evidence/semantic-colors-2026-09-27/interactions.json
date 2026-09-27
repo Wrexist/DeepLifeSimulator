@@ -1,0 +1,24 @@
+[
+  {
+    "width": 375,
+    "cashColors": [
+      "rgba(52, 211, 153, 0.14)",
+      "rgba(52, 211, 153, 0.14)",
+      "rgba(52, 211, 153, 0.14)"
+    ],
+    "neutralEmptyState": "passed",
+    "adoptionAndGain": "passed",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "cashColors": [
+      "rgba(52, 211, 153, 0.14)",
+      "rgba(52, 211, 153, 0.14)",
+      "rgba(52, 211, 153, 0.14)"
+    ],
+    "neutralEmptyState": "passed",
+    "adoptionAndGain": "passed",
+    "errors": []
+  }
+]

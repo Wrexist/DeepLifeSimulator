@@ -641,7 +641,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
           title={symbol}
           onBack={() => setDetailSymbol(null)}
           backLabel="Back to stocks"
-          right={<CashChip value={formatMoney(cash)} tint={accent.purple} />}
+          right={<CashChip value={formatMoney(cash)} />}
         />
 
         <ScrollView
@@ -722,7 +722,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         renderDetail()
       ) : (
         <>
-          <AppHeader title="Stocks" onBack={onBack} right={<CashChip value={formatMoney(cash)} tint={accent.purple} />} />
+          <AppHeader title="Stocks" onBack={onBack} right={<CashChip value={formatMoney(cash)} />} />
 
           <SegmentedControl
             segments={TABS.map((t) => ({ key: t.id, label: t.label, icon: t.icon }))}

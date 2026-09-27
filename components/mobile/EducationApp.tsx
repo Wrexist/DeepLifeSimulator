@@ -490,7 +490,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         title={headerTitle}
         onBack={goBack}
         backLabel={inDetail ? 'Back to courses' : 'Back'}
-        right={<CashChip value={formatMoney(cash)} tint={EDU} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       {inDetail && selectedCourse ? (

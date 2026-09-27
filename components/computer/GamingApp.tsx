@@ -784,7 +784,7 @@ export default function GamingApp({ onBack }: Props) {
         title={inDetail ? 'Video' : 'YouVideo'}
         onBack={goBack}
         backLabel={inDetail ? 'Back to videos' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={creatorBrand.video.accent} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       <SegmentedControl

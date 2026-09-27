@@ -103,3 +103,13 @@ export function withAlpha(hex: string, alpha: number): string {
   if (!isFinite(r) || !isFinite(g) || !isFinite(b)) return hex;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+/** A change is separate from the stat identity. Zero is neutral, never a warning. */
+export function weeklyStatDeltaPresentation(delta: number) {
+  const value = Number.isFinite(delta) ? delta : 0;
+  return {
+    value: value > 0 ? `+${value}` : `${value}`,
+    sub: value > 0 ? 'Weekly gain' : value < 0 ? 'Weekly loss' : 'No change',
+    tint: value > 0 ? DIRECTION_COLOR.positive : value < 0 ? DIRECTION_COLOR.negative : undefined,
+  };
+}
