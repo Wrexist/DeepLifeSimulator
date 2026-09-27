@@ -46,3 +46,15 @@ it('requires explicit zero when clearing a budget', () => {
   expect(button().props.disabled).toBe(false);
   act(() => renderer.unmount());
 });
+
+
+it('Max keeps fractional dollars when withdrawing interest', () => {
+  const confirm = jest.fn();
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<AmountInputModal visible title="Withdraw" confirmLabel="Withdraw" maxAmount={0.75} presets={[100]} darkMode onConfirm={confirm} onClose={() => {}} />); });
+  const buttons = () => renderer.root.findAllByType(TouchableOpacity);
+  act(() => buttons().find(n => n.props.accessibilityLabel?.startsWith('Set maximum'))!.props.onPress());
+  act(() => buttons().find(n => n.props.accessibilityLabel?.startsWith('Withdraw'))!.props.onPress());
+  expect(confirm).toHaveBeenCalledWith(0.75);
+  act(() => renderer.unmount());
+});

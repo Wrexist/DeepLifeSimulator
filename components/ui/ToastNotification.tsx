@@ -1,4 +1,4 @@
-import { uiPalette , accent, shadows, typography } from '@/lib/config/theme';
+import { uiPalette , accent, shadows, typography, withAlpha } from '@/lib/config/theme';
 import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -9,7 +9,6 @@ import {
   Easing,
   Platform,
 } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
 
@@ -23,7 +22,6 @@ import {
 import { useFeedback } from '@/utils/feedbackSystem';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-const LinearGradient = Gradient;
 
 interface ToastNotificationProps {
   id: string;
@@ -37,6 +35,8 @@ interface ToastNotificationProps {
   persistent?: boolean;
   /** Index in the visible stack - offsets each toast so they don't overlap. */
   stackIndex?: number;
+  /** Provider lays out notifications at their measured natural height. */
+  inStack?: boolean;
 }
 
 export default function ToastNotification({
@@ -50,6 +50,7 @@ export default function ToastNotification({
   action,
   persistent = false,
   stackIndex = 0,
+  inStack = false,
 }: ToastNotificationProps) {
   const { buttonPress } = useFeedback();
   const reducedMotion = useReducedMotion();
@@ -58,49 +59,10 @@ export default function ToastNotification({
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
 
-  // The toast paints its OWN surface - a saturated accent gradient with white
-  // content on top - so it reads identically in light and dark mode and takes
-  // no `darkMode` dependency. The second stop of each gradient is the darker
-  // shade of the same hue; the theme has no token for those, so they stay as
-  // literals here rather than inventing one.
-  const getTypeStyles = () => {
-    switch (type) {
-      case 'success':
-        return {
-          gradient: [accent.success, '#059669'],
-          icon: CheckCircle,
-          iconColor: uiPalette.white,
-        };
-      case 'error':
-        return {
-          gradient: [accent.danger, '#DC2626'],
-          icon: AlertCircle,
-          iconColor: uiPalette.white,
-        };
-      case 'warning':
-        return {
-          gradient: [accent.warning, '#D97706'],
-          // Friendly rounded icon instead of the alarming warning triangle.
-          icon: AlertCircle,
-          iconColor: uiPalette.white,
-        };
-      case 'info':
-        return {
-          gradient: [accent.info, '#1D4ED8'],
-          icon: Info,
-          iconColor: uiPalette.white,
-        };
-      default:
-        return {
-          gradient: [accent.info, '#1D4ED8'],
-          icon: Info,
-          iconColor: uiPalette.white,
-        };
-    }
-  };
-
-  const typeStyles = getTypeStyles();
-  const IconComponent = typeStyles.icon;
+  const tint = type === 'success' ? accent.success
+    : type === 'error' ? accent.danger
+    : type === 'warning' ? accent.warning : accent.info;
+  const IconComponent = type === 'success' ? CheckCircle : type === 'info' ? Info : AlertCircle;
 
   const dismiss = useCallback(() => {
     // Reduced motion: fade out in place - no slide/scale movement.
@@ -194,7 +156,7 @@ export default function ToastNotification({
   if (!message?.trim()) return null;
 
   const containerStyle = [
-    styles.container,
+    inStack ? styles.stackedContainer : styles.container,
     {
       // Respect the safe-area inset so a top toast sits BELOW the status bar /
       // notch instead of overlapping the clock and battery (the old flat 50px
@@ -203,8 +165,8 @@ export default function ToastNotification({
       // The stack step tracks the toast HEIGHT - it was 72 for a toast whose
       // padding, icon and font were each a step larger. Left at 72 the denser
       // toasts would sit in a column with a visible gap between them.
-      top: position === 'top' ? insets.top + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
-      bottom: position === 'bottom' ? insets.bottom + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
+      top: !inStack && position === 'top' ? insets.top + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
+      bottom: !inStack && position === 'bottom' ? insets.bottom + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
       transform: [
         { translateY: slideAnim },
         { scale: scaleAnim },
@@ -219,17 +181,12 @@ export default function ToastNotification({
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <LinearGradient
-        colors={typeStyles.gradient as unknown as readonly [string, string]}
-        style={styles.toast}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={styles.toast}>
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, { backgroundColor: withAlpha(tint, 0.15) }]}>
             <IconComponent
               size={responsiveIconSize.sm}
-              color={typeStyles.iconColor}
+              color={tint}
               accessibilityLabel={`${type} icon`}
             />
           </View>
@@ -260,40 +217,21 @@ export default function ToastNotification({
             style={styles.dismissButton}
             onPress={handleDismiss}
             activeOpacity={0.7}
-            // The button shrank with the rest of the surface; hitSlop keeps the
-            // TAP target at the size it was, so the denser toast is not a
-            // harder one to dismiss.
-            hitSlop={{ top: scale(10), bottom: scale(10), left: scale(10), right: scale(10) }}
             accessibilityLabel="Dismiss notification"
             accessibilityRole="button"
             accessibilityHint="Double tap to dismiss this notification"
           >
-            <X size={responsiveIconSize.xs} color={typeStyles.iconColor} />
+            <X size={responsiveIconSize.xs} color={tint} />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
     </Animated.View>
   );
 }
 
-// Width not used - removed to fix TS6133
-
-/**
- * Vertical step between stacked toasts, in points.
- *
- * One toast is ~44pt of content plus its shadow; 56 leaves a clear gap without
- * the column reaching halfway down the screen when three fire at once.
- */
+// Legacy standalone positioning; the app provider uses natural-height stacks.
 const TOAST_STACK_STEP = 56;
 
-/**
- * A toast is a glance, not a paragraph.
- *
- * Everything here is one step down from where it was: the surface used to be a
- * `md`-padded card with `base` type and a 12pt radius, which - with two lines
- * of text - was a ~90pt block covering the bottom of the screen for three
- * seconds. The information is unchanged; the furniture around it is not.
- */
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
@@ -301,34 +239,45 @@ const styles = StyleSheet.create({
     right: responsiveSpacing.md,
     zIndex: Z_INDEX.TOAST,
   },
+  stackedContainer: {
+    marginBottom: responsiveSpacing.sm,
+  },
   toast: {
-    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: uiPalette.surface,
+    borderWidth: 1,
+    borderColor: uiPalette.raised,
+    borderRadius: responsiveBorderRadius.lg,
     ...shadows.md,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.sm + responsiveSpacing.xs,
+    paddingLeft: responsiveSpacing.md,
+    paddingRight: responsiveSpacing.xs,
   },
   iconContainer: {
+    width: scale(32),
+    height: scale(32),
+    borderRadius: responsiveBorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: responsiveSpacing.sm,
   },
   message: {
     flex: 1,
     color: uiPalette.white,
     fontSize: responsiveFontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
-    // Bold, matching the card typography the rest of the HUD uses ('700'
-    // everywhere on home) - toasts read thin at medium next to them.
-    fontWeight: typography.weight.bold,
+    fontFamily: Platform.OS === 'web' ? 'system-ui' : Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: typography.weight.semibold,
     // 1.4x the font size - kept as a ratio so it tracks the scaled font size.
     lineHeight: Math.round(responsiveFontSize.sm * 1.4),
   },
   actionButton: {
     marginLeft: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: responsiveSpacing.xs,
+    minHeight: scale(44),
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: responsiveBorderRadius.sm,
   },
@@ -339,7 +288,10 @@ const styles = StyleSheet.create({
   },
   dismissButton: {
     marginLeft: responsiveSpacing.xs,
-    padding: responsiveSpacing.xs,
+    width: scale(44),
+    height: scale(44),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

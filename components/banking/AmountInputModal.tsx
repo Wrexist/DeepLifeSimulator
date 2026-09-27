@@ -27,7 +27,7 @@ interface Props {
   allowZero?: boolean;
   /**
    * Unit the amount is denominated in. 'usd' (default) renders $-prefixed
-   * presets and a floored Max; 'btc' renders ₿ amounts with decimals kept -
+   * presets and the full available Max; 'btc' renders ₿ amounts with decimals kept -
    * flooring a sub-1 BTC Max to 0 made the chip a no-op.
    */
   currency?: 'usd' | 'btc';
@@ -125,7 +125,7 @@ export default function AmountInputModal({
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel="Set maximum amount"
-                  onPress={() => setText(isBtc ? String(Number(maxAmount.toFixed(6))) : String(Math.floor(maxAmount)))}
+                  onPress={() => setText(isBtc ? String(Number(maxAmount.toFixed(6))) : String(maxAmount))}
                   style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
                 >
                   <Text style={[styles.presetText, { color: theme.text }]}>Max</Text>

@@ -121,7 +121,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number
 
 function formatMoneyExact(n: number): string {
   if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
 function accountGlyph(type: BankAccount['type']) {
@@ -265,6 +265,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
+      if (acct.balance < 0) {
+        gameAlert('Repay overdraft first', `Deposit ${formatMoneyExact(-acct.balance)} to clear this account before closing it.`);
+        return;
+      }
       gameAlert(
         'Close account?',
         `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
@@ -1131,9 +1135,9 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       <AmountInputModal
         visible={!!withdrawTarget}
         title={`Withdraw from ${withdrawTarget?.name ?? ''}`}
-        subtitle={`Balance: ${formatMoney(withdrawTarget?.balance ?? 0)}`}
+        subtitle={`Available: ${formatMoneyExact(Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0)))}${withdrawTarget?.minBalance ? ` (keep ${formatMoneyExact(withdrawTarget.minBalance)} minimum)` : ''}`}
         confirmLabel="Withdraw"
-        maxAmount={withdrawTarget?.balance ?? 0}
+        maxAmount={Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setWithdrawTarget(null)}
@@ -1345,10 +1349,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         subtitle={(() => {
           const from = banking.accounts.find((a) => a.id === transferFromId);
           const to = banking.accounts.find((a) => a.id === transferToId);
-          return from && to ? `${from.name} → ${to.name} · Available ${formatMoney(from.balance)}` : undefined;
+          return from && to ? `${from.name} → ${to.name} · Available ${formatMoneyExact(Math.max(0, from.balance - (from.minBalance ?? 0)))}` : undefined;
         })()}
         confirmLabel="Transfer"
-        maxAmount={banking.accounts.find((a) => a.id === transferFromId)?.balance}
+        maxAmount={(() => {
+          const from = banking.accounts.find((a) => a.id === transferFromId);
+          return Math.max(0, (from?.balance ?? 0) - (from?.minBalance ?? 0));
+        })()}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => { setTransferFromId(null); setTransferToId(null); }}

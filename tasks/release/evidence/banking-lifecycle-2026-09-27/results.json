@@ -1,0 +1,30 @@
+[
+  {
+    "width": 375,
+    "withdrawFullInterest": true,
+    "depositAndReopen": true,
+    "errors": []
+  },
+  {
+    "width": 375,
+    "notificationCount": 2,
+    "notificationText": [
+      "Purchased Gym Membership!",
+      "Sold Gym Membership for $150"
+    ]
+  },
+  {
+    "width": 768,
+    "withdrawFullInterest": true,
+    "depositAndReopen": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "notificationCount": 2,
+    "notificationText": [
+      "Purchased Gym Membership!",
+      "Sold Gym Membership for $150"
+    ]
+  }
+]

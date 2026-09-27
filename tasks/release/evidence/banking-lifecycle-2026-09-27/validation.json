@@ -1,0 +1,30 @@
+{
+  "focused": {
+    "suites": 28,
+    "tests": 267,
+    "exitCode": 0
+  },
+  "fullRun": {
+    "passedSuites": 847,
+    "failedSuites": 3,
+    "skippedSuites": 17,
+    "passedTests": 10157,
+    "failedTests": 3,
+    "skippedTests": 32,
+    "passedSnapshots": 308,
+    "seconds": 939.501,
+    "exitCode": 1
+  },
+  "failureRerun": {
+    "suites": 3,
+    "tests": 17,
+    "seconds": 19.466,
+    "exitCode": 0,
+    "projected52WeekMs": 742,
+    "unchangedLimitMs": 1000
+  },
+  "sourceTypes": 0,
+  "testTypes": 0,
+  "nativeAcceptance": false,
+  "published": false
+}

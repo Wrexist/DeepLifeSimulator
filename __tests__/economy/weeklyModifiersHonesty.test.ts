@@ -127,7 +127,8 @@ describe('C-4 - the honest warning for the same state survives (the control)', (
     // card, the HUD and the tips cannot disagree about "low".
     expect(block).toMatch(/vitalState\(health\)/);
     expect(block).toMatch(/title: `\$\{vitalState\(health\)\.word\} health`/);
-    expect(block).toMatch(/fix: 'Improve your diet, rest, and exercise/);
+    expect(block).toMatch(/fix: 'Walk in Park and Meditation raise health for free; both need energy/);
+    expect(block).toContain('Rest restores energy, not health.');
   });
 
   it('and still counts down the four weeks once health hits zero', () => {

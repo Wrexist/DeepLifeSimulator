@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect, ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsiveSpacing, scale } from '@/utils/scaling';
 import ToastNotification from '@/components/ui/ToastNotification';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport } from '@/utils/diagnosticReport';
@@ -66,6 +68,7 @@ interface ToastProviderProps {
 }
 
 export function ToastProvider({ children }: ToastProviderProps) {
+  const insets = useSafeAreaInsets();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   /**
@@ -97,15 +100,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
       action?: Toast['action'],
       persistent?: boolean
     ) => {
-      // Warnings used to be dropped entirely: they "overlapped the status bar".
-      // That silenced the whole rejection channel - a refused job application, a
-      // denied promotion, a blocked retirement and a failed street job all
-      // buzzed and rendered nothing, so a rejected tap was indistinguishable
-      // from a successful one. The overlap was a POSITION problem, not a reason
-      // to delete the tier, so warnings now default to the bottom slot (which
-      // already offsets by `insets.bottom`) and are shown.
+      // Routine feedback sits above navigation so the HUD stays readable.
       const resolvedPosition: Toast['position'] =
-        position ?? (type === 'warning' ? 'bottom' : 'top');
+        position ?? 'bottom';
 
       // Drop blank toasts - an empty message renders as a bare icon-only
       // blue pill (a call site passed an optional result?.message that was
@@ -196,20 +193,6 @@ export function ToastProvider({ children }: ToastProviderProps) {
     return () => setToastHandler(null);
   }, [showToast]);
 
-  // Stacking offsets must be counted WITHIN a position group. The index in the
-  // flat array was used before, so a bottom toast sitting behind one top toast
-  // was pushed 72pt up off its own anchor for no reason.
-  const stackIndexById = useMemo(() => {
-    const counters: Record<string, number> = { top: 0, bottom: 0 };
-    const map: Record<string, number> = {};
-    for (const toast of toasts) {
-      const key = toast.position ?? 'top';
-      map[toast.id] = counters[key];
-      counters[key] += 1;
-    }
-    return map;
-  }, [toasts]);
-
   // Memoize the context value so consumers of useToast() don't re-render on
   // every ToastProvider render (this provider sits high in the tree).
   const contextValue = useMemo(
@@ -221,7 +204,13 @@ export function ToastProvider({ children }: ToastProviderProps) {
     <ToastContext.Provider value={contextValue}>
       {children}
       <View style={styles.toastContainer} pointerEvents="box-none">
-        {toasts.map((toast) => (
+        {(['top', 'bottom'] as const).map(position => (
+          <View key={position} pointerEvents="box-none" style={[
+            styles.stack,
+            position === 'top' ? { top: insets.top + responsiveSpacing.sm }
+              : { bottom: insets.bottom + scale(72) },
+          ]}>
+        {toasts.filter(toast => toast.position === position).map((toast) => (
           <ToastNotification
             key={toast.id}
             id={toast.id}
@@ -239,8 +228,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
             hapticEnabled={toast.type === 'error' || toast.type === 'warning'}
             action={toast.action}
             persistent={toast.persistent}
-            stackIndex={stackIndexById[toast.id] ?? 0}
+            inStack
           />
+        ))}
+          </View>
         ))}
       </View>
     </ToastContext.Provider>
@@ -248,6 +239,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
 }
 
 const styles = StyleSheet.create({
+  stack: {
+    position: 'absolute',
+    width: '94%',
+    maxWidth: scale(520),
+    alignSelf: 'center',
+  },
   toastContainer: {
     position: 'absolute',
     top: 0,

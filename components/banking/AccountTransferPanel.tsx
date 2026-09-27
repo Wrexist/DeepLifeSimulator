@@ -26,7 +26,8 @@ import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { formatMoney } from '@/utils/moneyFormatting';
+// Transaction controls show cents instead of rounded catalogue amounts.
+const formatMoney = (value: number) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 
 export type TransferDirection = 'deposit' | 'withdraw';
 
@@ -35,6 +36,7 @@ interface Props {
   cashAvailable: number;
   /** The account's balance - the ceiling for a withdrawal. */
   accountBalance: number;
+  minimumBalance?: number;
   /** Accent for the account type, so the panel matches its card. */
   tint: string;
   darkMode: boolean;
@@ -53,14 +55,15 @@ const percentLabel = (p: number) => (p === 1 ? 'Max' : `${Math.round(p * 100)}%`
 /** Round to a clean step so the slider never lands on $3,417.63. */
 function niceStep(value: number, max: number): number {
   if (!isFinite(value) || value <= 0) return 0;
-  if (value >= max) return Math.floor(max);
-  const step = max >= 1_000_000 ? 1000 : max >= 100_000 ? 100 : max >= 10_000 ? 10 : 1;
-  return Math.min(Math.floor(max), Math.round(value / step) * step);
+  if (value >= max) return max;
+  const step = max < 1 ? 0.01 : max >= 1_000_000 ? 1000 : max >= 100_000 ? 100 : max >= 10_000 ? 10 : 1;
+  return Math.min(max, Math.round(value / step) * step);
 }
 
 export default function AccountTransferPanel({
   cashAvailable,
   accountBalance,
+  minimumBalance = 0,
   tint,
   darkMode,
   withdrawDisabled = false,
@@ -73,7 +76,8 @@ export default function AccountTransferPanel({
   const [trackWidth, setTrackWidth] = useState(0);
 
   const safe = (n: number) => (typeof n === 'number' && isFinite(n) && n > 0 ? n : 0);
-  const max = direction === 'deposit' ? safe(cashAvailable) : safe(accountBalance);
+  const withdrawable = Math.max(0, safe(accountBalance) - safe(minimumBalance));
+  const max = direction === 'deposit' ? safe(cashAvailable) : withdrawable;
 
   // Refs, because the PanResponder is created once and would otherwise close
   // over the first render's values forever.
@@ -136,7 +140,7 @@ export default function AccountTransferPanel({
   const canSubmit = amount > 0 && amount <= max && !blocked;
   const sourceLabel = isDeposit
     ? `Cash on hand ${formatMoney(safe(cashAvailable))}`
-    : `In this account ${formatMoney(safe(accountBalance))}`;
+    : `Available to withdraw ${formatMoney(withdrawable)}`;
 
   return (
     <View
@@ -187,6 +191,11 @@ export default function AccountTransferPanel({
         <Text style={[styles.source, { color: theme.textSecondary }]} numberOfLines={1}>
           {sourceLabel}
         </Text>
+        {!isDeposit && minimumBalance > 0 && (
+          <Text style={[styles.source, { color: theme.textSecondary }]}>
+            Keep {formatMoney(minimumBalance)} minimum in this account
+          </Text>
+        )}
       </View>
 
       {/* 3 - slider */}
@@ -196,7 +205,7 @@ export default function AccountTransferPanel({
         {...pan.panHandlers}
         accessibilityRole="adjustable"
         accessibilityLabel={`${isDeposit ? 'Deposit' : 'Withdraw'} amount slider`}
-        accessibilityValue={{ min: 0, max: Math.floor(max), now: Math.floor(amount) }}
+        accessibilityValue={{ min: 0, max, now: amount }}
         /**
          * `adjustable` PROMISES assistive tech an increment/decrement
          * affordance. Declaring the role without these handlers hands a

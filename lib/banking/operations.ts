@@ -379,6 +379,9 @@ export function closeAccount(
   if (account.lockUntilWeek && currentWeek < account.lockUntilWeek) {
     return { banking, ok: false, residualBalance: 0, reason: `Locked until week ${account.lockUntilWeek}` };
   }
+  if (account.balance < 0) {
+    return { banking, ok: false, residualBalance: 0, reason: 'Repay the overdraft before closing this account' };
+  }
   const residualBalance = Math.max(0, safe(account.balance));
   return {
     banking: { ...banking, accounts: banking.accounts.filter((a) => a.id !== accountId) },

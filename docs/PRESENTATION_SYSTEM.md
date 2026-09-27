@@ -13,6 +13,7 @@ All presentation work starts with these shared owners:
 | Cards and sections | `Card`, `ScreenHeader`, `SectionHeader`, existing list primitives | Solid navy surfaces, subtle borders, predictable padding. Avoid a new component for every screen. |
 | Selection/actions | `SegmentedControl`, `GradientButton`, `MotionPressable` | Clear selected/pressed/disabled states; labelled controls; restrained movement. |
 | Progress | `ProgressBar`, `ProgressRing` | Actual values, accessible progress labels; reduced-motion support. |
+| Notifications | `ToastContext`, `ToastNotification` | Solid navy card, semantic icon disc, system text and 44-point actions. Natural-height stacks default above navigation; explicit top positioning remains available. |
 | Modals | `BaseModal` and existing modal owners | Scrollable content; preserve existing priority/ownership. |
 | Chrome | `(tabs)/_layout.tsx`, `TopStatsBar` | Home, Work, Apps, Life, Profile. Approved HUD information architecture and canonical weekly action remain intact. |
 

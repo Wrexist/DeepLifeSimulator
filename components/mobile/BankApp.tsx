@@ -100,7 +100,7 @@ type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | { kind
 
 function formatMoneyExact(n: number): string {
   if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
 /** 0–100 breakdown score → traffic-light tint (green healthy … red weak). */
@@ -241,6 +241,10 @@ function BankAppInner({ onBack }: BankAppProps) {
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
+      if (acct.balance < 0) {
+        gameAlert('Repay overdraft first', `Deposit ${formatMoneyExact(-acct.balance)} to clear this account before closing it.`);
+        return;
+      }
       gameAlert(
         'Close account?',
         `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
@@ -354,6 +358,7 @@ function BankAppInner({ onBack }: BankAppProps) {
               <AccountTransferPanel
                 cashAvailable={cash}
                 accountBalance={account.balance}
+                minimumBalance={account.minBalance}
                 tint={pal.hex}
                 darkMode={darkMode}
                 withdrawDisabled={isLocked}
@@ -908,9 +913,9 @@ function BankAppInner({ onBack }: BankAppProps) {
       <AmountInputModal
         visible={!!withdrawTarget}
         title={`Withdraw from ${withdrawTarget?.name ?? ''}`}
-        subtitle={`Balance: ${formatMoney(withdrawTarget?.balance ?? 0)}`}
+        subtitle={`Available: ${formatMoneyExact(Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0)))}${withdrawTarget?.minBalance ? ` (keep ${formatMoneyExact(withdrawTarget.minBalance)} minimum)` : ''}`}
         confirmLabel="Withdraw"
-        maxAmount={withdrawTarget?.balance ?? 0}
+        maxAmount={Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setWithdrawTarget(null)}
