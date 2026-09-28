@@ -367,6 +367,23 @@ export function reconcileSubscriptionBenefits(
     return applyDeepLifePlusBenefits(state);
   }
 
+  // A POSITIVE Remove Ads answer needs no authority check - "yes, owned" can
+  // only come from a real read. `adsRemoved` is stored per save, and only the
+  // death / restart / prestige / heir paths carry it over, so a buyer who
+  // started a New Game in another slot, or loaded an older slot / backup /
+  // cloud save, had ads again until they found Restore. Re-assert it here, on
+  // every save the reconciler sees.
+  if (ownsRemoveAds && state.settings?.adsRemoved !== true) {
+    state = {
+      ...state,
+      settings: {
+        ...state.settings,
+        adsRemoved: true,
+        adsRemovedDate: state.settings?.adsRemovedDate ?? new Date().toISOString(),
+      },
+    };
+  }
+
   // Lapsed (or never active). Only act if DeepLife+ had previously granted benefits.
   if (state.settings?.deepLifePlusActivated !== true) {
     return state;

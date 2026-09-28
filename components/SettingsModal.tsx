@@ -29,6 +29,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
+import { requestSubscriptionReconcile } from '@/components/SubscriptionReconciler';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
@@ -394,6 +395,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     try {
       logger.info('Starting purchase restoration from Settings...');
       const { success, restoredCount } = await iapService.restorePurchases();
+      // Re-apply DeepLife+ / Remove Ads to this save now (see the helper).
+      requestSubscriptionReconcile();
 
       if (success) {
         // Reload IAP state to refresh purchases

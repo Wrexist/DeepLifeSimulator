@@ -74,6 +74,20 @@ describe('the reported flow: purchase, then the next reconcile', () => {
   });
 });
 
+describe('a Remove Ads buyer on a save that never saw the purchase', () => {
+  it('gets ad-free back from the reconcile (new game / other slot / old backup)', () => {
+    const fresh = createTestGameState();
+    expect(areAdsRemoved(fresh)).toBe(false);
+    const after = reconcileSubscriptionBenefits(fresh, false, true, true);
+    expect(after.settings.adsRemoved).toBe(true);
+  });
+
+  it('a negative Remove Ads answer still changes nothing on a never-subscribed save', () => {
+    const fresh = createTestGameState();
+    expect(reconcileSubscriptionBenefits(fresh, false, false, true)).toBe(fresh);
+  });
+});
+
 describe('areAdsRemoved', () => {
   it('reads every ad-free entitlement flag', () => {
     const base = createTestGameState();
