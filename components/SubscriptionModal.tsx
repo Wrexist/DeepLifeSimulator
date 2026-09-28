@@ -371,7 +371,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       // by IAPService.purchaseProduct, so they are not repeated here.
       const res = await subscriptionService.purchasePremium(productId);
       if (res.success) {
-        setGameState((prev) => applyDeepLifePlusBenefits(prev));
+        const welcomeGrantedElsewhere = subscriptionService.hasGrantedWelcomeGems();
+        setGameState((prev) => applyDeepLifePlusBenefits(prev, { welcomeGrantedElsewhere }));
+        subscriptionService.markWelcomeGemsGranted();
         void saveGame?.(false);
         // Distinct from purchase_succeeded: that says the store took the money,
         // this says the entitlement reached the save. A gap between the two is a
@@ -404,7 +406,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     try {
       await subscriptionService.restoreSubscriptions();
       if (isDeepLifePlusActive()) {
-        setGameState((prev) => applyDeepLifePlusBenefits(prev));
+        const welcomeGrantedElsewhere = subscriptionService.hasGrantedWelcomeGems();
+        setGameState((prev) => applyDeepLifePlusBenefits(prev, { welcomeGrantedElsewhere }));
+        subscriptionService.markWelcomeGemsGranted();
         void saveGame?.(false);
         track('restore_succeeded', { surface: 'deeplife_plus' });
         setMessage('Subscription restored.');

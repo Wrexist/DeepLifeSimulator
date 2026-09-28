@@ -1325,6 +1325,21 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 51;
     return state;
   },
+  /**
+   * v52 adds `settings.adsRemovedHeldForPlus` - the marker that `adsRemoved` is
+   * being HELD after a DeepLife+ lapse seen without an authoritative entitlement
+   * check. Without it, the first non-authoritative reconcile cleared
+   * `deepLifePlusActivated` but kept `adsRemoved`, and every later reconcile
+   * returned early on `deepLifePlusActivated !== true`: a lapsed subscriber kept
+   * ad-free forever. CARVE-OUT (default `undefined`): no backfill and no
+   * `repairGameState` mirror. Absence already means "no hold", which is true for
+   * every save written before it; stamping `true` would revoke a paid Remove Ads
+   * on the next reconcile, and there is no record to tell the two apart.
+   */
+  52: (state) => {
+    state.version = 52;
+    return state;
+  },
 };
 
 /**

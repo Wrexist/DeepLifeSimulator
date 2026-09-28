@@ -105,12 +105,17 @@ export function SubscriptionReconciler(): null {
       // `isAdsRemoved()`, one line higher up.
       const plusActive = subscriptionService.hasPremiumAccess();
 
+      const welcomeGrantedElsewhere = subscriptionService.hasGrantedWelcomeGems();
       setGameState((prev) => {
-        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds, authoritative);
+        const afterSub = reconcileSubscriptionBenefits(
+          prev, plusActive, ownsRemoveAds, authoritative, welcomeGrantedElsewhere,
+        );
         // Same `authoritative` flag: "could not ask" must not strip the paid
         // premium track. See the note on `entitlementCheckAuthoritative`.
         return reconcileLegacyPassSeason(afterSub, plusActive, Date.now(), authoritative);
       });
+      // Either paid just now or already paid in this save: one-time is spent.
+      if (plusActive) subscriptionService.markWelcomeGemsGranted();
     } catch (err) {
       // Never let entitlement reconciliation break the app.
       logger.warn('[SubscriptionReconciler] reconcile failed (non-critical):', { error: err });

@@ -52,6 +52,9 @@ export const PURCHASED_SETTINGS_KEYS = [
   // too: re-arming them let a prestige re-mint the 500-gem welcome bonus and
   // the 250-gem daily claim.
   'deepLifePlusActivated',
+  // v52: travels WITH `adsRemoved` - a held (not bought) ad-free must stay
+  // revocable in the next life, or prestige would launder it into a purchase.
+  'adsRemovedHeldForPlus',
   'deepLifePlusWelcomeClaimed',
   'deepLifePlusLastGemClaim',
   'deepLifePlusLastGemClaimAt',

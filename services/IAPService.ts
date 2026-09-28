@@ -393,6 +393,65 @@ export function nativeRestoreLedgerId(productId: string, storeTransactionId: str
   return isConsumableProduct(productId) ? `native_restore:${productId}` : storeTransactionId;
 }
 
+/** True for a DeepLife+ subscription SKU, including the legacy dot-form ones. */
+function isVerifiedProSubscriptionSku(productId: unknown): productId is string {
+  return typeof productId === 'string' &&
+    (isSubscriptionProduct(productId) || /^deeplife\.premium\.(monthly|yearly)$/i.test(productId));
+}
+
+/**
+ * Pulse Verified Pro fulfilment for a DeepLife+ subscription purchase (v13+).
+ * Mirrors `subscribeVerifiedPro` in contexts/game/actions/VibeActions.ts.
+ * Mutates `gameState`. Returns true when the SKU is a subscription.
+ *
+ * Shared by BOTH fulfilment paths. It used to exist only on the disk path, so
+ * the live in-memory state never received it: the purchase flow then saved the
+ * live state (SubscriptionModal, the next autosave) straight over the disk copy
+ * and the Verified Pro grant was lost.
+ */
+export function applyVerifiedProSubscriptionToState(gameState: GameState, productId: string): boolean {
+  if (!isVerifiedProSubscriptionSku(productId)) return false;
+  const isYearly = /yearly/i.test(productId);
+  const durationMs = (isYearly ? 365 : 30) * MS_PER_DAY;
+
+  if (!gameState.socialMedia) {
+    gameState.socialMedia = {
+      followers: 0,
+      influenceLevel: 'novice',
+      totalPosts: 0,
+      viralPosts: 0,
+      brandPartnerships: 0,
+      engagementRate: 0,
+    };
+  }
+  const welcomeAlreadyClaimed = gameState.socialMedia.verifiedProWelcomeClaimed === true;
+  gameState.socialMedia.verifiedPro = {
+    active: true,
+    subscribedTimestamp: Date.now(),
+    expiresTimestamp: Date.now() + durationMs,
+    sku: productId,
+    perksUnlocked: {
+      blueCheckmark: true,
+      postBoostMultiplier: 1.25,
+      analyticsUnlocked: true,
+      noAdsInFeed: true,
+      longerPosts: true,
+    },
+  };
+  // Signup-bonus followers - ONCE per save. ANTI-EXPLOIT: gate on a sticky
+  // flag, not the transient `active` flag, so cancel→resubscribe can't
+  // re-mint the +500 (cancelVerifiedPro never clears the flag).
+  if (!welcomeAlreadyClaimed) {
+    gameState.socialMedia.verifiedProWelcomeClaimed = true;
+    gameState.socialMedia.followers =
+      (gameState.socialMedia.followers ?? 0) + 500;
+  }
+  if (gameState.userProfile) {
+    gameState.userProfile.verified = true;
+  }
+  return true;
+}
+
 export class IAPService {
   private state: IAPState = {
     isConnected: false,
@@ -1884,50 +1943,8 @@ export class IAPService {
     // kept as an explicit fallback: they shipped in early TestFlight builds
     // and can still arrive through Restore/history, but they are deliberately
     // NOT in the live catalog.
-    if (
-      !quantitiesAlreadyPersisted &&
-      typeof purchase.productId === 'string' &&
-      (isSubscriptionProduct(purchase.productId) ||
-        /^deeplife\.premium\.(monthly|yearly)$/i.test(purchase.productId))
-    ) {
-      const isYearly = /yearly/i.test(purchase.productId);
-      const durationMs = (isYearly ? 365 : 30) * MS_PER_DAY;
-
-      if (!gameState.socialMedia) {
-        gameState.socialMedia = {
-          followers: 0,
-          influenceLevel: 'novice',
-          totalPosts: 0,
-          viralPosts: 0,
-          brandPartnerships: 0,
-          engagementRate: 0,
-        };
-      }
-      const welcomeAlreadyClaimed = gameState.socialMedia.verifiedProWelcomeClaimed === true;
-      gameState.socialMedia.verifiedPro = {
-        active: true,
-        subscribedTimestamp: Date.now(),
-        expiresTimestamp: Date.now() + durationMs,
-        sku: purchase.productId,
-        perksUnlocked: {
-          blueCheckmark: true,
-          postBoostMultiplier: 1.25,
-          analyticsUnlocked: true,
-          noAdsInFeed: true,
-          longerPosts: true,
-        },
-      };
-      // Signup-bonus followers - ONCE per save. ANTI-EXPLOIT: gate on a sticky
-      // flag, not the transient `active` flag, so cancel→resubscribe can't
-      // re-mint the +500 (cancelVerifiedPro never clears the flag).
-      if (!welcomeAlreadyClaimed) {
-        gameState.socialMedia.verifiedProWelcomeClaimed = true;
-        gameState.socialMedia.followers =
-          (gameState.socialMedia.followers ?? 0) + 500;
-      }
-      if (gameState.userProfile) {
-        gameState.userProfile.verified = true;
-      }
+    if (!quantitiesAlreadyPersisted) {
+      applyVerifiedProSubscriptionToState(gameState, purchase.productId);
     }
 
     // B-4: Write processed transaction ID into save envelope for cross-device resilience
@@ -2657,7 +2674,20 @@ export class IAPService {
     opts: { entitlementsOnly?: boolean; transactionId?: string } = {},
   ): boolean {
     const config = getProductConfig(productId);
-    if (!config) return false;
+    if (!config) {
+      // Subscriptions have no product config; their in-memory fulfilment is
+      // Verified Pro. Same replay rule as the disk path: skip it when this
+      // transaction is already recorded in the save.
+      if (!isVerifiedProSubscriptionSku(productId)) return false;
+      const recordedTx = Array.isArray(gameState.processedIAPTransactions) ? gameState.processedIAPTransactions : [];
+      const alreadyRecorded = !opts.entitlementsOnly && !!opts.transactionId && recordedTx.includes(opts.transactionId);
+      if (!alreadyRecorded) applyVerifiedProSubscriptionToState(gameState, productId);
+      if (!opts.entitlementsOnly && opts.transactionId && !recordedTx.includes(opts.transactionId)) {
+        gameState.processedIAPTransactions = [...recordedTx, opts.transactionId]
+          .slice(-MAX_PROCESSED_IAP_TRANSACTIONS);
+      }
+      return true;
+    }
 
     // The receipt marker and quantities travel in the SAME state update/save.
     // An unsuccessful save leaves both live, so a later autosave and store

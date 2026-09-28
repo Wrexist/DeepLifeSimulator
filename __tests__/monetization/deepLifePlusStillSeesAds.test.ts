@@ -97,3 +97,54 @@ describe('areAdsRemoved', () => {
     }
   });
 });
+
+describe('a lapse seen offline is held, then ended by the next real answer (v52)', () => {
+  const lapsedOffline = () =>
+    reconcileSubscriptionBenefits(applyDeepLifePlusBenefits(createTestGameState()), false, false, false);
+
+  it('the offline pass holds ad-free and marks it as held', () => {
+    const held = lapsedOffline();
+    expect(held.settings.adsRemoved).toBe(true);
+    expect(held.settings.adsRemovedHeldForPlus).toBe(true);
+    expect(held.settings.deepLifePlusActivated).toBe(false);
+  });
+
+  it('the next authoritative "not entitled" ends the hold', () => {
+    const after = reconcileSubscriptionBenefits(lapsedOffline(), false, false, true);
+    expect(areAdsRemoved(after)).toBe(false);
+    expect(after.settings.adsRemovedHeldForPlus).toBeUndefined();
+  });
+
+  it('another offline pass keeps holding', () => {
+    const after = reconcileSubscriptionBenefits(lapsedOffline(), false, false, false);
+    expect(after.settings.adsRemoved).toBe(true);
+  });
+
+  it('a Remove Ads buyer keeps ad-free when the hold ends', () => {
+    const after = reconcileSubscriptionBenefits(lapsedOffline(), false, true, true);
+    expect(after.settings.adsRemoved).toBe(true);
+    expect(after.settings.adsRemovedHeldForPlus).toBeUndefined();
+  });
+
+  it('resubscribing clears the hold', () => {
+    const after = reconcileSubscriptionBenefits(lapsedOffline(), true, false, true);
+    expect(after.settings.adsRemovedHeldForPlus).toBeUndefined();
+    expect(after.settings.adsRemoved).toBe(true);
+  });
+});
+
+describe('welcome gems are one-time per device, not per save', () => {
+  it('a new save does not pay them again once paid elsewhere', () => {
+    const fresh = createTestGameState();
+    const before = fresh.stats.gems ?? 0;
+    const after = applyDeepLifePlusBenefits(fresh, { welcomeGrantedElsewhere: true });
+    expect(after.stats.gems).toBe(before);
+    expect(after.settings.adsRemoved).toBe(true);
+  });
+
+  it('the first activation still pays them', () => {
+    const fresh = createTestGameState();
+    const after = applyDeepLifePlusBenefits(fresh);
+    expect((after.stats.gems ?? 0) - (fresh.stats.gems ?? 0)).toBe(500);
+  });
+});

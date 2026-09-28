@@ -1,4 +1,5 @@
 import { uiPalette } from '@/lib/config/theme';
+import { playStreakBonusPercent } from '@/lib/economy/playStreak';
 import React, { useEffect, useRef } from 'react';
 import { Platform, Modal,
   View,
@@ -415,11 +416,8 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                             <TrendingUp size={scale(18)} color="#F59E0B" />
                           </View>
                           <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                            {/* The counter counts consecutive WEEKS PLAYED
-                                (week-advances under 48h apart), not calendar
-                                days - the old "N days" label promised a daily
-                                habit the code never measured. */}
-                            Play streak: {streakCount} weeks in a row (+{Math.min(streakCount * 2, 20)}% income)
+                            {/* Consecutive DAYS played (lib/economy/playStreak.ts). */}
+                            Play streak: {streakCount} days in a row (+{playStreakBonusPercent(streakCount)}% income)
                           </Text>
                         </View>
                       )}
