@@ -1,5 +1,8 @@
+import AmountSlider from '@/components/ui/AmountSlider';
+import { parseAmount } from '@/utils/parseAmount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
@@ -22,6 +25,9 @@ interface Props {
   midPrice: number;
   /** Player cash on hand. */
   cash: number;
+  /** Commitments already checked by the canonical pending-order action. */
+  reservedCash?: number;
+  reservedUnits?: number;
   /** Shares currently owned of this symbol. */
   ownedShares: number;
   darkMode: boolean;
@@ -45,8 +51,9 @@ function formatPrice(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-export default function StockTradeModal({ visible, symbol, midPrice, cash, ownedShares, darkMode, onClose, onSubmit }: Props) {
+export default function StockTradeModal({ visible, symbol, midPrice, cash, reservedCash = 0, reservedUnits = 0, ownedShares, darkMode, onClose, onSubmit }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [side, setSide] = useState<StockOrderSide>('buy');
   const [type, setType] = useState<StockOrderType>('market');
   const [amountText, setAmountText] = useState('');
@@ -63,27 +70,30 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
     }
   }, [visible]);
 
-  const amount = parseFloat(amountText) || 0;
-  const limit = parseFloat(limitText) || 0;
-  const stop = parseFloat(stopText) || 0;
+  const amount = parseAmount(amountText) ?? 0;
+  const limit = parseAmount(limitText) ?? 0;
+  const stop = parseAmount(stopText) ?? 0;
+
+  const availableCash = Math.max(0, cash - (type === 'market' ? 0 : reservedCash));
+  const availableUnits = Math.max(0, ownedShares - (type === 'market' ? 0 : reservedUnits));
 
   const valid = useMemo(() => {
     if (!symbol || amount <= 0) return false;
     // Buys settle at amount × (1 + fee) in buyStockMarket - validate against
     // the same gross cost, or amounts in (cash/1.02, cash] enable Confirm but
     // get silently rejected by the action.
-    if (side === 'buy' && amount * (1 + STOCK_FEE) > cash) return false;
-    if (side === 'sell' && amount > ownedShares) return false;
+    if (side === 'buy' && amount * (1 + STOCK_FEE) > availableCash) return false;
+    if (side === 'sell' && amount > availableUnits) return false;
     if (type === 'limit' && limit <= 0) return false;
     if (type === 'stop' && stop <= 0) return false;
     return true;
-  }, [symbol, amount, cash, ownedShares, side, type, limit, stop]);
+  }, [symbol, amount, availableCash, availableUnits, side, type, limit, stop]);
 
   const estimatedShares = side === 'buy' && midPrice > 0 ? amount / midPrice : 0;
   const estimatedUSD = side === 'sell' && midPrice > 0 ? amount * midPrice : 0;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
@@ -100,7 +110,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
               Mid {formatPrice(midPrice)} · You own {ownedShares.toFixed(2)} sh · Cash {formatMoney(cash)}
             </Text>
@@ -127,57 +137,18 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
             />
 
             <Field theme={theme} label={side === 'buy' ? 'Amount (USD)' : 'Shares'}>
-              <TextInput
-                value={amountText}
-                onChangeText={setAmountText}
-                keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                placeholder="0"
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { color: theme.text }]}
-              />
+              <AmountSlider value={amountText} onChangeText={setAmountText} accessibilityLabel={side === 'buy' ? 'Trade amount in dollars' : 'Units to sell'} maxAmount={side === 'buy' ? Math.floor(availableCash / 1.02 * 100) / 100 : availableUnits} unit={side === 'buy' ? '$' : ''} precision={side === 'buy' ? 2 : 8} darkMode={darkMode} />
             </Field>
 
             {type === 'limit' && (
               <Field theme={theme} label="Limit price (USD)">
-                <TextInput
-                  value={limitText}
-                  onChangeText={setLimitText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder={midPrice.toFixed(2)}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={limitText} onChangeText={setLimitText} accessibilityLabel="Limit price in dollars" initialRange={Math.max(midPrice * 2, 1)} darkMode={darkMode} />
               </Field>
             )}
 
             {type === 'stop' && (
               <Field theme={theme} label="Stop price (USD)">
-                <TextInput
-                  value={stopText}
-                  onChangeText={setStopText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder={midPrice.toFixed(2)}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={stopText} onChangeText={setStopText} accessibilityLabel="Stop price in dollars" initialRange={Math.max(midPrice * 2, 1)} darkMode={darkMode} />
               </Field>
             )}
 
@@ -191,9 +162,25 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
                 ≈ {formatMoney(estimatedUSD)} at mid (excludes 2% commission, spread, slippage)
               </Text>
             )}
+            {amountText.trim() !== '' && parseAmount(amountText) === null && (
+              <Text accessibilityRole="alert" style={[styles.estimate, { color: accent.danger }]}>Enter a complete amount, such as 1,000.50.</Text>
+            )}
+            {type !== 'market' && (
+              <Text style={[styles.estimate, { color: theme.textSecondary }]}>
+                Checked each week. {side === 'buy' ? `$${availableCash.toLocaleString('en-US', { maximumFractionDigits: 2 })} cash available after existing orders.` : `${availableUnits.toLocaleString('en-US', { maximumFractionDigits: 8 })} units available after existing orders.`}
+              </Text>
+            )}
+            {amount > 0 && !valid && (
+              <Text accessibilityRole="alert" style={[styles.estimate, { color: accent.danger }]}>
+                Check the amount, available funds or units, and a valid trigger price. Buys require 2% commission.
+              </Text>
+            )}
           </ScrollView>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${type === 'market' ? 'Execute' : 'Place'} ${side === 'buy' ? 'Buy' : 'Sell'}`}
+            accessibilityState={{ disabled: !valid }}
             disabled={!valid}
             activeOpacity={0.7}
             onPress={() => {
@@ -244,6 +231,9 @@ function SegRow({
         return (
           <TouchableOpacity
             key={o.key}
+            accessibilityRole="radio"
+            accessibilityLabel={o.label}
+            accessibilityState={{ selected: active }}
             onPress={() => onChange(o.key)}
             style={[
               styles.seg,
@@ -277,7 +267,7 @@ const styles = StyleSheet.create({
   title: { fontSize: responsiveFontSize.lg, fontWeight: '700' },
   subtitle: { fontSize: responsiveFontSize.sm },
   segRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
-  seg: { flex: 1, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, alignItems: 'center' },
+  seg: { minHeight: scale(44), justifyContent: 'center', flex: 1, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, alignItems: 'center' },
   segText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
   fieldLabel: { fontSize: responsiveFontSize.sm, fontWeight: '600', marginBottom: responsiveSpacing.xs },
   fieldRow: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, paddingHorizontal: responsiveSpacing.md },

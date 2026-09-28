@@ -55,6 +55,8 @@ describe('a locked segment routes taps to onLockedPress, not onChange', () => {
     const stats = tabs(renderer)[2];
     stats.props.onPress();
 
+    expect(stats.props.accessibilityState.disabled).toBe(false);
+    expect(stats.props.disabled).toBe(false);
     expect(onChange).not.toHaveBeenCalled();
     expect(onLockedPress).toHaveBeenCalledWith('stats', 'Finish Chapter 1: Fresh Start');
     unmount();
@@ -66,6 +68,7 @@ describe('a locked segment routes taps to onLockedPress, not onChange', () => {
       <SegmentedControl<Key> value="health" onChange={jest.fn()} segments={SEGMENTS(true)} />,
     );
 
+    expect(tabs(renderer)[2].props.disabled).toBe(true);
     expect(() => tabs(renderer)[2].props.onPress()).not.toThrow();
     unmount();
   });

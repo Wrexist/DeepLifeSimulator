@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AdRewardOrb - a small "watch ad → reward" orb that drifts in from the LEFT
  * edge of the screen at random during play. Each appearance randomly offers one
@@ -527,7 +528,7 @@ function AdRewardOrb() {
               style={[styles.orb, isCash ? styles.orbCash : styles.orbVitality]}
             >
               <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.orbCircle}>
-                <OrbIcon size={scale(20)} color="#FFFFFF" strokeWidth={2.3} />
+                <OrbIcon size={scale(20)} color={uiPalette.white} strokeWidth={2.3} />
               </LinearGradient>
               <View style={styles.orbLabel}>
                 <Text style={styles.orbAmount} numberOfLines={1}>{orbAmount}</Text>
@@ -559,10 +560,10 @@ function AdRewardOrb() {
 
             <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBadge}>
               {claimBlocked
-                ? <Gift size={scale(34)} color="#FFFFFF" strokeWidth={2.4} />
+                ? <Gift size={scale(34)} color={uiPalette.white} strokeWidth={2.4} />
                 : granted
-                  ? <GrantedIcon size={scale(34)} color="#FFFFFF" strokeWidth={2.6} />
-                  : <Play size={scale(34)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />}
+                  ? <GrantedIcon size={scale(34)} color={uiPalette.white} strokeWidth={2.6} />
+                  : <Play size={scale(34)} color={uiPalette.white} strokeWidth={2.4} fill={uiPalette.white} />}
             </LinearGradient>
 
             <Text style={[styles.title, { color: theme.text }]}>{sheetTitle}</Text>
@@ -668,7 +669,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   orbAmount: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
@@ -785,7 +786,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '800',
   },

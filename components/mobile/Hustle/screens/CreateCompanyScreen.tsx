@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * CreateCompanyScreen - pick an industry to found a company.
  *
@@ -7,7 +8,7 @@
  * the existing `createCompany` action so all canonical logic (inflation,
  * prestige unlock, education requirement, $$ cost) stays intact.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Briefcase, Building2, Check, Factory, Utensils, Landmark } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +16,7 @@ import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
@@ -109,18 +110,34 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
     (i) => canFoundAnother(gameState.companies, i.id) && playerMoney >= nextCostFor(i.id, i.cost),
   ).length;
 
-  const handleConfirm = useCallback(() => {
-    if (!selected) return;
-    const result = createCompany(gameState, setGameState, selected, { updateMoney });
-    if (result.success) {
+  const submitting = useRef(false);
+  const [pendingCompanyId, setPendingCompanyId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingCompanyId) return;
+    const committed = gameState.companies?.some(c => c.id === pendingCompanyId);
+    submitting.current = false;
+    setPendingCompanyId(null);
+    if (committed) {
       hustleHaptics.success();
-      saveGame?.();
-      onCreated((result as any).companyId ?? selected);
+      void saveGame?.();
+      onCreated(pendingCompanyId);
     } else {
+      hustleHaptics.error();
+      setError('Company was not founded. Check available cash and requirements, then try again.');
+    }
+  }, [pendingCompanyId, gameState.companies, saveGame, onCreated]);
+
+  const handleConfirm = useCallback(() => {
+    if (!selected || submitting.current) return;
+    submitting.current = true;
+    const result = createCompany(gameState, setGameState, selected, { updateMoney });
+    if (result.success && result.companyId) setPendingCompanyId(result.companyId);
+    else {
+      submitting.current = false;
       hustleHaptics.error();
       setError(result.message ?? 'Could not found company');
     }
-  }, [selected, gameState, setGameState, saveGame, onCreated]);
+  }, [selected, gameState, setGameState]);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -128,8 +145,8 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
         title="Found a company"
         onBack={onBack}
         backLabel="Back to portfolio"
-        centered
-        right={<CashChip value={formatMoney(playerMoney)} tint={HUSTLE_COLORS.accent} />}
+
+        right={<CashChip value={formatMoney(playerMoney)} />}
       />
 
       <ScrollView
@@ -211,7 +228,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                   </Text>
                   {isSelected ? (
                     <View style={[styles.selectedTick, { backgroundColor: color }]}>
-                      <Check size={fontScale(12)} color="#FFFFFF" strokeWidth={3} />
+                      <Check size={fontScale(12)} color={uiPalette.white} strokeWidth={3} />
                     </View>
                   ) : null}
                 </View>
@@ -249,10 +266,10 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
       >
         <Pressable
           onPress={handleConfirm}
-          disabled={!selected}
+          disabled={!selected || !!pendingCompanyId}
           accessibilityRole="button"
           accessibilityLabel="Found this company"
-          accessibilityState={{ disabled: !selected }}
+          accessibilityState={{ disabled: !selected || !!pendingCompanyId, busy: !!pendingCompanyId }}
           style={({ pressed }) => [
             styles.cta,
             {
@@ -352,7 +369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

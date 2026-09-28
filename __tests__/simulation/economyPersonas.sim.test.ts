@@ -41,16 +41,16 @@ describeSim('Economic persona soak (manual)', () => {
   jest.setTimeout(3_600_000 * 3);
 
   it('prints the economy of every persona at 20 / 50 / 100 / 250 weeks', async () => {
-    const seeds = (process.env.SEEDS ?? '1').split(',').map((s) => Number(s.trim())).filter(Number.isFinite);
+    const seeds = (process.env.SEEDS ?? '1').split(',').map((s: string) => Number(s.trim())).filter(Number.isFinite);
     const weeks = Number(process.env.WEEKS ?? 250);
     const every = Number(process.env.EVERY ?? 10);
-    const filter = process.env.PERSONAS?.split(',').map((s) => s.trim().toUpperCase());
+    const filter = process.env.PERSONAS?.split(',').map((s: string) => s.trim().toUpperCase());
     const horizons = [20, 50, 100, 250].filter((h) => h <= weeks);
     const results: SimResult[] = [];
     const out: string[] = [];
 
     for (const [name, spec] of Object.entries(ECONOMY_PERSONAS)) {
-      if (filter && !filter.some((f) => name.toUpperCase().includes(f))) continue;
+      if (filter && !filter.some((f: string) => name.toUpperCase().includes(f))) continue;
       for (const seed of seeds) {
         const r = await runPersona({
           name,

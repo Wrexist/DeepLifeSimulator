@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
@@ -47,9 +48,9 @@ export default function OnboardingFloatingButton({
             <Text style={styles.title}>{title}</Text>
             <View style={styles.iconContainer}>
               {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={uiPalette.white} />
               ) : (
-                icon || <ArrowRight size={24} color="#FFFFFF" />
+                icon || <ArrowRight size={24} color={uiPalette.white} />
               )}
             </View>
           </View>
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
     // ignored fontScale. Tier 1 of the wizard, sized on the ladder.
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     flex: 1,
     textAlign: 'center',
     ...Platform.select({
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: { boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)' } as any,
       default: {
-        shadowColor: '#FFFFFF',
+        shadowColor: uiPalette.white,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,

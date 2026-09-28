@@ -13,7 +13,7 @@ import { GameState, WeddingPlan } from '../types';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta, updateMoney } from './MoneyActions';
-import { updateStats } from './StatsActions';
+import { updateStats, applyStatsDelta } from './StatsActions';
 import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
@@ -198,6 +198,9 @@ export const goOnDate = (
   // (same pattern as giveGift below).
   setGameState(prev => {
     const prevPartner = (prev.relationships || []).find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
+    if (!prevPartner || rejectIfBlocked(prev) || isPlayerJailed(prev)
+      || !Number.isFinite(prev.stats.money) || prev.stats.money < config.cost
+      || !Number.isFinite(prev.stats.energy) || prev.stats.energy < config.energy) return prev;
     if (prevPartner) {
       const prevWeeksLived = prev.weeksLived || 0;
       const prevDatesThisWeek = prevPartner.lastDateWeek === prevWeeksLived ? (prevPartner.datesThisWeek || 0) : 0;
@@ -205,12 +208,9 @@ export const goOnDate = (
         return prev;
       }
     }
-    // Canonical money path: applyMoneyDelta accumulates dailySummary.moneyChange
-    // (the direct stats.money write made date spend invisible to the daily
-    // summary). Pre-clamped to cash on hand to keep the old "broke players can
-    // still date" clamp semantics.
-    const dateSpend = Math.min(prev.stats.money || 0, config.cost);
-    const moneyPatch = applyMoneyDelta(prev, -dateSpend, 'Date');
+    // Charge the full quoted price only while all requirements still hold.
+    const moneyPatch = applyMoneyDelta(prev, -config.cost, 'Date');
+    if (!moneyPatch) return prev;
     return ({
     ...prev,
     ...(moneyPatch ?? {}),
@@ -362,13 +362,13 @@ export const giveGift = (
   // two rapid same-batch gift clicks don't both pass the outer gate above and
   // bypass the 2/wk cap.
   setGameState(prev => {
-    const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
-    if (!prevPartner) return prev;
+    const prevPartner = (prev.relationships || []).find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
+    if (!prevPartner || rejectIfBlocked(prev)) return prev;
     const prevWeek = prev.weeksLived || 0;
     const prevGiftsThisWeek = prevPartner.lastGiftWeek === prevWeek ? (prevPartner.giftsThisWeek || 0) : 0;
     if (prevGiftsThisWeek >= MAX_GIFTS_PER_WEEK) return prev;
     const prevMoney = prev.stats.money || 0;
-    if (prevMoney < config.cost) return prev;
+    if (!Number.isFinite(prevMoney) || prevMoney < config.cost) return prev;
 
     // Canonical money path (affordability was rejected above, so this only
     // adds the dailySummary tracking the direct write skipped).
@@ -625,7 +625,7 @@ export const planWedding = (
   weeksFromNow: number,
   options: { catering?: boolean; photography?: boolean; music?: boolean; decorations?: boolean }
 ): { success: boolean; message: string; plan?: WeddingPlan } => {
-  const partner = gameState.relationships?.find(r => r.id === partnerId && r.engagementWeek);
+  const partner = gameState.relationships?.find(r => r.id === partnerId && r.type === 'partner' && r.engagementWeek != null);
   if (!partner) {
     return { success: false, message: 'You must be engaged first!' };
   }
@@ -676,6 +676,9 @@ export const planWedding = (
 
   // Save wedding plan
   setGameState(prev => {
+    const currentPartner = prev.relationships?.find(r => r.id === partnerId);
+    if (!currentPartner || currentPartner.type !== 'partner'
+      || currentPartner.engagementWeek == null || rejectIfBlocked(prev)) return prev;
     // ANTI-BIGAMY recheck - a same-batch double-plan must not schedule two.
     const prevOtherCommitted = (prev.relationships || []).some(
       r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
@@ -765,7 +768,13 @@ export const executeWedding = (
   // already a spouse - a same-batch double-tap can't double-charge the wedding.
   setGameState(prev => {
     const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
-    if (!prevPartner || prevPartner.type === 'spouse') return prev;
+    if (!prevPartner || prevPartner.type !== 'partner' || rejectIfBlocked(prev)) return prev;
+    // A cancelled/replaced plan must never be executed from an old confirmation.
+    if (!prevPartner.weddingPlanned
+      || JSON.stringify(prevPartner.weddingPlanned) !== JSON.stringify(plan)
+      || (prev.weeksLived || 0) < prevPartner.weddingPlanned.scheduledWeek) return prev;
+    if (prev.relationships.some(r => r.id !== partnerId && r.type === 'spouse')
+      || (prev.family?.spouse && prev.family.spouse.id !== partnerId)) return prev;
     if ((prev.stats?.money ?? 0) < remainingBalance) return prev;
     // RELATIONSHIP STATE FIX: Remove existing spouse if different person (prevent duplicates)
     let relationships = prev.relationships || [];
@@ -1294,28 +1303,28 @@ export const cancelEngagement = (
   partnerId: string,
   deps: { updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
-  const partner = gameState.relationships?.find(r => r.id === partnerId && r.engagementWeek);
+  const partner = gameState.relationships?.find(r => r.id === partnerId && r.type === 'partner' && r.engagementWeek != null);
   if (!partner) {
     return { success: false, message: 'Engagement not found.' };
   }
 
-  deps.updateStats(setGameState, { happiness: -15 });
-
-  // Revert to regular partner
-  setGameState(prev => ({
-    ...prev,
-    relationships: (prev.relationships || []).map(r =>
-      r.id === partnerId
-        ? {
-            ...r,
-            engagementWeek: undefined,
-            engagementRing: undefined,
-            weddingPlanned: undefined,
-            relationshipScore: clampRelationshipScore(r.relationshipScore - 20),
-          }
-        : r
-    ),
-  }));
+  // One transaction: repeated confirmations cannot apply the penalties twice.
+  setGameState(prev => {
+    const current = prev.relationships?.find(r => r.id === partnerId);
+    if (!current || current.type !== 'partner' || current.engagementWeek == null
+      || rejectIfBlocked(prev)) return prev;
+    return {
+      ...prev,
+      ...applyStatsDelta(prev, { happiness: -15 }),
+      relationships: prev.relationships.map(r => r.id === partnerId ? {
+        ...r,
+        engagementWeek: undefined,
+        engagementRing: undefined,
+        weddingPlanned: undefined,
+        relationshipScore: clampRelationshipScore(r.relationshipScore - 20),
+      } : r),
+    };
+  });
 
   log.info(`Engagement cancelled with ${partner.name}`);
   return { success: true, message: `Engagement with ${partner.name} has been called off.` };

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * DeepMail's palette, once.
  *
@@ -68,7 +69,7 @@ export const MAIL_PALETTE: { dark: MailPalette; light: MailPalette } = {
     border: '#2A3441',
     link: '#8AB4F8',
     linkStrong: '#1A73E8',
-    onAccent: '#FFFFFF',
+    onAccent: uiPalette.white,
     warn: '#FDD663',
     warnBorder: '#5C4813',
     warnSurface: 'rgba(249,171,0,0.13)',
@@ -79,15 +80,15 @@ export const MAIL_PALETTE: { dark: MailPalette; light: MailPalette } = {
     ruleLight: '#2A3441',
   },
   light: {
-    bg: '#FFFFFF',
-    surface: '#FFFFFF',
+    bg: uiPalette.white,
+    surface: uiPalette.white,
     surfaceMuted: '#F8F9FA',
     field: '#F1F3F4',
     banner: '#E8F0FE',
     border: '#DADCE0',
     link: '#1A73E8',
     linkStrong: '#1A73E8',
-    onAccent: '#FFFFFF',
+    onAccent: uiPalette.white,
     warn: '#B06000',
     warnBorder: '#F9AB00',
     warnSurface: '#FEF7E0',

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -32,8 +33,8 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
       <LinearGradient
         colors={
           darkMode
-            ? ['#1E293B', '#0F172A']
-            : ['#FFFFFF', '#F1F5F9']
+            ? [uiPalette.surface, uiPalette.navy]
+            : [uiPalette.white, uiPalette.lightSurface]
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -162,18 +163,18 @@ const styles = StyleSheet.create({
   },
   title: {
     ...tier2,
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: 2,
   },
   subtitleDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   sparkleIcon: {
     width: 40,
@@ -191,11 +192,11 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: fontScale(13),
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     lineHeight: fontScale(18),
   },
   descriptionDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   progressSection: {
     marginBottom: 16,
@@ -214,18 +215,18 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   progressLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   progressText: {
     fontSize: fontScale(11),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontWeight: '600',
   },
   progressTextDark: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   progressBar: {
     height: 8,
@@ -241,11 +242,11 @@ const styles = StyleSheet.create({
   },
   progressPercent: {
     fontSize: fontScale(10),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'right',
   },
   progressPercentDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   benefitsContainer: {
     marginTop: 8,
@@ -253,11 +254,11 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: 8,
   },
   benefitsTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   benefitsList: {
     gap: 6,
@@ -269,12 +270,12 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     flex: 1,
     lineHeight: fontScale(16),
   },
   benefitTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

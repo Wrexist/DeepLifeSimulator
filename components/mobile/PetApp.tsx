@@ -1,8 +1,11 @@
+import { STAT_IDENTITY, weeklyStatDeltaPresentation } from '@/lib/config/statIdentity';
+import CatalogArt from '@/components/ui/CatalogArt';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * PetApp - Tamagotchi / Fitness DNA pass (Remake 12).
  *
  * Skeleton (deliberately NOT "eyebrow hero + uniform rows"):
- *   - Pets tab   → a portrait STAGE: the active companion's emoji on a soft
+ *   - Pets tab   → a portrait STAGE: the active companion's portrait on a soft
  *                  radial mat flanked by TWO ProgressRings (Health / Happiness),
  *                  bond-level stars, a chunky care pad (Feed/Play/Sleep/Vet),
  *                  and a Stories-style avatar RAIL for every other companion.
@@ -26,7 +29,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import {
-  Heart,
+  Smile,
   HeartPulse,
   Zap,
   Moon,
@@ -69,7 +72,7 @@ import {
   enterCompetition,
 } from '@/contexts/game/actions/PetActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { vitalState, CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import {
   responsiveFontSize as fs,
@@ -102,7 +105,7 @@ const WEEKS_PER_YEAR = 52; // display constant only - mirrors lib/pets/lifecycle
 // different opacities; `withAlpha` derives them from the one token instead.
 const GOLD = accent.gold;
 // Dark ink for text on solid gold (white on gold fails contrast).
-const GOLD_INK = '#0F172A';
+const GOLD_INK = uiPalette.navy;
 const GOLD_FILL = withAlpha(GOLD, 0.15);
 const GOLD_FILL_SOFT = withAlpha(GOLD, 0.12);
 const GOLD_RIM = withAlpha(GOLD, 0.3);
@@ -118,14 +121,11 @@ const clampPct = (n: number): number => Math.max(0, Math.min(100, Number.isFinit
 const isCriticalPet = (p: Pet): boolean =>
   !p.isDead && ((p.health ?? 0) <= CRITICAL_VITAL || (p.hunger ?? 100) <= 10);
 
-/** "+3" / "0" / "-2" - the bond deltas read as movement, so the sign is kept. */
-const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
-
 // Vital → semantic color (kept as data encoding across the whole app).
-const HEALTH_C = accent.success;
-const HAPPY_C = accent.danger;
+const HEALTH_C = STAT_IDENTITY.health.color;
+const HAPPY_C = STAT_IDENTITY.happiness.color;
 const HUNGER_C = accent.warning;
-const ENERGY_C = accent.info;
+const ENERGY_C = STAT_IDENTITY.energy.color;
 
 type TabType = 'pets' | 'shop' | 'vet' | 'compete';
 
@@ -162,6 +162,8 @@ export default function PetApp({ onBack }: PetAppProps) {
 
   const pets = useMemo(() => (gameState.pets ?? []).filter((p) => !p.isDead), [gameState.pets]);
   const deadPets = useMemo(() => (gameState.pets ?? []).filter((p) => p.isDead), [gameState.pets]);
+  const sickPetCount = pets.filter((p) => p.isSick).length;
+  const vaccinatedPetCount = pets.filter((p) => p.vaccinated).length;
   const bonding = useMemo(() => bondingSummary(pets), [pets]);
   const criticalPet = useMemo(() => pets.find(isCriticalPet), [pets]);
   const week = gameState.weeksLived || 0;
@@ -305,7 +307,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   const renderCarePad = (p: Pet) => (
     <View style={styles.carePad}>
       <CareBtn label="Feed" Icon={Bone} color={HUNGER_C} theme={theme} onPress={() => handleFeedFromInventory(p.id)} />
-      <CareBtn label="Play" Icon={Heart} color={HAPPY_C} theme={theme} onPress={() => handlePlay(p.id)} />
+      <CareBtn label="Play" Icon={Smile} color={HAPPY_C} theme={theme} onPress={() => handlePlay(p.id)} />
       <CareBtn label="Sleep" Icon={Moon} color={ENERGY_C} theme={theme} onPress={() => handleSleep(p.id)} />
       <CareBtn label="Vet" Icon={Stethoscope} color={HEALTH_C} theme={theme} onPress={() => goTab('vet')} />
     </View>
@@ -350,7 +352,7 @@ export default function PetApp({ onBack }: PetAppProps) {
             every vital in full - they are what you read when you go looking,
             not what you decide the next tap on. */}
         <View style={styles.heroInner}>
-          <StageCore health={health} happiness={happiness} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
+          <StageCore health={health} happiness={happiness} breedId={p.type} theme={theme} darkMode={darkMode} />
 
           <Text style={[styles.stageName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
           <Text style={[styles.stageSub, { color: theme.textSecondary }]}>
@@ -450,15 +452,15 @@ export default function PetApp({ onBack }: PetAppProps) {
           <SectionTitle title="Companion bonus" />
           <StatStrip
             items={[
-              { label: 'Happiness / wk', value: signed(bonding.playerHappinessDelta), tint: HAPPY_C },
-              { label: 'Health / wk', value: signed(bonding.playerHealthDelta), tint: HEALTH_C },
+              { label: 'Happiness / wk', ...weeklyStatDeltaPresentation(bonding.playerHappinessDelta) },
+              { label: 'Health / wk', ...weeklyStatDeltaPresentation(bonding.playerHealthDelta) },
               { label: 'Healthy pets', value: bonding.healthyPetCount },
             ]}
           />
           <View style={styles.chipWrap}>
             <Chip label={`${pets.length} companions`} tint={GOLD} icon={<PawPrint size={scale(11)} color={GOLD} />} />
-            <Chip label={`${pets.filter((p) => p.isSick).length} sick`} tone="danger" icon={<Skull size={scale(11)} color={accent.danger} />} />
-            <Chip label={`${pets.filter((p) => p.vaccinated).length} vaccinated`} tone="success" icon={<Shield size={scale(11)} color={accent.success} />} />
+            <Chip label={sickPetCount ? `${sickPetCount} sick` : 'No sick pets'} tone={sickPetCount ? 'danger' : 'neutral'} icon={<Skull size={scale(11)} color={sickPetCount ? accent.danger : theme.textSecondary} />} />
+            <Chip label={`${vaccinatedPetCount} vaccinated`} tone={vaccinatedPetCount ? 'success' : 'neutral'} icon={<Shield size={scale(11)} color={vaccinatedPetCount ? accent.success : theme.textSecondary} />} />
           </View>
         </View>
 
@@ -471,7 +473,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                 style={[getGlassCard(darkMode, 6), styles.memoryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
                 <View style={[getGlassIconContainer(darkMode, 40), styles.goldBubbleSoft]}>
-                  <Text style={styles.memoryEmoji}>{findBreed(p.type)?.emoji ?? '🐾'}</Text>
+                  <CatalogArt family="pets" id={p.type} style={styles.memoryPortrait} />
                 </View>
                 <View style={styles.headerText}>
                   <Text style={[styles.cardName, { color: theme.text }]}>{p.name}</Text>
@@ -517,7 +519,7 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <StageCore health={p.health ?? 0} happiness={p.happiness ?? 0} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
+            <StageCore health={p.health ?? 0} happiness={p.happiness ?? 0} breedId={p.type} theme={theme} darkMode={darkMode} />
             <Text style={[styles.stageName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
             <Text style={[styles.stageSub, { color: theme.textSecondary }]}>
               {breed?.name ?? 'Unknown'} · {stage} · {ageInYears(p)}y ({ageW}w)
@@ -590,8 +592,8 @@ export default function PetApp({ onBack }: PetAppProps) {
           <View style={styles.bondRowStats}>
             <StatStrip
               items={[
-                { label: 'Happiness / wk', value: signed(contrib?.happinessContribution ?? 0), tint: HAPPY_C },
-                { label: 'Health / wk', value: signed(contrib?.healthContribution ?? 0), tint: HEALTH_C },
+                { label: 'Happiness / wk', ...weeklyStatDeltaPresentation(contrib?.happinessContribution ?? 0) },
+                { label: 'Health / wk', ...weeklyStatDeltaPresentation(contrib?.healthContribution ?? 0) },
               ]}
             />
           </View>
@@ -750,7 +752,7 @@ export default function PetApp({ onBack }: PetAppProps) {
             >
               <View style={styles.tileTop}>
                 <View style={[getGlassIconContainer(darkMode, 44), styles.goldBubbleSoft]}>
-                  <Text style={styles.shopEmoji}>{b.emoji}</Text>
+                  <CatalogArt family="pets" id={b.id} style={styles.shopPortrait} />
                 </View>
                 <Text style={[styles.tilePrice, { color: theme.text }]}>{formatMoney(b.price)}</Text>
               </View>
@@ -863,8 +865,8 @@ export default function PetApp({ onBack }: PetAppProps) {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.chipWrap}>
-                  {s.healthBonus ? <Chip label={`+${s.healthBonus} health`} tone="success" icon={<HeartPulse size={scale(11)} color={accent.success} />} /> : null}
-                  {s.happinessBonus ? <Chip label={`+${s.happinessBonus} happy`} tone="danger" icon={<Heart size={scale(11)} color={accent.danger} />} /> : null}
+                  {s.healthBonus ? <Chip label={`+${s.healthBonus} health`} tint={HEALTH_C} icon={<HeartPulse size={scale(11)} color={HEALTH_C} />} /> : null}
+                  {s.happinessBonus ? <Chip label={`+${s.happinessBonus} happy`} tint={HAPPY_C} icon={<Smile size={scale(11)} color={HAPPY_C} />} /> : null}
                   {s.vaccinates ? <Chip label="Vaccinates" tone="info" icon={<Shield size={scale(11)} color={ENERGY_C} />} /> : null}
                   {s.treatsSickness ? <Chip label="Treats illness" tone="warning" /> : null}
                   {scaled && sick ? <Chip label={`${sick.name} rate`} tone="info" /> : null}
@@ -1003,7 +1005,7 @@ export default function PetApp({ onBack }: PetAppProps) {
         title={detailPet ? detailPet.name : 'Pets'}
         onBack={detailPet ? () => setDetailPetId(null) : onBack}
         backLabel={detailPet ? 'Back to pets' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={GOLD} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       <SegmentedControl
@@ -1061,18 +1063,18 @@ export default function PetApp({ onBack }: PetAppProps) {
   );
 }
 
-// The dual-ring + emoji-mat core of the stage - reused by the active-pet stage
+// The dual-ring + portrait core of the stage - reused by the active-pet stage
 // and the pet-profile page's identity hero.
 function StageCore({
   health,
   happiness,
-  emoji,
+  breedId,
   theme,
   darkMode,
 }: {
   health: number;
   happiness: number;
-  emoji: string;
+  breedId: string;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
 }) {
@@ -1080,9 +1082,9 @@ function StageCore({
     <View style={styles.stageRow}>
       <VitalRing value={health} color={HEALTH_C} Icon={HeartPulse} label="HEALTH" theme={theme} darkMode={darkMode} />
       <View style={styles.stageMat}>
-        <Text style={styles.stageEmoji}>{emoji}</Text>
+        <CatalogArt family="pets" id={breedId} style={styles.stagePortrait} />
       </View>
-      <VitalRing value={happiness} color={HAPPY_C} Icon={Heart} label="HAPPY" theme={theme} darkMode={darkMode} />
+      <VitalRing value={happiness} color={HAPPY_C} Icon={Smile} label="HAPPY" theme={theme} darkMode={darkMode} />
     </View>
   );
 }
@@ -1186,7 +1188,6 @@ function CareBtn({
 // Stories-style roster avatar with a health dot.
 function RailAvatar({
   pet,
-  breed,
   active,
   theme,
   darkMode,
@@ -1213,7 +1214,7 @@ function RailAvatar({
       accessibilityState={{ selected: active }}
     >
       <View style={[getGlassIconContainer(darkMode, 56), styles.goldBubbleSoft, active && styles.railActive]}>
-        <Text style={styles.railEmoji}>{breed?.emoji ?? '🐾'}</Text>
+        <CatalogArt family="pets" id={pet.type} style={styles.railPortrait} />
         <View style={[styles.railDot, { backgroundColor: dot, borderColor: theme.surface }]} />
         {pet.isSick ? <View style={[styles.railSick, { borderColor: theme.surface }]} /> : null}
       </View>
@@ -1317,7 +1318,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: fs['2xl'], fontWeight: '600' },
   heroSub: { fontSize: fs.sm, marginTop: 2 },
 
-  // Stage - dual rings flanking the emoji mat.
+  // Stage - dual rings flanking the portrait.
   stageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: sp.xs },
   stageMat: {
     width: scale(96),
@@ -1329,7 +1330,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GOLD_RIM,
   },
-  stageEmoji: { fontSize: scale(56) },
+  stagePortrait: { width: '100%', height: '100%', borderRadius: scale(48) },
+  shopPortrait: { width: scale(44), height: scale(44), borderRadius: br.md },
+  railPortrait: { width: scale(48), height: scale(48), borderRadius: scale(24) },
+  memoryPortrait: { width: scale(32), height: scale(32), borderRadius: br.sm },
   stageName: { fontSize: fs['2xl'], fontWeight: '600', textAlign: 'center', marginTop: sp.xs },
   stageSub: { fontSize: fs.sm, textAlign: 'center', marginTop: 2 },
 

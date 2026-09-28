@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * LifeTimelineModal - the chronological "This Life" view (2026-08-24, §11).
  *
@@ -22,10 +23,10 @@ interface Props {
 }
 
 const KIND_META: Record<TimelineKind, { icon: typeof Briefcase; color: string }> = {
-  career: { icon: Briefcase, color: '#60A5FA' },
+  career: { icon: Briefcase, color: uiPalette.blue },
   family: { icon: Heart, color: '#EC4899' },
   event: { icon: Star, color: '#FBBF24' },
-  journal: { icon: BookOpen, color: '#94A3B8' },
+  journal: { icon: BookOpen, color: uiPalette.muted },
   wealth: { icon: TrendingUp, color: '#34D399' },
 };
 
@@ -43,22 +44,22 @@ export default function LifeTimelineModal({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: darkMode ? '#0F172A' : '#F8FAFC' }]}>
+        <View style={[styles.sheet, { backgroundColor: darkMode ? uiPalette.navy : uiPalette.paper }]}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <CalendarClock size={scale(20)} color="#A78BFA" />
-              <Text style={[styles.title, { color: darkMode ? '#F8FAFC' : '#0F172A' }]}>
+              <Text style={[styles.title, { color: darkMode ? uiPalette.paper : uiPalette.navy }]}>
                 This Life
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
-              <X size={scale(22)} color={darkMode ? '#94A3B8' : '#64748B'} />
+              <X size={scale(22)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator>
             {entries.length === 0 ? (
-              <Text style={[styles.empty, { color: darkMode ? '#94A3B8' : '#64748B' }]}>
+              <Text style={[styles.empty, { color: darkMode ? uiPalette.muted : uiPalette.lightMuted }]}>
                 Nothing on the record yet - live a little.
               </Text>
             ) : (
@@ -80,11 +81,11 @@ export default function LifeTimelineModal({ visible, onClose }: Props) {
                         Age {entry.age}
                         {entry.repeats && entry.repeats > 1 ? `  ·  ${entry.repeats} weeks running` : ''}
                       </Text>
-                      <Text style={[styles.rowTitle, { color: darkMode ? '#F1F5F9' : '#0F172A' }]}>
+                      <Text style={[styles.rowTitle, { color: darkMode ? uiPalette.lightSurface : uiPalette.navy }]}>
                         {entry.title}
                       </Text>
                       {!!entry.detail && (
-                        <Text style={[styles.rowDetail, { color: darkMode ? '#94A3B8' : '#64748B' }]} numberOfLines={2}>
+                        <Text style={[styles.rowDetail, { color: darkMode ? uiPalette.muted : uiPalette.lightMuted }]} numberOfLines={2}>
                           {entry.detail}
                         </Text>
                       )}

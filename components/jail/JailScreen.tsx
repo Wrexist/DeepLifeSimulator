@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -224,12 +225,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       case 'prison_job': return ['#10B981', '#34D399'];
       case 'library_study': return ['#8B5CF6', '#A78BFA'];
       case 'prison_workshop': return ['#F59E0B', '#FBBF24'];
-      case 'legal_appeal': return ['#1E293B', '#64748B'];
+      case 'legal_appeal': return [uiPalette.surface, uiPalette.lightMuted];
       case 'good_behavior': return ['#059669', '#34D399'];
       case 'prison_meditation': return ['#6366F1', '#818CF8'];
       case 'prison_exercise': return ['#EF4444', '#F87171'];
       case 'prison_yoga': return ['#EC4899', '#F472B6'];
-      default: return ['#64748B', '#94A3B8'];
+      default: return [uiPalette.lightMuted, uiPalette.muted];
     }
   };
 
@@ -280,7 +281,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1E293B', '#0F172A']}
+        colors={[uiPalette.surface, uiPalette.navy]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.background}
@@ -294,7 +295,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
           </View>
           {onClose && (
             <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
-              <X size={20} color="#FFFFFF" />
+              <X size={20} color={uiPalette.white} />
             </TouchableOpacity>
           )}
         </View>
@@ -313,16 +314,16 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               style={styles.statusGradient}
             >
               <View style={styles.statusHeader}>
-                <Calendar size={20} color="#FFFFFF" />
+                <Calendar size={20} color={uiPalette.white} />
                 <Text style={styles.statusTitle}>Sentence Status</Text>
               </View>
               <View style={styles.statusInfo}>
                 <View style={styles.statusItem}>
-                  <Clock size={16} color="#FFFFFF" />
+                  <Clock size={16} color={uiPalette.white} />
                   <Text style={styles.statusText}>{jailWeeks} weeks remaining</Text>
                 </View>
                 <View style={styles.statusItem}>
-                  <DollarSign size={16} color="#FFFFFF" />
+                  <DollarSign size={16} color={uiPalette.white} />
                   <Text style={styles.statusText}>Bail: ${bailCost}</Text>
                 </View>
               </View>
@@ -341,7 +342,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               style={styles.bailButton}
             >
               <LinearGradient
-                colors={stats.money < bailCost ? ['#64748B', '#475569'] : ['#10B981', '#34D399']}
+                colors={stats.money < bailCost ? [uiPalette.lightMuted, uiPalette.lightSecondary] : ['#10B981', '#34D399']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bailButtonGradient}
@@ -364,7 +365,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 style={styles.bailButtonGradient}
               >
                 <View style={styles.serveTimeRow}>
-                  <Clock size={16} color="#FFFFFF" />
+                  <Clock size={16} color={uiPalette.white} />
                   <Text style={styles.bailButtonText}>Serve a Week</Text>
                 </View>
               </LinearGradient>
@@ -434,13 +435,13 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                     style={styles.foodCard}
                   >
                     <LinearGradient
-                      colors={canAfford ? ['#1E293B', '#334155'] : ['#0F172A', '#1E293B']}
+                      colors={canAfford ? [uiPalette.surface, uiPalette.slate] : [uiPalette.navy, uiPalette.surface]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.foodCardGradient}
                     >
                       <View style={styles.foodCardHeader}>
-                        <Utensils size={16} color={canAfford ? '#F59E0B' : '#64748B'} />
+                        <Utensils size={16} color={canAfford ? '#F59E0B' : uiPalette.lightMuted} />
                         <Text style={[styles.foodPrice, !canAfford && styles.disabledText]}>
                           ${price}
                         </Text>
@@ -493,15 +494,15 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                     style={styles.activityCard}
                   >
                     <LinearGradient
-                      colors={canPerform && !onCooldown && !doneThisWeek ? (colors as [string, string]) : ['#334155', '#1E293B'] as [string, string]}
+                      colors={canPerform && !onCooldown && !doneThisWeek ? (colors as [string, string]) : [uiPalette.slate, uiPalette.surface] as [string, string]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.activityGradient}
                     >
                       <View style={styles.activityHeader}>
-                        <Icon size={20} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#64748B'} />
+                        <Icon size={20} color={canPerform && !onCooldown && !doneThisWeek ? uiPalette.white : uiPalette.lightMuted} />
                         <View style={styles.energyCost}>
-                          <Zap size={12} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#64748B'} />
+                          <Zap size={12} color={canPerform && !onCooldown && !doneThisWeek ? uiPalette.white : uiPalette.lightMuted} />
                           <Text style={[styles.energyText, (!canPerform || onCooldown || doneThisWeek) && styles.disabledText]}>
                             {activity.energyCost}
                           </Text>
@@ -539,13 +540,13 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       <View style={styles.activityRewards}>
                         {activity.payment && (
                           <View style={styles.rewardItem}>
-                            <DollarSign size={12} color="#FFFFFF" />
+                            <DollarSign size={12} color={uiPalette.white} />
                             <Text style={styles.rewardText}>+${activity.payment}</Text>
                           </View>
                         )}
                         {activity.sentenceReduction && (
                           <View style={styles.rewardItem}>
-                            <Shield size={12} color="#FFFFFF" />
+                            <Shield size={12} color={uiPalette.white} />
                             <Text style={styles.rewardText}>
                               {/* A "release" activity (e.g. escape/parole) uses a
                                   huge reduction as a sentinel - show "Release",
@@ -558,25 +559,25 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         )}
                         {activity.fitnessGain && (
                           <View style={styles.rewardItem}>
-                            <TrendingUp size={12} color="#FFFFFF" />
+                            <TrendingUp size={12} color={uiPalette.white} />
                             <Text style={styles.rewardText}>+{activity.fitnessGain} Fitness</Text>
                           </View>
                         )}
                         {activity.healthGain && (
                           <View style={styles.rewardItem}>
-                            <Heart size={12} color="#FFFFFF" />
+                            <Heart size={12} color={uiPalette.white} />
                             <Text style={styles.rewardText}>+{activity.healthGain} Health</Text>
                           </View>
                         )}
                         {activity.happinessGain && (
                           <View style={styles.rewardItem}>
-                            <Smile size={12} color="#FFFFFF" />
+                            <Smile size={12} color={uiPalette.white} />
                             <Text style={styles.rewardText}>+{activity.happinessGain} Happiness</Text>
                           </View>
                         )}
                         {activity.reputationGain && (
                           <View style={styles.rewardItem}>
-                            <Shield size={12} color="#FFFFFF" />
+                            <Shield size={12} color={uiPalette.white} />
                             <Text style={styles.rewardText}>+{activity.reputationGain} Rep</Text>
                           </View>
                         )}
@@ -641,7 +642,7 @@ const styles = StyleSheet.create({
     // paddingTop is set dynamically (safe-area aware) on the element.
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: uiPalette.slate,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -649,7 +650,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...tier1Title,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: 10,
   },
   closeButton: {
@@ -674,7 +675,7 @@ const styles = StyleSheet.create({
   },
   statusTitle: {
     ...tier2,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: 10,
   },
   statusInfo: {
@@ -686,25 +687,25 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: fontScale(16),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: 8,
   },
   bailCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 20,
     marginTop: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: uiPalette.slate,
   },
   sectionTitle: {
     ...tier2,
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: fontScale(14),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginBottom: 15,
     lineHeight: fontScale(20),
   },
@@ -720,7 +721,7 @@ const styles = StyleSheet.create({
   bailButtonText: {
     fontSize: fontScale(16),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   serveTimeHint: {
     marginTop: 14,
@@ -762,18 +763,18 @@ const styles = StyleSheet.create({
   },
   energyText: {
     fontSize: fontScale(12),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: 4,
   },
   activityName: {
     fontSize: fontScale(14),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: 6,
   },
   activityDescription: {
     fontSize: fontScale(11),
-    color: '#E2E8F0',
+    color: uiPalette.line,
     marginBottom: 10,
     lineHeight: fontScale(14),
   },
@@ -793,7 +794,7 @@ const styles = StyleSheet.create({
   },
   rewardText: {
     fontSize: fontScale(10),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: 2,
   },
   costIndicator: {
@@ -807,7 +808,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   disabledText: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   cooldownIndicator: {
     flexDirection: 'row',
@@ -845,13 +846,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statsCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 20,
     marginTop: 20,
     marginBottom: 30,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: uiPalette.slate,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -863,19 +864,19 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     borderRadius: 8,
     marginBottom: 10,
   },
   statLabel: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 4,
   },
   statValue: {
     fontSize: fontScale(14),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginTop: 2,
   },
   foodSection: {
@@ -916,7 +917,7 @@ const styles = StyleSheet.create({
   foodName: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: 10,
   },
   foodBenefits: {
@@ -932,7 +933,7 @@ const styles = StyleSheet.create({
   },
   foodBenefitText: {
     fontSize: fontScale(11),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: 4,
     fontWeight: '500',
   },

@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 /**
  * AppHeader - the one top bar for every launcher-hosted app.
  *
@@ -23,8 +24,8 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { accent, withAlpha } from '@/lib/config/theme';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+import { financeColors, withAlpha } from '@/lib/config/theme';
+
 
 interface AppHeaderProps {
   title: string;
@@ -32,34 +33,34 @@ interface AppHeaderProps {
   /** Screen-reader label for the back control. Default "Back". */
   backLabel?: string;
   right?: React.ReactNode;
-  /** Centre the title (Contacts/Hustle style). Default: leading, next to the arrow. */
-  centered?: boolean;
   style?: ViewStyle;
 }
 
-export default function AppHeader({ title, onBack, backLabel = 'Back', right, centered = false, style }: AppHeaderProps) {
+export default function AppHeader({ title, onBack, backLabel = 'Back', right, style }: AppHeaderProps) {
   const { theme } = useTheme();
   return (
     <View style={[styles.bar, style]}>
-      <TouchableOpacity
-        onPress={onBack}
-        hitSlop={8}
-        style={styles.back}
-        accessibilityRole="button"
-        accessibilityLabel={backLabel}
-      >
-        <ArrowLeft size={scale(22)} color={theme.text} />
-      </TouchableOpacity>
+      <AppBackButton onBack={onBack} label={backLabel} />
       <Text
-        style={[styles.title, { color: theme.text }, centered && styles.titleCentered]}
-        numberOfLines={1}
+        style={[styles.title, { color: theme.text }]}
+        numberOfLines={2}
         accessibilityRole="header"
       >
         {title}
       </Text>
-      {/* A trailing slot that is always laid out keeps a centred title centred. */}
-      <View style={styles.right}>{right ?? (centered ? <View style={styles.back} /> : null)}</View>
+      {right != null && <View style={styles.right}>{right}</View>}
     </View>
+  );
+}
+
+/** Shared leading navigation control, also used by branded search/toolbars. */
+export function AppBackButton({ onBack, label = 'Back' }: { onBack: () => void; label?: string }) {
+  const { theme } = useTheme();
+  return (
+    <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.back}
+      activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={label}>
+      <ArrowLeft size={scale(22)} color={theme.text} />
+    </TouchableOpacity>
   );
 }
 
@@ -99,7 +100,7 @@ export function HeaderChip({
       <TouchableOpacity
         onPress={onPress}
         hitSlop={6}
-        style={[styles.chip, { backgroundColor: fill, borderColor: rim }]}
+        style={[styles.chip, styles.interactiveChip, { backgroundColor: fill, borderColor: rim }]}
         accessibilityRole="button"
         accessibilityLabel={`${label} ${value}`}
       >
@@ -119,9 +120,9 @@ export function HeaderChip({
   );
 }
 
-/** The default cash readout; `accent.success` green unless the app has an identity tint. */
-export function CashChip({ value, tint = accent.success, onPress }: { value: string; tint?: string; onPress?: () => void }) {
-  return <HeaderChip label="Cash" value={value} tint={tint} onPress={onPress} />;
+/** Cash has one financial identity; app branding belongs to navigation and actions. */
+export function CashChip({ value, onPress }: { value: string; onPress?: () => void }) {
+  return <HeaderChip label="Cash" value={value} tint={financeColors.cash} onPress={onPress} />;
 }
 
 const styles = StyleSheet.create({
@@ -144,10 +145,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.1,
   },
-  titleCentered: {
-    textAlign: 'center',
-  },
   right: {
+    maxWidth: '50%',
+    flexShrink: 1,
     minWidth: touchTargets.minimum,
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -155,14 +155,16 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     minHeight: scale(32),
   },
+  interactiveChip: { minHeight: touchTargets.minimum },
   chipText: {
+    flexShrink: 1,
     fontSize: fontScale(13),
     fontWeight: '600',
     fontVariant: ['tabular-nums'],

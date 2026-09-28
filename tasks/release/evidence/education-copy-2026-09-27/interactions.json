@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "freeEnrollment": "passed",
+    "exactWeeks": "passed",
+    "loanDisclosure": "passed",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "freeEnrollment": "passed",
+    "exactWeeks": "passed",
+    "loanDisclosure": "passed",
+    "errors": []
+  }
+]

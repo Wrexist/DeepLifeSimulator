@@ -127,7 +127,8 @@ export const isTablet = () => isIPad() || isAndroidTablet() || isWebTablet();
 // Core scaling functions with tablet-aware limits
 export const scale = (size: number): number => {
   const { width } = getScreenDimensions();
-  const maxClamp = isTablet() ? 1.8 : 1.3;
+  // Tablets gain usable space rather than giant phone controls.
+  const maxClamp = isTablet() ? 1.2 : 1.3;
   const scaleFactor = Math.min(Math.max(width / baseWidth, 0.7), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
@@ -135,7 +136,8 @@ export const scale = (size: number): number => {
 
 export const verticalScale = (size: number): number => {
   const { height } = getScreenDimensions();
-  const maxClamp = isTablet() ? 1.8 : 1.3;
+  // Tablets gain usable space rather than giant phone controls.
+  const maxClamp = isTablet() ? 1.2 : 1.3;
   const scaleFactor = Math.min(Math.max(height / baseHeight, 0.7), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
@@ -143,7 +145,7 @@ export const verticalScale = (size: number): number => {
 
 export const fontScale = (size: number): number => {
   const { width } = getScreenDimensions();
-  const maxClamp = isTablet() ? 1.6 : 1.25;
+  const maxClamp = isTablet() ? 1.15 : 1.25;
   const minClamp = 0.75;
   const base = width / baseWidth;
   const scaleFactor = Math.min(Math.max(base, minClamp), maxClamp);
@@ -171,6 +173,8 @@ export const getAppScreenBottomPadding = (bottomInset = 0): number =>
 
 // Responsive spacing with safe fallbacks
 export const responsiveSpacing = {
+  compact: scale(12),
+  comfortable: scale(20),
   xs: scale(4),
   sm: scale(8),
   md: scale(16),

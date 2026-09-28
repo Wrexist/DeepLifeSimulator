@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
+import { uiPalette , accent } from '@/lib/config/theme';
 /**
  * Health issues - every active problem and how to fix it, in one card ON the
  * Health screen.
@@ -14,9 +16,9 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import { fontScale, scale } from '@/utils/scaling';
+
 import { tier1Title, vitalState } from '@/lib/config/hierarchy';
-import { accent } from '@/lib/config/theme';
+
 
 interface HealthIssue {
   id: string;
@@ -34,6 +36,7 @@ interface HealthIssue {
 export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
   const diseases = useGameSelector((s) => s.diseases);
   const stats = useGameSelector((s) => s.stats, shallowEqual);
+  const restUsed = useGameSelector((s) => s.settings?.quickActionWeeks?.rest === s.weeksLived);
   const healthZeroWeeks = useGameSelector((s) => s.healthZeroWeeks);
   const happinessZeroWeeks = useGameSelector((s) => s.happinessZeroWeeks);
 
@@ -52,9 +55,15 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
       // The card sits on the Health screen now, so the fix points at the
       // activities below it rather than navigating the player here.
-      const fix = (d.treatmentRequired || hasDeathCountdown)
-        ? 'See a doctor or hospital below to treat it.'
-        : 'Rest and eat well - it should pass, or treat it below.';
+      const fix = !d.curable
+        ? d.treatmentRequired
+          ? 'A doctor or hospital can manage symptoms; this condition cannot be cured.'
+          : 'This condition cannot be cured. Use recovery activities to support your vitals.'
+        : d.severity === 'critical'
+          ? 'Experimental Treatment is required to cure this condition.'
+          : (d.treatmentRequired || hasDeathCountdown)
+            ? 'A doctor may cure it; a hospital cures non-critical, curable illnesses.'
+            : 'This can pass naturally, or you can seek treatment below.';
       issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
     });
 
@@ -67,14 +76,14 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       issues.push({
         id: 'health-zero',
         title: `Health critical - ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
-        fix: "Eat, rest and start a diet plan below before it's too late.",
+        fix: 'Use free Walk in Park or Meditation to raise health if you have energy. Rest restores energy, not health.',
         level: 'critical',
       });
     } else if (vitalState(health).level !== 'fair' && vitalState(health).level !== 'good') {
       issues.push({
         id: 'health-low',
         title: `${vitalState(health).word} health`,
-        fix: 'Improve your diet, rest, and exercise.',
+        fix: 'Walk in Park and Meditation raise health for free; both need energy.',
         level: vitalState(health).level === 'critical' ? 'critical' : 'warning',
       });
     }
@@ -92,7 +101,7 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       issues.push({
         id: 'happiness-low',
         title: `${vitalState(happiness).word} happiness`,
-        fix: 'Spend on hobbies, socialize, or take a break to recover.',
+        fix: 'Meditation and Walk in Park raise happiness for free; both need energy.',
         level: vitalState(happiness).level === 'critical' ? 'critical' : 'warning',
       });
     }
@@ -102,13 +111,15 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
       issues.push({
         id: 'energy-low',
         title: `${vitalState(energy).word} energy`,
-        fix: 'Rest, eat, or sleep to recharge.',
+        fix: restUsed
+          ? 'Rest is used for this week. It becomes available after Next week; check food in Market for energy now.'
+          : 'Hold the blue Energy ring above, then choose Rest: free, +14 energy and -5 happiness, once per week.',
         level: vitalState(energy).level === 'critical' ? 'critical' : 'warning',
       });
     }
 
     return issues;
-  }, [diseases, healthZeroWeeks, happinessZeroWeeks, stats?.health, stats?.happiness, stats?.energy]);
+  }, [diseases, healthZeroWeeks, happinessZeroWeeks, restUsed, stats?.health, stats?.happiness, stats?.energy]);
 
   if (healthIssues.length === 0) return null;
 
@@ -140,23 +151,23 @@ export default function HealthIssuesCard({ lead = false }: { lead?: boolean }) {
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: scale(12),
-    borderRadius: scale(16),
-    padding: scale(14),
-    backgroundColor: '#1E293B',
+    marginBottom: layoutSpace.compact,
+    borderRadius: layoutRadius.xl,
+    padding: layoutSpace.compact,
+    backgroundColor: uiPalette.surface,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.35)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
-    marginBottom: scale(8),
+    gap: layoutSpace.sm,
+    marginBottom: layoutSpace.sm,
   },
   title: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     flex: 1,
   },
   titleLead: {
@@ -168,14 +179,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: scale(8),
+    marginBottom: layoutSpace.sm,
   },
   dot: {
     width: scale(8),
     height: scale(8),
-    borderRadius: scale(4),
-    marginTop: scale(5),
-    marginRight: scale(8),
+    borderRadius: layoutRadius.sm,
+    marginTop: layoutSpace.xs,
+    marginRight: layoutSpace.sm,
   },
   rowText: {
     flex: 1,
@@ -183,11 +194,11 @@ const styles = StyleSheet.create({
   issueTitle: {
     fontSize: fontScale(13.5),
     fontWeight: '600',
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
   },
   issueFix: {
     fontSize: fontScale(12),
-    color: '#94A3B8',
-    marginTop: scale(1),
+    color: uiPalette.muted,
+    marginTop: layoutSpace.xs,
   },
 });

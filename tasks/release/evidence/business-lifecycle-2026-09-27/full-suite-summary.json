@@ -1,0 +1,33 @@
+{
+  "numPassedTestSuites": 854,
+  "numFailedTestSuites": 3,
+  "numPendingTestSuites": 17,
+  "numPassedTests": 10209,
+  "numFailedTests": 5,
+  "numPendingTests": 32,
+  "success": false,
+  "seconds": 617.917,
+  "exitCode": 1,
+  "failures": [
+    {
+      "file": "tickTiming.bench.test.ts",
+      "tests": [
+        "Tick timing benchmark (Year Mode sizing) measures per-tick cost across an early and a late-game window"
+      ]
+    },
+    {
+      "file": "PoliticalAppCareer.render.test.tsx",
+      "tests": [
+        "render - PoliticalApp Career tab mounts for a player with none of the v47 fields set",
+        "render - PoliticalApp Career tab the Office tab points into it for a player with no party",
+        "render - PoliticalApp Career tab renders all four systems once the tab is actually opened"
+      ]
+    },
+    {
+      "file": "modalListsShrink.test.ts",
+      "tests": [
+        "the two banking modals that started this OpenAccountModal does too - same flow, same defect, no percentage bound at all"
+      ]
+    }
+  ]
+}

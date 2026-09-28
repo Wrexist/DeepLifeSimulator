@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
@@ -109,7 +110,7 @@ export default function AchievementToast() {
   }, [isVisible, achievement]);
 
   const getCategoryIcon = (category: string) => {
-    const iconProps = { size: 24, color: '#FFFFFF' };
+    const iconProps = { size: 24, color: uiPalette.white };
     switch (category) {
       case 'items': return <ShoppingCart {...iconProps} />;
       case 'health': return <Heart {...iconProps} />;
@@ -188,7 +189,7 @@ export default function AchievementToast() {
 
         {/* Achievement Icon */}
         <View style={styles.iconContainer}>
-          {isLevelUp ? <TrendingUp size={24} color="#FFFFFF" /> : getCategoryIcon(achievement.category)}
+          {isLevelUp ? <TrendingUp size={24} color={uiPalette.white} /> : getCategoryIcon(achievement.category)}
         </View>
 
         {/* Text Content */}
@@ -208,7 +209,7 @@ export default function AchievementToast() {
 
         {/* Reward Badge */}
         <View style={styles.rewardContainer}>
-          <Gem size={16} color="#FFFFFF" />
+          <Gem size={16} color={uiPalette.white} />
           <Text style={styles.rewardText}>+{achievement.reward}</Text>
         </View>
       </View>
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textAlign: 'center',
     lineHeight: 22,
     flexShrink: 1,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   rewardText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,

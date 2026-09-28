@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -62,7 +63,7 @@ const TALENT_TREES: Record<CrimeSkillId, TalentTree> = {
   stealth: {
     name: 'Shadow Arts',
     description: 'Move unseen. Each unlocked talent adds +5% success rate and +10% payment to stealth jobs.',
-    accent: ['#475569', '#94A3B8'],
+    accent: [uiPalette.lightSecondary, uiPalette.muted],
     nodes: [
       { id: 'silentStep', name: 'Silent Step', description: 'Move like a whisper in the wind.', effect: '+10% stealth success rate', pointsCost: 1, level: 1, row: 0, column: 1, icon: Eye },
       { id: 'shadowBlend', name: 'Shadow Blend', description: 'Become one with the darkness.', effect: '+20% stealth success rate', pointsCost: 1, level: 2, row: 1, column: 0, requires: ['silentStep'], icon: Shield },
@@ -310,7 +311,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
                     )}
                     {status === 'unlocked' ? (
                       <View style={[styles.checkBadge, { backgroundColor: accentPrimary }]}>
-                        <Check size={scale(9)} color="#FFFFFF" />
+                        <Check size={scale(9)} color={uiPalette.white} />
                       </View>
                     ) : null}
                   </View>
@@ -370,7 +371,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
                       {selectedNode.pointsCost} pt • ${selectedNode.pointsCost * 100}
                     </Text>
                   </View>
-                  <ChevronDown size={scale(18)} color="#FFFFFF" style={{ transform: [{ rotate: '-90deg' }] }} />
+                  <ChevronDown size={scale(18)} color={uiPalette.white} style={{ transform: [{ rotate: '-90deg' }] }} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -430,7 +431,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.3,
   },
   subtitle: {
@@ -465,7 +466,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: fontScale(17),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.3,
   },
@@ -543,7 +544,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontScale(14),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
   },
   talentNameLocked: {
@@ -620,7 +621,7 @@ const styles = StyleSheet.create({
   unlockBtnTitle: {
     fontSize: fontScale(14),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     letterSpacing: 0.2,
   },
   unlockBtnMeta: {

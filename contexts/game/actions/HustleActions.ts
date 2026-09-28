@@ -16,7 +16,6 @@ import { GameState } from '../types';
 import type {
   HustleCampaign,
   HustleCampaignKind,
-  HustleCandidate,
   HustleCompanyOverlay,
   HustleScandalKind,
   HustleScandalResolution,
@@ -24,7 +23,7 @@ import type {
   HustleActiveScandal,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { applyMoneyDelta } from './MoneyActions';
+import { applyMoneyDelta, MONEY_CEILING } from './MoneyActions';
 import { clampStatByKey } from '@/utils/statUtils';
 import { companyIncomeMultiplier, MAX_COMPANY_EMPLOYEES } from '../company';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -254,6 +253,9 @@ export const hireCandidate = (
   offeredSalary: number,
   offeredBonus: number,
 ): HireOfferResult => {
+  if (!Number.isFinite(offeredSalary) || offeredSalary <= 0 || !Number.isFinite(offeredBonus) || offeredBonus < 0) {
+    return { success: false, message: 'Choose a positive salary and a non-negative bonus', accepted: false };
+  }
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const candidate = overlay?.hiringPipeline.candidates.find((c) => c.id === candidateId);
   if (!overlay || !candidate) return { success: false, message: 'Candidate not found', accepted: false };
@@ -265,7 +267,8 @@ export const hireCandidate = (
 
   // Headcount cap - mirrors addWorker's MAX_COMPANY_EMPLOYEES limit.
   const hiringCompany = gameState.companies?.find((c) => c.id === companyId);
-  if ((hiringCompany?.employees ?? 0) >= MAX_COMPANY_EMPLOYEES) {
+  if (!hiringCompany) return { success: false, message: 'Company not found', accepted: false };
+  if ((hiringCompany.employees ?? 0) >= MAX_COMPANY_EMPLOYEES) {
     return { success: false, message: `At the ${MAX_COMPANY_EMPLOYEES}-employee limit`, accepted: false };
   }
 
@@ -300,7 +303,7 @@ export const hireCandidate = (
     // pipeline, the offer was already processed - don't hire (or charge) twice.
     const freshPipeline = prev.hustleApp?.companies?.[companyId]?.hiringPipeline;
     const freshCandidate = freshPipeline?.candidates.some((c) => c.id === candidateId);
-    if (!freshCandidate) return prev;
+    if (!freshCandidate || !prev.companies?.some(c => c.id === companyId)) return prev;
     // Energy re-checked against prev like the money - no exhausted interview.
     if ((prev.stats?.energy ?? 0) < HIRE_ENERGY_COST) return prev;
     // The interview's energy cost, applied to whichever outcome commits below.
@@ -447,34 +450,40 @@ export const launchCampaign = (
   kind: HustleCampaignKind,
   spendPerWeek: number,
   durationWeeks: number,
-): { success: boolean; message: string; projectedROI?: number } => {
+): { status: 'queued' | 'rejected'; message: string; campaignId?: string; projectedROI?: number } => {
+  if (!Number.isFinite(spendPerWeek) || !Number.isSafeInteger(durationWeeks) || durationWeeks < 1) {
+    return { status: 'rejected', message: 'Enter a valid spend and whole number of weeks' };
+  }
   const floor = campaignCostFloor(kind);
   if (spendPerWeek < floor) {
-    return { success: false, message: `Min spend for ${kind} campaign is $${floor.toLocaleString()}/week` };
+    return { status: 'rejected', message: `Min spend for ${kind} campaign is $${floor.toLocaleString()}/week` };
   }
   const company = gameState.companies?.find((c) => c.id === companyId);
-  if (!company) return { success: false, message: 'Company not found' };
+  if (!company) return { status: 'rejected', message: 'Company not found' };
 
   const upfront = spendPerWeek;
   if ((gameState.stats?.money ?? 0) < upfront) {
-    return { success: false, message: 'Insufficient cash for first week of spend' };
+    return { status: 'rejected', message: 'Insufficient cash for first week of spend' };
   }
   // Running a campaign is WORK (2026-08-24): the owner briefs creative, signs
   // off spend, watches the numbers. Charging energy puts business management
   // inside the same weekly budget street jobs, study and dates draw on -
   // the lightweight slice of a time economy, without touching passive income.
   if ((gameState.stats?.energy ?? 0) < CAMPAIGN_ENERGY_COST) {
-    return { success: false, message: `Too tired to run a campaign (needs ${CAMPAIGN_ENERGY_COST} energy)` };
+    return { status: 'rejected', message: `Too tired to run a campaign (needs ${CAMPAIGN_ENERGY_COST} energy)` };
   }
 
-  const weeksLived = gameState.weeksLived ?? 0;
+  const campaignId = genId('camp');
   const projectedROI = projectCampaignROI(kind, spendPerWeek, company.weeklyIncome ?? 0);
 
   setGameState((prev) => {
+    if (!prev.companies?.some(c => c.id === companyId)) return prev;
+    if (prev.hustleApp?.companies?.[companyId]?.activeCampaigns.some(c => c.id === campaignId)) return prev;
+    const weeksLived = prev.weeksLived ?? 0;
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalCampaignsRun += 1;
       const campaign: HustleCampaign = {
-        id: genId('camp'),
+        id: campaignId,
         kind,
         spendPerWeek,
         startedWeek: weeksLived,
@@ -510,7 +519,8 @@ export const launchCampaign = (
     };
   });
 
-  return { success: true, message: 'Campaign launched', projectedROI };
+  // Queued is not success: the caller acknowledges this ID only after a React commit.
+  return { status: 'queued', message: 'Launching campaign', campaignId, projectedROI };
 };
 
 export const cancelCampaign = (
@@ -677,13 +687,15 @@ export interface IPOResult {
   sharePrice: number;
 }
 
-export const launchIPO = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+export const quoteIPO = (
   gameState: GameState,
   companyId: string,
   /** How much of the company to sell as float (10-40%). */
   floatPercent: number = 25,
 ): IPOResult => {
+  if (!Number.isFinite(floatPercent) || floatPercent < 10 || floatPercent > 40) {
+    return { success: false, message: 'Choose a float between 10% and 40%', cashRaised: 0, ownershipKept: 100, sharePrice: 0 };
+  }
   const company = gameState.companies?.find((c) => c.id === companyId);
   const overlay = gameState.hustleApp?.companies?.[companyId];
   if (!company || !overlay) {
@@ -692,7 +704,7 @@ export const launchIPO = (
   if (overlay.ipo.status === 'public') {
     return { success: false, message: 'Already public', cashRaised: 0, ownershipKept: overlay.ipo.ownershipPercent, sharePrice: overlay.ipo.sharePrice };
   }
-  if ((company.weeklyIncome ?? 0) < 10_000) {
+  if (!Number.isFinite(company.weeklyIncome) || (company.weeklyIncome ?? 0) < 10_000) {
     return { success: false, message: 'Need at least $10K/week revenue to IPO', cashRaised: 0, ownershipKept: 100, sharePrice: 0 };
   }
   if (overlay.activeScandal) {
@@ -704,13 +716,26 @@ export const launchIPO = (
   const sharesSold = Math.floor(sharesK * 1000 * (floatPercent / 100));
   const cashRaised = Math.floor(sharesSold * sharePrice);
   const ownershipKept = 100 - floatPercent;
-  const weeksLived = gameState.weeksLived ?? 0;
+  if (!Number.isFinite(cashRaised) || cashRaised <= 0) return { success: false, message: 'Unable to quote this IPO', cashRaised: 0, ownershipKept: 100, sharePrice: 0 };
+  if (!Number.isFinite(gameState.stats.money) || cashRaised > MONEY_CEILING - gameState.stats.money) return { success: false, message: 'Not enough cash capacity for IPO proceeds', cashRaised: 0, ownershipKept: 100, sharePrice: 0 };
+  return { success: true, message: 'IPO eligible', cashRaised, ownershipKept, sharePrice };
+};
 
+export const launchIPO = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+  companyId: string,
+  floatPercent: number = 25,
+): IPOResult => {
+  const quote = quoteIPO(gameState, companyId, floatPercent);
+  if (!quote.success) return quote;
   setGameState((prev) => {
-    // P1-7: re-check status against FRESH prev (the outer guard reads stale gameState,
-    // so a double-tap could pass twice). Bail atomically if already public.
-    const freshOverlay = prev.hustleApp?.companies?.[companyId];
-    if (freshOverlay?.ipo.status === 'public') return prev;
+    const fresh = quoteIPO(prev, companyId, floatPercent);
+    if (!fresh.success) return prev;
+    const { cashRaised, ownershipKept, sharePrice } = fresh;
+    const company = prev.companies!.find(c => c.id === companyId)!;
+    const weeksLived = prev.weeksLived ?? 0;
+    const sharesK = 100;
 
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalIPOsLaunched += 1;
@@ -736,13 +761,12 @@ export const launchIPO = (
     // P1-7: credit cashRaised + reputation IN THE SAME updater (was a trailing
     // updateMoney/updateStats → a double-tap double-credited the float proceeds).
     const credit = applyMoneyDelta(next, cashRaised, `IPO float (${floatPercent}%) of ${company.name}`);
-    if (!credit) return next;
+    if (!credit) return prev;
     return withReputationDelta({ ...next, ...credit }, 8);
   });
 
-  log.info(`IPO ${company.name}: raised $${cashRaised} at $${sharePrice}`);
-
-  return { success: true, message: 'IPO successful', cashRaised, ownershipKept, sharePrice };
+  // Preflight eligibility is not a commit receipt; the UI observes public status.
+  return quote;
 };
 
 // ── Acquisitions ─────────────────────────────────────────────────────────
@@ -813,13 +837,12 @@ export const acceptAcquisition = (
 ): { success: boolean; message: string } => {
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const offer = overlay?.pendingAcquisitions.find((a) => a.id === offerId);
-  if (!overlay || !offer) return { success: false, message: 'Offer not found' };
+  if (!overlay || !offer || !gameState.companies?.some(c => c.id === companyId)) return { success: false, message: 'Offer not found' };
+  if (!Number.isFinite(offer.askingPrice) || offer.askingPrice <= 0) return { success: false, message: 'Invalid acquisition price' };
 
   if ((gameState.stats?.money ?? 0) < offer.askingPrice) {
     return { success: false, message: `Need $${offer.askingPrice.toLocaleString()} to close` };
   }
-
-  const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
     /**
@@ -835,9 +858,10 @@ export const acceptAcquisition = (
      * `totalAcquisitionsCompleted`. Acquisition prices run to seven figures.
      * CLAUDE.md §4.4.
      */
-    const stillPending = prev.hustleApp?.companies?.[companyId]
-      ?.pendingAcquisitions?.some((a) => a.id === offerId);
-    if (!stillPending) return prev;
+    const offer = prev.hustleApp?.companies?.[companyId]
+      ?.pendingAcquisitions?.find((a) => a.id === offerId);
+    if (!offer || !prev.companies?.some(c => c.id === companyId) || !Number.isFinite(offer.askingPrice) || offer.askingPrice <= 0) return prev;
+    const weeksLived = prev.weeksLived ?? 0;
 
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalAcquisitionsCompleted += 1;

@@ -1,3 +1,5 @@
+import { textStyles } from '@/lib/config/hierarchy';
+import { responsiveSpacing as layoutSpace , responsiveBorderRadius, scale, touchTargets } from '@/utils/scaling';
 /**
  * Chip - the small labeled pill, once.
  *
@@ -12,7 +14,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { accent, withAlpha } from '@/lib/config/theme';
-import { fontScale, responsiveBorderRadius, scale } from '@/utils/scaling';
+
 
 export type ChipTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
@@ -57,7 +59,7 @@ export default function Chip({
   const body = (
     <>
       {icon}
-      <Text style={[styles.text, size === 'md' && styles.textMd, { color: textColor }]} numberOfLines={1}>
+      <Text style={[styles.text, size === 'md' && styles.textMd, { color: textColor }]}>
         {label}
       </Text>
     </>
@@ -67,7 +69,7 @@ export default function Chip({
     return (
       <TouchableOpacity
         onPress={onPress}
-        style={box}
+        style={[box, styles.interactive]}
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityState={{ selected }}
@@ -85,12 +87,15 @@ export default function Chip({
 }
 
 const styles = StyleSheet.create({
+  interactive: { minHeight: touchTargets.minimum, minWidth: touchTargets.minimum },
   chip: {
+    maxWidth: '100%',
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
+    gap: layoutSpace.xs,
+    paddingHorizontal: layoutSpace.sm,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     minHeight: scale(26),
@@ -98,16 +103,15 @@ const styles = StyleSheet.create({
   // The md chip IS the app's quiet action (Manage, Found a company, See
   // all), so it meets the 44pt target and its label reads as an action.
   chipMd: {
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(8),
+    paddingHorizontal: layoutSpace.compact,
+    paddingVertical: layoutSpace.sm,
     minHeight: scale(44),
   },
   text: {
-    fontSize: fontScale(11.5),
-    fontWeight: '500',
+    ...textStyles.caption,
+    flexShrink: 1,
   },
   textMd: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
   },
 });

@@ -1,5 +1,8 @@
+import AmountSlider from '@/components/ui/AmountSlider';
+import { parseAmount } from '@/utils/parseAmount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, AlertCircle } from 'lucide-react-native';
 import { GameState, Loan } from '@/contexts/game/types';
 import { getLoanQuote } from '@/contexts/game/actions/LoanActions';
@@ -35,6 +38,7 @@ const TERM_OPTIONS = [
 
 export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkMode, onAccept, onClose }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [type, setType] = useState<Loan['type']>('personal');
   const [termWeeks, setTermWeeks] = useState<number>(52);
   const [principalText, setPrincipalText] = useState('');
@@ -47,7 +51,8 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
     }
   }, [visible]);
 
-  const principal = parseFloat(principalText) || 0;
+  const parsedPrincipal = parseAmount(principalText);
+  const principal = parsedPrincipal ?? 0;
   const checking = useMemo(
     () => gameState.banking?.accounts.find((a) => a.type === 'checking'),
     [gameState.banking]
@@ -59,8 +64,8 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
   }, [gameState, principal, termWeeks, type, weeklyIncome]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
           activeOpacity={1}
@@ -76,13 +81,16 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Type</Text>
               <View style={styles.chipRow}>
                 {LOAN_TYPES.map((t) => (
                   <TouchableOpacity
                     key={t.type}
+                    accessibilityRole="radio"
+                    accessibilityLabel={t.label}
+                    accessibilityState={{ selected: type === t.type }}
                     onPress={() => setType(t.type)}
                     style={[
                       styles.chip,
@@ -106,6 +114,9 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
                 {TERM_OPTIONS.map((t) => (
                   <TouchableOpacity
                     key={t.weeks}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`${t.weeks} week loan term`}
+                    accessibilityState={{ selected: termWeeks === t.weeks }}
                     onPress={() => setTermWeeks(t.weeks)}
                     style={[
                       styles.chip,
@@ -126,24 +137,13 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
             <View>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Principal</Text>
               <View style={[styles.inputWrap, { borderColor: theme.border }]}>
-                <Text style={[styles.currency, { color: theme.textSecondary }]}>$</Text>
-                <TextInput
-                  value={principalText}
-                  onChangeText={setPrincipalText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder="5,000"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.text }]}
-                />
+                <AmountSlider value={principalText} onChangeText={setPrincipalText} accessibilityLabel="Loan amount in dollars" initialRange={Math.max(weeklyIncome * 52, 10000)} darkMode={darkMode} />
               </View>
             </View>
 
+            {principalText.trim() !== '' && parsedPrincipal === null && (
+              <Text accessibilityRole="alert" style={styles.rejectedText}>Enter a valid amount, such as 1,000.50.</Text>
+            )}
             {quote && quote.rejected && (
               <View style={styles.rejected}>
                 <AlertCircle size={scale(14)} color={accent.danger} />
@@ -169,7 +169,7 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
                   <QuoteRow
                     theme={theme}
                     label="Checking after loan"
-                    value={formatMoney(checking.balance + principal)}
+                    value={formatMoney((checking.id === 'checking-default' ? gameState.stats.money : checking.balance) + principal)}
                   />
                 )}
                 {weeklyIncome > 0 && (
@@ -184,6 +184,9 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
           </ScrollView>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Accept loan"
+            accessibilityState={{ disabled: !quote || quote.rejected || !checking }}
             disabled={!quote || quote.rejected || !checking}
             onPress={() => {
               if (!quote || quote.rejected || !checking) return;
@@ -203,7 +206,7 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
             <Text style={styles.confirmText}>Accept Loan</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -254,6 +257,8 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   chip: {
+    minHeight: scale(44),
+    justifyContent: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,

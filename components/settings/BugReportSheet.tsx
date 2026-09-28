@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * BugReportSheet - Modal for composing and sending bug reports via email.
  * Extracted from SettingsModal to reduce its size.
@@ -92,7 +93,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
           <View style={styles.header}>
             <Text style={styles.title}>Report a Problem</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#CBD5E1" />
+              <X size={24} color={uiPalette.secondary} />
             </TouchableOpacity>
           </View>
 
@@ -111,7 +112,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
             <TextInput
               style={styles.input}
               placeholder="What happened? What were you doing?"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={uiPalette.muted}
               value={bugReportText}
               onChangeText={setBugReportText}
               multiline
@@ -125,17 +126,17 @@ export default function BugReportSheet({ visible, onClose }: Props) {
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.discordButton} onPress={handleDiscord}>
-              <MessageCircle size={18} color="#FFFFFF" />
+              <MessageCircle size={18} color={uiPalette.white} />
               <Text style={styles.sendButtonText}>Discord</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-              <Share2 size={18} color="#FFFFFF" />
+              <Share2 size={18} color={uiPalette.white} />
               <Text style={styles.sendButtonText}>Share</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.sendButton} onPress={handleEmail}>
-              <Mail size={18} color="#FFFFFF" />
+              <Mail size={18} color={uiPalette.white} />
               <Text style={styles.sendButtonText}>Email</Text>
             </TouchableOpacity>
           </View>
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modal: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: 450,
     width: '90%',
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   closeButton: {
     borderRadius: scale(20),
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: responsiveFontSize.base,
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginBottom: responsivePadding.medium,
     // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
     lineHeight: fontScale(22),
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     padding: responsivePadding.medium,
     fontSize: responsiveFontSize.base,
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     minHeight: 120,
   },
   actions: {
@@ -255,6 +256,6 @@ const styles = StyleSheet.create({
   sendButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });

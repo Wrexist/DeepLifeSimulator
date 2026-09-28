@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * The Dynasty board - the reachable surface for prestige tiers 2-5.
  *
@@ -66,7 +67,7 @@ interface RowProps {
  */
 function Row({ title, subtitle, action, onPress, enabled, done, locked, isDark }: RowProps) {
   const Icon = done ? Check : locked ? Lock : Sparkles;
-  const tint = done ? '#10B981' : enabled ? '#D97706' : isDark ? '#94A3B8' : '#64748B';
+  const tint = done ? '#10B981' : enabled ? '#D97706' : isDark ? uiPalette.muted : uiPalette.lightMuted;
   return (
     <TouchableOpacity
       activeOpacity={enabled ? 0.8 : 1}
@@ -94,10 +95,10 @@ function Row({ title, subtitle, action, onPress, enabled, done, locked, isDark }
     >
       <Icon size={16} color={tint} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: fontScale(14), fontWeight: '700', color: isDark ? '#E2E8F0' : '#1E293B' }}>
+        <Text style={{ fontSize: fontScale(14), fontWeight: '700', color: isDark ? uiPalette.line : uiPalette.surface }}>
           {title}
         </Text>
-        <Text style={{ fontSize: fontScale(11), color: isDark ? '#94A3B8' : '#64748B' }}>
+        <Text style={{ fontSize: fontScale(11), color: isDark ? uiPalette.muted : uiPalette.lightMuted }}>
           {subtitle}
         </Text>
       </View>
@@ -120,13 +121,13 @@ function Section({ icon: Icon, title, blurb, unlocked, requirement, isDark, chil
   return (
     <View style={{ marginBottom: scale(16) }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(6), marginBottom: scale(4) }}>
-        <Icon size={14} color={unlocked ? '#D97706' : isDark ? '#94A3B8' : '#64748B'} />
-        <Text style={{ fontSize: fontScale(13), fontWeight: '700', color: isDark ? '#CBD5E1' : '#64748B' }}>
+        <Icon size={14} color={unlocked ? '#D97706' : isDark ? uiPalette.muted : uiPalette.lightMuted} />
+        <Text style={{ fontSize: fontScale(13), fontWeight: '700', color: isDark ? uiPalette.secondary : uiPalette.lightMuted }}>
           {title}
         </Text>
-        {!unlocked && <Lock size={12} color={isDark ? '#94A3B8' : '#64748B'} />}
+        {!unlocked && <Lock size={12} color={isDark ? uiPalette.muted : uiPalette.lightMuted} />}
       </View>
-      <Text style={{ fontSize: fontScale(11), color: isDark ? '#94A3B8' : '#64748B', marginBottom: scale(8) }}>
+      <Text style={{ fontSize: fontScale(11), color: isDark ? uiPalette.muted : uiPalette.lightMuted, marginBottom: scale(8) }}>
         {unlocked ? blurb : requirement}
       </Text>
       {children}

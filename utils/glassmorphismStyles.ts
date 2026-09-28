@@ -5,6 +5,7 @@
  * inspired by Apple's Liquid Glass aesthetic.
  */
 
+import { getThemeColors } from '@/lib/config/theme';
 import { Platform, ViewStyle } from 'react-native';
 import { responsiveBorderRadius, scale } from './scaling';
 
@@ -54,9 +55,13 @@ export function getGlassContainer(darkMode: boolean = false, opacity: number = 0
  * Glass card style with elevation
  */
 export function getGlassCard(darkMode: boolean = false, elevation: number = 8): ViewStyle {
+  const theme = getThemeColors(darkMode);
   return {
-    ...getGlassContainer(darkMode, darkMode ? 0.4 : 0.3),
-    ...getPlatformShadows(elevation, 0.2, 0, 16),
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: responsiveBorderRadius.xl,
+    ...getPlatformShadows(Math.min(elevation, 3), 0.1, 2, 8),
   };
 }
 
@@ -193,17 +198,7 @@ export function getGlassTabBar(darkMode: boolean = false): ViewStyle {
  * Glass app card style
  */
 export function getGlassAppCard(darkMode: boolean = false): ViewStyle {
-  return {
-    backgroundColor: darkMode
-      ? 'rgba(15, 23, 42, 0.4)'
-      : 'rgba(255, 255, 255, 0.3)',
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: darkMode ? 1 : 1.5,
-    borderColor: darkMode
-      ? 'rgba(255, 255, 255, 0.08)'
-      : 'rgba(255, 255, 255, 0.5)',
-    ...getPlatformShadows(8, 0.2, 0, 16),
-  };
+  return getGlassCard(darkMode, 2);
 }
 
 /**

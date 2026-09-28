@@ -347,6 +347,310 @@
       "transparentFraction": 0.675,
       "width": 1200,
       "height": 900
+    },
+    {
+      "id": "destination-gym",
+      "model": "models/destination-gym.glb",
+      "render": "renders/destination-gym.png",
+      "modelBytes": 386464,
+      "renderBytes": 118847,
+      "renderSha256": "ff61354fd37e0e4957bf9c05d6eea26cc4cc4e6895bf81a1511f2ccb5d36dc09",
+      "sha256": "dfcd32d3b642d6ea7706cc1d1f8add12985377a6ef0f326ae4df5721e34e13a4",
+      "triangles": 6964,
+      "meshes": 29,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-clinic",
+      "model": "models/destination-clinic.glb",
+      "render": "renders/destination-clinic.png",
+      "modelBytes": 736168,
+      "renderBytes": 121366,
+      "renderSha256": "cf1346789c018c060aa461663615cad66fd5a1219f27bbfeeb23d9c42e0ccfec",
+      "sha256": "26c162a46426e899231592c12a9591230b8710dec3b7f4adcdb1acb501b5fd8c",
+      "triangles": 10476,
+      "meshes": 47,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-university",
+      "model": "models/destination-university.glb",
+      "render": "renders/destination-university.png",
+      "modelBytes": 540764,
+      "renderBytes": 126126,
+      "renderSha256": "2d41243cff3e04267bdb4e199df594d30a043ed4e63e1e067f9cca80e7692bb2",
+      "sha256": "1b3c6244f2ae15af3d6d6405604039884630b0ffa806028114b35cae522f4a86",
+      "triangles": 17772,
+      "meshes": 97,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-cafe",
+      "model": "models/destination-cafe.glb",
+      "render": "renders/destination-cafe.png",
+      "modelBytes": 496976,
+      "renderBytes": 113871,
+      "renderSha256": "992942046fc9734fe686a5f327e1bbf807915096e958a74c4abdda6c58b8e215",
+      "sha256": "5094c68836fe6c50733c4af569aa054a67a9131bee46ba2dd60f8d18690ece92",
+      "triangles": 10128,
+      "meshes": 50,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-studio",
+      "model": "models/destination-studio.glb",
+      "render": "renders/destination-studio.png",
+      "modelBytes": 658536,
+      "renderBytes": 130856,
+      "renderSha256": "b4257228708bd23352ccecc09d26c0f9cbc7d4f0922899b47ca35d98cfcb0bd5",
+      "sha256": "6e942c58938c8e1f6e4e550c094d6ae6d5a3cc10b53b1e4381cbf15e6adbbfe5",
+      "triangles": 10560,
+      "meshes": 47,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "destination-lounge",
+      "model": "models/destination-lounge.glb",
+      "render": "renders/destination-lounge.png",
+      "modelBytes": 648852,
+      "renderBytes": 142938,
+      "renderSha256": "9ced168243b12b2bd21a81f2eb486b7fc414069ad08cc77644206eefd0f3c783",
+      "sha256": "fd2b7ccd794dd3cb06349f4954d9231349596e44893a3931d7e9eea616688cce",
+      "triangles": 10324,
+      "meshes": 47,
+      "boundsMetres": [
+        4.099999904632568,
+        2.0599999797344206,
+        3.6500000953674316
+      ],
+      "transparentFraction": 0.675,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-lost-items",
+      "model": "models/work-lost-items.glb",
+      "render": "renders/work-lost-items.png",
+      "modelBytes": 210952,
+      "renderBytes": 108969,
+      "renderSha256": "d5bb2371809a53cfd4ee0fdceb103a59406b7ba16a373d66fd9b6415b0e11d17",
+      "sha256": "e5b4d304768f7b928e9b44e5d2fa68ffac35abd2fd1d85d1ddbccdcd3aec56b9",
+      "triangles": 3936,
+      "meshes": 12,
+      "boundsMetres": [
+        2.5,
+        1.3645043267717583,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.859,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-delivery",
+      "model": "models/work-delivery.glb",
+      "render": "renders/work-delivery.png",
+      "modelBytes": 139232,
+      "renderBytes": 62311,
+      "renderSha256": "827f88361a164210b86c7ff0757af8761dc448f1288e7d32c346ca1e41a57d64",
+      "sha256": "0d220e71b75f6b2916318fcf3a6a3ff57a00535cdd2f18e253dedc8b1ce5b5ac",
+      "triangles": 1712,
+      "meshes": 7,
+      "boundsMetres": [
+        2.5,
+        1.5487500025331975,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.821,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-cleaning",
+      "model": "models/work-cleaning.glb",
+      "render": "renders/work-cleaning.png",
+      "modelBytes": 103700,
+      "renderBytes": 48628,
+      "renderSha256": "626539dca7210cf0432ac11216f5ae286c75379339fb4f9bdc501c336c709f8f",
+      "sha256": "520fc8e91f387fd030a9c09648a41d98d21003c9947162947f97f5c4c3585750",
+      "triangles": 1092,
+      "meshes": 6,
+      "boundsMetres": [
+        2.5,
+        1.7100000001490117,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.85,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-garden",
+      "model": "models/work-garden.glb",
+      "render": "renders/work-garden.png",
+      "modelBytes": 149276,
+      "renderBytes": 88208,
+      "renderSha256": "f352be2ac9b40aa1a69d9cf34640d9f09c4024a6cc1125983f0be22a159c4ce2",
+      "sha256": "96883f001fdf6f78179466305f8381098fb57ce66db5fdc927cda6c6807ca79f",
+      "triangles": 3964,
+      "meshes": 19,
+      "boundsMetres": [
+        2.5,
+        1.5099999979883432,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.849,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-pet-care",
+      "model": "models/work-pet-care.glb",
+      "render": "renders/work-pet-care.png",
+      "modelBytes": 118384,
+      "renderBytes": 73176,
+      "renderSha256": "2f835cca71c85b461a8d0772fc704f867216b1dc1e90bfadb7f00f41791fb75f",
+      "sha256": "9c21155ab000eb5f57eb916797a2cbd51b2a0f0338b6d27aaa37a5bbf2de255c",
+      "triangles": 1988,
+      "meshes": 8,
+      "boundsMetres": [
+        2.5,
+        0.5599999986588955,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.869,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-study",
+      "model": "models/work-study.glb",
+      "render": "renders/work-study.png",
+      "modelBytes": 95016,
+      "renderBytes": 71428,
+      "renderSha256": "e445988da4b4e6ec2230eee9824477609ef6233d4ca702856504d65a18335ef0",
+      "sha256": "4f558a3b430bbc91fef0a87bc747d4b1b0ae1b2b47f4ab6860dca4b4477211f2",
+      "triangles": 1564,
+      "meshes": 6,
+      "boundsMetres": [
+        2.5,
+        1.2498373845165158,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.847,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-network",
+      "model": "models/work-network.glb",
+      "render": "renders/work-network.png",
+      "modelBytes": 183716,
+      "renderBytes": 49655,
+      "renderSha256": "ec3c0e00304638d7399b1843c46b09e8fbd2cf75899a9a64a7ac6271396e2f0d",
+      "sha256": "8d9a147b9474984c515f3da1ce30d1e62fcb23f3c080c2963007ccd5241de97d",
+      "triangles": 2528,
+      "meshes": 10,
+      "boundsMetres": [
+        2.5,
+        0.84500000461936,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.87,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-retail",
+      "model": "models/work-retail.glb",
+      "render": "renders/work-retail.png",
+      "modelBytes": 149004,
+      "renderBytes": 54773,
+      "renderSha256": "f86c4926f5cc9e077c502e8988ee3784bf344da7d21e5972e9fb96e47918f575",
+      "sha256": "d8f80e1967ba2895ba79880d482672c013acbc22c3080bd3db71ebe28ba54e94",
+      "triangles": 1500,
+      "meshes": 5,
+      "boundsMetres": [
+        2.5,
+        1.339999992698431,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.842,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-recycling",
+      "model": "models/work-recycling.glb",
+      "render": "renders/work-recycling.png",
+      "modelBytes": 99220,
+      "renderBytes": 50059,
+      "renderSha256": "049f7e67ec6f4163b8ef21d62734ee7796cc9118f2b05d1391852e59e3e4a372",
+      "sha256": "ba0679e2e9d6749622ec4afb8c6162dceb8ea2a1b21ae61d4a88b3e33117cc36",
+      "triangles": 1284,
+      "meshes": 9,
+      "boundsMetres": [
+        2.5,
+        1.5400000001490115,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.832,
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "id": "work-vehicle",
+      "model": "models/work-vehicle.glb",
+      "render": "renders/work-vehicle.png",
+      "modelBytes": 175544,
+      "renderBytes": 63704,
+      "renderSha256": "8e63e8dc5b84179c15a4ac68f3fd7375f778a4c48bf6a47ea8f26f7cb62615e9",
+      "sha256": "80282341072705d4f84f8e7700911c7f6574599b0ff42a6e395f0ec2e7faaeff",
+      "triangles": 3508,
+      "meshes": 14,
+      "boundsMetres": [
+        2.5,
+        1.1400000016391276,
+        1.899999976158142
+      ],
+      "transparentFraction": 0.828,
+      "width": 1200,
+      "height": 900
     }
   ]
 }

@@ -1,10 +1,14 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, responsiveSpacing, scale } from '@/utils/scaling';
+import { uiPalette , colors } from '@/lib/config/theme';
 import React, { useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Lock } from 'lucide-react-native';
-import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+import SceneCard from '@/components/ui/SceneCard';
+import { workArtwork } from '@/lib/config/workArtwork';
+
 import GradientButton from '@/components/ui/GradientButton';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
 
 export type JobCardAccent = 'street' | 'career' | 'crime';
 
@@ -15,6 +19,7 @@ export interface JobCardMetadata {
 }
 
 interface JobCardProps {
+  jobId?: string;
   title: string;
   description: string;
   reward: string;
@@ -43,8 +48,8 @@ const MAX_VISIBLE_CHIPS = 3;
 
 const ACCENTS: Record<JobCardAccent, { reward: string; button: [string, string, string]; glow: string }> = {
   street: {
-    reward: '#60A5FA',
-    button: ['#60A5FA', '#3B82F6', '#1D4ED8'], // light top → deep bottom for depth
+    reward: uiPalette.blue,
+    button: [uiPalette.blue, '#3B82F6', '#1D4ED8'], // light top → deep bottom for depth
     glow: '#3B82F6',
   },
   career: {
@@ -66,6 +71,7 @@ const META_TONE: Record<NonNullable<JobCardMetadata['tone']>, string> = {
 };
 
 export default function JobCard({
+  jobId,
   title,
   description,
   reward,
@@ -84,6 +90,8 @@ export default function JobCard({
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
   const descLine = locked && lockReason ? lockReason : description;
+  const scene = workArtwork(jobId, title, accent === 'career');
+  const showArt = !!scene && !locked;
 
   const [expanded, setExpanded] = useState(false);
   const hiddenCount = metadata.length - MAX_VISIBLE_CHIPS;
@@ -91,7 +99,6 @@ export default function JobCard({
 
   return (
     <View style={styles.card}>
-      <BlurViewFallback intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
@@ -106,10 +113,13 @@ export default function JobCard({
           </View>
         </View>
 
-        {descLine ? (
-          <Text style={styles.description} numberOfLines={3}>
-            {descLine}
-          </Text>
+        {descLine || showArt ? (
+          <View style={styles.descriptionRow}>
+            <Text style={[styles.description, styles.descriptionText]} numberOfLines={3}>
+              {descLine}
+            </Text>
+            {showArt && scene && <SceneCard scene={scene} thumbnail />}
+          </View>
         ) : null}
 
         {metadata.length > 0 ? (
@@ -162,38 +172,38 @@ export default function JobCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: verticalScale(12),
-    borderRadius: responsiveBorderRadius.md,
+    marginBottom: layoutSpace.compact,
+    borderRadius: responsiveBorderRadius.xl,
     overflow: 'hidden',
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: colors.dark.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   body: {
     padding: responsiveSpacing.md,
-    gap: verticalScale(10),
+    gap: layoutSpace.sm,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: scale(12),
+    gap: layoutSpace.compact,
   },
   title: {
     flex: 1,
     fontSize: fontScale(17),
     lineHeight: fontScale(22),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
   },
   rewardWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
+    gap: layoutSpace.xs,
   },
   lockIcon: {
-    marginTop: scale(1),
+    marginTop: layoutSpace.xs,
   },
   reward: {
     fontSize: fontScale(16),
@@ -206,22 +216,24 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
     color: 'rgba(226, 232, 240, 0.68)',
   },
+  descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: layoutSpace.sm },
+  descriptionText: { flex: 1 },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginVertical: verticalScale(2),
+    marginVertical: layoutSpace.xs,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: scale(14),
-    rowGap: verticalScale(6),
+    gap: layoutSpace.compact,
+    rowGap: layoutSpace.xs,
   },
   metaCell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(5),
+    gap: layoutSpace.xs,
   },
   metaIcon: {
     width: scale(14),
@@ -240,22 +252,22 @@ const styles = StyleSheet.create({
     color: 'rgba(148, 197, 255, 0.9)',
   },
   buttonSpacing: {
-    marginTop: verticalScale(4),
+    marginTop: layoutSpace.xs,
   },
   feedback: {
     alignSelf: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.88)',
-    paddingHorizontal: scale(12),
-    paddingVertical: verticalScale(6),
+    paddingHorizontal: layoutSpace.compact,
+    paddingVertical: layoutSpace.xs,
     borderRadius: responsiveBorderRadius.full,
-    marginTop: verticalScale(2),
+    marginTop: layoutSpace.xs,
   },
   feedbackText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   footer: {
-    marginTop: verticalScale(2),
+    marginTop: layoutSpace.xs,
   },
 });

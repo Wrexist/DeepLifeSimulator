@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -292,7 +293,7 @@ export default function Index() {
 // Mirrors the MainMenu design language with fixed px values (the scaling utils
 // may not be loaded yet on this very first screen - RN core only here).
 const loadingStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
+  container: { flex: 1, backgroundColor: uiPalette.navy },
   bgScrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(2, 6, 23, 0.52)',
@@ -308,14 +309,14 @@ const loadingStyles = StyleSheet.create({
   spacerBottom: { flex: 1.1, width: '100%' },
   hero: { alignItems: 'center' },
   eyebrow: {
-    color: '#60A5FA',
+    color: uiPalette.blue,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,
     marginBottom: 12,
   },
   brandTop: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontSize: 46,
     letterSpacing: 1.5,
     textAlign: 'center',
@@ -325,7 +326,7 @@ const loadingStyles = StyleSheet.create({
     }),
   },
   brandBottom: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 20,
     letterSpacing: 8,
     textAlign: 'center',
@@ -350,7 +351,7 @@ const loadingStyles = StyleSheet.create({
     marginTop: 24,
   },
   bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
-  message: { color: '#94A3B8', fontSize: 13, fontWeight: '500', marginTop: 14, textAlign: 'center' },
+  message: { color: uiPalette.muted, fontSize: 13, fontWeight: '500', marginTop: 14, textAlign: 'center' },
   footer: {
     color: 'rgba(148, 163, 184, 0.45)',
     fontSize: 10,

@@ -1,3 +1,4 @@
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 /**
  * BaseModal - Unified modal component
  *
@@ -26,7 +27,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ViewStyle,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
@@ -59,7 +60,6 @@ const sp = {
   xl: scale(20),                 // was raw 20, no token at this step
 } as const;
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type ModalVariant = 'center' | 'bottom' | 'fullscreen';
 
@@ -99,6 +99,8 @@ export default function BaseModal({
   testID,
 }: BaseModalProps) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
   // The colour half of the stylesheet is resolved per-render from the active
   // theme. It used to be baked into StyleSheet.create against `colors.dark.*`,
   // so every consumer (all six HUD breakdown modals) rendered slate-900 chrome
@@ -121,13 +123,13 @@ export default function BaseModal({
 
   const containerMaxHeight = isFullscreen
     ? undefined
-    : SCREEN_HEIGHT * maxHeightFraction;
+    : Math.max(0, height - insets.top - insets.bottom) * Math.min(1, Math.max(0.25, maxHeightFraction));
 
   return (
     <Modal
       transparent
       visible={visible}
-      animationType={isBottom ? 'slide' : 'fade'}
+      animationType={reducedMotion ? 'none' : isBottom ? 'slide' : 'fade'}
       onRequestClose={onClose}
       testID={testID}
     >
@@ -182,8 +184,9 @@ export default function BaseModal({
                   {title && (
                     <Text
                       style={[styles.title, themed.title]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       maxFontSizeMultiplier={1.4}
+                      accessibilityRole="header"
                     >
                       {title}
                     </Text>
@@ -191,7 +194,7 @@ export default function BaseModal({
                   {subtitle && (
                     <Text
                       style={[styles.subtitle, themed.subtitle]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                       maxFontSizeMultiplier={1.4}
                     >
                       {subtitle}
@@ -313,8 +316,8 @@ const styles = StyleSheet.create({
     marginTop: sp.xxs,
   },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: responsiveBorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',

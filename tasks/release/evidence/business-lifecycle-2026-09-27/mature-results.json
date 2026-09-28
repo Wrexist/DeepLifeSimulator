@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "hireFireConfirmation": true,
+    "namedHireCannotBeRemovedAsGeneric": true,
+    "ipo": true,
+    "acquisitionReopen": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "hireFireConfirmation": true,
+    "namedHireCannotBeRemovedAsGeneric": true,
+    "ipo": true,
+    "acquisitionReopen": true,
+    "errors": []
+  }
+]

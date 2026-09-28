@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,7 +53,7 @@ export default function ErrorMessage({
  const getSeverityColors = () => {
  switch (severity) {
  case 'info':
- return ['#3B82F6', '#60A5FA'];
+ return ['#3B82F6', uiPalette.blue];
  case 'warning':
  return ['#F59E0B', '#FBBF24'];
  case 'critical':
@@ -104,14 +105,14 @@ export default function ErrorMessage({
  >
  <View style={styles.content}>
  <View style={styles.header}>
- <IconComponent size={24} color="#FFFFFF" strokeWidth={2.4} />
+ <IconComponent size={24} color={uiPalette.white} strokeWidth={2.4} />
  <View style={styles.textContainer}>
  {title && <Text style={styles.title}>{title}</Text>}
  <Text style={styles.message}>{message}</Text>
  </View>
  {onDismiss && (
  <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
- <X size={20} color="#fff"/>
+ <X size={20} color={uiPalette.white}/>
  </TouchableOpacity>
  )}
  </View>
@@ -120,13 +121,13 @@ export default function ErrorMessage({
  <View style={styles.actions}>
  {onRetry && (
  <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
- <RefreshCw size={16} color="#fff"/>
+ <RefreshCw size={16} color={uiPalette.white}/>
  <Text style={styles.retryText}>Retry</Text>
  </TouchableOpacity>
  )}
  {isRealError && onReport && (
  <TouchableOpacity onPress={onReport} style={styles.supportButton}>
- <FileText size={16} color="#fff"/>
+ <FileText size={16} color={uiPalette.white}/>
  <Text style={styles.supportText}>Report</Text>
  </TouchableOpacity>
  )}
@@ -166,12 +167,12 @@ const styles = StyleSheet.create({
  title: {
  fontSize: 16,
  fontWeight: 'bold',
- color: '#fff',
+ color: uiPalette.white,
  marginBottom: 4,
  },
  message: {
  fontSize: 14,
- color: '#fff',
+ color: uiPalette.white,
  lineHeight: 20,
  },
  dismissButton: {
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
  borderRadius: 6,
  },
  retryText: {
- color: '#fff',
+ color: uiPalette.white,
  fontSize: 12,
  fontWeight: '600',
  marginLeft: 4,
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
  borderRadius: 6,
  },
  supportText: {
- color: '#fff',
+ color: uiPalette.white,
  fontSize: 12,
  fontWeight: '600',
  marginLeft: 4,

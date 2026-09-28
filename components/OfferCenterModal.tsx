@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * OfferCenterModal - the weekly rotating offer, shown somewhere the player
  * chose to go.
@@ -172,7 +173,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
               accessibilityRole="button"
               accessibilityLabel="Close offers"
             >
-              <X size={scale(18)} color="#94A3B8" />
+              <X size={scale(18)} color={uiPalette.muted} />
             </TouchableOpacity>
           </View>
 
@@ -271,7 +272,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
               </TouchableOpacity>
 
               <View style={styles.countdownRow}>
-                <Clock size={scale(12)} color="#94A3B8" />
+                <Clock size={scale(12)} color={uiPalette.muted} />
                 <Text style={styles.countdownText}>Next rotation in {countdown}</Text>
               </View>
             </View>
@@ -293,7 +294,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
             </View>
 
             <View style={styles.footNote}>
-              <Gift size={scale(13)} color="#64748B" />
+              <Gift size={scale(13)} color={uiPalette.lightMuted} />
               <Text style={styles.footNoteText}>
                 Offers rotate every week. Prices are set by the App Store and shown in your own
                 currency - nothing here expires early or changes for you personally.
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.72)', justifyContent: 'flex-end' },
   sheet: {
     maxHeight: '88%',
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
     borderTopLeftRadius: responsiveBorderRadius.xl,
     borderTopRightRadius: responsiveBorderRadius.xl,
     // Hard Rule #7 structural exception: the hairline wrapping a bottom
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
     gap: scale(10),
   },
   kicker: { color: '#FBBF24', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.7 },
-  heading: { color: '#F8FAFC', fontSize: fontScale(18), fontWeight: '800', marginTop: scale(2) },
+  heading: { color: uiPalette.paper, fontSize: fontScale(18), fontWeight: '800', marginTop: scale(2) },
   closeBtn: {
     width: scale(34),
     height: scale(34),
@@ -357,10 +358,10 @@ const styles = StyleSheet.create({
   art: { width: scale(58), height: scale(58), borderRadius: scale(12) },
   benefits: { gap: scale(6) },
   benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(7) },
-  benefitText: { flex: 1, color: '#E2E8F0', fontSize: fontScale(12.5), fontWeight: '600' },
+  benefitText: { flex: 1, color: uiPalette.line, fontSize: fontScale(12.5), fontWeight: '600' },
   valueLine: { color: '#FBBF24', fontSize: fontScale(11.5), fontWeight: '700' },
-  featuredName: { color: '#F8FAFC', fontSize: fontScale(16), fontWeight: '800' },
-  featuredBlurb: { color: '#94A3B8', fontSize: fontScale(11.5), marginTop: scale(3) },
+  featuredName: { color: uiPalette.paper, fontSize: fontScale(16), fontWeight: '800' },
+  featuredBlurb: { color: uiPalette.muted, fontSize: fontScale(11.5), marginTop: scale(3) },
   saveBadge: {
     paddingHorizontal: scale(8),
     paddingVertical: scale(4),
@@ -372,12 +373,12 @@ const styles = StyleSheet.create({
   saveBadgeText: { color: '#34D399', fontSize: fontScale(10), fontWeight: '800' },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: scale(8) },
   strikethrough: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontSize: fontScale(13),
     textDecorationLine: 'line-through',
   },
-  price: { color: '#F8FAFC', fontSize: fontScale(20), fontWeight: '800' },
-  unavailableNote: { color: '#94A3B8', fontSize: fontScale(12) },
+  price: { color: uiPalette.paper, fontSize: fontScale(20), fontWeight: '800' },
+  unavailableNote: { color: uiPalette.muted, fontSize: fontScale(12) },
   cta: {
     paddingVertical: scale(12),
     borderRadius: scale(12),
@@ -385,11 +386,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBBF24',
   },
   ctaDisabled: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
-  ctaText: { color: '#0F172A', fontSize: fontScale(14), fontWeight: '800' },
+  ctaText: { color: uiPalette.navy, fontSize: fontScale(14), fontWeight: '800' },
   countdownRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-  countdownText: { color: '#94A3B8', fontSize: fontScale(11) },
+  countdownText: { color: uiPalette.muted, fontSize: fontScale(11) },
   sectionLabel: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontSize: fontScale(10),
     fontWeight: '800',
     letterSpacing: 0.7,
@@ -407,10 +408,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(148, 163, 184, 0.14)',
   },
   historyRowCurrent: { borderColor: 'rgba(251, 191, 36, 0.35)' },
-  historyWhen: { color: '#64748B', fontSize: fontScale(11), fontWeight: '700' },
+  historyWhen: { color: uiPalette.lightMuted, fontSize: fontScale(11), fontWeight: '700' },
   historyWhenCurrent: { color: '#FBBF24' },
-  historyName: { color: '#CBD5E1', fontSize: fontScale(12), fontWeight: '600' },
-  historyNameCurrent: { color: '#F8FAFC', fontWeight: '800' },
+  historyName: { color: uiPalette.secondary, fontSize: fontScale(12), fontWeight: '600' },
+  historyNameCurrent: { color: uiPalette.paper, fontWeight: '800' },
   footNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -418,6 +419,6 @@ const styles = StyleSheet.create({
     marginTop: scale(8),
     paddingHorizontal: scale(2),
   },
-  footNoteText: { flex: 1, color: '#64748B', fontSize: fontScale(10.5), lineHeight: fontScale(15) },});
+  footNoteText: { flex: 1, color: uiPalette.lightMuted, fontSize: fontScale(10.5), lineHeight: fontScale(15) },});
 
 export default React.memo(OfferCenterModal);

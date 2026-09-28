@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * RestoreBackupSheet - the recovery surface the app never had.
  *
@@ -167,7 +168,7 @@ function RestoreBackupSheet({ visible, slot, onClose, onRestored }: Props) {
           <View style={styles.header}>
             <View style={styles.headerIcon}>
               <LinearGradient colors={['#0EA5E9', '#38BDF8']} style={styles.headerIconFill}>
-                <History size={scale(18)} color="#FFFFFF" />
+                <History size={scale(18)} color={uiPalette.white} />
               </LinearGradient>
             </View>
             <View style={styles.headerText}>
@@ -181,7 +182,7 @@ function RestoreBackupSheet({ visible, slot, onClose, onRestored }: Props) {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.close}
             >
-              <X size={scale(18)} color="#94A3B8" />
+              <X size={scale(18)} color={uiPalette.muted} />
             </TouchableOpacity>
           </View>
 
@@ -195,12 +196,12 @@ function RestoreBackupSheet({ visible, slot, onClose, onRestored }: Props) {
 
           {isLoading ? (
             <View style={styles.stateBlock}>
-              <ActivityIndicator color="#60A5FA" />
+              <ActivityIndicator color={uiPalette.blue} />
               <Text style={styles.stateText}>Looking for restore points…</Text>
             </View>
           ) : isEmpty ? (
             <View style={styles.stateBlock}>
-              <Clock size={scale(22)} color="#475569" />
+              <Clock size={scale(22)} color={uiPalette.lightSecondary} />
               <Text style={styles.stateText}>
                 No restore points for this slot yet. They are created automatically as you play.
               </Text>
@@ -229,9 +230,9 @@ function RestoreBackupSheet({ visible, slot, onClose, onRestored }: Props) {
                       </Text>
                     </View>
                     {busy ? (
-                      <ActivityIndicator color="#60A5FA" />
+                      <ActivityIndicator color={uiPalette.blue} />
                     ) : (
-                      <RotateCcw size={scale(16)} color={highlighted ? '#38BDF8' : '#64748B'} />
+                      <RotateCcw size={scale(16)} color={highlighted ? '#38BDF8' : uiPalette.lightMuted} />
                     )}
                   </TouchableOpacity>
                 );
@@ -266,8 +267,8 @@ const styles = StyleSheet.create({
   headerIcon: { width: scale(38), height: scale(38), borderRadius: scale(12), overflow: 'hidden' },
   headerIconFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1 },
-  title: { color: '#F8FAFC', fontSize: fontScale(17), fontWeight: '700' },
-  subtitle: { color: '#94A3B8', fontSize: fontScale(12), marginTop: verticalScale(2) },
+  title: { color: uiPalette.paper, fontSize: fontScale(17), fontWeight: '700' },
+  subtitle: { color: uiPalette.muted, fontSize: fontScale(12), marginTop: verticalScale(2) },
   close: { padding: scale(4) },
   reassurance: {
     flexDirection: 'row',
@@ -303,15 +304,15 @@ const styles = StyleSheet.create({
   },
   entryBusy: { opacity: 0.6 },
   entryBody: { flex: 1 },
-  entryTitle: { color: '#E2E8F0', fontSize: fontScale(13), fontWeight: '600' },
-  entryMeta: { color: '#94A3B8', fontSize: fontScale(11), marginTop: verticalScale(2) },
+  entryTitle: { color: uiPalette.line, fontSize: fontScale(13), fontWeight: '600' },
+  entryMeta: { color: uiPalette.muted, fontSize: fontScale(11), marginTop: verticalScale(2) },
   stateBlock: {
     alignItems: 'center',
     gap: verticalScale(10),
     paddingVertical: verticalScale(30),
   },
   stateText: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: fontScale(12),
     textAlign: 'center',
     paddingHorizontal: scale(20),

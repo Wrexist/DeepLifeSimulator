@@ -1,3 +1,4 @@
+import type { MindsetId } from '@/lib/mindset/config';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Scenario } from './scenarioData';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
@@ -21,6 +22,7 @@ interface OnboardingState {
   avatarId?: string; // Legacy starter-face pick (utils/facePool). New lives leave this unset.
   avatar?: string; // Encoded AvatarConfig (lib/avatar/encode) - the customized face.
   perks: string[];
+  mindset?: MindsetId | null; // Draft-only choice; saved gameplay mindset is built at start.
   ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional - skippable.
 }
 
@@ -64,6 +66,7 @@ const isPristineDraft = (s: OnboardingState): boolean =>
   !s.avatarId &&
   !s.avatar &&
   !s.ambitionId &&
+  !s.mindset &&
   s.perks.length === 0;
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);

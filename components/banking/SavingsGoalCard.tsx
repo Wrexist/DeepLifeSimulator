@@ -1,10 +1,11 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Target, Plus, Minus } from 'lucide-react-native';
 import { SavingsGoal } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -58,7 +59,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   house: accent.info,
   vacation: '#06b6d4',
   retirement: '#a855f7',
-  other: '#64748b',
+  other: uiPalette.lightMuted,
 };
 
 // RGB triplets that mirror CATEGORY_COLOR - used for the Recipe C tinted bubble
@@ -75,7 +76,7 @@ export default function SavingsGoalCard({ goal, darkMode, onContribute, onWithdr
   const theme = getThemeColors(darkMode);
   const progress = goal.targetAmount > 0 ? goal.currentAmount / goal.targetAmount : 0;
   const pct = Math.max(0, Math.min(1, progress));
-  const color = CATEGORY_COLOR[goal.category] ?? '#64748b';
+  const color = CATEGORY_COLOR[goal.category] ?? uiPalette.lightMuted;
   const rgb = CATEGORY_RGB[goal.category] ?? '100, 116, 139';
   const complete = pct >= 1;
 

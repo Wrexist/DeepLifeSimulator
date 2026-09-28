@@ -1,3 +1,6 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
+import SceneCard from '@/components/ui/SceneCard';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +15,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import HealthIssuesCard from '@/components/health/HealthIssuesCard';
 import ProgressRing from '@/components/ui/ProgressRing';
-import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
+
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
@@ -22,27 +25,32 @@ import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
-type Vital = { key: string; label: string; value: number; color: string };
+type Vital = { key: HealthDelta['stat']; label: string; value: number; color: string };
 
 /**
- * The vitals in one line, for the collapsed header. Same four colours as the
- * expanded bars, so the reading survives the fold - a collapsed section that
- * hides the number the player opened the screen for is a worse screen.
+ * Compact vitals retain the HUD's stat icons and the current values. Expanded
+ * rings remain available, and the player's disclosure preference is preserved.
  */
 function VitalsSummary({ vitals }: { vitals: Vital[] }) {
   return (
     <View style={styles.vitalsSummary}>
-      {vitals.map((v) => (
-        <Text
-          key={v.key}
-          style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? '#E2E8F0' }]}
-          accessibilityLabel={`${v.label} ${Math.round(v.value)}, ${vitalState(v.value).word}`}
-        >
-          {Math.round(v.value)}
-        </Text>
-      ))}
+      {vitals.map((v) => {
+        const Icon = STAT_IDENTITY[v.key].Icon;
+        return (
+          <View key={v.key} style={styles.vitalRingCell}>
+            <Icon size={scale(12)} color={v.color} accessible={false} />
+            <Text
+              style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? uiPalette.line }]}
+              accessibilityLabel={`${v.label} ${Math.round(v.value)}, ${vitalState(v.value).word}`}
+            >
+              {Math.round(v.value)}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -209,7 +217,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // amber face, purple dumbbell). These were four local literals that
   // painted health GREEN on the screen that treats it - the contradiction
   // Program 4 logged and Program 5 closes.
-  const vitals = [
+  const vitals: (Vital & { Icon: typeof STAT_IDENTITY.health.Icon })[] = [
     { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: STAT_IDENTITY.health.color, Icon: STAT_IDENTITY.health.Icon },
     { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
     { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: STAT_IDENTITY.happiness.color, Icon: STAT_IDENTITY.happiness.Icon },
@@ -226,8 +234,14 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   const CURE_IDS = new Set(['doctor', 'hospital', 'experimental']);
   const hasActiveDisease = (gameState.diseases ?? []).some(d => !!d?.name);
   const treatmentLeads = hasActiveDisease || (gameState.stats?.health ?? 100) <= CRITICAL_VITAL;
+  // Recovery must remain reachable when treatment is out of budget. Promote
+  // existing free activities, using the same policy/energy gates as their cards.
+  const freeRecovery = treatmentLeads && (gameState.stats?.health ?? 100) <= CRITICAL_VITAL
+    ? mergedHealthActivities.filter(a => priceOf(a) === 0 && (a.healthGain ?? 0) > 0 && canPerformActivity(a))
+    : [];
+  const recoveryIds = new Set(freeRecovery.map(a => a.id));
   const listedActivities = mergedHealthActivities.filter(
-    a => a.id !== 'vacation' && !(treatmentLeads && CURE_IDS.has(a.id))
+    a => a.id !== 'vacation' && !recoveryIds.has(a.id) && !(treatmentLeads && CURE_IDS.has(a.id))
   );
   const visibleActivityCount = listedActivities.length;
 
@@ -237,29 +251,27 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const locked = !canPerformActivity(activity);
     const activityEnergy = energyCostOf(activity);
     const lockReason = !canAfford(activityPrice)
-      ? `Need $${activityPrice}`
+      ? `Need ${formatMoney(activityPrice)}`
       : activityEnergy > 0 && (gameState.stats?.energy ?? 0) < activityEnergy
         ? `Need ${activityEnergy} energy`
         : undefined;
     const isCureActivity = CURE_IDS.has(activity.id);
     const description = isCureActivity
       ? activity.id === 'doctor'
-        ? `${activity.description}  •  ${t('health.chanceToCure')}`
+        ? '50% chance to cure each curable, non-critical illness. Also manages chronic conditions.'
         : activity.id === 'hospital'
-          ? `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
-          // Experimental treatment is the ONLY cure for critical conditions
-          // (cancer/heart/stroke -- hospital excludes them); without this line
-          // a dying player has no signal it exists.
-          : `${activity.description}  •  Only treatment for critical conditions`
+          ? 'Cures curable, non-critical illnesses. Also manages chronic conditions; critical illnesses need experimental treatment.'
+          : 'Cures curable critical illnesses. Does not cure chronic conditions.'
       : activity.description;
 
     return (
       <HealthCard
+        compact
         key={activity.id}
         accent="vitality"
         title={activity.name}
         description={description}
-        priceLabel={activityPrice > 0 ? `$${activityPrice}` : 'Free'}
+        priceLabel={activityPrice > 0 ? formatMoney(activityPrice) : 'Free'}
         deltas={deltas}
         buttonText={locked ? 'Locked' : t('health.do')}
         onPress={() => handleHealthActivityPress(activity)}
@@ -293,9 +305,16 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
       >
         {treatmentLeads && (
           <View style={styles.leadBlock}>
+            {freeRecovery.length > 0 && (
+              <View>
+                <Text style={styles.protectionTitle}>Free recovery</Text>
+                <Text style={sectionDescStyle}>Improve your vitals now. These activities do not replace disease treatment.</Text>
+                {freeRecovery.map((a, i) => renderActivityCard(a, i === 0 ? 'primary' : 'secondary'))}
+              </View>
+            )}
             <HealthIssuesCard lead />
-            {/* The one saturated button on the screen: the first cure. */}
-            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map((a, i) => renderActivityCard(a, i === 0 ? 'primary' : 'secondary'))}
+            {/* Treatments remain available alongside free stat recovery. */}
+            {mergedHealthActivities.filter(a => CURE_IDS.has(a.id)).map((a, i) => renderActivityCard(a, i === 0 && freeRecovery.length === 0 ? 'primary' : 'secondary'))}
           </View>
         )}
 
@@ -307,6 +326,8 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             id="health.vitals"
             title="Your Vitals"
             compact
+            defaultCollapsed
+            style={styles.vitalsSection}
             summary={<VitalsSummary vitals={vitals} />}
           >
           {/* Rings, not bars - the same language the HUD uses for the same
@@ -358,12 +379,12 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         <View style={styles.section}>
           <CollapsibleSection
             id="health.activities"
+            compact
             title={t('health.healthActivities')}
             icon={<Activity size={scale(15)} color="#F87171" />}
             tint="#F87171"
             summary={`${visibleActivityCount} available`}
           >
-          <Text style={sectionDescStyle}>{t('health.investMentalPhysical')}</Text>
 
           {/* Protection you have already bought or earned.
               `vaccinations` and `diseaseImmunities` both prevent real illnesses
@@ -387,6 +408,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             is an activity like the ones above, not shopping. The membership
             ITEM is still bought in the Market's Items section. */}
         <View style={styles.section}>
+          <SceneCard scene="gym" title="At the gym" subtitle="Build fitness with a membership and a workout." />
           <GymCard />
         </View>
 
@@ -417,16 +439,18 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               ...(plan.happinessGain ? [{ stat: 'happiness' as const, delta: plan.happinessGain }] : []),
             ];
             const locked = !plan.active && !canAfford(weeklyCost);
-            const lockReason = locked ? `Need $${weeklyCost} / wk` : undefined;
+            const lockReason = locked ? `Need ${formatMoney(weeklyCost)}/wk` : undefined;
             return (
               <HealthCard
                 key={plan.id}
                 accent="diet"
                 title={plan.name}
-                description={plan.description}
-                priceLabel={`$${weeklyCost} / wk`}
+                description={plan.active && !canAfford(weeklyCost)
+                  ? `Not enough cash for the next ${formatMoney(weeklyCost)} payment. If still unaffordable when processed, this week's benefits and charge are skipped. The plan stays active.`
+                  : `${plan.description}. Charged each week; benefits apply only when the payment can be covered.`}
+                priceLabel={`${formatMoney(weeklyCost)}/wk`}
                 deltas={deltas}
-                buttonText={plan.active ? t('health.active') : t('health.select')}
+                buttonText={plan.active ? 'Stop plan' : t('health.select')}
                 onPress={() => toggleDietPlan(plan.id)}
                 active={plan.active}
                 locked={locked}
@@ -437,7 +461,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
           {activeDietPlan ? (
             <Text style={styles.activeDietFooter}>
-              {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}
+              {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} {formatMoney(activeDietPlan.dailyCost * 7)}/wk
             </Text>
           ) : null}
           </CollapsibleSection>
@@ -450,7 +474,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   content: {
     flex: 1,
@@ -460,41 +484,44 @@ const styles = StyleSheet.create({
     marginBottom: rhythm.major,
   },
   // Vitals overview
+  vitalsSection: {
+    marginBottom: 0,
+  },
   vitalsCard: {
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: responsiveSpacing.md,
-    gap: verticalScale(4),
+    padding: layoutSpace.sm,
+    gap: layoutSpace.xs,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   vitalsRingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: responsiveSpacing.xs,
-    paddingBottom: scale(2),
+    paddingBottom: layoutSpace.xs,
   },
   vitalRingCell: {
     flex: 1,
     alignItems: 'center',
-    gap: scale(4),
+    gap: layoutSpace.xs,
   },
   vitalRingValue: {
     fontSize: fontScale(14),
     fontWeight: '800',
-    color: '#F8FAFC',
-    marginTop: scale(5),
+    color: uiPalette.paper,
+    marginTop: layoutSpace.xs,
   },
   vitalRingLabel: {
     fontSize: fontScale(10.5),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     letterSpacing: 0.3,
   },
   vitalsSummary: {
     flexDirection: 'row',
-    gap: scale(10),
+    gap: layoutSpace.sm,
   },
   vitalsSummaryValue: {
     fontSize: fontScale(13),
@@ -502,20 +529,21 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     padding: responsiveSpacing.md,
-    paddingBottom: verticalScale(40),
-    gap: verticalScale(20),
+    paddingTop: layoutSpace.sm,
+    paddingBottom: layoutSpace['2xl'],
+    gap: layoutSpace.sm,
   },
   section: {
-    gap: verticalScale(10),
+    gap: layoutSpace.sm,
   },
   protectionCard: {
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.35)',
     backgroundColor: 'rgba(34, 197, 94, 0.10)',
-    borderRadius: scale(10),
-    padding: scale(10),
-    marginBottom: scale(10),
-    gap: scale(2),
+    borderRadius: layoutRadius.md,
+    padding: layoutSpace.sm,
+    marginBottom: layoutSpace.sm,
+    gap: layoutSpace.xs,
   },
   protectionTitle: {
     fontSize: fontScale(12),
@@ -531,7 +559,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     color: 'rgba(226, 232, 240, 0.6)',
     lineHeight: fontScale(17),
-    marginBottom: verticalScale(4),
+    marginBottom: layoutSpace.xs,
   },
   sectionDescriptionDark: {
     color: 'rgba(226, 232, 240, 0.6)',
@@ -541,7 +569,7 @@ const styles = StyleSheet.create({
     color: 'rgba(52, 211, 153, 0.75)',
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: verticalScale(4),
+    marginTop: layoutSpace.xs,
     fontVariant: ['tabular-nums'],
   },});
 

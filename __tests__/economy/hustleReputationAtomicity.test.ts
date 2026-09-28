@@ -1,3 +1,4 @@
+import { businessState } from '../helpers/businessFixture';
 /**
  * P1-14 — hustle reputation grants must be ATOMIC with the money step they accompany.
  *
@@ -54,6 +55,7 @@ function baseOverlay(): HustleCompanyOverlay {
 function stateWith(money: number, reputation: number, overlay: HustleCompanyOverlay): GameState {
   return createTestGameState({
     stats: { money, reputation },
+    companies: [{ ...businessState().companies![0], id: COMPANY_ID }],
     hustleApp: {
       companies: { [COMPANY_ID]: overlay },
       lifetimeStats: {

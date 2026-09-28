@@ -1,3 +1,5 @@
+import { textStyles } from '@/lib/config/hierarchy';
+import { responsiveSpacing as layoutSpace , responsiveSpacing } from '@/utils/scaling';
 /**
  * KeyValueRow - "label on the left, value on the right", once.
  *
@@ -11,7 +13,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+
 
 export default function KeyValueRow({
   label,
@@ -37,19 +39,19 @@ export default function KeyValueRow({
       style={[styles.row, divider && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }, style]}
       accessible
       accessibilityRole="text"
-      accessibilityLabel={`${label} ${value}`}
+      accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}
     >
       <View style={styles.labelBlock}>
-        <Text style={[styles.label, { color: theme.textSecondary }]} numberOfLines={1}>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>
           {label}
         </Text>
         {sub ? (
-          <Text style={[styles.sub, { color: theme.textMuted }]} numberOfLines={1}>
+          <Text style={[styles.sub, { color: theme.textMuted }]}>
             {sub}
           </Text>
         ) : null}
       </View>
-      <Text style={[styles.value, { color: tint ?? theme.text }]} numberOfLines={1}>
+      <Text style={[styles.value, { color: tint ?? theme.text }]}>
         {value}
       </Text>
     </View>
@@ -62,15 +64,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: responsiveSpacing.sm,
-    paddingVertical: scale(8),
+    paddingVertical: layoutSpace.sm,
   },
   labelBlock: { flex: 1, gap: 2 },
-  label: { fontSize: fontScale(13) },
-  sub: { fontSize: fontScale(11) },
+  label: { ...textStyles.body },
+  sub: { ...textStyles.caption },
   value: {
-    fontSize: fontScale(13),
-    fontWeight: '600',
+    ...textStyles.bodyStrong,
     fontVariant: ['tabular-nums'],
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: '55%',
+    textAlign: 'right',
   },
 });

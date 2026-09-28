@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * LifeGoalsPanel - the perk catalogue and how close the player is to each one.
  *
@@ -42,9 +43,9 @@ import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/
 /** Rarity is the one piece of colour on a row - it is the only thing on the
  *  card that varies per perk and means something at a glance. */
 const RARITY_COLORS: Record<string, string> = {
-  Common: '#94A3B8',
+  Common: uiPalette.muted,
   Uncommon: '#34D399',
-  Rare: '#60A5FA',
+  Rare: uiPalette.blue,
   Epic: '#A78BFA',
   Legendary: '#FBBF24',
 };
@@ -109,7 +110,7 @@ function PerkRow({ perk, unlocked, darkMode }: RowProps) {
         {unlocked ? (
           <Check size={scale(12)} color="#10B981" strokeWidth={3} />
         ) : (
-          <Lock size={scale(11)} color="#64748B" />
+          <Lock size={scale(11)} color={uiPalette.lightMuted} />
         )}
       </View>
     </View>
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginTop: scale(14),
@@ -287,13 +288,13 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
   title: { flex: 1, fontSize: fontScale(13.5), fontWeight: '700', letterSpacing: -0.2 },
-  titleDark: { color: '#F8FAFC' },
-  titleLight: { color: '#0F172A' },
+  titleDark: { color: uiPalette.paper },
+  titleLight: { color: uiPalette.navy },
   rarity: { fontSize: fontScale(9.5), fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   detail: { fontSize: fontScale(11), fontWeight: '500', lineHeight: fontScale(15), marginTop: scale(2) },
-  detailDark: { color: '#94A3B8' },
-  detailLight: { color: '#475569' },
+  detailDark: { color: uiPalette.muted },
+  detailLight: { color: uiPalette.lightSecondary },
 
   statusPip: {
     width: scale(22),

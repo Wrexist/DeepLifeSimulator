@@ -344,6 +344,9 @@ jest.mock('react-native', () => {
       exitApp: jest.fn(),
     },
     NativeModules: {},
+    // Shared money sliders are mounted by banking consumers even while hidden.
+    // Preserve gesture handlers so render tests can exercise the same callbacks.
+    PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
     // Legacy `Touchable.Mixin` is destructured at module scope by some touchable/gesture
     // wrappers; the real RN package exports it, so provide an empty Mixin for the mock.
     Touchable: { Mixin: {} },

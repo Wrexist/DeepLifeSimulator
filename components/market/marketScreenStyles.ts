@@ -1,3 +1,4 @@
+import { uiPalette , accent } from '@/lib/config/theme';
 /**
  * Styles for the Market screen (app/(tabs)/market.tsx).
  *
@@ -16,20 +17,20 @@
 import { StyleSheet } from 'react-native';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { accent } from '@/lib/config/theme';
+
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
 const GLASS_BORDER = 'rgba(255, 255, 255, 0.08)';
-const TEXT = '#F8FAFC';
+const TEXT = uiPalette.paper;
 const TEXT_SECONDARY = 'rgba(226, 232, 240, 0.65)';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   containerDark: {
-    backgroundColor: '#020617',
+    backgroundColor: uiPalette.navy,
   },
   scrollView: {
     flex: 1,

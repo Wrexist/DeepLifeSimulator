@@ -72,15 +72,15 @@ describe('player-facing copy only names tabs that exist', () => {
     // A route is a visible tab when it is declared and NOT given `href: null`
     // unconditionally. `home`, `work`, `apps` and `life` are conditional at
     // most (prison / device ownership); the rest are hard `href: null`.
-    for (const hidden of ['mobile', 'computer', 'progression', 'market', 'health']) {
+    for (const hidden of ['mobile', 'computer', 'market', 'health']) {
       expect(layout).toMatch(new RegExp(`name="${hidden}"`));
     }
-    for (const visible of ['home', 'work', 'apps', 'life']) {
+    for (const visible of ['home', 'work', 'apps', 'life', 'progression']) {
       expect(layout).toMatch(new RegExp(`name="${visible}"`));
     }
 
-    // There are exactly five hard `href: null` entries - one per hidden route.
+    // There are exactly four hard `href: null` entries - one per hidden route.
     const hardNulls = layout.match(/href: null,/g) ?? [];
-    expect(hardNulls).toHaveLength(5);
+    expect(hardNulls).toHaveLength(4);
   });
 });

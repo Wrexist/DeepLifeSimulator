@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * DeepLifePlusUpsell - one component, three looks, all opening the DeepLife+
  * paywall via the shared `useDeepLifePlusUpsell` hook and all self-hiding for
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
   bannerBody: { flex: 1, gap: scale(3) },
   bannerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
   bannerTitle: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(18),
     fontWeight: '900',
     letterSpacing: 0.2,

@@ -1,0 +1,17 @@
+[
+  {
+    "scenario": "profile",
+    "text": [
+      "Age 20 · 0 weeks"
+    ]
+  },
+  {
+    "scenario": "planning",
+    "text": "DEEP LIFE\nWeek 1\nTyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nFood Courier · Age 20\nChoose your first job\nCompare weekly pay and requirements in Work, then apply for a job that fits.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nStatistics\nWk 104\nOverview\nSystems\nMilestones\nPlanning\nLIFE EXPECTANCY\n117y\nFIRE TRACKER\n100\n%\n$390K\nFIRE target\n0y\nEstimated years\n0%\nEstimated savings rate\n$273K\nLean\n$390K\nRegular\n$585K\nFat\n100%\nCoast\nPlanning estimate: expenses assume 70% of salary, with a $15,600 annual minimum. Savings pace uses your current bank savings divided by weeks played in this life (minimum one week), not recorded deposits. Coast uses half the FIRE target.\nRETIREMENT PLAN (AGE 65)\nOn track"
+  },
+  {
+    "scenario": "bank-tablet",
+    "disabled": true,
+    "error": true
+  }
+]

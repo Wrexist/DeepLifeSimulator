@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "accountOpenClose": true,
+    "billValidatePauseResumeSaveReopenDelete": true,
+    "cardApplyChargePayMax": true,
+    "loanAcceptFullGroupedAmountAndPrepay": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "accountOpenClose": true,
+    "billValidatePauseResumeSaveReopenDelete": true,
+    "cardApplyChargePayMax": true,
+    "loanAcceptFullGroupedAmountAndPrepay": true,
+    "errors": []
+  }
+]

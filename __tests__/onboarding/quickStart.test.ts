@@ -66,6 +66,7 @@ describe('Quick Start fills in what the long flow would have', () => {
   it('leaves ambition and perks unset rather than inventing them', () => {
     expect(menuSrc).toMatch(/ambitionId: undefined/);
     expect(menuSrc).toMatch(/perks: \[\]/);
+    expect(menuSrc).toMatch(/mindset: null/);
   });
 
   it('clears the field the onboarding state actually stores', () => {
@@ -87,7 +88,7 @@ describe('Quick Start fills in what the long flow would have', () => {
     );
     expect(ctxSrc).toMatch(/^\s*perks: string\[\];/m);
     expect(ctxSrc).not.toMatch(/^\s*selectedPerks[?]?:/m);
-    expect(perksSrc).toMatch(/useState<string\[\]>\(state\.perks\)/);
+    expect(perksSrc).toMatch(/const selected = state\.perks/);
   });
 });
 

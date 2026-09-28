@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Share } from 'react-native';
 import { OptimizedFlatList } from '../OptimizedFlatList';
@@ -37,11 +38,11 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
 
   const getLevelColor = (level: string) => {
     switch (level) {
-      case 'DEBUG': return '#94A3B8';
+      case 'DEBUG': return uiPalette.muted;
       case 'INFO': return '#3B82F6';
       case 'WARN': return '#F59E0B';
       case 'ERROR': return '#EF4444';
-      default: return '#64748B';
+      default: return uiPalette.lightMuted;
     }
   };
 
@@ -87,20 +88,20 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
           <Text style={styles.title}>Log Viewer</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
-              <Share2 size={20} color="#334155" />
+              <Share2 size={20} color={uiPalette.slate} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => remoteLogger.clearLogs()} style={styles.iconButton}>
               <Trash2 size={20} color="#EF4444" />
             </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.iconButton}>
-              <X size={24} color="#334155" />
+              <X size={24} color={uiPalette.slate} />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Search size={16} color="#94A3B8" />
+            <Search size={16} color={uiPalette.muted} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search logs..."
@@ -122,7 +123,7 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
                 <Text style={[
                   styles.filterText,
                   filterLevel === level && styles.activeFilterText,
-                  { color: filterLevel === level ? '#FFF' : getLevelColor(level) }
+                  { color: filterLevel === level ? uiPalette.white : getLevelColor(level) }
                 ]}>{level}</Text>
               </TouchableOpacity>
             ))}
@@ -147,21 +148,21 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: uiPalette.line,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -173,25 +174,25 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: uiPalette.line,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
   },
   activeFilterChip: {
     backgroundColor: '#3B82F6', // Will be overridden by inline style
@@ -214,13 +215,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   activeFilterText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   listContent: {
     padding: 16,
   },
   logItem: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
@@ -246,18 +247,18 @@ const styles = StyleSheet.create({
   },
   logTime: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   logMessage: {
     fontSize: 14,
-    color: '#334155',
+    color: uiPalette.slate,
     marginBottom: 4,
   },
   logContext: {
     fontSize: 12,
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontFamily: 'monospace',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     padding: 8,
     borderRadius: 4,
     marginTop: 4,

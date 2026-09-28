@@ -1,3 +1,5 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import FinanceOverview from '@/components/finance/FinanceOverview';
 /**
  * BankApp - mobile (phone-style) banking screen.
  *
@@ -98,7 +100,7 @@ type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | { kind
 
 function formatMoneyExact(n: number): string {
   if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
 /** 0–100 breakdown score → traffic-light tint (green healthy … red weak). */
@@ -161,11 +163,6 @@ function BankAppInner({ onBack }: BankAppProps) {
   // advertise a number the grant does not honour.
   const adCashBonus = getAdCashBonusAmount(gameState);
   const adBonusReady = canClaimAdCashBonus(gameState);
-  const totalBank = banking.accounts.reduce((s, a) => s + a.balance, 0);
-  const totalDebt =
-    banking.creditCards.reduce((s, c) => s + c.balance, 0) +
-    (gameState.loans ?? []).reduce((s, l) => s + l.remaining, 0);
-
   /**
    * The one thing due NOW, if anything is - the Bank's lead slot. At most one,
    * by severity: an overdrawn account (money already gone) > a loan draw that
@@ -196,16 +193,6 @@ function BankAppInner({ onBack }: BankAppProps) {
     if (dueBill) return { kind: 'bill', rule: dueBill };
     return null;
   }, [banking.accounts, banking.billPayRules, gameState.loans, cash, gameState.weeksLived]);
-
-  // Cross-app tile: what the player has working in the market apps (Stocks +
-  // Crypto holdings at current prices), so the Bank is the one money overview.
-  const investedValue = useMemo(() => {
-    const stocksValue = (gameState.stocks?.holdings ?? []).reduce(
-      (s, h) => s + (h.shares ?? 0) * (h.currentPrice ?? 0), 0);
-    const cryptoValue = (gameState.cryptos ?? []).reduce(
-      (s, c) => s + (c.owned ?? 0) * (c.price ?? 0), 0);
-    return stocksValue + cryptoValue;
-  }, [gameState.stocks?.holdings, gameState.cryptos]);
 
   const weeklyIncome = useMemo(() => {
     let income = 0;
@@ -254,6 +241,10 @@ function BankAppInner({ onBack }: BankAppProps) {
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
+      if (acct.balance < 0) {
+        gameAlert('Repay overdraft first', `Deposit ${formatMoneyExact(-acct.balance)} to clear this account before closing it.`);
+        return;
+      }
       gameAlert(
         'Close account?',
         `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
@@ -341,7 +332,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                   <Chip label={depositAPRNote(banking.rateEnvironment) ?? ''} tint={pal.hex} />
                 ) : null}
                 <Chip
-                  label={isLocked ? `Locked · wk ${account.lockUntilWeek}` : 'Active'}
+                  label={isLocked ? `Locked · ${formatLifeWeek(account.lockUntilWeek, gameState.lifeStartWeek)}` : 'Active'}
                   tone={isLocked ? 'warning' : 'success'}
                   icon={<Lock size={scale(10)} color={isLocked ? accent.warning : accent.success} />}
                 />
@@ -367,6 +358,7 @@ function BankAppInner({ onBack }: BankAppProps) {
               <AccountTransferPanel
                 cashAvailable={cash}
                 accountBalance={account.balance}
+                minimumBalance={account.minBalance}
                 tint={pal.hex}
                 darkMode={darkMode}
                 withdrawDisabled={isLocked}
@@ -412,7 +404,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             <StatStrip
               items={[
                 { label: 'Balance', value: formatMoneyExact(account.balance) },
-                { label: 'Opened', value: `Week ${account.openedWeek}` },
+                { label: 'Opened', value: formatLifeWeek(account.openedWeek, gameState.lifeStartWeek) },
                 { label: 'Age', value: ageLabel },
               ]}
             />
@@ -599,7 +591,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           </View>
 
           {/* Recent inquiries */}
-          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated wk ${cs.lastUpdatedWeek}`} />} />
+          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated ${formatLifeWeek(cs.lastUpdatedWeek, gameState.lifeStartWeek)}`} />} />
           {inquiries.length === 0 ? (
             <EmptyText theme={theme} darkMode={darkMode}>No recent credit inquiries. A clean file keeps this factor high.</EmptyText>
           ) : (
@@ -614,7 +606,7 @@ function BankAppInner({ onBack }: BankAppProps) {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.activityLabel, { color: theme.text }]} numberOfLines={1}>{inquiryLabel(inq.type)}</Text>
-                      <Text style={[styles.activityMeta, { color: theme.textMuted }]}>Week {inq.weeksLived} · {agoText}</Text>
+                      <Text style={[styles.activityMeta, { color: theme.textMuted }]}>{formatLifeWeek(inq.weeksLived, gameState.lifeStartWeek)} · {agoText}</Text>
                     </View>
                   </View>
                 );
@@ -711,25 +703,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           </View>
         )}
 
-        {/* Three numbers, not nine. The five ledger chips that used to sit
-            under this strip are the tax page's business; what is invested
-            rides along as the Bank tile's second line. */}
-        <View
-          style={[
-            getGlassCard(darkMode, 12),
-            { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius['2xl'] },
-          ]}
-        >
-          <View style={styles.heroInner}>
-            <StatStrip
-              items={[
-                { label: 'Cash', value: formatMoney(cash) },
-                { label: 'Bank', value: formatMoney(totalBank), sub: `${formatMoney(investedValue)} invested` },
-                { label: 'Debt', value: formatMoney(totalDebt), tint: totalDebt > 0 ? accent.danger : undefined },
-              ]}
-            />
-          </View>
-        </View>
+        <FinanceOverview />
 
         <SectionTitle
           title="Accounts"
@@ -784,7 +758,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         >
           <Percent size={scale(15)} color={accent.warning} />
           <Text style={[styles.linkRowText, { color: theme.text }]}>
-            {banking.taxDueThisYear > 0 ? 'See where your tax goes' : 'How tax works'}
+            Income &amp; tax
           </Text>
           <ChevronRight size={scale(16)} color={theme.textMuted} />
         </TouchableOpacity>
@@ -939,9 +913,9 @@ function BankAppInner({ onBack }: BankAppProps) {
       <AmountInputModal
         visible={!!withdrawTarget}
         title={`Withdraw from ${withdrawTarget?.name ?? ''}`}
-        subtitle={`Balance: ${formatMoney(withdrawTarget?.balance ?? 0)}`}
+        subtitle={`Available: ${formatMoneyExact(Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0)))}${withdrawTarget?.minBalance ? ` (keep ${formatMoneyExact(withdrawTarget.minBalance)} minimum)` : ''}`}
         confirmLabel="Withdraw"
-        maxAmount={withdrawTarget?.balance ?? 0}
+        maxAmount={Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setWithdrawTarget(null)}
@@ -1001,6 +975,7 @@ function BankAppInner({ onBack }: BankAppProps) {
 
       <AddBillModal
         visible={showAddBill}
+        cashAvailable={cash}
         accounts={banking.accounts}
         currentWeek={gameState.weeksLived}
         darkMode={darkMode}
@@ -1126,7 +1101,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         title="Prepay loan"
         subtitle="Pays down principal directly. No prepayment penalty."
         confirmLabel="Prepay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, loans.find(loan => loan.id === prepayLoanId)?.remaining ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPrepayLoanId(null)}
@@ -1147,7 +1122,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         title="Pay credit card"
         subtitle={`Cash on hand: ${formatMoney(cash)}`}
         confirmLabel="Pay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, banking.creditCards.find(card => card.id === payCardId)?.balance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPayCardId(null)}
@@ -1176,11 +1151,6 @@ export default function BankApp(props: BankAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  heroInner: {
-    borderRadius: responsiveBorderRadius['2xl'],
-    overflow: 'hidden',
-    padding: responsiveSpacing.md,
-  },
   heroEyebrow: {
     fontSize: responsiveFontSize.xs,
     fontWeight: '600',

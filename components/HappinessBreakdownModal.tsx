@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo } from 'react';
 import { TrendingDown, Briefcase, GraduationCap, Utensils, Home, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -95,7 +96,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
         label: `Pending Application: ${pendingApplication.levels?.[0]?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
-        color: '#94A3B8',
+        color: uiPalette.muted,
         description: 'Pending applications do not affect happiness until you start working',
       });
     }

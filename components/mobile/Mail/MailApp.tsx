@@ -1,3 +1,4 @@
+import { AppBackButton } from '@/components/ui/AppHeader';
 /**
  * DeepMail - the game's paper trail, and the one channel the player has to judge.
  *
@@ -55,7 +56,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ArrowLeft,
   Menu,
   Search,
   Inbox,
@@ -399,15 +399,7 @@ function MailAppInner({ onBack }: Props) {
     <View style={s.container}>
       {/* Gmail's search bar IS the header - there is no separate title. */}
       <View style={s.searchWrap}>
-        <TouchableOpacity
-          onPress={() => setDrawerOpen(true)}
-          style={s.iconBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Open mail folders"
-        >
-          <Menu size={scale(20)} color={theme.text} />
-        </TouchableOpacity>
+        <AppBackButton onBack={onBack} label="Back to Apps" />
 
         <View style={s.searchField}>
           <Search size={scale(16)} color={theme.textSecondary} />
@@ -433,13 +425,13 @@ function MailAppInner({ onBack }: Props) {
         </View>
 
         <TouchableOpacity
-          onPress={onBack}
+          onPress={() => setDrawerOpen(true)}
           style={s.iconBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel="Close mail"
+          accessibilityLabel="Open mail folders"
         >
-          <ArrowLeft size={scale(20)} color={theme.text} />
+          <Menu size={scale(20)} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -550,7 +542,7 @@ function MailAppInner({ onBack }: Props) {
                 ? 'No matches'
                 : filter
                   ? `No ${FILTER_LABELS[filter].toLowerCase()} mail`
-                  : 'Nothing here'
+                  : folder === 'inbox' ? 'Your inbox is clear' : `No mail in ${folderLabel.toLowerCase()}`
             }
             nudge={
               searching
@@ -559,8 +551,8 @@ function MailAppInner({ onBack }: Props) {
                   ? FILTER_EMPTY_TEXT[filter]
                   : 'Payslips, statements and invoices arrive as the weeks pass.'
             }
-            ctaLabel={filter ? 'Clear filter' : undefined}
-            onCtaPress={filter ? () => setFilter(null) : undefined}
+            ctaLabel={searching ? 'Clear search' : filter ? 'Clear filter' : undefined}
+            onCtaPress={searching ? () => setQuery('') : filter ? () => setFilter(null) : undefined}
           />
         ) : (
           visible.map((m) => (

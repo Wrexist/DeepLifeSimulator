@@ -1,6 +1,6 @@
+import AmountSlider from '@/components/ui/AmountSlider';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { TextInput } from 'react-native';
 import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -28,12 +28,14 @@ it('shows the checking balance after the loan and the payment share of income', 
       />,
     );
   });
-  act(() => tree.root.findByType(TextInput).props.onChangeText('10000'));
+  act(() => tree.root.findByType(AmountSlider).props.onChangeText('10000'));
 
   const text = JSON.stringify(tree.toJSON());
   expect(text).toContain('Checking after loan');
-  expect(text).toContain(formatMoney((checking?.balance ?? 0) + 10_000));
+  expect(text).toContain(formatMoney(state.stats.money + 10_000));
   expect(text).toContain('Share of weekly income');
 
   act(() => tree.unmount());
 });
+
+Object.assign(jest.requireMock('react-native'), { PanResponder: { create: () => ({ panHandlers: {} }) } });

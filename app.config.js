@@ -188,6 +188,7 @@ module.exports = {
     // Missing iosAppId causes native startup aborts in TestFlight builds.
     // IMPORTANT: Plugin uses camelCase property names (iosAppId, NOT ios_app_id)
     plugins: [
+      ["expo-audio", { microphonePermission: false, recordAudioAndroid: false, enableBackgroundRecording: false }],
       // Bare string on purpose — no options.
       //
       // configureAndroidBackup defaults to TRUE, which is what we want: it points

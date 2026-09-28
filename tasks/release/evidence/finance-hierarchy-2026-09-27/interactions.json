@@ -1,0 +1,74 @@
+[
+  {
+    "app": "Bank",
+    "width": 320,
+    "assetsButton": {
+      "x": 185.484375,
+      "y": 84,
+      "width": 105.515625,
+      "height": 44
+    },
+    "breakdownDepositAndNavigation": "passed",
+    "errors": []
+  },
+  {
+    "app": "Bank Pro",
+    "width": 320,
+    "assetsButton": {
+      "x": 185.484375,
+      "y": 133,
+      "width": 105.515625,
+      "height": 44
+    },
+    "breakdownDepositAndNavigation": "passed",
+    "errors": []
+  },
+  {
+    "app": "Bank",
+    "width": 375,
+    "assetsButton": {
+      "x": 220.171875,
+      "y": 99,
+      "width": 121.828125,
+      "height": 44
+    },
+    "breakdownDepositAndNavigation": "passed",
+    "errors": []
+  },
+  {
+    "app": "Bank Pro",
+    "width": 375,
+    "assetsButton": {
+      "x": 220.171875,
+      "y": 157,
+      "width": 121.828125,
+      "height": 44
+    },
+    "breakdownDepositAndNavigation": "passed",
+    "errors": []
+  },
+  {
+    "app": "Bank",
+    "width": 768,
+    "assetsButton": {
+      "x": 587.875,
+      "y": 121.5,
+      "width": 141.125,
+      "height": 44
+    },
+    "breakdownDepositAndNavigation": "passed",
+    "errors": []
+  },
+  {
+    "app": "Bank Pro",
+    "width": 768,
+    "assetsButton": {
+      "x": 587.875,
+      "y": 191.5,
+      "width": 141.125,
+      "height": 44
+    },
+    "breakdownDepositAndNavigation": "passed",
+    "errors": []
+  }
+]

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { WifiOff, Wifi } from 'lucide-react-native';
@@ -68,15 +69,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.9)',
   },
   text: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: responsiveFontSize.xs,
     fontWeight: '600',
   },
   textDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   textOffline: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });
 

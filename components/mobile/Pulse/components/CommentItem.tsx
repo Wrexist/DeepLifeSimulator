@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * CommentItem - single comment row.
  *
@@ -10,6 +11,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_COLORS } from '../styles/pulseTheme';
@@ -25,6 +27,8 @@ interface CommentItemProps {
 
 export default function CommentItem({ comment, currentWeeksLived, depth = 0 }: CommentItemProps) {
   const { theme } = useTheme();
+  const playerProfile = useGameSelector(s => comment.isPlayerComment ? s.userProfile : undefined);
+  const playerAge = useGameSelector(s => comment.isPlayerComment ? s.date?.age : undefined);
 
   const accentColor = comment.isPlayerComment
     ? PULSE_COLORS.tierCelebrity
@@ -40,10 +44,10 @@ export default function CommentItem({ comment, currentWeeksLived, depth = 0 }: C
       <ImageWithFallback
         uri={comment.authorPhoto}
         fallback={comment.authorHandle || '?'}
-        face={comment.authorHandle ? { seed: comment.authorHandle, size: scale(26) } : undefined}
+        face={comment.authorHandle ? { source: playerProfile, age: playerAge, seed: comment.authorHandle, size: scale(26) } : undefined}
         style={styles.avatar}
         placeholderColor={accentColor}
-        placeholderTextColor="#FFFFFF"
+        placeholderTextColor={uiPalette.white}
       />
 
       {/* Body bubble */}
@@ -109,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(3),
   },
   youBadgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
     letterSpacing: 0.4,

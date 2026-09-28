@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * BitcoinMiningApp - desktop crypto trading + mining dashboard.
  *
@@ -46,7 +47,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Crypto, CryptoOrderSide, CryptoOrderType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding, touchTargets } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import Chip from '@/components/ui/Chip';
@@ -1621,7 +1622,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         <StatStrip
           items={[
             {
-              label: '24h change',
+              label: 'Weekly change',
               value: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
               tint: change < 0 ? accent.danger : accent.success,
             },
@@ -1667,7 +1668,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         title={detailTitle}
         onBack={handleBack}
         backLabel={subView ? 'Back to Crypto' : 'Back'}
-        right={<CashChip value={formatMoneyCompact(cash)} tint={AMBER} />}
+        right={<CashChip value={formatMoneyCompact(cash)} />}
       />
 
       {/* Tab strip only anchors the top-level views; detail pages are anchored by
@@ -1701,7 +1702,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
       <PlaceOrderModal
         visible={!!orderCoin}
-        coin={orderCoin}
+        coin={cryptos.find(c => c.id === orderCoin?.id) ?? null}
+        reservedCash={(market.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'buy').reduce((sum, o) => sum + o.amount * 1.01, 0)}
+        reservedUnits={(market.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'sell' && o.cryptoId === orderCoin?.id).reduce((sum, o) => sum + o.amount, 0)}
         cash={cash}
         darkMode={darkMode}
         onClose={() => setOrderCoin(null)}
@@ -1710,6 +1713,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
       <DCAModal
         visible={showDCA}
+        cashAvailable={cash}
         cryptos={cryptos}
         accounts={banking?.accounts ?? []}
         darkMode={darkMode}
@@ -1845,7 +1849,7 @@ function PrimaryCTA({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled }}
     >
-      <Text style={[styles.ctaText, { color: disabled ? theme.textMuted : '#0F172A' }]}>{label}</Text>
+      <Text style={[styles.ctaText, { color: disabled ? theme.textMuted : uiPalette.navy }]}>{label}</Text>
     </TouchableOpacity>
   );
 }

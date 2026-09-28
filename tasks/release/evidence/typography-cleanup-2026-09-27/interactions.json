@@ -1,0 +1,23 @@
+[
+  {
+    "width": 320,
+    "companyNavigation": "passed",
+    "upgradeDisclosure": "passed",
+    "baseIncomePreserved": 8000,
+    "errors": []
+  },
+  {
+    "width": 375,
+    "companyNavigation": "passed",
+    "upgradeDisclosure": "passed",
+    "baseIncomePreserved": 8000,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "companyNavigation": "passed",
+    "upgradeDisclosure": "passed",
+    "baseIncomePreserved": 8000,
+    "errors": []
+  }
+]

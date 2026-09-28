@@ -1,3 +1,4 @@
+import { uiPalette , accent } from '@/lib/config/theme';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,9 +17,10 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
+import { ITEM_SELL_RATE } from '@/lib/config/gameConstants';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { accent } from '@/lib/config/theme';
+
 import { styles } from '@/components/market/marketScreenStyles';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -113,7 +115,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       const sellPrice = parseFloat((getInflatedPrice(
         gameState.items.find(i => i.id === itemId)?.price || 0,
         gameState.economy?.priceIndex ?? 1
-      ) * 0.5).toFixed(2));
+      ) * ITEM_SELL_RATE).toFixed(2));
 
       if (sellItem(itemId) !== false) showInfo(`Sold ${itemName} for ${formatMoney(sellPrice)}`);
     } catch (error) {
@@ -202,7 +204,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{item.name}</Text>
 
           {/* Show unlock description for feature items */}
-          {unlockDesc && !item.owned && (
+          {unlockDesc && (
             <Text style={[styles.unlockDescription, settings.darkMode && styles.unlockDescriptionDark]}>
               {unlockDesc}
             </Text>
@@ -216,14 +218,19 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           {/* Raw interpolation printed "$20000" beside rows whose own confirm
               dialog already said "$20K" - this file imports `formatMoney` and
               uses it for rents and the purchase dialog. One convention. */}
-          <Text style={styles.itemPrice}>{formatMoney(inflatedPrice)}</Text>
+          <Text style={styles.itemPrice}>{item.owned ? 'Owned' : formatMoney(inflatedPrice)}</Text>
+          {!item.owned && !canAffordItem(item.price) && (
+            <Text style={[styles.itemDescription, settings.darkMode && styles.itemDescriptionDark]}>
+              {formatMoney(Math.max(0, inflatedPrice - gameState.stats.money))} more needed
+            </Text>
+          )}
         </View>
 
         {item.owned ? (
           <LoadingButton
             onPress={() => {
-              const sellPrice = parseFloat((getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5).toFixed(2));
-              const importantItems = ['computer', 'smartphone', 'suit'];
+              const sellPrice = parseFloat((getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * ITEM_SELL_RATE).toFixed(2));
+              const importantItems = ['computer', 'smartphone', 'suit', 'gym_membership', 'passport'];
 
               // Show confirmation for important items or expensive items (>$500)
               if (importantItems.includes(item.id) || sellPrice > 500) {
@@ -232,7 +239,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 handleSell(item.id, item.name);
               }
             }}
-            title={`Sell (${formatMoney(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5)})`}
+            accessibilityLabel={`Sell ${item.name}`}
+            title={`Sell (${formatMoney(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * ITEM_SELL_RATE)})`}
             loading={loadingStates[item.id] || false}
             variant="secondary"
             size="small"
@@ -258,6 +266,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               }
             }}
             title={t('market.buy')}
+            accessibilityLabel={`Buy ${item.name} for ${formatMoney(inflatedPrice)}`}
             loading={loadingStates[item.id] || false}
             disabled={!canAffordItem(item.price)}
             // The recommended item is the one saturated Buy on the list; the
@@ -353,6 +362,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             }
           }}
           title={t('market.buy')}
+          accessibilityLabel={`Buy ${food.name}`}
           disabled={!canAfford(food.price)}
           // When food leads (energy critical) the first meal is the primary.
           variant={isLead ? 'primary' : 'secondary'}
@@ -474,8 +484,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           <CollapsibleSection
             id="market.housing"
             title="Housing"
-            icon={<Home size={scale(15)} color="#60A5FA" />}
-            tint="#60A5FA"
+            icon={<Home size={scale(15)} color={uiPalette.blue} />}
+            tint={uiPalette.blue}
             summary={currentRental ? currentRental.tier.name : 'Not renting'}
           >
             <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
@@ -563,7 +573,11 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               ? `Are you sure you want to sell your ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?\n\nDon't worry - all your data (crypto, stocks, real estate, etc.) will be preserved and restored if you buy another computer later.`
               : showSellConfirm.itemId === 'smartphone'
                 ? `Are you sure you want to sell your ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?\n\nYou'll lose access to all mobile apps until you buy another phone.`
-                : `Are you sure you want to sell ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?`
+                : showSellConfirm.itemId === 'gym_membership'
+                  ? `Sell for ${formatMoney(showSellConfirm.price)}? Gym workouts and the membership's weekly benefits will stop until you buy it again.`
+                  : showSellConfirm.itemId === 'passport'
+                    ? `Sell for ${formatMoney(showSellConfirm.price)}? You will need another passport to book international travel.`
+                    : `Are you sure you want to sell ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?`
           }
           confirmText="Sell"
           cancelText="Cancel"

@@ -1,3 +1,5 @@
+import CatalogArt from '@/components/ui/CatalogArt';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * LuxuryApp - desktop "Luxury & Collectibles" screen (premium redesign).
  *
@@ -5,9 +7,8 @@
  * as RealEstateApp / GamingApp): browse an artwork-led catalog, buy with in-game
  * cash, and manage owned trophies (each has weekly upkeep + a happiness/prestige
  * benefit). This pass matches the game's redesign wave:
- *  - ARTWORK BANNER per item - a bundled Image (luxuryArt require map) with a
- *    graceful per-tier gradient placeholder (the emoji, large + subtle) until the
- *    real art is imported. Full names fit (2-line title, price off the title row).
+ *  - Bundled illustrated banners with a shared vector fallback.
+ *    Full names fit (2-line title, price off the title row).
  *  - Tiers made visual (ENTRY / PREMIUM / ELITE / ULTRA tinted chips).
  *  - A DETAIL SHEET (tap a card) with the full stats + cost-of-ownership + buy/sell.
  *  - A COLLECTION showcase (value / upkeep / prestige summary) + the resale flow.
@@ -27,7 +28,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import {
   Crown,
@@ -55,7 +55,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { logger } from '@/utils/logger';
@@ -104,7 +104,7 @@ import {
   sellLuxuryItem,
   setLuxuryInsurance,
 } from '@/contexts/game/actions/LuxuryActions';
-import { luxuryArtFor, luxuryTierVisual } from '@/components/computer/luxury/luxuryArt';
+import { luxuryTierVisual } from '@/components/computer/luxury/luxuryArt';
 
 // One identity accent for this app - the shared semantic blue, tinted through
 // `withAlpha`. Emerald = benefit/complete, amber = the cautionary (lossy but
@@ -124,25 +124,9 @@ const TABS: { key: Tab; label: string; icon: IconType }[] = [
 
 const clampUnit = (n: number): number => Math.max(0, Math.min(1, isFinite(n) ? n : 0));
 
-/**
- * Artwork banner - a bundled Image when present, otherwise a flat per-tier wash
- * with the item's emoji as the art. Fills its (sized, overflow-clipped) parent;
- * overlay chips are siblings.
- */
-function ArtworkBanner({ item, emojiSize }: { item: LuxuryItem; emojiSize: number }) {
-  const art = luxuryArtFor(item.id);
-  const tv = luxuryTierVisual(item.tier);
-
-  if (art) {
-    return <Image source={art} style={styles.bannerFill} resizeMode="cover" />;
-  }
-  return (
-    <View style={[styles.bannerFill, { backgroundColor: tv.placeholder }]}>
-      <View pointerEvents="none" style={styles.bannerEmojiWrap}>
-        <Text style={[styles.bannerEmoji, { fontSize: emojiSize }]}>{item.emoji}</Text>
-      </View>
-    </View>
-  );
+/** Local illustrated banners share fallback and accessibility behavior with other catalogues. */
+function ArtworkBanner({ item }: { item: LuxuryItem }) {
+  return <CatalogArt family="luxury" id={item.id} style={styles.bannerFill} />;
 }
 
 /** The two chips a buyer decides on: what it costs weekly, what it is worth in prestige. */
@@ -204,13 +188,13 @@ function LuxuryCard({
               accessibilityLabel={`${item.name}, ${formatMoney(item.price)}${isOwned ? ', owned' : ''}. View details`}
             >
               <View style={[styles.bannerBox, { height: scale(132) }]}>
-                <ArtworkBanner item={item} emojiSize={scale(54)} />
+                <ArtworkBanner item={item} />
                 <View style={[styles.tierChip, { backgroundColor: tv.accentSoft, borderColor: tv.accentBorder }]}>
                   <Text style={[styles.tierChipText, { color: tv.accent }]}>{tv.label}</Text>
                 </View>
                 {isOwned ? (
                   <View style={[styles.statePill, { backgroundColor: withAlpha(EMERALD, 0.92) }]}>
-                    <BadgeCheck size={scale(12)} color="#FFFFFF" />
+                    <BadgeCheck size={scale(12)} color={uiPalette.white} />
                     <Text style={styles.statePillText}>Owned</Text>
                   </View>
                 ) : (
@@ -261,8 +245,8 @@ function LuxuryCard({
                       : `${item.name} costs ${formatMoney(item.price)}, more than your cash`
                   }
                 >
-                  <ShoppingBag size={scale(14)} color={affordable ? '#FFFFFF' : theme.textMuted} />
-                  <Text style={[styles.buyBtnText, { color: affordable ? '#FFFFFF' : theme.textMuted }]}>
+                  <ShoppingBag size={scale(14)} color={affordable ? uiPalette.white : theme.textMuted} />
+                  <Text style={[styles.buyBtnText, { color: affordable ? uiPalette.white : theme.textMuted }]}>
                     Buy {formatMoney(item.price)}
                   </Text>
                 </TouchableOpacity>
@@ -595,8 +579,8 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
           affordable ? `Buy ${item.name} for ${formatMoney(item.price)}` : `Not enough cash for ${item.name}`
         }
       >
-        <ShoppingBag size={scale(16)} color={affordable ? '#FFFFFF' : theme.textMuted} />
-        <Text style={[styles.sheetCtaText, { color: affordable ? '#FFFFFF' : theme.textMuted }]}>
+        <ShoppingBag size={scale(16)} color={affordable ? uiPalette.white : theme.textMuted} />
+        <Text style={[styles.sheetCtaText, { color: affordable ? uiPalette.white : theme.textMuted }]}>
           {affordable ? `Buy ${formatMoney(item.price)}` : `Need ${formatMoney(item.price - cash)} more`}
         </Text>
       </TouchableOpacity>
@@ -613,13 +597,13 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
       >
         <View style={styles.sheetBody}>
               <View style={[styles.sheetHeroBox, { height: scale(190), borderColor: theme.border }]}>
-                <ArtworkBanner item={item} emojiSize={scale(88)} />
+                <ArtworkBanner item={item} />
                 <View style={[styles.tierChip, { backgroundColor: tv.accentSoft, borderColor: tv.accentBorder }]}>
                   <Text style={[styles.tierChipText, { color: tv.accent }]}>{tv.label}</Text>
                 </View>
                 {isOwned ? (
                   <View style={[styles.statePill, { backgroundColor: withAlpha(EMERALD, 0.92) }]}>
-                    <BadgeCheck size={scale(12)} color="#FFFFFF" />
+                    <BadgeCheck size={scale(12)} color={uiPalette.white} />
                     <Text style={styles.statePillText}>Owned</Text>
                   </View>
                 ) : (
@@ -819,7 +803,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
       <AppHeader
         title="Luxury & Collectibles"
         onBack={onBack}
-        right={<CashChip value={formatMoney(cash)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       <SegmentedControl
@@ -916,7 +900,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         }
         confirmText="Buy"
         cancelText="Cancel"
-        icon={<Crown size={scale(28)} color="#FFFFFF" strokeWidth={2.2} />}
+        icon={<Crown size={scale(28)} color={uiPalette.white} strokeWidth={2.2} />}
         onConfirm={confirmBuy}
         onCancel={() => setPendingBuy(null)}
       />
@@ -978,8 +962,6 @@ const styles = StyleSheet.create({
   cardInner: { borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
   bannerBox: { width: '100%' },
   bannerFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
-  bannerEmojiWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  bannerEmoji: { opacity: 0.9, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 18 },
   tierChip: {
     position: 'absolute',
     top: scale(10),
@@ -999,7 +981,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
-  pricePillText: { color: '#FFFFFF', fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  pricePillText: { color: uiPalette.white, fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
   statePill: {
     position: 'absolute',
     left: scale(10),
@@ -1011,7 +993,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: responsiveBorderRadius.full,
   },
-  statePillText: { color: '#FFFFFF', fontSize: responsiveFontSize.xs, fontWeight: '600' },
+  statePillText: { color: uiPalette.white, fontSize: responsiveFontSize.xs, fontWeight: '600' },
   cardBody: { padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   cardTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: responsiveSpacing.xs },
   cardName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600', lineHeight: responsiveFontSize.md * 1.3 },
@@ -1065,7 +1047,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
-  detailPriceText: { color: '#FFFFFF', fontSize: responsiveFontSize.xl, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  detailPriceText: { color: uiPalette.white, fontSize: responsiveFontSize.xl, fontWeight: '600', fontVariant: ['tabular-nums'] },
   ownershipCard: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   verbRow: {
     flexDirection: 'row',

@@ -34,11 +34,11 @@ describeSim('Early-game persona soak (manual)', () => {
   jest.setTimeout(3_600_000);
 
   it('prints the first 20 weeks of every persona', async () => {
-    const seeds = (process.env.SEEDS ?? '1,2,3').split(',').map((s) => Number(s.trim())).filter(Number.isFinite);
+    const seeds = (process.env.SEEDS ?? '1,2,3').split(',').map((s: string) => Number(s.trim())).filter(Number.isFinite);
     const scenarioId = process.env.SCENARIO ?? 'food_courier';
     const weeks = Number(process.env.WEEKS ?? 20);
     const results: SimResult[] = [];
-    const only = (process.env.PERSONAS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const only = (process.env.PERSONAS ?? '').split(',').map((s: string) => s.trim()).filter(Boolean);
     for (const [name, makePolicy] of Object.entries(PERSONAS)) {
       if (only.length && !only.includes(name[0])) continue;
       for (const seed of seeds) {

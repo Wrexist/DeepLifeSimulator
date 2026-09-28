@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "studyToZeroDisablesExtra": true,
+    "realWeeklyGraduation": true,
+    "reopenPreservesCredential": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "studyToZeroDisablesExtra": true,
+    "realWeeklyGraduation": true,
+    "reopenPreservesCredential": true,
+    "errors": []
+  }
+]

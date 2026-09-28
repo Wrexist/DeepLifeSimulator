@@ -1,8 +1,9 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { BudgetCategory, BudgetWeekBucket } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 
 import { formatMoney } from '@/utils/moneyFormatting';
 
@@ -45,9 +46,9 @@ const CATEGORY_COLOR: Record<BudgetCategory, string> = {
   lifestyle: '#f97316',
   vice: accent.danger,
   savings: accent.success,
-  debt: '#64748b',
+  debt: uiPalette.lightMuted,
   taxes: '#71717a',
-  other: '#94a3b8',
+  other: uiPalette.muted,
 };
 
 export default function BudgetBreakdown({ buckets, darkMode, weeks = 4, targets, onSetTarget }: Props) {

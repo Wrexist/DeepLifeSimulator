@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "studyLimitPauseResume": true,
+    "withdrawConfirmation": true,
+    "loanEnrollmentReopenWithdrawalKeepsDebt": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "studyLimitPauseResume": true,
+    "withdrawConfirmation": true,
+    "loanEnrollmentReopenWithdrawalKeepsDebt": true,
+    "errors": []
+  }
+]

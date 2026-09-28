@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import {
@@ -87,21 +88,21 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const palette = isDarkMode
  ? {
  backdrop: 'rgba(0, 0, 0, 0.65)',
- sheet: '#0F172A',
+ sheet: uiPalette.navy,
  border: 'rgba(255,255,255,0.06)',
- title: '#F8FAFC',
- subtitle: '#94A3B8',
+ title: uiPalette.paper,
+ subtitle: uiPalette.muted,
  infoBg: 'rgba(255,255,255,0.04)',
- infoText: '#CBD5E1',
+ infoText: uiPalette.secondary,
  }
 : {
  backdrop: 'rgba(15, 23, 42, 0.55)',
- sheet: '#FFFFFF',
+ sheet: uiPalette.white,
  border: 'rgba(15,23,42,0.06)',
- title: '#0F172A',
- subtitle: '#64748B',
- infoBg: '#F1F5F9',
- infoText: '#475569',
+ title: uiPalette.navy,
+ subtitle: uiPalette.lightMuted,
+ infoBg: uiPalette.lightSurface,
+ infoText: uiPalette.lightSecondary,
  };
 
  return (
@@ -120,7 +121,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  >
  <View style={styles.iconWrap}>
  <View style={styles.iconCircle}>
- <Gift size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
+ <Gift size={scale(28)} color={uiPalette.white} strokeWidth={2.4} />
  </View>
  </View>
 
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  },
  claimButtonText: {
- color: '#FFFFFF',
+ color: uiPalette.white,
  fontSize: responsiveFontSize.base,
  fontWeight: '700',
  letterSpacing: 0.3,

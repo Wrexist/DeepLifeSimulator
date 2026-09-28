@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "stockBuyFractionalSellCancel": true,
+    "cryptoBuyFractionalSellCancel": true,
+    "recurringSaveReopenRealWeeklyExecution": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "stockBuyFractionalSellCancel": true,
+    "cryptoBuyFractionalSellCancel": true,
+    "recurringSaveReopenRealWeeklyExecution": true,
+    "errors": []
+  }
+]

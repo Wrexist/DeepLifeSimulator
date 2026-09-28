@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * WatchAdRewardButton - a reusable, self-contained "watch ad → reward" CTA that
  * any in-app screen can drop in to offer an optional rewarded ad.
@@ -95,7 +96,7 @@ export default function WatchAdRewardButton({
   if (adsRemoved) return null;
 
   const inactive = disabled || busy;
-  const gradient = (inactive ? ['#94A3B8', '#64748B'] : colors) as unknown as string[];
+  const gradient = (inactive ? [uiPalette.muted, uiPalette.lightMuted] : colors) as unknown as string[];
   const primaryText = busy ? 'Loading ad…' : disabled && disabledLabel ? disabledLabel : label;
 
   return (
@@ -108,7 +109,7 @@ export default function WatchAdRewardButton({
       style={[styles.wrap, style]}
     >
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.fill}>
-        <Icon size={fontScale(18)} color="#FFFFFF" strokeWidth={2.3} fill={Icon === Play ? '#FFFFFF' : 'none'} />
+        <Icon size={fontScale(18)} color={uiPalette.white} strokeWidth={2.3} fill={Icon === Play ? uiPalette.white : 'none'} />
         <View style={styles.textWrap}>
           <Text style={styles.label} numberOfLines={1}>{primaryText}</Text>
           {sublabel && !busy ? (
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '800',
   },

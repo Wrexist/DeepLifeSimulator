@@ -1,0 +1,1402 @@
+
+> life-simulator@2.15.0 preflight
+> npm run check:routes && node scripts/preflight-check.js --platform ios && npm run lint:errors && npm run lint:ratchet && npm run ui:ratchet && npm run check:content && npm run check:liveops
+
+
+> life-simulator@2.15.0 check:routes
+> node scripts/check-route-conflicts.cjs
+
+[route-conflicts] OK — 17 routes, no conflicts, all groups anchored, one door per room
+
+============================================================
+🚀 PREFLIGHT CHECK - MANDATORY RELEASE CHECKS
+============================================================
+
+Env baseline: eas.json profile "production" overlaid with process.env
+   Use --profile <name> to check a different eas.json build profile.
+
+============================================================
+1. TypeScript Type Checking
+============================================================
+
+[CHECK] App source (tsconfig.typecheck.json)...
+node.exe : (node:159992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\IsacC\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:159992) W... env being set.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:154192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PASS] App source type-checks clean
+
+[CHECK] Test tree (ratchet)...
+✓ Test-tree type errors holding at 0 (baseline 0).
+[PASS] Test tree holds at its baseline
+
+============================================================
+2. Linter Check (Non-blocking)
+============================================================
+
+[INFO] Running ESLint (warnings are non-blocking)...
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\actions\commitmentEffects.test.ts
+  303:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  304:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\actions\innerOnlyRejections.test.ts
+  158:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  159:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\actions\legacyPassActions.test.ts
+  309:18  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  310:20  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\analytics\firstWeekCompletedThisLife.test.tsx
+  42:30  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\betahub\betaHubQr.test.ts
+   18:13  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+   19:10  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+   36:14  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+  149:16  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\components\gameAudio.test.ts
+  10:1  warning  Import in body of module; reorder to top  import/first
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\acquisitionValue.test.ts
+  189:7  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  190:9  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\adCashBonusScaling.test.ts
+  112:17  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  113:7   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  126:17  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  127:7   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\cashFlowCompleteness.test.ts
+  168:7  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\companyGoalsAreReachable.test.ts
+  42:7  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\dividendYieldRatchet.test.ts
+  130:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  131:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\familyBusinessEffects.test.ts
+  146:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  147:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\payBailDoubleCharge.test.ts
+  54:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  55:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\politicsLoanRate.test.ts
+  149:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  150:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\savingsGoalWithdraw.test.ts
+   25:29  warning  'GameState' is defined but never used    @typescript-eslint/no-unused-vars
+  202:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  203:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\taxLedger.test.ts
+  156:5   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  156:32  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\economy\weeklyCareerSalary.test.ts
+  120:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  121:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\mail\mailDecisions.test.ts
+  15:3  warning  'isLetterEvent' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\monetization\iapVerifyEndpoint.test.ts
+  48:21  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\monetization\megaPackCompleteness.test.ts
+   24:48  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\iapConfig.ts' imported multiple times  import/no-duplicates
+   43:63  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\iapConfig.ts' imported multiple times  import/no-duplicates
+  147:14  warning  A `require()` style import is forbidden                                                  @typescript-eslint/no-require-imports
+  148:16  warning  A `require()` style import is forbidden                                                  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\monetization\revivalPackBanked.test.ts
+   64:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   65:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  201:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  202:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\monetization\reviveEconomy.test.ts
+  112:18  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\onboarding\featureUnlocks.test.ts
+  459:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  460:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  501:5   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  598:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  599:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  641:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  642:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  681:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  682:18  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  704:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  705:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\prestige\dynastyTiers.test.ts
+  618:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  619:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\prestige\legacyShop.test.ts
+  391:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  392:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\progression\healthcarePolicyWired.test.ts
+  127:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  128:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\progression\inertPrestigeBonusesRound3.test.ts
+  68:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  69:18  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\refactor\subsystemEquivalence.test.ts
+    84:112  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\types.ts' imported multiple times  import/no-duplicates
+    85:15   warning  'StockHolding' is defined but never used                                                     @typescript-eslint/no-unused-vars
+    88:29   warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\types.ts' imported multiple times  import/no-duplicates
+  3406:20   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4269:19   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4344:21   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4489:20   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4575:21   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4650:19   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4704:18   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  4806:17   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+  5249:20   warning  A `require()` style import is forbidden                                                      @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\refactor\tickProfile.manual.test.ts
+  13:1  warning  Import in body of module; reorder to top                                             import/first
+  14:1  warning  Import in body of module; reorder to top                                             import/first
+  15:1  warning  Import in body of module; reorder to top                                             import/first
+  16:1  warning  Import in body of module; reorder to top                                             import/first
+  17:1  warning  Import in body of module; reorder to top                                             import/first
+  76:7  warning  Unused eslint-disable directive (no problems were reported from 'no-await-in-loop')
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\refactor\updaterTimingContract.test.tsx
+  54:22  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  60:10  warning  'n' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\render\blockingPopupScroll.test.ts
+  45:15  warning  Array type using 'ReadonlyArray<T>' is forbidden. Use 'readonly T[]' instead  @typescript-eslint/array-type
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\save\autosaveSuspension.test.ts
+   66:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   67:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  123:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  124:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\save\saveBackupProduction.test.ts
+  130:42  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\save\saveFlowRound3.test.ts
+  32:15  warning  'GameState' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\scenarios\scenarioCrashTest.ts
+   46:11  warning  'safeGetDifficultyColor' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  340:11  warning  'startingConditions' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  343:11  warning  'rewards' is assigned a value but never used                 @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\scenarios\scenarioWinConditions.test.ts
+  169:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  170:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  198:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  199:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\startup\errorHandling.test.ts
+  109:15  warning  'lengthBefore' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\startup\navigationPeerDeps.test.ts
+  30:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\career.stress.test.ts
+  347:13  warning  'educationYears' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\company.stress.test.ts
+  3:10  warning  'advanceWeeks' is defined but never used  @typescript-eslint/no-unused-vars
+  3:24  warning  'advanceYears' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\diseaseLifecycle.stress.test.ts
+  33:1  warning  Import in body of module; reorder to top  import/first
+  36:1  warning  Import in body of module; reorder to top  import/first
+  37:1  warning  Import in body of module; reorder to top  import/first
+  38:1  warning  Import in body of module; reorder to top  import/first
+  39:1  warning  Import in body of module; reorder to top  import/first
+  40:1  warning  Import in body of module; reorder to top  import/first
+  41:1  warning  Import in body of module; reorder to top  import/first
+  50:1  warning  Import in body of module; reorder to top  import/first
+  56:1  warning  Import in body of module; reorder to top  import/first
+  57:1  warning  Import in body of module; reorder to top  import/first
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\economy.stress.test.ts
+   45:7   warning  'stateWithInflation' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   69:13  warning  'annualInflation' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   80:13  warning  'annualInflation' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  168:13  warning  'richState' is assigned a value but never used           @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\educationFlow.stress.test.ts
+  31:1  warning  Import in body of module; reorder to top  import/first
+  34:1  warning  Import in body of module; reorder to top  import/first
+  35:1  warning  Import in body of module; reorder to top  import/first
+  36:1  warning  Import in body of module; reorder to top  import/first
+  37:1  warning  Import in body of module; reorder to top  import/first
+  38:1  warning  Import in body of module; reorder to top  import/first
+  39:1  warning  Import in body of module; reorder to top  import/first
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\featureGauntlet.stress.test.ts
+  28:1  warning  Import in body of module; reorder to top  import/first
+  31:1  warning  Import in body of module; reorder to top  import/first
+  32:1  warning  Import in body of module; reorder to top  import/first
+  41:1  warning  Import in body of module; reorder to top  import/first
+  42:1  warning  Import in body of module; reorder to top  import/first
+  43:1  warning  Import in body of module; reorder to top  import/first
+  44:1  warning  Import in body of module; reorder to top  import/first
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\health.stress.test.ts
+  3:10  warning  'setupNearDeath' is defined but never used   @typescript-eslint/no-unused-vars
+  3:26  warning  'setupMaxedStats' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\legacyPulsePoliticsFlow.stress.test.ts
+  36:15  warning  'GameState' is defined but never used       @typescript-eslint/no-unused-vars
+  37:10  warning  'WEEKS_PER_YEAR' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\relationships.stress.test.ts
+   82:7   warning  'state' is assigned a value but never used                @typescript-eslint/no-unused-vars
+   92:13  warning  'weeksPerInteraction' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   94:13  warning  'decayPerWeek' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  265:13  warning  'state' is assigned a value but never used                @typescript-eslint/no-unused-vars
+  371:13  warning  'state' is assigned a value but never used                @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\statisticsTracker.stress.test.ts
+  33:1  warning  Import in body of module; reorder to top  import/first
+  36:1  warning  Import in body of module; reorder to top  import/first
+  37:1  warning  Import in body of module; reorder to top  import/first
+  38:1  warning  Import in body of module; reorder to top  import/first
+  39:1  warning  Import in body of module; reorder to top  import/first
+  40:1  warning  Import in body of module; reorder to top  import/first
+  60:1  warning  Import in body of module; reorder to top  import/first
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\stress\vehicleSystemFlow.stress.test.ts
+  20:26  warning  'Vehicle' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\tooling\deliberateCastMarker.test.ts
+  112:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  113:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\tooling\receiptVerificationGate.test.ts
+  96:14  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  97:16  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\tooling\releaseEvidence.test.ts
+  5:37  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\tooling\releaseWorkflow.test.ts
+  4:86  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\tooling\testTypeRatchet.test.ts
+  132:17  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\utils\errorRecovery.test.ts
+  119:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\utils\preflightSaveSigning.test.ts
+  2:38  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\utils\rateLimiter.test.ts
+  5:8  warning  'rateLimiter' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\__tests__\utils\saveSigningConfig.test.ts
+  8:7  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(onboarding)\Customize.tsx
+  571:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  680:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(onboarding)\Perks.tsx
+   79:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   81:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   83:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   85:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   87:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   90:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   92:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+   94:14  warning  A `require()` style import is forbidden                                                                                                                                                                  @typescript-eslint/no-require-imports
+  712:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  857:67  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(onboarding)\Scenarios.tsx
+    8:3   warning  'verticalScale' is defined but never used                                                                                                                                                                @typescript-eslint/no-unused-vars
+  595:67  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  665:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(tabs)\market.tsx
+  101:14  warning  'error' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+  120:14  warning  'error' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+  277:6   warning  React Hook useCallback has missing dependencies: 'gameState' and 't'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
+  373:6   warning  React Hook useCallback has missing dependencies: 'gameState' and 'showInfo'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(tabs)\work.tsx
+   185:9   warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                                          react-hooks/exhaustive-deps
+   245:47  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   245:47  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   263:72  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   336:59  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   404:51  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1266:71  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\_layout.tsx
+   27:31  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\utils\bootBreadcrumbs.ts' imported multiple times                                                                                                        import/no-duplicates
+   66:56  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\utils\bootBreadcrumbs.ts' imported multiple times                                                                                                        import/no-duplicates
+   69:21  warning  'track' is defined but never used                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  155:14  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\index.tsx
+  104:38  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\art\game-assets-v1\source\models.mjs
+  147:158  warning  'wheel' is assigned a value but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\AchievementsProgress.tsx
+  544:30  warning  'error' is defined but never used                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  582:70  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  626:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  774:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  875:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\ActivityCommitmentModal.tsx
+  390:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\AdRewardOrb.tsx
+  479:6  warning  React Hook useCallback has missing dependencies: 'getGameState' and 'setGameState'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\AutoSaveIndicator.tsx
+  247:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  270:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\CureSuccessModal.tsx
+  7:10  warning  'safeSettings' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\DeathPopup.tsx
+  159:28  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  160:27  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  169:6   warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                                          react-hooks/exhaustive-deps
+  213:33  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  213:33  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  225:32  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  225:32  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  478:53  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  478:53  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  665:36  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  665:36  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\DevToolsModal.tsx
+  369:34   warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  369:34   warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  392:104  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  429:72   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  449:72   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  469:62   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  486:111  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  512:14   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  519:127  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  531:62   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  625:191  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  922:62   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\EnergyBreakdownModal.tsx
+  85:42  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\ErrorBoundary.tsx
+  209:34  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  209:34  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  282:34  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  282:34  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  294:20  warning  'e' is defined but never used                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  299:14  warning  'e' is defined but never used                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  319:24  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  333:16  warning  'sentryError' is defined but never used                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  373:36  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  373:36  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  386:22  warning  'e' is defined but never used                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  391:16  warning  'e' is defined but never used                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  408:24  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  418:16  warning  'sentryError' is defined but never used                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  492:36  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  492:36  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  671:13  warning  'reportJson' is assigned a value but never used                                                                                                                                                                     @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\HobbiesModal.tsx
+  25:30  warning  'minTouchTargetStyle' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\IdentityCardStyles.ts
+   99:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  125:61  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  196:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  484:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\Journal.tsx
+  102:9   warning  The 'entries' logical expression could make the dependencies of useMemo Hook (at line 116) change on every render. To fix this, wrap the initialization of 'entries' in its own useMemo() Hook           react-hooks/exhaustive-deps
+  228:60  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\LegacyTimeline.tsx
+  530:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  660:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\LifeMomentModal.tsx
+   60:45  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   60:45  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   69:50  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   69:50  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  256:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\LifeStoryModal.tsx
+  43:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\MemoryBookModal.tsx
+   58:27  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   72:9   warning  The 'memories' logical expression could make the dependencies of useMemo Hook (at line 102) change on every render. To fix this, wrap the initialization of 'memories' in its own useMemo() Hook         react-hooks/exhaustive-deps
+   72:9   warning  The 'memories' logical expression could make the dependencies of useMemo Hook (at line 109) change on every render. To fix this, wrap the initialization of 'memories' in its own useMemo() Hook         react-hooks/exhaustive-deps
+   94:6   warning  React Hook useEffect has missing dependencies: 'fadeAnim' and 'slideAnim'. Either include them or remove the dependency array                                                                            react-hooks/exhaustive-deps
+  473:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\MoneyBreakdownModal.tsx
+  54:30  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  86:6   warning  React Hook useMemo has an unnecessary dependency: 'weeksLived'. Either exclude it or remove the dependency array                                                                                                    react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\OptimizedFlatList.tsx
+  63:7  warning  'styles' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeButton.tsx
+  188:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeHistoryModal.tsx
+  296:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeInfoModal.tsx
+   21:2   warning  'hasImmortality' is defined but never used                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   43:9   warning  The 'unlockedBonuses' logical expression could make the dependencies of useMemo Hook (at line 211) change on every render. To fix this, wrap the initialization of 'unlockedBonuses' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  395:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper         no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeModal.tsx
+    58:6   warning  React Hook useMemo has unnecessary dependencies: 'gameState.bankSavings', 'gameState.realEstate', 'gameState.stats.money', and 'gameState.stocks'. Either exclude them or remove the dependency array    react-hooks/exhaustive-deps
+    78:6   warning  React Hook useMemo has a missing dependency: 'prestigeData'. Either include it or remove the dependency array                                                                                            react-hooks/exhaustive-deps
+   804:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1278:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigePreviewCard.tsx
+  129:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeShopModal.tsx
+  55:23  warning  '_setSearchQuery' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\PrestigeStatsCard.tsx
+  166:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\ProgressOverview.tsx
+  657:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  787:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\SeasonalIndicator.tsx
+   97:9   warning  '_hasHoliday' is assigned a value but never used                                                                                                                                                         @typescript-eslint/no-unused-vars
+  259:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\SettingsModal.tsx
+   70:23  warning  A `require()` style import is forbidden                                                                                                                                                                                                                                          @typescript-eslint/no-require-imports
+   70:23  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md                                                               no-restricted-syntax
+  147:70  warning  The ref value 'settingsRevision.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'settingsRevision.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+  316:6   warning  React Hook useEffect has a missing dependency: 'discordGlowAnim'. Either include it or remove the dependency array                                                                                                                                                               react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\SettingsModalStyles.ts
+  46:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\ShareLifeCard.tsx
+  38:7  warning  'BlurView' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\SicknessModal.tsx
+  79:6  warning  React Hook useEffect has missing dependencies: 'doctorPrice' and 'hospitalPrice'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  89:9  warning  'prevStateRef' is assigned a value but never used                                                                                     @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\SkillTreeModal.tsx
+  1086:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\SmartNotificationCenter.tsx
+   40:16  warning  '_width' is assigned a value but never used                                                                                                                                                              @typescript-eslint/no-unused-vars
+  102:6   warning  React Hook useEffect has missing dependencies: 'fadeAnim' and 'slideAnim'. Either include them or remove the dependency array                                                                            react-hooks/exhaustive-deps
+  603:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\TestRunner.tsx
+  34:81  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  34:81  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\TopStatsBar.tsx
+  364:5  warning  React Hook useEffect has missing dependencies: 'animatedStats.energy', 'animatedStats.happiness', 'animatedStats.health', 'glowAnimations', 'logRender', and 'stats'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  418:2  warning  React Hook React.useMemo has a missing dependency: 'stats'. Either include it or remove the dependency array                                                                                                              react-hooks/exhaustive-deps
+  806:5  warning  React Hook useEffect has missing dependencies: 'date' and 'weekAnimations'. Either include them or remove the dependency array                                                                                            react-hooks/exhaustive-deps
+  932:7  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper                   no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\TopStatsBarStyles.ts
+   23:58  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   40:56  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   76:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  104:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  151:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  351:60  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  392:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\WeddingPopup.tsx
+  326:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\WelcomeBackPopup.tsx
+   39:16  warning  '_screenWidth' is assigned a value but never used                                                                                                                                                        @typescript-eslint/no-unused-vars
+  166:6   warning  React Hook useEffect has missing dependencies: 'fadeAnim', 'glowAnim', 'pulseAnim', 'scaleAnim', and 'slideAnim'. Either include them or remove the dependency array                                     react-hooks/exhaustive-deps
+  563:69  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  584:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  618:69  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  751:69  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\YouthPillModal.tsx
+  176:66  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\anim\AchievementToast.tsx
+  232:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\anim\MotiStub.tsx
+   95:30  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper                                                             no-restricted-syntax
+   97:6   warning  React Hook useMemo has missing dependencies: 'animate' and 'from'. Either include them or remove the dependency array                                                                                                                                               react-hooks/exhaustive-deps
+  156:6   warning  React Hook useEffect has missing dependencies: 'keys', 'transition.damping', 'transition.delay', 'transition?.duration', 'transition?.loop', 'transition.mass', 'transition.stiffness', and 'transition?.type'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\AdvancedBankApp.tsx
+  261:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\BitcoinMiningApp.tsx
+  205:9  warning  The 'cryptos' logical expression could make the dependencies of useMemo Hook (at line 524) change on every render. To fix this, wrap the initialization of 'cryptos' in its own useMemo() Hook                  react-hooks/exhaustive-deps
+  221:5  warning  React Hook useMemo has a missing dependency: 'cryptos'. Either include it or remove the dependency array                                                                                                        react-hooks/exhaustive-deps
+  234:9  warning  The 'ownedMiners' logical expression could make the dependencies of useMemo Hook (at line 239) change on every render. To fix this, wrap the initialization of 'ownedMiners' in its own useMemo() Hook          react-hooks/exhaustive-deps
+  234:9  warning  The 'ownedMiners' logical expression could make the dependencies of useMemo Hook (at line 247) change on every render. To fix this, wrap the initialization of 'ownedMiners' in its own useMemo() Hook          react-hooks/exhaustive-deps
+  234:9  warning  The 'ownedMiners' logical expression could make the dependencies of useMemo Hook (at line 262) change on every render. To fix this, wrap the initialization of 'ownedMiners' in its own useMemo() Hook          react-hooks/exhaustive-deps
+  234:9  warning  The 'ownedMiners' logical expression could make the dependencies of useMemo Hook (at line 524) change on every render. To fix this, wrap the initialization of 'ownedMiners' in its own useMemo() Hook          react-hooks/exhaustive-deps
+  235:9  warning  The 'minerDurability' logical expression could make the dependencies of useMemo Hook (at line 262) change on every render. To fix this, wrap the initialization of 'minerDurability' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  235:9  warning  The 'minerDurability' logical expression could make the dependencies of useMemo Hook (at line 524) change on every render. To fix this, wrap the initialization of 'minerDurability' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  280:5  warning  React Hook useMemo has a missing dependency: 'cryptos'. Either include it or remove the dependency array                                                                                                        react-hooks/exhaustive-deps
+  286:5  warning  React Hook useMemo has a missing dependency: 'cryptos'. Either include it or remove the dependency array                                                                                                        react-hooks/exhaustive-deps
+  300:5  warning  React Hook useCallback has a missing dependency: 'cryptos'. Either include it or remove the dependency array                                                                                                    react-hooks/exhaustive-deps
+  310:5  warning  React Hook useCallback has a missing dependency: 'cryptos'. Either include it or remove the dependency array                                                                                                    react-hooks/exhaustive-deps
+  331:5  warning  React Hook useCallback has a missing dependency: 'cryptos'. Either include it or remove the dependency array                                                                                                    react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\GamingStreamingApp.tsx
+  102:3  warning  'touchTargets' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\RealEstateApp.tsx
+  329:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\computer\VehicleApp.tsx
+  153:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 178) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  153:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 182) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  153:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 186) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  153:9  warning  The 'vehicles' logical expression could make the dependencies of useMemo Hook (at line 194) change on every render. To fix this, wrap the initialization of 'vehicles' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  208:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                        react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\debug\AIDebugMenu.tsx
+   862:68  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   962:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   995:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1014:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1047:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1083:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1131:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1164:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1192:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1244:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  1270:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\dev\LogViewer.tsx
+  229:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\jail\JailScreen.tsx
+  43:10  warning  '_selectedActivity' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  43:29  warning  '_setSelectedActivity' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\BankApp.tsx
+  222:6  warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\ContactsApp.tsx
+  294:9  warning  The 'ledger' logical expression could make the dependencies of useMemo Hook (at line 295) change on every render. To fix this, wrap the initialization of 'ledger' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  294:9  warning  The 'ledger' logical expression could make the dependencies of useMemo Hook (at line 296) change on every render. To fix this, wrap the initialization of 'ledger' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  294:9  warning  The 'ledger' logical expression could make the dependencies of useMemo Hook (at line 297) change on every render. To fix this, wrap the initialization of 'ledger' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\DivorceConfirmModal.tsx
+  40:9  warning  'moneyAfterDivorce' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\EducationApp.tsx
+  237:9  warning  The 'educations' logical expression could make the dependencies of useMemo Hook (at line 240) change on every render. To fix this, wrap the initialization of 'educations' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  237:9  warning  The 'educations' logical expression could make the dependencies of useMemo Hook (at line 241) change on every render. To fix this, wrap the initialization of 'educations' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  237:9  warning  The 'educations' logical expression could make the dependencies of useMemo Hook (at line 244) change on every render. To fix this, wrap the initialization of 'educations' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  237:9  warning  The 'educations' logical expression could make the dependencies of useMemo Hook (at line 259) change on every render. To fix this, wrap the initialization of 'educations' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  237:9  warning  The 'educations' logical expression could make the dependencies of useMemo Hook (at line 290) change on every render. To fix this, wrap the initialization of 'educations' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  237:9  warning  The 'educations' logical expression could make the dependencies of useMemo Hook (at line 328) change on every render. To fix this, wrap the initialization of 'educations' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Hustle\modals\HireEmployeeModal.tsx
+  41:9  warning  The 'candidates' logical expression could make the dependencies of useCallback Hook (at line 70) change on every render. To fix this, wrap the initialization of 'candidates' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Hustle\screens\CreateCompanyScreen.tsx
+  119:28  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Hustle\screens\DashboardScreen.tsx
+  82:9  warning  The 'companies' logical expression could make the dependencies of useMemo Hook (at line 91) change on every render. To fix this, wrap the initialization of 'companies' in its own useMemo() Hook   react-hooks/exhaustive-deps
+  82:9  warning  The 'companies' logical expression could make the dependencies of useMemo Hook (at line 123) change on every render. To fix this, wrap the initialization of 'companies' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  83:9  warning  The 'overlays' logical expression could make the dependencies of useMemo Hook (at line 123) change on every render. To fix this, wrap the initialization of 'overlays' in its own useMemo() Hook    react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Pulse\modals\ProfileEditModal.tsx
+  41:9  warning  The 'profile' logical expression could make the dependencies of useMemo Hook (at line 49) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'profile' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Pulse\screens\ProfileScreen.tsx
+  69:9  warning  The 'recentPosts' logical expression could make the dependencies of useCallback Hook (at line 95) change on every render. Move it inside the useCallback callback. Alternatively, wrap the initialization of 'recentPosts' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Spark\screens\MatchesScreen.tsx
+  33:9  warning  The 'matches' logical expression could make the dependencies of useMemo Hook (at line 37) change on every render. To fix this, wrap the initialization of 'matches' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Spark\screens\PartnerProfileScreen.tsx
+  58:9  warning  The 'messages' logical expression could make the dependencies of useMemo Hook (at line 59) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'messages' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\Spark\screens\SwipeScreen.tsx
+  166:5  warning  React Hook useCallback has a missing dependency: 'timers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\StocksApp.tsx
+  109:9   warning  The 'holdings' logical expression could make the dependencies of useMemo Hook (at line 150) change on every render. To fix this, wrap the initialization of 'holdings' in its own useMemo() Hook                    react-hooks/exhaustive-deps
+  109:9   warning  The 'holdings' logical expression could make the dependencies of useMemo Hook (at line 151) change on every render. To fix this, wrap the initialization of 'holdings' in its own useMemo() Hook                    react-hooks/exhaustive-deps
+  109:9   warning  The 'holdings' logical expression could make the dependencies of useMemo Hook (at line 207) change on every render. To fix this, wrap the initialization of 'holdings' in its own useMemo() Hook                    react-hooks/exhaustive-deps
+  109:9   warning  The 'holdings' logical expression could make the dependencies of useMemo Hook (at line 221) change on every render. To fix this, wrap the initialization of 'holdings' in its own useMemo() Hook                    react-hooks/exhaustive-deps
+  109:9   warning  The 'holdings' logical expression could make the dependencies of useMemo Hook (at line 261) change on every render. To fix this, wrap the initialization of 'holdings' in its own useMemo() Hook                    react-hooks/exhaustive-deps
+  110:9   warning  The 'watchlist' logical expression could make the dependencies of useMemo Hook (at line 189) change on every render. To fix this, wrap the initialization of 'watchlist' in its own useMemo() Hook                  react-hooks/exhaustive-deps
+  110:9   warning  The 'watchlist' logical expression could make the dependencies of useMemo Hook (at line 252) change on every render. To fix this, wrap the initialization of 'watchlist' in its own useMemo() Hook                  react-hooks/exhaustive-deps
+  113:9   warning  The 'sectorSnapshots' logical expression could make the dependencies of useCallback Hook (at line 147) change on every render. To fix this, wrap the initialization of 'sectorSnapshots' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  113:9   warning  The 'sectorSnapshots' logical expression could make the dependencies of useMemo Hook (at line 235) change on every render. To fix this, wrap the initialization of 'sectorSnapshots' in its own useMemo() Hook      react-hooks/exhaustive-deps
+  130:52  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  139:6   warning  React Hook useMemo has an unnecessary dependency: 'gameState.weeksLived'. Either exclude it or remove the dependency array                                                                                          react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\mobile\social\DMSystem.tsx
+  546:5  warning  React Hook useCallback has a missing dependency: 'timers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\onboarding\OnboardingFloatingButton.tsx
+   69:69  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+   91:69  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  117:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  136:69  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\onboarding\OnboardingGlassHeader.tsx
+  55:63  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  98:64  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\settings\BugReportSheet.tsx
+  169:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\ui\LoadingButton.tsx
+  95:66  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\components\ui\StatChangeIndicator.tsx
+  213:67  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  229:65  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\StatChangeContext.tsx
+  164:8  warning  React Hook useEffect has a missing dependency: 'gameState.stats'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\CompanyActionsContext.tsx
+   14:15  warning  'GameState' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   95:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  107:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  119:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  131:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  137:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  150:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  162:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  174:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  186:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  198:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  210:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  222:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  228:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  245:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  257:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\GameActionsContext.tsx
+    38:109  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\prestige\applyBonuses.ts' imported multiple times                                                                                                                   import/no-duplicates
+    42:54   warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\economy\stockMarket.ts' imported multiple times                                                                                                                     import/no-duplicates
+    77:127  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\economy\stockMarket.ts' imported multiple times                                                                                                                     import/no-duplicates
+    81:50   warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\prestige\applyBonuses.ts' imported multiple times                                                                                                                   import/no-duplicates
+   100:2    warning  'MINER_PRICES' is defined but never used                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   106:2    warning  'ADULTHOOD_AGE' is defined but never used                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   107:2    warning  'PET_LIFESPANS' is defined but never used                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   108:2    warning  'VEHICLE_WEEKLY_MILEAGE' is defined but never used                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   109:2    warning  'VEHICLE_WEEKLY_CONDITION_DECAY' is defined but never used                                                                                                                                                          @typescript-eslint/no-unused-vars
+   110:2    warning  'VEHICLE_ACCIDENT_BASE_CHANCE' is defined but never used                                                                                                                                                            @typescript-eslint/no-unused-vars
+   111:2    warning  'VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE' is defined but never used                                                                                                                                                  @typescript-eslint/no-unused-vars
+   512:5    warning  React Hook useCallback has a missing dependency: 'setGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  1003:8    warning  'careerHappinessPenalty' is assigned a value but never used                                                                                                                                                         @typescript-eslint/no-unused-vars
+  1004:8    warning  'careerHealthPenalty' is assigned a value but never used                                                                                                                                                            @typescript-eslint/no-unused-vars
+  1243:25   warning  'baseTotalIncome' is assigned a value but never used                                                                                                                                                                @typescript-eslint/no-unused-vars
+  4496:5    warning  React Hook useCallback has an unnecessary dependency: 'setGameState'. Either exclude it or remove the dependency array                                                                                              react-hooks/exhaustive-deps
+  4521:27   warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  4739:34   warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  4739:34   warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  4741:11   warning  'e' is defined but never used                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  4800:34   warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  4800:34   warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  4805:20   warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  4888:11   warning  'e' is defined but never used                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  4902:5    warning  React Hook useEffect has a missing dependency: 'setGameState'. Either include it or remove the dependency array                                                                                                     react-hooks/exhaustive-deps
+  4975:5    warning  React Hook useEffect has a missing dependency: 'setGameState'. Either include it or remove the dependency array                                                                                                     react-hooks/exhaustive-deps
+  5037:74   warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  5037:74   warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  5189:42   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  5203:23   warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  5229:32   warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  5229:32   warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  5442:5    warning  React Hook useCallback has unnecessary dependencies: 'updateMoney' and 'updateStats'. Either exclude them or remove the dependency array                                                                            react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\GameStateContext.tsx
+    1:78  warning  'useEffect' is defined but never used                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  172:37  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  172:37  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\ItemActionsContext.tsx
+   97:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  109:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  163:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  194:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  277:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  540:52  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  603:48  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  790:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+  896:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array                                                                                                   react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\JobActionsContext.tsx
+  141:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  206:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  223:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  239:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  291:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  496:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  553:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  564:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\MoneyActionsContext.tsx
+    2:10  warning  'Alert' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+    2:17  warning  'Platform' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+    3:10  warning  'simulateWeek' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+    3:24  warning  'getStockInfo' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+    4:10  warning  'MAX_ACTIVE_RELATIONSHIPS' is defined but never used                                                               @typescript-eslint/no-unused-vars
+    4:36  warning  'MAX_RELATIONSHIP_INCOME' is defined but never used                                                                @typescript-eslint/no-unused-vars
+    4:61  warning  'MAX_RELATIONSHIPS_FOR_INCOME' is defined but never used                                                           @typescript-eslint/no-unused-vars
+    5:10  warning  'validateStats' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+    5:25  warning  'clampStatByKey' is defined but never used                                                                         @typescript-eslint/no-unused-vars
+   16:10  warning  'applyUnlockBonuses' is defined but never used                                                                     @typescript-eslint/no-unused-vars
+   16:30  warning  'hasEarlyCareerAccess' is defined but never used                                                                   @typescript-eslint/no-unused-vars
+   17:10  warning  'shouldAutoReinvestDividends' is defined but never used                                                            @typescript-eslint/no-unused-vars
+   80:11  warning  'setIsLoading' is assigned a value but never used                                                                  @typescript-eslint/no-unused-vars
+   80:25  warning  'setLoadingProgress' is assigned a value but never used                                                            @typescript-eslint/no-unused-vars
+   80:45  warning  'setLoadingMessage' is assigned a value but never used                                                             @typescript-eslint/no-unused-vars
+  211:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  375:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  442:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  533:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  563:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  592:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  629:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  645:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  669:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  686:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  702:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  725:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  808:6   warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\SocialActionsContext.tsx
+  121:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  136:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  167:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  181:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  200:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  325:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  344:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  362:6  warning  React Hook useCallback has a missing dependency: 'getGameState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\BankingActions.ts
+  479:35  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\DatingActions.ts
+  499:39  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  499:39  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  928:26  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  928:26  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\EducationActions.ts
+  417:40  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\HustleActions.ts
+  19:3  warning  'HustleCandidate' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\JobActions.ts
+  286:35  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  286:35  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  296:41  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  296:41  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\LoanActions.ts
+  65:40  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\LuxuryActions.ts
+  229:9  warning  'item' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\MiningActions.ts
+  6:21  warning  'Warehouse' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\PoliticalActions.ts
+  405:35  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  405:35  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\RealEstateActions.ts
+  339:11  warning  'cash' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\weekly\__tests__\applyCareerSalaryAndPenalty.political.test.ts
+  19:23  warning  'GameState' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\weekly\applyNPCDepthTick.ts
+  75:12  warning  '_e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\actions\weekly\applyPets.ts
+  27:1  warning  Import in body of module; reorder to top  import/first
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\company.ts
+  251:7  warning  'effectiveMultiplier' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\contexts\game\useGameSelector.ts
+  211:6  warning  React Hook useMemo has missing dependencies: 'inst.hasValue' and 'inst.value'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\hooks\useFrameworkReady.ts
+  138:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  139:20  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\hooks\useTimerManager.ts
+  31:27  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  40:26  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  49:27  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  56:26  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\ambitions\catalog.ts
+  51:7  warning  'fitness' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\business\hustleLogic.ts
+  11:3  warning  'GameState' is defined but never used       @typescript-eslint/no-unused-vars
+  15:3  warning  'HustleCampaign' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\business\hustleTick.ts
+  21:3  warning  'HustleAcquisitionOffer' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\devtools\simulations.ts
+  67:3  warning  'getLuxuryItem' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\economy\__tests__\passiveIncome.test.ts
+   6:10  warning  'WEEKS_PER_YEAR' is defined but never used  @typescript-eslint/no-unused-vars
+  80:11  warning  'stock' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\economy\passiveIncome.ts
+    2:10  warning  'getStockInfo' is defined but never used                 @typescript-eslint/no-unused-vars
+    5:10  warning  'shouldAutoReinvestDividends' is defined but never used  @typescript-eslint/no-unused-vars
+  277:9   warning  'songsIncome' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  278:9   warning  'artIncome' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  279:9   warning  'contractsIncome' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  280:9   warning  'sponsorsIncome' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  459:11  warning  'selectedCrypto' is assigned a value but never used      @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\events\engine.ts
+  4391:16  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\events\personalCrises.ts
+  385:11  warning  'money' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  443:11  warning  'money' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\events\seasonalEvents.ts
+  982:9  warning  '_currentSeason' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\legacy\genetics.ts
+  32:15  warning  '_p1GroupTraits' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  33:15  warning  '_p2GroupTraits' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\lifeMoments\lifeMomentGenerator.ts
+  7:7  warning  'log' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\luxury\__tests__\hosting.test.ts
+  11:3  warning  'HOSTING_VENUES' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\luxury\__tests__\risk.test.ts
+  309:11  warning  'risk' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\luxury\__tests__\verbs.test.ts
+  159:11  warning  'unplaced' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\luxury\risk.ts
+  115:7   warning  'num' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  268:11  warning  'value' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\mail\resolve.ts
+  20:10  warning  'SENDERS' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\parenting\__tests__\parenting.test.ts
+  17:3  warning  'AGE_BANDS' is defined but never used      @typescript-eslint/no-unused-vars
+  20:3  warning  'getActionById' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\prestige\childStats.ts
+  112:9  warning  'childName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\prestige\prestigeExecution.ts
+  346:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\simulation\AppSimulator.ts
+  637:8  warning  'initialState' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\simulation\ComprehensiveGameSimulator.ts
+   784:33  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   900:35  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   966:33  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1689:13  warning  'initialHealth' is assigned a value but never used                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  1690:13  warning  'initialHappiness' is assigned a value but never used                                                                                                                                                               @typescript-eslint/no-unused-vars
+  1691:13  warning  'initialMoney' is assigned a value but never used                                                                                                                                                                   @typescript-eslint/no-unused-vars
+  2312:40  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  2312:40  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  2621:39  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  2621:39  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  3567:54  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  3567:54  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\simulation\LongTermSimulator.ts
+  499:54  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\simulation\RealActionSimulator.ts
+  478:44  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  478:44  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  653:65  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  653:65  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\simulation\runComprehensiveTests.ts
+   38:31  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   38:31  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   39:77  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   39:77  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   83:32  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   83:32  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   87:36  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   87:36  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   91:28  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   91:28  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   95:29  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   95:29  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   99:38  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   99:38  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  119:31  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  119:31  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  123:33  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  123:33  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  261:14  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  262:16  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\social\npcPosts.ts
+  301:11  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\subscription\planPricing.ts
+  69:37  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+  71:26  warning  Array type using 'Array<T>' is forbidden. Use 'T[]' instead  @typescript-eslint/array-type
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\lib\utils\startupHealthValidator.ts
+   55:12  warning  'error' is defined but never used        @typescript-eslint/no-unused-vars
+   66:12  warning  'error' is defined but never used        @typescript-eslint/no-unused-vars
+   99:12  warning  'error' is defined but never used        @typescript-eslint/no-unused-vars
+  134:35  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  138:12  warning  'error' is defined but never used        @typescript-eslint/no-unused-vars
+  150:12  warning  'error' is defined but never used        @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\screenshots\player-stories-2026-09\source\build.mjs
+  138:50  warning  Expected an assignment or function call and instead saw an expression  no-unused-expressions
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\capture-rich-state.mjs
+  155:9  warning  'owned' is assigned a value but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\fix-podspec.js
+  58:11  warning  'originalContent' is assigned a value but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-achievements-summary.mjs
+  8:16  warning  'T' is defined but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-app-polish-previews.mjs
+  13:24  warning  'esc' is defined but never used            no-unused-vars
+  13:38  warning  'avatarFace' is defined but never used     no-unused-vars
+  13:50  warning  'avatarInitial' is defined but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-appicons-preview.mjs
+  11:16  warning  'T' is defined but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-depth-previews.mjs
+  26:7  warning  'ring' is assigned a value but never used  no-unused-vars
+  39:9  warning  'grad' is assigned a value but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-perks-hero.mjs
+  11:37  warning  'legendItem' is defined but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-phone-batch2-previews.mjs
+  24:7  warning  'CASE' is assigned a value but never used  no-unused-vars
+  26:7  warning  'PAW' is assigned a value but never used   no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-slate-glass-previews.mjs
+  15:12  warning  'GRAD' is defined but never used           no-unused-vars
+  15:18  warning  'grad' is defined but never used           no-unused-vars
+  20:7   warning  'OLDF' is assigned a value but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\generate-vitals-shipped.mjs
+  7:16  warning  'T' is defined but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\polyfill-toReversed.js
+  9:3  warning  Array prototype is read only, properties should not be added  no-extend-native
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\preflight-check.js
+   58:10  warning  'checkStep' is defined but never used                                             no-unused-vars
+  152:10  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+  166:10  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+  184:14  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\scripts\take-screenshots.mjs
+   34:16  warning  'clickText' is defined but never used               no-unused-vars
+  166:9   warning  'datingClicked' is assigned a value but never used  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\server\iap-verify\api\verify.js
+  95:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\services\AdMobService.ts
+  407:42  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+  722:36  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+  783:14  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\services\CloudSyncService.ts
+  465:37  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  465:37  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  597:37  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  597:37  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\services\IAPService.ts
+  62:22  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  64:12  warning  'error' is defined but never used                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\services\RemoteLoggingService.ts
+  207:18  warning  'retryError' is defined but never used  @typescript-eslint/no-unused-vars
+  212:20  warning  'clearError' is defined but never used  @typescript-eslint/no-unused-vars
+  338:14  warning  'error' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\src\debug\aiIntegrityChecks.ts
+  233:27  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\src\debug\reportExporter.ts
+  201:19  warning  Unreachable code  no-unreachable
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\src\features\onboarding\gameStateBuilder.ts
+  8:10  warning  'WEEKS_PER_YEAR' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\src\features\onboarding\perksFlow.ts
+  121:15  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\support-site\android\beta-api.js
+   29:61  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+   32:74  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+   35:57  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+   40:44  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+  284:84  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+  292:16  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\support-site\android\beta-ui.js
+  126:16  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\support-site\android\dashboard.js
+  126:57  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\diagnosticReport.ts
+  73:30  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  87:35  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\gameEntryValidation.ts
+   99:25  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   99:25  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  111:14  warning  'error' is defined but never used                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+  327:14  warning  'parseError' is defined but never used                                                                                                                                                                              @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\haptics.ts
+  19:15  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\hydrateLoadedState.ts
+  96:48  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\performanceOptimization.ts
+  78:25  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+  78:25  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\phantomSaveCleanup.ts
+  16:45  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\logger.ts' imported multiple times  import/no-duplicates
+  17:24  warning  'C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\logger.ts' imported multiple times  import/no-duplicates
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\rateLimiter.ts
+  158:46  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+  158:60  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\relationshipValidation.ts
+  232:5  warning  '_repaired' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\saveBackup.ts
+    10:3   warning  'verifySaveData' is defined but never used                 @typescript-eslint/no-unused-vars
+    17:7   warning  'MAX_BACKUPS_PER_SLOT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   637:22  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+   644:23  warning  '_slotNum' is assigned a value but never used              @typescript-eslint/no-unused-vars
+   786:16  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+   863:14  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+   878:16  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+  1032:14  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+  1164:16  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+  1207:16  warning  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\saveQueue.ts
+  575:31  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\saveValidation.ts
+   558:62  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   562:33  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   685:36  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   964:33  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   966:34  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   968:34  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1053:33  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1301:42  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1305:43  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  1315:75  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+  1753:46  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\scaling.ts
+  46:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\soundManager.ts
+  34:39  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\utils\storageWrapper.ts
+  100:41  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 698 problems (0 errors, 698 warnings)
+  0 errors and 47 warnings potentially fixable with the `--fix` option.
+
+[PASS] ESLint
+
+============================================================
+3. Entry.ts Syntax & Complexity Check
+============================================================
+
+[PASS] entry.ts syntax validation
+[PASS] entry.ts complexity check
+
+============================================================
+4. Metro Bundling Syntax Check
+============================================================
+
+Validating entry.ts syntax for Metro bundler...
+[INFO] Syntax validation passed (basic check)
+   For full bundling validation, run: npx expo export:embed --platform ios --dev false
+
+[INFO] Full Metro bundling check (optional):
+   Run manually: npx expo export:embed --platform ios --dev false
+   This validates the complete bundle can be created for iOS.
+
+
+============================================================
+5. Native Ad SDK Configuration
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[PASS] AdMob plugin config present with valid app IDs
+
+============================================================
+5b. iOS Privacy Manifest (App Store binary validation)
+============================================================
+
+[PASS] Privacy manifest valid (tracking declared by SDK manifests, 4 required-reason API entries)
+
+============================================================
+5c. iOS Purpose Strings (App Review)
+============================================================
+
+[PASS] 1 purpose string(s) state a specific use
+   NSUserTrackingUsageDescription (plugin expo-tracking-transparency.userTrackingPermission)
+
+============================================================
+6. IAP Native Module Availability
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[PASS] IAP native module dependency is installed
+
+============================================================
+7. Startup Safety Guardrails
+============================================================
+
+[PASS] Startup feature flags are not force-enabled in RootLayout
+
+============================================================
+8. Save Signing Configuration
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[WARN] EXPO_PUBLIC_SAVE_HMAC_KEY — not verifiable locally: set in the EAS project env store, or export it in your shell to verify here. A value that IS present but wrong still fails.
+   Signed saves are enforced, so the BUILD must have this key — verify it
+   with: eas env:list --environment production
+[WARN] Save signing config is clean except for the unverifiable key above
+
+============================================================
+8b. IAP Legacy Entitlements Flag
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[PASS] Legacy local IAP entitlements are disabled
+
+============================================================
+9. IAP Receipt Verification (production)
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[WARN] EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY, EXPO_PUBLIC_RC_API_KEY — not verifiable locally: set in the EAS project env store, or export it in your shell to verify here. A value that IS present but wrong still fails.
+   EXPO_PUBLIC_USE_REVENUECAT=true, so the build MUST carry one of these:
+   without a key `revenueCatService.isEnabled()` is false, the build falls
+   back to the self-hosted path, and a missing verify URL makes
+   verifyReceiptWithServer return FALSE — every purchase REFUSED.
+   Confirm with: eas env:list --environment production
+
+============================================================
+9b. Analytics pipeline (production)
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[PASS] Analytics pipeline configured for production
+
+============================================================
+10. AdMob Ad Unit IDs (production)
+============================================================
+
+   [env] baseline: eas.json build.production.env + process.env overrides
+[WARN] iOS interstitial ad unit not configured — no interstitial revenue
+   Banner + rewarded serve real ads via committed defaults; create a
+   standard Interstitial unit in AdMob and set
+   EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS to enable interstitials.
+[PASS] AdMob ad unit IDs configured for production
+
+============================================================
+11. SHIPPED IMAGE PAYLOAD
+============================================================
+
+   161 images ship, 20.5 MB
+   By format: webp 19.0 MB, jpg 1.5 MB
+[PASS] 20.5 MB of images ship (ratchet 45 MB, Play base-AAB limit 200 MB)
+[WARN] 14 image(s) in assets/ are referenced by nothing
+   They do NOT ship (Metro only bundles static requires) — this is repo
+   weight and clone time, not download size.
+
+============================================================
+PREFLIGHT CHECK SUMMARY
+============================================================
+
+
+✅ ALL PREFLIGHT CHECKS PASSED
+   Static checks passed. Signed-build and device release acceptance remain separate.
+
+
+> life-simulator@2.15.0 lint:errors
+> eslint . --ext .ts,.tsx --quiet
+
+
+> life-simulator@2.15.0 lint:ratchet
+> node scripts/check-lint.js
+
+[lint-ratchet] 0 errors (limit 0), 698 warnings (ceiling 698, goal 0).
+[lint-ratchet] OK
+
+> life-simulator@2.15.0 ui:ratchet
+> node scripts/check-ui-ratchet.js
+
+[ui-ratchet] gradientElements: 148 (at ceiling 148).
+[ui-ratchet] rawFontSizes: 94 (at ceiling 94).
+[ui-ratchet] heavyWeights: 650 (at ceiling 650).
+[ui-ratchet] OK
+
+> life-simulator@2.15.0 check:content
+> node scripts/check-content-quality.js
+
+
+Content quality — event corpus
+  26 content files · 550 authored happiness effects · 121 of them happiness-only
+
+  [ok  ] Events where NO branch does anything: 0.80% (ceiling 1.50%, goal 0.00%)
+  [ok  ] Median |Δ| where happiness is the ONLY effect: 5 (floor 5, no target — regression only)
+  [ok  ] Median |Δhappiness| (all outcomes): 6 (floor 6, no target — regression only)
+  [ok  ] Outcomes ≥ 20 points: 5.27% (floor 5.00%, goal 35.00%)
+  [GOAL] Cliffhangers that end badly: 40.00% (floor 38.00%, goal 40.00%)
+
+  Cliffhanger resolutions: 18 positive · 12 negative
+  Multi-choice events: 251 · 2 with nothing at stake (near_miss_car_accident, near_miss_slip)
+
+  🎉 Goal reached. Consider tightening the bound to lock it in:
+     FLOORS.cliffhangerBadShare → 0.4
+     (bounds sit a hair off measured on purpose, so retuning one event
+      cannot trip the gate — a bound already within that hair is done.)
+
+✓ Content quality holding at or above every floor.
+
+
+> life-simulator@2.15.0 check:liveops
+> node scripts/check-liveops-calendar.cjs
+
+
+LIVE OPS CALENDAR RUNWAY
+============================================================
+  as of 2026-09-26  ·  threshold 14 days
+
+  published  (support-site/liveops.json)   fix: a push to main
+       stage     runway   longest quiet stretch (next 90d)
+     ok   new       100d    20d quiet
+     ok   early     128d    20d quiet
+     ok   mid       170d    31d quiet
+     ok   late      170d    42d quiet
+     ok   endgame   170d    42d quiet
+
+  compiled   (lib/liveops/catalogue.ts)   fix: a NEW BUILD
+       stage     runway   longest quiet stretch (next 90d)
+     ok   new        30d    60d quiet
+     ok   early      30d    60d quiet
+     ok   mid        72d    18d quiet
+     ok   late      100d    14d quiet
+     ok   endgame   100d    14d quiet
+
+  combined   (what an online player sees)
+     ok   new       100d    0d quiet
+     ok   early     128d    0d quiet
+     ok   mid       170d    14d quiet
+     ok   late      170d    14d quiet
+     ok   endgame   170d    14d quiet
+
+============================================================
+  ! published  (support-site/liveops.json): 'mid' goes quiet for 31 days straight in the next 90
+  ! published  (support-site/liveops.json): 'late' goes quiet for 42 days straight in the next 90
+  ! published  (support-site/liveops.json): 'endgame' goes quiet for 42 days straight in the next 90
+  ! compiled   (lib/liveops/catalogue.ts): 'new' goes quiet for 60 days straight in the next 90
+  ! compiled   (lib/liveops/catalogue.ts): 'early' goes quiet for 60 days straight in the next 90
+    A quiet stretch is not a failure - it is a stage with nothing to do
+    for that long, which is how a player learns the card is not for them.
+
+✓ Every stage has runway.

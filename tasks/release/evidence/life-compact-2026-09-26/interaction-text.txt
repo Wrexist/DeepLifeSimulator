@@ -1,0 +1,194 @@
+Gen 1
+100
+100
+95
+$1 500
+0
+2025
+January
+Age 20
+Next week
+Tyler Nguyen
+Age 20 | Unemployed | Single
+$1 500
+Net Worth
++$30/wk forecast
+DETAILS
+Week 1
+Choose your first job
+Compare pay and requirements in Work, then apply.
+Find a job
+YOUR GOALS
+Earn $500
+0/3 goals
+Show details
+Your Progress
+Prestige, Legacy Pass, life story & lifetime stats
+Show more
+Your Life
+Family
+Health
+Market
+Stats
+YOUR VITALS
+100
+95
+100
+11
+HEALTH ACTIVITIES
+Walk in Park
+Free
+Peaceful walk to clear your mind
++3
+Health
++1
+Happiness
++1
+Fitness
+−5
+Energy
+DO
+Walk in Park completed successfully!
+Meditation Session
+Free
+Find inner peace and reduce stress
++2
+Health
++2
+Happiness
+−3
+Energy
+DO
+Yoga Class
+$100
+Improve flexibility and mental clarity
++6
+Health
++2
+Happiness
++2
+Fitness
+−6
+Energy
+DO
+Spa Massage
+$300
+Relax and rejuvenate your body
++8
+Health
++3
+Happiness
+−4
+Energy
+DO
+Doctor Visit
+$500
+Regular checkup (50% chance to cure health issues)  •  Chance to cure diseases
++25
+Health
++1
+Happiness
+−5
+Energy
+DO
+Therapy Session
+$400
+Professional mental health support
++3
+Health
++4
+Happiness
+−5
+Energy
+DO
+Hospital Stay
+$2000
+Need $2000
++40
+Health
+−5
+Happiness
+−8
+Energy
+LOCKED
+Experimental Treatment
+$12000
+Need $12000
++30
+Health
++4
+Happiness
+−8
+Energy
+LOCKED
+Flu Vaccination
+$50
+Annual flu shot to prevent influenza
++5
+Health
++0
+Happiness
+−2
+Energy
+DO
+Pneumonia Vaccine
+$150
+Vaccination to prevent pneumonia
++8
+Health
++1
+Happiness
+−2
+Energy
+DO
+Wellness Retreat
+$30000
+Need $30000
++20
+Health
++8
+Happiness
+−6
+Energy
+LOCKED
+At the gym
+Build fitness with a membership and a workout.
+Gym Session
+Current Fitness: 11
+Gym Membership Required
+Buy a Gym Membership in Life → Market to access the gym.
+Diet Plans
+Choose an automatic daily diet plan
+Basic Diet
+$17500 / wk
+Need $17500 / wk
++3
+Health
++2
+Energy
+SELECT
+Premium Diet
+$42000 / wk
+Need $42000 / wk
++8
+Health
++5
+Energy
++3
+Happiness
+SELECT
+Athlete Diet
+$70000 / wk
+Need $70000 / wk
++12
+Health
++8
+Energy
++5
+Happiness
+SELECT
+Home
+Work
+Apps
+Life
+Profile

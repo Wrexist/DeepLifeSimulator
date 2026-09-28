@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AchievementsModal - the full AchievementsProgress list in a scrollable
  * fullscreen sheet, opened from the Home summary card's "View all". Keeps every
@@ -28,7 +29,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
             accessibilityRole="button"
             accessibilityLabel="Close achievements"
           >
-            <X size={scale(22)} color="#F8FAFC" />
+            <X size={scale(22)} color={uiPalette.paper} />
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -43,7 +44,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+  container: { flex: 1, backgroundColor: uiPalette.navy },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: scale(12), paddingBottom: scale(2) },
   close: { padding: scale(8) },
 });

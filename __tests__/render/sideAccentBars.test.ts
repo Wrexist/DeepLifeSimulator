@@ -132,10 +132,13 @@ describe('the exceptions Hard Rule #7 allows are left alone (the controls)', () 
     const src = read('components/health/HealthCard.tsx');
 
     expect(src).toMatch(/activeStripe/);
-    // It is a positioned, rounded, labelled pill. If this ever becomes a bare
-    // fixed-width bar it stops being an exception.
-    expect(src).toMatch(/activeStripe: \{[\s\S]{0,240}position: 'absolute'/);
-    expect(src).toMatch(/activeStripe: \{[\s\S]{0,240}borderRadius: scale\(999\)/);
+    // The approved Health cleanup keeps the labelled pill in normal flow,
+    // so it cannot cover the plan price. It remains rounded, never a stripe.
+    const badgeStyle = src.match(/activeStripe: \{([^}]+)\}/)?.[1];
+    expect(badgeStyle).toBeDefined();
+    expect(badgeStyle).not.toMatch(/position: 'absolute'/);
+    expect(badgeStyle).toMatch(/borderRadius: scale\(999\)/);
+    expect(src).toMatch(/styles\.activeLabel}>Active<\/Text>/);
     expect(src).toMatch(/activeLabel/);
   });
 

@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 /**
  * Styles for DeathPopup.
  *
@@ -10,7 +11,7 @@
 import { Dimensions, StyleSheet } from 'react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
+
 import {
   getGlassCard,
   getGlassContainer,
@@ -102,7 +103,7 @@ export function createStyles(darkMode: boolean) {
       fontSize: fontScale(40),
       lineHeight: fontScale(46),
       fontWeight: '800',
-      color: '#FFFFFF',
+      color: uiPalette.white,
       letterSpacing: -1,
       textAlign: 'center',
     },
@@ -195,7 +196,7 @@ export function createStyles(darkMode: boolean) {
       color: c.textSecondary,
     },
     segmentTextActive: {
-      color: '#FFFFFF',
+      color: uiPalette.white,
       fontWeight: '700',
     },
     // ── Verdict: the earned ribbon and the Life Quality arc, side by side ──
@@ -452,7 +453,7 @@ export function createStyles(darkMode: boolean) {
       gap: scale(8),
     },
     buttonText: {
-      color: '#FFFFFF',
+      color: uiPalette.white,
       fontSize: fontScale(17),
       fontWeight: '700',
     },

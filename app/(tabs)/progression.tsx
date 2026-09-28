@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGame } from '@/contexts/GameContext';
-import { useAchievements } from '@/hooks/useAchievements';
-import {
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import { getCosmetic } from '@/lib/cosmetics/cosmetics';
+import PortraitSheet from '@/components/avatar/PortraitSheet';
+import SettingsModal from '@/components/SettingsModal';
+import HelpModal from '@/components/HelpModal';
+import MotionPressable from '@/components/ui/MotionPressable';
+import { Settings, CircleHelp,
   Trophy,
   Target,
   Star,
@@ -19,6 +20,14 @@ import {
   Sparkles,
   CalendarDays,
 } from 'lucide-react-native';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useGame } from '@/contexts/GameContext';
+import { useAchievements } from '@/hooks/useAchievements';
+
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import YourStoryModal, { type StorySurface } from '@/components/story/YourStoryModal';
@@ -47,7 +56,7 @@ import {
   MAX_TIER,
 } from '@/lib/legacyPass/legacyPass';
 import { getThemeColors, accent } from '@/lib/config/theme';
-import { fontScale, scale, verticalScale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
+
 import { rhythm, tier1Value, tier3, tier4 } from '@/lib/config/hierarchy';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
@@ -94,6 +103,9 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
     | 'hobbies'
     | 'legacyPass'
     | 'subscription'
+    | 'settings'
+    | 'help'
+    | 'portrait'
     | null;
   const [openModal, setOpenModal] = useState<ModalName>(null);
   const closeModal = useCallback(() => setOpenModal(null), []);
@@ -150,6 +162,11 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const totalAchievements = liveAchievements.length;
   const completionPct = totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0;
 
+  const profile = gameState.userProfile;
+  const playerName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || profile?.name || 'Player';
+  const profileFrame = gameState.equippedCosmetics?.frame ? getCosmetic(gameState.equippedCosmetics.frame) : undefined;
+  const profileTheme = gameState.equippedCosmetics?.theme ? getCosmetic(gameState.equippedCosmetics.theme) : undefined;
+
   // Prestige + Legacy Pass hero data.
   const prestige = gameState.prestige;
   const prestigeLevel = prestige?.prestigeLevel ?? 0;
@@ -205,18 +222,64 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             title + segmented control above this content. */}
         {!embedded && (
           <ScreenHeader
-            title="Your Progress"
-            subtitle="Achievements, prestige & lifetime stats"
+            title="Profile"
             icon={<Trophy size={scale(18)} color={accent.warning} />}
             tint={accent.warning}
             style={styles.embeddedHeaderReset}
           />
         )}
 
-        {/* Prestige leads - full width, the one tier-1 number on the screen.
-            It shared a 50/50 row with Legacy Pass, identical for a first-life
-            player and a level-5 dynasty; a split hero is not a hero. Legacy
-            Pass supports it as a row: same tap, same badge, a tier down. */}
+        {!embedded && (
+          <MotionPressable
+            accessibilityLabel={`Your look, ${playerName}`}
+            onPress={() => setOpenModal('portrait')}
+            style={[styles.profileIdentity, { backgroundColor: profileTheme ? `${profileTheme.color}33` : theme.surface, borderColor: theme.border }]}
+          >
+            <View>
+              <CharacterAvatar source={profile} seed={playerName} sex={profile?.sex || profile?.gender || 'male'} age={gameState.date?.age ?? 18} size={scale(48)} alive />
+              {profileFrame && <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.profileFrame, { borderColor: profileFrame.color }]} />}
+            </View>
+            <View style={styles.profileIdentityText}>
+              <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>{playerName}</Text>
+              <Text style={[styles.heroMeta, { color: theme.textSecondary }]}>Generation {gameState.generationNumber ?? 1} | Your look</Text>
+            </View>
+            <ChevronRight size={scale(16)} color={theme.textMuted} />
+          </MotionPressable>
+        )}
+
+        {/* Overall achievement progress. Kept deliberately: see the count
+            derivation above for why this is not a duplicate of the browser. */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.progressRow}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Achievements</Text>
+            <Text style={[styles.progressCount, { color: theme.textSecondary }]}>
+              {completedAchievements}/{totalAchievements}
+            </Text>
+          </View>
+          <View style={[styles.progressBar, { backgroundColor: theme.surfaceElevated }]}>
+            <View style={[styles.progressFill, { width: `${completionPct}%`, backgroundColor: accent.warning }]} />
+          </View>
+          <Text style={[styles.progressPct, { color: accent.warning }]}>{completionPct}% complete</Text>
+        </View>
+
+        {/* Life Stats */}
+        <CollapsibleSection
+          id="progression.lifeStats"
+          defaultCollapsed={!embedded}
+          title="Life Stats"
+          compact
+          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${weeksInThisLife(gameState)} weeks`}
+        >
+        <View style={styles.statsGrid}>
+          <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />
+          <StatCard theme={theme} icon={CalendarDays} color={accent.success} value={String(weeksInThisLife(gameState))} label="Weeks Lived" />
+          <StatCard theme={theme} icon={Star} color={accent.purple} value={String((gameState.relationships || []).length)} label="Relationships" />
+          <StatCard theme={theme} icon={Zap} color={accent.gold} value={String((gameState.items || []).filter(i => i.owned).length)} label="Items Owned" />
+        </View>
+        </CollapsibleSection>
+
+        {/* Legacy follows this life's progress. Keep the existing contextual
+            destination and claimable badges; the pass is its supporting row. */}
         <TouchableOpacity
           activeOpacity={0.85}
           // ONE destination, and the meta line under the value NAMES it.
@@ -271,38 +334,10 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             stands. Derived from previousLives; renders null on a first life. */}
         <FamilyRecordsCard />
 
-        {/* Overall achievement progress. Kept deliberately: see the count
-            derivation above for why this is not a duplicate of the browser. */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.progressRow}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>Achievements</Text>
-            <Text style={[styles.progressCount, { color: theme.textSecondary }]}>
-              {completedAchievements}/{totalAchievements}
-            </Text>
-          </View>
-          <View style={[styles.progressBar, { backgroundColor: theme.surfaceElevated }]}>
-            <View style={[styles.progressFill, { width: `${completionPct}%`, backgroundColor: accent.warning }]} />
-          </View>
-          <Text style={[styles.progressPct, { color: accent.warning }]}>{completionPct}% complete</Text>
-        </View>
-
-        {/* Life Stats */}
-        <CollapsibleSection
-          id="progression.lifeStats"
-          title="Life Stats"
-          compact
-          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${gameState.weeksLived} weeks`}
-        >
-        <View style={styles.statsGrid}>
-          <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />
-          <StatCard theme={theme} icon={CalendarDays} color={accent.success} value={String(gameState.weeksLived)} label="Weeks Lived" />
-          <StatCard theme={theme} icon={Star} color={accent.purple} value={String((gameState.relationships || []).length)} label="Relationships" />
-          <StatCard theme={theme} icon={Zap} color={accent.gold} value={String((gameState.items || []).filter(i => i.owned).length)} label="Items Owned" />
-        </View>
+        {/* Browsing the catalogue is optional; progress stays visible above. */}
+        <CollapsibleSection id="progression.achievements" title="Browse achievements" defaultCollapsed={!embedded} compact>
+          <ProgressOverview />
         </CollapsibleSection>
-
-        {/* Achievement browser (searchable, by category) */}
-        <ProgressOverview />
 
         {/* The Journal is no longer inline: it is one of the four surfaces
             behind the "Your Story" tile, so the diary and the three things
@@ -338,9 +373,20 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           </View>
           </CollapsibleSection>
         </View>
+        {!embedded && (
+          <View style={styles.profileActions}>
+            {([{ label: 'Settings', icon: Settings, modal: 'settings' }, { label: 'Help & support', icon: CircleHelp, modal: 'help' }] as const).map(action => <MotionPressable key={action.modal} accessibilityLabel={action.label} onPress={() => setOpenModal(action.modal)} style={[styles.profileAction, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <action.icon color={accent.info} size={20} />
+              <Text style={{ color: theme.text, fontSize: fontScale(12) }}>{action.label}</Text>
+            </MotionPressable>)}
+          </View>
+        )}
       </ScrollView>
 
       {/* Modals - one at a time, mounted only while open. */}
+      {openModal === 'portrait' && <PortraitSheet onClose={closeModal} />}
+      {openModal === 'settings' && <SettingsModal visible onClose={closeModal} />}
+      {openModal === 'help' && <HelpModal visible onClose={closeModal} />}
       <SmartNotificationCenter visible={openModal === 'notifications'} onClose={closeModal} />
       <ActivityCommitmentModal visible={openModal === 'commitments'} onClose={closeModal} />
       <YourStoryModal
@@ -426,6 +472,11 @@ function StatCard({
 }
 
 const styles = StyleSheet.create({
+  profileIdentity: { flexDirection: 'row', alignItems: 'center', gap: layoutSpace.compact, padding: layoutSpace.compact, borderRadius: layoutRadius.lg, borderWidth: StyleSheet.hairlineWidth },
+  profileIdentityText: { flex: 1, gap: layoutSpace.xs },
+  profileFrame: { borderRadius: layoutRadius.full, borderWidth: 2 },
+  profileActions: { flexDirection: 'row', flexWrap: 'wrap', gap: layoutSpace.sm, marginVertical: layoutSpace.compact },
+  profileAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: layoutSpace.sm, padding: layoutSpace.compact, borderRadius: layoutRadius.lg, borderWidth: 1 },
   container: {
     flex: 1,
   },
@@ -434,7 +485,7 @@ const styles = StyleSheet.create({
   },
   contentInner: {
     padding: responsiveSpacing.md,
-    gap: verticalScale(16),
+    gap: layoutSpace.compact,
   },
   embeddedHeaderReset: {
     paddingHorizontal: 0,
@@ -445,12 +496,12 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: responsiveSpacing.md,
-    gap: verticalScale(6),
+    gap: layoutSpace.xs,
   },
   heroCardHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: layoutSpace.xs,
   },
   heroLabel: {
     fontSize: fontScale(12),
@@ -464,9 +515,9 @@ const styles = StyleSheet.create({
   supportRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
+    gap: layoutSpace.sm,
     marginTop: rhythm.tight,
-    paddingVertical: scale(10),
+    paddingVertical: layoutSpace.sm,
     paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -479,9 +530,9 @@ const styles = StyleSheet.create({
   supportBar: {
     flex: 1,
     height: scale(4),
-    borderRadius: scale(2),
+    borderRadius: layoutRadius.sm,
     overflow: 'hidden',
-    marginHorizontal: scale(4),
+    marginHorizontal: layoutSpace.xs,
   },
   supportValue: {
     ...tier4,
@@ -493,14 +544,14 @@ const styles = StyleSheet.create({
   },
   heroBarFill: {
     height: '100%',
-    borderRadius: scale(3),
+    borderRadius: layoutRadius.sm,
   },
   // Generic card
   card: {
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: responsiveSpacing.md,
-    gap: verticalScale(8),
+    gap: layoutSpace.sm,
   },
   cardTitle: {
     fontSize: fontScale(16),
@@ -519,12 +570,12 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: scale(8),
-    borderRadius: scale(4),
+    borderRadius: layoutRadius.sm,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: scale(4),
+    borderRadius: layoutRadius.sm,
   },
   progressPct: {
     fontSize: fontScale(11),
@@ -534,7 +585,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: scale(12),
+    gap: layoutSpace.compact,
   },
   statCard: {
     flexGrow: 1,
@@ -543,12 +594,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     padding: responsiveSpacing.md,
     alignItems: 'center',
-    gap: verticalScale(6),
+    gap: layoutSpace.xs,
   },
   statIcon: {
     width: scale(34),
     height: scale(34),
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -582,24 +633,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   toolsSection: {
-    gap: verticalScale(10),
+    gap: layoutSpace.sm,
   },
   toolsGrid: {
-    gap: scale(8),
+    gap: layoutSpace.sm,
   },
   toolTile: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: layoutSpace.compact,
     borderRadius: responsiveBorderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: verticalScale(11),
+    paddingVertical: layoutSpace.compact,
     paddingHorizontal: responsiveSpacing.md,
   },
   toolIcon: {
     width: scale(32),
     height: scale(32),
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

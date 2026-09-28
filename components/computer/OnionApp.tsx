@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 /**
  * OnionApp - Dark Web screen.
  *
@@ -41,7 +42,7 @@ import { useItemActions } from '@/contexts/game/ItemActionsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -106,7 +107,7 @@ type BtnTone = 'phosphor' | 'purple' | 'solid' | 'danger' | 'neutral';
 const TONE: Record<BtnTone, { fill: string; border: string; text: string }> = {
   phosphor: { fill: 'rgba(34,197,94,0.13)', border: 'rgba(34,197,94,0.50)', text: TERM.green },
   purple: { fill: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.55)', text: TERM.purple },
-  solid: { fill: TERM.purple, border: TERM.purple, text: '#FFFFFF' },
+  solid: { fill: TERM.purple, border: TERM.purple, text: uiPalette.white },
   danger: { fill: 'rgba(239,68,68,0.13)', border: 'rgba(239,68,68,0.50)', text: accent.danger },
   neutral: { fill: 'rgba(207,227,214,0.06)', border: 'rgba(207,227,214,0.20)', text: TERM.greenDim },
 };

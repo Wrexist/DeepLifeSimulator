@@ -47,6 +47,8 @@ export interface LifetimeStatisticsInput {
    */
   nextRelationshipCount?: number;
   careerSalary: number;
+  /** A delayed offer accepted this tick; its first paid week is the next tick. */
+  hiredCareerId?: string;
   /**
    * Weekly pay from holding political office, 0 when not in office.
    *
@@ -102,12 +104,16 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
   const prevPeakNetWorth = ls.peakNetWorth ?? 0;
   const newPeakSet = input.safeNetWorth > prevPeakNetWorth;
 
-  const careerHistory = updateCareerHistory(
+  const paidCareerHistory = updateCareerHistory(
     ls.careerHistory || [],
     input.prevState.currentJob,
     effectiveSalary,
     currentJobTitle(input.prevState),
   );
+
+  const careerHistory = input.hiredCareerId
+    ? [...paidCareerHistory, { job: input.hiredCareerId, startWeek: input.nextWeeksLived, weeks: 0, earnings: 0 }]
+    : paidCareerHistory;
 
   // Income actually earned this week, sanitised. A non-finite or negative
   // `totalIncome` must contribute nothing rather than poison a counter that

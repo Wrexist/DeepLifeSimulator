@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * MatchBanner - celebratory full-screen overlay when a match lands.
  *
@@ -14,7 +15,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { SPARK_COLORS, SPARK_MOTION } from '../styles/sparkTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 
 interface MatchBannerProps {
   visible: boolean;
@@ -77,7 +78,7 @@ export default function MatchBanner({
         hitSlop={8}
         style={styles.close}
       >
-        <X size={fontScale(22)} color="#FFFFFF" />
+        <X size={fontScale(22)} color={uiPalette.white} />
       </Pressable>
 
       <View style={styles.avatarsRow}>
@@ -87,7 +88,7 @@ export default function MatchBanner({
         </View>
 
         <Animated.View style={[styles.flameWrap, { transform: [{ scale: flameScale }] }]}>
-          <Flame size={scale(56)} color="#FFFFFF" fill="#FFFFFF" />
+          <Flame size={scale(56)} color={uiPalette.white} fill={uiPalette.white} />
         </Animated.View>
 
         <View style={styles.avatarWrap}>
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: uiPalette.white,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
   },
   // The one headline on this screen - the only heavy weight left in Spark.
   title: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(36),
     fontWeight: '700',
   },
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnSecondaryText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '600',
   },
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.md,
     borderRadius: scale(14),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',

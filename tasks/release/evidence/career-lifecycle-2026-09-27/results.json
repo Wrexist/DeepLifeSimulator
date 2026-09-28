@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "errors": [],
+    "applied": true,
+    "hired": true,
+    "cancelQuit": true,
+    "quitAndReapply": true
+  },
+  {
+    "width": 768,
+    "errors": [],
+    "applied": true,
+    "hired": true,
+    "cancelQuit": true,
+    "quitAndReapply": true
+  }
+]

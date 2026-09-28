@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Journal Component
  * 
@@ -204,7 +205,7 @@ export default function Journal({ compact = false }: JournalProps) {
                       Week {entry.atWeek}
                     </Text>
                   </View>
-                  <ChevronRight size={16} color={settings.darkMode ? '#94A3B8' : '#94A3B8'} />
+                  <ChevronRight size={16} color={settings.darkMode ? uiPalette.muted : uiPalette.muted} />
                 </TouchableOpacity>
               );
             })}
@@ -242,7 +243,7 @@ export default function Journal({ compact = false }: JournalProps) {
               style={styles.modalHeader}
             >
               <View style={styles.modalHeaderContent}>
-                <CategoryIcon size={28} color="#FFF" />
+                <CategoryIcon size={28} color={uiPalette.white} />
                 <View style={styles.modalHeaderText}>
                   <Text style={styles.modalTitle}>{selectedEntry.title}</Text>
                   <Text style={styles.modalMeta}>
@@ -256,7 +257,7 @@ export default function Journal({ compact = false }: JournalProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Close entry"
               >
-                <X size={24} color="#FFF" />
+                <X size={24} color={uiPalette.white} />
               </TouchableOpacity>
             </LinearGradient>
 
@@ -305,11 +306,11 @@ export default function Journal({ compact = false }: JournalProps) {
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, settings.darkMode && styles.searchContainerDark]}>
-        <Search size={18} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+        <Search size={18} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
         <TextInput
           style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
           placeholder="Search entries..."
-          placeholderTextColor={settings.darkMode ? '#94A3B8' : '#94A3B8'}
+          placeholderTextColor={settings.darkMode ? uiPalette.muted : uiPalette.muted}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -320,7 +321,7 @@ export default function Journal({ compact = false }: JournalProps) {
           accessibilityLabel="Filter entries by category"
           accessibilityState={{ expanded: showFilters }}
         >
-          <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? '#94A3B8' : '#64748B')} />
+          <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? uiPalette.muted : uiPalette.lightMuted)} />
         </TouchableOpacity>
       </View>
 
@@ -343,7 +344,7 @@ export default function Journal({ compact = false }: JournalProps) {
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
-                  <CategoryIcon size={14} color={isActive ? '#FFF' : category.color} />
+                  <CategoryIcon size={14} color={isActive ? uiPalette.white : category.color} />
                   <Text style={[
                     styles.categoryChipText,
                     isActive && styles.categoryChipTextActive,
@@ -361,14 +362,14 @@ export default function Journal({ compact = false }: JournalProps) {
             style={styles.sortButton}
             onPress={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
           >
-            <Clock size={14} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+            <Clock size={14} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             <Text style={[styles.sortButtonText, settings.darkMode && styles.textMuted]}>
               {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
             </Text>
             {sortOrder === 'newest' ? (
-              <ChevronDown size={14} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+              <ChevronDown size={14} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             ) : (
-              <ChevronUp size={14} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
+              <ChevronUp size={14} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             )}
           </TouchableOpacity>
         </View>
@@ -377,7 +378,7 @@ export default function Journal({ compact = false }: JournalProps) {
       {/* Entries List - C-1: Virtualized with FlatList to prevent OOM on large journals */}
       {filteredEntries.length === 0 ? (
         <View style={[styles.entriesContainer, styles.emptyState]}>
-          <BookOpen size={48} color={settings.darkMode ? '#475569' : '#CBD5E1'} />
+          <BookOpen size={48} color={settings.darkMode ? uiPalette.lightSecondary : uiPalette.secondary} />
           <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
             {searchQuery || selectedCategory !== 'all'
               ? 'No matching entries'
@@ -470,13 +471,13 @@ export default function Journal({ compact = false }: JournalProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(16),
     overflow: 'hidden',
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   containerDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   header: {
     flexDirection: 'row',
@@ -484,7 +485,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: scale(16),
     borderBottomWidth: 1,
-    borderBottomColor: '#475569',
+    borderBottomColor: uiPalette.lightSecondary,
   },
   headerContent: {
     flexDirection: 'row',
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(20),
     fontWeight: 'bold',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginLeft: scale(10),
   },
   headerStats: {
@@ -512,23 +513,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: scale(16),
     marginBottom: scale(8),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: scale(12),
     paddingHorizontal: scale(12),
     paddingVertical: scale(10),
   },
   searchContainerDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   searchInput: {
     flex: 1,
     fontSize: fontScale(14),
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginLeft: scale(10),
     marginRight: scale(10),
   },
   searchInputDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   filterButton: {
     padding: scale(4),
@@ -543,23 +544,23 @@ const styles = StyleSheet.create({
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     paddingHorizontal: scale(12),
     paddingVertical: scale(8),
     borderRadius: scale(20),
     marginRight: scale(8),
   },
   categoryChipDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   categoryChipText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#475569',
+    color: uiPalette.lightSecondary,
     marginLeft: scale(6),
   },
   categoryChipTextActive: {
-    color: '#FFF',
+    color: uiPalette.white,
   },
   sortButton: {
     flexDirection: 'row',
@@ -569,7 +570,7 @@ const styles = StyleSheet.create({
   },
   sortButtonText: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginHorizontal: scale(4),
   },
   entriesContainer: {
@@ -584,15 +585,15 @@ const styles = StyleSheet.create({
   yearLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
   },
   yearLineDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   yearText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginHorizontal: scale(12),
   },
   entryCard: {
@@ -614,15 +615,15 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     marginTop: scale(4),
   },
   timelineLineDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   entryContent: {
     flex: 1,
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     borderRadius: scale(12),
     padding: scale(12),
     marginBottom: scale(8),
@@ -645,16 +646,16 @@ const styles = StyleSheet.create({
   entryTitle: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   entryMeta: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   entryDetails: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(8),
     lineHeight: fontScale(18),
   },
@@ -666,18 +667,18 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginTop: scale(16),
   },
   emptyStateText: {
     fontSize: fontScale(14),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(8),
     textAlign: 'center',
   },
   // Compact styles
   compactContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(12),
     padding: scale(16),
   },
@@ -689,7 +690,7 @@ const styles = StyleSheet.create({
   compactTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#0F172A',
+    color: uiPalette.navy,
     marginLeft: scale(8),
     flex: 1,
   },
@@ -710,10 +711,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: scale(10),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: uiPalette.lightSurface,
   },
   compactEntryDark: {
-    borderBottomColor: '#334155',
+    borderBottomColor: uiPalette.slate,
   },
   compactIconContainer: {
     width: scale(28),
@@ -729,22 +730,22 @@ const styles = StyleSheet.create({
   compactEntryTitle: {
     fontSize: fontScale(14),
     fontWeight: '500',
-    color: '#0F172A',
+    color: uiPalette.navy,
   },
   compactEntryMeta: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: scale(2),
   },
   moreEntriesText: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
     marginTop: scale(12),
   },
   emptyText: {
     fontSize: fontScale(13),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'center',
   },
   // Modal styles
@@ -759,12 +760,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: scale(400),
     maxHeight: '80%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: scale(20),
     overflow: 'hidden',
   },
   modalContentDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -784,7 +785,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#FFF',
+    color: uiPalette.white,
   },
   modalMeta: {
     fontSize: fontScale(13),
@@ -804,7 +805,7 @@ const styles = StyleSheet.create({
   },
   modalDetails: {
     fontSize: fontScale(15),
-    color: '#334155',
+    color: uiPalette.slate,
     lineHeight: fontScale(22),
   },
   modalCategorySection: {
@@ -812,7 +813,7 @@ const styles = StyleSheet.create({
   },
   modalSectionLabel: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: scale(8),
   },
   categoryBadge: {
@@ -829,10 +830,10 @@ const styles = StyleSheet.create({
     marginLeft: scale(6),
   },
   textDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   textMuted: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

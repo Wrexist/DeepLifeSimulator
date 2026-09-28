@@ -1,5 +1,6 @@
+import { textStyles } from '@/lib/config/hierarchy';
 /**
- * SectionTitle - a section's one-line heading with an optional trailing
+ * SectionTitle - a section's wrapping heading with an optional trailing
  * control (a count, a "See all", an "Add" chip).
  *
  * Twelve apps declared the same `sectionTitle` style (md, weight 700,
@@ -14,7 +15,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { fontScale, responsiveSpacing } from '@/utils/scaling';
+import { responsiveSpacing } from '@/utils/scaling';
 
 export default function SectionTitle({
   title,
@@ -31,11 +32,11 @@ export default function SectionTitle({
   return (
     <View style={[styles.row, style]}>
       <View style={styles.text}>
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1} accessibilityRole="header">
+        <Text style={[styles.title, { color: theme.text }]} accessibilityRole="header">
           {title}
         </Text>
         {subtitle ? (
-          <Text style={[styles.subtitle, { color: theme.textMuted }]} numberOfLines={2}>
+          <Text style={[styles.subtitle, { color: theme.textMuted }]}>
             {subtitle}
           </Text>
         ) : null}
@@ -56,13 +57,11 @@ const styles = StyleSheet.create({
   },
   text: { flex: 1, gap: 2 },
   title: {
-    fontSize: fontScale(15),
-    fontWeight: '600',
+    ...textStyles.h3,
     letterSpacing: 0.1,
   },
   subtitle: {
-    fontSize: fontScale(12),
-    lineHeight: fontScale(16),
+    ...textStyles.caption,
   },
-  right: { flexShrink: 0 },
+  right: { flexShrink: 1, maxWidth: '50%' },
 });

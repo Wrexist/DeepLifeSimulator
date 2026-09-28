@@ -1,0 +1,15 @@
+node : PASS tmp-bugaudit/audit-logic-repro.test.ts (15.932 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath tmp-b ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS tmp-bugaud...t.ts (15.932 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  √ reproduces age-seeded FIRE savings-rate distortion with equal in-life finances (12 ms)
+  √ reproduces campaign success feedback when latest-state energy rejects the launch (4 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        16.55 s, estimated 20 s
+Ran all test suites within paths "tmp-bugaudit/audit-logic-repro.test.ts".

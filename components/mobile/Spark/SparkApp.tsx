@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * SparkApp - root shell for the in-game Spark dating platform.
  *
@@ -23,7 +24,7 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import StatStrip from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { SPARK_COLORS } from './styles/sparkTheme';
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabBadgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(9),
     fontWeight: '600',
   },

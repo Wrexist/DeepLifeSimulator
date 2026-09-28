@@ -1,4 +1,132 @@
+# Gem wallet and contextual work art - 28 September 2026
+
+- [x] Centered HUD gem text; replaced the read-only popup with Top up / Spend gems using existing IAP and upgrade owners. Added ten original matching 3D props and compact action-specific Work art. [Changes, screenshots and verification](gem-wallet-work-art-2026-09-28.md).
+- [ ] Verify this change on the next signed iPhone/iPad candidate: Larger Text, gem IAP purchase/cancel/retry and persisted balance. The previous 2.15.0 build does not contain these edits.
+
+# Authorized TestFlight candidate - 27 September 2026
+
+- [x] Uploaded all current work and started the macOS local TestFlight workflow for **2.15.0**, pinned to 875b63a2 after preflight, quality, full tests and coverage passed. [Run 36352338525](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/36352338525): verification in progress; compilation/submission/Apple processing pending. [Execution checklist](testflight-2.15.0-2026-09-27.md).
+
+# Current audit count - 27 September 2026
+
+- User-reported remaining count: **0**. This supersedes earlier 40/26 counts; historical findings and native acceptance evidence remain separate.
+- [ ] Native creator keyboard/Larger Text verification: UNREACHED; local and connected remote hosts are Windows, no iPhone/iPad or iOS simulator access detected. [Prepared device protocol and evidence](release/evidence/creator-native-acceptance-2026-09-27.md). Next: connect a native candidate or run a user-assisted device session.
+- [x] Character creator layout: tighter categories with 44-point targets, scalable two-line option labels, Next/Done name entry and tablet identity columns. [Evidence and screenshots](release/evidence/character-layout-2026-09-27.md). Native text/keyboard acceptance remains open.
+
+# Audit fixes - 26 September 2026
+
+- [x] Implement D01-D06 and D12: mutex-owned prestige, durable celebration/retry, strict money entry, committed campaign feedback and life-relative planning/Profile counts.
+- [x] Verify 40 focused regressions and capture compact phone/tablet changes.
+- [x] Save/finance CI: 826 suites / 10,047 tests / 308 snapshots; preflight and quality passed. Further UI follow-through: 26 focused tests and source/test types pass; results in [fix evidence](release/evidence/audit-fixes-2026-09-26.md).
+- [x] D07/D08/D10/D11: Pulse identity, enrollment contrast, locked-control semantics and reduced motion. Family target is 44 points high.
+- [x] D09/D13/D14: separate 44-point gem controls, life-relative record labels and canonical career requirement names. 22 focused tests, source/test types and compact/tablet browser evidence pass. [Evidence](release/evidence/audit-labels-2026-09-26.md).
+- [x] V01 compact Home: first goal is 80px higher and fully visible at 375x667; first-job CTA remains 44px. 17 focused tests, source types, lint and phone/tablet checks pass. [Evidence and screenshots](release/evidence/home-compact-2026-09-26.md).
+- [x] V02 Work: first eligible Apply is 80px higher and visible at 375x667; salary, requirements and 44px action retained. 17 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/work-compact-2026-09-26.md).
+- [x] V03 Life: first activity is 347px higher and fully visible at 375x667; compact vitals retain icons/values and expand on demand. 46 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/life-compact-2026-09-26.md).
+- [x] V04 Profile: achievements are 521px higher at 375x667; compact portrait, life stats disclosure and optional catalogue prioritize progress. 22 focused tests, source types, lint and browser interactions pass. [Evidence](release/evidence/profile-hierarchy-2026-09-26.md).
+- [x] V05 creator: portrait controls are 233.5px higher at 375x667; compact preview, plain surfaces, optional aging and a footer that reserves space. 59 focused tests, source types, lint and portrait/custom draft interactions pass. [Evidence](release/evidence/creator-layout-2026-09-26.md).
+- [x] V06: one illustrated family for portrait presets, custom avatars and NPCs; aging, stored DNA and reduced motion preserved. 172 focused tests pass. [Evidence and screenshots](release/evidence/avatar-family-2026-09-26.md).
+- [x] V07: five original fictional media illustrations shared by YouVideo and Streaming; 48.8% smaller cover files. 34 focused tests and browser upload/stream journeys pass. [Evidence and screenshots](release/evidence/media-identity-2026-09-26.md).
+- [x] V07 revision: bold creator thumbnails, compact red YouVideo composer and violet Streaming console with primary actions visible at 320/375/768px. 40 focused tests pass. [Evidence and screenshots](release/evidence/creator-platform-2026-09-27.md).
+- [x] Creator UI cleanup: all topics visible, compact reach disclosure, no duplicate status card and stable Streaming selection. 7 focused regressions and 320/375/768px browser journeys pass. [Evidence](release/evidence/creator-ui-cleanup-2026-09-27.md).
+- [x] V08 pet/travel/vehicle batch: 52 local illustrations, shared loading fallback, approved design pinned in AGENTS/presentation guide. 43 focused tests and phone/tablet browser journeys pass. [Evidence and gallery](release/evidence/life-art-2026-09-27.md).
+- [x] V08 complete: all 12 luxury items now match the illustrated catalogue family; 83.8% smaller art files. 32 focused tests and phone/tablet purchase/collection checks pass. [Evidence and gallery](release/evidence/luxury-art-2026-09-27.md).
+- [x] V09 Stocks: securities start 270px higher on compact phones; sector disclosure retains filters. 27 focused tests, source types and three-width browser interactions pass. [Evidence and screenshots](release/evidence/stocks-hierarchy-2026-09-27.md).
+- [x] Stock curves: distinct seeded illustrative charts from startup, rounded strokes, real quotes/change preserved. 18 focused tests, source types and phone/tablet revisit checks pass. [Screenshots and evidence](release/evidence/stock-curves-2026-09-27.md).
+- [x] V10 Finances: one compact overview and canonical assets/debts breakdown; accounts 206px higher in Bank and 994px higher in Bank Pro at 375px. Banking and recorded-history checks pass. [Evidence and screenshots](release/evidence/finance-hierarchy-2026-09-27.md).
+- [x] V11 tabs: visible 44-point overflow controls, active-tab reveal on resize, natural-width Travel labels and wrapping fixed labels. 8 focused regressions and Bank/Travel browser journeys pass. [Evidence and screenshots](release/evidence/tab-overflow-2026-09-27.md).
+- [x] V12 currency/units: canonical Health, Work, Statistics and pilot-license prices; explicit weekly/per-job units, corrected weekly salary record. 65 focused tests and phone/tablet checks pass. [Evidence and screenshots](release/evidence/currency-units-2026-09-27.md).
+- [x] V13 Education: Enroll free for zero-cost/fully funded courses, exact weeks throughout and named automatic classes; paid commitments remain explicit. 23 focused tests and phone/tablet enrollment flows pass. [Evidence and screenshots](release/evidence/education-copy-2026-09-27.md).
+- [x] V14 Contacts: visible costs/effects, borrowing and lending obligations, weekly/affordability/max-bond reasons and preserved family eligibility. 26 focused tests and phone/tablet journeys pass. [Evidence and screenshots](release/evidence/contacts-clarity-2026-09-27.md).
+- [x] V15 Pulse: 30 authored public posts drawn without repetition, plus context-aware contact voices from actual recent events/interactions and mood/personality. 32 focused tests and phone/tablet feed checks pass. [Evidence and screenshots](release/evidence/pulse-personality-2026-09-27.md).
+- [x] V16 Navigation: one leading Back/title layout across app headers; shared 44-point Back in DeepMail root/detail with accurate destination labels. 38 focused tests, source/test types and phone/tablet navigation checks pass. [Evidence and screenshots](release/evidence/navigation-consistency-2026-09-27.md).
+- [x] V17 Typography: Company Detail/cards and five shared component families use canonical text styles, wrapping metadata and 44-point action/disclosure targets. 32 focused tests and 320/375/768px company journeys pass. [Evidence and screenshots](release/evidence/typography-cleanup-2026-09-27.md).
+- [x] V18 Semantic colors: fixed cash identity across 15 headers, HUD-aligned pet vitals, explicit signed weekly effects and neutral zero/empty summaries. 30 focused tests, source/test types and phone/tablet adoption checks pass. [Evidence and screenshots](release/evidence/semantic-colors-2026-09-27.md).
+- [x] A01 browser/source pass: retained perk/mindset drafts, rejected non-finite scenario inputs and verified portrait/custom start-save-reload on phone/tablet. [Evidence and screenshots](release/evidence/custom-onboarding-2026-09-27.md). A01 native/permutation acceptance remains open.
+- [x] A02 browser/source pass: corrected delayed-hire records, rehire tenure/pay notices and termination history; first pay, promotion, quit/reapply and retirement regressions pass. [Evidence and screenshots](release/evidence/career-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
+- [x] A03 browser/source pass: synchronous Next Week guard, completion-owned busy state, committed-progress ad gating, pending-decision suppression and reduced-motion loading. 64 focused regressions and phone/tablet rapid-tap checks pass. [Evidence and screenshots](release/evidence/weekly-loop-2026-09-27.md). Signed native acceptance remains open.
+- [x] A04 browser/source pass: free recovery leads at critical health; treatment/Rest guidance and active-diet affordability/cancellation clarified; badge overlap fixed. Focused regressions and phone/tablet recovery at $0 pass. [Evidence and screenshots](release/evidence/health-recovery-2026-09-27.md). Native/permutation acceptance remains open.
+- [x] A05 browser/source pass: owned/shortfall guidance, access-item sale confirmations, canonical resale labels and creator equipment cash gates. 47 focused tests and phone/tablet inventory save-reopen checks pass. [Evidence and screenshots](release/evidence/market-equipment-2026-09-27.md). Native/permutation acceptance remains open.
+- [x] A06 source/browser pass: full-balance withdrawals, minimum-balance caps, overdraft/cash-ceiling protection and navy notifications above navigation. 267 focused tests and phone/tablet deposit-reopen checks pass. [Evidence and screenshots](release/evidence/banking-lifecycle-2026-09-27.md). Full-suite/device gates recorded separately; native/permutation acceptance remains open.
+- [x] A06 banking follow-through: complete money parsing, debt-capped repayment Max, clear recurring bills and accessible forms. 86 focused tests and phone/tablet account, card, loan and bill journeys passed. [Evidence and screenshots](release/evidence/banking-journeys-2026-09-27.md). Native and broader delinquency permutations remain open.
+- [x] A07 source/browser pass: strict stock/crypto amounts, pending-order commitments, recurring-buy clarity and weekly labels. 230 focused tests and phone/tablet buy/sell/cancel, save-reopen, real weekly recurring-buy and offline-loaded mining journeys passed. [Evidence and screenshots](release/evidence/trading-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
+- [x] Money-entry sliders: shared drag/preset/Max control across player money forms, including banking. 164 distinct focused tests with Education; phone/tablet stock and account-opening checks passed. [Screenshots and evidence](release/evidence/amount-sliders-2026-09-27.md). Native acceptance remains open.
+- [x] A08 source/browser pass: study costs/readiness, pause guidance and withdrawal confirmation; student-loan continuity and real weekly graduation verified on phone/tablet. [Evidence and screenshots](release/evidence/education-lifecycle-2026-09-27.md). Native/permutation acceptance remains open.
+- [x] A09 source/browser pass: committed founding/hiring/IPO/acquisition feedback, exact offer amounts, severance confirmation, protected named headcount and fresh-state transaction guards. Phone/tablet founding, research, real-week campaign progression, sale and low-resource checks passed. [Evidence and screenshots](release/evidence/business-lifecycle-2026-09-27.md). Full-suite timing and native/permutation gates are recorded separately.
+- [x] A10 transaction/family-planning pass: fresh-state date/gift/wedding gates, one-time engagement cancellation, shared conception eligibility and explicit birth-cost confirmation. Phone/tablet conception, cancellation and save/reopen passed. [Evidence and screenshots](release/evidence/relationships-family-2026-09-27.md). Full-suite/native results and remaining feedback work are recorded there.
+- [ ] Next: A10 committed relationship feedback and remaining family journeys, then A11 Pets. [Remaining register](whole-app-audit-2026-09-26.md): 26 acceptance/operational items remain open, including native acceptance.
+- No production deployment or signed native acceptance.
+
+# Whole-app audit - 26 September 2026
+
+- [x] Audit current source, 5 tabs / 19 app entries, nested/onboarding states and core save/game logic.
+- [x] Compile [58-item prioritized register](whole-app-audit-2026-09-26.md) with screenshots, reproductions and native acceptance gaps.
+- [x] Original D01-D14 implementation follow-through is recorded above; the audit below remains historical evidence.
+- Audit only; no gameplay fix or production release performed. Current code CI: 822 suites / 10,016 tests / 308 snapshots passed.
+
+# HUD circle edge refinement - 26 September 2026
+
+- [x] Replace nested rounded clipping with inset vector circles; retain icons and hit targets.
+- [x] Check phone/tablet browser renders and focused HUD tests.
+- [ ] Verify the curves on a signed iPhone build.
+- Evidence: [circle edges](release/evidence/hud-circle-edges-2026-09-26.md).
+
+# Reddit promotion - 26 September 2026
+
+- [ ] 27 September additional posts: concise player copy prepared and MobileGames rules screened; verify 14-day account interval and publish after Reddit login. T3 signed out; Chrome navigation times out. [Drafts and status](../marketing/reddit-player-posts-2026-09-27.md).
+- [x] 27 September: reviewed all three public posts, identified the direct criticism of formulaic AI copy, and prepared a shorter player campaign plus 20-second footage brief. [Campaign and evidence](../marketing/reddit-next-campaign-2026-09-27.md).
+- [ ] Capture first-job gameplay from a verified public build before the next campaign; current local UI changes are not proof of store availability.
+- [x] Published and verified new r/SideProject retrospective and r/aigamedev AI-development discussion; shortened playmygame involvement line and replied to onboarding feedback. [Evening evidence](../marketing/reddit-posts-2026-09-26-evening.md).
+- [x] Screened r/MobileGaming and r/indiegames and skipped them under their live promotion/AI rules. Stop further repeat promotion today; respond to real feedback first.
+- [x] Prepare transparent r/tycoon announcement and inspect today's iOSGaming rules.
+- [x] Published r/playmygame post `1wqv57a` through logged-in Chrome; permalink and initial moderation state verified.
+- [x] Reviewed viral LifeSimulators thread: [findings and revised copy](../marketing/reddit-viral-review-2026-09-26.md). Further posts wait for this evidence to inform content; historical bugs are not current-build findings.
+- Copy and evidence: [selected promotion](../marketing/reddit-selected-2026-09-26.md).
+
+# Whole-game polish follow-through - 26 September 2026
+
+- Cleaned HUD utility circles per screenshot: one round surface, no inner bloom;
+  gold store keeps its footprint without an expanding pulse.
+- Settings now leads with preferences, uses shared tabs, has clearer switches and
+  a compact header. Slot switching awaits a durable save and explains failure.
+- Shared modal, button, app-header, stat-strip and empty-state refinements;
+  Contacts/Mail/Hustle polish, specific Market labels, and direct-link lock checks.
+- Browser: all five tabs and all 19 app entry screens at compact phone/tablet sizes;
+  computer purchase survives save-slot switch/reload. Isolated QA fixture labelled.
+- [Acceptance inventory and evidence](release/evidence/game-polish-2026-09-26.md).
+- Next: nested transaction/player journeys and native accessibility/provider
+  acceptance. No merge, OTA, paid build or store submission performed.
+
+# Identity refinement ? 2026-09-26
+
+- Implemented original street-line artwork across menu, player record and compact destination strips; removed generic motivational copy and oversized title badges. Approved HUD and save schema 51 unchanged.
+- Evidence: [identity checklist](deeplife-identity-2026-09-26.md), [remaining work](visual-ux-remaining-2026-09-26.md). Signed-device acceptance is still outstanding.
+
 # Current work
+
+## Premium presentation, characters, 3D destinations and audio - 26 September 2026
+
+Branch `codex/visual-ux-rebuild-2026-09-26`, based on current main `9e729ac2`.
+[Checklist](visual-ux-rebuild-2026-09-26.md) and
+[evidence](release/evidence/visual-ux-rebuild-2026-09-26.md).
+
+- [x] Shared presentation tokens/primitives, five-tab navigation and main-screen polish.
+- [x] Six curated GPT portraits; preserve custom avatar codec, genetics and old saves.
+- [x] Six original 3D destinations, bundled renders, reduced-motion-aware movement.
+- [x] Seven original sound effects, real Settings switch and committed-week feedback.
+- [x] Browser phone/tablet inspection, creator modes, portrait save/reload, Bank and week feedback.
+- [x] Production iOS export: 4,051 modules, 13.7 MB Hermes bundle, exit 0.
+- [x] Full-suite evidence and focused follow-up (16 suites / 141 tests) recorded; draft PR #229 opened.
+- [x] Complete local preflight exits 0; GitHub preflight/quality green on code `fe47c98f`.
+- [x] Final-head CI on `1a95a49b`: 821 suites / 10,011 tests / 308 snapshots; coverage, preflight and quality pass.
+- [ ] Complete remaining product polish and native acceptance: [prioritized next work](visual-ux-remaining-2026-09-26.md).
+- [ ] Exact signed native build acceptance: audio/silent switch/interruption,
+  VoiceOver/Larger Text, compact iPhone/iPad, purchases/restore/ads, old saves and
+  background/kill/relaunch. No paid build, OTA or submission authorized here.
+
+Prior local work remains in named stash `pre-sync-local-work-2026-09-26`.
+Do not pop it into the presentation branch. Schema remains 51; HUD structure,
+canonical weekly/save/purchase owners and production release state are unchanged.
 
 ## Purchases lost on reload (YouVideo, App Store 1.2.5 CA) — 25 September 2026
 
@@ -13,7 +141,7 @@ a reload drops the purchase.
 - [x] Save + integration (53 suites / 587), stress + startup (55 / 908), full suite on the merged tree (816 / 817; the red one is the wall-clock tick benchmark, also red on `main` on this Windows machine, A/B shows no cost). Type-checks 0. Lessons entry written.
 - [x] `npm run preflight`: `main` was at 703 lint warnings against a 701 ceiling (two new `require()`s in `lib/review/__tests__/inAppReview.test.ts`, from #220). Fixed with the repo's line-level disable convention rather than raising the ceiling.
 - [ ] PR with the save-system risk box; watch CI's tick-timing number against `main`'s 3.98 ms/tick.
-- [ ] Follow-up (not this PR): "Switch save slot" should save before it suspends. Market purchases (`buyItem` / `buyFood`) never call `saveGame`, so a switch within 2 minutes of one still loses it.
+- [x] Follow-up implemented on PR #229: Settings saves durably before suspending for the slot picker. Provider regression and real browser computer-purchase/switch/reload verified.
 - [ ] Follow-up (not this PR): drop the now-redundant `setTimeout(0)` / 200 ms pre-save yields (home, work, DeathPopup, Discord grant, restoreFromCloud, resolveEvent).
 
 ## Home freeze + four-lens audit — 25 September 2026

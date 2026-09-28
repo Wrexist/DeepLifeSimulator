@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * InsightsScreen - Creator Studio.
  *
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   postRankText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(12),
     fontWeight: '600',
   },

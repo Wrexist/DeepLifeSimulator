@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * The appearance editor - the part of character creation where you choose a face.
  *
@@ -49,7 +50,7 @@
  * about mounting dozens). Switching category unmounts the previous rail.
  */
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Check } from 'lucide-react-native';
 import VectorAvatar from '@/components/avatar/VectorAvatar';
 import { haptic } from '@/utils/haptics';
@@ -124,6 +125,9 @@ function AppearanceEditorImpl({
   onSelectOption,
   onSelectTint,
 }: AppearanceEditorProps) {
+  const { fontScale: systemFontScale } = useWindowDimensions();
+  // Stable across categories, with room for two lines at the chosen text size.
+  const railHeight = THUMB + scale(6) + responsiveSpacing.sm + fontScale(14) * Math.max(1, systemFontScale) * 2;
   const railRef = useRef<ScrollView | null>(null);
   const category = categories[Math.min(activeIndex, categories.length - 1)];
   const selected = (avatar[category.field] as number) ?? 0;
@@ -237,7 +241,7 @@ function AppearanceEditorImpl({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
-        style={styles.railScroll}
+        style={[styles.railScroll, { height: railHeight }]}
       >
         {category.options.map((option, index) => {
           const isSelected = selected === index;
@@ -278,7 +282,7 @@ function AppearanceEditorImpl({
               {category.kind !== 'color' && (
                 <Text
                   style={[styles.cellLabel, isSelected && styles.cellLabelSelected]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {option.label}
                 </Text>
@@ -326,19 +330,23 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   categoryChip: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: verticalScale(7),
   },
   categoryChipSelected: {
     backgroundColor: 'rgba(59, 130, 246, 0.22)',
     borderColor: 'rgba(96, 165, 250, 0.85)',
   },
-  categoryLabel: { fontSize: fontScale(12), fontWeight: '700', color: '#CBD5E1' },
-  categoryLabelSelected: { color: '#FFFFFF' },
+  categoryLabel: { fontSize: fontScale(12), fontWeight: '700', color: uiPalette.secondary },
+  categoryLabelSelected: { color: uiPalette.white },
 
   /**
    * The paired colour strip. Deliberately smaller than the option rail and
@@ -354,12 +362,12 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(2),
   },
   tintDot: {
-    width: scale(26),
-    height: scale(26),
+    width: 44,
+    height: 44,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 2,
     borderColor: 'transparent',
-    padding: scale(2),
+    padding: scale(8),
   },
   tintDotSelected: { borderColor: 'rgba(96, 165, 250, 0.95)' },
   tintFill: { flex: 1, borderRadius: responsiveBorderRadius.full },
@@ -370,12 +378,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: verticalScale(2),
   },
-  railTitle: { fontSize: fontScale(13), fontWeight: '800', color: '#F8FAFC' },
-  railCount: { fontSize: fontScale(11), fontWeight: '600', color: '#94A3B8' },
+  railTitle: { fontSize: fontScale(13), fontWeight: '800', color: uiPalette.paper },
+  railCount: { fontSize: fontScale(11), fontWeight: '600', color: uiPalette.muted },
 
   // A fixed height is what stops the page reflowing when you switch from Hair
   // (28 options) to Mouth (4).
-  railScroll: { height: THUMB + verticalScale(34) },
+  railScroll: { flexGrow: 0 },
   rail: { gap: responsiveSpacing.xs, paddingVertical: verticalScale(2) },
 
   cell: { width: CELL, alignItems: 'center', gap: verticalScale(4) },
@@ -390,7 +398,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     overflow: 'visible',
   },
-  tileSelected: { borderColor: '#60A5FA', backgroundColor: 'rgba(59, 130, 246, 0.16)' },
+  tileSelected: { borderColor: uiPalette.blue, backgroundColor: 'rgba(59, 130, 246, 0.16)' },
 
   swatchFill: {
     width: THUMB,
@@ -405,20 +413,21 @@ const styles = StyleSheet.create({
     width: scale(19),
     height: scale(19),
     borderRadius: scale(10),
-    backgroundColor: '#60A5FA',
+    backgroundColor: uiPalette.blue,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#0F172A',
+    borderColor: uiPalette.navy,
   },
 
   cellLabel: {
     fontSize: fontScale(10),
+    lineHeight: fontScale(14),
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     textAlign: 'center',
   },
-  cellLabelSelected: { color: '#E2E8F0' },
+  cellLabelSelected: { color: uiPalette.line },
 });
 
 const AppearanceEditor = React.memo(AppearanceEditorImpl);

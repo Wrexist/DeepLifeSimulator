@@ -1,0 +1,17 @@
+{
+  "results": [
+    "Vitals start compact with four stat icons and values",
+    "First action fully above navigation, target at least 44px",
+    "Walk executes through existing activity handler",
+    "Vitals expand and collapse",
+    "Unaffordable hospital disabled with explicit cost",
+    "Family opens"
+  ],
+  "errors": [],
+  "action": {
+    "x": 29,
+    "y": 556,
+    "width": 317,
+    "height": 45
+  }
+}

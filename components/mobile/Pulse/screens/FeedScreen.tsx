@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * FeedScreen - home tab of the Pulse app.
  *
@@ -170,6 +171,8 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         post={item.post}
         authorHandle={item.authorHandle}
         authorPhoto={item.authorPhoto}
+        authorSource={item.isPlayerPost ? gameState.userProfile : undefined}
+        authorAge={item.isPlayerPost ? gameState.date?.age : undefined}
         currentWeeksLived={weeksLived}
         // Only the player's own posts route to global state + detail/boost.
         onOpenDetail={item.isPlayerPost ? onOpenPostDetail : undefined}
@@ -180,7 +183,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         onRepost={item.isPlayerPost ? undefined : toggleAmbientRepost}
       />
     ),
-    [weeksLived, onOpenPostDetail, onBoostPost, toggleAmbientLike, toggleAmbientRepost],
+    [weeksLived, onOpenPostDetail, onBoostPost, toggleAmbientLike, toggleAmbientRepost, gameState.userProfile, gameState.date?.age],
   );
 
   const keyExtractor = useCallback((e: FeedEntry) => e.key, []);
@@ -203,6 +206,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         fallback={handle}
         // The player's own face, so composing a post shows who is posting.
         face={{
+          source: gameState.userProfile,
           seed: gameState.userProfile?.name ?? handle,
           sex: gameState.userProfile?.sex,
           age: gameState.date?.age,
@@ -210,7 +214,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
         }}
         style={styles.composerAvatar}
         placeholderColor={PULSE_COLORS.tierCelebrity}
-        placeholderTextColor="#FFFFFF"
+        placeholderTextColor={uiPalette.white}
       />
       <Text style={[styles.composerPrompt, { color: theme.textSecondary }]} numberOfLines={1}>
         What&apos;s on your mind?

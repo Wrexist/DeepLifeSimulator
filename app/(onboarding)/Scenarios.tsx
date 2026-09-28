@@ -1,3 +1,13 @@
+import { responsiveSpacing as layoutSpace ,
+  fontScale,
+  responsiveBorderRadius,
+  responsiveFontSize,
+  responsivePadding,
+  responsiveSpacing,
+  scale,
+  verticalScale,
+} from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, type ImageSourcePropType } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -43,15 +53,7 @@ import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnaly
 import { logger } from '@/utils/logger';
 import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';
-import {
-  fontScale,
-  responsiveBorderRadius,
-  responsiveFontSize,
-  responsivePadding,
-  responsiveSpacing,
-  scale,
-  verticalScale,
-} from '@/utils/scaling';
+
 import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
@@ -138,7 +140,7 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
     case 'expert':
       return '#EF4444';
     default:
-      return '#94A3B8';
+      return uiPalette.muted;
   }
 };
 
@@ -203,7 +205,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   const rewardGems = isChallenge ? scenario.rewardGems : 0;
   const difficultyBadgeColor = isChallenge
     ? safeGetDifficultyColor(scenario.difficultyKey)
-    : '#94A3B8';
+    : uiPalette.muted;
   const difficultyColor =
     scenario.difficulty === 'Easy'
       ? '#10B981'
@@ -211,7 +213,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         ? '#3B82F6'
         : scenario.difficulty === 'Hard'
           ? '#F59E0B'
-          : '#94A3B8';
+          : uiPalette.muted;
 
   return (
     <TouchableOpacity
@@ -242,7 +244,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             <ImageScrim height={0.42} strength={0.72} />
             {isRecommended ? (
               <View style={styles.recommendedPill}>
-                <Star size={11} color="#60A5FA" />
+                <Star size={11} color={uiPalette.blue} />
                 <Text style={styles.recommendedPillText}>RECOMMENDED</Text>
               </View>
             ) : null}
@@ -306,14 +308,14 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
                   const ItemIcon = getScenarioItemIcon(item);
                   return (
                     <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
-                      <ItemIcon size={fontScale(12)} color="#60A5FA" />
+                      <ItemIcon size={fontScale(12)} color={uiPalette.blue} />
                       <Text style={styles.tagText}>{formatTokenLabel(item)}</Text>
                     </View>
                   );
                 })}
                 {scenario.start.traits?.map((trait) => (
                   <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
-                    <Sparkles size={fontScale(12)} color="#60A5FA" />
+                    <Sparkles size={fontScale(12)} color={uiPalette.blue} />
                     <Text style={styles.tagText}>{formatTokenLabel(trait)}</Text>
                   </View>
                 ))}
@@ -475,7 +477,7 @@ export default function Scenarios() {
           title="Continue To Identity"
           onPress={continueToCustomize}
           disabled={!selectedScenario}
-          icon={<Play size={24} color="#FFFFFF" />}
+          icon={<Play size={24} color={uiPalette.white} />}
         />
       }
     >
@@ -517,7 +519,7 @@ export default function Scenarios() {
             }
             style={styles.tabGradient}
           >
-            <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#94A3B8'} />
+            <Target size={18} color={activeTab === 'life_paths' ? uiPalette.white : uiPalette.muted} />
             <Text style={[styles.tabText, activeTab === 'life_paths' && styles.tabTextActive]}>
               Life Paths
             </Text>
@@ -539,7 +541,7 @@ export default function Scenarios() {
             }
             style={styles.tabGradient}
           >
-            <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#94A3B8'} />
+            <Sparkles size={18} color={activeTab === 'challenges' ? uiPalette.white : uiPalette.muted} />
             <Text style={[styles.tabText, activeTab === 'challenges' && styles.tabTextActive]}>
               Challenges
             </Text>
@@ -614,15 +616,15 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   guidanceText: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     textAlign: 'center',
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
@@ -644,7 +646,7 @@ const styles = StyleSheet.create({
   recommendedPillText: {
     fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#60A5FA',
+    color: uiPalette.blue,
     letterSpacing: 0.6,
   },
   scrollContainer: {
@@ -690,7 +692,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: scale(150),
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
   },
   heroImage: {
     width: '100%',
@@ -716,7 +718,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: responsiveFontSize.xl,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -725,24 +727,24 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
     paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: verticalScale(4),
+    paddingVertical: layoutSpace.xs,
   },
   difficultyText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(9),
     fontWeight: '800',
   },
   cardDescription: {
     fontSize: responsiveFontSize.base,
     fontWeight: '500',
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     lineHeight: fontScale(16),
-    marginBottom: verticalScale(3),
+    marginBottom: layoutSpace.xs,
   },
   goalText: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: uiPalette.blue,
     lineHeight: fontScale(15),
   },
   selectedDot: {
@@ -771,18 +773,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: scale(70),
     paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: verticalScale(8),
+    paddingVertical: layoutSpace.sm,
   },
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#94A3B8',
-    marginBottom: verticalScale(2),
+    color: uiPalette.muted,
+    marginBottom: layoutSpace.xs,
   },
   statValue: {
     fontSize: fontScale(11),
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   rewardRow: {
     alignItems: 'center',
@@ -792,7 +794,7 @@ const styles = StyleSheet.create({
   rewardValue: {
     fontSize: fontScale(11),
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   tagsWrap: {
     flexDirection: 'row',
@@ -802,17 +804,17 @@ const styles = StyleSheet.create({
   tag: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: scale(5),
+    gap: layoutSpace.xs,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: verticalScale(5),
+    paddingVertical: layoutSpace.xs,
   },
   tagText: {
     fontSize: fontScale(10),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: uiPalette.blue,
   },
 });

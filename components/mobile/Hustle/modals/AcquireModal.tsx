@@ -1,14 +1,15 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * AcquireModal - list pending acquisition offers + accept/decline.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Building2 } from 'lucide-react-native';
 import BaseModal from '@/components/ui/BaseModal';
 import EmptyState from '@/components/ui/EmptyState';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import {
   acceptAcquisition,
@@ -33,15 +34,28 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
   const offers = overlay?.pendingAcquisitions ?? [];
   const playerMoney = gameState.stats?.money ?? 0;
 
+  const busy = useRef(false);
+  const [pending, setPending] = useState<{ id: string; name: string; completedBefore: number } | null>(null);
+  const [resultMsg, setResultMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pending) return;
+    const committed = !gameState.hustleApp?.companies?.[companyId]?.pendingAcquisitions.some(o => o.id === pending.id)
+      && (gameState.hustleApp?.lifetimeStats.totalAcquisitionsCompleted ?? 0) > pending.completedBefore;
+    if (committed) { hustleHaptics.success(); void saveGame?.(); setResultMsg(`Acquired ${pending.name}. Weekly company revenue has increased.`); }
+    else { hustleHaptics.error(); setResultMsg('Acquisition was not completed. Check available cash and try again.'); }
+    busy.current = false;
+    setPending(null);
+  }, [pending, gameState, companyId, saveGame]);
+
   const handleAccept = useCallback((offerId: string) => {
+    if (busy.current) return;
+    const offer = gameState.hustleApp?.companies?.[companyId]?.pendingAcquisitions.find(o => o.id === offerId);
+    if (!offer) return;
+    busy.current = true;
     const r = acceptAcquisition(setGameState, gameState, companyId, offerId);
-    if (r.success) {
-      hustleHaptics.success();
-      saveGame?.();
-    } else {
-      hustleHaptics.error();
-    }
-  }, [setGameState, gameState, companyId, saveGame]);
+    if (r.success) setPending({ id: offerId, name: offer.targetName, completedBefore: gameState.hustleApp?.lifetimeStats.totalAcquisitionsCompleted ?? 0 });
+    else { busy.current = false; hustleHaptics.error(); setResultMsg(r.message); }
+  }, [setGameState, gameState, companyId]);
 
   const handleDecline = useCallback((offerId: string) => {
     declineAcquisition(setGameState, companyId, offerId);
@@ -54,6 +68,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
   return (
     <BaseModal visible={visible} onClose={onDismiss} variant="bottom" title="Acquisition targets">
       <View>
+          {resultMsg ? <Text accessibilityRole="alert" style={[styles.offerSub, { color: theme.text }]}>{resultMsg}</Text> : null}
           {offers.length === 0 ? (
             <EmptyState
               compact
@@ -64,7 +79,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
             <>
               {offers.map((offer: any) => {
                 const color = industryColor(offer.targetIndustry);
-                const canAfford = playerMoney >= offer.askingPrice;
+                const canAfford = Number.isFinite(offer.askingPrice) && offer.askingPrice > 0 && playerMoney >= offer.askingPrice && !pending;
                 // Every displayed figure goes through the SAME helper the accept
                 // path uses. Re-deriving the guard inline here is what let the
                 // card advertise a number the action would not pay.
@@ -221,7 +236,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(13),
     fontWeight: '600',
   },

@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * SparkPremiumUpsellModal - Spark Plus / Ultra, IN-GAME cash subscriptions.
  *
@@ -15,7 +16,7 @@ import BaseModal from '@/components/ui/BaseModal';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { subscribeSparkPremium, cancelSparkPremium } from '@/contexts/game/actions/SparkActions';
@@ -207,7 +208,7 @@ function TierCard({
       ]}
     >
       <View style={[styles.tierHero, { backgroundColor: tint }]}>
-        <Icon size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
+        <Icon size={scale(28)} color={uiPalette.white} strokeWidth={2.4} />
         <View style={styles.tierHeroText}>
           <Text style={styles.tierName}>Spark {name}</Text>
           <Text style={styles.tierPrice}>{price}</Text>
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   },
   tierHeroText: { flex: 1 },
   tierName: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(20),
     fontWeight: '600',
   },
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha('#000000', 0.3),
   },
   recBadgeText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '600',
   },

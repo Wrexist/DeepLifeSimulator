@@ -7,8 +7,9 @@
  * attention, red = failing) and defaults to the info blue. Labeled for screen
  * readers as a progressbar with the percentage, which none of the copies were.
  */
-import React from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { accent, withAlpha } from '@/lib/config/theme';
 import { responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -31,6 +32,15 @@ export default function ProgressBar({
   const { theme } = useTheme();
   const v = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
   const pct = Math.round(v * 100);
+  const reduced = useReducedMotion();
+  const progress = useRef(new Animated.Value(pct)).current;
+  useEffect(() => {
+    progress.stopAnimation();
+    if (reduced) { progress.setValue(pct); return; }
+    const motion = Animated.timing(progress, { toValue: pct, duration: 220, useNativeDriver: false, isInteraction: false });
+    motion.start();
+    return () => motion.stop();
+  }, [pct, progress, reduced]);
   return (
     <View
       style={[styles.track, { height, borderRadius: height / 2, backgroundColor: withAlpha(color, 0.14) || theme.border }, style]}
@@ -39,7 +49,7 @@ export default function ProgressBar({
       accessibilityLabel={label ? `${label} ${pct} percent` : `${pct} percent`}
       accessibilityValue={{ min: 0, max: 100, now: pct }}
     >
-      <View style={[styles.fill, { width: `${pct}%`, backgroundColor: color, borderRadius: height / 2 }]} />
+      <Animated.View style={[styles.fill, { width: progress.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }), backgroundColor: color, borderRadius: height / 2 }]} />
     </View>
   );
 }

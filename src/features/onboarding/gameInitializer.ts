@@ -77,11 +77,11 @@ export function validateOnboardingInputs(inputs: OnboardingInputs): InputValidat
     return { valid: false, errorTitle: 'Invalid Scenario', errorMessage: 'The selected scenario is invalid. Please go back and select a different scenario.' };
   }
 
-  if (typeof scenario.start.age !== 'number' || scenario.start.age < 18 || scenario.start.age > 150) {
+  if (typeof scenario.start.age !== 'number' || !Number.isFinite(scenario.start.age) || scenario.start.age < 18 || scenario.start.age > 150) {
     return { valid: false, errorTitle: 'Invalid Scenario', errorMessage: 'The selected scenario has an invalid starting age. Please try again.' };
   }
 
-  if (typeof scenario.start.cash !== 'number' || scenario.start.cash < 0) {
+  if (typeof scenario.start.cash !== 'number' || !Number.isFinite(scenario.start.cash) || scenario.start.cash < 0) {
     return { valid: false, errorTitle: 'Invalid Scenario', errorMessage: 'The selected scenario has invalid starting cash. Please try again.' };
   }
 

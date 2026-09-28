@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Settings → Cloud backup → "Move to a new phone" / "I have a code".
  *
@@ -138,7 +139,7 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
                 autoCorrect={false}
                 maxLength={CODE_LENGTH}
                 placeholder="XXXXXXXXXX"
-                placeholderTextColor="#475569"
+                placeholderTextColor={uiPalette.lightSecondary}
                 style={styles.input}
                 accessibilityLabel="Transfer code from your old device"
               />
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
   },
   card: {
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
@@ -190,8 +191,8 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
     width: '100%',
   },
-  title: { color: '#F8FAFC', fontSize: fontScale(16), fontWeight: '700' },
-  body: { color: '#94A3B8', fontSize: fontScale(12) },
+  title: { color: uiPalette.paper, fontSize: fontScale(16), fontWeight: '700' },
+  body: { color: uiPalette.muted, fontSize: fontScale(12) },
   spinner: { marginVertical: verticalScale(12) },
   code: {
     color: '#38BDF8',
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: responsiveBorderRadius.md,
     borderWidth: 1,
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontSize: fontScale(20),
     fontWeight: '700',
     letterSpacing: scale(2),
@@ -224,8 +225,8 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(10),
   },
   primaryDisabled: { opacity: 0.5 },
-  primaryText: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '700' },
+  primaryText: { color: uiPalette.paper, fontSize: fontScale(13), fontWeight: '700' },
   message: { color: '#CBD5F5', fontSize: fontScale(12), marginTop: verticalScale(4) },
   close: { alignItems: 'center', marginTop: verticalScale(8), paddingVertical: verticalScale(6) },
-  closeText: { color: '#94A3B8', fontSize: fontScale(12), fontWeight: '700' },
+  closeText: { color: uiPalette.muted, fontSize: fontScale(12), fontWeight: '700' },
 });

@@ -48,3 +48,18 @@ describe('calculateFIRETracker (salary is WEEKLY)', () => {
     expect(r.savingsRate).toBe(0);
   });
 });
+
+
+describe('FIRE life-relative planning', () => {
+  it('gives identical savings pace and forecast after four played weeks at different starting ages', () => {
+    const young = calculateFIRETracker(stateWithSalary(1000, { bankSavings: 1000, weeksLived: 4, lifeStartWeek: 0 }));
+    const older = calculateFIRETracker(stateWithSalary(1000, { bankSavings: 1000, weeksLived: 108, lifeStartWeek: 104 }));
+    expect(older).toEqual(young);
+    expect(older.savingsRate).toBe(25);
+  });
+  it('keeps a finite estimate on the first week', () => {
+    const result = calculateFIRETracker(stateWithSalary(1000, { bankSavings: 100, weeksLived: 104, lifeStartWeek: 104 }));
+    expect(result.savingsRate).toBe(10);
+    expect(Number.isFinite(result.yearsToFIRE)).toBe(true);
+  });
+});

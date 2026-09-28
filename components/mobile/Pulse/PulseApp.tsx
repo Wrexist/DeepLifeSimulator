@@ -20,7 +20,7 @@ import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
 import { useGame } from '@/contexts/GameContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useTheme } from '@/hooks/useTheme';
-import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { PULSE_COLORS } from './styles/pulseTheme';
@@ -184,12 +184,10 @@ export default function PulseApp({ onBack }: PulseAppProps) {
                 profile.name ? (
                   /* The player's own face - the one place in the app where they
                      could not see themselves before. */
-                  <CharacterAvatar
-                    source={profile}
-                    seed={profile.name}
-                    sex={profile.sex}
-                    age={gameState.date?.age ?? 25}
-                    size={scale(20)}
+                  <ImageWithFallback
+                    uri={profile.profilePhoto}
+                    face={{ source: profile, seed: profile.name, sex: profile.sex, age: gameState.date?.age ?? 25, size: scale(20) }}
+                    style={{ width: scale(20), height: scale(20), borderRadius: scale(10) }}
                   />
                 ) : undefined
               }

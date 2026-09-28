@@ -1,0 +1,173 @@
+[
+  {
+    "width": 320,
+    "firstNameNextFocusesLast": true,
+    "namesSideBySide": false,
+    "categories": [
+      {
+        "name": "Skin options",
+        "y": 298,
+        "height": 44,
+        "width": 44
+      },
+      {
+        "name": "Hair options",
+        "y": 298,
+        "height": 44,
+        "width": 44
+      },
+      {
+        "name": "Eyes options",
+        "y": 298,
+        "height": 44,
+        "width": 44
+      },
+      {
+        "name": "Brows options",
+        "y": 298,
+        "height": 44,
+        "width": 44.84375
+      },
+      {
+        "name": "Mouth options",
+        "y": 298,
+        "height": 44,
+        "width": 47.65625
+      },
+      {
+        "name": "Glasses options",
+        "y": 345,
+        "height": 44,
+        "width": 49.953125
+      },
+      {
+        "name": "Outfit options",
+        "y": 345,
+        "height": 44,
+        "width": 44.09375
+      },
+      {
+        "name": "Headwear options",
+        "y": 345,
+        "height": 44,
+        "width": 63.34375
+      }
+    ],
+    "draftRetained": true,
+    "errors": []
+  },
+  {
+    "width": 375,
+    "firstNameNextFocusesLast": true,
+    "namesSideBySide": false,
+    "categories": [
+      {
+        "name": "Skin options",
+        "y": 326,
+        "height": 44,
+        "width": 44
+      },
+      {
+        "name": "Hair options",
+        "y": 326,
+        "height": 44,
+        "width": 44
+      },
+      {
+        "name": "Eyes options",
+        "y": 326,
+        "height": 44,
+        "width": 44
+      },
+      {
+        "name": "Brows options",
+        "y": 326,
+        "height": 44,
+        "width": 52.609375
+      },
+      {
+        "name": "Mouth options",
+        "y": 326,
+        "height": 44,
+        "width": 55.984375
+      },
+      {
+        "name": "Glasses options",
+        "y": 374,
+        "height": 44,
+        "width": 58.734375
+      },
+      {
+        "name": "Outfit options",
+        "y": 374,
+        "height": 44,
+        "width": 51.71875
+      },
+      {
+        "name": "Headwear options",
+        "y": 374,
+        "height": 44,
+        "width": 74.8125
+      }
+    ],
+    "draftRetained": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "firstNameNextFocusesLast": true,
+    "namesSideBySide": true,
+    "categories": [
+      {
+        "name": "Skin options",
+        "y": 380,
+        "height": 44,
+        "width": 50.125
+      },
+      {
+        "name": "Hair options",
+        "y": 380,
+        "height": 44,
+        "width": 49.8125
+      },
+      {
+        "name": "Eyes options",
+        "y": 380,
+        "height": 44,
+        "width": 50.59375
+      },
+      {
+        "name": "Brows options",
+        "y": 380,
+        "height": 44,
+        "width": 62.375
+      },
+      {
+        "name": "Mouth options",
+        "y": 380,
+        "height": 44,
+        "width": 66.3125
+      },
+      {
+        "name": "Glasses options",
+        "y": 380,
+        "height": 44,
+        "width": 69.53125
+      },
+      {
+        "name": "Outfit options",
+        "y": 380,
+        "height": 44,
+        "width": 61.328125
+      },
+      {
+        "name": "Headwear options",
+        "y": 380,
+        "height": 44,
+        "width": 88.28125
+      }
+    ],
+    "draftRetained": true,
+    "errors": []
+  }
+]

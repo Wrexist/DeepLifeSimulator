@@ -1,0 +1,9 @@
+{
+  "foreground": "#FFFFFF",
+  "contrast": {
+    "#10B981": 2.54,
+    "#047857": 5.48,
+    "#0864C8": 5.73
+  },
+  "scope": "Enabled cash/loan selection and confirm fills; disabled controls are not claimed as WCAG-normal text."
+}

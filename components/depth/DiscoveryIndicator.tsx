@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Discovery & Depth Indicators
  * Show discovery progress and depth engagement
@@ -64,7 +65,7 @@ export default function DiscoveryIndicator({
         style={[styles.compactContainer, darkMode && styles.compactContainerDark]}
         activeOpacity={0.7}
       >
-        <Compass size={scale(16)} color={darkMode ? '#60A5FA' : '#3B82F6'} />
+        <Compass size={scale(16)} color={darkMode ? uiPalette.blue : '#3B82F6'} />
         <Text style={[styles.compactText, darkMode && styles.compactTextDark]}>
           {discoveryProgress.discoveredSystems}/{discoveryProgress.totalSystems}
         </Text>
@@ -80,13 +81,13 @@ export default function DiscoveryIndicator({
         activeOpacity={0.7}
       >
         <LinearGradient
-          colors={darkMode ? ['#1E293B', '#0F172A'] : ['#F1F5F9', '#E2E8F0']}
+          colors={darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.lightSurface, uiPalette.line]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
           <View style={styles.header}>
-            <Compass size={scale(20)} color={darkMode ? '#60A5FA' : '#3B82F6'} />
+            <Compass size={scale(20)} color={darkMode ? uiPalette.blue : '#3B82F6'} />
             <Text style={[styles.title, darkMode && styles.titleDark]}>
               Discovery Progress
             </Text>
@@ -239,7 +240,7 @@ function DiscoveryModal({
               Discovery Center
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <X size={scale(20)} color={darkMode ? '#94A3B8' : '#64748B'} />
+              <X size={scale(20)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             </TouchableOpacity>
           </View>
 
@@ -278,7 +279,7 @@ function DiscoveryModal({
                       </Text>
                       <View style={styles.systemBadges}>
                         <View style={[styles.masteryBadge, { backgroundColor: getMasteryColor(system.masteryLevel) }]}>
-                          <Award size={scale(12)} color="#FFFFFF" />
+                          <Award size={scale(12)} color={uiPalette.white} />
                           <Text style={styles.masteryText}>{Math.round(system.masteryLevel)}%</Text>
                         </View>
                       </View>
@@ -293,7 +294,7 @@ function DiscoveryModal({
                       {route && (
                         <View style={styles.systemGoRow}>
                           <Text style={styles.systemGoText}>{route.label}</Text>
-                          <ChevronRight size={scale(14)} color="#60A5FA" />
+                          <ChevronRight size={scale(14)} color={uiPalette.blue} />
                         </View>
                       )}
                     </View>
@@ -306,7 +307,7 @@ function DiscoveryModal({
             {/* Locked Systems */}
             <View style={styles.modalSection}>
               <View style={styles.modalSectionHeader}>
-                <Lock size={scale(16)} color={darkMode ? '#94A3B8' : '#64748B'} />
+                <Lock size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                 <Text style={[styles.modalSectionTitle, darkMode && styles.modalSectionTitleDark]}>
                   Locked Systems ({lockedSystems.length})
                 </Text>
@@ -326,7 +327,7 @@ function DiscoveryModal({
                       style={[styles.lockedSystemCard, darkMode && styles.lockedSystemCardDark]}
                     >
                       <View style={styles.lockedSystemHeader}>
-                        <Lock size={scale(14)} color={darkMode ? '#94A3B8' : '#64748B'} />
+                        <Lock size={scale(14)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                         <Text style={[styles.lockedSystemName, darkMode && styles.lockedSystemNameDark]}>
                           {systemDef?.name || systemId}
                         </Text>
@@ -359,7 +360,7 @@ function getMasteryColor(masteryLevel: number): string {
   if (masteryLevel >= 80) return '#10B981';
   if (masteryLevel >= 50) return '#3B82F6';
   if (masteryLevel >= 25) return '#F59E0B';
-  return '#64748B';
+  return uiPalette.lightMuted;
 }
 
 const styles = StyleSheet.create({
@@ -369,19 +370,19 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
     paddingHorizontal: responsivePadding.small,
     paddingVertical: responsiveSpacing.xs,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: responsiveBorderRadius.full,
   },
   compactContainerDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   compactText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#334155',
+    color: uiPalette.slate,
   },
   compactTextDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   container: {
     borderRadius: responsiveBorderRadius.lg,
@@ -401,10 +402,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   titleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   progressSection: {
     marginBottom: responsiveSpacing.md,
@@ -417,10 +418,10 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: fontScale(14),
-    color: '#334155',
+    color: uiPalette.slate,
   },
   progressLabelDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   progressValue: {
     fontSize: fontScale(14),
@@ -428,17 +429,17 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
   },
   progressValueDark: {
-    color: '#60A5FA',
+    color: uiPalette.blue,
   },
   progressBar: {
     height: scale(12),
-    backgroundColor: '#E2E8F0',
+    backgroundColor: uiPalette.line,
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
     marginBottom: responsiveSpacing.xs,
   },
   progressBarDark: {
-    backgroundColor: '#475569',
+    backgroundColor: uiPalette.lightSecondary,
   },
   progressFill: {
     height: '100%',
@@ -446,11 +447,11 @@ const styles = StyleSheet.create({
   },
   progressPercentage: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textAlign: 'right',
   },
   progressPercentageDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   depthScoreSection: {
     marginBottom: responsiveSpacing.md,
@@ -463,10 +464,10 @@ const styles = StyleSheet.create({
   },
   depthScoreLabel: {
     fontSize: fontScale(14),
-    color: '#334155',
+    color: uiPalette.slate,
   },
   depthScoreLabelDark: {
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
   },
   depthScoreValue: {
     fontSize: fontScale(16),
@@ -495,11 +496,11 @@ const styles = StyleSheet.create({
   },
   categoriesLabel: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginBottom: responsiveSpacing.xs,
   },
   categoriesLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   categoriesRow: {
     flexDirection: 'row',
@@ -511,18 +512,18 @@ const styles = StyleSheet.create({
   categoryValue: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   categoryValueDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   categoryLabel: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     marginTop: responsiveSpacing.xs / 2,
   },
   categoryLabelDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   modalOverlay: {
     flex: 1,
@@ -532,7 +533,7 @@ const styles = StyleSheet.create({
     padding: responsivePadding.horizontal,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: uiPalette.white,
     borderRadius: responsiveBorderRadius.lg,
     width: '100%',
     maxWidth: scale(400),
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
   },
   modalContentDark: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -551,10 +552,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   modalTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   modalCloseButton: {
     padding: responsiveSpacing.xs,
@@ -571,19 +572,19 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   modalSectionTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   systemCard: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: uiPalette.lightSurface,
     borderRadius: responsiveBorderRadius.md,
     padding: responsiveSpacing.md,
     marginBottom: responsiveSpacing.sm,
   },
   systemCardDark: {
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
   },
   systemCardHeader: {
     flexDirection: 'row',
@@ -594,11 +595,11 @@ const styles = StyleSheet.create({
   systemName: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1E293B',
+    color: uiPalette.surface,
     flex: 1,
   },
   systemNameDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   systemBadges: {
     flexDirection: 'row',
@@ -615,16 +616,16 @@ const styles = StyleSheet.create({
   masteryText: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   systemCategory: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     textTransform: 'capitalize',
     marginBottom: responsiveSpacing.xs / 2,
   },
   systemCategoryDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   systemFooter: {
     flexDirection: 'row',
@@ -640,26 +641,26 @@ const styles = StyleSheet.create({
   systemGoText: {
     fontSize: fontScale(12),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: uiPalette.blue,
   },
   systemStats: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   systemStatsDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   lockedSystemCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: uiPalette.paper,
     borderRadius: responsiveBorderRadius.md,
     padding: responsiveSpacing.md,
     marginBottom: responsiveSpacing.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: uiPalette.line,
   },
   lockedSystemCardDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
+    backgroundColor: uiPalette.slate,
+    borderColor: uiPalette.lightSecondary,
   },
   lockedSystemHeader: {
     flexDirection: 'row',
@@ -670,32 +671,32 @@ const styles = StyleSheet.create({
   lockedSystemName: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   lockedSystemNameDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   requirementsList: {
     marginTop: responsiveSpacing.xs,
   },
   requirementText: {
     fontSize: fontScale(11),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     lineHeight: fontScale(16),
     marginBottom: responsiveSpacing.xs / 2,
   },
   requirementTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   emptyStateText: {
     fontSize: fontScale(12),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: responsiveSpacing.md,
   },
   emptyStateTextDark: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
 });
 

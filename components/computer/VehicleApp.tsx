@@ -1,3 +1,6 @@
+import CatalogArt from '@/components/ui/CatalogArt';
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * VehicleApp - desktop vehicle screen. Car-marketplace DNA.
  *
@@ -25,7 +28,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
   Car, ShoppingBag, Shield, Fuel, Wrench, AlertCircle, IdCard,
   ChevronRight, Gauge, Zap, Star,
@@ -35,7 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Vehicle } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -58,7 +61,6 @@ import {
   VEHICLE_TEMPLATES,
   INSURANCE_PLANS,
   DRIVERS_LICENSE,
-  getVehicleTemplate,
   calculateVehicleSellPrice,
   calculateRepairCost,
   calculateRepairCostAfterInsurance,
@@ -300,7 +302,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           cash >= DRIVERS_LICENSE.cost && getPlatformShadows(5, 0.3, 2, 8),
         ]}
       >
-        <Text style={[styles.btnText, { color: cash >= DRIVERS_LICENSE.cost ? '#FFFFFF' : theme.textMuted }]}>
+        <Text style={[styles.btnText, { color: cash >= DRIVERS_LICENSE.cost ? uiPalette.white : theme.textMuted }]}>
           Pay ${DRIVERS_LICENSE.cost}
         </Text>
       </TouchableOpacity>
@@ -329,7 +331,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <Text style={[styles.licenseTitle, { color: theme.text }]}>Train for your pilot&apos;s license</Text>
           <Text style={[styles.licenseSub, { color: theme.textMuted }]}>
             {oldEnough
-              ? `Costs $${PILOT_LICENSE.cost.toLocaleString()} · Required to own any aircraft.`
+              ? `Costs ${formatMoney(PILOT_LICENSE.cost)} · Required to own any aircraft.`
               : `Available from age ${PILOT_LICENSE.minAge}.`}
           </Text>
         </View>
@@ -348,7 +350,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             enabled && getPlatformShadows(5, 0.3, 2, 8),
           ]}
         >
-          <Text style={[styles.btnText, { color: enabled ? '#FFFFFF' : theme.textMuted }]}>
+          <Text style={[styles.btnText, { color: enabled ? uiPalette.white : theme.textMuted }]}>
             ${PILOT_LICENSE.cost.toLocaleString()}
           </Text>
         </TouchableOpacity>
@@ -358,14 +360,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
   // --- Vehicle art (require() image from the template, keyed by id) --------
   const renderArt = (v: Vehicle, height: number, radius: number) => {
-    const image = getVehicleTemplate(v.id)?.image;
+
     return (
       <View style={[styles.artStage, { height: scale(height), backgroundColor: theme.surfaceElevated, borderRadius: radius }]}>
-        {image ? (
-          <Image source={image} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-        ) : (
-          <Car size={scale(48)} color={theme.textMuted} />
-        )}
+        <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
       </View>
     );
   };
@@ -485,7 +483,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   const renderFleetCard = (v: Vehicle) => {
     const cond = v.condition ?? 100;
     const isActive = v.id === activeVehicleId;
-    const image = getVehicleTemplate(v.id)?.image;
+
     return (
       <View
         key={v.id}
@@ -503,11 +501,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           style={styles.fleetHeader}
         >
           <View style={[styles.thumbStage, { backgroundColor: theme.surfaceElevated }]}>
-            {image ? (
-              <Image source={image} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-            ) : (
-              <Car size={scale(22)} color={theme.textMuted} />
-            )}
+            <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.fleetNameRow}>
@@ -759,7 +753,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 <DetailRow label="Plan" value={ins.type} theme={theme} capitalize />
                 <DetailRow label="Coverage" value={`${ins.coveragePercent}%`} theme={theme} />
                 <DetailRow label="Monthly cost" value={formatMoney(ins.monthlyCost ?? 0)} theme={theme} />
-                <DetailRow label="Expires" value={`Week ${ins.expiresWeek} · ${insWeeksLeft} wk left`} theme={theme} />
+                <DetailRow label="Expires" value={`${formatLifeWeek(ins.expiresWeek, gameState.lifeStartWeek)} · ${insWeeksLeft} wk left`} theme={theme} />
               </>
             ) : (
               <DetailRow label="Status" value="No active insurance" theme={theme} valueColor={accent.danger} />
@@ -843,11 +837,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 ]}
               >
                 <View style={[styles.dealerArtStage, { backgroundColor: theme.surfaceElevated }]}>
-                  {t.image ? (
-                    <Image source={t.image} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-                  ) : (
-                    <Car size={scale(40)} color={theme.textMuted} />
-                  )}
+                  <CatalogArt family="vehicles" id={t.id} style={{ width: '100%', height: '100%' }} />
                   <View style={[styles.dealerTypeBadge, { backgroundColor: withAlpha(accent.amber, 0.14), borderColor: withAlpha(accent.amber, 0.3) }]}>
                     <Text style={[styles.dealerTypeText, { color: accent.amber }]}>{t.type}</Text>
                   </View>
@@ -976,7 +966,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         title={headerTitle}
         onBack={() => (inDetail ? setDetailVehicleId(null) : onBack())}
         backLabel={inDetail ? 'Back to garage' : 'Back'}
-        right={<CashChip value={formatMoney(cash)} tint={accent.amber} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       {!inDetail && (

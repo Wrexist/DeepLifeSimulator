@@ -1,3 +1,4 @@
+import { businessState } from '../helpers/businessFixture';
 /**
  * R4-X5 / R4-X8 — four more gate-then-grant sites that charged twice for one
  * purchase.
@@ -153,6 +154,7 @@ describe('R4-X8 - an acquisition closes once per tap-burst', () => {
     return createTestGameState({
       stats: { ...base.stats, money, reputation: 10 },
       weeksLived: 40,
+      companies: [{ ...businessState().companies![0], id: COMPANY_ID }],
       hustleApp: {
         companies: {
           [COMPANY_ID]: {

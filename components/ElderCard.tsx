@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ElderCard - the late-game "Retirement / Elder" surface on the home feed.
  *
@@ -156,13 +157,13 @@ function ElderCard() {
       {!view.retired && view.eligibility.canRetire ? (
         <>
           <View style={styles.pensionRow}>
-            <Landmark size={scale(14)} color="#94A3B8" />
+            <Landmark size={scale(14)} color={uiPalette.muted} />
             <Text style={styles.pensionText}>
               Projected pension <Text style={styles.pensionAmount}>{formatMoney(view.projectedPension)}/wk</Text>
             </Text>
           </View>
           <TouchableOpacity style={styles.retireBtn} onPress={doRetire} activeOpacity={0.85}>
-            <Armchair size={scale(15)} color="#0F172A" />
+            <Armchair size={scale(15)} color={uiPalette.navy} />
             <Text style={styles.retireText}>Retire now</Text>
           </TouchableOpacity>
         </>
@@ -216,7 +217,7 @@ function ElderCard() {
                     ) : (
                       <Text style={styles.freeChip}>Free</Text>
                     )}
-                    {s.onCooldown ? <Clock size={scale(12)} color="#94A3B8" /> : null}
+                    {s.onCooldown ? <Clock size={scale(12)} color={uiPalette.muted} /> : null}
                   </View>
                 </TouchableOpacity>
               );
@@ -246,7 +247,7 @@ function ElderCard() {
           </View>
         </View>
         <View style={styles.legacyFamilyRow}>
-          <Users size={scale(12)} color="#94A3B8" />
+          <Users size={scale(12)} color={uiPalette.muted} />
           <Text style={styles.legacyFamilyText} numberOfLines={1}>
             {legacy.spouseName ? `Married to ${legacy.spouseName}` : 'Single'}
             {' · '}
@@ -272,11 +273,11 @@ const styles = StyleSheet.create({
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   kicker: { fontSize: fontScale(9.5), fontWeight: '800', color: '#FACC15', letterSpacing: 0.6 },
-  title: { fontSize: fontScale(15.5), fontWeight: '800', color: '#F8FAFC', marginTop: scale(1) },
-  sub: { fontSize: fontScale(11.5), color: '#94A3B8', marginTop: scale(2) },
+  title: { fontSize: fontScale(15.5), fontWeight: '800', color: uiPalette.paper, marginTop: scale(1) },
+  sub: { fontSize: fontScale(11.5), color: uiPalette.muted, marginTop: scale(2) },
 
   pensionRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-  pensionText: { fontSize: fontScale(12.5), color: '#E2E8F0', fontWeight: '600' },
+  pensionText: { fontSize: fontScale(12.5), color: uiPalette.line, fontWeight: '600' },
   pensionAmount: { color: '#FACC15', fontWeight: '800' },
   retireBtn: {
     flexDirection: 'row',
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     backgroundColor: '#FBBF24',
   },
-  retireText: { fontSize: fontScale(13.5), fontWeight: '800', color: '#0F172A' },
+  retireText: { fontSize: fontScale(13.5), fontWeight: '800', color: uiPalette.navy },
 
   pensionCard: {
     flexDirection: 'row',
@@ -299,12 +300,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(52, 211, 153, 0.35)',
   },
-  pensionCardLabel: { fontSize: fontScale(10.5), color: '#94A3B8', fontWeight: '600' },
+  pensionCardLabel: { fontSize: fontScale(10.5), color: uiPalette.muted, fontWeight: '600' },
   pensionCardValue: { fontSize: fontScale(15), color: '#34D399', fontWeight: '800', marginTop: scale(1) },
-  pensionCardNote: { fontSize: fontScale(10), color: '#94A3B8', fontStyle: 'italic' },
+  pensionCardNote: { fontSize: fontScale(10), color: uiPalette.muted, fontStyle: 'italic' },
 
   section: { gap: scale(8) },
-  sectionTitle: { fontSize: fontScale(12), fontWeight: '700', color: '#CBD5E1' },
+  sectionTitle: { fontSize: fontScale(12), fontWeight: '700', color: uiPalette.secondary },
   legacyHead: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
 
   activityList: { gap: scale(8) },
@@ -319,8 +320,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148, 163, 184, 0.12)',
   },
   activityEmoji: { fontSize: fontScale(17) },
-  activityLabel: { fontSize: fontScale(13), fontWeight: '700', color: '#E2E8F0' },
-  activityDesc: { fontSize: fontScale(10.5), color: '#94A3B8', marginTop: scale(1) },
+  activityLabel: { fontSize: fontScale(13), fontWeight: '700', color: uiPalette.line },
+  activityDesc: { fontSize: fontScale(10.5), color: uiPalette.muted, marginTop: scale(1) },
   activityMeta: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
   costChip: { fontSize: fontScale(11), fontWeight: '800', color: '#FACC15' },
   costChipBad: { color: '#F87171' },
@@ -337,10 +338,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
   },
-  legacyStatValue: { fontSize: fontScale(12.5), fontWeight: '800', color: '#F8FAFC' },
-  legacyStatLabel: { fontSize: fontScale(9.5), color: '#94A3B8', marginTop: scale(2), textAlign: 'center' },
+  legacyStatValue: { fontSize: fontScale(12.5), fontWeight: '800', color: uiPalette.paper },
+  legacyStatLabel: { fontSize: fontScale(9.5), color: uiPalette.muted, marginTop: scale(2), textAlign: 'center' },
   legacyFamilyRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-  legacyFamilyText: { flex: 1, fontSize: fontScale(11), color: '#CBD5E1', fontWeight: '600' },
+  legacyFamilyText: { flex: 1, fontSize: fontScale(11), color: uiPalette.secondary, fontWeight: '600' },
 });
 
 export default React.memo(ElderCard);

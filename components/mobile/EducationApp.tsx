@@ -1,3 +1,7 @@
+import { gameAlert } from '@/utils/gameAlert';
+import { formatStudyDuration } from '@/utils/educationFormatting';
+import SceneCard from '@/components/ui/SceneCard';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * EducationApp - mobile education screen.
  *
@@ -34,7 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Education, GameState, Loan } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
@@ -159,16 +163,6 @@ const BAND_COLOR: Record<GpaBand, string> = {
 // Pure display helpers
 // ---------------------------------------------------------------------------
 
-/** Friendly programme length: weeks under a year, otherwise years. */
-function formatDuration(weeks: number): string {
-  if (!isFinite(weeks) || weeks <= 0) return '0w';
-  if (weeks >= 52) {
-    const yrs = weeks / 52;
-    return `${Number.isInteger(yrs) ? yrs : yrs.toFixed(1)}yr`;
-  }
-  return `${Math.round(weeks)}w`;
-}
-
 interface GradeInfo {
   gpa: number;
   band: GpaBand;
@@ -212,12 +206,15 @@ function computeStudyState(gameState: GameState, ed: Education): StudyState {
   const sessionsThisWeek = gameState.weeklyStudySessions?.[ed.id] ?? 0;
   const capReached = sessionsThisWeek >= 3;
   const lowEnergy = (gameState.stats?.energy ?? 0) < 15;
-  const disabled = !!ed.paused || capReached || lowEnergy;
-  const label = capReached
+  const readyToGraduate = (ed.weeksRemaining ?? ed.duration) <= 0;
+  const disabled = !!ed.paused || readyToGraduate || capReached || lowEnergy;
+  const label = readyToGraduate ? 'Next week: graduate'
+    : ed.paused ? 'Resume to study'
+    : capReached
     ? 'Studied 3/3 this week'
     : lowEnergy
       ? 'Too tired (−15 energy)'
-      : `Study ${sessionsThisWeek}/3 (−15 energy)`;
+      : `Study ${sessionsThisWeek}/3 (−15 energy, −5 happiness)`;
   return { sessionsThisWeek, capReached, lowEnergy, disabled, label };
 }
 
@@ -304,9 +301,14 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   }, [setGameState, queueSave]);
 
   const handleWithdraw = useCallback((id: string) => {
-    withdrawFromProgram(setGameState, id);
-    queueSave();
-    setSelectedId((cur) => (cur === id ? null : cur));
+    gameAlert('Withdraw from program?', 'Course progress will be lost and tuition is not refunded. Any student loan remains payable. You can pause instead to keep your progress.', [
+      { text: 'Keep studying', style: 'cancel' },
+      { text: 'Withdraw', style: 'destructive', onPress: () => {
+        withdrawFromProgram(setGameState, id);
+        queueSave();
+        setSelectedId((cur) => (cur === id ? null : cur));
+      } },
+    ]);
   }, [setGameState, queueSave]);
 
   const handleToggleStudyGroup = useCallback((id: string) => {
@@ -345,6 +347,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
+      <SceneCard scene="university" title="Back to class" subtitle="Compare tuition and entry requirements." />
       {/* This tab's mandatory colourful element (the event banner) is its colour
           moment, so it carries NO Recipe B hero. */}
       <EconomyEventBanner context="generic" />
@@ -496,7 +499,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         title={headerTitle}
         onBack={goBack}
         backLabel={inDetail ? 'Back to courses' : 'Back'}
-        right={<CashChip value={formatMoney(cash)} tint={EDU} />}
+        right={<CashChip value={formatMoney(cash)} />}
       />
 
       {inDetail && selectedCourse ? (
@@ -714,7 +717,7 @@ function CourseCard({ ed, theme, darkMode, study, onOpen, onStudy }: {
                 because that changes what the Study button will do. */}
             <View style={styles.chipRow}>
               <Chip label={`${grade.letter} ${grade.gpa.toFixed(2)}`} tint={grade.color} />
-              <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${weeksLeft}w left`} tint={EDU} />
+              <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${formatStudyDuration(weeksLeft)} left`} tint={EDU} />
               {ed.paused ? (
                 <Chip icon={<Pause size={scale(11)} color={accent.warning} />} label="Paused" tint={accent.warning} />
               ) : (
@@ -784,7 +787,7 @@ function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
               label={entry.cost === 0 ? 'Free' : formatMoney(entry.cost)}
               tint={entry.cost === 0 ? accent.success : EDU}
             />
-            <Chip icon={<Clock size={scale(11)} color={theme.textMuted} />} label={formatDuration(entry.duration)} />
+            <Chip icon={<Clock size={scale(11)} color={theme.textMuted} />} label={formatStudyDuration(entry.duration)} />
           </View>
         </View>
         <View
@@ -912,7 +915,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
               </View>
             ) : (
               <View style={styles.chipRow}>
-                <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${weeksLeft}w left`} tint={EDU} />
+                <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${formatStudyDuration(weeksLeft)} left`} tint={EDU} />
                 <Chip icon={<CalendarDays size={scale(11)} color={theme.textMuted} />} label={`Sem ${ed.semesterNumber ?? 1}`} />
               </View>
             )}
@@ -923,7 +926,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
       {/* Stat grid - surfaces record fields the list rows can't fit. */}
       <View style={styles.detailGrid}>
         <DetailCard theme={theme} darkMode={darkMode}>
-          <StatTile align="left" tint={EDU} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${weeksLeft}w of ${ed.duration}w`} />
+          <StatTile align="left" tint={EDU} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${formatStudyDuration(weeksLeft)} left of ${formatStudyDuration(ed.duration)}`} />
         </DetailCard>
         <DetailCard theme={theme} darkMode={darkMode}>
           <StatTile align="left" tint={grade.color} label="GPA" value={grade.noRecord ? '-' : grade.gpa.toFixed(2)} sub={grade.noRecord ? 'no grade on file' : `${grade.letter} · ${grade.label}`} />
@@ -1052,8 +1055,8 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
                 itself, which is decoration on a button that is already one
                 colour. */}
             <View style={styles.primaryCta}>
-              <Zap size={scale(16)} color={study.disabled ? theme.textMuted : '#FFFFFF'} />
-              <Text style={[styles.primaryCtaText, { color: study.disabled ? theme.textMuted : '#FFFFFF' }]} numberOfLines={1}>
+              <Zap size={scale(16)} color={study.disabled ? theme.textMuted : uiPalette.white} />
+              <Text style={[styles.primaryCtaText, { color: study.disabled ? theme.textMuted : uiPalette.white }]} numberOfLines={1}>
                 {study.label}
               </Text>
             </View>

@@ -1,0 +1,50 @@
+[
+  {
+    "app": "Bank",
+    "width": 375,
+    "accounts": {
+      "x": 16,
+      "y": 194,
+      "width": 287.3125,
+      "height": 20
+    },
+    "errors": [],
+    "text": "Tyler Nguyen\nAge 20 | Unemployed | Single\n$1 500\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nBank\n650\nNET WORTH\n$1 500\nAssets & debts\nAccounts\n2 accounts · tap for details\nOpen\nCHECKING\nEveryday Checking\n$0\nOpened wk 0 · 104w old\nPrimary account · read-only\nSAVINGS\nSavings\n$0\n2.00% APR\nOpened wk 0 · 104w old\nDeposit\nWithdraw\nWatch ad → cash bonus\n+$2 000 to your wallet · once a week\nIncome & tax\nView full credit report\nLoans\nNone\nCredit Cards\nNone\nSavings Goals\nNone\nAuto-Pay\nNone"
+  },
+  {
+    "app": "Bank Pro",
+    "width": 375,
+    "accounts": {
+      "x": 16,
+      "y": 244,
+      "width": 287.3125,
+      "height": 20
+    },
+    "errors": [],
+    "text": "Tyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nBank Pro\n650\nOverview\nAccounts\nBorrow\nBudget\nTax\nNET WORTH\n$996.5K\nAssets & debts\nAccounts\n2 open · $0 on deposit\nOpen\nACCOUNT\nBALANCE\nEveryday Checking\nChecking\n$0\nSavings\nSavings · 2.00% APR\n$0\nManage accounts & goals\nIncome & activity\nWeekly income\n$0/wk\nInterest earned\n+$0\nInterest paid\n-$0\nLate fees paid\n-$0\nCredit standing\nCredit Score\n650\nFair\n300\n850\nView full credit report"
+  },
+  {
+    "app": "Bank",
+    "width": 768,
+    "accounts": {
+      "x": 19,
+      "y": 230,
+      "width": 665.84375,
+      "height": 24
+    },
+    "errors": [],
+    "text": "Tyler Nguyen\nAge 20 | Unemployed | Single\n$1 500\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nBank\n650\nNET WORTH\n$1 500\nAssets & debts\nAccounts\n2 accounts · tap for details\nOpen\nCHECKING\nEveryday Checking\n$0\nOpened wk 0 · 104w old\nPrimary account · read-only\nSAVINGS\nSavings\n$0\n2.00% APR\nOpened wk 0 · 104w old\nDeposit\nWithdraw\nWatch ad → cash bonus\n+$2 000 to your wallet · once a week\nIncome & tax\nView full credit report\nLoans\nNone\nCredit Cards\nNone\nSavings Goals\nNone\nAuto-Pay\nNone"
+  },
+  {
+    "app": "Bank Pro",
+    "width": 768,
+    "accounts": {
+      "x": 19,
+      "y": 290,
+      "width": 665.84375,
+      "height": 24
+    },
+    "errors": [],
+    "text": "Tyler Nguyen\nAge 20 | Unemployed | Single\n$996.5K\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nBank Pro\n650\nOverview\nAccounts\nBorrow\nBudget\nTax\nNET WORTH\n$996.5K\nAssets & debts\nAccounts\n2 open · $0 on deposit\nOpen\nACCOUNT\nBALANCE\nEveryday Checking\nChecking\n$0\nSavings\nSavings · 2.00% APR\n$0\nManage accounts & goals\nIncome & activity\nWeekly income\n$0/wk\nInterest earned\n+$0\nInterest paid\n-$0\nLate fees paid\n-$0\nCredit standing\nCredit Score\n650\nFair\n300\n850\nView full credit report"
+  }
+]

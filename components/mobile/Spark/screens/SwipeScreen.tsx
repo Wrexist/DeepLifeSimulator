@@ -1,3 +1,4 @@
+import { uiPalette , withAlpha } from '@/lib/config/theme';
 /**
  * SwipeScreen - main browse surface for Spark.
  *
@@ -27,7 +28,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useToast } from '@/contexts/ToastContext';
-import { withAlpha } from '@/lib/config/theme';
+
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
@@ -434,7 +435,7 @@ function ActionBtn({
       end={{ x: 1, y: 1 }}
       style={[styles.btnFill, getPlatformShadows(5, 0.3, 2, 8), { width: size, height: size, borderRadius: size / 2 }]}
     >
-      <Icon size={fontScale(size * 0.4)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />
+      <Icon size={fontScale(size * 0.4)} color={uiPalette.white} strokeWidth={2.4} fill={uiPalette.white} />
     </LinearGradient>
   ) : (
     <View

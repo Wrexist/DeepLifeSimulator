@@ -3,7 +3,7 @@
   "repository": "Wrexist/DeepLifeSimulator",
   "baseline": "1e8c0fdfccbe59a37b0634b77d0be79a526cd108",
   "release": {
-    "binaryVersion": "2.13.0",
+    "binaryVersion": "2.15.0",
     "stateVersion": 51,
     "storeVersion": "next record unverified",
     "liveStoreVersion": "1.5.5"

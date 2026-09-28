@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ScenarioChallengeCard - the run the player signed up for, finally visible.
  *
@@ -75,7 +76,7 @@ function ScenarioChallengeCard() {
         {view.rows.map((row) => (
           <View key={row.description} style={styles.row}>
             <View style={[styles.checkBubble, row.met && styles.checkBubbleDone]}>
-              {row.met ? <Check size={scale(12)} color="#0F172A" /> : null}
+              {row.met ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, row.met && styles.rowTitleDone]} numberOfLines={2}>
@@ -123,8 +124,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   difficultyText: { fontSize: fontScale(8.5), fontWeight: '800', letterSpacing: 0.4 },
-  title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
-  sub: { color: '#94A3B8', fontSize: fontScale(11), marginTop: scale(1) },
+  title: { color: uiPalette.paper, fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
+  sub: { color: uiPalette.muted, fontSize: fontScale(11), marginTop: scale(1) },
   doneBadge: {
     width: scale(30),
     height: scale(30),
@@ -158,8 +159,8 @@ const styles = StyleSheet.create({
     marginTop: scale(1),
   },
   checkBubbleDone: { backgroundColor: '#34D399', borderColor: '#34D399' },
-  rowTitle: { color: '#E2E8F0', fontSize: fontScale(12.5), fontWeight: '600' },
-  rowTitleDone: { color: '#94A3B8', textDecorationLine: 'line-through' },
+  rowTitle: { color: uiPalette.line, fontSize: fontScale(12.5), fontWeight: '600' },
+  rowTitleDone: { color: uiPalette.muted, textDecorationLine: 'line-through' },
   barBg: {
     height: scale(4),
     borderRadius: scale(2),
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#38BDF8' },
-  footerText: { color: '#94A3B8', fontSize: fontScale(11) },
+  footerText: { color: uiPalette.muted, fontSize: fontScale(11) },
 });
 
 export default React.memo(ScenarioChallengeCard);

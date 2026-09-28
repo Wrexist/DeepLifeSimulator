@@ -55,15 +55,15 @@ export const tier2: TextStyle = {
 /** Tier 3 - secondary content: body copy, list rows. Regular weight so that
  *  bold means something again. */
 export const tier3: TextStyle = {
-  fontSize: fontScale(13),
-  lineHeight: fontScale(18),
+  fontSize: fontScale(14),
+  lineHeight: fontScale(20),
   fontWeight: '400',
 };
 
 /** Tier 4 - metadata: captions, fractions, timestamps. Always muted colour. */
 export const tier4: TextStyle = {
-  fontSize: fontScale(11),
-  lineHeight: fontScale(15),
+  fontSize: fontScale(12),
+  lineHeight: fontScale(16),
   fontWeight: '500',
 };
 
@@ -131,3 +131,16 @@ export function vitalState(value: number | undefined | null): VitalState {
   if (v < GOOD_VITAL) return { level: 'fair', color: undefined, word: 'Fair' };
   return { level: 'good', color: undefined, word: 'Good' };
 }
+
+/** Semantic names for the existing, device-scaled hierarchy. */
+export const textStyles = {
+  display: { fontSize: fontScale(32), lineHeight: fontScale(40), fontWeight: '700' } as TextStyle,
+  h1: tier1Title,
+  h2: { ...tier2, fontSize: fontScale(18), lineHeight: fontScale(24) } as TextStyle,
+  h3: tier2,
+  body: tier3,
+  bodyStrong: { ...tier3, fontWeight: '600' } as TextStyle,
+  caption: tier4,
+  micro: kicker,
+  numericLarge: tier1Value,
+};

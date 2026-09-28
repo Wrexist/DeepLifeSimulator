@@ -1,0 +1,21 @@
+node : PASS lib/statistics/__tests__/milestones.test.ts (18.812 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand lib/statistics/__tests ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS lib/statis...t.ts (18.812 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  buildMilestones
+    √ returns empty list for fresh state (4 ms)
+    √ triggers first-million when peak net worth >= 1M (2 ms)
+    √ also triggers first-ten-million at $10M+ (17 ms)
+    √ reports creator subscriber tiers (1 ms)
+    √ counts dark-web jobs (1 ms)
+    √ orders weeked milestones chronologically before unweeked
+
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        19.311 s
+Ran all test suites matching /lib\\statistics\\__tests__\\milestones.test.ts/i.
+EXIT_STATUS=0

@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 /**
  * StocksApp - mobile stock trading, Apple Stocks DNA.
  *
@@ -32,7 +33,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -56,6 +57,7 @@ import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import StatStrip from '@/components/ui/StatStrip';
 import SectionTitle from '@/components/ui/SectionTitle';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 
 const LinearGradient = Gradient;
 
@@ -273,8 +275,13 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         ]}
       />
 
-      <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle title="Sector rotation" />
+      <CollapsibleSection
+        id="stocks.sectorRotation"
+        title="Sector rotation"
+        defaultCollapsed
+        summary={sectorFilter ? SECTOR_LABEL[sectorFilter] : `${sectorBoard.length} sectors`}
+        style={{ marginBottom: 0 }}
+      >
         <View style={styles.sectorGrid}>
           {sectorBoard.map((b) => (
             <SectorTile
@@ -287,7 +294,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
             />
           ))}
         </View>
-      </View>
+      </CollapsibleSection>
 
       <View style={{ gap: responsiveSpacing.sm }}>
         <View style={styles.listHeader}>
@@ -323,6 +330,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
             );
           })}
         </View>
+
+        <Text style={[styles.sortChipText, { color: theme.textMuted }]}>Illustrative trends · quotes update weekly</Text>
 
         {visibleMarket.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>
@@ -596,7 +605,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const estAnnual = estQuarterly * 4;
     const up = (changePct ?? 0) > 0;
     const down = (changePct ?? 0) < 0;
-    const sparkColor = up ? accent.success : down ? accent.danger : theme.textMuted;
+    const sparkColor = up ? accent.success : down ? accent.danger : accent.info;
     const momentum = state === 'strong' ? 'Sector strong' : state === 'weak' ? 'Sector weak' : 'Sector neutral';
     const watched = isWatched(symbol);
 
@@ -632,7 +641,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
           title={symbol}
           onBack={() => setDetailSymbol(null)}
           backLabel="Back to stocks"
-          right={<CashChip value={formatMoney(cash)} tint={accent.purple} />}
+          right={<CashChip value={formatMoney(cash)} />}
         />
 
         <ScrollView
@@ -653,7 +662,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
                 this week{prevClose != null ? ` · prev ${formatPrice(prevClose)}` : ''}
               </Text>
             </View>
-            <Sparkline changePct={changePct} color={sparkColor} width={responsiveWidth(64)} height={scale(56)} strokeWidth={2.5} />
+            <Sparkline symbol={symbol} changePct={changePct} color={sparkColor} width={responsiveWidth(64)} height={scale(56)} strokeWidth={2.5} />
+            <Text style={[styles.heroChipLabel, { color: theme.textMuted }]}>Illustrative trend · not price history</Text>
           </HeroCard>
 
           {owned && (
@@ -712,7 +722,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
         renderDetail()
       ) : (
         <>
-          <AppHeader title="Stocks" onBack={onBack} right={<CashChip value={formatMoney(cash)} tint={accent.purple} />} />
+          <AppHeader title="Stocks" onBack={onBack} right={<CashChip value={formatMoney(cash)} />} />
 
           <SegmentedControl
             segments={TABS.map((t) => ({ key: t.id, label: t.label, icon: t.icon }))}
@@ -737,6 +747,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
       <StockTradeModal
         visible={!!tradeTarget}
         symbol={tradeTarget?.symbol ?? null}
+        reservedCash={(stocks?.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'buy').reduce((sum, o) => sum + o.amount * 1.02, 0)}
+        reservedUnits={(stocks?.openOrders ?? []).filter(o => o.status === 'open' && o.side === 'sell' && o.symbol.toUpperCase() === tradeTarget?.symbol.toUpperCase()).reduce((sum, o) => sum + o.amount, 0)}
         midPrice={tradeTarget?.price ?? 0}
         cash={cash}
         ownedShares={tradeTarget ? holdings.find((h) => h.symbol.toUpperCase() === tradeTarget.symbol.toUpperCase())?.shares ?? 0 : 0}
@@ -933,13 +945,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(3),
     paddingHorizontal: responsiveSpacing.sm,
-    minHeight: touchTargets.minimum,
+    minHeight: Math.max(44, touchTargets.minimum),
     borderRadius: responsiveBorderRadius.full,
     backgroundColor: 'rgba(168,85,247,0.14)',
   },
   clearChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   sortRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
-  sortChip: { flex: 1, minHeight: touchTargets.minimum, alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
+  sortChip: { flex: 1, minHeight: Math.max(44, touchTargets.minimum), alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
   sortChipText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Sector board
@@ -1051,4 +1063,4 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
-  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },});
+  tradeCtaText: { color: uiPalette.white, fontSize: responsiveFontSize.md, fontWeight: '600' },});

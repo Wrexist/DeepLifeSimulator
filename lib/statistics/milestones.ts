@@ -1,3 +1,4 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 /**
  * Milestones — derive notable life events from raw state.
  *
@@ -32,7 +33,7 @@ export function buildMilestones(state: GameState): Milestone[] {
     out.push({
       id: 'first-million',
       label: 'First $1M net worth',
-      context: stats?.peakNetWorthWeek ? `Week ${stats.peakNetWorthWeek}` : undefined,
+      context: stats?.peakNetWorthWeek ? formatLifeWeek(stats.peakNetWorthWeek, state.lifeStartWeek) : undefined,
       category: 'wealth',
       week: stats?.peakNetWorthWeek,
     });
@@ -41,7 +42,7 @@ export function buildMilestones(state: GameState): Milestone[] {
     out.push({
       id: 'first-ten-million',
       label: 'First $10M net worth',
-      context: stats?.peakNetWorthWeek ? `Week ${stats.peakNetWorthWeek}` : undefined,
+      context: stats?.peakNetWorthWeek ? formatLifeWeek(stats.peakNetWorthWeek, state.lifeStartWeek) : undefined,
       category: 'wealth',
       week: stats?.peakNetWorthWeek,
     });

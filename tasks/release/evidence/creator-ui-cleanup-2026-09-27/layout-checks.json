@@ -1,0 +1,53 @@
+[
+  {
+    "width": 320,
+    "height": 667,
+    "uploadBox": {
+      "x": 22,
+      "y": 492,
+      "width": 276,
+      "height": 44
+    },
+    "liveBox": {
+      "x": 29,
+      "y": 354,
+      "width": 262,
+      "height": 45
+    },
+    "errors": []
+  },
+  {
+    "width": 375,
+    "height": 667,
+    "uploadBox": {
+      "x": 25,
+      "y": 537,
+      "width": 325,
+      "height": 44
+    },
+    "liveBox": {
+      "x": 33,
+      "y": 408,
+      "width": 309,
+      "height": 52
+    },
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "uploadBox": {
+      "x": 30,
+      "y": 616,
+      "width": 708,
+      "height": 53
+    },
+    "liveBox": {
+      "x": 39,
+      "y": 492,
+      "width": 690,
+      "height": 62
+    },
+    "errors": []
+  }
+]

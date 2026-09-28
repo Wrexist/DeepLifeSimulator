@@ -11,7 +11,7 @@ import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { GameState, BankAccountType, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '../types';
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
-import { applyMoneyDelta } from './MoneyActions';
+import { applyMoneyDelta, MONEY_CEILING } from './MoneyActions';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
@@ -195,6 +195,8 @@ export const withdrawCashFromAccount = (
       log.warn(`Withdraw rejected: ${accountId} mirrors cash and is read-only`);
       return prev;
     }
+    // Reject the whole transfer if cash cannot receive it; never burn the remainder.
+    if (amount > MONEY_CEILING - state.stats.money) return prev;
     const result = withdrawFromAccount(state.banking, accountId, amount, state.weeksLived);
     if (!result.ok) {
       log.warn(`Withdraw failed: ${result.reason}`);
@@ -352,6 +354,7 @@ export const closeBankAccount = (
     }
     // Residual balance returns to cash through applyMoneyDelta (MONEY_CEILING +
     // isFinite guards), mirroring withdrawCashFromAccount.
+    if (result.residualBalance > MONEY_CEILING - state.stats.money) return prev;
     if (result.residualBalance > 0) {
       const credit = applyMoneyDelta(state, result.residualBalance, `Close account ${accountId}`);
       if (!credit) return prev;
@@ -484,6 +487,7 @@ export const redeemRewards = (
     }
     // Route the cash credit through applyMoneyDelta so it respects MONEY_CEILING and
     // the isFinite guard (a raw `money + redeemed` write could overflow to Infinity).
+    if (result.redeemed > MONEY_CEILING - state.stats.money) return prev;
     const credit = applyMoneyDelta(state, result.redeemed, `Card rewards redeem ${cardId}`);
     if (!credit) return prev;
     return {

@@ -1,3 +1,4 @@
+import { responsiveSpacing as layoutSpace , fontScale, responsiveSpacing, scale } from '@/utils/scaling';
 /**
  * SectionGroup - a labelled, foldable band in a long feed.
  *
@@ -26,7 +27,7 @@ import { Animated, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from '
 import { ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+
 import { animation } from '@/lib/config/theme';
 import { haptic } from '@/utils/haptics';
 import {
@@ -163,9 +164,9 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(10),
+    gap: layoutSpace.sm,
     marginBottom: responsiveSpacing.xs,
-    paddingHorizontal: scale(2),
+    paddingHorizontal: layoutSpace.xs,
   },
   labelRowTappable: {
     minHeight: scale(34),

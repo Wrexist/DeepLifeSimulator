@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * IPOModal - take a company public, or show post-IPO earnings.
  *
@@ -5,15 +6,15 @@
  * cash raised preview, confirm CTA.
  * For public companies: recent earnings reports + share price ticker.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { TrendingDown, TrendingUp } from 'lucide-react-native';
 import BaseModal from '@/components/ui/BaseModal';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { launchIPO } from '@/contexts/game/actions/HustleActions';
-import { computeIPOSharePrice } from '@/lib/business/hustleLogic';
+import { launchIPO, quoteIPO } from '@/contexts/game/actions/HustleActions';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
@@ -35,22 +36,34 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const isPublic = overlay?.ipo?.status === 'public';
 
-  const previewSharePrice = company && overlay && !isPublic
-    ? computeIPOSharePrice(company, overlay, 100)
-    : overlay?.ipo?.sharePrice ?? 0;
-  const previewCash = Math.floor(100 * 1000 * (floatPct / 100) * previewSharePrice);
-
-  const handleLaunch = useCallback(() => {
-    const r = launchIPO(setGameState, gameState, companyId, floatPct);
-    if (r.success) {
+  const quote = quoteIPO(gameState, companyId, floatPct);
+  const previewSharePrice = quote.sharePrice;
+  const previewCash = quote.cashRaised;
+  const busy = useRef(false);
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    if (!pending) return;
+    const ipo = gameState.hustleApp?.companies?.[companyId]?.ipo;
+    if (ipo?.status === 'public') {
       hustleHaptics.success();
-      saveGame?.();
-      setResultMsg(`Raised $${r.cashRaised.toLocaleString()} at $${r.sharePrice}/share - you kept ${r.ownershipKept}%`);
+      void saveGame?.();
+      const raised = Math.floor(Math.floor(ipo.sharesOutstandingK * 1000 * ((100 - ipo.ownershipPercent) / 100)) * ipo.sharePrice);
+      setResultMsg(`Raised $${raised.toLocaleString()} at $${ipo.sharePrice}/share - you kept ${ipo.ownershipPercent}%`);
     } else {
       hustleHaptics.error();
-      setResultMsg(r.message);
+      setResultMsg('IPO was not completed. Check revenue and resolve any active scandal before trying again.');
     }
-  }, [setGameState, gameState, companyId, floatPct, saveGame]);
+    busy.current = false;
+    setPending(false);
+  }, [pending, gameState, companyId, saveGame]);
+
+  const handleLaunch = useCallback(() => {
+    if (busy.current) return;
+    busy.current = true;
+    const r = launchIPO(setGameState, gameState, companyId, floatPct);
+    if (r.success) setPending(true);
+    else { busy.current = false; hustleHaptics.error(); setResultMsg(r.message); }
+  }, [setGameState, gameState, companyId, floatPct]);
 
   if (!visible || !company) return null;
 
@@ -73,7 +86,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                 <Text style={[styles.earningsLabel, { color: theme.textSecondary }]}>Recent earnings reports</Text>
                 {overlay.ipo.recentEarnings.length === 0 ? (
                   <Text style={[styles.earningsEmpty, { color: theme.textMuted }]}>
-                    No reports yet - first quarterly drops at week {(overlay.ipo.lastEarningsWeek ?? 0) + 12}
+                    First earnings report in {Math.max(0, (overlay.ipo.lastEarningsWeek ?? 0) + 12 - (gameState.weeksLived ?? 0))} weeks.
                   </Text>
                 ) : (
                   overlay.ipo.recentEarnings.map((e: any) => (
@@ -84,7 +97,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                         <TrendingDown size={fontScale(14)} color={HUSTLE_COLORS.danger} />
                       )}
                       <Text style={[styles.earningsText, { color: theme.text }]}>
-                        Week {e.week} · ${(e.revenue / 1000).toFixed(0)}K revenue · {e.beat ? 'Beat' : 'Missed'}
+                        Life week {weeksSinceLifeStart(e.week, gameState.lifeStartWeek)} · ${(e.revenue / 1000).toFixed(0)}K revenue · {e.beat ? 'Beat' : 'Missed'}
                       </Text>
                     </View>
                   ))
@@ -136,11 +149,14 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                 </View>
               </View>
 
+              {!quote.success ? <Text accessibilityRole="alert" style={[styles.resultMsg, { color: theme.textSecondary }]}>{quote.message}</Text> : null}
               <Pressable
+                disabled={!quote.success || pending}
+                accessibilityState={{ disabled: !quote.success || pending, busy: pending }}
                 onPress={handleLaunch}
                 accessibilityRole="button"
                 accessibilityLabel={`IPO ${company.name} with ${floatPct}% float`}
-                style={({ pressed }) => [styles.cta, { backgroundColor: HUSTLE_COLORS.accent, opacity: pressed ? 0.85 : 1 }]}
+                style={({ pressed }) => [styles.cta, { backgroundColor: HUSTLE_COLORS.accent, opacity: !quote.success || pending ? 0.5 : pressed ? 0.85 : 1 }]}
               >
                 <Text style={styles.ctaText}>Launch IPO</Text>
               </Pressable>
@@ -222,7 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '600',
   },

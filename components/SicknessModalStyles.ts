@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Styles for SicknessModal. Extracted verbatim to slim the component file.
  * Static module-level StyleSheet.
@@ -66,20 +67,20 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(24),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     letterSpacing: -0.5,
   },
   titleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   subtitle: {
     fontSize: fontScale(12),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginTop: scale(2),
     fontWeight: '500',
   },
   subtitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   closeButton: {
     width: scale(36),
@@ -125,11 +126,11 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     letterSpacing: -0.3,
   },
   sectionTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   effectsCard: {
     borderRadius: scale(16),
@@ -154,11 +155,11 @@ export const styles = StyleSheet.create({
   },
   effectLabel: {
     fontSize: fontScale(13),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontWeight: '500',
   },
   effectLabelDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   effectValue: {
     fontSize: fontScale(14),
@@ -196,11 +197,11 @@ export const styles = StyleSheet.create({
   diseaseName: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     flex: 1,
   },
   diseaseNameDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   severityBadge: {
     paddingHorizontal: scale(10),
@@ -208,7 +209,7 @@ export const styles = StyleSheet.create({
     borderRadius: scale(8),
   },
   severityText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(10),
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -228,19 +229,19 @@ export const styles = StyleSheet.create({
   descriptionTitle: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: scale(6),
   },
   descriptionTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   descriptionText: {
     fontSize: fontScale(13),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     lineHeight: fontScale(13) * 1.5,
   },
   descriptionTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   diseaseTimeline: {
     marginTop: scale(12),
@@ -257,19 +258,19 @@ export const styles = StyleSheet.create({
   timelineTitle: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginLeft: scale(6),
   },
   timelineTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   timelineText: {
     fontSize: fontScale(12),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginTop: scale(4),
   },
   timelineTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   deathCountdown: {
     marginTop: scale(12),
@@ -336,11 +337,11 @@ export const styles = StyleSheet.create({
   effectsTitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: scale(8),
   },
   effectsTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   effectsList: {
     gap: scale(6),
@@ -352,11 +353,11 @@ export const styles = StyleSheet.create({
   },
   diseaseEffectLabel: {
     fontSize: fontScale(12),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     flex: 1,
   },
   diseaseEffectLabelDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   diseaseEffectValue: {
     fontSize: fontScale(12),
@@ -398,7 +399,7 @@ export const styles = StyleSheet.create({
     height: scale(100),
   },
   treatmentButtonText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(15),
     fontWeight: '700',
     marginTop: scale(8),
@@ -406,7 +407,7 @@ export const styles = StyleSheet.create({
     width: '100%',
   },
   treatmentButtonPrice: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(12),
     fontWeight: '500',
     marginTop: scale(4),
@@ -431,19 +432,19 @@ export const styles = StyleSheet.create({
   historyStatValue: {
     fontSize: fontScale(24),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
   },
   historyStatValueDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyStatLabel: {
     fontSize: fontScale(11),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginTop: scale(4),
     fontWeight: '500',
   },
   historyStatLabelDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyList: {
     marginTop: scale(12),
@@ -451,11 +452,11 @@ export const styles = StyleSheet.create({
   historyListTitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: scale(8),
   },
   historyListTitleDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   historyItem: {
     marginBottom: scale(6),
@@ -463,11 +464,11 @@ export const styles = StyleSheet.create({
   },
   historyItemText: {
     fontSize: fontScale(11),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     lineHeight: fontScale(11) * 1.4,
   },
   historyItemTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   recommendationsCard: {
     borderRadius: scale(16),
@@ -477,12 +478,12 @@ export const styles = StyleSheet.create({
   },
   recommendationText: {
     fontSize: fontScale(13),
-    color: '#FFFFFF',
+    color: uiPalette.white,
     marginBottom: scale(8),
     lineHeight: fontScale(13) * 1.5,
   },
   recommendationTextDark: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   diseaseRecommendations: {
     marginBottom: scale(12),
@@ -490,11 +491,11 @@ export const styles = StyleSheet.create({
   diseaseRecommendationTitle: {
     fontSize: fontScale(14),
     fontWeight: '700',
-    color: '#1E293B',
+    color: uiPalette.surface,
     marginBottom: scale(6),
   },
   diseaseRecommendationTitleDark: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   urgentRecommendation: {
     color: '#DC2626',
@@ -514,7 +515,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(16),
     fontWeight: '700',
   },

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -28,7 +29,7 @@ const CATEGORY: Record<
   { label: string; color: string; tint: string; icon: React.ComponentType<{ size?: number; color?: string }> }
 > = {
   new: { label: 'NEW', color: '#34D399', tint: 'rgba(52, 211, 153, 0.14)', icon: Sparkles },
-  improved: { label: 'IMPROVED', color: '#60A5FA', tint: 'rgba(96, 165, 250, 0.14)', icon: TrendingUp },
+  improved: { label: 'IMPROVED', color: uiPalette.blue, tint: 'rgba(96, 165, 250, 0.14)', icon: TrendingUp },
   fixed: { label: 'FIXED', color: '#FBBF24', tint: 'rgba(251, 191, 36, 0.14)', icon: Wrench },
 };
 
@@ -121,7 +122,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
             <View style={styles.header}>
               <View style={styles.titleRow}>
                 <View style={styles.iconChip}>
-                  <Megaphone size={scale(18)} color="#60A5FA" />
+                  <Megaphone size={scale(18)} color={uiPalette.blue} />
                 </View>
                 <View style={styles.headerTextWrap}>
                   <Text style={styles.eyebrow}>NEWS &amp; UPDATES</Text>
@@ -137,7 +138,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 testID="whats-new-close"
               >
-                <X size={scale(18)} color="#F8FAFC" />
+                <X size={scale(18)} color={uiPalette.paper} />
               </TouchableOpacity>
             </View>
 
@@ -180,7 +181,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                         <Text style={styles.versionDate}>{entry.date}</Text>
                         {collapsible ? (
                           <View style={[styles.chevron, expanded && styles.chevronOpen]}>
-                            <ChevronDown size={scale(16)} color="#64748B" />
+                            <ChevronDown size={scale(16)} color={uiPalette.lightMuted} />
                           </View>
                         ) : null}
                       </View>
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: scale(22),
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    color: '#60A5FA',
+    color: uiPalette.blue,
     fontSize: fontScale(10),
     fontWeight: '800',
     letterSpacing: scale(1.5),
@@ -346,12 +347,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(18),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   subtitle: {
     fontSize: fontScale(12),
     fontWeight: '500',
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: scale(1),
   },
   closeButton: {
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: fontScale(16),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   latestChip: {
     backgroundColor: 'rgba(52, 211, 153, 0.16)',
@@ -422,19 +423,19 @@ const styles = StyleSheet.create({
   versionDate: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   headline: {
     fontSize: fontScale(16),
     fontWeight: '800',
     lineHeight: fontScale(21),
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     marginBottom: scale(4),
   },
   summary: {
     fontSize: fontScale(13),
     lineHeight: fontScale(18),
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginBottom: scale(14),
   },
   changeRow: {
@@ -476,7 +477,7 @@ const styles = StyleSheet.create({
   changeTitle: {
     fontSize: fontScale(14.5),
     fontWeight: '700',
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
     marginBottom: scale(1),
   },
   // Bullets, not paragraphs. The dot sits in its own fixed-width column so wrapped
@@ -490,13 +491,13 @@ const styles = StyleSheet.create({
     width: scale(12),
     fontSize: fontScale(13),
     lineHeight: fontScale(18),
-    color: '#64748B',
+    color: uiPalette.lightMuted,
   },
   bulletText: {
     flex: 1,
     fontSize: fontScale(13),
     lineHeight: fontScale(18),
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   upcomingBlock: {
     marginTop: scale(18),
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     textAlign: 'center',
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontSize: fontScale(12),
     fontWeight: '600',
     marginTop: scale(14),

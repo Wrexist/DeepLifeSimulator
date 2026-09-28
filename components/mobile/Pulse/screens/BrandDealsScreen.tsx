@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * BrandDealsScreen - three-tab inbox: Inbox / Active / History.
  *
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(20),
     fontWeight: '600',
   },
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(13),
     fontWeight: '600',
   },

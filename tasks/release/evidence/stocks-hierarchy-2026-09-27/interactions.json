@@ -1,0 +1,35 @@
+[
+  {
+    "width": 320,
+    "firstStock": {
+      "x": 15,
+      "y": 322,
+      "width": 290,
+      "height": 51
+    },
+    "filterSortWatchTradeCancel": "passed",
+    "errors": []
+  },
+  {
+    "width": 375,
+    "firstStock": {
+      "x": 17,
+      "y": 369,
+      "width": 341,
+      "height": 58
+    },
+    "filterSortWatchTradeCancel": "passed",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "firstStock": {
+      "x": 20,
+      "y": 445,
+      "width": 728,
+      "height": 67
+    },
+    "filterSortWatchTradeCancel": "passed",
+    "errors": []
+  }
+]

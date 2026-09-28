@@ -1,3 +1,4 @@
+import CatalogArt from '@/components/ui/CatalogArt';
 /**
  * Travel App.
  *
@@ -19,8 +20,7 @@
  * values were hashes of the destination id. None of it could change, none of it
  * could be acted on, and it sat above the one control on the screen. Its
  * companion was a 17-hue per-destination palette: colour that could be noticed
- * but never read, since nothing about Paris is rose. The emoji stays, because
- * it is the one piece of per-destination character that is about the place.
+ * but never read, since nothing about Paris is rose. Bundled destination artwork carries the identity of each place.
  *
  * ZERO REMOVAL of behaviour - every prior action stays reachable.
  */
@@ -128,27 +128,27 @@ const HOME_CODE = 'HOM';
 // Per-destination boarding-pass flavor + vibe. IATA codes and vibe hues are
 // presentation only (deterministic, no game state). Missing entries fall back
 // to a derived 3-letter code / identity teal.
-const DEST_META: Record<string, { code: string; emoji: string }> = {
-  local_resort: { code: 'RST', emoji: '🏖️' },
-  paris: { code: 'CDG', emoji: '🗼' },
-  tokyo: { code: 'HND', emoji: '🏯' },
-  bali: { code: 'DPS', emoji: '🏝️' },
-  new_york: { code: 'JFK', emoji: '🗽' },
-  swiss_alps: { code: 'ZRH', emoji: '🏔️' },
-  london: { code: 'LHR', emoji: '🎡' },
-  dubai: { code: 'DXB', emoji: '🏙️' },
-  rome: { code: 'FCO', emoji: '🏛️' },
-  thailand: { code: 'BKK', emoji: '🛕' },
-  sydney: { code: 'SYD', emoji: '🌊' },
-  cancun: { code: 'CUN', emoji: '🐚' },
-  iceland: { code: 'KEF', emoji: '🌋' },
-  safari: { code: 'NBO', emoji: '🦁' },
-  maldives: { code: 'MLE', emoji: '🐠' },
-  camping_trip: { code: 'CMP', emoji: '🏕️' },
-  road_trip: { code: 'RTR', emoji: '🚗' },
+const DEST_META: Record<string, { code: string }> = {
+  local_resort: { code: 'RST' },
+  paris: { code: 'CDG' },
+  tokyo: { code: 'HND' },
+  bali: { code: 'DPS' },
+  new_york: { code: 'JFK' },
+  swiss_alps: { code: 'ZRH' },
+  london: { code: 'LHR' },
+  dubai: { code: 'DXB' },
+  rome: { code: 'FCO' },
+  thailand: { code: 'BKK' },
+  sydney: { code: 'SYD' },
+  cancun: { code: 'CUN' },
+  iceland: { code: 'KEF' },
+  safari: { code: 'NBO' },
+  maldives: { code: 'MLE' },
+  camping_trip: { code: 'CMP' },
+  road_trip: { code: 'RTR' },
 };
 const metaFor = (id: string) =>
-  DEST_META[id] || { code: id.slice(0, 3).toUpperCase(), emoji: '🌍' };
+  DEST_META[id] || { code: id.slice(0, 3).toUpperCase() };
 
 // Per-category glyph + semantic hue for the in-trip activities list. Colors are
 // categorical Recipe-C accents (not the teal identity) so each activity type
@@ -614,7 +614,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               <View pointerEvents="none" style={[styles.tileWash, { backgroundColor: withAlpha(IDENTITY, darkMode ? 0.1 : 0.07) }]} />
 
               <View style={styles.tileTop}>
-                <Text style={styles.tileEmoji}>{meta.emoji}</Text>
+                <CatalogArt family="travel" id={dest.id} style={styles.destinationArt} />
                 <View style={[styles.tileCode, { backgroundColor: withAlpha(IDENTITY, 0.16), borderColor: withAlpha(IDENTITY, 0.32) }]}>
                   <Text style={[styles.tileCodeText, { color: IDENTITY }]}>{meta.code}</Text>
                 </View>
@@ -703,6 +703,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 <Text style={[styles.routeCity, { color: theme.textMuted }]}>Home</Text>
               </View>
               <View style={styles.routeMid}>
+                <CatalogArt family="travel" id={dest.id} style={styles.destinationArt} />
                 <ArrowRight size={scale(18)} color={IDENTITY} />
               </View>
               <View style={[styles.routeEnd, { alignItems: 'flex-end' }]}>
@@ -1139,7 +1140,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         title={headerTitle}
         onBack={() => (detailId ? setDetailId(null) : onBack())}
         backLabel={detailId ? 'Back to destinations' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       {detailDest ? (
@@ -1149,6 +1150,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           {/* The old bar was four underlined text buttons with no label and no
               tab role - unreachable by name to a screen reader. */}
           <SegmentedControl
+            scrollable
             segments={TABS}
             value={activeTab}
             onChange={setActiveTab}
@@ -1388,7 +1390,7 @@ const styles = StyleSheet.create({
   tile: { flexGrow: 1, flexBasis: '46%', minWidth: scale(150), padding: sp.md, borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
   tileWash: { ...StyleSheet.absoluteFillObject },
   tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: sp.xs },
-  tileEmoji: { fontSize: scale(26) },
+  destinationArt: { width: scale(72), height: scale(72), borderRadius: br.md },
   tileCode: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.sm, borderWidth: 1 },
   tileCodeText: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 1 },
   tileName: { fontSize: fs.md, fontWeight: '600' },

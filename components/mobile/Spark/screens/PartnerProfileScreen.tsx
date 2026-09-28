@@ -158,7 +158,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   if (!match || !profile) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <AppHeader title="Profile" onBack={onBack} backLabel="Back to chat" centered />
+        <AppHeader title="Profile" onBack={onBack} backLabel="Back to chat" />
         <EmptyState observation="Profile not found." nudge="Open a different match." />
       </View>
     );
@@ -166,7 +166,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <AppHeader title={profile.name} onBack={onBack} backLabel="Back to chat" centered />
+      <AppHeader title={profile.name} onBack={onBack} backLabel="Back to chat" />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {/* Hero - one plain glass card; the identity tint is the avatar ring. */}
         <View

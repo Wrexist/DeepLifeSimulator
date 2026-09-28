@@ -1,3 +1,5 @@
+import { uiPalette } from '@/lib/config/theme';
+import { tier1Value } from '@/lib/config/hierarchy';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Platform } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
@@ -30,6 +32,7 @@ import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemC
 import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
 import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { track } from '@/lib/analytics';
 import { nothingToRestoreMessage } from '@/lib/shop/storeAccount';
 
@@ -75,6 +78,8 @@ const BADGE_POPULAR = '#A5B4FC';
 type StoreTab = 'upgrades' | 'store' | 'perks' | 'gems';
 
 interface GemShopModalProps {
+  /** Focused HUD wallet; shares the store's purchase and fulfillment owners. */
+  wallet?: boolean;
   visible: boolean;
   onClose: () => void;
   /** Tab to land on when the store opens (deep-linked entry points pass this). */
@@ -135,7 +140,8 @@ function storeRatioLine(gems: number, amount: number, currency: string): string 
   return symbol ? `≈ ${perUnit} gems per ${symbol}1` : `≈ ${perUnit} gems per 1 ${currency}`;
 }
 
-function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemShopModalProps) {
+function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet = false }: GemShopModalProps) {
+  const insets = useSafeAreaInsets();
   const { buyGoldUpgrade } = useMoneyActions();
   const { saveGame } = useGameActions();
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
@@ -506,11 +512,11 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
         accent="gems"
         image={p.image}
         title={name}
-        description={`${p.gems.toLocaleString()} gems`}
-        priceLabel={displayPrice}
+        description={wallet ? 'One-time top-up' : `${p.gems.toLocaleString()} gems`}
+        priceLabel={wallet && !available ? 'Price unavailable' : displayPrice}
         priceKind="money"
-        valueLine={valueLine}
-        badges={badges}
+        valueLine={wallet ? (available ? baseValueLine : undefined) : valueLine}
+        badges={wallet && !available ? [] : badges}
         buttonText={buyLabel(p.id, false, displayPrice, available)}
         accessibilityLabel={ctaA11y(p.id, name, displayPrice, false, available)}
         onPress={() => handlePurchase(p.id, name, displayPrice)}
@@ -932,7 +938,10 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
     owned: false,
   };
 
-  const tabs: { id: StoreTab; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string }[] = [
+  const tabs: { id: StoreTab; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string }[] = wallet ? [
+    { id: 'gems', label: 'Top up', icon: Gem, color: '#6366F1' },
+    { id: 'upgrades', label: 'Spend gems', icon: TrendingUp, color: '#10B981' },
+  ] : [
     { id: 'gems', label: 'Gems', icon: Gem, color: '#6366F1' },
     { id: 'store', label: 'Featured', icon: Sparkles, color: '#8B5CF6' },
     { id: 'perks', label: 'Perks', icon: Star, color: '#F59E0B' },
@@ -962,8 +971,8 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2, 6, 23, 0.72)' }]} />
         </TouchableOpacity>
 
-        <Animated.View style={[styles.sheet, { opacity: progress, transform: [{ translateY: sheetTranslate }] }]}>
-          <BlurViewFallback intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+        <Animated.View style={[styles.sheet, wallet && { backgroundColor: uiPalette.navy }, { opacity: progress, transform: [{ translateY: sheetTranslate }] }]}>
+          {!wallet && <BlurViewFallback intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
 
           {/* Pull handle */}
           <View style={styles.handle} />
@@ -971,23 +980,32 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
           {/* Header - title + prominent balance + close */}
           <View style={styles.headerRow}>
             <View style={styles.headerTitleCol}>
-              <Text style={styles.title}>Store</Text>
-              <Text style={styles.subtitle}>Gems, unlocks & bundles</Text>
+              <Text style={styles.title}>{wallet ? 'Gem wallet' : 'Store'}</Text>
+              <Text style={styles.subtitle}>{wallet ? 'Top up or unlock permanent upgrades.' : 'Gems, unlocks & bundles'}</Text>
             </View>
-            <LinearGradient
+            {!wallet && <LinearGradient
               colors={['#6366F1', '#4F46E5']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.balancePill}
             >
-              <Gem size={scale(14)} color="#F8FAFC" />
+              <Gem size={scale(14)} color={uiPalette.paper} />
               <Text style={styles.balanceValue}>{gems.toLocaleString()}</Text>
               <Text style={styles.balanceLabel}>Gems</Text>
-            </LinearGradient>
+            </LinearGradient>}
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close store">
               <X size={scale(18)} color="rgba(226, 232, 240, 0.7)" />
             </TouchableOpacity>
           </View>
+
+          {wallet && <View style={styles.walletBalance}>
+            <View style={styles.walletGem}><Gem size={32} color="#A5B4FC" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.balanceLabel}>AVAILABLE GEMS</Text>
+              <Text style={styles.walletValue}>{gems.toLocaleString()}</Text>
+              <Text style={styles.subtitle}>This save's balance. Kept through prestige.</Text>
+            </View>
+          </View>}
 
           {/* Tabs */}
           <View style={styles.tabRow}>
@@ -1005,7 +1023,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
                   accessibilityLabel={`${tabItem.label} tab`}
                 >
                   <View style={styles.tabContent}>
-                    <Icon size={scale(13)} color={isSelected ? '#F8FAFC' : 'rgba(226, 232, 240, 0.55)'} />
+                    <Icon size={scale(13)} color={isSelected ? uiPalette.paper : 'rgba(226, 232, 240, 0.55)'} />
                     <Text style={[styles.tabLabel, isSelected && styles.tabLabelActive]}>{tabItem.label}</Text>
                   </View>
                   {isSelected ? <View style={[styles.tabUnderline, { backgroundColor: tabItem.color }]} /> : null}
@@ -1018,7 +1036,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
           <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* DeepLife+ subscription upsell - pinned above every tab. Self-hides
                 for members and opens the RevenueCat paywall (or the in-app one). */}
-            <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
+            {!wallet && <DeepLifePlusUpsell variant="banner" surface="gem_shop" />}
             {/* Weekly rotation - an entry point, not an interruption. It states
                 which offer is featured and nothing else; the player opens it if
                 they want to.
@@ -1030,7 +1048,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
                 rotation. Deliberately NOT on `perks`/`upgrades` - those spend
                 gems the player already owns, and a real-money pack there is an
                 interruption rather than an option. */}
-            {(tab === 'gems' || tab === 'store') ? (
+            {!wallet && (tab === 'gems' || tab === 'store') ? (
               <TouchableOpacity
                 style={styles.offerCenterRow}
                 onPress={() => setShowOfferCenter(true)}
@@ -1061,7 +1079,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
                 ) : null}
 
                 {/* One-time Starter Pack highlight for players who haven't converted. */}
-                {showStarterOffer ? (
+                {!wallet && showStarterOffer ? (
                   <>
                     <Text style={styles.sectionLabel}>Starter offer</Text>
                     {renderHero(starterOffer)}
@@ -1070,13 +1088,14 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
 
                 {/* Free daily reward - shares its claim state with the identity
                     card, so a player can only claim once per day from either. */}
-                <Text style={[styles.sectionLabel, showStarterOffer && styles.sectionLabelSpaced]}>Free daily reward</Text>
+                {!wallet && <Text style={[styles.sectionLabel, showStarterOffer && styles.sectionLabelSpaced]}>Free daily reward</Text>}
                 {/* The shop sheet is always dark, so keep the claim's dark
                     styling even when the app is in light mode. */}
-                <DailyGemClaim onDarkSurface />
+                {!wallet && <DailyGemClaim onDarkSurface />}
                 {storeBanner}
                 <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Gem packs</Text>
                 {gemPacks.map(renderGemPackCard)}
+                {wallet && <><Text style={styles.sectionLabel}>Earn gems too</Text><DailyGemClaim onDarkSurface /><Text style={styles.footnote}>Achievements and challenges also award gems. Buying is optional.</Text></>}
                 <Text style={styles.footnote}>
                   Prices are your App Store region’s price, shown and charged at purchase.
                 </Text>
@@ -1126,7 +1145,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
           </ScrollView>
 
           {/* Footer - Restore Purchases */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, responsiveSpacing.sm) }]}>
             <TouchableOpacity
               onPress={handleRestorePurchases}
               disabled={iapBusy}
@@ -1161,6 +1180,9 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
 }
 
 const styles = StyleSheet.create({
+  walletBalance: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md, marginHorizontal: responsiveSpacing.md, marginBottom: responsiveSpacing.md, padding: responsiveSpacing.md, borderRadius: responsiveBorderRadius.lg, backgroundColor: uiPalette.navy },
+  walletGem: { padding: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md, backgroundColor: 'rgba(129,140,248,0.12)' },
+  walletValue: { ...tier1Value, color: uiPalette.paper },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -1196,7 +1218,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(22),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.4,
   },
   subtitle: {
@@ -1219,7 +1241,7 @@ const styles = StyleSheet.create({
   balanceValue: {
     fontSize: fontScale(15),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
   },
@@ -1232,9 +1254,9 @@ const styles = StyleSheet.create({
     marginLeft: scale(1),
   },
   closeBtn: {
-    width: scale(32),
-    height: scale(32),
-    borderRadius: scale(16),
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
@@ -1248,6 +1270,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   tabBtn: {
+    minHeight: 44,
     flex: 1,
     paddingVertical: verticalScale(10),
     alignItems: 'center',
@@ -1264,7 +1287,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   tabLabelActive: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontWeight: '700',
   },
   tabUnderline: {
@@ -1307,7 +1330,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(251, 191, 36, 0.4)',
     marginBottom: verticalScale(12),
   },
-  offerCenterTitle: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '700' },
+  offerCenterTitle: { color: uiPalette.paper, fontSize: fontScale(13), fontWeight: '700' },
   offerCenterSub: { color: 'rgba(226, 232, 240, 0.6)', fontSize: fontScale(10.5), marginTop: verticalScale(1) },
   promoBanner: {
     flexDirection: 'row',
@@ -1386,6 +1409,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   restoreBtn: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(8),

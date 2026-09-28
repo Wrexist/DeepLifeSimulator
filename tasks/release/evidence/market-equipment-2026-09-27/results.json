@@ -1,0 +1,22 @@
+[
+  {
+    "width": 375,
+    "buyCancelSellRebuyReload": true,
+    "errors": []
+  },
+  {
+    "width": 375,
+    "gearCashGate": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "buyCancelSellRebuyReload": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "gearCashGate": true,
+    "errors": []
+  }
+]

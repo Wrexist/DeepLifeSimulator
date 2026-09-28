@@ -1,0 +1,18 @@
+{
+  "success": false,
+  "numPassedTestSuites": 857,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 17,
+  "numPassedTests": 10227,
+  "numFailedTests": 1,
+  "numPendingTests": 32,
+  "exitCode": 1,
+  "durationSeconds": 730.755,
+  "failures": [
+    {
+      "file": "/__tests__/performance/tickTiming.bench.test.ts",
+      "message": "  \u25cf Tick timing benchmark (Year Mode sizing) \u203a measures per-tick cost across an early and a late-game window\n\n    expect(received).toBeLessThan(expected)\n\n    Expected: < 1000\n    Received:   1676.48\n\n      161 |     // subsystem that makes the tick an order of magnitude more expensive trips\n      162 |     // it before it reaches a device.\n    > 163 |     expect(report.lateMean * 52).toBeLessThan(1000);\n          |                                  ^\n      164 |   });\n      165 | });\n      166 |\n\n      at Object.<anonymous> (__tests__/performance/tickTiming.bench.test.ts:163:34)\n"
+    }
+  ],
+  "snapshotsPassed": 308
+}

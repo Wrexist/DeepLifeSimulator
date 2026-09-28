@@ -1,3 +1,12 @@
+import { responsiveSpacing as layoutSpace ,
+  fontScale,
+  responsiveBorderRadius,
+  responsivePadding,
+  responsiveSpacing,
+  scale,
+  verticalScale,
+} from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -39,20 +48,13 @@ import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation
 // flag is off, so nothing here can reach the network in a default build.
 import { isCloudBackupEnabled, probeCloudSlot, restoreCloudSaveToSlot } from '@/services/cloudBackup';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
-import {
-  fontScale,
-  responsiveBorderRadius,
-  responsivePadding,
-  responsiveSpacing,
-  scale,
-  verticalScale,
-} from '@/utils/scaling';
+
 import { gameAlert } from '@/utils/gameAlert';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 // Near-black base matched to the in-game home screen (#020617) and the main
 // menu so the whole pre-game flow reads as one dark aesthetic.
-const PAGE_BG = '#020617';
+const PAGE_BG = uiPalette.navy;
 
 // Slot stats come from raw persisted JSON (no repair pass has run), so a
 // corrupt snapshot can carry NaN/Infinity/negative numbers - clamp for display.
@@ -548,7 +550,7 @@ export default function SaveSlots() {
             // overwriting whatever the unreadable payload was.
             const needsRecovery = !!slot.error;
             const statusText = needsRecovery ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
-            const statusColor = needsRecovery ? '#F97316' : slot.hasData ? '#60A5FA' : '#94A3B8';
+            const statusColor = needsRecovery ? '#F97316' : slot.hasData ? uiPalette.blue : uiPalette.muted;
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
             // `undefined` means "no cloud copy, or one that is not ahead of this
             // slot" - the offer is only shown when restoring can gain something.
@@ -676,7 +678,7 @@ export default function SaveSlots() {
           }}
           disabled={!selectedSlot || isBusy || !slotsLoaded || (!!selectedCard?.error && !selectedCard?.hasData)}
           loading={isBusy}
-          icon={<Play size={24} color="#FFFFFF" />}
+          icon={<Play size={24} color={uiPalette.white} />}
         />
       </View>
 
@@ -773,13 +775,13 @@ const styles = StyleSheet.create({
   slotTitle: {
     fontSize: fontScale(18),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   statusChip: {
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: verticalScale(4),
+    paddingVertical: layoutSpace.xs,
   },
   statusChipText: {
     fontSize: fontScale(11),
@@ -788,11 +790,11 @@ const styles = StyleSheet.create({
   slotName: {
     fontSize: fontScale(15),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
   },
   slotNameEmpty: {
     fontWeight: '500',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   statsRow: {
     flexDirection: 'row',
@@ -805,29 +807,29 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     flex: 1,
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: verticalScale(8),
+    paddingVertical: layoutSpace.sm,
   },
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
-    color: '#94A3B8',
-    marginBottom: verticalScale(2),
+    color: uiPalette.muted,
+    marginBottom: layoutSpace.xs,
   },
   statValue: {
     fontSize: fontScale(12.5),
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   slotFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: scale(16),
+    gap: layoutSpace.md,
   },
   restoreAction: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: scale(6),
-    paddingVertical: verticalScale(4),
+    gap: layoutSpace.xs,
+    paddingVertical: layoutSpace.xs,
   },
   cloudOfferText: {
     color: '#FBBF24',
@@ -837,9 +839,9 @@ const styles = StyleSheet.create({
   cloudAction: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: scale(6),
+    gap: layoutSpace.xs,
     marginRight: 'auto',
-    paddingVertical: verticalScale(4),
+    paddingVertical: layoutSpace.xs,
   },
   cloudActionText: {
     color: '#FBBF24',
@@ -854,8 +856,8 @@ const styles = StyleSheet.create({
   deleteAction: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: scale(6),
-    paddingVertical: verticalScale(4),
+    gap: layoutSpace.xs,
+    paddingVertical: layoutSpace.xs,
   },
   deleteText: {
     color: '#F87171',

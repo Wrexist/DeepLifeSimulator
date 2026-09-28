@@ -1,3 +1,5 @@
+import { familyPlanningBlock } from '@/lib/dating/familyPlanning';
+import { uiPalette , colors, accent } from '@/lib/config/theme';
 /**
  * Family Tab - spouse / partner, children, pregnancy and the parenting loop.
  *
@@ -69,7 +71,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage, cancelEngagement } from '@/contexts/game/actions/DatingActions';
 import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
-import { colors, accent } from '@/lib/config/theme';
+
 import { getLifeStage, WEDDING_REMAINDER_RATE } from '@/lib/config/gameConstants';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -186,7 +188,7 @@ function ActionRow({
  const body = (
  <View style={styles.actionRowBody}>
  <View style={[styles.actionRowIcon, tone === 'primary' && styles.actionRowIconPrimary]}>
- {locked ? <Lock size={scale(16)} color={c.textMuted} /> : <Icon size={scale(18)} color={tone === 'primary' ? '#FFF' : accent.info} />}
+ {locked ? <Lock size={scale(16)} color={c.textMuted} /> : <Icon size={scale(18)} color={tone === 'primary' ? uiPalette.white : accent.info} />}
  </View>
  <View style={styles.actionRowText}>
  <Text style={[styles.actionRowLabel, tone === 'primary' && !locked && styles.actionRowLabelPrimary]}>
@@ -393,7 +395,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  gameAlert(
  'Call Off the Engagement',
- `Call off your engagement to ${partner.name}?\n\nYou stay together - the wedding is off, not the relationship. It will cost you 15 happiness and 20% of your bond.`,
+ `Call off your engagement to ${partner.name}?\n\nYou stay together - the wedding is off, not the relationship. It will cost you 15 happiness and 20 bond points. The ring and any wedding deposit are not refunded.`,
  [
  { text: 'Stay Engaged', style: 'cancel' },
  {
@@ -469,7 +471,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  gameAlert(
  'Have a Child',
- `Are you and ${babyTarget.name} ready to start or expand your family?`,
+ `Start a family with ${babyTarget.name}? Keep at least ${formatMoney(5000)} in cash to begin. Nothing is charged today; ${formatMoney(5000)} is due at birth in about 10 weeks. Unpaid birth costs become debt.`,
  [
  { text: 'Cancel', style: 'cancel' },
  {
@@ -486,13 +488,9 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  // Why "Try for a baby" is unavailable, or null when it is available. Shared by
  // the spouse and partner cards so both quote the same rule.
  const babyLockReason = useCallback((target: Relationship, committed: boolean): string | null => {
- if (age < AGE_TO_TRY_FOR_BABY) return `You must be at least ${AGE_TO_TRY_FOR_BABY} to start a family`;
- if (target.relationshipScore < SCORE_TO_TRY_FOR_BABY) {
- return `Needs ${SCORE_TO_TRY_FOR_BABY}% bond - you're at ${target.relationshipScore}%`;
- }
  if (!committed) return 'Move in together or get engaged first';
- return null;
- }, [age]);
+ return familyPlanningBlock(gameState, target.id);
+ }, [gameState]);
 
  const renderPregnancy = (target: Relationship) => (
  <View style={styles.pregnancySection}>
@@ -986,7 +984,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  colors={['#F59E0B', '#D97706']}
  style={styles.heirBannerGradient}
  >
- <Crown size={scale(22)} color="#FFF" />
+ <Crown size={scale(22)} color={uiPalette.white} />
  <Text style={styles.heirBannerText}>Eligible Heir</Text>
  </LinearGradient>
  </View>
@@ -1103,7 +1101,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  end={{ x: 1, y: 1 }}
  style={styles.emptyStateCtaFill}
  >
- <Search size={scale(17)} color="#FFF" />
+ <Search size={scale(17)} color={uiPalette.white} />
  <Text style={styles.emptyStateCtaText}>Open the dating app</Text>
  </LinearGradient>
  </TouchableOpacity>
@@ -1379,7 +1377,7 @@ const styles = StyleSheet.create({
  color: c.text,
  },
  actionRowLabelPrimary: {
- color: '#FFF',
+ color: uiPalette.white,
  },
  actionRowHint: {
  fontSize: fontScale(11),
@@ -1517,7 +1515,7 @@ const styles = StyleSheet.create({
  paddingVertical: scale(13),
  },
  emptyStateCtaText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(14),
  fontWeight: '700',
  },
@@ -1702,7 +1700,7 @@ const styles = StyleSheet.create({
  paddingVertical: scale(14),
  },
  heirBannerText: {
- color: '#FFF',
+ color: uiPalette.white,
  fontSize: fontScale(15),
  fontWeight: '700',
  },

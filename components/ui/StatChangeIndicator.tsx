@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * StatChangeIndicator Component
  * 
@@ -7,7 +9,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, AccessibilityInfo, Animated, Text, StyleSheet, View } from 'react-native';
-import { scale, fontScale } from '@/utils/scaling';
+
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
@@ -204,9 +206,9 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     pill: {
-        paddingHorizontal: scale(12),
-        paddingVertical: scale(4),
-        borderRadius: scale(12),
+        paddingHorizontal: layoutSpace.compact,
+        paddingVertical: layoutSpace.xs,
+        borderRadius: layoutRadius.lg,
         ...Platform.select({
           web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)' } as any,
           default: {
@@ -219,7 +221,7 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     floatingText: {
-        color: '#FFFFFF',
+        color: uiPalette.white,
         fontSize: fontScale(14),
         fontWeight: '700',
         textAlign: 'center',

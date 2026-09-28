@@ -1,0 +1,41 @@
+node : PASS __tests__/careers/requirementLabels.test.ts (9.822 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand __tests__/utils/format ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...st.ts (9.822 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  √ uses catalogue names for every advanced career gate (32 ms)
+  √ describes the real executive gate as cumulative courses (2 ms)
+  √ keeps unfamiliar catalogue extensions readable (2 ms)
+
+PASS __tests__/utils/formatLifeWeek.test.ts
+  player-facing week stamps
+    √ starts at Week 1 for starting clock 0
+    √ starts at Week 1 for starting clock 104
+    √ starts at Week 1 for starting clock 364 (1 ms)
+    √ identifies pre-life records instead of inventing a Week 1 event
+    √ handles legacy missing origins and invalid stamps honestly (1 ms)
+
+PASS __tests__/render/restoredHud.render.test.tsx (9.469 s)
+  √ restores the two-column HUD: direct utilities and long-press quick actions (189 ms)
+
+PASS __tests__/careers/advancedCareerVisibility.test.ts
+  the catalogue is worth showing
+    √ has the elite careers the player should be able to see as goals (2 ms)
+    √ every career states requirements the UI can print (7 ms)
+  locked really means locked, and unlocked really unlocks
+    √ a brand-new player has none of them unlocked (1 ms)
+    √ a maxed-out player unlocks them (1 ms)
+    √ rendering the full catalogue still lets the UI distinguish the two (1 ms)
+  the achievement gate is printable
+    √ at least one career is gated on a claimed achievement (2 ms)
+    √ an achievement-gated career stays locked without the claim (2 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        20.609 s
+Ran all test suites matching /__tests__\\utils\\formatLifeWeek.test.ts|__tests__\\careers\\requirementLabels.test.ts|__
+tests__\\careers\\advancedCareerVisibility.test.ts|__tests__\\render\\restoredHud.render.test.tsx/i.
+EXIT_STATUS=0

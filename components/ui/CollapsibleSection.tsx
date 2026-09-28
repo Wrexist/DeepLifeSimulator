@@ -1,3 +1,5 @@
+import { textStyles } from '@/lib/config/hierarchy';
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 /**
  * CollapsibleSection - a section header that folds its content away.
  *
@@ -24,7 +26,7 @@ import { Animated, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-na
 import { ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
+
 import { animation } from '@/lib/config/theme';
 import { haptic } from '@/utils/haptics';
 import {
@@ -42,7 +44,7 @@ interface CollapsibleSectionProps {
   /** Tints the icon bubble. Decoration only; never the sole signal. */
   tint?: string;
   /**
-   * Shown in the header WHILE COLLAPSED - the section's headline in one line
+   * Shown in the header WHILE COLLAPSED - the section's wrapping headline
    * ("100 · 100 · 100"), so folding it away never hides what it was telling you.
    */
   summary?: React.ReactNode;
@@ -178,8 +180,6 @@ export default function CollapsibleSection({
             compact ? styles.titleCompact : styles.title,
             { color: theme.text },
           ]}
-          numberOfLines={1}
-          maxFontSizeMultiplier={1.4}
         >
           {title}
         </Text>
@@ -193,8 +193,6 @@ export default function CollapsibleSection({
             {typeof summary === 'string' ? (
               <Text
                 style={[styles.summaryText, { color: theme.textSecondary }]}
-                numberOfLines={1}
-                maxFontSizeMultiplier={1.3}
               >
                 {summary}
               </Text>
@@ -232,13 +230,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(10),
+    gap: layoutSpace.sm,
     minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.xs,
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
   },
   headerCompact: {
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
   },
   headerPressed: {
     opacity: 0.72,
@@ -246,7 +244,7 @@ const styles = StyleSheet.create({
   iconBubble: {
     width: scale(34),
     height: scale(34),
-    borderRadius: scale(10),
+    borderRadius: layoutRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
@@ -254,17 +252,15 @@ const styles = StyleSheet.create({
   iconBubbleCompact: {
     width: scale(28),
     height: scale(28),
-    borderRadius: scale(8),
+    borderRadius: layoutRadius.md,
   },
   title: {
-    fontSize: fontScale(17),
-    fontWeight: '800',
+    ...textStyles.h3,
     letterSpacing: -0.2,
     flexShrink: 1,
   },
   titleCompact: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
+    ...textStyles.bodyStrong,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     flexShrink: 1,
@@ -278,11 +274,10 @@ const styles = StyleSheet.create({
     maxWidth: '52%',
   },
   summaryText: {
-    fontSize: fontScale(12.5),
-    fontWeight: '600',
+    ...textStyles.caption,
     textAlign: 'right',
   },
   chevron: {
-    marginLeft: scale(4),
+    marginLeft: layoutSpace.xs,
   },
 });

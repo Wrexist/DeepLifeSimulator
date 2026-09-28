@@ -1,3 +1,6 @@
+import { MEDIA_ART } from './mediaArtAssets';
+import { videoArtKey } from '@/lib/content/mediaArtwork';
+import { uiPalette, creatorBrand, getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingApp (YouVideo) - the video half of the creator career.
  *
@@ -14,8 +17,8 @@
  * Built on the shared app primitives (AppHeader/CashChip, SegmentedControl,
  * StatStrip, Chip, SectionTitle, EmptyState, CollapsibleSection, useToast) so
  * it reads the same as every other launcher-hosted app. One identity colour
- * (accent.purple, shared with Streaming - the two halves of one career) and
- * ONE gradient in the file: the "Record & upload" primary action.
+ * (creatorBrand.video.accent, shared with Streaming - the two halves of one career) and
+ * Solid video-red publishing action; draft previews never show earned metrics.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -31,7 +34,6 @@ import {
 } from 'react-native';
 import {
   Video as VideoIcon,
-  Sparkles,
   Users,
   Eye,
   TrendingUp,
@@ -61,7 +63,6 @@ import {
   CircuitBoard,
   Coins,
   Upload,
-  Zap,
   Check,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -79,7 +80,7 @@ import {
   MAX_PC_TIER,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -91,11 +92,9 @@ import {
 import {
   getGlassCard,
   getGlassIconContainer,
-  getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
 import ImageScrim from '@/components/ui/ImageScrim';
-import Gradient from '@/components/ui/Gradient';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import StatStrip from '@/components/ui/StatStrip';
@@ -109,11 +108,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
 
-const LinearGradient = Gradient;
 
 // The deep stop of the ONE gradient in this file (the upload CTA). Everything
-// else tints accent.purple through withAlpha.
-const IDENTITY_DEEP = '#7C3AED';
+// else tints creatorBrand.video.accent through withAlpha.
 
 type TabType = 'channel' | 'record' | 'videos' | 'studio';
 type SortType = 'recent' | 'views' | 'earnings';
@@ -162,16 +159,6 @@ const PC_ICON: Record<keyof GamingStreamingState['pcUpgradeLevels'], IconType> =
   network: Wifi,
 };
 
-// Thumbnail art pool - matched by keyword, else a stable per-video hash so each
-// video keeps ONE consistent cover (presentational, like an avatar color).
-const GAME_THUMBS: { keys: string[]; src: ImageSourcePropType; label: string }[] = [
-  { keys: ['fortnite'], src: require('@/assets/images/Games/Fortnite.webp'), label: 'Fortnite' },
-  { keys: ['minecraft'], src: require('@/assets/images/Games/Minecraft.webp'), label: 'Minecraft' },
-  { keys: ['valorant'], src: require('@/assets/images/Games/Valorant.webp'), label: 'Valorant' },
-  { keys: ['league', 'legends', 'lol'], src: require('@/assets/images/Games/League of Legends.webp'), label: 'League of Legends' },
-  { keys: ['among'], src: require('@/assets/images/Games/Among us.webp'), label: 'Among Us' },
-];
-
 const SORTS: { key: SortType; label: string; icon: IconType }[] = [
   { key: 'recent', label: 'Recent', icon: Clock },
   { key: 'views', label: 'Most viewed', icon: Eye },
@@ -194,22 +181,8 @@ const GAME_OPTIONS = [
   'Reaction',
 ];
 
-function hashStr(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function thumbIndexFor(v: Video): number {
-  const hay = `${v.title ?? ''} ${v.game ?? ''} ${v.gameId ?? ''}`.toLowerCase();
-  for (let i = 0; i < GAME_THUMBS.length; i++) {
-    if (GAME_THUMBS[i].keys.some((k) => hay.includes(k))) return i;
-  }
-  return hashStr(v.id || v.title || 'x') % GAME_THUMBS.length;
-}
-
 function videoThumb(v: Video): ImageSourcePropType {
-  return GAME_THUMBS[thumbIndexFor(v)].src;
+  return MEDIA_ART[videoArtKey(v)];
 }
 
 function compact(n: number): string {
@@ -400,8 +373,8 @@ export default function GamingApp({ onBack }: Props) {
         <View style={styles.heroInner}>
 
           <View style={styles.chIdentityRow}>
-            <View style={[styles.chAvatar, { backgroundColor: withAlpha(accent.purple, 0.18), borderColor: withAlpha(accent.purple, 0.35) }]}>
-              <Play size={scale(22)} color={accent.purple} />
+            <View style={[styles.chAvatar, { backgroundColor: withAlpha(creatorBrand.video.accent, 0.18), borderColor: withAlpha(creatorBrand.video.accent, 0.35) }]}>
+              <Play size={scale(22)} color={creatorBrand.video.accent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>YOUVIDEO CHANNEL</Text>
@@ -422,7 +395,7 @@ export default function GamingApp({ onBack }: Props) {
                 </Text>
               </View>
             </View>
-            <Chip label={`Lv ${level}`} icon={<Award size={scale(12)} color={accent.purple} />} tint={accent.purple} accessibilityLabel={`Channel level ${level}`} />
+            <Chip label={`Lv ${level}`} icon={<Award size={scale(12)} color={creatorBrand.video.accent} />} tint={creatorBrand.video.accent} accessibilityLabel={`Channel level ${level}`} />
           </View>
 
           <View style={styles.heroRow}>
@@ -445,7 +418,7 @@ export default function GamingApp({ onBack }: Props) {
 
       {videos.length === 0 ? (
         <EmptyState
-          icon={<VideoIcon size={scale(24)} color={accent.purple} />}
+          icon={<VideoIcon size={scale(24)} color={creatorBrand.video.accent} />}
           observation="Your channel has no videos yet."
           nudge="One upload starts the earnings, the subscribers and the catalog."
           ctaLabel="Record your first video"
@@ -455,7 +428,7 @@ export default function GamingApp({ onBack }: Props) {
         <>
           <SectionTitle
             title="Featured"
-            right={<Chip label="All videos" icon={<ChevronRight size={scale(12)} color={accent.purple} />} tint={accent.purple} onPress={() => goTab('videos')} />}
+            right={<Chip label="All videos" icon={<ChevronRight size={scale(12)} color={creatorBrand.video.accent} />} tint={creatorBrand.video.accent} onPress={() => goTab('videos')} />}
           />
           <TouchableOpacity
             onPress={() => openVideo(videos[0].id)}
@@ -488,7 +461,7 @@ export default function GamingApp({ onBack }: Props) {
         id="youvideo-all-stats"
         title="All channel stats"
         defaultCollapsed
-        tint={accent.purple}
+        tint={creatorBrand.video.accent}
         summary={`${paidMembers} members · ${compact(totalViews)} views`}
       >
         <KeyValueRow label="Members" value={paidMembers.toLocaleString()} />
@@ -507,7 +480,7 @@ export default function GamingApp({ onBack }: Props) {
         <>
           <SectionTitle
             title="Recent videos"
-            right={<Chip label="See all" icon={<ChevronRight size={scale(12)} color={accent.purple} />} tint={accent.purple} onPress={() => goTab('videos')} />}
+            right={<Chip label="See all" icon={<ChevronRight size={scale(12)} color={creatorBrand.video.accent} />} tint={creatorBrand.video.accent} onPress={() => goTab('videos')} />}
           />
           {videos.slice(0, 5).map((v) => (
             <VideoRow key={v.id} v={v} week={week} onPress={() => openVideo(v.id)} theme={theme} darkMode={darkMode} />
@@ -524,9 +497,9 @@ export default function GamingApp({ onBack }: Props) {
     // Live preview stand-in so the composer is thumbnail-led like the real feed.
     // Cover keys off the topic (stable) but a game name typed in the title still
     // wins via VideoThumb's keyword match.
-    const previewVideo: Video = { id: `preview_${selectedGame}`, title: title.trim() || 'Untitled video', game: selectedGame, views: projected.views, earnings: 0 };
+    const previewVideo: Video = { id: `preview_${selectedGame}`, title: title.trim() || 'Untitled video', game: selectedGame, views: 0, earnings: 0 };
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {/* Recipe B hero - the composer. */}
         <View
           style={[
@@ -535,20 +508,16 @@ export default function GamingApp({ onBack }: Props) {
             { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
           ]}
         >
-          <View style={styles.heroInner}>
+          <View style={[styles.heroInner, styles.composerInner]}>
 
             <View style={styles.composerHeadRow}>
-              <View style={[getGlassIconContainer(darkMode, 34), { backgroundColor: withAlpha(accent.purple, 0.15), borderColor: withAlpha(accent.purple, 0.30), borderWidth: 1 }]}>
-                <Upload size={scale(15)} color={accent.purple} />
-              </View>
-              <Text style={[styles.composerTitle, { color: theme.text }]}>New video</Text>
-              <Chip label={quality.tier.toUpperCase()} icon={<Gauge size={scale(12)} color={accent.purple} />} tint={accent.purple} accessibilityLabel={`Gear tier ${quality.tier}`} />
+              <Text style={[styles.composerTitle, { color: theme.text }]}>Create a video</Text>
+              <Text style={[styles.videoMeta, { color: theme.textSecondary }]}>{uploadsThisWeek}/{WEEKLY_VIDEO_CAP} this week</Text>
             </View>
-
-            {/* Thumbnail preview - updates live from title + topic. */}
-            <VideoThumb v={previewVideo} style={styles.previewThumb} scrim showPlay overlayTitle badge="PREVIEW" />
+            <VideoThumb v={previewVideo} style={styles.previewThumb} badge="DRAFT" />
 
             <TextInput
+              accessibilityLabel="Video title"
               value={title}
               onChangeText={setTitle}
               placeholder="Video title…"
@@ -561,7 +530,7 @@ export default function GamingApp({ onBack }: Props) {
                 <Chip label={`Trending: ${trendingTopic}`} icon={<Flame size={scale(11)} color={accent.warning} />} tone="warning" />
               ) : null}
             </View>
-            <View style={styles.chipsRow}>
+            <View style={styles.topicRail}>
               {GAME_OPTIONS.map((g) => {
                 const active = selectedGame === g;
                 const hot = g === trendingTopic;
@@ -570,8 +539,9 @@ export default function GamingApp({ onBack }: Props) {
                     key={g}
                     label={g}
                     size="md"
+                    style={styles.topicOption}
                     icon={hot ? <Flame size={scale(11)} color={accent.warning} /> : undefined}
-                    tint={active ? accent.purple : hot ? accent.warning : undefined}
+                    tint={active ? creatorBrand.video.accent : hot ? accent.warning : undefined}
                     selected={active}
                     onPress={() => setSelectedGame(g)}
                     accessibilityLabel={hot ? `${g} (trending, boosted reach)` : g}
@@ -580,62 +550,36 @@ export default function GamingApp({ onBack }: Props) {
               })}
             </View>
 
-            <TouchableOpacity
-              onPress={handlePublish}
-              disabled={publishDisabled}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Record and upload"
+            <TouchableOpacity onPress={handlePublish} disabled={publishDisabled} activeOpacity={0.8}
+              accessibilityRole="button" accessibilityLabel="Record and upload"
               accessibilityState={{ disabled: publishDisabled }}
-              style={[styles.publishBtn, { backgroundColor: publishDisabled ? theme.surfaceElevated : accent.purple }, !publishDisabled && getPlatformShadows(5, 0.3, 2, 8)]}
-            >
-              <LinearGradient
-                colors={publishDisabled ? [theme.surfaceElevated, theme.surfaceElevated] : [accent.purple, IDENTITY_DEEP]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.publishBtnInner}
-              >
-                <Sparkles size={scale(16)} color={publishDisabled ? theme.textMuted : 'white'} />
-                <Text style={[styles.publishBtnText, { color: publishDisabled ? theme.textMuted : 'white' }]}>{capped ? 'Weekly cap reached' : 'Record & upload'}</Text>
-              </LinearGradient>
+              style={[styles.publishBtnInner, { backgroundColor: publishDisabled ? theme.surfaceElevated : creatorBrand.video.action }]}>
+              <Upload size={scale(16)} color={publishDisabled ? theme.textMuted : uiPalette.white} />
+              <Text style={[styles.publishBtnText, { color: publishDisabled ? theme.textMuted : uiPalette.white }]}>
+                {capped ? 'Weekly cap reached' : energy < 15 ? 'Need 15 energy' : 'Record & upload'}
+              </Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Projected performance - real algorithm baseline (non-viral). */}
-        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Projected reach</Text>
-          <View style={styles.aGrid}>
-            <AnalyticStat Icon={Eye} label="Est. views" value={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)}`} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={Users} label="Est. subs" value={`+${compact(projectedRange.lowSubs)}–${compact(projectedRange.highSubs)}`} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={TrendingUp} label="At tier" value={quality.tier.toUpperCase()} valueColor={qualityColor(quality.tier)} theme={theme} darkMode={darkMode} />
-          </View>
-          <Text style={[styles.recordHint, { color: theme.textMuted }]}>
-            Recording costs 15 energy. Every upload performs a little differently - most land in this range, a lucky few go viral. Revenue scales with your {quality.tier.toUpperCase()} gear.
-          </Text>
-        </View>
-
-        {/* Weekly upload meter + energy - anti-exploit cap made visible. */}
-        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.meterHeadRow}>
-            <Text style={[styles.meterLabel, { color: theme.textSecondary }]}>Uploads this week</Text>
-            <Text style={[styles.meterValue, { color: capped ? accent.warning : theme.text }]}>{uploadsThisWeek}/{WEEKLY_VIDEO_CAP}</Text>
-          </View>
-          <ProgressBar
-            value={uploadsThisWeek / WEEKLY_VIDEO_CAP}
-            color={capped ? accent.warning : accent.purple}
-            height={scale(8)}
-            label="Uploads this week"
-          />
-          <View style={styles.energyRow}>
-            <Zap size={scale(13)} color={energy < 15 ? accent.danger : accent.warning} />
-            <Text style={[styles.energyText, { color: theme.textSecondary }]}>
-              Energy {Math.round(energy)} <Text style={{ color: theme.textMuted }}>/ 15 needed</Text>
+            <Text style={[styles.videoMeta, { color: theme.textSecondary }]}>
+              {!title.trim() ? 'Add a title to record. ' : ''}Costs 15 energy · {Math.round(energy)} available
             </Text>
-            <View style={{ flex: 1 }} />
-            <Chip label="Upgrade gear" icon={<Cpu size={scale(12)} color={accent.purple} />} tint={accent.purple} onPress={() => goTab('studio')} />
           </View>
         </View>
+
+        <CollapsibleSection
+          id="youvideo-reach-details"
+          title="Estimated reach"
+          summary={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)} views`}
+          defaultCollapsed
+          tint={creatorBrand.video.accent}
+        >
+          <KeyValueRow label="Estimated views" value={`${compact(projectedRange.lowViews)}–${compact(projectedRange.highViews)}`} />
+          <KeyValueRow label="New subscribers" value={`+${compact(projectedRange.lowSubs)}–${compact(projectedRange.highSubs)}`} />
+          <KeyValueRow label="Gear tier" value={quality.tier.toUpperCase()} />
+          <Text style={[styles.recordHint, { color: theme.textSecondary }]}>
+            Estimates vary with your topic and gear. Viral uploads can exceed this range.
+          </Text>
+          <Chip label="Upgrade gear" icon={<Cpu size={scale(12)} color={creatorBrand.video.accent} />} tint={creatorBrand.video.accent} onPress={() => goTab('studio')} />
+        </CollapsibleSection>
       </ScrollView>
     );
   };
@@ -645,7 +589,7 @@ export default function GamingApp({ onBack }: Props) {
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {videos.length === 0 ? (
         <EmptyState
-          icon={<VideoIcon size={scale(28)} color={accent.purple} />}
+          icon={<VideoIcon size={scale(28)} color={creatorBrand.video.accent} />}
           observation="Your catalog is empty."
           nudge="Every video keeps earning after it lands, so the first one is the one that compounds."
           ctaLabel="Go to Record"
@@ -681,8 +625,8 @@ export default function GamingApp({ onBack }: Props) {
                 key={key}
                 label={label}
                 size="md"
-                icon={<Icon size={scale(13)} color={videoSort === key ? accent.purple : theme.textMuted} />}
-                tint={videoSort === key ? accent.purple : undefined}
+                icon={<Icon size={scale(13)} color={videoSort === key ? creatorBrand.video.accent : theme.textMuted} />}
+                tint={videoSort === key ? creatorBrand.video.accent : undefined}
                 selected={videoSort === key}
                 onPress={() => setVideoSort(key)}
                 accessibilityLabel={`Sort by ${label}`}
@@ -711,7 +655,7 @@ export default function GamingApp({ onBack }: Props) {
 
         <Text style={[styles.detailTitle, { color: theme.text }]}>{v.title}</Text>
         <View style={styles.detailMetaRow}>
-          <Chip label={v.game ?? 'General'} tint={accent.purple} />
+          <Chip label={v.game ?? 'General'} tint={creatorBrand.video.accent} />
           {age != null ? (
             <Chip label={age === 0 ? 'This week' : `${age}w ago`} icon={<Clock size={scale(11)} color={theme.textMuted} />} />
           ) : null}
@@ -741,8 +685,8 @@ export default function GamingApp({ onBack }: Props) {
           <Chip
             label="Back to all videos"
             size="md"
-            icon={<ChevronRight size={scale(13)} color={accent.purple} />}
-            tint={accent.purple}
+            icon={<ChevronRight size={scale(13)} color={creatorBrand.video.accent} />}
+            tint={creatorBrand.video.accent}
             onPress={() => setSelectedVideoId(null)}
           />
         </View>
@@ -760,7 +704,7 @@ export default function GamingApp({ onBack }: Props) {
             value={quality.total}
             size={96}
             strokeWidth={8}
-            accentColor={accent.purple}
+            accentColor={creatorBrand.video.accent}
             trackColor={darkMode ? 'rgba(255,255,255,0.10)' : 'rgba(148,163,184,0.25)'}
             surfaceColor={theme.surface}
             borderColor={darkMode ? theme.glassBorder : theme.border}
@@ -768,7 +712,7 @@ export default function GamingApp({ onBack }: Props) {
             ambient={false}
             label={`Gear score ${quality.total} of 100`}
           >
-            <Gauge size={scale(22)} color={accent.purple} />
+            <Gauge size={scale(22)} color={creatorBrand.video.accent} />
           </ProgressRing>
           <View style={styles.studioHeroBody}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>GEAR SCORE</Text>
@@ -840,14 +784,14 @@ export default function GamingApp({ onBack }: Props) {
         title={inDetail ? 'Video' : 'YouVideo'}
         onBack={goBack}
         backLabel={inDetail ? 'Back to videos' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={accent.purple} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       <SegmentedControl
         segments={TABS}
         value={activeTab}
         onChange={goTab}
-        activeColor={accent.purple}
+        activeColor={creatorBrand.video.accent}
         style={styles.tabs}
       />
 
@@ -886,25 +830,25 @@ function VideoThumb({
     <ImageBackground source={videoThumb(v)} style={[styles.thumbBase, style]} imageStyle={styles.thumbImg} resizeMode="cover">
       {scrim ? <ImageScrim height={0.55} strength={0.5} color="#000000" /> : null}
       {badge ? (
-        <View pointerEvents="none" style={[styles.thumbBadge, { backgroundColor: withAlpha(accent.purple, 0.92) }]}>
+        <View pointerEvents="none" style={[styles.thumbBadge, { backgroundColor: creatorBrand.video.action }]}>
           <Text style={styles.thumbBadgeText}>{badge}</Text>
         </View>
       ) : null}
       {showPlay ? (
         <View pointerEvents="none" style={styles.thumbPlayWrap}>
           <View style={styles.thumbPlayBtn}>
-            <Play size={scale(18)} color="#fff" />
+            <Play size={scale(18)} color={uiPalette.white} />
           </View>
         </View>
       ) : null}
       <View pointerEvents="none" style={styles.thumbChipRow}>
-        <View style={styles.thumbChip}>
-          <Eye size={scale(10)} color="#fff" />
+        {!badge && <View style={styles.thumbChip}>
+          <Eye size={scale(10)} color={uiPalette.white} />
           <Text style={styles.thumbChipText}>{compact(v.views)}</Text>
-        </View>
+        </View>}
         {durStr ? (
           <View style={styles.thumbChip}>
-            <Clock size={scale(10)} color="#fff" />
+            <Clock size={scale(10)} color={uiPalette.white} />
             <Text style={styles.thumbChipText}>{durStr}</Text>
           </View>
         ) : v.game ? (
@@ -987,7 +931,7 @@ function VideoCard({
         </Text>
         <View style={styles.videoStatRow}>
           <VideoStat Icon={Eye} value={v.views.toLocaleString()} color={accent.info} theme={theme} />
-          <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} color={accent.purple} theme={theme} />
+          <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} color={creatorBrand.video.accent} theme={theme} />
           <VideoStat Icon={TrendingUp} value={formatMoney(v.earnings)} color={accent.success} theme={theme} />
         </View>
       </View>
@@ -1031,10 +975,10 @@ function GearRow({
       <View
         style={[
           getGlassIconContainer(darkMode, 36),
-          { backgroundColor: withAlpha(accent.purple, 0.15), borderColor: withAlpha(accent.purple, 0.3), borderWidth: 1 },
+          { backgroundColor: withAlpha(creatorBrand.video.accent, 0.15), borderColor: withAlpha(creatorBrand.video.accent, 0.3), borderWidth: 1 },
         ]}
       >
-        <Icon size={scale(16)} color={accent.purple} />
+        <Icon size={scale(16)} color={creatorBrand.video.accent} />
       </View>
       <View style={styles.gearRowBody}>
         <Text style={[styles.gearRowName, { color: theme.text }]} numberOfLines={1}>
@@ -1044,10 +988,10 @@ function GearRow({
           {priceLabel}
         </Text>
       </View>
-      {tier != null && tier > 0 ? <Chip label={`T${tier}`} tint={done ? accent.success : accent.purple} /> : null}
-      <View style={[styles.gearAction, { backgroundColor: done ? withAlpha(accent.success, 0.16) : withAlpha(accent.purple, 0.16) }]}>
+      {tier != null && tier > 0 ? <Chip label={`T${tier}`} tint={done ? accent.success : creatorBrand.video.accent} /> : null}
+      <View style={[styles.gearAction, { backgroundColor: done ? withAlpha(accent.success, 0.16) : withAlpha(creatorBrand.video.accent, 0.16) }]}>
         {done ? <Check size={scale(12)} color={accent.success} /> : null}
-        <Text style={[styles.gearActionText, { color: done ? accent.success : accent.purple }]}>{actionLabel}</Text>
+        <Text style={[styles.gearActionText, { color: done ? accent.success : creatorBrand.video.accent }]}>{actionLabel}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -1070,8 +1014,8 @@ function AnalyticStat({
 }) {
   return (
     <View style={styles.aStat}>
-      <View style={[getGlassIconContainer(darkMode, 30), { backgroundColor: withAlpha(accent.purple, 0.15), borderColor: withAlpha(accent.purple, 0.30), borderWidth: 1 }]}>
-        <Icon size={scale(13)} color={accent.purple} />
+      <View style={[getGlassIconContainer(darkMode, 30), { backgroundColor: withAlpha(creatorBrand.video.accent, 0.15), borderColor: withAlpha(creatorBrand.video.accent, 0.30), borderWidth: 1 }]}>
+        <Icon size={scale(13)} color={creatorBrand.video.accent} />
       </View>
       <Text style={[styles.aValue, { color: valueColor ?? theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {value}
@@ -1156,11 +1100,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: scale(3),
     backgroundColor: 'rgba(0,0,0,0.66)', paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm,
   },
-  thumbChipText: { color: '#fff', fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  thumbChipText: { color: uiPalette.white, fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   thumbBadge: { position: 'absolute', top: sp.sm, left: sp.sm, paddingHorizontal: scale(7), paddingVertical: scale(3), borderRadius: br.sm },
-  thumbBadgeText: { color: '#fff', fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.6 },
+  thumbBadgeText: { color: uiPalette.white, fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.6 },
   thumbTitleWrap: { padding: sp.md },
-  thumbTitleText: { color: '#fff', fontSize: fs.md, fontWeight: '700' },
+  thumbTitleText: { color: uiPalette.white, fontSize: fs.md, fontWeight: '700' },
 
   // Recent-video rows.
   vRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1 },
@@ -1193,12 +1137,15 @@ const styles = StyleSheet.create({
   composerTitle: { flex: 1, fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
   cardTitle: { fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
   composerHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
-  previewThumb: { width: '100%', height: scale(160), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
-  input: { borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
+  composerInner: { padding: sp.sm },
+  topicRail: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  topicOption: { minHeight: 44, borderRadius: br.md, flexBasis: '47%', flexGrow: 1, justifyContent: 'center' },
+  previewThumb: { width: '100%', height: scale(112), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
+  input: { minHeight: 44, borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '600', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   topicHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs, marginTop: sp.sm },
-  recordHint: { fontSize: fs.xs, fontStyle: 'italic' },
+  recordHint: { fontSize: fs.sm },
 
   // Meters.
   meterHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1211,7 +1158,7 @@ const styles = StyleSheet.create({
   publishBtn: { borderRadius: br.full, marginTop: sp.xs },
   publishBtnInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.sm,
-    minHeight: touchTargets.minimum, paddingHorizontal: sp.md, borderRadius: br.full, overflow: 'hidden',
+    minHeight: Math.max(44, touchTargets.minimum), paddingHorizontal: sp.md, borderRadius: br.full, overflow: 'hidden',
   },
   publishBtnText: { fontSize: fs.md, fontWeight: '600' },
 

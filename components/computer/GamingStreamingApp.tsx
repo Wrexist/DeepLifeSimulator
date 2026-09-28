@@ -1,3 +1,7 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import { MEDIA_ART } from './mediaArtAssets';
+import { mediaArtForTopic, STREAM_ART_KEYS } from '@/lib/content/mediaArtwork';
+import { uiPalette, creatorBrand, getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * GamingStreamingApp - "Streaming", the live half of the creator career.
  *
@@ -17,8 +21,7 @@
  * broadcast is running the live console leads it in place of the box-art hero,
  * so the one thing the channel is doing right now is never a tab away.
  *
- * ONE gradient in the file: the Go Live console's primary action (the
- * dashboard's "Go live" is the shared GradientButton primitive). The real-time
+ * Solid violet actions keep the broadcast console readable. The real-time
  * drain loop and the stale-session resolver are untouched.
  *
  * Tabs: Dashboard / Go Live / History / Shop   (+ category & broadcast pages)
@@ -36,6 +39,7 @@ import {
 } from 'react-native';
 import {
   Radio,
+  Check,
   Activity,
   History,
   ShoppingBag,
@@ -74,14 +78,12 @@ import {
   isLiveSessionFromThisRuntime,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import {
   getGlassCard,
   getGlassIconContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import Gradient from '@/components/ui/Gradient';
-import GradientButton from '@/components/ui/GradientButton';
 import ProgressRing from '@/components/ui/ProgressRing';
 import AppHeader, { CashChip } from '@/components/ui/AppHeader';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -98,20 +100,14 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
-  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
 
-const LinearGradient = Gradient;
 
-// One identity colour, shared with the sibling YouVideo app - the two are the
-// halves of one creator career, and a private fuchsia palette only made them
-// look like different products. The deep stop below is the second colour of
-// the ONE gradient in this file (the Go Live action).
-const IDENTITY = accent.purple;
-const IDENTITY_DEEP = '#7C3AED';
+// Canonical creator-platform accents; live state retains semantic red.
+const IDENTITY = creatorBrand.stream.accent;
 const LIVE_RED = accent.danger; // live indicator (semantic red)
 
 type IconCmp = React.ComponentType<{ size?: number; color?: string }>;
@@ -166,28 +162,10 @@ const GAME_OPTIONS = [
   { id: 'speedrun', name: 'Speedrun', viewersHint: 'Big spikes if PB' },
 ];
 
-// Real box art for each category. require() needs static literals (Metro), so
-// every asset is spelled out. Each of the five categories maps to one game.
-const GAME_ART: Record<string, ImageSourcePropType> = {
-  fps: require('@/assets/images/Games/Among us.webp'),
-  rpg: require('@/assets/images/Games/League of Legends.webp'),
-  esports: require('@/assets/images/Games/Valorant.webp'),
-  creative: require('@/assets/images/Games/Minecraft.webp'),
-  speedrun: require('@/assets/images/Games/Fortnite.webp'),
-};
-
-// Resolve box art from a stored stream's game string (matches the category
-// name first, then keyword-falls-back so legacy history still gets a thumbnail).
+// Shared original artwork; saved category names and IDs are unchanged.
 function gameArtFor(name: string): ImageSourcePropType {
-  const opt = GAME_OPTIONS.find((o) => o.name === name);
-  if (opt && GAME_ART[opt.id]) return GAME_ART[opt.id];
-  const n = (name || '').toLowerCase();
-  if (n.includes('valorant') || n.includes('compet') || n.includes('fps') || n.includes('esport')) return GAME_ART.esports;
-  if (n.includes('among') || n.includes('chat')) return GAME_ART.fps;
-  if (n.includes('mine') || n.includes('craft') || n.includes('creat') || n.includes('art')) return GAME_ART.creative;
-  if (n.includes('league') || n.includes('rpg') || n.includes('moba')) return GAME_ART.rpg;
-  if (n.includes('fortnite') || n.includes('speed') || n.includes('run') || n.includes('race')) return GAME_ART.speedrun;
-  return GAME_ART.esports;
+  const option = GAME_OPTIONS.find(o => o.name === name || o.id === name);
+  return MEDIA_ART[option ? STREAM_ART_KEYS[option.id] : mediaArtForTopic(name) ?? 'competitive'];
 }
 
 // "Quick (30 min)" -> ["Quick", "30 min"] (still used by the broadcast detail
@@ -429,7 +407,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         <Image source={gameArtFor(s.game)} style={styles.vodThumb} resizeMode="cover" />
         <View pointerEvents="none" style={styles.thumbScrim} />
         <View pointerEvents="none" style={styles.vodDurBadge}>
-          <Clock size={scale(9)} color="#fff" />
+          <Clock size={scale(9)} color={uiPalette.white} />
           <Text style={styles.vodDurText}>{s.duration}m</Text>
         </View>
       </View>
@@ -447,7 +425,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           {s.uploadedAt != null ? (
             <View style={[styles.weekChip, { borderColor: theme.border }]}>
               <Calendar size={scale(10)} color={theme.textMuted} />
-              <Text style={[styles.weekChipText, { color: theme.textSecondary }]}>Wk {s.uploadedAt}</Text>
+              <Text style={[styles.weekChipText, { color: theme.textSecondary }]}>{formatLifeWeek(s.uploadedAt, gameState.lifeStartWeek)}</Text>
             </View>
           ) : null}
         </View>
@@ -492,7 +470,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   <Text style={styles.statusPillText}>{isLive ? 'LIVE' : 'OFFLINE'}</Text>
                 </View>
                 <View style={styles.viewersPill}>
-                  <Eye size={scale(12)} color="#fff" />
+                  <Eye size={scale(12)} color={uiPalette.white} />
                   <Text style={styles.viewersPillText}>{fmt(channel?.averageViewers)} avg</Text>
                 </View>
               </View>
@@ -500,13 +478,13 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View style={styles.mediaBottom}>
                 <View style={styles.heroIdRow}>
                   <View style={styles.heroAvatar}>
-                    <Radio size={scale(18)} color="#fff" />
+                    <Radio size={scale(18)} color={uiPalette.white} />
                   </View>
                   <View style={styles.flex1}>
                     <Text style={styles.heroChannelName} numberOfLines={1}>Your Channel</Text>
                     <View style={styles.heroLevelChip}>
                       <Award size={scale(11)} color={IDENTITY} />
-                      <Text style={styles.heroLevelText}>Level {level} Partner</Text>
+                      <Text style={styles.heroLevelText}>Level {level} creator</Text>
                     </View>
                   </View>
                 </View>
@@ -518,14 +496,12 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   console (category + energy gate live there), which is why it
                   is never disabled here - the gate would be a lie this far
                   from the control. */}
-              <GradientButton
-                label="Go live"
-                onPress={() => setActiveTab('live')}
-                colors={[IDENTITY, IDENTITY, IDENTITY_DEEP]}
-                glow={IDENTITY}
-                icon={<Play size={scale(15)} color="#fff" />}
-                accessibilityLabel="Open the Go Live console"
-              />
+              <TouchableOpacity onPress={() => setActiveTab('live')} activeOpacity={0.8}
+                accessibilityRole="button" accessibilityLabel="Open the Go Live console"
+                style={[styles.publishBtn, { backgroundColor: creatorBrand.stream.action }]}>
+                <Play size={scale(15)} color={uiPalette.white} />
+                <Text style={styles.publishBtnText}>Go live</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -651,7 +627,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   <Text style={styles.statusPillText}>LIVE</Text>
                 </View>
                 <View style={styles.viewersPill}>
-                  <Eye size={scale(12)} color="#fff" />
+                  <Eye size={scale(12)} color={uiPalette.white} />
                   <Text style={styles.viewersPillText}>{fmt(liveViewers)} watching</Text>
                 </View>
               </View>
@@ -708,7 +684,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           accessibilityLabel="Stop stream"
           style={[styles.publishBtn, { backgroundColor: LIVE_RED }]}
         >
-          <Square size={scale(14)} color="#fff" />
+          <Square size={scale(14)} color={uiPalette.white} />
           <Text style={styles.publishBtnText}>Stop stream</Text>
         </TouchableOpacity>
       </>
@@ -745,7 +721,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         >
           <View style={styles.monitorInner}>
             <View style={styles.heroMedia}>
-              <Image source={GAME_ART[selectedGame.id]} style={styles.mediaFill} resizeMode="cover" />
+              <Image source={MEDIA_ART[STREAM_ART_KEYS[selectedGame.id]]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: 'rgba(15,23,42,0.72)' }]}>
@@ -773,6 +749,36 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
+        {/* Broadcast console - weekly cap + hype + the one loud Go Live CTA. */}
+        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.capRow}>
+            <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
+            <Text style={[styles.capValue, { color: capped ? accent.warning : theme.text }]}>{streamsThisWeek} / 5</Text>
+          </View>
+          <ProgressBar value={streamsThisWeek / 5} color={capped ? accent.warning : IDENTITY} height={scale(7)} label="Streams this week" />
+          <View style={[styles.hintRow, { marginTop: sp.sm }]}>
+            <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
+            <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
+              Energy {Math.round(energy)} · Stop anytime to collect earnings.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleGoLive}
+            disabled={!canGo || capped}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Go live"
+            accessibilityState={{ disabled: !canGo || capped }}
+            style={[styles.publishBtnWrap, canGo && !capped && getPlatformShadows(5, 0.3, 2, 8)]}
+          >
+            <View style={[styles.publishBtn, { backgroundColor: canGo && !capped ? creatorBrand.stream.action : theme.surfaceElevated }]}>
+              <Play size={scale(15)} color={canGo && !capped ? 'white' : theme.textMuted} />
+              <Text style={[styles.publishBtnText, { color: canGo && !capped ? 'white' : theme.textMuted }]}>
+                {capped ? 'Weekly cap reached' : canGo ? 'Go live' : `Need ${LIVE_MIN_ENERGY} energy`}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
         {/* Category - the SELECTION control, so it lives here and nowhere else. */}
         <View style={styles.section}>
           <SectionTitle title="Category" subtitle="Pick what you are streaming." />
@@ -790,21 +796,20 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   style={[
                     getGlassCard(darkMode, 6),
                     styles.gameTile,
-                    { backgroundColor: theme.surface, borderColor: selected ? IDENTITY : theme.border, borderWidth: selected ? 2 : 1 },
+                    { backgroundColor: theme.surface, borderColor: selected ? IDENTITY : theme.border, borderWidth: 2 },
                   ]}
                 >
                   <View style={styles.gameTileClip}>
-                    <Image source={GAME_ART[g.id]} style={styles.gameTileImg} resizeMode="cover" />
-                    <View pointerEvents="none" style={styles.gameTileScrim} />
+                    <Image source={MEDIA_ART[STREAM_ART_KEYS[g.id]]} style={styles.gameTileImg} resizeMode="cover" />
                     {selected ? (
                       <View style={styles.gameTileCheck}>
-                        <Radio size={scale(12)} color="#fff" />
+                        <Check size={scale(12)} color={uiPalette.white} />
                       </View>
                     ) : null}
-                    <View pointerEvents="none" style={styles.gameTileLabel}>
-                      <Text style={styles.gameTileName} numberOfLines={1}>{g.name}</Text>
-                      <Text style={styles.gameTileHint} numberOfLines={1}>{g.viewersHint}</Text>
-                    </View>
+                  </View>
+                  <View pointerEvents="none" style={styles.gameTileLabel}>
+                    <Text style={[styles.gameTileName, { color: theme.text }]}>{g.name}</Text>
+                    <Text style={[styles.gameTileHint, { color: theme.textSecondary }]} numberOfLines={1}>{g.viewersHint}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -812,13 +817,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Broadcast console - weekly cap + hype + the one loud Go Live CTA. */}
-        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.capRow}>
-            <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
-            <Text style={[styles.capValue, { color: capped ? accent.warning : theme.text }]}>{streamsThisWeek} / 5</Text>
-          </View>
-          <ProgressBar value={streamsThisWeek / 5} color={capped ? accent.warning : IDENTITY} height={scale(7)} label="Streams this week" />
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
           <View style={styles.hypeHeadRow}>
             <View style={[styles.hintRow, { flex: 1 }]}>
               <Flame size={scale(12)} color={accent.warning} />
@@ -836,33 +835,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             label="Hype-train chance"
             style={styles.hypeBar}
           />
-          <View style={[styles.hintRow, { marginTop: sp.sm }]}>
-            <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
-            <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
-              Energy {Math.round(energy)} · streaming drains it live. Tap Stop any time to bank your earnings.
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleGoLive}
-            disabled={!canGo || capped}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Go live"
-            accessibilityState={{ disabled: !canGo || capped }}
-            style={[styles.publishBtnWrap, canGo && !capped && getPlatformShadows(5, 0.3, 2, 8)]}
-          >
-            <LinearGradient
-              colors={canGo && !capped ? [IDENTITY, IDENTITY_DEEP] : [theme.surfaceElevated, theme.surfaceElevated]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.publishBtn}
-            >
-              <Play size={scale(15)} color={canGo && !capped ? 'white' : theme.textMuted} />
-              <Text style={[styles.publishBtnText, { color: canGo && !capped ? 'white' : theme.textMuted }]}>
-                {capped ? 'Weekly cap reached' : canGo ? 'Go live' : `Need ${LIVE_MIN_ENERGY} energy`}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     );
@@ -928,6 +900,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
         <SectionTitle title="Accessories" />
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
+          const affordable = gameState.stats.money >= (ACCESSORY_PRICES[k] ?? 0);
+          const locked = owned || !affordable;
           return (
             <View key={k} style={styles.gearRow}>
               <View
@@ -943,18 +917,19 @@ export default function GamingStreamingApp({ onBack }: Props) {
               <View style={styles.flex1}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{ACCESSORY_LABELS[k]}</Text>
                 <Text style={[styles.gearMeta, { color: theme.textMuted }]}>
-                  {owned ? 'Owned' : `${formatMoney(ACCESSORY_PRICES[k] ?? 0)} · +${ACCESSORY_QUALITY[k]} quality`}
+                  {owned ? 'Owned' : `${formatMoney(ACCESSORY_PRICES[k] ?? 0)} · +${ACCESSORY_QUALITY[k]} quality${affordable ? '' : ` - Need ${formatMoney((ACCESSORY_PRICES[k] ?? 0) - gameState.stats.money)} more`}`}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => handleAccessory(k)}
-                disabled={owned}
+                disabled={locked}
+                accessibilityState={{ disabled: locked }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={owned ? `${ACCESSORY_LABELS[k]} owned` : `Buy ${ACCESSORY_LABELS[k]}`}
-                style={[styles.gearBtn, owned ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: withAlpha(IDENTITY, 0.14) }]}
+                style={[styles.gearBtn, locked ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: withAlpha(IDENTITY, 0.14) }]}
               >
-                <Text style={[styles.gearBtnText, { color: owned ? theme.textMuted : IDENTITY }]}>{owned ? 'Owned' : 'Buy'}</Text>
+                <Text style={[styles.gearBtnText, { color: locked ? theme.textMuted : IDENTITY }]}>{owned ? 'Owned' : affordable ? 'Buy' : 'Need cash'}</Text>
               </TouchableOpacity>
             </View>
           );
@@ -968,6 +943,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
           const maxed = tier >= MAX_PC_TIER;
           const cost = Math.round(PC_BASE_PRICES[k] * Math.pow(2, tier));
+          const affordable = gameState.stats.money >= cost;
+          const locked = maxed || !affordable;
           return (
             <View key={k} style={styles.gearRow}>
               <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: withAlpha(IDENTITY, 0.15), borderWidth: 1, borderColor: withAlpha(IDENTITY, 0.30) }]}>
@@ -981,21 +958,21 @@ export default function GamingStreamingApp({ onBack }: Props) {
               </View>
               <View style={styles.gearRight}>
                 <Text style={[styles.gearPrice, { color: theme.textMuted }]}>
-                  {maxed ? 'Max tier' : formatMoney(cost)}
+                  {maxed ? 'Max tier' : affordable ? formatMoney(cost) : `Need ${formatMoney(cost - gameState.stats.money)} more`}
                 </Text>
                 <TouchableOpacity
                   onPress={() => handlePCUpgrade(k)}
                   activeOpacity={0.85}
-                  disabled={maxed}
+                  disabled={locked}
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: maxed }}
+                  accessibilityState={{ disabled: locked }}
                   accessibilityLabel={maxed
                     ? `${PC_LABELS[k]} is at max tier`
                     : `Upgrade ${PC_LABELS[k]} to tier ${tier + 1} for ${formatMoney(cost)}`}
-                  style={[styles.gearBtn, { backgroundColor: maxed ? withAlpha(accent.muted, 0.18) : withAlpha(IDENTITY, 0.14) }]}
+                  style={[styles.gearBtn, { backgroundColor: locked ? withAlpha(accent.muted, 0.18) : withAlpha(IDENTITY, 0.14) }]}
                 >
-                  <Text style={[styles.gearBtnText, { color: maxed ? theme.textMuted : IDENTITY }]}>
-                    {maxed ? 'Maxed' : 'Upgrade'}
+                  <Text style={[styles.gearBtnText, { color: locked ? theme.textMuted : IDENTITY }]}>
+                    {maxed ? 'Maxed' : affordable ? 'Upgrade' : 'Need cash'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1024,15 +1001,15 @@ export default function GamingStreamingApp({ onBack }: Props) {
         >
           <View style={styles.monitorInner}>
             <View style={styles.heroMedia}>
-              <Image source={GAME_ART[g.id]} style={styles.mediaFill} resizeMode="cover" />
+              <Image source={MEDIA_ART[STREAM_ART_KEYS[g.id]]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
               <View style={styles.mediaTopRow}>
                 <View style={styles.catBadge}>
-                  <Gamepad2 size={scale(11)} color="#fff" />
+                  <Gamepad2 size={scale(11)} color={uiPalette.white} />
                   <Text style={styles.statusPillText}>CATEGORY</Text>
                 </View>
                 <View style={styles.viewersPill}>
-                  <Eye size={scale(12)} color="#fff" />
+                  <Eye size={scale(12)} color={uiPalette.white} />
                   <Text style={styles.viewersPillText}>{st.count ? `${fmt(st.avg)} avg` : 'New'}</Text>
                 </View>
               </View>
@@ -1108,8 +1085,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 </View>
                 {s.uploadedAt != null ? (
                   <View style={styles.viewersPill}>
-                    <Calendar size={scale(11)} color="#fff" />
-                    <Text style={styles.viewersPillText}>Week {s.uploadedAt}</Text>
+                    <Calendar size={scale(11)} color={uiPalette.white} />
+                    <Text style={styles.viewersPillText}>{formatLifeWeek(s.uploadedAt, gameState.lifeStartWeek)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -1168,7 +1145,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         title={headerTitle}
         onBack={goBack}
         backLabel={inDetail ? 'Back to Streaming' : 'Back'}
-        right={<CashChip value={formatMoney(money)} tint={IDENTITY} />}
+        right={<CashChip value={formatMoney(money)} />}
       />
 
       {inCategory ? (
@@ -1218,7 +1195,7 @@ function qualityColor(tier: string): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
-  scrollPad: { padding: sp.md, gap: sp.lg, paddingBottom: sp['3xl'] },
+  scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
   tabs: { marginHorizontal: sp.md, marginTop: sp.sm, marginBottom: sp.sm },
   // Segmented control directly under the top bar; it has its own container
   // (glass tabs), so the top bar drops its bottom border.
@@ -1235,23 +1212,23 @@ const styles = StyleSheet.create({
   monitorInner: { borderRadius: br['2xl'], overflow: 'hidden' },
   // Fixed clamped height (not aspectRatio) so the hero can't balloon on wide
   // frames; scale() caps at 1.8x, preserving the ~16:9 look on phones.
-  heroMedia: { width: '100%', height: scale(210), position: 'relative', justifyContent: 'space-between' },
+  heroMedia: { width: '100%', height: scale(160), position: 'relative', justifyContent: 'space-between' },
   mediaFill: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   mediaScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.42)' },
   mediaTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: sp.sm },
   mediaBottom: { padding: sp.md, gap: sp.xs },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: scale(5), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm },
-  statusPillText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', letterSpacing: 0.6 },
+  statusPillText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, letterSpacing: 0.6 },
   catBadge: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm, backgroundColor: withAlpha(IDENTITY, 0.85) },
   viewersPill: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
-  viewersPillText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
+  viewersPillText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, fontVariant: ['tabular-nums'] },
 
   // Hero identity + stat strip (over media).
   heroIdRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   heroAvatar: { width: scale(38), height: scale(38), borderRadius: scale(19), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY, borderWidth: 2, borderColor: 'rgba(255,255,255,0.65)' },
-  heroChannelName: { fontSize: fs.lg, fontWeight: '700', color: '#fff' },
+  heroChannelName: { fontSize: fs.lg, fontWeight: '700', color: uiPalette.white },
   heroLevelChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.5)' },
-  heroLevelText: { fontSize: fs.xs, fontWeight: '700', color: '#fff' },
+  heroLevelText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white },
   heroFooter: { padding: sp.md },
 
   // ── Stream health card ──
@@ -1276,20 +1253,19 @@ const styles = StyleSheet.create({
 
   // ── Go Live monitor ──
   monitorTierChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
-  monitorTierText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
-  monitorGame: { fontSize: fs['2xl'], fontWeight: '800', color: '#fff' },
-  monitorMetaRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginTop: 2 },
+  monitorTierText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, letterSpacing: 0.4 },
+  monitorGame: { fontSize: fs['2xl'], fontWeight: '800', color: uiPalette.white },
+  monitorMetaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.md, marginTop: 2 },
   monitorMeta: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   monitorMetaText: { fontSize: fs.sm, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
 
   // ── Game picker tiles ──
-  gameTile: { width: '47.5%', flexGrow: 1, borderRadius: br.xl, overflow: 'hidden' },
+  gameTile: { width: '47.5%', flexGrow: 0, borderRadius: br.lg, overflow: 'hidden' },
   gameTileClip: { width: '100%', height: scale(88), position: 'relative', justifyContent: 'flex-end' },
   gameTileImg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  gameTileScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.4)' },
-  gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY },
+  gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: creatorBrand.stream.action },
   gameTileLabel: { padding: sp.sm, gap: 1 },
-  gameTileName: { fontSize: fs.sm, fontWeight: '700', color: '#fff' },
+  gameTileName: { fontSize: fs.sm, fontWeight: '700', color: uiPalette.white },
   gameTileHint: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
 
   // ── Duration tiles ──
@@ -1299,20 +1275,20 @@ const styles = StyleSheet.create({
   capLabel: { fontSize: fs.sm, fontWeight: '600' },
   capValue: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  recordHint: { fontSize: fs.xs, fontStyle: 'italic', flex: 1 },
+  recordHint: { fontSize: fs.sm, flex: 1 },
   hypeHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.sm },
   hypeMax: { fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hypeBar: { marginTop: sp.xs },
   publishBtnWrap: { borderRadius: br.full },
-  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: scale(48) },
-  publishBtnText: { fontSize: fs.md, fontWeight: '600', color: '#fff' },
+  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: Math.max(44, scale(48)) },
+  publishBtnText: { fontSize: fs.md, fontWeight: '600', color: uiPalette.white },
 
   // ── History summary + VOD cards ──
   vodCard: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1 },
   vodThumbWrap: { width: scale(104), height: scale(72), borderRadius: br.lg, overflow: 'hidden', position: 'relative' },
   vodThumb: { width: '100%', height: '100%' },
   vodDurBadge: { position: 'absolute', right: scale(4), bottom: scale(4), flexDirection: 'row', alignItems: 'center', gap: scale(3), paddingHorizontal: scale(5), paddingVertical: 2, borderRadius: br.sm, backgroundColor: 'rgba(2,6,23,0.72)' },
-  vodDurText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
+  vodDurText: { fontSize: fs.xs, fontWeight: '700', color: uiPalette.white, fontVariant: ['tabular-nums'] },
   vodBody: { flex: 1, gap: sp.xs },
   vodMeta: { fontSize: fs.xs, fontVariant: ['tabular-nums'] },
   vodGame: { fontSize: fs.md, fontWeight: '600', flex: 1 },
@@ -1326,7 +1302,7 @@ const styles = StyleSheet.create({
   // ── Detail sub-views ──
   detailSub: { fontSize: fs.sm, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   bigPeakRow: { flexDirection: 'row', alignItems: 'baseline', gap: sp.xs, marginTop: 2 },
-  bigPeakVal: { fontSize: fs['3xl'], fontWeight: '800', color: '#fff', fontVariant: ['tabular-nums'] },
+  bigPeakVal: { fontSize: fs['3xl'], fontWeight: '800', color: uiPalette.white, fontVariant: ['tabular-nums'] },
   bigPeakLabel: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
 
   // ── Best stream ──

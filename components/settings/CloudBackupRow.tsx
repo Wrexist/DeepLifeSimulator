@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Settings → "Cloud backup".
  *
@@ -259,17 +260,17 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   title: {
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     fontSize: fontScale(15),
     fontWeight: '700',
   },
   status: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: fontScale(12),
     fontWeight: '600',
   },
   hint: {
-    color: '#64748B',
+    color: uiPalette.lightMuted,
     fontSize: fontScale(11),
   },
   actions: {

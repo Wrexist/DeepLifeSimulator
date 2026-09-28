@@ -1,3 +1,4 @@
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 
@@ -9,7 +10,8 @@ interface UseOnboardingScreenAnimationOptions {
 }
 
 export function useOnboardingScreenAnimation(options?: UseOnboardingScreenAnimationOptions) {
-  const duration = options?.duration ?? 720;
+  const reduced = useReducedMotion();
+  const duration = reduced ? 0 : Math.min(options?.duration ?? 240, 300);
   const offsetY = options?.offsetY ?? 22;
   const rotateBackground = options?.rotateBackground ?? false;
   const rotateDuration = options?.rotateDuration ?? 30000;
@@ -42,7 +44,7 @@ export function useOnboardingScreenAnimation(options?: UseOnboardingScreenAnimat
   }, [duration, opacity, translateY]);
 
   useEffect(() => {
-    if (!rotateBackground) {
+    if (!rotateBackground || reduced) {
       return undefined;
     }
 
@@ -60,7 +62,7 @@ export function useOnboardingScreenAnimation(options?: UseOnboardingScreenAnimat
     return () => {
       animation.stop();
     };
-  }, [rotateBackground, rotateDuration, rotateProgress]);
+  }, [rotateBackground, rotateDuration, rotateProgress, reduced]);
 
   const rotate = rotateProgress.interpolate({
     inputRange: [0, 1],

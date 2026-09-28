@@ -5,6 +5,10 @@ compact HUD, clear first-job guidance and coherent game art. Improve observed
 player problems; do not replace the app's architecture or visual direction just
 because a generic skill prefers another stack.
 
+The user approved the 27 September creator UI cleanup as the design baseline.
+Preserve its compact hierarchy and clean controls; see the approved reference in
+`docs/PRESENTATION_SYSTEM.md` before introducing a different visual direction.
+
 Current save schema: `STATE_VERSION = 51`. Read `contexts/game/initialState.ts`
 before changing it and update the canonical documentation together.
 

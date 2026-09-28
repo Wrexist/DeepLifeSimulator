@@ -10,6 +10,8 @@
  * update live, as in the character creator.
  */
 import React, { useMemo } from 'react';
+import { isPortraitId } from '@/lib/avatar/portraits';
+import { PORTRAIT_PRESETS } from '@/lib/avatar/portraitPresets';
 import VectorAvatar from './VectorAvatar';
 import { resolveAvatar, resolveNpcAvatar, toAvatarSex, type AvatarSource } from '@/lib/avatar/resolve';
 import { resolveChildAvatar, type ParentSources } from '@/lib/avatar/family';
@@ -64,7 +66,7 @@ function CharacterAvatarImpl({
 
   return (
     <VectorAvatar
-      config={config}
+      config={isPortraitId(source?.avatarId) ? PORTRAIT_PRESETS[source.avatarId] : config}
       sex={drawnSex}
       age={age}
       size={size}

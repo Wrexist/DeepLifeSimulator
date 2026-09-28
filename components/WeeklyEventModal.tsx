@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
 import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
@@ -516,7 +517,7 @@ function renderChoiceInner(
  <>
  <View style={styles.choiceContent}>
  {isPrimary ? (
- <CheckCircle size={scale(19)} color="#FFFFFF" />
+ <CheckCircle size={scale(19)} color={uiPalette.white} />
  ): (
  <XCircle size={scale(19)} color="rgba(148, 163, 184, 0.9)" />
  )}
@@ -652,7 +653,7 @@ const styles = StyleSheet.create({
  notificationTitle: {
  fontSize: fontScale(20),
  fontWeight: '800',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  flex: 1,
  letterSpacing: -0.3,
  },
@@ -699,7 +700,7 @@ const styles = StyleSheet.create({
  infoPanelTitle: {
  fontSize: fontScale(14),
  fontWeight: '700',
- color: '#F8FAFC',
+ color: uiPalette.paper,
  marginBottom: verticalScale(8),
  },
  economicStats: {
@@ -773,7 +774,7 @@ const styles = StyleSheet.create({
  effectBadgeText: {
  fontSize: fontScale(14),
  fontWeight: '700',
- color: '#FFFFFF',
+ color: uiPalette.white,
  },
  choicesContainer: {
  gap: verticalScale(12),
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
  flexShrink: 1,
  },
  primaryChoiceText: {
- color: '#FFFFFF',
+ color: uiPalette.white,
  },
  secondaryChoiceText: {
  color: 'rgba(226, 232, 240, 0.92)',

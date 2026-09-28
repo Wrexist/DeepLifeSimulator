@@ -1,3 +1,4 @@
+import { formatStudyDuration } from '@/utils/educationFormatting';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, GraduationCap, AlertCircle, BookOpen, Check } from 'lucide-react-native';
@@ -6,13 +7,13 @@ import { quoteEnrollment } from '@/contexts/game/actions/EducationActions';
 import {
   getAvailableClasses,
   MAX_CLASSES_PER_SEMESTER,
-  MIN_CLASSES_PER_SEMESTER,
   type ClassTemplate,
 } from '@/lib/education/educationSystem';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, actionColors } from '@/lib/config/theme';
 
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 export interface EnrollTemplate {
@@ -47,6 +48,7 @@ function bonusLabel(c: ClassTemplate): string {
 
 export default function EnrollModal({ visible, template, gameState, darkMode, onClose, onConfirm }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [mode, setMode] = useState<'cash' | 'loan'>('cash');
   // Offered classes for this program (derived once per open - getAvailableClasses
   // shuffles, so we freeze it in state to keep the picker stable across renders).
@@ -83,11 +85,14 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
 
   if (!template) return null;
 
+  const isFree = quote?.netCost === 0;
+  const paymentMode = isFree ? 'cash' : mode;
+  const automaticClasses = offered.slice(0, MAX_CLASSES_PER_SEMESTER);
   const canCash = !!quote && !quote.blockedReason && quote.canAffordCash;
   const canLoan = !!quote?.loan && !quote.blockedReason;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
@@ -104,7 +109,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: theme.text }]}>{template.name}</Text>
               <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-                {formatMoney(template.cost)} · {quote?.adjustedDuration ?? template.duration}w of study
+                {formatStudyDuration(quote?.adjustedDuration ?? template.duration)} of study
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">
@@ -129,14 +134,14 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                 <Row
                   theme={theme}
                   label="Net cost"
-                  value={formatMoney(quote.netCost)}
+                  value={isFree ? 'Free' : formatMoney(quote.netCost)}
                   highlight
                 />
                 {quote.weeksReductionFromPolitics > 0 && (
                   <Row
                     theme={theme}
                     label="Politics fast-track"
-                    value={`−${quote.weeksReductionFromPolitics}w`}
+                    value={`${formatStudyDuration(quote.weeksReductionFromPolitics)} shorter`}
                     accentColor={accent.purple}
                   />
                 )}
@@ -155,54 +160,60 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
               </View>
             )}
 
-            <View style={styles.segRow}>
+            {!isFree && <View style={styles.segRow}>
               <TouchableOpacity
                 accessibilityRole="radio"
                 accessibilityLabel="Pay cash"
-                accessibilityState={{ checked: mode === 'cash', disabled: !canCash }}
+                accessibilityState={{ checked: paymentMode === 'cash', disabled: !canCash }}
                 onPress={() => setMode('cash')}
                 disabled={!canCash}
                 style={[
                   styles.segBtn,
                   {
-                    borderColor: mode === 'cash' && canCash ? accent.success : theme.border,
-                    backgroundColor: mode === 'cash' && canCash ? accent.success : theme.surfaceElevated,
+                    borderColor: paymentMode === 'cash' && canCash ? actionColors.success : theme.border,
+                    backgroundColor: paymentMode === 'cash' && canCash ? actionColors.success : theme.surfaceElevated,
                     opacity: canCash ? 1 : 0.45,
                   },
                 ]}
               >
-                <Text style={[styles.segText, { color: mode === 'cash' && canCash ? 'white' : theme.text }]}>
+                <Text style={[styles.segText, { color: paymentMode === 'cash' && canCash ? 'white' : theme.text }]}>
                   Pay cash
                 </Text>
-                <Text style={[styles.segSub, { color: mode === 'cash' && canCash ? 'white' : theme.textMuted }]}>
+                <Text style={[styles.segSub, { color: paymentMode === 'cash' && canCash ? 'white' : theme.textMuted }]}>
                   Cash on hand: {formatMoney(quote?.cash ?? 0)}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 accessibilityRole="radio"
                 accessibilityLabel="Student loan"
-                accessibilityState={{ checked: mode === 'loan', disabled: !canLoan }}
+                accessibilityState={{ checked: paymentMode === 'loan', disabled: !canLoan }}
                 onPress={() => setMode('loan')}
                 disabled={!canLoan}
                 style={[
                   styles.segBtn,
                   {
-                    borderColor: mode === 'loan' && canLoan ? accent.info : theme.border,
-                    backgroundColor: mode === 'loan' && canLoan ? accent.info : theme.surfaceElevated,
+                    borderColor: paymentMode === 'loan' && canLoan ? actionColors.primary : theme.border,
+                    backgroundColor: paymentMode === 'loan' && canLoan ? actionColors.primary : theme.surfaceElevated,
                     opacity: canLoan ? 1 : 0.45,
                   },
                 ]}
               >
-                <Text style={[styles.segText, { color: mode === 'loan' && canLoan ? 'white' : theme.text }]}>
+                <Text style={[styles.segText, { color: paymentMode === 'loan' && canLoan ? 'white' : theme.text }]}>
                   Student loan
                 </Text>
-                <Text style={[styles.segSub, { color: mode === 'loan' && canLoan ? 'white' : theme.textMuted }]}>
+                <Text style={[styles.segSub, { color: paymentMode === 'loan' && canLoan ? 'white' : theme.textMuted }]}>
                   {quote?.loan ? `${quote.loan.termWeeks} weeks · ${(quote.loan.rateAPR * 100).toFixed(2)}% APR` : 'No loan needed'}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </View>}
 
-            {!canCash && !quote?.blockedReason && mode === 'cash' && quote && (
+            {isFree && (
+              <Text style={[styles.body, { color: theme.textSecondary }]}>
+                No payment or loan needed. Your cash stays unchanged.
+              </Text>
+            )}
+
+            {!canCash && !quote?.blockedReason && paymentMode === 'cash' && quote && (
               <View style={[styles.errorRow, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
                 <AlertCircle size={scale(14)} color={accent.danger} />
                 <Text style={[styles.errorText, { color: accent.danger }]}>
@@ -211,7 +222,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
               </View>
             )}
 
-            {quote && !quote.blockedReason && (mode === 'loan' ? quote.loan && (
+            {quote && !isFree && !quote.blockedReason && (paymentMode === 'loan' ? quote.loan && (
               <View style={[styles.quoteCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                 <Row theme={theme} label="Weekly payment" value={`~${formatMoney(quote.loan.weeklyPayment)}/wk`} highlight />
                 <Row theme={theme} label="Amount borrowed" value={formatMoney(quote.loan.principal)} />
@@ -246,9 +257,14 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                   <Text style={[styles.classCount, { color: theme.textMuted }]}>
                     {selected.length > 0
                       ? `${selected.length}/${MAX_CLASSES_PER_SEMESTER}`
-                      : `pick ${MIN_CLASSES_PER_SEMESTER}-${MAX_CLASSES_PER_SEMESTER}`}
+                      : `${automaticClasses.length} auto-picked`}
                   </Text>
                 </View>
+                <Text style={[styles.body, { color: theme.textSecondary }]}>
+                  {selected.length === 0
+                    ? `On enrollment, we will choose: ${automaticClasses.map((c) => c.name).join(', ')}. Select any classes below to replace this selection.`
+                    : `Your ${selected.length} selected ${selected.length === 1 ? 'class' : 'classes'} will be used. Clear all to use the automatic selection.`}
+                </Text>
                 {offered.map((c) => {
                   const on = selected.includes(c.id);
                   const atCap = !on && selected.length >= MAX_CLASSES_PER_SEMESTER;
@@ -289,7 +305,7 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                   );
                 })}
                 <Text style={[styles.classHint, { color: theme.textMuted }]}>
-                  Skip to auto-pick. Classes grant stat bonuses when you graduate.
+                  Choose up to {MAX_CLASSES_PER_SEMESTER} classes. Classes grant stat bonuses when you graduate.
                 </Text>
               </View>
             )}
@@ -297,22 +313,22 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
 
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={mode === 'cash' ? `Enroll and pay ${formatMoney(quote?.netCost ?? 0)}` : 'Enroll with student loan'}
-            accessibilityState={{ disabled: mode === 'cash' ? !canCash : !canLoan }}
-            disabled={mode === 'cash' ? !canCash : !canLoan}
+            accessibilityLabel={isFree ? 'Enroll free' : paymentMode === 'cash' ? `Enroll and pay ${formatMoney(quote?.netCost ?? 0)}` : 'Enroll with student loan'}
+            accessibilityState={{ disabled: paymentMode === 'cash' ? !canCash : !canLoan }}
+            disabled={paymentMode === 'cash' ? !canCash : !canLoan}
             onPress={() => {
-              if (mode === 'cash' ? canCash : canLoan) onConfirm(mode, resolvedClassIds());
+              if (paymentMode === 'cash' ? canCash : canLoan) onConfirm(paymentMode, resolvedClassIds());
             }}
             style={[
               styles.confirm,
               {
                 backgroundColor:
-                  (mode === 'cash' ? canCash : canLoan) ? (mode === 'cash' ? accent.success : accent.info) : theme.border,
+                  (paymentMode === 'cash' ? canCash : canLoan) ? (paymentMode === 'cash' ? actionColors.success : actionColors.primary) : theme.border,
               },
             ]}
           >
             <Text style={styles.confirmText}>
-              {mode === 'cash' ? `Pay ${formatMoney(quote?.netCost ?? 0)}` : 'Sign Student Loan'}
+              {isFree ? 'Enroll free' : paymentMode === 'cash' ? `Pay ${formatMoney(quote?.netCost ?? 0)} & enroll` : 'Sign loan & enroll'}
             </Text>
           </TouchableOpacity>
         </View>

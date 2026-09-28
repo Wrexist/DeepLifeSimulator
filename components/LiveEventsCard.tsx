@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * LiveEventsCard - the front door for live events.
  *
@@ -208,7 +209,7 @@ function LiveEventsCard(): React.ReactElement | null {
                 {objectives.map((objective) => (
                   <View key={objective.objectiveId} style={styles.row}>
                     <View style={[styles.bubble, objective.met && styles.bubbleDone]}>
-                      {objective.met ? <Check size={scale(11)} color="#0F172A" /> : null}
+                      {objective.met ? <Check size={scale(11)} color={uiPalette.navy} /> : null}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text
@@ -289,8 +290,8 @@ const styles = StyleSheet.create({
   eventDone: { opacity: 0.72 },
   eventHeader: { flexDirection: 'row', alignItems: 'center', gap: scale(9) },
   emoji: { fontSize: fontScale(20) },
-  title: { fontSize: fontScale(14), fontWeight: '700', color: '#F1F5F9' },
-  sub: { fontSize: fontScale(11), color: '#94A3B8', marginTop: scale(1) },
+  title: { fontSize: fontScale(14), fontWeight: '700', color: uiPalette.lightSurface },
+  sub: { fontSize: fontScale(11), color: uiPalette.muted, marginTop: scale(1) },
   rewardChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
   },
   urgencyRow: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   urgencyText: { fontSize: fontScale(10), fontWeight: '600', color: '#FCA5A5' },
-  progressLine: { fontSize: fontScale(11), color: '#64748B', fontWeight: '600' },
+  progressLine: { fontSize: fontScale(11), color: uiPalette.lightMuted, fontWeight: '600' },
   list: { gap: scale(7) },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
   bubble: {
@@ -328,8 +329,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bubbleDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
-  rowTitle: { fontSize: fontScale(11.5), color: '#CBD5E1' },
-  rowTitleDone: { color: '#64748B', textDecorationLine: 'line-through' },
+  rowTitle: { fontSize: fontScale(11.5), color: uiPalette.secondary },
+  rowTitleDone: { color: uiPalette.lightMuted, textDecorationLine: 'line-through' },
   barBg: {
     height: scale(3),
     borderRadius: responsiveBorderRadius.full,

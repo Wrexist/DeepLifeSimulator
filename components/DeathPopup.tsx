@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   Modal,
@@ -37,7 +38,7 @@ import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
-import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
+
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
 import { explainVitalDeath } from '@/lib/economy/deathCauses';
@@ -847,7 +848,7 @@ function DeathPopup() {
       accessibilityLabel="Start a new life"
     >
       <LinearGradient colors={['#7C4DFF', '#5B2BE0']} style={styles.buttonGradient}>
-        <Sparkles size={20} color="#FFF" />
+        <Sparkles size={20} color={uiPalette.white} />
         <View>
           <Text style={styles.buttonText}>Start New Life</Text>
           <Text style={styles.buttonSubtext}>A new beginning awaits.</Text>
@@ -974,7 +975,7 @@ function DeathPopup() {
                     onPress={handleSelectSummaryTab}
                     activeOpacity={0.8}
                   >
-                    <Sparkles size={15} color={activeTab === 'summary' ? '#FFF' : c.textSecondary} />
+                    <Sparkles size={15} color={activeTab === 'summary' ? uiPalette.white : c.textSecondary} />
                     <Text style={[styles.segmentText, activeTab === 'summary' && styles.segmentTextActive]}>
                       Summary
                     </Text>
@@ -985,7 +986,7 @@ function DeathPopup() {
                     onPress={handleSelectLegacyTab}
                     activeOpacity={0.8}
                   >
-                    <Crown size={15} color={activeTab === 'legacy' ? '#FFF' : c.textSecondary} />
+                    <Crown size={15} color={activeTab === 'legacy' ? uiPalette.white : c.textSecondary} />
                     <Text style={[styles.segmentText, activeTab === 'legacy' && styles.segmentTextActive]}>
                       Legacy
                     </Text>
@@ -1717,10 +1718,10 @@ function DeathPopup() {
                       activeOpacity={0.8}
                     >
                       <LinearGradient
-                        colors={!canContinueLegacy ? ['#94A3B8', '#64748B'] : [theme.palette.primary, theme.palette.primaryDark]}
+                        colors={!canContinueLegacy ? [uiPalette.muted, uiPalette.lightMuted] : [theme.palette.primary, theme.palette.primaryDark]}
                         style={styles.buttonGradient}
                       >
-                        <Crown size={18} color="#FFF" />
+                        <Crown size={18} color={uiPalette.white} />
                         <Text style={styles.buttonText}>
                           {heirs.length === 0 ? 'No Children Available' : !selectedHeirId ? 'Select a Child First' : 'Continue Legacy'}
                         </Text>

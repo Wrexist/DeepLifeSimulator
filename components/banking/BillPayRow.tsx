@@ -39,7 +39,7 @@ export default function BillPayRow({ rule, currentWeek, darkMode, onToggle, onDe
         <View style={styles.metaRow}>
           <Repeat size={scale(10)} color={theme.textMuted} />
           <Text style={[styles.meta, { color: theme.textMuted }]}>
-            {rule.cadence === 'weekly' ? 'Weekly' : 'Monthly'} · {dueText}
+            {rule.cadence === 'weekly' ? 'Weekly' : 'Every 4 weeks'} · {rule.enabled ? dueText : 'Paused'}
           </Text>
         </View>
         {rule.missedCount > 0 && (
@@ -54,7 +54,7 @@ export default function BillPayRow({ rule, currentWeek, darkMode, onToggle, onDe
       <View style={styles.tail}>
         <Text style={[styles.amount, { color: theme.text }]}>{formatMoney(rule.amount)}</Text>
         <View style={styles.actions}>
-          {onToggle && <Switch value={rule.enabled} onValueChange={onToggle} />}
+          {onToggle && <Switch accessibilityLabel={`Automatic payments for ${rule.label}`} value={rule.enabled} onValueChange={onToggle} />}
           {onDelete && (
             <TouchableOpacity
               onPress={onDelete}
@@ -93,6 +93,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   meta: {
+    flexShrink: 1,
     fontSize: responsiveFontSize.xs,
   },
   warningRow: {

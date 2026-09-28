@@ -1,0 +1,190 @@
+import { saveBeforeLeaving } from '@/utils/saveBeforeLeaving';
+/**
+ * A purchase saved from the handler that made it must survive a reload.
+ *
+ * Player report (App Store 1.2.5, Canada): "items bought for YouVideo would be
+ * gone when you retrieve the game from saved slots."
+ *
+ * `GamingApp`'s accessory handler has the shape ~40 screens share:
+ *
+ *     const r = buyAccessory(gameState, setGameState, id, price);
+ *     if (r.success) saveGame();
+ *
+ * `saveGame` used to read `gameStateRef.current` the moment it was called, and
+ * that ref is refreshed by a post-commit effect. In the same handler as the
+ * `setGameState`, React has not even rendered the purchase yet, so the save
+ * persisted the state from BEFORE it. The purchase then lived only in memory
+ * until a later save happened to run — and "Switch save slot" suspends exactly
+ * those later saves (R3-S1) before the player picks the slot again. Reloading
+ * dropped the item and handed back its price.
+ *
+ * Each test mirrors a handler: the action and the save run in ONE synchronous
+ * `act`, which React flushes after the block the way it flushes an onPress
+ * handler's updates after the handler returns. The save is awaited AFTER that
+ * block, never inside it: `act` runs no queued React work until its callback
+ * settles, so a save awaited inside the block that dispatched it would be
+ * waiting on a commit that cannot happen yet (tasks/lessons.md 2026-08-09).
+ *
+ * Runs the REAL provider stack, save queue and load path over a stateful
+ * AsyncStorage, so "reload" means the bytes on disk, not a mock's argument.
+ */
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState } from '@/contexts/game/types';
+import { STATE_VERSION } from '@/contexts/game/initialState';
+import { ACCESSORY_PRICES, buyAccessory } from '@/contexts/game/actions/ContentActions';
+import {
+  createSaveEnvelope,
+  decodePersistedSaveEnvelope,
+  doubleBufferLoad,
+  doubleBufferSave,
+} from '@/utils/saveValidation';
+import {
+  suspendLifeAutosave,
+  __resetLifeAutosaveSuspensionForTests,
+} from '@/utils/autosaveSuspension';
+import { saveLoadMutex } from '@/utils/saveLoadMutex';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+
+// The shared jest.setup AsyncStorage mock is a no-op (getItem always returns
+// null), which cannot round-trip a save. A stateful in-memory store can.
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const store = new Map<string, string>();
+  const mock = {
+    getItem: jest.fn((k: string) => Promise.resolve(store.has(k) ? store.get(k)! : null)),
+    setItem: jest.fn((k: string, v: string) => {
+      store.set(k, String(v));
+      return Promise.resolve();
+    }),
+    removeItem: jest.fn((k: string) => {
+      store.delete(k);
+      return Promise.resolve();
+    }),
+    clear: jest.fn(() => {
+      store.clear();
+      return Promise.resolve();
+    }),
+    getAllKeys: jest.fn(() => Promise.resolve([...store.keys()])),
+    multiGet: jest.fn((ks: string[]) =>
+      Promise.resolve(ks.map((k) => [k, store.has(k) ? store.get(k)! : null]))
+    ),
+    multiSet: jest.fn((pairs: [string, string][]) => {
+      pairs.forEach(([k, v]) => store.set(k, String(v)));
+      return Promise.resolve();
+    }),
+    multiRemove: jest.fn((ks: string[]) => {
+      ks.forEach((k) => store.delete(k));
+      return Promise.resolve();
+    }),
+  };
+  return { __esModule: true, default: mock, ...mock };
+});
+
+// The pre-save backup is fire-and-forget and non-critical; keep its IO out of
+// the way so nothing outlives a test.
+jest.mock('@/utils/saveBackup', () => ({
+  ...jest.requireActual('@/utils/saveBackup'),
+  createBackupFromState: jest.fn().mockResolvedValue(undefined),
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TestRenderer = require('react-test-renderer');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const AsyncStorageMock = require('@react-native-async-storage/async-storage').default;
+
+const { act } = TestRenderer;
+const h = React.createElement;
+
+type Probe = {
+  state: GameState;
+  setGameState: ReturnType<typeof useGameState>['setGameState'];
+  setCurrentSlot: ReturnType<typeof useGameState>['setCurrentSlot'];
+  loadGame: ReturnType<typeof useGameActions>['loadGame'];
+  saveGame: ReturnType<typeof useGameActions>['saveGame'];
+  executePrestige: ReturnType<typeof useGameActions>['executePrestige'];
+};
+
+let captured: Probe | null = null;
+
+function ProbeComponent() {
+  const { gameState, setGameState, setCurrentSlot } = useGameState();
+  const { loadGame, saveGame, executePrestige } = useGameActions();
+  captured = { state: gameState, setGameState, setCurrentSlot, loadGame, saveGame, executePrestige };
+  return null;
+}
+
+function mountGame(): { root: { unmount: () => void } } {
+  captured = null;
+  let root!: { unmount: () => void };
+  act(() => {
+    root = TestRenderer.create(
+      h(UIUXProvider as React.ComponentType<{ children?: React.ReactNode }>, null,
+        h(GameProvider as React.ComponentType<{ children?: React.ReactNode }>, null,
+          h(ProbeComponent)))
+    );
+  });
+  return { root };
+}
+
+function probe(): Probe {
+  if (!captured) throw new Error('Probe not mounted');
+  return captured;
+}
+
+/** A started life (a scenario, so the pristine-state guard does not skip it). */
+function life(overrides: Parameters<typeof createTestGameState>[0] = {}): GameState {
+  return createTestGameState({ scenarioId: 'rags_to_riches', ...overrides });
+}
+
+/** Write a signed save into a slot through the real envelope path. */
+async function seedSlot(slot: number, state: GameState): Promise<void> {
+  const envelope = createSaveEnvelope(JSON.stringify({ ...state, version: STATE_VERSION }));
+  const result = await doubleBufferSave(`save_slot_${slot}`, envelope);
+  if (!result.success) throw new Error(`Failed to seed slot ${slot}: ${result.error}`);
+}
+
+/** What is on disk for a slot, decoded - independent of the provider. */
+async function readSlot(slot: number): Promise<GameState> {
+  const loaded = await doubleBufferLoad(`save_slot_${slot}`);
+  if (!loaded.data) throw new Error(`Slot ${slot} is empty`);
+  const decoded = decodePersistedSaveEnvelope(loaded.data);
+  if (!decoded.data) throw new Error(`Slot ${slot} did not decode`);
+  return JSON.parse(decoded.data) as GameState;
+}
+
+async function load(slot: number): Promise<GameState | null> {
+  let loaded: GameState | null = null;
+  await act(async () => {
+    loaded = await probe().loadGame(slot);
+  });
+  return loaded;
+}
+
+const PRICE = ACCESSORY_PRICES.microphone;
+
+
+it('audit: prestige persists while another owner holds the save/load mutex', async () => {
+  __resetLifeAutosaveSuspensionForTests();
+  await seedSlot(1, life({stats:{money:1e9}}));
+  const mounted=mountGame();
+  await load(1);
+  const token=await saveLoadMutex.acquire('load');
+  try {
+    const generation=probe().state.prestige.prestigeLevel;
+    act(()=>probe().executePrestige('reset'));
+    expect(probe().state.prestige.prestigeLevel).toBeGreaterThan(generation);
+    let disk=await readSlot(1);
+    for(let i=0;i<50 && disk.prestige.prestigeLevel===generation;i++) {
+      await new Promise(resolve=>setTimeout(resolve,20));
+      disk=await readSlot(1);
+    }
+    expect(saveLoadMutex.getCurrentOperation()).toBe('load');
+    expect(disk.prestige.prestigeLevel).toBeGreaterThan(generation);
+  } finally {
+    saveLoadMutex.release(token);
+    act(()=>mounted.root.unmount());
+    __resetLifeAutosaveSuspensionForTests();
+  }
+});

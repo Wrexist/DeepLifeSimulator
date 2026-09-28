@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * Test Runner Component
  * UI component to run comprehensive tests from within the app
@@ -156,8 +157,8 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
       case 'critical': return '#EF4444';
       case 'high': return '#F59E0B';
       case 'medium': return '#3B82F6';
-      case 'low': return '#64748B';
-      default: return '#64748B';
+      case 'low': return uiPalette.lightMuted;
+      default: return uiPalette.lightMuted;
     }
   };
 
@@ -168,7 +169,7 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
           <Text style={styles.title}>Comprehensive Test Runner</Text>
           {onClose && (
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#94A3B8" />
+              <X size={24} color={uiPalette.muted} />
             </TouchableOpacity>
           )}
         </View>
@@ -178,7 +179,7 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
           disabled={isRunning}
         >
           {isRunning ? (
-            <ActivityIndicator color="#FFF" />
+            <ActivityIndicator color={uiPalette.white} />
           ) : (
             <Text style={styles.buttonText}>Run All Tests</Text>
           )}
@@ -295,7 +296,7 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
                   Medium: {report.bugs.filter(b => b.severity === 'medium').length}
                 </Text>
               </View>
-              <View style={[styles.bugCountBadge, { backgroundColor: '#64748B' }]}>
+              <View style={[styles.bugCountBadge, { backgroundColor: uiPalette.lightMuted }]}>
                 <Text style={styles.bugCountText}>
                   Low: {report.bugs.filter(b => b.severity === 'low').length}
                 </Text>
@@ -361,7 +362,7 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: uiPalette.navy,
     padding: 16,
   },
   header: {
@@ -376,7 +377,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: uiPalette.white,
     flex: 1,
   },
   closeButton: {
@@ -389,10 +390,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonDisabled: {
-    backgroundColor: '#64748B',
+    backgroundColor: uiPalette.lightMuted,
   },
   buttonText: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontWeight: '600',
   },
   loadingContainer: {
@@ -400,14 +401,14 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   loadingText: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     marginTop: 16,
   },
   resultsContainer: {
     flex: 1,
   },
   summaryCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -415,7 +416,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: uiPalette.white,
     marginBottom: 12,
   },
   summaryRow: {
@@ -424,16 +425,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryLabel: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 16,
   },
   summaryValue: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontSize: 16,
     fontWeight: '600',
   },
   bugSummaryCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -449,7 +450,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   bugCountText: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontWeight: '600',
     fontSize: 12,
   },
@@ -459,11 +460,11 @@ const styles = StyleSheet.create({
   bugsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: uiPalette.white,
     marginBottom: 12,
   },
   bugCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -480,27 +481,27 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   severityText: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontSize: 10,
     fontWeight: 'bold',
   },
   bugId: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 12,
   },
   bugDescription: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
   bugCategory: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 14,
     marginBottom: 4,
   },
   bugAffected: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 14,
     marginBottom: 12,
   },
@@ -508,28 +509,28 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   bugStepsTitle: {
-    color: '#FFF',
+    color: uiPalette.white,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },
   bugStep: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 14,
     marginLeft: 8,
   },
   optionsContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: uiPalette.slate,
   },
   optionsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
     marginBottom: 16,
   },
   optionRow: {
@@ -540,18 +541,18 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: 14,
-    color: '#CBD5E1',
+    color: uiPalette.secondary,
     flex: 1,
   },
   toggle: {
     width: 60,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: uiPalette.lightSecondary,
   },
   toggleActive: {
     backgroundColor: '#10B981',
@@ -560,10 +561,10 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   toggleTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   speedButtons: {
     flexDirection: 'row',
@@ -573,9 +574,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#334155',
+    backgroundColor: uiPalette.slate,
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: uiPalette.lightSecondary,
   },
   speedButtonActive: {
     backgroundColor: '#3B82F6',
@@ -584,10 +585,10 @@ const styles = StyleSheet.create({
   speedButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: uiPalette.muted,
   },
   speedButtonTextActive: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   infoBox: {
     backgroundColor: '#1E3A5F',
@@ -613,7 +614,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bugExpectedText: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 14,
   },
   bugActual: {
@@ -626,7 +627,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bugActualText: {
-    color: '#94A3B8',
+    color: uiPalette.muted,
     fontSize: 14,
   },
   warningsContainer: {
@@ -635,11 +636,11 @@ const styles = StyleSheet.create({
   warningsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: uiPalette.white,
     marginBottom: 12,
   },
   warningCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -649,7 +650,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   successContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: uiPalette.surface,
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',

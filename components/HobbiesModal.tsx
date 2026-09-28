@@ -1,3 +1,4 @@
+import { uiPalette , getThemeColors } from '@/lib/config/theme';
 /**
  * HobbiesModal - the Hobby Mastery screen (v21). Practice hobbies weekly to
  * level them up; each level grants a stronger reward + perk. Refills the gap
@@ -19,7 +20,7 @@ import {
   MAX_PURSUIT_LEVEL,
   tierForLevel,
 } from '@/lib/pursuits/pursuitMastery';
-import { getThemeColors } from '@/lib/config/theme';
+
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
@@ -117,7 +118,7 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
                     style={[styles.practiceBtn, { backgroundColor: disabled ? theme.surfaceElevated : p.color }]}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.practiceText, { color: disabled ? theme.textMuted : '#0F172A' }]}>
+                    <Text style={[styles.practiceText, { color: disabled ? theme.textMuted : uiPalette.navy }]}>
                       {capped
                         ? `Practiced ${p.weeklyCap}/${p.weeklyCap} this week`
                         : tooTired

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * LifeChapterCard - the front door for the Life Chapters spine.
  *
@@ -66,7 +67,7 @@ function LifeChapterCard() {
           return (
             <View key={g.id} style={styles.goalRow}>
               <View style={[styles.checkBubble, g.complete && styles.checkBubbleDone]}>
-                {g.complete ? <Check size={scale(12)} color="#0F172A" /> : null}
+                {g.complete ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.goalTitle, g.complete && styles.goalTitleDone]} numberOfLines={1}>
@@ -112,7 +113,7 @@ function LifeChapterCard() {
         </View>
       ) : (
         <View style={styles.rewardHint}>
-          <Gift size={scale(13)} color="#94A3B8" />
+          <Gift size={scale(13)} color={uiPalette.muted} />
           <Text style={styles.rewardHintText}>
             Reward: ${reward.money.toLocaleString()} + {reward.gems} gems
           </Text>
@@ -130,8 +131,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(168, 85, 247, 0.15)',
   },
-  chapterTitle: { fontSize: fontScale(15), fontWeight: '700', color: '#F8FAFC' },
-  chapterSub: { fontSize: fontScale(11.5), color: '#94A3B8', marginTop: scale(2) },
+  chapterTitle: { fontSize: fontScale(15), fontWeight: '700', color: uiPalette.paper },
+  chapterSub: { fontSize: fontScale(11.5), color: uiPalette.muted, marginTop: scale(2) },
   goalList: { gap: scale(9) },
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   checkBubble: {
@@ -140,9 +141,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   checkBubbleDone: { backgroundColor: '#34D399', borderColor: '#34D399' },
-  goalTitle: { fontSize: fontScale(13), fontWeight: '600', color: '#E2E8F0' },
+  goalTitle: { fontSize: fontScale(13), fontWeight: '600', color: uiPalette.line },
   goalTitleDone: { color: '#34D399' },
-  goalDesc: { fontSize: fontScale(10.5), color: '#94A3B8', marginTop: scale(1) },
+  goalDesc: { fontSize: fontScale(10.5), color: uiPalette.muted, marginTop: scale(1) },
   barBg: {
     height: scale(4), borderRadius: scale(2), marginTop: scale(4),
     backgroundColor: 'rgba(148, 163, 184, 0.2)', overflow: 'hidden',
@@ -167,9 +168,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
     borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.4)',
   },
-  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: '#F8FAFC' },
+  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: uiPalette.paper },
   rewardHint: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-  rewardHintText: { fontSize: fontScale(11.5), color: '#94A3B8', fontWeight: '600' },
+  rewardHintText: { fontSize: fontScale(11.5), color: uiPalette.muted, fontWeight: '600' },
 });
 
 export default React.memo(LifeChapterCard);

@@ -1,0 +1,13 @@
+
+C:\Users\IsacC\Downloads\DeepLifeSimulator\app\(tabs)\work.tsx
+   186:9   warning  React Hook useMemo has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                                          react-hooks/exhaustive-deps
+   246:47  warning  A `require()` style import is forbidden                                                                                                                                                                             @typescript-eslint/no-require-imports
+   246:47  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+   264:72  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   337:59  warning  No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper             no-restricted-syntax
+   405:51  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+  1267:71  warning  Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md  no-restricted-syntax
+
+✖ 7 problems (0 errors, 7 warnings)
+
+EXIT_STATUS=0

@@ -1,0 +1,17 @@
+{
+  "family": "illustrated-characters-v1",
+  "decisionDate": "2026-09-26",
+  "renderer": "components/avatar/VectorAvatar.tsx",
+  "presetManifest": "lib/avatar/portraitPresets.ts",
+  "savedIds": ["portrait-v1:ember", "portrait-v1:cedar", "portrait-v1:river", "portrait-v1:dawn", "portrait-v1:sage", "portrait-v1:indigo"],
+  "sourceArt": "Avataaars by Pablo Stanley, via installed @dicebear/avataaars",
+  "licenseEvidence": "node_modules/@dicebear/avataaars/LICENSE",
+  "designLicense": "Free for personal and commercial use, as stated by the installed package",
+  "format": "Runtime SVG, generated entirely offline from bundled modules",
+  "framing": "Shared frameArt and child-proportion transforms; circular or rounded-square crop",
+  "finish": "Flat illustrated fills on the canonical dark elevated surface; no gloss, glow or full-frame shading overlays",
+  "aging": "Existing ageEffects applies to presets, custom avatars and NPCs",
+  "inheritance": "Unchanged stored custom features; portrait presets are presentation only",
+  "historicalArt": "art/portraits-v1/manifest.json remains the provenance of retired soft-3D portraits",
+  "attachedSkillDecision": "3d-asset-studio inspected but not installed: its prop generators do not provide a compatible modular character system"
+}

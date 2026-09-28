@@ -1,0 +1,19 @@
+[
+  {
+    "width": 320,
+    "action": {
+      "x": 25,
+      "y": 496,
+      "width": 270,
+      "height": 44
+    },
+    "nav": {
+      "x": 192,
+      "y": 620,
+      "width": 64,
+      "height": 40
+    },
+    "errors": [],
+    "text": "Gen 1\n100\n100\n100\n$1 500\n0\n2025\nJanuary\nAge 20\nNext week\nTyler Nguyen\nAge 20 | Unemployed | Single\n$1 500\nNet Worth\n+$30/wk forecast\nDETAILS\nWeek 1\nChoose your first job\nCompare pay and requirements in Work, then apply.\nFind a job\nYOUR GOALS\nEarn $500\n0/3 goals\nShow details\nYour Progress\nPrestige, Legacy Pass, life story & lifetime stats\nShow more\nYour Life\nFamily\nHealth\nMarket\nStats\nYOUR VITALS\n100\n100\n100\n10\nHEALTH ACTIVITIES\nWalk in Park\nFree\nPeaceful walk to clear your mind\n+3\nHealth\n+1\nHappiness\n+1\nFitness\n−5\nEnergy\nDO\nMeditation Session\nFree\nFind inner peace and reduce stress\n+2\nHealth\n+2\nHappiness\n−3\nEnergy\nDO\nYoga Class\n$100\nImprove flexibility and mental clarity\n+6\nHealth\n+2\nHappiness\n+2\nFitness\n−6\nEnergy\nDO\nSpa Massage\n$300\nRelax and rejuvenate your body\n+8\nHealth\n+3\nHappiness\n−4\nEnergy\nDO\nDoctor Visit\n$500\nRegular checkup (50% chance to cure health issues)  •  Chance to cure diseases\n+25\nHealth\n+1\nHappiness\n−5\nEnergy\nDO\nTherapy Session\n$400\nProfessional mental health support\n+3\nHealth\n+4\nHappiness\n−5\nEnergy\nDO\nHospital Stay\n$2000\nNeed $2000\n+40\nHealth\n−5\nHappiness\n−8\nEnergy\nLOCKED\nExperimental Treatment\n$12000\nNeed $12000\n+30\nHealth\n+4\nHappiness\n−8\nEnergy\nLOCKED\nFlu Vaccination\n$50\nAnnual flu shot to prevent influenza\n+5\nHealth\n+0\nHappiness\n−2\nEnergy\nDO\nPneumonia Vaccine\n$150\nVaccination to prevent pneumonia\n+8\nHealth\n+1\nHappiness\n−2\nEnergy\nDO\nWellness Retreat\n$30000\nNeed $30000\n+20\nHealth\n+8\nHappiness\n−6\nEnergy\nLOCKED\nAt the gym\nBuild fitness with a membership and a workout.\nGym Session\nCurrent Fitness: 10\nGym Membership Required\nBuy a Gym Membership in Life → Market to access the gym.\nDiet Plans\nChoose an automatic daily diet plan\nBasic Diet\n$17500 / wk\nNeed $17500 / wk\n+3\nHealth\n+2\nEnergy\nSELECT\nPremium Diet\n$42000 / wk\nNeed $42000 / wk\n+8\nHealth\n+5\nEnergy\n+3\nHappiness\nSELECT\nAthlete Diet\n$70000 / wk\nNeed $70000 / wk\n+12\nHealth\n+8\nEnergy\n+5\nHappiness\nSELECT\nHome\nWork\nApps\nLife\nProfile"
+  }
+]

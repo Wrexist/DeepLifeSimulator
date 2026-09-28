@@ -1,0 +1,92 @@
+
+╔══════════════════════════════════════════════╗
+║   DeepLife Simulator — Weekly Routine Audit    ║
+╚══════════════════════════════════════════════╝
+
+━━ 1. Economy & Balance ━━
+  [PASS] Savings APR ordering ok (base 3.00% ≤ planning 5.00%)  (lib/economy/constants.ts:22)
+  [PASS] No loan→savings arbitrage (planning APR 5.00% < loan 8.00%)  (lib/economy/constants.ts:21)
+  [PASS] Savings APR within sane annual band (≤ 10.00%)  (lib/economy/constants.ts:22)
+  [PASS] Savings soft-cap present ($500,000)  (lib/economy/constants.ts:26)
+  [PASS] Soft-cap efficiency sane (25.00%)  (lib/economy/constants.ts:27)
+  [PASS] Tax bracket thresholds strictly ascending  (lib/economy/constants.ts:34)
+  [PASS] Tax is progressive (non-decreasing rates)  (lib/economy/constants.ts:34)
+  [PASS] All tax rates within [0,1]  (lib/economy/constants.ts:34)
+  [PASS] Tax owed is monotonic in income (re-simulated)  (lib/economy/constants.ts:46)
+  [PASS] Tax never exceeds gross income (re-simulated)  (lib/economy/constants.ts:46)
+  [PASS] Miner price ladder strictly ascending (8 tiers)  (lib/economy/constants.ts:7)
+  [PASS] Loan missed-payment penalty sane (1.00%/wk)  (lib/economy/constants.ts:24)
+  [PASS] WEEKS_PER_YEAR present (52)  (lib/config/gameConstants.ts)
+  [PASS] BANKRUPTCY_FLOOR present (500)  (lib/config/gameConstants.ts)
+  [PASS] RENT_INCOME_RATE present (0.0015)  (lib/config/gameConstants.ts)
+  [PASS] Every clock-derived claim predicate uses a strictly-monotone comparison  (contexts/game/actions/SubscriptionActions.ts)
+  [PASS] MUSEUM_LOAN_WEEKLY_FEE ($120/wk) stays below museum_diamond upkeep ($200/wk)  (lib/luxury/verbs.ts)
+  [PASS] Verb 'race_horse': only the best outcome profits (cost $25,000, others ≤ cost)  (lib/luxury/verbs.ts)
+  [PASS] Verb 'track_day': only the best outcome profits (cost $8,000, others ≤ cost)  (lib/luxury/verbs.ts)
+  [PASS] Every rewarded-ad money/gem grant is rate-limited  (components/mobile/BankApp.tsx)
+
+━━ 2. Crash & Stability ━━
+  [PASS] All 8 native require call-site(s) are lazy (function-scoped)
+  [PASS] Config plugin aligned for react-native-google-mobile-ads  (app.config.js)
+  [PASS] Config plugin aligned for expo-tracking-transparency  (app.config.js)
+  [PASS] `as any` in core game logic within budget (3/40)
+  [INFO] 3 `as any` cast(s) present  (2 file(s))
+         Ratchet AUDIT_AS_ANY_BUDGET down over time.
+  [PASS] ErrorBoundary component present  (components/ErrorBoundary.tsx)
+  [PASS] ErrorBoundary lazy-loads AsyncStorage  (components/ErrorBoundary.tsx)
+  [PASS] Test-tree type errors within budget (0/0)  (tsconfig.tests.json)
+
+━━ 3. Save & State Integrity ━━
+  [PASS] STATE_VERSION = 51 (canonical)  (contexts/game/initialState.ts:6)
+  [PASS] DEV.md STATE_VERSION matches code (51)  (DEV.md)
+  [PASS] WORKFLOW.md STATE_VERSION matches code (51)  (WORKFLOW.md)
+  [PASS] CLAUDE.md STATE_VERSION matches code (51)  (CLAUDE.md)
+  [PASS] AGENTS.md STATE_VERSION matches code (51)  (AGENTS.md)
+  [PASS] CURRENT_STATE_VERSION aliases STATE_VERSION (no fork)  (utils/saveMigrations.ts:15)
+  [PASS] All versions [2..51] migration-covered (42 migrations, 8 no-ops)  (utils/saveMigrations.ts:32)
+  [PASS] CRC32 checksum primitive present  (utils/saveValidation.ts)
+  [PASS] Tamper-detection (HMAC/SHA-256) primitive present  (utils/saveValidation.ts)
+  [PASS] repairGameState present (backfills missing defaults)  (utils/saveValidation.ts)
+  [PASS] createTestGameState factory present  (__tests__/helpers/createTestGameState.ts)
+  [WARN] 1 `as GameState` assertion(s) in tests bypass the factory  (No GameState Drift (Hard Rule #3))
+         __tests__/save/saveInSameHandlerPersistsAction.test.ts:153
+  [WARN] 1 hand-built WeekContext / preRolls stub(s) in tests bypass zeroPreRolls()  (__tests__/helpers/zeroPreRolls.ts)
+         __tests__/actions/weekly/educationExamLifeSalt.test.ts:24 — build the context with `preRolls: zeroPreRolls({ …overrides })` so a new PreRolls field breaks compilation once instead of going silently undefined everywhere.
+  [PASS] All 44 migration-backfilled concrete defaults are mirrored in repairGameState  (utils/saveValidation.ts)
+  [PASS] All 126 concrete-default initialState fields are migration/repair-covered (57 grandfathered)  (contexts/game/initialState.ts)
+  [PASS] LEGACY_PRE_MIGRATION_FIELDS has no stale entries  (scripts/audit/audit-save.cjs)
+  [PASS] All 38 concrete defaults inside the 4 merged slices are migration/repair-covered (12 grandfathered)  (contexts/game/initialState.ts)
+  [PASS] LEGACY_NESTED_FIELDS has no stale entries  (scripts/audit/audit-save.cjs)
+  [PASS] Every repairGameState backfill sets `repaired`  (utils/saveValidation.ts)
+  [PASS] No onboarding module defaults an unchosen save slot to a number  (src/features/onboarding/slotSafety.ts)
+  [PASS] Every entry into the onboarding stack sets the target save slot  (components/DeathPopup.tsx)
+  [PASS] initializeAndSaveGame resolves the slot before it writes  (src/features/onboarding/gameInitializer.ts)
+
+━━ 4. Game Logic Correctness ━━
+  [PASS] No `.week` used in time comparisons (uses `weeksLived`)  (DEV.md: week is display-only; weeksLived is the absolute clock)
+  [PASS] DatingActions uses functional updateMoney(setGameState,…)  (contexts/game/actions/DatingActions.ts)
+  [PASS] No in-place array mutation of state in action modules  (Never mutate state directly — clone then setGameState(prev => ({...prev})))
+  [PASS] Functional immutable setGameState idiom present in game loop  (contexts/game/GameActionsContext.tsx)
+  [PASS] Hand-written charges all have a refusal path (2/2)  (CLAUDE.md §4.4 — charge inside the SAME updater that applies the effect, re-checking against `prev`)
+
+━━ 5. Week-Loop Performance ━━
+  [INFO] 2 deep-clone(s) exempted with a documented reason  (audit-allow-clone)
+         Each carries an `audit-allow-clone:` comment. Re-read them if the tick gets slower.
+  [PASS] No JSON deep-clone in the weekly tick path  (contexts/game/actions/weekly + 1 tick-path lib module(s))
+  [PASS] Nested-loop density within regression ceiling (36/64)  (contexts/game/actions/weekly)
+  [PASS] Performance regression test present  (__tests__/performance/)
+  [INFO] Performance jest suite not executed (static run)  (__tests__/performance/)
+         Pass --run-tests (or run `npm run audit:weekly:full`) for dynamic timing.
+  [PASS] No zero-importer modules outside the allowlist (7 allowlisted)  (scripts/audit/audit-perf.cjs)
+  [PASS] No module is kept alive only by its own tests  (scripts/audit/audit-perf.cjs)
+
+────────────────────────────────────────────────
+ Aggregate
+  [OK  ] 1. Economy & Balance  (🔴0 🟠0 🟡0 ⚪0 ✅20)
+  [OK  ] 2. Crash & Stability  (🔴0 🟠0 🟡0 ⚪0 ✅7)
+  [WARN] 3. Save & State Integrity  (🔴0 🟠0 🟡2 ⚪0 ✅20)
+  [OK  ] 4. Game Logic Correctness  (🔴0 🟠0 🟡0 ⚪0 ✅5)
+  [OK  ] 5. Week-Loop Performance  (🔴0 🟠0 🟡0 ⚪0 ✅5)
+────────────────────────────────────────────────
+
+⚠ Weekly audit passed with 2 warning(s) — review the report.

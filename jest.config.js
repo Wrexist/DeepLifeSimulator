@@ -16,7 +16,7 @@ module.exports = {
     '^.+\\.(js|jsx|mjs)$': 'babel-jest',
   },
   moduleNameMapper: {
-    '^@/(.*\\.(png|jpg|jpeg|gif|svg|webp))$': '<rootDir>/__mocks__/fileMock.ts',
+    '^@/(.*\\.(png|jpg|jpeg|gif|svg|webp|wav))$': '<rootDir>/__mocks__/fileMock.ts',
     // Platform-suffixed module: only `offlineManager.native.ts` / `.web.ts`
     // exist, which Metro picks between at build time and Jest's resolver cannot
     // — so `@/utils/offlineManager` resolved to NOTHING under Jest and any
@@ -25,7 +25,7 @@ module.exports = {
     // native variant, which is what the shipped app loads on both stores.
     '^@/utils/offlineManager$': '<rootDir>/utils/offlineManager.native.ts',
     '^@/(.*)$': '<rootDir>/$1',
-    '^.+\\.(png|jpg|jpeg|gif|svg|webp)$': '<rootDir>/__mocks__/fileMock.ts',
+    '^.+\\.(png|jpg|jpeg|gif|svg|webp|wav)$': '<rootDir>/__mocks__/fileMock.ts',
   },
   // Scope note (2026-08-04): `app/`, `services/` and `src/` were NOT in this list.
   //

@@ -130,6 +130,8 @@ describe('render - the engaged partner card offers a way out', () => {
     // The cost is stated in the prompt, not discovered afterwards.
     expect(message).toContain('Alex');
     expect(message).toMatch(/15 happiness/);
+    expect(message).toMatch(/20 bond points/);
+    expect(message).toMatch(/deposit are not refunded/);
     expect(buttons[0].style).toBe('cancel');
     expect(buttons[1].style).toBe('destructive');
 

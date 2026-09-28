@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ProfileEditModal - edit display name, handle, bio, location, website.
  *
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveBtnText: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(14),
     fontWeight: '600',
   },

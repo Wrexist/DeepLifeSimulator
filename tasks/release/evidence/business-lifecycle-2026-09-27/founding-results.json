@@ -1,0 +1,18 @@
+[
+  {
+    "width": 375,
+    "foundingCost": true,
+    "campaignCommit": true,
+    "researchAndRealWeek": true,
+    "saleCancelConfirmReopen": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "foundingCost": true,
+    "campaignCommit": true,
+    "researchAndRealWeek": true,
+    "saleCancelConfirmReopen": true,
+    "errors": []
+  }
+]

@@ -1,6 +1,6 @@
 # DeepLife modular 3D assets
 
-18 actual mesh assets with transparent PNG renders and editable Three.js source.
+24 actual mesh assets with transparent PNG renders and editable Three.js source.
 No photographic plates, generated image textures, paid stock assets or character
 portraits are included. This is the revised direction requested on 2026-09-08.
 
@@ -8,6 +8,7 @@ portraits are included. This is the revised direction requested on 2026-09-08.
 
 | Group | Assets |
 | --- | --- |
+| Personal destinations | Gym, clinic, university, cafe, creative studio, social lounge |
 | Home environments | Neighborhood, starter room, settled home |
 | Furniture and props | Sofa, single bed, desk, chair, plant, laptop, lamp, coffee table, house keys, work bag |
 | Business environments | Factory, AI studio, restaurant, property agency, bank |
@@ -75,3 +76,15 @@ separate tooling dependencies with their own licenses in the locked packages.
 ## CI dependency installation
 
 The EAS Update and Preflight workflows install this isolated toolchain with its own npm lockfile before linting. Root npm ci alone does not install nested packages. The builder imports Buffer from node:buffer explicitly. This fixes the unresolved-import and no-undef failures without excluding art source from lint or adding native dependencies to the app.
+
+## September 26 destination family
+
+Six new editable cutaway destinations share the original camera, materials and
+lighting. Rebuild just this family with `node source/build.mjs --destinations`
+from this directory. Runtime images are optimized 720 x 540 transparent WebP in
+`assets/images/scenes/`; their source GLBs and PNG renders remain here.
+`SceneCard` integrates them into Work, Health, Education, Hustle and Contacts.
+Its subtle native-driver movement pauses when unfocused, backgrounded or reduced
+motion is enabled. No realtime 3D renderer is shipped to the phone.
+
+The separate curated character family is documented in `../portraits-v1/manifest.json`.

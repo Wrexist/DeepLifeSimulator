@@ -1,3 +1,5 @@
+import { textStyles } from '@/lib/config/hierarchy';
+import { responsiveSpacing as layoutSpace , responsiveSpacing } from '@/utils/scaling';
 /**
  * StatStrip / StatTile - "a number with a label under it", once.
  *
@@ -12,7 +14,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+
 
 export interface StatTileProps {
   label: string;
@@ -39,14 +41,14 @@ export function StatTile({ label, value, sub, tint, align = 'center', hero = fal
       accessibilityRole="text"
       accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}
     >
-      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]} numberOfLines={1}>
+      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]}>
         {value}
       </Text>
-      <Text style={[styles.label, { color: theme.textMuted, textAlign }]} numberOfLines={1}>
+      <Text style={[styles.label, { color: theme.textMuted, textAlign }]}>
         {label}
       </Text>
       {sub ? (
-        <Text style={[styles.sub, { color: theme.textSecondary, textAlign }]} numberOfLines={1}>
+        <Text style={[styles.sub, { color: theme.textSecondary, textAlign }]}>
           {sub}
         </Text>
       ) : null}
@@ -80,26 +82,22 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: StyleSheet.hairlineWidth,
-    marginVertical: scale(4),
+    marginVertical: layoutSpace.xs,
   },
   tile: {
-    gap: scale(2),
+    gap: layoutSpace.xs,
   },
   value: {
-    fontSize: fontScale(17),
-    fontWeight: '600',
+    ...textStyles.h2,
     fontVariant: ['tabular-nums'],
   },
   valueHero: {
-    fontSize: fontScale(28),
-    fontWeight: '600',
-    letterSpacing: -0.4,
+    ...textStyles.numericLarge,
   },
   label: {
-    fontSize: fontScale(11),
-    fontWeight: '500',
+    ...textStyles.caption,
   },
   sub: {
-    fontSize: fontScale(11),
+    ...textStyles.caption,
   },
 });

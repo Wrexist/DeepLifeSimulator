@@ -1,0 +1,14 @@
+node : PASS __tests__/components/prestigeSaveFeedback.test.tsx (11.723 s)
+At line:2 char:1
++ node node_modules/jest/bin/jest.js --runInBand --runTestsByPath __tes ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/....tsx (11.723 s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  √ waits for durability and retries saving without invoking prestige again (87 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        12.158 s
+Ran all test suites within paths "__tests__/components/prestigeSaveFeedback.test.tsx".

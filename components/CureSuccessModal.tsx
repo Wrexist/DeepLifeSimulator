@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(21),
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: uiPalette.paper,
     textAlign: 'center',
     letterSpacing: -0.3,
   },
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
   curedText: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#F1F5F9',
+    color: uiPalette.lightSurface,
     flexShrink: 1,
   },
   note: {
@@ -258,6 +259,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
 });

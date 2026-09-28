@@ -1,3 +1,5 @@
+import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale } from '@/utils/scaling';
+import { uiPalette } from '@/lib/config/theme';
 /**
  * GymCard - the $50 gym session, on the Health screen with the other
  * activities.
@@ -21,11 +23,11 @@ import { useToast } from '@/contexts/ToastContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import { clampStat, clampStatByKey } from '@/utils/statUtils';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale } from '@/utils/scaling';
+
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
 const GLASS_BORDER = 'rgba(255, 255, 255, 0.08)';
-const TEXT = '#F8FAFC';
+const TEXT = uiPalette.paper;
 const TEXT_MUTED = 'rgba(226, 232, 240, 0.45)';
 
 export default function GymCard() {
@@ -203,12 +205,12 @@ const styles = StyleSheet.create({
   gymCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: layoutSpace.compact,
   },
   gymIconContainer: {
     width: scale(44),
     height: scale(44),
-    borderRadius: scale(13),
+    borderRadius: layoutRadius.lg,
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: TEXT,
     letterSpacing: -0.3,
-    marginBottom: scale(2),
+    marginBottom: layoutSpace.xs,
   },
   gymCardSubtitle: {
     fontSize: fontScale(13),
@@ -242,7 +244,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(14),
     fontWeight: '700',
     color: '#FCD34D',
-    marginBottom: scale(3),
+    marginBottom: layoutSpace.xs,
   },
   membershipWarningSubtext: {
     fontSize: fontScale(12),
@@ -284,7 +286,7 @@ const styles = StyleSheet.create({
   gymButtonText: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: uiPalette.white,
   },
   gymButtonTextDisabled: {
     color: TEXT_MUTED,

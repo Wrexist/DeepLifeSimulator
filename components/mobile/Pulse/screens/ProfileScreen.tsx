@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * ProfileScreen - player's own Pulse profile.
  *
@@ -127,23 +128,18 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
       {/* Avatar + identity */}
       <View style={styles.identityWrap}>
         <View style={[styles.avatarRing, isVerified ? styles.avatarRingPro : { borderColor: theme.border }]}>
-          {profile.profilePhoto ? (
-            <ImageWithFallback
-              uri={profile.profilePhoto}
-              fallback={displayName}
-              face={{
-                seed: profile.name ?? displayName,
-                sex: profile.sex,
-                age: gameState.date?.age,
-                size: scale(72),
-              }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: PULSE_COLORS.accent }]}>
-              <Text style={styles.avatarInitial}>{displayName.slice(0, 1).toUpperCase()}</Text>
-            </View>
-          )}
+          <ImageWithFallback
+            uri={profile.profilePhoto}
+            fallback={displayName}
+            face={{
+              source: profile,
+              seed: profile.name ?? displayName,
+              sex: profile.sex,
+              age: gameState.date?.age,
+              size: scale(72),
+            }}
+            style={styles.avatar}
+          />
         </View>
 
         <View style={styles.nameRow}>
@@ -289,6 +285,8 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
               post={p}
               authorHandle={handle}
               authorPhoto={profile.profilePhoto}
+              authorSource={profile}
+              authorAge={gameState.date?.age}
               currentWeeksLived={gameState.weeksLived ?? 0}
               onOpenDetail={onOpenPostDetail}
               onBoost={onBoostPost}
@@ -345,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarInitial: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: fontScale(36),
     fontWeight: '600',
   },

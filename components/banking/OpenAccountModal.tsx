@@ -1,5 +1,8 @@
+import AmountSlider from '@/components/ui/AmountSlider';
+import { parseAmount } from '@/utils/parseAmount';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, PiggyBank, Lock, TrendingUp, Briefcase } from 'lucide-react-native';
 import { BankAccountType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -76,6 +79,7 @@ interface Props {
 
 export default function OpenAccountModal({ visible, availableCash, darkMode, onOpen, onClose, currentWeek }: Props) {
   const theme = getThemeColors(darkMode);
+  const reducedMotion = useReducedMotion();
   const [selected, setSelected] = useState<AccountProduct | null>(null);
   const [name, setName] = useState('');
   const [depositText, setDepositText] = useState('');
@@ -88,16 +92,17 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
     }
   }, [visible]);
 
-  const deposit = parseFloat(depositText) || 0;
+  const deposit = parseAmount(depositText);
   const canOpen =
     selected != null &&
     name.trim().length > 0 &&
+    deposit !== null &&
     deposit >= selected.minDeposit &&
     deposit <= availableCash;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'none' : 'fade'} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity
           style={styles.backdropTouch}
           activeOpacity={1}
@@ -113,13 +118,16 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.sm }}>
             {PRODUCTS.map((p) => {
               const active = selected?.type === p.type;
               const Icon = p.icon;
               return (
                 <TouchableOpacity
                   key={p.type}
+                  accessibilityRole="radio"
+                  accessibilityLabel={p.name}
+                  accessibilityState={{ selected: active }}
                   onPress={() => {
                     setSelected(p);
                     if (!name) setName(p.name);
@@ -150,13 +158,13 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
 
           {selected && (
             <View style={{ gap: responsiveSpacing.sm }}>
               <View style={[styles.fieldRow, { borderColor: theme.border }]}>
                 <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Name</Text>
                 <TextInput
+                  accessibilityLabel="Account name"
                   value={name}
                   onChangeText={setName}
                   placeholder="Account name"
@@ -167,34 +175,28 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                   style={[styles.fieldInput, { color: theme.text }]}
                 />
               </View>
-              <View style={[styles.fieldRow, { borderColor: theme.border }]}>
-                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Deposit</Text>
-                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>$</Text>
-                <TextInput
-                  value={depositText}
-                  onChangeText={setDepositText}
-                  keyboardType="decimal-pad"
-                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
-                  // pushes Confirm off-screen on small devices.
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  returnKeyType="done"
-                  placeholder={String(selected.minDeposit)}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.fieldInput, { color: theme.text }]}
-                />
+              <View style={{ gap: responsiveSpacing.xs }}>
+                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Opening deposit</Text>
+                <AmountSlider value={depositText} onChangeText={setDepositText} accessibilityLabel="Opening deposit in dollars" maxAmount={availableCash} darkMode={darkMode} />
               </View>
+              {depositText.trim() !== '' && deposit === null && (
+                <Text accessibilityRole="alert" style={[styles.meta, { color: accent.danger }]}>Enter a valid amount, such as 1,000.50.</Text>
+              )}
               <Text style={[styles.meta, { color: theme.textMuted }]}>
                 Available cash: {formatMoney(availableCash)}
               </Text>
             </View>
           )}
 
+          </ScrollView>
+          {selected && deposit !== null && <Text style={[styles.meta, { color: theme.textSecondary }]}>{selected.name}: ${deposit.toLocaleString('en-US', { maximumFractionDigits: 2 })} deposit</Text>}
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Open account"
+            accessibilityState={{ disabled: !canOpen }}
             disabled={!canOpen}
             onPress={() => {
-              if (!selected) return;
+              if (!canOpen || !selected || deposit === null) return;
               onOpen({
                 type: selected.type,
                 name: name.trim() || selected.name,
@@ -209,7 +211,7 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
             <Text style={styles.confirmText}>Open Account</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -261,6 +263,8 @@ const styles = StyleSheet.create({
   },
   productHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.xs,
     justifyContent: 'space-between',
     alignItems: 'center',
   },

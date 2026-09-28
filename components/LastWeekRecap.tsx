@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { TrendingUp, TrendingDown, Sparkles, Flame, Briefcase, Mail, ChevronRight } from 'lucide-react-native';
@@ -143,7 +144,7 @@ function LastWeekRecap() {
       </View>
 
       {moneyMoved && (
-        <Text style={[styles.story, { color: isDark ? '#E2E8F0' : '#253A3D' }]}>
+        <Text style={[styles.story, { color: isDark ? uiPalette.line : '#253A3D' }]}>
           {income > 0 ? `${fmt(income)} came in.` : 'No income this week.'}
           {expenses > 0 ? ` ${fmt(expenses)} went to expenses.` : ''}
           {' '}{net === 0 ? 'Your cash held steady.' : `Your cash ${net > 0 ? 'grew' : 'fell'} by ${fmt(net)}.`}
@@ -176,7 +177,7 @@ function LastWeekRecap() {
                 : `Promotion ${careerProgress} percent, open Work`
             }
           >
-            <Briefcase size={scale(11)} color="#60A5FA" />
+            <Briefcase size={scale(11)} color={uiPalette.blue} />
             <Text style={styles.badgeCareer}>
               {careerProgress >= 100 ? 'Promotion ready' : `Promotion ${careerProgress}%`}
             </Text>
@@ -226,7 +227,7 @@ function LastWeekRecap() {
               </Text>
             )}
           </View>
-          <ChevronRight size={scale(14)} color="#64748B" />
+          <ChevronRight size={scale(14)} color={uiPalette.lightMuted} />
         </TouchableOpacity>
       )}
 
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
   badgeCareer: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: uiPalette.blue,
   },
   badgeDecision: {
     fontSize: fontScale(11),

@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * DiscordLogo - Discord's official "Clyde" mark as an inline SVG path.
  *
@@ -25,7 +26,7 @@ interface DiscordLogoProps {
 
 const ASPECT = 96.36 / 127.14;
 
-export default function DiscordLogo({ size = 24, color = '#FFFFFF' }: DiscordLogoProps) {
+export default function DiscordLogo({ size = 24, color = uiPalette.white }: DiscordLogoProps) {
   const width = typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : 24;
   return (
     <Svg width={width} height={width * ASPECT} viewBox="0 0 127.14 96.36">

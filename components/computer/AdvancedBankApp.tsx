@@ -1,17 +1,12 @@
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import FinanceOverview from '@/components/finance/FinanceOverview';
+import { uiPalette , getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 /**
  * AdvancedBankApp - "Bank Pro" desktop banking screen.
  *
- * Remake (STATE_VERSION 14). Credit-score-driven banking sim rendered with a
- * DESKTOP-BANKING skeleton - deliberately distinct from the phone BankApp's
- * Apple-Wallet card deck:
- *   - A columnar ACCOUNT STATEMENT masthead (Assets / Liabilities / Net worth
- *     side-by-side, divided by vertical rules) instead of a 2×2 stat hero.
- *   - Statement LEDGER sections (grouped cards with a table header + slim rows
- *     separated by hairlines) instead of one elevated card per row.
- *   - A net-worth COMPOSITION ledger that surfaces the stocks / crypto / real-
- *     estate the net-worth figure already sums but the old UI never showed.
- *   - Presentational list→detail sub-views (account statement page, full credit
- *     report page) via local useState routing - no new game mechanics.
+ * Uses the shared net-worth overview and canonical assets/debts breakdown.
+ * Accounts lead the overview; income, credit and loan details follow.
+ * Advanced transfers, budget, borrowing and tax keep their existing owners.
  *
  * State lives at `gameState.banking`; mutations go through BankingActions /
  * LoanActions. Weekly auto-pay, savings interest, and credit-score recompute
@@ -40,11 +35,8 @@ import {
   FileText,
   Coins,
   Percent,
-  Calendar,
   Lock,
   Landmark,
-  Building2,
-  LineChart,
   ArrowLeftRight,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -52,14 +44,13 @@ import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import {
   MIRRORED_ACCOUNT_IDS,
   isReadOnlyMirror,
   canCloseAccount,
-  computeStatementNetWorth,
 } from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -121,7 +112,7 @@ interface AdvancedBankAppProps {
 }
 
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
-  { key: 'overview', label: 'Statement', icon: BarChart3 },
+  { key: 'overview', label: 'Overview', icon: BarChart3 },
   { key: 'accounts', label: 'Accounts', icon: Wallet },
   { key: 'borrow', label: 'Borrow', icon: CardIcon },
   { key: 'budget', label: 'Budget', icon: Receipt },
@@ -130,7 +121,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number
 
 function formatMoneyExact(n: number): string {
   if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
 function accountGlyph(type: BankAccount['type']) {
@@ -201,38 +192,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const totalCardDebt = banking.creditCards.reduce((s, c) => s + c.balance, 0);
   const loans = gameState.loans ?? [];
   const totalLoanDebt = loans.reduce((s, l) => s + l.remaining, 0);
-
-  // Net-worth composition. The old UI showed only the aggregate; a desktop
-  // statement itemises it - so break the figure into the same assets it already
-  // sums (stocks, crypto, real estate) and expose each line.
-  const parts = useMemo(() => {
-    const stocks = (gameState.stocks?.holdings ?? []).reduce((s, h) => s + (h.shares ?? 0) * (h.currentPrice ?? 0), 0);
-    const crypto = (gameState.cryptos ?? []).reduce((s, c) => s + (c.owned ?? 0) * (c.price ?? 0), 0);
-    let re = 0;
-    for (const p of (gameState.realEstate ?? [])) {
-      if (p.owned) re += p.currentValue ?? p.price ?? 0;
-    }
-    // Mirror accounts (`checking-default`, `savings-default`) are 1:1 reflections
-    // of the authoritative legacy fields - `stats.money` (=cash) and
-    // `bankSavings`. Summing ALL accounts alongside `cash` double-counts the
-    // checking mirror (and would rely on the savings mirror for bankSavings).
-    // Count each authoritative pool once: cash + bankSavings + self-opened
-    // (non-mirror) deposits.
-    // Count each authoritative money pool once. Summing the raw account list
-    // alongside `cash` double-counts the checking mirror (see
-    // computeStatementNetWorth / MIRRORED_ACCOUNT_IDS).
-    const nw = computeStatementNetWorth({
-      cash,
-      bankSavings: gameState.bankSavings ?? 0,
-      accounts: banking.accounts,
-      stocks,
-      crypto,
-      realEstate: re,
-      cardDebt: totalCardDebt,
-      loanDebt: totalLoanDebt,
-    });
-    return { stocks, crypto, re, bankDeposits: nw.bankDeposits, assets: nw.assets, liabilities: nw.liabilities, net: nw.net };
-  }, [cash, banking.accounts, gameState.bankSavings, totalCardDebt, totalLoanDebt, gameState.stocks, gameState.cryptos, gameState.realEstate]);
 
   // Weekly income approximation for the loan quote DTI gate + statement activity.
   const weeklyIncome = useMemo(() => {
@@ -306,6 +265,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
+      if (acct.balance < 0) {
+        gameAlert('Repay overdraft first', `Deposit ${formatMoneyExact(-acct.balance)} to clear this account before closing it.`);
+        return;
+      }
       gameAlert(
         'Close account?',
         `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
@@ -397,16 +360,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
   // ─────────────────────────── Statement (overview) ──────────────────────────
   const renderStatement = () => {
-    const compositionRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; label: string; value: number; sign: 1 | -1 }[] = [
-      { icon: Coins, tintHex: accent.info, label: 'Cash on hand', value: cash, sign: 1 },
-      { icon: PiggyBank, tintHex: accent.success, label: `Bank deposits · ${banking.accounts.length} ${banking.accounts.length === 1 ? 'account' : 'accounts'}`, value: parts.bankDeposits, sign: 1 },
-    ];
-    if (parts.stocks > 0) compositionRows.push({ icon: LineChart, tintHex: accent.purple, label: 'Stock holdings', value: parts.stocks, sign: 1 });
-    if (parts.crypto > 0) compositionRows.push({ icon: Coins, tintHex: accent.gold, label: 'Crypto holdings', value: parts.crypto, sign: 1 });
-    if (parts.re > 0) compositionRows.push({ icon: Building2, tintHex: accent.amber, label: 'Real-estate value', value: parts.re, sign: 1 });
-    if (totalCardDebt > 0) compositionRows.push({ icon: CardIcon, tintHex: accent.danger, label: 'Credit-card debt', value: totalCardDebt, sign: -1 });
-    if (totalLoanDebt > 0) compositionRows.push({ icon: Landmark, tintHex: accent.danger, label: 'Loans outstanding', value: totalLoanDebt, sign: -1 });
-
     const activityRows: { icon: React.ComponentType<{ size: number; color: string }>; tintHex: string; label: string; value: string; valueColor: string }[] = [
       { icon: Coins, tintHex: accent.success, label: 'Weekly income', value: `${formatMoney(weeklyIncome)}/wk`, valueColor: accent.success },
       { icon: TrendingUp, tintHex: accent.success, label: 'Interest earned', value: `+${formatMoney(banking.totalInterestEarned)}`, valueColor: accent.success },
@@ -427,80 +380,52 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
-        {/* Statement masthead - the ONE focal gradient of this screen (Recipe B),
-            structured as side-by-side summary columns (desktop statement DNA). */}
-        <View
-          style={[
-            getGlassCard(darkMode, 12),
-            {
-              backgroundColor: theme.surface,
-              borderColor: darkMode ? theme.glassBorder : theme.border,
-              borderWidth: 1,
-              borderRadius: responsiveBorderRadius['2xl'],
-            },
-          ]}
-        >
-          <View style={styles.mastheadInner}>
-            <View style={styles.mastheadTop}>
-              <View style={styles.mastheadTitleWrap}>
-                <FileText size={scale(13)} color={accent.info} />
-                <Text style={[styles.mastheadEyebrow, { color: theme.textMuted }]}>ACCOUNT STATEMENT</Text>
-              </View>
-              <Chip label={`Week ${gameState.weeksLived}`} icon={<Calendar size={scale(11)} color={theme.textMuted} />} />
-            </View>
-
-            <StatStrip
-              items={[
-                { label: 'Assets', value: formatMoney(parts.assets), sub: 'cash · bank · holdings' },
-                {
-                  label: 'Liabilities',
-                  value: formatMoney(parts.liabilities),
-                  sub: 'cards · loans',
-                  tint: parts.liabilities > 0 ? accent.danger : undefined,
-                },
-                {
-                  label: 'Net worth',
-                  value: formatMoney(parts.net),
-                  sub: 'assets − liabilities',
-                  tint: parts.net < 0 ? accent.danger : undefined,
-                },
-              ]}
-            />
-          </View>
-        </View>
-
         <EconomyEventBanner context="banking" />
 
-        {/* Net-worth composition ledger - itemises the aggregate above and
-            surfaces stocks / crypto / real estate the flat overview never showed. */}
-        <SectionTitle title="Net worth composition" />
-        <StatementSection theme={theme} darkMode={darkMode} columns={['ITEM', 'VALUE']}>
-          {compositionRows.map((r, i) => (
-            <LedgerRow
-              key={r.label}
-              theme={theme}
-              darkMode={darkMode}
-              divider={i > 0}
-              icon={r.icon}
-              tintHex={r.tintHex}
-              label={r.label}
-              value={`${r.sign < 0 ? '-' : ''}${formatMoney(r.value)}`}
-              valueColor={r.sign < 0 ? accent.danger : theme.text}
-            />
-          ))}
-          <LedgerRow
-            theme={theme}
-            darkMode={darkMode}
-            divider
-            emphasize
-            label="Net worth"
-            value={formatMoney(parts.net)}
-            valueColor={parts.net < 0 ? accent.danger : theme.text}
-          />
+        {/* Accounts ledger - slim statement rows (NOT the phone's card deck), each
+            taps through to a full account statement page. */}
+        <SectionTitle
+          title="Accounts"
+          subtitle={`${banking.accounts.length} open · ${formatMoney(totalBank)} on deposit`}
+          right={<Chip label="Open" tone="info" onPress={() => setShowOpenAccount(true)} accessibilityLabel="Open an account" />}
+        />
+        <StatementSection theme={theme} darkMode={darkMode} columns={['ACCOUNT', 'BALANCE']}>
+          {banking.accounts.map((acct, i) => {
+            const pal = accountPalette(acct.type);
+            const locked = acct.lockUntilWeek != null && gameState.weeksLived < acct.lockUntilWeek;
+            const acctAPR = displayedDepositAPR(acct.baseAPR, banking.rateEnvironment);
+            const sub = `${accountTypeLabel(acct.type)}${acct.baseAPR > 0 ? ` · ${(acctAPR * 100).toFixed(2)}% APR` : ''}${locked ? ' · Locked' : ''}`;
+            return (
+              <LedgerRow
+                key={acct.id}
+                theme={theme}
+                darkMode={darkMode}
+                divider={i > 0}
+                icon={accountGlyph(acct.type)}
+                tintHex={pal.hex}
+                label={acct.name}
+                sub={sub}
+                value={formatMoney(acct.balance)}
+                chevron
+                onPress={() => setSubView({ kind: 'account', id: acct.id })}
+                accessibilityLabel={`${acct.name}, ${accountTypeLabel(acct.type)}, balance ${formatMoney(acct.balance)}. View statement`}
+              />
+            );
+          })}
         </StatementSection>
+        <TouchableOpacity
+          onPress={() => setActiveTab('accounts')}
+          accessibilityRole="button"
+          accessibilityLabel="Manage accounts"
+          style={[styles.manageChip, { borderColor: withAlpha(accent.info, 0.3), backgroundColor: withAlpha(accent.info, 0.1) }]}
+        >
+          <Wallet size={scale(13)} color={accent.info} />
+          <Text style={[styles.manageChipText, { color: accent.info }]}>Manage accounts &amp; goals</Text>
+          <ChevronRight size={scale(14)} color={accent.info} />
+        </TouchableOpacity>
 
         {/* Activity summary - lifetime interest / fees / income the app never surfaced. */}
-        <SectionTitle title="Activity summary" />
+        <SectionTitle title="Income & activity" />
         <StatementSection theme={theme} darkMode={darkMode}>
           {activityRows.map((r, i) => (
             <LedgerRow
@@ -543,48 +468,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <FileText size={scale(14)} color={accent.info} />
           <Text style={[styles.reportCtaText, { color: accent.info }]}>View full credit report</Text>
           <ChevronRight size={scale(15)} color={accent.info} />
-        </TouchableOpacity>
-
-        {/* Accounts ledger - slim statement rows (NOT the phone's card deck), each
-            taps through to a full account statement page. */}
-        <SectionTitle
-          title="Accounts"
-          subtitle={`${banking.accounts.length} open · ${formatMoney(totalBank)} on deposit`}
-          right={<Chip label="Open" tone="info" onPress={() => setShowOpenAccount(true)} accessibilityLabel="Open an account" />}
-        />
-        <StatementSection theme={theme} darkMode={darkMode} columns={['ACCOUNT', 'BALANCE']}>
-          {banking.accounts.map((acct, i) => {
-            const pal = accountPalette(acct.type);
-            const locked = acct.lockUntilWeek != null && gameState.weeksLived < acct.lockUntilWeek;
-            const acctAPR = displayedDepositAPR(acct.baseAPR, banking.rateEnvironment);
-            const sub = `${accountTypeLabel(acct.type)}${acct.baseAPR > 0 ? ` · ${(acctAPR * 100).toFixed(2)}% APR` : ''}${locked ? ' · Locked' : ''}`;
-            return (
-              <LedgerRow
-                key={acct.id}
-                theme={theme}
-                darkMode={darkMode}
-                divider={i > 0}
-                icon={accountGlyph(acct.type)}
-                tintHex={pal.hex}
-                label={acct.name}
-                sub={sub}
-                value={formatMoney(acct.balance)}
-                chevron
-                onPress={() => setSubView({ kind: 'account', id: acct.id })}
-                accessibilityLabel={`${acct.name}, ${accountTypeLabel(acct.type)}, balance ${formatMoney(acct.balance)}. View statement`}
-              />
-            );
-          })}
-        </StatementSection>
-        <TouchableOpacity
-          onPress={() => setActiveTab('accounts')}
-          accessibilityRole="button"
-          accessibilityLabel="Manage accounts"
-          style={[styles.manageChip, { borderColor: withAlpha(accent.info, 0.3), backgroundColor: withAlpha(accent.info, 0.1) }]}
-        >
-          <Wallet size={scale(13)} color={accent.info} />
-          <Text style={[styles.manageChipText, { color: accent.info }]}>Manage accounts &amp; goals</Text>
-          <ChevronRight size={scale(14)} color={accent.info} />
         </TouchableOpacity>
 
         {/* Active loans as slim statement rows (tap → prepay / refinance). */}
@@ -812,7 +695,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const enabledBills = banking.billPayRules.filter((r) => r.enabled);
     const weeklyBills = enabledBills.filter((r) => r.cadence === 'weekly').reduce((s, r) => s + r.amount, 0);
     const nextDue = enabledBills.length > 0 ? Math.min(...enabledBills.map((r) => r.nextDueWeek)) : null;
-    const nextDueText = nextDue == null ? '-' : nextDue - gameState.weeksLived <= 0 ? 'Now' : `wk ${nextDue}`;
+    const nextDueText = nextDue == null ? '-' : nextDue - gameState.weeksLived <= 0 ? 'Now' : formatLifeWeek(nextDue, gameState.lifeStartWeek);
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
@@ -868,7 +751,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         />
         {banking.billPayRules.length === 0 ? (
           <EmptyCard theme={theme} darkMode={darkMode}>
-            No bills set up. Add a recurring rule and we&apos;ll auto-debit it each week from your chosen account.
+            No bills set up. Add a recurring rule and we&apos;ll auto-debit it when due from your chosen account.
           </EmptyCard>
         ) : (
           banking.billPayRules.map((rule) => (
@@ -957,7 +840,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                   />
                 )}
                 <Chip
-                  label={isLocked ? `Locked · wk ${account.lockUntilWeek}` : 'Active'}
+                  label={isLocked ? `Locked · ${formatLifeWeek(account.lockUntilWeek, gameState.lifeStartWeek)}` : 'Active'}
                   tone={isLocked ? 'warning' : 'success'}
                   icon={<Lock size={scale(10)} color={isLocked ? accent.warning : accent.success} />}
                 />
@@ -984,7 +867,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                 {/* A gradient from a colour to itself is a flat fill with a
                     shader attached - so it is a flat fill. */}
                 <View style={[styles.ctaInner, { backgroundColor: pal.hex }]}>
-                  <Coins size={scale(16)} color="#fff" />
+                  <Coins size={scale(16)} color={uiPalette.white} />
                   <Text style={styles.ctaText}>Deposit</Text>
                 </View>
               </TouchableOpacity>
@@ -1038,7 +921,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             <StatStrip
               items={[
                 { label: 'Balance', value: formatMoneyExact(account.balance) },
-                { label: 'Opened', value: `Week ${account.openedWeek}` },
+                { label: 'Opened', value: formatLifeWeek(account.openedWeek, gameState.lifeStartWeek) },
                 { label: 'Age', value: ageLabel },
               ]}
             />
@@ -1155,7 +1038,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <CreditScoreBreakdown theme={theme} darkMode={darkMode} breakdown={cs.componentBreakdown} />
 
           {/* Recent inquiries - surfaced from state for the first time. */}
-          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated wk ${cs.lastUpdatedWeek}`} />} />
+          <SectionTitle title="Recent inquiries" right={<Chip label={`Updated ${formatLifeWeek(cs.lastUpdatedWeek, gameState.lifeStartWeek)}`} />} />
           {inquiries.length === 0 ? (
             <EmptyCard theme={theme} darkMode={darkMode}>No recent credit inquiries. A clean file keeps this factor high.</EmptyCard>
           ) : (
@@ -1172,7 +1055,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                     icon={FileText}
                     tintHex={accent.info}
                     label={inquiryLabel(inq.type)}
-                    sub={`Week ${inq.weeksLived} · ${agoText}`}
+                    sub={`${formatLifeWeek(inq.weeksLived, gameState.lifeStartWeek)} · ${agoText}`}
                   />
                 );
               })}
@@ -1204,7 +1087,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
       >
-        {activeTab === 'overview' && renderStatement()}
+        {activeTab === 'overview' && <><FinanceOverview />{renderStatement()}</>}
         {activeTab === 'accounts' && renderAccounts()}
         {activeTab === 'borrow' && renderBorrow()}
         {activeTab === 'budget' && renderBudget()}
@@ -1252,9 +1135,9 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       <AmountInputModal
         visible={!!withdrawTarget}
         title={`Withdraw from ${withdrawTarget?.name ?? ''}`}
-        subtitle={`Balance: ${formatMoney(withdrawTarget?.balance ?? 0)}`}
+        subtitle={`Available: ${formatMoneyExact(Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0)))}${withdrawTarget?.minBalance ? ` (keep ${formatMoneyExact(withdrawTarget.minBalance)} minimum)` : ''}`}
         confirmLabel="Withdraw"
-        maxAmount={withdrawTarget?.balance ?? 0}
+        maxAmount={Math.max(0, (withdrawTarget?.balance ?? 0) - (withdrawTarget?.minBalance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setWithdrawTarget(null)}
@@ -1315,6 +1198,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
       <AddBillModal
         visible={showAddBill}
+        cashAvailable={cash}
         accounts={banking.accounts}
         currentWeek={gameState.weeksLived}
         darkMode={darkMode}
@@ -1466,10 +1350,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         subtitle={(() => {
           const from = banking.accounts.find((a) => a.id === transferFromId);
           const to = banking.accounts.find((a) => a.id === transferToId);
-          return from && to ? `${from.name} → ${to.name} · Available ${formatMoney(from.balance)}` : undefined;
+          return from && to ? `${from.name} → ${to.name} · Available ${formatMoneyExact(Math.max(0, from.balance - (from.minBalance ?? 0)))}` : undefined;
         })()}
         confirmLabel="Transfer"
-        maxAmount={banking.accounts.find((a) => a.id === transferFromId)?.balance}
+        maxAmount={(() => {
+          const from = banking.accounts.find((a) => a.id === transferFromId);
+          return Math.max(0, (from?.balance ?? 0) - (from?.minBalance ?? 0));
+        })()}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => { setTransferFromId(null); setTransferToId(null); }}
@@ -1488,7 +1375,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         title="Prepay loan"
         subtitle="Pays down principal directly. No prepayment penalty."
         confirmLabel="Prepay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, loans.find(loan => loan.id === prepayLoanId)?.remaining ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPrepayLoanId(null)}
@@ -1509,7 +1396,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         title="Pay credit card"
         subtitle={`Cash on hand: ${formatMoney(cash)}`}
         confirmLabel="Pay"
-        maxAmount={cash}
+        maxAmount={Math.max(0, Math.min(cash, banking.creditCards.find(card => card.id === payCardId)?.balance ?? 0))}
         presets={[100, 500, 1000]}
         darkMode={darkMode}
         onClose={() => setPayCardId(null)}
@@ -1704,23 +1591,6 @@ const styles = StyleSheet.create({
   },
 
   // ── Statement masthead (Recipe B): shadow on outer, tints clipped inside ──
-  mastheadInner: {
-    borderRadius: responsiveBorderRadius['2xl'],
-    overflow: 'hidden',
-    padding: responsiveSpacing.lg,
-  },
-  mastheadTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.md,
-  },
-  mastheadTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.xs,
-  },
   mastheadEyebrow: {
     fontSize: responsiveFontSize.xs,
     fontWeight: '600',
@@ -1892,7 +1762,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
   },
-  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '600' },
+  ctaText: { color: uiPalette.white, fontSize: responsiveFontSize.md, fontWeight: '600' },
   detailSecondaryRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,

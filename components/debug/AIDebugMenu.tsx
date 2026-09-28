@@ -1,3 +1,4 @@
+import { uiPalette } from '@/lib/config/theme';
 /**
  * AI Debug Menu Component
  * Simplified and powerful debug interface for testing game mechanics
@@ -506,7 +507,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
           <View style={styles.header}>
             <Text style={styles.title}>Debug Suite</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={responsiveIconSize.xl} color={darkMode ? '#94A3B8' : '#64748B'} />
+              <X size={responsiveIconSize.xl} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             </TouchableOpacity>
           </View>
 
@@ -521,7 +522,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                   style={[styles.tab, isActive && styles.activeTab]}
                   onPress={() => setActiveTab(tab.key)}
                 >
-                  <Icon size={responsiveIconSize.sm} color={isActive ? '#FFF' : (darkMode ? '#94A3B8' : '#64748B')} />
+                  <Icon size={responsiveIconSize.sm} color={isActive ? uiPalette.white : (darkMode ? uiPalette.muted : uiPalette.lightMuted)} />
                   <Text style={[styles.tabText, isActive && styles.activeTabText]}>
                     {tab.label}
                   </Text>
@@ -546,28 +547,28 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                 <View style={styles.buttonGrid}>
                   <QuickButton
                     label="Snapshot"
-                    icon={<Upload size={responsiveIconSize.sm} color="#FFF" />}
+                    icon={<Upload size={responsiveIconSize.sm} color={uiPalette.white} />}
                     onPress={handleQuickSnapshot}
                     disabled={isLoading}
                     colors={['#10B981', '#059669']}
                   />
                   <QuickButton
                     label="Check Integrity"
-                    icon={<Shield size={responsiveIconSize.sm} color="#FFF" />}
+                    icon={<Shield size={responsiveIconSize.sm} color={uiPalette.white} />}
                     onPress={handleRunIntegrityCheck}
                     disabled={isLoading}
                     colors={['#F59E0B', '#D97706']}
                   />
                   <QuickButton
                     label="Reset Game"
-                    icon={<RotateCcw size={responsiveIconSize.sm} color="#FFF" />}
+                    icon={<RotateCcw size={responsiveIconSize.sm} color={uiPalette.white} />}
                     onPress={handleResetGame}
                     disabled={isLoading}
                     colors={['#EF4444', '#DC2626']}
                   />
                   <QuickButton
                     label="Save State"
-                    icon={<Save size={responsiveIconSize.sm} color="#FFF" />}
+                    icon={<Save size={responsiveIconSize.sm} color={uiPalette.white} />}
                     onPress={handleSaveState}
                     disabled={isLoading}
                     colors={['#8B5CF6', '#7C3AED']}
@@ -581,21 +582,21 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                 <View style={styles.buttonGrid}>
                   <QuickButton
                     label="Broke Student"
-                    icon={<DollarSign size={responsiveIconSize.xs} color="#FFF" />}
+                    icon={<DollarSign size={responsiveIconSize.xs} color={uiPalette.white} />}
                     onPress={() => handleLoadPreset('broke')}
                     disabled={isLoading}
-                    colors={['#64748B', '#475569']}
+                    colors={[uiPalette.lightMuted, uiPalette.lightSecondary]}
                   />
                   <QuickButton
                     label="Millionaire"
-                    icon={<DollarSign size={responsiveIconSize.xs} color="#FFF" />}
+                    icon={<DollarSign size={responsiveIconSize.xs} color={uiPalette.white} />}
                     onPress={() => handleLoadPreset('millionaire')}
                     disabled={isLoading}
                     colors={['#10B981', '#059669']}
                   />
                   <QuickButton
                     label="Smart Student"
-                    icon={<TrendingUp size={responsiveIconSize.xs} color="#FFF" />}
+                    icon={<TrendingUp size={responsiveIconSize.xs} color={uiPalette.white} />}
                     onPress={() => handleLoadPreset('student')}
                     disabled={isLoading}
                     colors={['#3B82F6', '#1D4ED8']}
@@ -615,13 +616,13 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                     placeholder="Search actions..."
                     value={searchQuery}
                     onChangeText={setSearchQuery}
-                    placeholderTextColor={darkMode ? '#94A3B8' : '#64748B'}
+                    placeholderTextColor={darkMode ? uiPalette.muted : uiPalette.lightMuted}
                   />
                   <TouchableOpacity
                     style={[styles.filterButton, selectedCategory === 'all' && styles.activeFilter]}
                     onPress={() => setSelectedCategory('all')}
                   >
-                    <Filter size={responsiveIconSize.xs} color={selectedCategory === 'all' ? '#FFF' : (darkMode ? '#94A3B8' : '#64748B')} />
+                    <Filter size={responsiveIconSize.xs} color={selectedCategory === 'all' ? uiPalette.white : (darkMode ? uiPalette.muted : uiPalette.lightMuted)} />
                   </TouchableOpacity>
                 </View>
 
@@ -643,7 +644,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                 {/* Run All Button */}
                 <QuickButton
                   label={`Run ${filteredActions.length} Actions`}
-                  icon={<Zap size={responsiveIconSize.sm} color="#FFF" />}
+                  icon={<Zap size={responsiveIconSize.sm} color={uiPalette.white} />}
                   onPress={handleRunFilteredActions}
                   disabled={isLoading || filteredActions.length === 0}
                   colors={['#8B5CF6', '#7C3AED']}
@@ -686,10 +687,10 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                         style={[styles.controlButton, simulation.isPaused && styles.activeControl]}
                         onPress={handlePauseScenario}
                       >
-                        {simulation.isPaused ? <Play size={responsiveIconSize.sm} color="#FFF" /> : <Pause size={responsiveIconSize.sm} color="#FFF" />}
+                        {simulation.isPaused ? <Play size={responsiveIconSize.sm} color={uiPalette.white} /> : <Pause size={responsiveIconSize.sm} color={uiPalette.white} />}
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.controlButton} onPress={handleStopScenario}>
-                        <Square size={responsiveIconSize.sm} color="#FFF" />
+                        <Square size={responsiveIconSize.sm} color={uiPalette.white} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -791,7 +792,7 @@ function QuickButton({ label, icon, onPress, disabled, colors, fullWidth }: Quic
       activeOpacity={0.7}
     >
       <LinearGradient
-        colors={disabled ? ['#64748B', '#475569'] : colors}
+        colors={disabled ? [uiPalette.lightMuted, uiPalette.lightSecondary] : colors}
         style={buttonStyles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -824,7 +825,7 @@ const buttonStyles = StyleSheet.create({
       gap: responsiveSpacing.sm,
   },
   label: {
-    color: '#FFFFFF',
+    color: uiPalette.white,
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
   },
@@ -841,7 +842,7 @@ function createStyles(darkMode: boolean) {
       backgroundColor: darkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
     },
     modal: {
-      backgroundColor: darkMode ? '#1E293B' : '#FFFFFF',
+      backgroundColor: darkMode ? uiPalette.surface : uiPalette.white,
       borderRadius: responsiveBorderRadius.xl,
       width: '100%',
       maxHeight: '85%',
@@ -874,8 +875,8 @@ function createStyles(darkMode: boolean) {
       alignItems: 'center',
       padding: responsiveSpacing.xl,
       borderBottomWidth: 1,
-      borderBottomColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
-      backgroundColor: darkMode ? '#0F172A' : '#FAFAFA',
+      borderBottomColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.08)',
+      backgroundColor: darkMode ? uiPalette.navy : '#FAFAFA',
       // Light mode: subtle gradient for elegance
       ...(!darkMode && {
         backgroundColor: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
@@ -884,7 +885,7 @@ function createStyles(darkMode: boolean) {
     title: {
       fontSize: responsiveFontSize['2xl'],
       fontWeight: 'bold',
-      color: darkMode ? '#F8FAFC' : '#0F172A',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
     },
     closeButton: {
       padding: responsiveSpacing.xs,
@@ -896,8 +897,8 @@ function createStyles(darkMode: boolean) {
     tabBar: {
       flexDirection: 'row',
       borderBottomWidth: 1,
-      borderBottomColor: darkMode ? '#334155' : 'rgba(0,0,0,0.06)',
-      backgroundColor: darkMode ? '#0F172A' : '#F8FAFC',
+      borderBottomColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.06)',
+      backgroundColor: darkMode ? uiPalette.navy : uiPalette.paper,
     },
     tab: {
       flex: 1,
@@ -921,10 +922,10 @@ function createStyles(darkMode: boolean) {
     tabText: {
       fontSize: responsiveFontSize.xs,
       fontWeight: '500',
-      color: darkMode ? '#94A3B8' : '#64748B',
+      color: darkMode ? uiPalette.muted : uiPalette.lightMuted,
     },
     activeTabText: {
-      color: '#FFFFFF',
+      color: uiPalette.white,
       fontWeight: '600',
     },
     statusBar: {
@@ -933,13 +934,13 @@ function createStyles(darkMode: boolean) {
       marginHorizontal: responsiveSpacing.xl,
       marginTop: responsiveSpacing.md,
       padding: responsiveSpacing.sm,
-      backgroundColor: darkMode ? '#334155' : '#F1F5F9',
+      backgroundColor: darkMode ? uiPalette.slate : uiPalette.lightSurface,
       borderRadius: responsiveBorderRadius.md,
       borderWidth: darkMode ? 0 : 1,
       borderColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.04)',
     },
     statusText: {
-      color: darkMode ? '#CBD5E1' : '#334155',
+      color: darkMode ? uiPalette.secondary : uiPalette.slate,
       fontSize: responsiveFontSize.sm,
       fontWeight: '500',
     },
@@ -953,7 +954,7 @@ function createStyles(darkMode: boolean) {
     sectionTitle: {
       fontSize: responsiveFontSize.xl,
       fontWeight: '600',
-      color: darkMode ? '#F8FAFC' : '#0F172A',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
       marginBottom: responsiveSpacing.lg,
       // Light mode: subtle text shadow for depth
       ...(darkMode ? {} : {
@@ -983,13 +984,13 @@ function createStyles(darkMode: boolean) {
     searchInput: {
       flex: 1,
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.12)',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.12)',
       borderRadius: responsiveBorderRadius.lg,
       paddingHorizontal: responsiveSpacing.md,
       paddingVertical: responsiveSpacing.sm,
       fontSize: responsiveFontSize.base,
-      color: darkMode ? '#F8FAFC' : '#0F172A',
-      backgroundColor: darkMode ? '#0F172A' : '#FFFFFF',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
+      backgroundColor: darkMode ? uiPalette.navy : uiPalette.white,
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1005,8 +1006,8 @@ function createStyles(darkMode: boolean) {
       padding: responsiveSpacing.sm,
       borderRadius: responsiveBorderRadius.lg,
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.12)',
-      backgroundColor: darkMode ? '#0F172A' : '#FFFFFF',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.12)',
+      backgroundColor: darkMode ? uiPalette.navy : uiPalette.white,
       alignItems: 'center',
       justifyContent: 'center',
       ...Platform.select({
@@ -1040,8 +1041,8 @@ function createStyles(darkMode: boolean) {
       paddingVertical: responsiveSpacing.xs,
       borderRadius: responsiveBorderRadius.lg,
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.12)',
-      backgroundColor: darkMode ? '#0F172A' : '#F8FAFC',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.12)',
+      backgroundColor: darkMode ? uiPalette.navy : uiPalette.paper,
       ...Platform.select({
         web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1064,19 +1065,19 @@ function createStyles(darkMode: boolean) {
     },
     categoryText: {
       fontSize: responsiveFontSize.xs,
-      color: darkMode ? '#94A3B8' : '#475569',
+      color: darkMode ? uiPalette.muted : uiPalette.lightSecondary,
       fontWeight: '500',
     },
     activeCategoryText: {
-      color: '#FFFFFF',
+      color: uiPalette.white,
       fontWeight: '600',
     },
     actionList: {
       maxHeight: 300,
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.08)',
       borderRadius: responsiveBorderRadius.lg,
-      backgroundColor: darkMode ? '#0F172A' : '#FFFFFF',
+      backgroundColor: darkMode ? uiPalette.navy : uiPalette.white,
       padding: responsiveSpacing.sm,
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
@@ -1092,7 +1093,7 @@ function createStyles(darkMode: boolean) {
     actionItem: {
       padding: responsiveSpacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: darkMode ? '#334155' : 'rgba(0,0,0,0.06)',
+      borderBottomColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.06)',
       borderRadius: responsiveBorderRadius.sm,
       marginBottom: responsiveSpacing.xs,
       backgroundColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.01)',
@@ -1105,7 +1106,7 @@ function createStyles(darkMode: boolean) {
     actionName: {
       fontSize: responsiveFontSize.base,
       fontWeight: '500',
-      color: darkMode ? '#F8FAFC' : '#0F172A',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
     },
     actionCategory: {
       fontSize: responsiveFontSize.xs,
@@ -1120,12 +1121,12 @@ function createStyles(darkMode: boolean) {
 
     // Simulation styles
     simulationStatus: {
-      backgroundColor: darkMode ? '#0F172A' : '#F0F9FF',
+      backgroundColor: darkMode ? uiPalette.navy : '#F0F9FF',
       borderRadius: responsiveBorderRadius.lg,
       padding: responsiveSpacing.lg,
       marginBottom: responsiveSpacing.lg,
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(59, 130, 246, 0.2)',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(59, 130, 246, 0.2)',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1140,12 +1141,12 @@ function createStyles(darkMode: boolean) {
     simulationTitle: {
       fontSize: responsiveFontSize.lg,
       fontWeight: '600',
-      color: darkMode ? '#F8FAFC' : '#0F172A',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
       marginBottom: responsiveSpacing.xs,
     },
     simulationProgress: {
       fontSize: responsiveFontSize.sm,
-      color: darkMode ? '#94A3B8' : '#64748B',
+      color: darkMode ? uiPalette.muted : uiPalette.lightMuted,
       marginBottom: responsiveSpacing.md,
       fontWeight: '500',
     },
@@ -1154,7 +1155,7 @@ function createStyles(darkMode: boolean) {
       gap: responsiveSpacing.sm,
     },
     controlButton: {
-      backgroundColor: darkMode ? '#334155' : '#E2E8F0',
+      backgroundColor: darkMode ? uiPalette.slate : uiPalette.line,
       borderRadius: responsiveBorderRadius.md,
       padding: responsiveSpacing.sm,
       alignItems: 'center',
@@ -1181,12 +1182,12 @@ function createStyles(darkMode: boolean) {
       elevation: 3,
     },
     scenarioItem: {
-      backgroundColor: darkMode ? '#0F172A' : '#FEFEFE',
+      backgroundColor: darkMode ? uiPalette.navy : '#FEFEFE',
       borderRadius: responsiveBorderRadius.lg,
       padding: responsiveSpacing.lg,
       marginBottom: responsiveSpacing.md,
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.08)',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1207,7 +1208,7 @@ function createStyles(darkMode: boolean) {
     scenarioName: {
       fontSize: responsiveFontSize.lg,
       fontWeight: '600',
-      color: darkMode ? '#F8FAFC' : '#0F172A',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
     },
     scenarioCount: {
       fontSize: responsiveFontSize.xs,
@@ -1220,7 +1221,7 @@ function createStyles(darkMode: boolean) {
     },
     scenarioDesc: {
       fontSize: responsiveFontSize.sm,
-      color: darkMode ? '#94A3B8' : '#64748B',
+      color: darkMode ? uiPalette.muted : uiPalette.lightMuted,
       lineHeight: responsiveFontSize.lg,
     },
 
@@ -1233,12 +1234,12 @@ function createStyles(darkMode: boolean) {
     monitorItem: {
       flex: 1,
       minWidth: 120,
-      backgroundColor: darkMode ? '#0F172A' : '#FEFEFE',
+      backgroundColor: darkMode ? uiPalette.navy : '#FEFEFE',
       borderRadius: responsiveBorderRadius.lg,
       padding: responsiveSpacing.lg,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
+      borderColor: darkMode ? uiPalette.slate : 'rgba(0,0,0,0.08)',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1252,7 +1253,7 @@ function createStyles(darkMode: boolean) {
     },
     monitorLabel: {
       fontSize: responsiveFontSize.xs,
-      color: darkMode ? '#94A3B8' : '#64748B',
+      color: darkMode ? uiPalette.muted : uiPalette.lightMuted,
       marginTop: responsiveSpacing.sm,
       fontWeight: '500',
       textTransform: 'uppercase',
@@ -1261,7 +1262,7 @@ function createStyles(darkMode: boolean) {
     monitorValue: {
       fontSize: responsiveFontSize.xl,
       fontWeight: 'bold',
-      color: darkMode ? '#F8FAFC' : '#0F172A',
+      color: darkMode ? uiPalette.paper : uiPalette.navy,
       marginTop: responsiveSpacing.xs,
       // Light mode: subtle text shadow for important values
       ...(darkMode ? {} : {
