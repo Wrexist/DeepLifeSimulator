@@ -23,7 +23,7 @@ import { Platform } from 'react-native';
 import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
 import { appToStoreProductId, storeToAppProductId } from '@/lib/subscription/revenueCatProductMap';
-import { isSubscriptionProduct } from '@/utils/iapConfig';
+import { isSubscriptionProduct, SUBSCRIPTION_PRODUCTS, IAP_PRODUCTS } from '@/utils/iapConfig';
 import type { ReceiptSnapshot } from '@/utils/revenueCatRecovery';
 import type { StoreProductLike } from '@/lib/subscription/planPricing';
 import type {
@@ -116,12 +116,55 @@ function loadPurchasesUI(): any | null {
 }
 
 
-function readEntitlements(customerInfo: any): RcEntitlements {
+/** Bare product id from an RC customerInfo id (Android: `productId:basePlanId`). */
+function bareProductId(id: unknown): string | undefined {
+  if (typeof id !== 'string' || !id) return undefined;
+  const colon = id.indexOf(':');
+  return storeToAppProductId(colon > 0 ? id.slice(0, colon) : id);
+}
+
+function idSet(list: unknown): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(list)) return out;
+  for (const raw of list) {
+    const id = bareProductId(raw);
+    if (id) out.add(id);
+  }
+  return out;
+}
+
+/**
+ * Entitlements from a customerInfo.
+ *
+ * The named entitlements are the primary signal, but they depend on each
+ * product being ATTACHED to the entitlement in the RevenueCat dashboard. When
+ * one is not, `entitlements.active` comes back empty for a player the store
+ * just charged - and `SubscriptionReconciler` then reads that authoritative
+ * "not premium" and writes `adsRemoved: false` straight over the benefit the
+ * purchase had just applied. That is the "I bought monthly DeepLife+ but I am
+ * still having ads" report (2026-09-27): the purchase succeeded, the next
+ * reconcile (on the next week) revoked it.
+ *
+ * So the store-level facts RevenueCat reports regardless of dashboard wiring
+ * also count: `activeSubscriptions` lists only UNEXPIRED subscriptions (safe
+ * for the DeepLife+ plans), and `allPurchasedProductIdentifiers` is safe for
+ * the NON-CONSUMABLE unlocks (lifetime premium, remove ads), which never
+ * expire. It is never read for subscriptions - it includes lapsed ones.
+ */
+export function readEntitlements(customerInfo: any): RcEntitlements {
   const active = customerInfo?.entitlements?.active ?? {};
-  const premium = !!active[RC_ENTITLEMENT_PREMIUM] || !!active[RC_ENTITLEMENT_PRO];
+  const activeSubs = idSet(customerInfo?.activeSubscriptions);
+  const owned = idSet(customerInfo?.allPurchasedProductIdentifiers);
+  const premium =
+    !!active[RC_ENTITLEMENT_PREMIUM] ||
+    !!active[RC_ENTITLEMENT_PRO] ||
+    activeSubs.has(SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY) ||
+    activeSubs.has(SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY) ||
+    owned.has(IAP_PRODUCTS.LIFETIME_PREMIUM);
   // Any premium tier is also ad-free, so treat premium as implying ads_removed
   // even if only the `premium` entitlement is attached to a given product.
-  const adsRemoved = !!active[RC_ENTITLEMENT_ADS_REMOVED] || premium;
+  const adsRemoved =
+    !!active[RC_ENTITLEMENT_ADS_REMOVED] || premium || owned.has(IAP_PRODUCTS.REMOVE_ADS);
   return { adsRemoved, premium };
 }
 
