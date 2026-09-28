@@ -391,6 +391,7 @@ export function isCareerUnlocked(
     /** Live claimed-achievement IDs (state.claimedProgressAchievements). */
     claimedAchievements: string[];
     stats: { reputation: number };
+    /** Weeks played in THIS life (`weeksSinceLifeStart`), NOT the raw counter. */
     weeksLived: number;
     /** Precomputed via the shared calculateNetWorth helper (task #64). */
     netWorth: number;

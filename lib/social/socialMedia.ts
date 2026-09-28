@@ -294,7 +294,7 @@ export function checkViralChance(
   // Distinguishes otherwise-identical rolls made in the same post (e.g. a
   // "tripled virality" boost that calls this 3x). Without it, all three shared a
   // seed and returned the same boolean, so `a || a || a === a` - a no-op boost.
-  nonce = 0,
+  nonce: number | string = 0,
   /**
    * The absolute week the roll belongs to, and the life it belongs to
    * (Program 14). REQUIRED in practice - the default exists only so an

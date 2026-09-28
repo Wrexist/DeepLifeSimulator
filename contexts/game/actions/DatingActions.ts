@@ -19,7 +19,7 @@ import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, appl
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getRelationshipGainMultiplier } from '@/lib/prestige/applyBonuses';
 import { clampRelationshipScore } from '@/utils/stateValidation';
-import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
+import { commitDeterministicRolls, getDeterministicRoll, isRollCommitted } from '@/lib/randomness/deterministicRng';
 import {
   getEngagementRing,
   calculateProposalSuccessRate,
@@ -583,6 +583,12 @@ export const proposeMarriage = (
         return prev;
       }
       if ((prev.stats?.money ?? 0) < ring.price) {
+        return prev;
+      }
+      // A decline changes nothing the checks above look at, so a same-batch
+      // double tap passed them all and charged the ring twice. The roll key is
+      // committed by the first tap's commit - that is the "already proposed".
+      if (rngCommitKeys.some((k) => isRollCommitted(prev, k))) {
         return prev;
       }
       const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);

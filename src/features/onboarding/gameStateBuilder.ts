@@ -233,6 +233,9 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     // is the one place that knows the life is starting; deriving it later is
     // impossible once `weeksLived` has moved.
     lifeStartWeek: weeksLived,
+    // Event-spacing baseline, for the same reason (absent reads as 0, so an
+    // age-25 start looked 364 weeks into a drought and got a forced event).
+    lastEventWeeksLived: weeksLived,
     // A fresh lineage per new game. `initialGameState.lineageId` is the literal
     // 'initial-lineage' and nothing ever replaced it, so the per-life salt
     // (`lifeSalt`, utils/seededRoll.ts) that seeds diseases, events, the stock

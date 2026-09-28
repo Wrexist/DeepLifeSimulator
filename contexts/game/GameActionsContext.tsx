@@ -4279,6 +4279,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const currentConsequenceState = initializeConsequenceState(prevState);
  updatedConsequenceState = {
 ...currentConsequenceState,
+ // Carries the consumed payoff flag too (see `consumePayoffFlag`).
+...consequenceResult.updatedState,
  choiceHistory: consequenceResult.updatedState.choiceHistory,
  };
  }

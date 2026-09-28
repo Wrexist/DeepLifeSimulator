@@ -444,6 +444,10 @@ function createResetGameState(
   // inherited, and so this path reads the same as the heir one below.
   newState.weeksLived = computeWeeksLived(18);
   newState.lifeStartWeek = newState.weeksLived;
+  // The event-spacing marker starts at the same baseline. `initialGameState`
+  // has none, and the engine falls back to 0, so an heir starting at 20 read as
+  // 104 weeks without an event and got a forced pity event on the first tick.
+  newState.lastEventWeeksLived = newState.weeksLived;
 
   // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state
   const unlockedBonuses = prestigeData.unlockedBonuses || [];
@@ -750,6 +754,10 @@ function createChildGameState(
   // starts at 0 for the heir, exactly as it does for a new character (v43).
   newState.weeksLived = computeWeeksLived(childAge);
   newState.lifeStartWeek = newState.weeksLived;
+  // The event-spacing marker starts at the same baseline. `initialGameState`
+  // has none, and the engine falls back to 0, so an heir starting at 20 read as
+  // 104 weeks without an event and got a forced pity event on the first tick.
+  newState.lastEventWeeksLived = newState.weeksLived;
 
   // Timed legacy buffs (A Family Mentor / The Heirloom Charm). Stamped HERE,
   // after `weeksLived` is seeded from the heir's actual starting age - expiry

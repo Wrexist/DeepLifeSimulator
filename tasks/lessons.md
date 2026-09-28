@@ -5911,3 +5911,24 @@ through different tools, check that both see the same values: read the merge
 order in each tool's source, not the comment above the step. Guard: unset
 empty `EXPO_PUBLIC_*` before `eas build --local`
 (`__tests__/tooling/localBuildEnvLayering.test.ts`).
+
+## 2026-09-28 — A reconcile that revokes on a negative must count every positive
+
+"I bought monthly DeepLife+ but I am still having ads." The purchase applied
+`adsRemoved`; the next `SubscriptionReconciler` pass read RevenueCat's
+`entitlements.active`, found no `premium` (a product not attached to the
+entitlement in the dashboard is enough), called that an authoritative lapse and
+wrote `adsRemoved: false` over the paid benefit. The rule: any code that
+REVOKES on "not entitled" must derive "entitled" from every fact the store
+reports — `activeSubscriptions` for subs, owned non-consumables for unlocks —
+not from one dashboard-configured name. And the positive direction must run
+too: `adsRemoved` is per SAVE, so the reconcile must re-assert a Remove Ads
+purchase on a new game / other slot / old backup, and must re-run when the
+loaded LIFE changes, not only when `weeksLived` does (an age-18 new game goes
+0 → 0). Guard: `__tests__/monetization/deepLifePlusStillSeesAds.test.ts`.
+
+Same sweep, same lesson as §4.4: a guard inside the updater protects only what
+is inside the updater. `recoverFromScandal` re-checked `prev` and then paid the
+lawsuit fee, energy, reputation and followers in separate dispatches after it,
+so a refused second tap still paid them. Guard:
+`__tests__/regression/bugSweep2026-09-28.test.ts`.

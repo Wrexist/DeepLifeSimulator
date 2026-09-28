@@ -358,6 +358,13 @@ export const rewindLastSwipe = (
       return prev;
     }
     const s = ensureSpark(prev);
+    // Undo exactly the swipe the player saw. A same-batch double tap used to
+    // remove two swipes while undoing the FIRST one's match / super-like twice.
+    const head = s.swipes[0];
+    if (!head || head.profileId !== last.profileId || head.swipedWeek !== last.swipedWeek
+      || head.direction !== last.direction) {
+      return prev;
+    }
     return {
       ...prev,
       stats: isPremium

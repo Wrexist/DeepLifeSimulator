@@ -25,6 +25,41 @@ export function initializeConsequenceState(state: GameState): ConsequenceState {
 }
 
 /**
+ * Payoff templates gated on a POSITIVE `eventWeightModifiers` entry
+ * (`weightPayoffReady` in lib/events/engine.ts). Their modifier is consumed on
+ * resolution like an `unlockedEvents` flag. Other modifiers are ordinary weight
+ * nudges on recurring events and are left alone.
+ */
+const ONE_SHOT_WEIGHT_PAYOFFS = new Set(['audit_scandal', 'friend_distant']);
+
+/**
+ * Consume the payoff flag of the event being resolved.
+ *
+ * The payoff templates fire while their flag is set and they are not yet in
+ * `choiceHistory` - but that history keeps only the last 200 entries, and the
+ * flags were never cleared. So in a long life, once the payoff's own entry fell
+ * out of the window it could fire again every few months for the rest of the
+ * life (`startup_payout` paying $25,000 each time). Clearing the flag makes
+ * "resolved" durable; a setup chosen again later re-arms it legitimately.
+ */
+function consumePayoffFlag(
+  current: ConsequenceState,
+  eventId: string,
+  into: Partial<ConsequenceState>,
+): void {
+  const unlocked = into.unlockedEvents ?? current.unlockedEvents ?? [];
+  if (unlocked.includes(eventId)) {
+    into.unlockedEvents = unlocked.filter((id) => id !== eventId);
+  }
+  const mods = into.eventWeightModifiers ?? current.eventWeightModifiers ?? {};
+  if (ONE_SHOT_WEIGHT_PAYOFFS.has(eventId) && (mods[eventId] ?? 0) > 0) {
+    const next = { ...mods };
+    delete next[eventId];
+    into.eventWeightModifiers = next;
+  }
+}
+
+/**
  * Apply a choice's hidden consequences
  * Called from resolveEvent after immediate effects are applied
  */
@@ -53,11 +88,13 @@ export function applyChoiceConsequences(
       },
     ];
     
+    // choiceHistory is a pure log; keep only the most recent entries so it
+    // can't grow into the thousands over a long life (serialized every save).
+    const updated: Partial<ConsequenceState> = { choiceHistory: newChoiceHistory.slice(-200) };
+    consumePayoffFlag(currentState, eventId, updated);
     return {
       newConsequences: currentConsequences,
-      // choiceHistory is a pure log; keep only the most recent entries so it
-      // can't grow into the thousands over a long life (serialized every save).
-      updatedState: { choiceHistory: newChoiceHistory.slice(-200) },
+      updatedState: updated,
     };
   }
   
@@ -69,6 +106,9 @@ export function applyChoiceConsequences(
     hiddenTraits: [...currentState.hiddenTraits],
     eventWeightModifiers: { ...currentState.eventWeightModifiers },
   };
+  // Consume first, so a consequence of THIS choice that re-arms the same id
+  // (applied below) still wins.
+  consumePayoffFlag(currentState, eventId, updatedState);
   
   hiddenConsequences.forEach((consequenceTemplate, index) => {
     const newConsequence: HiddenConsequence = {

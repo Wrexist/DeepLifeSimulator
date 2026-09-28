@@ -611,12 +611,14 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'athletes_journey',
     name: "Athlete's Journey",
-    description: 'Start as an unfit teen and become a champion athlete. Push your body to its limits.',
+    description: 'Start as an unfit 18-year-old and become a champion athlete. Push your body to its limits.',
     icon: '🏆',
     difficulty: 'hard',
     startingConditions: {
       money: 200,
-      age: 16,
+      // Was 16, which `validateStartInputs` rejects (< 18): the card could never
+      // be started. 18 is also the floor `computeWeeksLived` assumes.
+      age: 18,
       reputation: 0,
       noChildren: true,
       stats: {
