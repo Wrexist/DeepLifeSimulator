@@ -21,6 +21,19 @@ import { reconcileSubscriptionBenefits } from '@/contexts/game/actions/Subscript
 import { reconcileLegacyPassSeason } from '@/contexts/game/actions/LegacyPassActions';
 import { logger } from '@/utils/logger';
 
+/**
+ * Ask the mounted reconciler to run now. A Restore from Settings or the gem
+ * shop goes through `iapService.restorePurchases()`, which skips subscriptions
+ * on the RevenueCat path and relies on the customer-info listener - and the SDK
+ * only fires that when the info CHANGES. A subscriber whose flags had been
+ * stripped therefore tapped Restore, read "Restored 0 purchases" and kept their
+ * ads. Restore surfaces call this so the entitlement is re-applied at once.
+ */
+const reconcileRequests = new Set<() => void>();
+export function requestSubscriptionReconcile(): void {
+  reconcileRequests.forEach((run) => run());
+}
+
 export function SubscriptionReconciler(): null {
   const setGameState = useSetGameState();
   const runningRef = useRef(false);
@@ -28,6 +41,11 @@ export function SubscriptionReconciler(): null {
   // has hydrated (closing the mount-vs-load race), and later changes catch a
   // season rollover that happens mid-session.
   const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
+  // Which LIFE is loaded. A new game started at 18 goes weeksLived 0 -> 0, so
+  // `weeksLived` alone never re-ran the reconcile for a fresh save or a slot
+  // switch at the same week, and that save kept whatever entitlement flags it
+  // was born with (none) until the first week was played.
+  const lifeKey = useGameSelector((s) => `${s.lineageId ?? ''}:${s.generationNumber ?? ''}:${s.lifeStartWeek ?? ''}`);
 
   const reconcile = useCallback(async () => {
     if (runningRef.current) return;
@@ -87,12 +105,17 @@ export function SubscriptionReconciler(): null {
       // `isAdsRemoved()`, one line higher up.
       const plusActive = subscriptionService.hasPremiumAccess();
 
+      const welcomeGrantedElsewhere = subscriptionService.hasGrantedWelcomeGems();
       setGameState((prev) => {
-        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds, authoritative);
+        const afterSub = reconcileSubscriptionBenefits(
+          prev, plusActive, ownsRemoveAds, authoritative, welcomeGrantedElsewhere,
+        );
         // Same `authoritative` flag: "could not ask" must not strip the paid
         // premium track. See the note on `entitlementCheckAuthoritative`.
         return reconcileLegacyPassSeason(afterSub, plusActive, Date.now(), authoritative);
       });
+      // Either paid just now or already paid in this save: one-time is spent.
+      if (plusActive) subscriptionService.markWelcomeGemsGranted();
     } catch (err) {
       // Never let entitlement reconciliation break the app.
       logger.warn('[SubscriptionReconciler] reconcile failed (non-critical):', { error: err });
@@ -109,7 +132,13 @@ export function SubscriptionReconciler(): null {
     };
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
-  }, [reconcile, weeksLived]);
+  }, [reconcile, weeksLived, lifeKey]);
+
+  useEffect(() => {
+    const run = () => { void reconcile(); };
+    reconcileRequests.add(run);
+    return () => { reconcileRequests.delete(run); };
+  }, [reconcile]);
 
   // Live RevenueCat entitlement changes (renewals, expiry, cross-device
   // restore) → reconcile immediately. No-op when RevenueCat is disabled.

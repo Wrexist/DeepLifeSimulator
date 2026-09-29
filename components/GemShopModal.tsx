@@ -12,6 +12,7 @@ import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import Gradient from '@/components/ui/Gradient';
 import { scale, fontScale, responsiveBorderRadius, responsiveSpacing, verticalScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
+import { requestSubscriptionReconcile } from '@/components/SubscriptionReconciler';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import DailyGemClaim from '@/components/DailyGemClaim';
@@ -459,6 +460,8 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
     try {
       logger.info('Starting purchase restoration...');
       const { success, restoredCount } = await iapService.restorePurchases();
+      // Re-apply DeepLife+ / Remove Ads to this save now (see the helper).
+      requestSubscriptionReconcile();
       if (success) {
         await iapService.loadPurchases();
         // Say HOW MANY. Reporting bare success on a restore that restored

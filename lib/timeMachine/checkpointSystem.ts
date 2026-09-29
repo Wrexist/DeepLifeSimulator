@@ -309,6 +309,21 @@ export function rewindToCheckpoint(
     restored.checkpoints = currentState.checkpoints; // Keep full checkpoint list
     restored.timeMachineUsesThisLife = (currentState.timeMachineUsesThisLife ?? 0) + 1;
 
+    // The crypto market STAYS where it is (it is stripped from snapshots for
+    // exactly that reason - see above). But `repairGameState` has already run on
+    // the snapshot and filled the absent slice with `initialGameState`'s, which
+    // is not "where it is": it deleted open orders and DCA rules, wiped cost
+    // basis and this year's realized gains, and reset every chart. Carry the
+    // live slice instead.
+    if (currentState.cryptoMarket) restored.cryptoMarket = currentState.cryptoMarket;
+    // Claim ledgers are one-way: a rewind must never re-open a Live Ops reward
+    // (docs/LIVEOPS.md) or an already-fulfilled store transaction while the
+    // gems they paid carry forward below.
+    if (currentState.liveOps !== undefined) restored.liveOps = currentState.liveOps;
+    if (currentState.processedIAPTransactions !== undefined) {
+      restored.processedIAPTransactions = currentState.processedIAPTransactions;
+    }
+
     // Carry account-level PURCHASES from the live state onto the restored
     // snapshot - the same whitelist prestige and heir-continuation use. A
     // checkpoint captured before a Remove Ads / Lifetime / banking purchase (or

@@ -33,12 +33,24 @@ const safeAddGems = (base: number | undefined, amount: number): number => {
  * granted on the first activation (gated by settings.deepLifePlusActivated);
  * ad removal is always (re)asserted.
  */
-export function applyDeepLifePlusBenefits(state: GameState): GameState {
+export function applyDeepLifePlusBenefits(
+  state: GameState,
+  opts: {
+    /**
+     * The welcome gems were already paid on this DEVICE (any save). Callers
+     * read `subscriptionService.hasGrantedWelcomeGems()` BEFORE dispatching and
+     * pass it in, so this stays pure; without it every New Game slot paid the
+     * "one-time" 500 gems again.
+     */
+    welcomeGrantedElsewhere?: boolean;
+  } = {},
+): GameState {
   // Welcome gems are gated by a STICKY flag so they are granted exactly once,
   // ever — a lapse + resubscribe must not re-grant them (the benefit copy says
   // "one-time"). `deepLifePlusActivated` toggles with the subscription; the
   // sticky `deepLifePlusWelcomeClaimed` does not.
-  const welcomeClaimed = state.settings?.deepLifePlusWelcomeClaimed === true;
+  const welcomeClaimed =
+    state.settings?.deepLifePlusWelcomeClaimed === true || opts.welcomeGrantedElsewhere === true;
   const gemGrant = welcomeClaimed ? 0 : DEEP_LIFE_PLUS_WELCOME_GEMS;
 
   return {
@@ -47,6 +59,8 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
       ...state.settings,
       adsRemoved: true,
       adsRemovedDate: state.settings?.adsRemovedDate ?? new Date().toISOString(),
+      // An active entitlement is not a hold.
+      adsRemovedHeldForPlus: undefined,
       deepLifePlusActivated: true,
       deepLifePlusWelcomeClaimed: true,
     },
@@ -361,15 +375,29 @@ export function reconcileSubscriptionBenefits(
    * flag it falls back to. 2026-07-30 audit MON-1.
    */
   entitlementCheckAuthoritative: boolean = true,
+  /** See `applyDeepLifePlusBenefits`. */
+  welcomeGrantedElsewhere: boolean = false,
 ): GameState {
   if (plusActive) {
     // applyDeepLifePlusBenefits is idempotent (welcome gems only on first activation).
-    return applyDeepLifePlusBenefits(state);
+    return applyDeepLifePlusBenefits(state, { welcomeGrantedElsewhere });
   }
 
-  // Lapsed (or never active). Only act if DeepLife+ had previously granted benefits.
-  if (state.settings?.deepLifePlusActivated !== true) {
-    return state;
+  // A POSITIVE Remove Ads answer needs no authority check - "yes, owned" can
+  // only come from a real read. `adsRemoved` is stored per save, and only the
+  // death / restart / prestige / heir paths carry it over, so a buyer who
+  // started a New Game in another slot, or loaded an older slot / backup /
+  // cloud save, had ads again until they found Restore. Re-assert it here, on
+  // every save the reconciler sees.
+  if (ownsRemoveAds && state.settings?.adsRemoved !== true) {
+    state = {
+      ...state,
+      settings: {
+        ...state.settings,
+        adsRemoved: true,
+        adsRemovedDate: state.settings?.adsRemovedDate ?? new Date().toISOString(),
+      },
+    };
   }
 
   // The union the doc always claimed: the Remove Ads IAP, plus the two other
@@ -379,6 +407,20 @@ export function reconcileSubscriptionBenefits(
     ownsRemoveAds ||
     state.settings?.lifetimePremium === true ||
     state.settings?.everythingUnlocked === true;
+
+  // Lapsed (or never active). Only act if DeepLife+ had previously granted benefits.
+  if (state.settings?.deepLifePlusActivated !== true) {
+    // ...or if an earlier non-authoritative pass HELD ad-free for a lapsed
+    // subscriber (v52). Every later pass used to return here, so the hold never
+    // ended. The first authoritative answer settles it.
+    if (state.settings?.adsRemovedHeldForPlus === true && entitlementCheckAuthoritative) {
+      return {
+        ...state,
+        settings: { ...state.settings, adsRemoved: paidAdFree, adsRemovedHeldForPlus: undefined },
+      };
+    }
+    return state;
+  }
 
   // Clearing `deepLifePlusActivated` here is deliberately the BOUNDED response
   // to a non-authoritative check, NOT holding every benefit forever.
@@ -396,6 +438,7 @@ export function reconcileSubscriptionBenefits(
   // that; only `adsRemoved` is held below, and only when a PERMANENT purchase
   // (not the lapsed subscription) justifies it - wrongly revoking a bought
   // Remove Ads is the one error that is expensive and unrecoverable.
+  const holding = !paidAdFree && !entitlementCheckAuthoritative && state.settings?.adsRemoved === true;
   return {
     ...state,
     settings: {
@@ -406,6 +449,8 @@ export function reconcileSubscriptionBenefits(
         : entitlementCheckAuthoritative
           ? false
           : state.settings?.adsRemoved === true,
+      // Remember WHY it is still true, so a later authoritative pass can end it.
+      adsRemovedHeldForPlus: holding ? true : undefined,
     },
   };
 }

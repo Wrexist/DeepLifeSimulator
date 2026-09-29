@@ -161,7 +161,7 @@ function LastWeekRecap() {
           <View style={styles.badge}>
             <Flame size={scale(11)} color="#A78BFA" />
             <Text style={styles.badgeStreak}>
-              {streakCount}wk streak +{fmt(streakBonus)}
+              {streakCount}-day streak +{fmt(streakBonus)}
             </Text>
           </View>
         )}

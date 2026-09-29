@@ -189,7 +189,11 @@ export function hydrateLoadedState(
 
   // CRITICAL: Override family and relationships AFTER all spreads.
   safeState.family = mergedFamily;
-  safeState.relationships = parsedRelationships.length > 0
+  // An EMPTY array is a real answer, not a missing field: an heir starts with
+  // no relationships on purpose (`createChildGameState`). Treating [] as absent
+  // brought the seeded Mom and Dad back on every reload of an heir life. Only
+  // a save with no relationships field at all gets the seeded defaults.
+  safeState.relationships = Array.isArray(raw.relationships) || parsedRelationships.length > 0
     ? parsedRelationships
     : (initialGameState.relationships || []);
 

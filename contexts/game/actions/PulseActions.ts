@@ -620,10 +620,36 @@ export const recoverFromScandal = (
      * OUTSIDE this updater, so a double tap was $10,000 for one clear.
      * CLAUDE.md §4.4.
      */
-    if (!prev.socialMedia?.activeScandal) {
+    const live = prev.socialMedia?.activeScandal;
+    if (!live || live.id !== scandal.id) {
       return prev;
     }
-    const sm = { ...ensureSocial(prev) };
+    // Apology / silence leave the scandal active, so the check above passes on
+    // a second tap too: refuse re-choosing the same resolution.
+    if ((method === 'apology' || method === 'silence') && live.resolutionMethod === method) {
+      return prev;
+    }
+    // Every cost and effect lands in THIS transition (CLAUDE.md §4.4). The
+    // lawsuit fee, the apology energy, the reputation and the follower change
+    // used to be separate dispatches after the updater, so a same-batch double
+    // tap that the updater correctly refused still paid them twice.
+    let base: GameState = prev;
+    if (method === 'lawsuit') {
+      const fee = applyMoneyDelta(base, -SCANDAL_LAWSUIT_COST, 'Scandal lawsuit fees');
+      if (!fee) return prev;
+      base = { ...base, ...fee };
+    }
+    const statDelta: { energy?: number; reputation?: number } = {};
+    if (method === 'apology') statDelta.energy = -10;
+    if (reputationDelta !== 0) statDelta.reputation = reputationDelta;
+    if (Object.keys(statDelta).length > 0) {
+      base = { ...base, ...applyStatsDelta(base, statDelta) };
+    }
+    const sm = { ...ensureSocial(base) };
+    if (followersDelta !== 0) {
+      sm.followers = Math.max(0, (sm.followers ?? 0) + followersDelta);
+      sm.influenceLevel = getInfluenceLevel(sm.followers);
+    }
     const ws = prev.weeksLived ?? 0;
     if (method === 'gems') {
       // Instant clear: severity 0, move to history, increment counter.
@@ -674,31 +700,13 @@ export const recoverFromScandal = (
       sm.activeScandal = { ...scandal, resolutionMethod: method };
     }
     return {
-      ...prev,
+      ...base,
       stats: method === 'gems'
-        ? { ...prev.stats, gems: (prev.stats.gems ?? 0) - SCANDAL_GEM_COST }
-        : prev.stats,
+        ? { ...base.stats, gems: (base.stats.gems ?? 0) - SCANDAL_GEM_COST }
+        : base.stats,
       socialMedia: sm,
     };
   });
-
-  // Cost / stat side-effects (gems are debited atomically inside the updater above).
-  if (method === 'lawsuit') {
-    updateMoney(setGameState, -SCANDAL_LAWSUIT_COST, 'Scandal lawsuit fees');
-  } else if (method === 'apology') {
-    updateStats(setGameState, { energy: -10 });
-  }
-  if (reputationDelta !== 0) {
-    updateStats(setGameState, { reputation: reputationDelta });
-  }
-  if (followersDelta !== 0) {
-    setGameState((prev) => {
-      const sm = { ...ensureSocial(prev) };
-      sm.followers = Math.max(0, (sm.followers ?? 0) + followersDelta);
-      sm.influenceLevel = getInfluenceLevel(sm.followers);
-      return { ...prev, socialMedia: sm };
-    });
-  }
 
   return { success: true, message, reputationDelta, followersDelta };
 };
@@ -1062,7 +1070,13 @@ export const startLiveStream = (
   );
 
   setGameState((prev) => {
-    const sm = { ...ensureSocial(prev) };
+    // Re-check against `prev`: a same-batch double tap on Go Live took 60
+    // energy (flooring at 0 instead of refusing) and replaced the session.
+    if (prev.socialMedia?.liveSession?.active || (prev.stats?.energy ?? 0) < 30) {
+      return prev;
+    }
+    const charged: GameState = { ...prev, ...applyStatsDelta(prev, { energy: -30 }) };
+    const sm = { ...ensureSocial(charged) };
     sm.liveSession = {
       active: true,
       topic: topic.trim() || 'Live stream',
@@ -1074,9 +1088,8 @@ export const startLiveStream = (
       donationsEarned: 0,
       npcChatters: [],
     };
-    return { ...prev, socialMedia: sm };
+    return { ...charged, socialMedia: sm };
   });
-  updateStats(setGameState, { energy: -30 });
   return { success: true, message: 'Live!' };
 };
 
@@ -1218,14 +1231,26 @@ export const boostPostWithGems = (
     if ((prev.stats?.gems ?? 0) < gemCost) {
       return prev;
     }
+    const ws = prev.weeksLived ?? 0;
+    // One boost per post per week: a same-batch double tap used to charge
+    // twice for one boost (the updater only re-checked the gem balance).
+    if ((prev.socialMedia?.pendingBoosts ?? []).some(
+      (b) => b.type === 'post' && b.postId === postId && b.appliedWeek === ws,
+    )) {
+      return prev;
+    }
+    const salt = lifeSalt(prev);
     const sm = { ...ensureSocial(prev) };
     sm.recentPosts = (sm.recentPosts ?? []).map((p) => {
       if (p.id !== postId) return p;
       // Tripled-virality re-roll - distinct nonces so the three rolls are
       // genuinely independent (≈ 3× the base viral chance), not one repeated.
-      const viral = checkViralChance(sm.influenceLevel, p.contentType, 0) ||
-        checkViralChance(sm.influenceLevel, p.contentType, 1) ||
-        checkViralChance(sm.influenceLevel, p.contentType, 2);
+      // The week and life salt MUST be passed: without them the hash input was
+      // a constant per tier x content type, so for 23 of the 25 pairs the
+      // boost could never go viral in any week of any life - gems for nothing.
+      const roll = (i: number) =>
+        checkViralChance(sm.influenceLevel, p.contentType, `boost:${postId}:${i}`, ws, salt);
+      const viral = roll(0) || roll(1) || roll(2);
       const eng = calculatePostEngagement(sm.followers ?? 0, p.contentType, viral);
       return {
         ...p,
@@ -1237,7 +1262,7 @@ export const boostPostWithGems = (
     });
     sm.pendingBoosts = [
       ...(sm.pendingBoosts ?? []),
-      { type: 'post', postId, appliedWeek: prev.weeksLived ?? 0 },
+      { type: 'post', postId, appliedWeek: ws },
     ];
     if (sm.lifetimeStats) {
       sm.lifetimeStats = {

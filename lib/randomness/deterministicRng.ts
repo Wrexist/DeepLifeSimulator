@@ -136,6 +136,16 @@ const pruneLog = (log: RngCommitLog): RngCommitLog => {
   };
 };
 
+/**
+ * True when this roll key has already been committed to the log. The commit is
+ * written in the same updater as the effect it decided, so this doubles as an
+ * "already resolved" marker for a same-batch double tap.
+ */
+export const isRollCommitted = (state: RngStateView, rollKey: string): boolean => {
+  const key = normalizeKey(rollKey);
+  return !!key && typeof normalizeLog(state).entries[key] === 'number';
+};
+
 export const commitDeterministicRoll = (
   state: RngStateView,
   rollKey: string,

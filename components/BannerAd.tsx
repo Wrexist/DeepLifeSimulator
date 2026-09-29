@@ -4,6 +4,7 @@ import { adMobService } from '@/services/AdMobService';
 import type { AdMobPaidEvent } from '@/lib/ads/adRevenueTracking';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
+import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useGameSettings } from '@/contexts/game';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -79,8 +80,7 @@ export default function BannerAd({ style }: BannerAdProps) {
   // payers after every relaunch.
   const settings = useGameSettings();
   const adsRemoved =
-    settings?.adsRemoved === true
-    || settings?.lifetimePremium === true
+    areAdsRemoved({ settings })
     || iapService.hasPurchased(IAP_PRODUCTS.REMOVE_ADS)
     || iapService.hasPurchased(IAP_PRODUCTS.LIFETIME_PREMIUM);
 

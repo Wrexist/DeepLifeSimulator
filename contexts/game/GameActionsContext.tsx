@@ -78,6 +78,7 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 import { getStockInfo, restoreStockPrices, resetStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
+import { advancePlayStreak, playStreakBonusPercent } from '@/lib/economy/playStreak';
 import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { getStartingEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
@@ -2261,13 +2262,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // ── ENGAGEMENT: Play Streak System (loss aversion) ──
- // Track consecutive play sessions within 48h - streaks give income bonus
+ // Consecutive DAYS played (at most +1 per UTC day, reset after 48h away) -
+ // see lib/economy/playStreak.ts for why it is no longer per tap.
  const now = preRolls.timestamp;
- const lastPlayTs = prevState.playStreak?.lastPlayTimestamp || 0;
- const hoursSinceLastPlay = lastPlayTs > 0 ? (now - lastPlayTs) / (1000 * 60 * 60): 999;
- const streakContinues = hoursSinceLastPlay < 48;
- const newStreakCount = streakContinues ? (prevState.playStreak?.count || 0) + 1: 1;
- const streakBonusPercent = Math.min(newStreakCount * 2, 20); // +2% per streak, max +20%
+ const updatedPlayStreak = advancePlayStreak(prevState.playStreak, now);
+ const streakBonusPercent = playStreakBonusPercent(updatedPlayStreak.count);
  // Same treatment as the lucky bonus above: capped base, marginal tax
  // withheld (stacked on top of the lucky bonus so the pair is taxed as one
  // week's extra income), NET amount credited and reported.
@@ -2280,11 +2279,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  );
  newStats.money = Math.max(0, newStats.money + streakBonusAmount);
  }
- const updatedPlayStreak = {
- count: newStreakCount,
- lastPlayTimestamp: now,
- longestStreak: Math.max(newStreakCount, prevState.playStreak?.longestStreak || 0),
- };
 
  // ── ENGAGEMENT: Legacy Points (mini-prestige every 10 weeks) ──
  //
@@ -2532,6 +2526,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  /** Apply a cash delta to the wallet and report what actually moved. */
  const applyCashAndRecord = (delta: number): void => {
+   // One subsystem's NaN must not poison the whole cash line: `Math.max(0, NaN)`
+   // is NaN, and the final guard used to turn that into $0. Skip the bad delta.
+   if (!Number.isFinite(delta)) {
+     logger.warn('[nextWeek] skipped non-finite cash delta', { delta });
+     return;
+   }
    const before = newStats.money;
    newStats.money = Math.max(0, before + delta);
    recordRecapCash(newStats.money - before);
@@ -3307,7 +3307,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // and the UI shows "NaN" until the next save/load repair. isFinite catches it.
  stats: {
  ...newStats,
- money: isFinite(newStats.money) ? Math.min(MONEY_CEILING, newStats.money): 0,
+ // Last-resort fallback is LAST WEEK'S cash, never $0: a NaN from any one
+ // writer used to wipe the player's savings instead of skipping the change.
+ money: isFinite(newStats.money)
+   ? Math.min(MONEY_CEILING, newStats.money)
+   : (isFinite(prevState.stats?.money) ? Math.min(MONEY_CEILING, Math.max(0, prevState.stats.money)): 0),
  reputation: isFinite(pulseRepAdjusted) ? pulseRepAdjusted: (isFinite(newStats.reputation) ? newStats.reputation: 50),
  },
  // Death warning system tracking
@@ -4279,6 +4283,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const currentConsequenceState = initializeConsequenceState(prevState);
  updatedConsequenceState = {
 ...currentConsequenceState,
+ // Carries the consumed payoff flag too (see `consumePayoffFlag`).
+...consequenceResult.updatedState,
  choiceHistory: consequenceResult.updatedState.choiceHistory,
  };
  }

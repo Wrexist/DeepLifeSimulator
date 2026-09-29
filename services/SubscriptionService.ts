@@ -74,6 +74,8 @@ export function isSubscriptionActiveAt(expiresAt: number | undefined, now: numbe
   return expiresAt === undefined || now < expiresAt;
 }
 
+const WELCOME_GEMS_DEVICE_KEY = 'deeplife_plus_welcome_gems_granted';
+
 class SubscriptionService {
   private static instance: SubscriptionService;
   private subscriptions: Map<string, Subscription> = new Map();
@@ -103,6 +105,26 @@ class SubscriptionService {
   }
 
   /**
+   * The DeepLife+ welcome gems are "a one-time gem bonus the moment you join".
+   * The sticky flag that enforced that (`settings.deepLifePlusWelcomeClaimed`)
+   * lives in the SAVE, so every New Game slot re-granted 500 gems on its first
+   * reconcile. This device-level record makes it one-time per device.
+   */
+  private welcomeGemsGranted = false;
+
+  hasGrantedWelcomeGems(): boolean {
+    return this.welcomeGemsGranted;
+  }
+
+  markWelcomeGemsGranted(): void {
+    if (this.welcomeGemsGranted) return;
+    this.welcomeGemsGranted = true;
+    void safeSetItem(WELCOME_GEMS_DEVICE_KEY, 'true').catch(() => {
+      /* in-memory flag still holds for this session */
+    });
+  }
+
+  /**
    * Wait for subscription data to finish loading from storage.
    * Call this before checking subscription status at startup.
    */
@@ -126,6 +148,12 @@ class SubscriptionService {
    * Load subscriptions from storage
    */
   private async loadSubscriptions(): Promise<void> {
+    try {
+      this.welcomeGemsGranted = (await safeGetItem(WELCOME_GEMS_DEVICE_KEY)) === 'true';
+    } catch {
+      // Unknown reads as "not granted": the per-save sticky flag still stops a
+      // repeat inside the same save.
+    }
     try {
       const data = await safeGetItem('subscriptions');
       if (data) {

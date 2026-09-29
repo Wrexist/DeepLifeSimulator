@@ -1,4 +1,5 @@
 import { advancedRequirementLabels } from '@/src/features/work/requirementLabels';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius ,
     scale,
     fontScale,
@@ -1272,7 +1273,11 @@ function WorkScreenContent() {
                                             education: gameState.educations || [],
                                             claimedAchievements: gameState.claimedProgressAchievements || [],
                                             stats: gameState.stats,
-                                            weeksLived: gameState.weeksLived,
+                                            // Experience is weeks played in THIS life. The raw
+                                            // counter is seeded from the starting age, so an
+                                            // age-25 start already had 364 weeks of "experience"
+                                            // on week 1 (CLAUDE.md §4.2).
+                                            weeksLived: weeksSinceLifeStart(gameState.weeksLived, gameState.lifeStartWeek),
                                             netWorth: calculateNetWorth(gameState),
                                         };
                                         // Render EVERY advanced career, locked ones included.

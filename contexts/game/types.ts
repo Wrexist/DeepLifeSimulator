@@ -1898,6 +1898,12 @@ export interface GameSettings {
   adsRemoved?: boolean; // IAP: Remove Ads purchased
   adsRemovedDate?: string; // When ads were removed
   deepLifePlusActivated?: boolean; // DeepLife+ ad-free benefit currently active (cleared on lapse)
+  /**
+   * v52. `adsRemoved` is currently true ONLY because a DeepLife+ lapse was seen
+   * without an authoritative entitlement check, so it was held rather than
+   * revoked. The next authoritative "not entitled" revokes it. Absent = no hold.
+   */
+  adsRemovedHeldForPlus?: boolean;
   deepLifePlusWelcomeClaimed?: boolean; // Sticky: welcome gems granted once ever (never cleared on lapse)
   deepLifePlusLastGemClaim?: string; // UTC day key of the last daily gem-drop claim (members-only)
   deepLifePlusGemClaimDays?: string[]; // Recent UTC day keys claimed (pruned) — powers the weekly streak strip

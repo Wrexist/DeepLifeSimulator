@@ -22,6 +22,7 @@ import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
+import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { modalEventCount } from '@/lib/events/routing';
 import { useError } from '@/contexts/UIUXContext';
 import { logger } from '@/utils/logger';
@@ -996,7 +997,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // committed week may open an annual ad, and never over a pending decision.
  if (committed.weeksLived === weeksBefore + 1) {
  await maybeShowInterstitialForWeek(committed.weeksLived, {
- adsRemoved: committed.settings?.adsRemoved === true,
+ adsRemoved: areAdsRemoved(committed),
  blocked: committed.showDeathPopup === true || committed.showWeddingPopup === true ||
    (committed.jailWeeks ?? 0) > 0 || !!committed.lifeMoments?.pendingMoment ||
    modalEventCount(committed) > 0,

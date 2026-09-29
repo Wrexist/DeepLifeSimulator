@@ -336,6 +336,14 @@ const CARVE_OUTS: CarveOut[] = [
     }),
   },
   {
+    version: 52,
+    path: 'settings.adsRemovedHeldForPlus',
+    // The marker that ad-free is only HELD for a lapsed subscriber. Erasing it
+    // on load turns the hold back into the unmarked state that never ends.
+    value: true,
+    build: () => createTestGameState({ settings: { adsRemovedHeldForPlus: true }, version: STATE_VERSION }),
+  },
+  {
     version: 51,
     path: 'relationships.0.metAt',
     // Nested inside an ARRAY ELEMENT, like the v34 grandchildren and the v42
@@ -432,8 +440,8 @@ describe('the §7 carve-out fields survive the load merge', () => {
     //
     // 26 as of the v50/v51 merge: `shownNotificationIds` and `metAt` were both
     // authored as v50 on separate branches, so the merged history carries two
-    // carve-outs where each branch had one.
-    expect(CARVE_OUTS).toHaveLength(26);
+    // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`.
+    expect(CARVE_OUTS).toHaveLength(27);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

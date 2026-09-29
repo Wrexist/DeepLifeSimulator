@@ -44,11 +44,23 @@ export function isNoFillGrant(outcome: RewardedAdOutcome): boolean {
 }
 
 /**
- * True when the player owns any ad-free entitlement (Remove Ads IAP, DeepLife+).
- * Both routes set `settings.adsRemoved`, so this single flag is authoritative.
+ * True when the player owns any ad-free entitlement (Remove Ads IAP, DeepLife+,
+ * lifetime premium, the unlock-everything bundle).
+ *
+ * Every grant path sets `settings.adsRemoved`, but it is not the ONLY flag an
+ * entitlement leaves behind: DeepLife+ also sets `deepLifePlusActivated`, and
+ * lifetime sets `lifetimePremium`. Reading all of them means one path that
+ * forgets (or a reconcile that clears) `adsRemoved` while the entitlement flag
+ * still says "paid" cannot put an ad in front of a paying player. The
+ * reconciler clears `deepLifePlusActivated` together with `adsRemoved` on a
+ * real lapse, so this never keeps a lapsed subscriber ad-free.
  */
 export function areAdsRemoved(state?: Pick<GameState, 'settings'> | null): boolean {
-  return state?.settings?.adsRemoved === true;
+  const s = state?.settings;
+  return s?.adsRemoved === true
+    || s?.deepLifePlusActivated === true
+    || s?.lifetimePremium === true
+    || s?.everythingUnlocked === true;
 }
 
 /** Options for {@link runRewardedAd}. */

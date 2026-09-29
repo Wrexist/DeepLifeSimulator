@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 51`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 52`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -522,7 +522,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 51`** — single source of truth in
+- **Canonical `STATE_VERSION = 52`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -885,6 +885,17 @@ including the crash screen.
   Numbered 51, not 50: `shownNotificationIds` above was authored as v50 on a
   separate branch and reached `main` first, so it owns the number. One version
   number must mean one schema shape — the same call v46 records.
+- **v52 adds `settings.adsRemovedHeldForPlus`** — the marker that `adsRemoved`
+  is being HELD after a DeepLife+ lapse seen without an authoritative
+  entitlement check ("could not ask" must never revoke a paid Remove Ads). The
+  hold used to be unmarked: that pass cleared `deepLifePlusActivated`, and every
+  later reconcile returned early on it, so a lapsed subscriber kept ad-free
+  forever. Now the first AUTHORITATIVE "not entitled" ends the hold. Default
+  `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror — absence means "no hold", which is true of every
+  earlier save, and stamping `true` would revoke a bought Remove Ads on the next
+  reconcile. It is in `PURCHASED_SETTINGS_KEYS` because it travels WITH
+  `adsRemoved`: dropping it at a prestige would launder a hold into a purchase.
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you
