@@ -45,6 +45,61 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.1',
+    date: 'October 2026',
+    headline: 'Ad-free means ad-free',
+    summary:
+      'DeepLife+ and Remove Ads stay ad-free in every save, plus a gem wallet and a round of fixes.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Ad-free purchases',
+        bullets: [
+          'DeepLife+ members no longer see ads.',
+          'Remove Ads now stays on in a new game, another save slot or an older save.',
+          'Restore Purchases now brings back ad-free if it had gone missing.',
+          'The DeepLife+ welcome gems are given once, not again in every new save.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Gem wallet',
+        bullets: [
+          'Tap your gems for a wallet: top up or spend gems in one place.',
+          'Gem packs show their price in your own currency.',
+          'Jobs on the Work tab now have their own artwork.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Double taps',
+        bullets: [
+          'Tapping twice no longer charges you twice for lawsuits, gem boosts, Go Live or rings.',
+          'Undoing a swipe in Spark now undoes the right one.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Saves and Time Machine',
+        bullets: [
+          "An heir's parents no longer come back every time you load.",
+          'Rewinding keeps your crypto orders, cost basis and gains.',
+          'A rare glitch that could wipe your savings to $0 is fixed.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Life and career',
+        bullets: [
+          "The Athlete's Journey challenge can be started again.",
+          'Career experience counts the years you have actually worked, not your age.',
+          'Older characters and heirs no longer get a forced event in their first week.',
+          'The play streak now counts days in a row, not Next Week taps.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.15.0',
     date: 'September 2026',
     headline: 'No more frozen Home screen',

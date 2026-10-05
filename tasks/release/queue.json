@@ -3,8 +3,8 @@
   "repository": "Wrexist/DeepLifeSimulator",
   "baseline": "1e8c0fdfccbe59a37b0634b77d0be79a526cd108",
   "release": {
-    "binaryVersion": "2.15.0",
-    "stateVersion": 51,
+    "binaryVersion": "2.15.1",
+    "stateVersion": 52,
     "storeVersion": "next record unverified",
     "liveStoreVersion": "1.5.5"
   },
@@ -200,7 +200,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R08.md",
       "evidence": [],
-      "blocker": "ASC latest upload is 2.14.0 (186), validated September 6, predating current fixes. Local package remains 2.13.0; reconcile binary/store version and exact source before an authorized signed build. PR #209 at 4552f6d passed CI; new consent changes require their own final checks. See evidence/R08-candidate-2026-09-10.md."
+      "blocker": "2.15.0 (source 875b63a2) is processed on TestFlight (owner-confirmed 2026-10-05) but predates PR #230 (DeepLife+/Remove Ads ad fixes, STATE_VERSION 52) and the gem wallet (7e713409), so it is not the candidate. Next candidate is 2.15.1 built from main after the version-bump PR merges; record its SHA and CFBundleVersion in evidence/R08-candidate.md once the owner-dispatched build is processed."
     },
     {
       "id": "R09",
