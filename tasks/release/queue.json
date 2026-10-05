@@ -199,8 +199,16 @@
       "kind": "external",
       "status": "blocked",
       "prompt": "tasks/release/R08.md",
-      "evidence": [],
-      "blocker": "2.15.0 (source 875b63a2) is processed on TestFlight (owner-confirmed 2026-10-05) but predates PR #230 (DeepLife+/Remove Ads ad fixes, STATE_VERSION 52) and the gem wallet (7e713409), so it is not the candidate. Next candidate is 2.15.1 built from main after the version-bump PR merges; record its SHA and CFBundleVersion in evidence/R08-candidate.md once the owner-dispatched build is processed."
+      "evidence": [
+        {
+          "commit": "0d014ffe20c724d15881ad672525d06873b00c49",
+          "result": "2.15.1 (190), production profile, built from this commit by run 37273628059: production preflight passed, iOS export exit 0, App Store Connect accepted the upload (EAS submission 11c5def9). TestFlight processing awaits owner confirmation, so R08 stays blocked.",
+          "references": [
+            "tasks/release/evidence/R08-candidate.md"
+          ]
+        }
+      ],
+      "blocker": "Candidate is 2.15.1 (190) from 0d014ffe: built, production preflight passed, upload accepted by App Store Connect (run 37273628059). Only open field: owner confirms the build processed in TestFlight (not Invalid Binary). See evidence/R08-candidate.md."
     },
     {
       "id": "R09",
