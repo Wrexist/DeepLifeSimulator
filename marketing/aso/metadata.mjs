@@ -46,6 +46,8 @@ export const APPLE = {
    */
   whatsNew: `No more frozen Home screen, and gambles that stay a gamble.
 
+• Ad-free stays ad-free. DeepLife+ members no longer see ads, and Remove Ads now stays on in every save, slot and new life. Restore Purchases brings it back if it went missing.
+• A gem wallet. Tap your gems to top up or spend them in one place, with prices in your own currency.
 • Home no longer freezes. Closing one reward popup could leave the screen visible with nothing responding. Popups now wait their turn, and one on screen is never pulled out from under your thumb.
 • Smoother saving. Each save does half the work it did, so Next Week stutters less on a long life.
 • Gambles are gambles again. Investment tips, contested tickets and pushing for a bigger raise no longer show you the outcome before you choose.
@@ -205,6 +207,8 @@ A life runs for decades and every week is a decision you make. Most people start
       // machine-shaped release note next to hand-written copy reads as one.
       whatsNew: `Adiós a la pantalla de inicio congelada, y las apuestas vuelven a ser apuestas.
 
+• Sin anuncios es sin anuncios. Los miembros de DeepLife+ ya no ven anuncios, y «Remove Ads» sigue activo en cada partida, ranura y vida nueva. «Restore Purchases» lo recupera si se había perdido.
+• Una cartera de gemas. Toca tus gemas para recargar o gastarlas en un solo lugar, con precios en tu moneda.
 • Inicio ya no se congela. Cerrar una ventana de recompensa podía dejar la pantalla visible sin responder a nada. Ahora las ventanas esperan su turno y ninguna desaparece bajo tu dedo.
 • Guardado más fluido. Cada guardado hace la mitad de trabajo, así que Semana siguiente se traba menos en una vida larga.
 • Las apuestas vuelven a serlo. Los consejos de inversión, las multas recurridas y pedir un aumento mayor ya no te enseñan el resultado antes de elegir.
@@ -266,6 +270,8 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
         + 'bolsa, em imóveis e no crime; depois morra e deixe tudo para um herdeiro.',
       whatsNew: `Chega de tela inicial congelada, e as apostas voltam a ser apostas.
 
+• Sem anúncios é sem anúncios. Membros do DeepLife+ não veem mais anúncios, e o "Remove Ads" agora continua ativo em todo salvamento, espaço e vida nova. "Restore Purchases" traz de volta se tiver sumido.
+• Uma carteira de gemas. Toque nas suas gemas para recarregar ou gastar num só lugar, com preços na sua moeda.
 • A tela inicial não congela mais. Fechar uma janela de recompensa podia deixar a tela visível sem responder a nada. Agora as janelas esperam a vez delas, e nenhuma some debaixo do seu dedo.
 • Salvamento mais leve. Cada salvamento faz metade do trabalho de antes, então o botão Next Week trava menos numa vida longa.
 • Apostas voltam a ser apostas. Dicas de investimento, multas contestadas e pedir um aumento maior não mostram mais o resultado antes da sua escolha.
@@ -318,6 +324,8 @@ Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na
         + "bourse, dans l'immobilier et le crime, puis léguez tout à un héritier.",
       whatsNew: `Fini l'écran d'accueil figé, et les paris redeviennent des paris.
 
+• Sans pub, c'est sans pub. Les membres DeepLife+ ne voient plus de publicités, et « Remove Ads » reste actif dans chaque partie, emplacement et nouvelle vie. « Restore Purchases » le rétablit s'il avait disparu.
+• Un portefeuille de gemmes. Touchez vos gemmes pour recharger ou les dépenser au même endroit, avec les prix dans votre devise.
 • L'accueil ne se fige plus. Fermer une fenêtre de récompense pouvait laisser l'écran visible sans plus rien répondre. Les fenêtres attendent désormais leur tour, et aucune ne disparaît sous votre doigt.
 • Des sauvegardes plus fluides. Chaque sauvegarde fait moitié moins de travail, donc le bouton Next Week accroche moins sur une longue vie.
 • Les paris redeviennent des paris. Les tuyaux d'investissement, les amendes contestées et la demande d'une plus grosse augmentation ne vous montrent plus le résultat avant votre choix.
@@ -371,6 +379,8 @@ Une vie dure des décennies et chaque semaine est une décision. La plupart des 
         + 'Aktien, Immobilien und Verbrechen auf und vererbe am Ende alles.',
       whatsNew: `Kein eingefrorener Startbildschirm mehr, und Wetten sind wieder Wetten.
 
+• Werbefrei heißt werbefrei. DeepLife+-Mitglieder sehen keine Werbung mehr, und „Remove Ads“ bleibt in jedem Spielstand, Slot und neuen Leben aktiv. „Restore Purchases“ holt es zurück, falls es fehlte.
+• Eine Edelstein-Geldbörse. Tippe auf deine Edelsteine, um aufzuladen oder sie an einem Ort auszugeben, mit Preisen in deiner Währung.
 • Der Startbildschirm friert nicht mehr ein. Das Schließen eines Belohnungsfensters konnte den Bildschirm sichtbar, aber ohne Reaktion zurücklassen. Fenster warten jetzt, bis sie dran sind, und keines verschwindet mehr unter deinem Finger.
 • Flüssigeres Speichern. Jeder Speichervorgang erledigt nur noch die Hälfte der Arbeit, daher ruckelt der Button Next Week in einem langen Leben weniger.
 • Wetten sind wieder Wetten. Investment-Tipps, angefochtene Strafzettel und die Bitte um eine größere Gehaltserhöhung zeigen das Ergebnis nicht mehr vor deiner Entscheidung.
