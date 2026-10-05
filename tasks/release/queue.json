@@ -172,7 +172,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R06.md",
       "evidence": [],
-      "blocker": "Requires current native build/device or connected store evidence, including trial/paid/restore measurement reconciliation. See evidence/five-point-followup-2026-09-11.md and package acceptance criteria."
+      "blocker": "Candidate 2.15.1 (190) is VALID in TestFlight (evidence/R08-candidate.md). Needs an owner sandbox session on that exact build: the 13-case matrix in R06.md plus the gem wallet purchase/cancel/retry/relaunch balance, and trial/paid/restore measurement reconciliation. See evidence/five-point-followup-2026-09-11.md."
     },
     {
       "id": "R07",
@@ -197,18 +197,17 @@
         "R05"
       ],
       "kind": "external",
-      "status": "blocked",
+      "status": "verified",
       "prompt": "tasks/release/R08.md",
       "evidence": [
         {
           "commit": "0d014ffe20c724d15881ad672525d06873b00c49",
-          "result": "2.15.1 (190), production profile, built from this commit by run 37273628059: production preflight passed, iOS export exit 0, App Store Connect accepted the upload (EAS submission 11c5def9). TestFlight processing awaits owner confirmation, so R08 stays blocked.",
+          "result": "2.15.1 (190), production profile, built from this commit by run 37273628059: production preflight passed, iOS export exit 0, App Store Connect accepted the upload (EAS submission 11c5def9). TestFlight processing VALID per read-only asc-release plan run 37277837760. Frozen candidate for R06/R09.",
           "references": [
             "tasks/release/evidence/R08-candidate.md"
           ]
         }
-      ],
-      "blocker": "Candidate is 2.15.1 (190) from 0d014ffe: built, production preflight passed, upload accepted by App Store Connect (run 37273628059). Only open field: owner confirms the build processed in TestFlight (not Invalid Binary). See evidence/R08-candidate.md."
+      ]
     },
     {
       "id": "R09",
@@ -221,7 +220,7 @@
       "status": "blocked",
       "prompt": "tasks/release/R09.md",
       "evidence": [],
-      "blocker": "No native iPhone/iPad candidate or device acceptance session available."
+      "blocker": "Candidate 2.15.1 (190) is VALID in TestFlight (evidence/R08-candidate.md). Needs an owner iPhone/iPad session on that exact build covering the R09.md areas and PLAYER_TEST_CHECKLIST.md."
     },
     {
       "id": "R10",

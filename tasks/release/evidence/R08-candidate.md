@@ -19,14 +19,15 @@ Recorded 2026-10-05. All values below were observed, not assumed. No secrets.
 | Commit checks on `0d014ffe` | update, verify, build-ios, submit-ios, GitHub activity: success. **Store release watcher: failure**, unrelated to the build: the Discord webhook returns 404 "Unknown Webhook" and has failed every scheduled run since at least 2026-10-03 | `gh run view 37273558371` |
 | iOS export | `npx expo export --platform ios` on `0943d971` (same app source): **exit 0**, Hermes bundle `entry-f932978a….hbc` 13.8 MB | local run 2026-10-05 |
 | Upload | EAS submission `11c5def9-f796-41b6-9f4a-de1eae65eb24` FINISHED in 2m38s: "App Store Connect accepted the upload" | submit-ios log |
-| TestFlight processing | **PENDING owner confirmation.** The upload being accepted does not prove it processed; Apple can still return Invalid Binary | owner to confirm |
+| TestFlight processing | **VALID** (processed, not Invalid Binary). Read-only `asc-release` plan reported `ATTACH build 190 (VALID)` against the 1.6.0 record | run [37277837760](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/37277837760), mode `plan`, nothing written |
 
 ## What this candidate contains that 2.15.0 (875b63a2, build on run 36352338525) does not
 
 - #230: DeepLife+ subscribers no longer see ads; Remove Ads re-asserted on every save, restore and new life; lapsed-subscriber hold (v52 `settings.adsRemovedHeldForPlus`); one-time DeepLife+ welcome gems; play streak counts real days; NaN cash guard; sweep fixes (double taps, heir parents, Time Machine crypto carry-over, Athlete's Journey, career experience).
 - `7e713409`: gem wallet and contextual Work artwork.
 
-## To verify (close R08)
+## Verdict
 
-1. Owner confirms 2.15.1 (190) shows **processed / Ready to Test** in TestFlight, not Invalid Binary.
-2. Then freeze this identity for R06 (purchases) and R09 (device/accessibility). Any app or native code change after `0d014ffe` makes a new candidate and repeats the affected acceptance.
+R08 verified on 2026-10-05: every field above is observed. This identity, **2.15.1 (190) from `0d014ffe`**, is frozen for R06 (purchases) and R09 (device/accessibility). Any app or native code change after `0d014ffe` makes a new candidate and repeats the affected acceptance.
+
+Limitations: the same plan run shows the 1.6.0 version record does not exist yet (it would CREATE it) and that pt-BR/fr-FR/de-DE are still `pending` in metadata. Both belong to R07/R10, not this package. Device behaviour of this binary is unproven until R06/R09.
