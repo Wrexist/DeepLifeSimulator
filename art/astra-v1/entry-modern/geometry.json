@@ -1,0 +1,46 @@
+{
+  "entry-wallet": {
+    "triangles": 1800,
+    "max_mesh": 300
+  },
+  "entry-travel": {
+    "triangles": 3988,
+    "max_mesh": 960
+  },
+  "entry-medical": {
+    "triangles": 4244,
+    "max_mesh": 1600
+  },
+  "entry-keys": {
+    "triangles": 17028,
+    "max_mesh": 12800
+  },
+  "entry-camera": {
+    "triangles": 3956,
+    "max_mesh": 764
+  },
+  "entry-planner": {
+    "triangles": 1964,
+    "max_mesh": 764
+  },
+  "entry-plant": {
+    "triangles": 4280,
+    "max_mesh": 764
+  },
+  "entry-safe": {
+    "triangles": 1664,
+    "max_mesh": 764
+  },
+  "entry-dice": {
+    "triangles": 8240,
+    "max_mesh": 764
+  },
+  "entry-collection": {
+    "triangles": 6712,
+    "max_mesh": 764
+  },
+  "entry-headphones": {
+    "triangles": 3120,
+    "max_mesh": 1920
+  }
+}

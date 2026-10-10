@@ -1,0 +1,182 @@
+[
+  {
+    "id": "company_owner",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1222,
+      1254
+    ],
+    "runtimeBytes": 64766
+  },
+  {
+    "id": "company_mogul",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      53,
+      1233,
+      1232
+    ],
+    "runtimeBytes": 79116
+  },
+  {
+    "id": "company_magnate",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      21,
+      1230,
+      1240
+    ],
+    "runtimeBytes": 61332
+  },
+  {
+    "id": "company_emperor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      29,
+      1222,
+      1147
+    ],
+    "runtimeBytes": 90460
+  },
+  {
+    "id": "workforce_builder",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      32,
+      1225,
+      1254
+    ],
+    "runtimeBytes": 55746
+  },
+  {
+    "id": "workforce_leader",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      21,
+      1230,
+      1246
+    ],
+    "runtimeBytes": 73620
+  },
+  {
+    "id": "workforce_tycoon",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1240,
+      1236
+    ],
+    "runtimeBytes": 64100
+  },
+  {
+    "id": "scholar",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1236,
+      1246
+    ],
+    "runtimeBytes": 64750
+  },
+  {
+    "id": "academic",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1224,
+      1254
+    ],
+    "runtimeBytes": 70016
+  },
+  {
+    "id": "professor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1235,
+      1254
+    ],
+    "runtimeBytes": 84534
+  }
+]

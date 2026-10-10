@@ -1,0 +1,200 @@
+[
+  {
+    "id": "longevity_50",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      22,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 94452
+  },
+  {
+    "id": "longevity_75",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      28,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 109146
+  },
+  {
+    "id": "longevity_100",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 157582
+  },
+  {
+    "id": "longevity_120",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      13,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 135996
+  },
+  {
+    "id": "longevity_150",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1241,
+      1254
+    ],
+    "runtimeBytes": 149194
+  },
+  {
+    "id": "milestone_100_weeks",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      19,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 78278
+  },
+  {
+    "id": "milestone_500_weeks",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      11,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 104570
+  },
+  {
+    "id": "ambition_fulfilled",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      58,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 99178
+  },
+  {
+    "id": "retirement_retire",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 110604
+  },
+  {
+    "id": "retirement_nest_egg",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      21,
+      1246,
+      1254
+    ],
+    "runtimeBytes": 90090
+  },
+  {
+    "id": "financially_independent",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      27,
+      1253,
+      1254
+    ],
+    "runtimeBytes": 101330
+  }
+]

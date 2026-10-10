@@ -742,7 +742,7 @@ export default function MainMenu() {
       setOnboardingState((prev) => ({ ...prev, slot: targetSlot }));
 
       if (router && typeof router.push === 'function') {
-        router.push('/(onboarding)/Scenarios');
+        router.push('/(onboarding)/Intro');
       } else {
         log.error('Router not available for navigation');
         gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);

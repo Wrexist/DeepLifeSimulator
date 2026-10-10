@@ -18,13 +18,13 @@ const streetScenes: Record<string, SceneName> = {
 
 export function workArtwork(id: string | undefined, title: string, career: boolean): SceneName | undefined {
   if (!career) return id ? streetScenes[id] : undefined;
-  if (/food|cook|chef|restaurant/i.test(title)) return 'cafe';
+  if (/food|cook|chef|restaurant/i.test(title)) return 'work-food-modern';
   if (/doctor|nurse|medical/i.test(title)) return 'clinic';
   if (/janitor|clean/i.test(title)) return 'work-cleaning';
   if (/retail|cashier|sales associate/i.test(title)) return 'work-retail';
-  if (/teacher|professor|tutor/i.test(title)) return 'work-study';
+  if (/teach|professor|tutor/i.test(title)) return 'work-study-modern';
   if (/driver|mechanic/i.test(title)) return 'work-vehicle';
   if (/developer|engineer|programmer|technician/i.test(title)) return 'work-network';
-  if (/office|accountant|manager|analyst|assistant/i.test(title)) return 'studio';
+  if (/office|accountant|accounting|manager|analyst|assistant/i.test(title)) return 'work-office-modern';
   return undefined;
 }

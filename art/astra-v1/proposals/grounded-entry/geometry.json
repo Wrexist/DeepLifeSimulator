@@ -1,0 +1,10 @@
+{
+  "hero-start": {
+    "triangles": 3680,
+    "max_mesh": 640
+  },
+  "hero-legacy": {
+    "triangles": 7056,
+    "max_mesh": 1152
+  }
+}

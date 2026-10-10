@@ -2,16 +2,12 @@ import { responsiveSpacing as layoutSpace , fontScale, responsiveBorderRadius, s
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { uiPalette } from '@/lib/config/theme';
 /**
- * GradientButton - a modern, tactile CTA with real depth.
- *
- * The app's LinearGradient is stubbed to a flat single color (the expo module
- * crashes on iOS 26), so buttons looked like flat slabs. This draws a real
- * vertical gradient with react-native-svg, adds a soft top "glass" shine and a
- * colored glow shadow, and gives a subtle press-scale - clean and immersive on
- * every platform. Disabled renders a calm muted surface with no glow.
+ * Shared CTA: restrained color depth without a glass overlay or colored halo.
+ * Semantic colors, primary/secondary emphasis and reduced-motion press feedback
+ * remain owned by the existing button API.
  */
 import React, { useRef } from 'react';
-import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { haptic } from '@/utils/haptics';
@@ -22,14 +18,14 @@ interface GradientButtonProps {
   disabled?: boolean;
   /** [top, mid, bottom] - top lightest for a raised, glossy feel. */
   colors: [string, string, string];
-  /** Glow/shadow color (usually the mid gradient color). */
+  /** Accent used for secondary surface and border; retained API name. */
   glow: string;
   /** Optional leading icon element. */
   icon?: React.ReactNode;
   style?: ViewStyle;
   accessibilityLabel?: string;
   /**
-   * 'primary' (default) is the saturated gradient with a glow - ONE per
+   * 'primary' (default) is the saturated gradient - ONE per
    * viewport. 'secondary' is the same button flat: a tint of the glow colour,
    * a rim, the label in that colour. Lists of cards used to stack a saturated
    * primary on every row, so none of them read as the one to press.
@@ -62,31 +58,11 @@ export default function GradientButton({
   const animateTo = (v: number) =>
     Animated.timing(press, { toValue: v, duration: reduced ? 0 : 140, useNativeDriver: true }).start();
 
-  // Colored glow gives the depth/immersion; suppressed when disabled. The glow
-  // view carries the SAME borderRadius so the shadow is rounded (not a hard
-  // rectangle poking past the corners) and a solid bottom-color background so
-  // iOS has a rounded shape to cast the shadow from (the rounded SVG rect sits
-  // exactly on top of it, hiding it).
-  const glowStyle: ViewStyle = disabled || secondary
-    ? {}
-    : Platform.select<ViewStyle>({
-        web: { boxShadow: `0px ${scale(5)}px ${scale(6)}px ${glow}24` } as ViewStyle,
-        ios: {
-          shadowColor: glow,
-          shadowOffset: { width: 0, height: scale(4) },
-          shadowOpacity: 0.15,
-          shadowRadius: scale(4),
-        },
-        android: { elevation: 2 },
-        default: {},
-      }) ?? {};
-
   return (
     <Animated.View
       style={[
         styles.wrap,
         { transform: [{ scale: scaleAnim }], backgroundColor: disabled || secondary ? 'transparent' : colors[2] },
-        glowStyle,
         style,
       ]}
     >
@@ -118,18 +94,10 @@ export default function GradientButton({
                   <Stop offset="0.55" stopColor={colors[1]} />
                   <Stop offset="1" stopColor={colors[2]} />
                 </SvgLinearGradient>
-                {/* Glass shine: soft white highlight that fades out by mid-height
-                    (full-height + rounded so there's no hard cut-off line). */}
-                <SvgLinearGradient id={`${gid}-shine`} x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={uiPalette.white} stopOpacity={0.06} />
-                  <Stop offset="0.5" stopColor={uiPalette.white} stopOpacity={0} />
-                  <Stop offset="1" stopColor={uiPalette.white} stopOpacity={0} />
-                </SvgLinearGradient>
               </Defs>
               {/* Rounded rects (rx/ry = the button radius) so the gradient shape
                   itself is rounded - no square-corner seam against the clip. */}
               <Rect x="0" y="0" width="100%" height="100%" rx={RADIUS} ry={RADIUS} fill={`url(#${gid}-fill)`} />
-              <Rect x="0" y="0" width="100%" height="100%" rx={RADIUS} ry={RADIUS} fill={`url(#${gid}-shine)`} />
             </Svg>
           )}
 

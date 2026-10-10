@@ -26,8 +26,10 @@ import { uiPalette , accent } from '@/lib/config/theme';
  * under that card, and two cards an inch apart should not be two designs.
  */
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Trophy, ChevronRight, Gem, Sparkles, Target } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { ChevronRight, Gem, Sparkles, Target } from 'lucide-react-native';
+import { achievementArtwork } from '@/lib/config/achievementArtwork';
+import { rewardArtwork } from '@/lib/config/rewardArtwork';
 import { useAchievements } from '@/hooks/useAchievements';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { cardStyle } from '@/components/ui/Card';
@@ -68,7 +70,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
     >
       <View style={styles.header}>
         <View style={styles.trophyBubble}>
-          <Trophy size={scale(17)} color={accent.warning} />
+          <Image source={rewardArtwork.trophy} style={{ width: scale(34), height: scale(34) }} resizeMode="contain" accessible={false} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.title}>Achievements</Text>
@@ -92,7 +94,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
           strokeWidth={5}
           ambient={false}
           showPill={false}
-          accentColor={accent.purple}
+          accentColor="#8ED5B9"
           trackColor="rgba(148,163,184,0.18)"
           label="Achievements completed"
         >
@@ -109,11 +111,13 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
               const rowPct = Math.min(100, Math.round((a.progress ?? 0) * 100));
               return (
                 <View key={a.id} style={styles.row}>
-                  <View style={[styles.rowIcon, claimable ? styles.rowIconClaim : styles.rowIconProgress]}>
+                  {achievementArtwork[a.id] ? (
+                    <Image source={achievementArtwork[a.id]} style={styles.rowArtwork} resizeMode="contain" accessible={false} />
+                  ) : <View style={[styles.rowIcon, claimable ? styles.rowIconClaim : styles.rowIconProgress]}>
                     {claimable
                       ? <Sparkles size={scale(11)} color={accent.warning} />
                       : <Target size={scale(11)} color="#818CF8" />}
-                  </View>
+                  </View>}
                   <View style={styles.rowMid}>
                     <View style={styles.rowTop}>
                       <Text style={styles.rowTitle} numberOfLines={1}>{a.title}</Text>
@@ -160,7 +164,7 @@ const styles = StyleSheet.create({
   // square with a gold outline - the only one of its shape on the screen.
   trophyBubble: {
     width: scale(38), height: scale(38), borderRadius: scale(19),
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: uiPalette.navy,
     alignItems: 'center', justifyContent: 'center',
   },
   headerText: { flex: 1, minWidth: 0 },
@@ -186,6 +190,7 @@ const styles = StyleSheet.create({
   list: { flex: 1, gap: scale(10) },
   empty: { color: uiPalette.muted, fontSize: fontScale(11), fontStyle: 'italic' },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(9) },
+  rowArtwork: { width: scale(36), height: scale(36) },
   rowIcon: {
     width: scale(24), height: scale(24), borderRadius: scale(12),
     alignItems: 'center', justifyContent: 'center', borderWidth: 1,

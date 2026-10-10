@@ -1,0 +1,164 @@
+[
+  {
+    "id": "beginner_first_gig",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      21,
+      1236,
+      1254
+    ],
+    "runtimeBytes": 61284
+  },
+  {
+    "id": "beginner_hustler",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      41,
+      121,
+      1224,
+      1254
+    ],
+    "runtimeBytes": 72496
+  },
+  {
+    "id": "beginner_four_figures",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      61,
+      53,
+      1204,
+      1212
+    ],
+    "runtimeBytes": 80120
+  },
+  {
+    "id": "beginner_five_k",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      41,
+      9,
+      1192,
+      1220
+    ],
+    "runtimeBytes": 80460
+  },
+  {
+    "id": "beginner_social_life",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      53,
+      1236,
+      1254
+    ],
+    "runtimeBytes": 71834
+  },
+  {
+    "id": "beginner_connected",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      97,
+      7,
+      1230,
+      1254
+    ],
+    "runtimeBytes": 56964
+  },
+  {
+    "id": "beginner_survivor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      7,
+      1239,
+      1222
+    ],
+    "runtimeBytes": 59998
+  },
+  {
+    "id": "beginner_getting_started",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      46,
+      47,
+      1228,
+      1254
+    ],
+    "runtimeBytes": 54322
+  },
+  {
+    "id": "beginner_grinder",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      31,
+      29,
+      1222,
+      1214
+    ],
+    "runtimeBytes": 93228
+  }
+]

@@ -46,5 +46,5 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: uiPalette.navy },
   topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: scale(12), paddingBottom: scale(2) },
-  close: { padding: scale(8) },
+  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: uiPalette.surface },
 });

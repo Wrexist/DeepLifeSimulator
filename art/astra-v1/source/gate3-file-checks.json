@@ -1,0 +1,171 @@
+{
+  "flame-1": {
+    "coverage": 0.44921875,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      357,
+      282,
+      667,
+      742
+    ],
+    "alpha_component_sizes": [
+      96821
+    ],
+    "triangles": 6336,
+    "embedded_glb": true
+  },
+  "flame-2": {
+    "coverage": 0.751953125,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      259,
+      127,
+      765,
+      897
+    ],
+    "alpha_component_sizes": [
+      264386
+    ],
+    "triangles": 6336,
+    "embedded_glb": true
+  },
+  "flame-3": {
+    "coverage": 0.7763671875,
+    "center_error_px": 0.5,
+    "alpha_bbox": [
+      235,
+      115,
+      789,
+      910
+    ],
+    "alpha_component_sizes": [
+      265406,
+      1496,
+      1142,
+      1060
+    ],
+    "triangles": 10992,
+    "embedded_glb": true
+  },
+  "trophy-bronze": {
+    "coverage": 0.7470703125,
+    "center_error_px": 0.5,
+    "alpha_bbox": [
+      130,
+      188,
+      895,
+      836
+    ],
+    "alpha_component_sizes": [
+      265253
+    ],
+    "triangles": 33012,
+    "embedded_glb": true
+  },
+  "trophy-silver": {
+    "coverage": 0.7470703125,
+    "center_error_px": 0.5,
+    "alpha_bbox": [
+      130,
+      188,
+      895,
+      836
+    ],
+    "alpha_component_sizes": [
+      265261
+    ],
+    "triangles": 33012,
+    "embedded_glb": true
+  },
+  "trophy-gold": {
+    "coverage": 0.7470703125,
+    "center_error_px": 0.5,
+    "alpha_bbox": [
+      130,
+      188,
+      895,
+      836
+    ],
+    "alpha_component_sizes": [
+      265257
+    ],
+    "triangles": 33012,
+    "embedded_glb": true
+  },
+  "badge-bronze": {
+    "coverage": 0.7421875,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      132,
+      149,
+      892,
+      875
+    ],
+    "alpha_component_sizes": [
+      393371
+    ],
+    "triangles": 752,
+    "embedded_glb": true
+  },
+  "badge-silver": {
+    "coverage": 0.7421875,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      132,
+      149,
+      892,
+      875
+    ],
+    "alpha_component_sizes": [
+      393380
+    ],
+    "triangles": 752,
+    "embedded_glb": true
+  },
+  "badge-gold": {
+    "coverage": 0.7421875,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      132,
+      149,
+      892,
+      875
+    ],
+    "alpha_component_sizes": [
+      393374
+    ],
+    "triangles": 752,
+    "embedded_glb": true
+  },
+  "badge-platinum": {
+    "coverage": 0.7421875,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      132,
+      149,
+      892,
+      875
+    ],
+    "alpha_component_sizes": [
+      393381
+    ],
+    "triangles": 752,
+    "embedded_glb": true
+  },
+  "laurel": {
+    "coverage": 0.77734375,
+    "center_error_px": 0.0,
+    "alpha_bbox": [
+      114,
+      166,
+      910,
+      858
+    ],
+    "alpha_component_sizes": [
+      79917,
+      79908
+    ],
+    "triangles": 37888,
+    "embedded_glb": true
+  }
+}

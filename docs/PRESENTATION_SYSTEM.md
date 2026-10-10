@@ -34,6 +34,12 @@ other screens rather than replacing it with a new visual theme.
 
 ## Character identity
 
+The 6 October interactive opening is implemented as a skippable Intro route
+from Custom life, using the actual bundled app icon, grounded props and existing
+portraits. Choices only preview possible stories; scenario/identity/save owners
+remain canonical. Quick Start and Continue bypass the introduction. Back/Skip,
+scrollable content and reduced-motion transitions are part of the contract.
+
 `CharacterAvatar` accepts existing vector identities plus six optional
 `portrait-v1:*` IDs. A curated portrait is a static illustration; it does not
 pretend to age or provide independently editable hair/clothing. The Custom mode
@@ -65,6 +71,40 @@ release; browser playback is insufficient. OTA remains disabled.
 
 ## Asset provenance
 
+The owner subsequently rejected the generic rarity-medal achievement rows.
+`art/achievement-illustrations-v2/` tracks a new individual illustration direction:
+three review samples and 156 outstanding. `achievementArtwork.ts` maps by stable
+achievement ID; other rows retain prior subject icons, not generic metal frames.
+Do not interpret the earlier badge export record below as current row approval.
+
+Approved A/C metal badges and crown/trophy now have compact runtime exports in
+`assets/images/rewards/`; hashes link them to unchanged Blender PNG masters.
+Achievement rarity controls metal finish, with the existing text label retained.
+Profile completion uses a trophy without inventing a rarity for historic records.
+Celebration amounts stay app-rendered. Launchers use solid adaptive tile surfaces
+around their distinct app icons; ownership and unlock gates are unchanged.
+
+The completed 6 October entry batch is in `art/astra-v1/entry-modern/` with its
+manifest, editable scenes and navy/light review. `lib/config/entryArtwork.ts`
+maps all current life paths, challenges, perks and mindsets by subject. Keep
+transparent props contained above labels; retain rarity, locks, costs and
+requirements as real UI. Catalogue effects remain owned by their data modules.
+SaveSlots uses solid surfaces and fixed border widths; its scoped logger must
+stay stable so loading effects do not retrigger on every state update.
+
+The owner approved the 5 October grounded work art study in
+`art/astra-v1/proposals/grounded-work/`: restrained teal bag, satin silver laptop
+with powered display, paper envelope and clearly separated geometry. This is the
+reference for proposed everyday-art modernization, not an implemented screen.
+Preserve the compact UI baseline and semantic colors. Wider asset changes remain
+sequenced in `tasks/modern-theme-rollout-2026-10-05.md`; earlier badge/reward art
+approvals remain intact and the full hero group is not yet approved.
+
+On 6 October, Education and Hustle reuse the grounded study/laptop assets;
+Contacts and Health use matching ceramic-cup and gym-equipment props from
+`art/astra-v1/context-modern/`. Existing SceneCard owns sizing, motion and
+accessibility treatment. Runtime files are static bundled WebP; no new renderer.
+
 - `art/portraits-v1/manifest.json`: GPT prompts, dimensions, optimized file hashes.
 - `art/game-assets-v1/manifest.json`: editable geometry, GLB checks, render coverage.
 - `assets/audio/manifest.json`: original deterministic synthesis and file hashes.
@@ -74,6 +114,11 @@ Reduce Motion, silent switch/audio interruptions, keyboard, modal priorities,
 old-save/relaunch, purchases/restore and ads on the exact signed build.
 
 ## Follow-through: shared controls and Settings
+
+The 5 October finish pass aligns Home identity borders/radii and inset surfaces
+with shared Card tokens. GradientButton keeps semantic color depth and press
+feedback without a glass overlay or colored glow. Secondary emphasis, disabled
+states, touch targets and reduced-motion behavior remain unchanged.
 
 HUD utility buttons use one circular surface; the settings/season glyph has no
 inner bloom, and the store keeps a steady circular footprint. Shared dialogs use
@@ -121,3 +166,17 @@ SectionTitle, CollapsibleSection, Chip, KeyValueRow and StatStrip consume the ca
 ## Semantic colors versus app branding
 
 CashChip always uses financeColors.cash; app-specific tint overrides are not part of its API. Keep fictional app identity on navigation, artwork and actions. Pet health/happiness/energy use STAT_IDENTITY, matching the HUD. Stat identity answers which attribute; signed weekly effects answer which direction, with Weekly gain/Weekly loss/No change text alongside color. Zero effects and zero sick/vaccinated counts are neutral. Critical illness labels remain explicit; no game thresholds or effects change with presentation.
+
+### Approved achievement illustration UI — 6 October
+
+Owner approved the detailed emerald leather / paper / metal illustration direction.
+Achievement cards use larger contained art, cream primary actions and restrained
+teal selection/borders on canonical navy surfaces. Title, rarity, tier and gem
+reward stay in normal layout flow; no floating labels over artwork. Sort/filter
+targets are at least 44 points, with exposed states; progress exposes real values.
+The Home summary reuses the same ID mapping while preserving its compact layout.
+The approved direction now covers all 159 individual achievement illustrations.
+Original transparent PNGs, 512px runtime WebPs and stable-ID mappings are
+complete; use the [full gallery and validation](../tasks/achievement-art-completion-2026-10-10.md)
+for review. App-level layout and native-device acceptance remain open.
+See `tasks/achievement-ui-2026-10-06.md` for scope and acceptance evidence.

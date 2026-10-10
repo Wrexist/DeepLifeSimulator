@@ -1,0 +1,21 @@
+{
+  "cycles": true,
+  "camera_lens": 50.0,
+  "camera_linked": true,
+  "world_linked": true,
+  "relative_library_paths": [
+    "//shared-scene.blend"
+  ],
+  "unit_scales": true,
+  "no_text_objects": true,
+  "render_size": [
+    1600,
+    1200
+  ],
+  "transparent": true,
+  "collections": [
+    "hero-start",
+    "hero-grow",
+    "hero-legacy"
+  ]
+}

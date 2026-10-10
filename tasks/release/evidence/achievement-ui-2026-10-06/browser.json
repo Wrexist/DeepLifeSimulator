@@ -1,0 +1,32 @@
+[
+  {
+    "width": 320,
+    "filters": true,
+    "sort": true,
+    "secretToggle": true,
+    "claim": true,
+    "close": true,
+    "pageErrors": [],
+    "claimTargetHeight": 48
+  },
+  {
+    "width": 375,
+    "filters": true,
+    "sort": true,
+    "secretToggle": true,
+    "claim": true,
+    "close": true,
+    "pageErrors": [],
+    "claimTargetHeight": 48
+  },
+  {
+    "width": 768,
+    "filters": true,
+    "sort": true,
+    "secretToggle": true,
+    "claim": true,
+    "close": true,
+    "pageErrors": [],
+    "claimTargetHeight": 48
+  }
+]

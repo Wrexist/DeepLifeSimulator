@@ -1,0 +1,87 @@
+{
+  "hero-start": {
+    "size": [
+      1600,
+      1200
+    ],
+    "alpha_bbox": [
+      527,
+      216,
+      1073,
+      804
+    ],
+    "empty_top_rows": 216,
+    "empty_bottom_rows": 396,
+    "required_top_rows": 180,
+    "required_bottom_rows": 360,
+    "alpha_component_sizes": [
+      185049,
+      22184
+    ],
+    "triangles": 6132,
+    "max_object_triangles": 1216,
+    "embedded_glb": true,
+    "phone_art_bbox": [
+      113.1,
+      309.8,
+      276.9,
+      486.2
+    ]
+  },
+  "hero-grow": {
+    "size": [
+      1600,
+      1200
+    ],
+    "alpha_bbox": [
+      278,
+      217,
+      1322,
+      804
+    ],
+    "empty_top_rows": 217,
+    "empty_bottom_rows": 396,
+    "required_top_rows": 180,
+    "required_bottom_rows": 360,
+    "alpha_component_sizes": [
+      296582
+    ],
+    "triangles": 23928,
+    "max_object_triangles": 1152,
+    "embedded_glb": true,
+    "phone_art_bbox": [
+      38.39999999999999,
+      310.1,
+      351.59999999999997,
+      486.2
+    ]
+  },
+  "hero-legacy": {
+    "size": [
+      1600,
+      1200
+    ],
+    "alpha_bbox": [
+      490,
+      218,
+      1111,
+      802
+    ],
+    "empty_top_rows": 218,
+    "empty_bottom_rows": 398,
+    "required_top_rows": 180,
+    "required_bottom_rows": 360,
+    "alpha_component_sizes": [
+      170016
+    ],
+    "triangles": 21816,
+    "max_object_triangles": 1216,
+    "embedded_glb": true,
+    "phone_art_bbox": [
+      102.0,
+      310.4,
+      288.3,
+      485.6
+    ]
+  }
+}

@@ -1,0 +1,200 @@
+[
+  {
+    "id": "crime_raid",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      16,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 87276
+  },
+  {
+    "id": "crime_trial",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      13,
+      17,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 89912
+  },
+  {
+    "id": "escape_artist",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1222,
+      1254
+    ],
+    "runtimeBytes": 88028
+  },
+  {
+    "id": "prison_survivor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 81998
+  },
+  {
+    "id": "prison_reformed",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1242,
+      1238
+    ],
+    "runtimeBytes": 99208
+  },
+  {
+    "id": "crime_skill_master",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      44,
+      0,
+      1240,
+      1236
+    ],
+    "runtimeBytes": 97824
+  },
+  {
+    "id": "crime_first_offense",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      23,
+      1236,
+      1254
+    ],
+    "runtimeBytes": 77126
+  },
+  {
+    "id": "crime_most_wanted",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1216,
+      1254
+    ],
+    "runtimeBytes": 86296
+  },
+  {
+    "id": "crime_kingpin",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1218,
+      1254
+    ],
+    "runtimeBytes": 122340
+  },
+  {
+    "id": "crime_hacker_elite",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      19,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 90076
+  },
+  {
+    "id": "crime_life_of_crime",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1238
+    ],
+    "runtimeBytes": 116576
+  }
+]

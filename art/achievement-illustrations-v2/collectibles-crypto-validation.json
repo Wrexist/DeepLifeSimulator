@@ -1,0 +1,218 @@
+[
+  {
+    "id": "collector_supreme",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 152224
+  },
+  {
+    "id": "collector_legend",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 147892
+  },
+  {
+    "id": "gold_hoarder",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      31,
+      1228,
+      1254
+    ],
+    "runtimeBytes": 108058
+  },
+  {
+    "id": "gold_collector",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1238,
+      1206
+    ],
+    "runtimeBytes": 110870
+  },
+  {
+    "id": "gold_magnate",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      56,
+      1254,
+      1238
+    ],
+    "runtimeBytes": 110274
+  },
+  {
+    "id": "gold_tycoon",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      4,
+      1242,
+      1240
+    ],
+    "runtimeBytes": 126256
+  },
+  {
+    "id": "gold_empire",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      28,
+      1230,
+      1254
+    ],
+    "runtimeBytes": 132758
+  },
+  {
+    "id": "crypto_portfolio",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      30,
+      33,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 97172
+  },
+  {
+    "id": "fun_crypto",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      58,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 87792
+  },
+  {
+    "id": "crypto_trader",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      14,
+      1240,
+      1235
+    ],
+    "runtimeBytes": 89008
+  },
+  {
+    "id": "crypto_millionaire",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 106684
+  },
+  {
+    "id": "crypto_tycoon",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      37,
+      1225,
+      1238
+    ],
+    "runtimeBytes": 122662
+  }
+]

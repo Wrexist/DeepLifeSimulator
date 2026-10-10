@@ -45,6 +45,30 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.2',
+    date: 'October 2026',
+    headline: 'Every milestone has a story',
+    summary:
+      'A refreshed life journey, clearer progress and original art for 159 milestones.',
+    changes: [
+      {
+        category: 'new',
+        title: '159 illustrated milestones',
+        bullets: ['Every achievement has its own artwork, from a first paycheck to a legacy.'],
+      },
+      {
+        category: 'improved',
+        title: 'A more personal start',
+        bullets: ['Optional story chapters help you shape the life you want to build.'],
+      },
+      {
+        category: 'improved',
+        title: 'A clearer life journey',
+        bullets: ['Home, Profile, Jobs and life apps now share a more connected look.'],
+      },
+    ],
+  },
+  {
     version: '2.15.1',
     date: 'October 2026',
     headline: 'Ad-free means ad-free',

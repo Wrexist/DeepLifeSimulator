@@ -58,7 +58,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 import SegmentedControl from '@/components/ui/SegmentedControl';
-import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -433,7 +432,10 @@ const styles = StyleSheet.create({
   },
   appCardInner: {
     flex: 1,
-    ...getGlassAppCard(false),
+    backgroundColor: uiPalette.white,
+    borderWidth: 1,
+    borderColor: uiPalette.line,
+    borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.sm,
     // Anchor content to the top so every icon sits at the same height across
     // the grid and can never overflow the card's top edge.
@@ -441,7 +443,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   appCardInnerDark: {
-    ...getGlassAppCard(true),
+    backgroundColor: uiPalette.surface,
+    borderColor: uiPalette.raised,
   },
   appIconContainer: {
     marginBottom: responsiveSpacing.xs,

@@ -1,0 +1,184 @@
+00:02.047  blend            | Read blend: "C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\group-a.blend"
+00:02.547  cycles           | WARNING HIPEW initialization failed: Error opening HIP dynamic library
+Info: Read library: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\shared-scene.blend', '//shared-scene.blend', parent '<direct>'
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+20:51:13 | INFO: Starting glTF 2.0 export
+20:51:13 | INFO: Extracting primitive: Cube
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.095
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.098
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Envelope triangular fold
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.001
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.004
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.005
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.006
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.007
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.009
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.008
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.093
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Leather handle
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Leather handle.001
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.097
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.106
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Pocket lower binding
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Pocket side binding
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Pocket side binding.001
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.096
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.094
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.003
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.092
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.002
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.099
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.100
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.101
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.102
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.103
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.104
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.105
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.010
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.011
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.012
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.013
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.014
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.015
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.016
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.017
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.018
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.019
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.020
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.021
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.022
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.023
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.024
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.025
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.026
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.027
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.028
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.029
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.060
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.061
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.062
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.063
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.064
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.065
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.066
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.067
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.068
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.069
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.070
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.071
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.072
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.073
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.074
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.075
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.076
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.077
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.078
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.079
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.080
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.081
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.082
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.083
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.084
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.085
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.086
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.087
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.088
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.089
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.090
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Extracting primitive: Cube.091
+20:51:14 | INFO: Primitives created: 1
+20:51:14 | INFO: Finished glTF 2.0 export in 0.18550920486450195 s
+00:13.516  render           | Saved: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\proposals\grounded-work\hero-grow.png'
+
+Info: Saved as "grounded-work.blend"
+Info: Total files 1 | Changed 0 | Failed 0
+Info: Saved as "grounded-work.blend"
+GROUNDED_PILOT_COMPLETE
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+
+Blender quit
+
+helpers:54: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0

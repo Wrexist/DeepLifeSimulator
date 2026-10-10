@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     width: '100%',
   },
   card: {
-    borderRadius: responsiveBorderRadius.xl,
+    borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.xl,
     marginBottom: responsiveSpacing.lg,
     alignItems: 'center',
@@ -32,7 +32,7 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: scale(120),
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.2)',
+    borderColor: colors.dark.border,
     alignItems: 'center',
     gap: scale(12),
     padding: responsiveSpacing.md,

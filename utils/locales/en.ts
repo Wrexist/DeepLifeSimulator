@@ -1,4 +1,36 @@
 export default {
+    intro: {
+        skip: 'Skip', progress: 'Introduction chapters', nextChapter: 'YOUR NEXT CHAPTER',
+        choose: 'WHAT DRAWS YOU IN?', illustrative: 'AN ILLUSTRATIVE STORY',
+        reveal: 'See what happens next', replay: 'Replay this glimpse',
+        tradeoffs: 'A life has trade-offs. Money, health, time and relationships all need your attention.',
+        generation: 'A life you build', heir: 'A new beginning',
+        familyLabel: 'The people in your life', futureLabel: 'A foundation for the future',
+        familyBody: 'The people you meet become part of your life. Build relationships, start a family and discover the next generation.',
+        futureBody: 'The home, wealth and opportunities you build can shape what comes next. Continue as an heir and begin another life.',
+        footnote: 'Explore any direction. Choose your actual starting life next.',
+        chapter0: { label: '01 / MAKE IT YOURS', title: 'A whole life.\nYours to shape.', body: 'The career. The people. The risks you take. Where would you begin?', action: 'See your life unfold' },
+        chapter1: { label: '02 / ONE WEEK CHANGES THINGS', title: 'Small moves.\nA different future.', body: 'Make a choice. Live a week. See what life brings back.', action: 'Look beyond one lifetime' },
+        chapter2: { label: '03 / MORE THAN ONE LIFETIME', title: 'Make a life.\nLeave a legacy.', body: 'Your story can carry on through an heir. What would you want to leave behind?', action: 'Choose my starting life' },
+        career: {
+            label: 'Build a career', headline: 'Your first opportunity', detail: 'Find your footing. Work toward the next promotion.',
+            moment0: 'Application sent', body0: 'Requirements and timing shape your next opportunity.',
+            moment1: 'An answer arrives', body1: 'Applications can take up to two weeks. This example moves ahead to a successful reply.',
+            moment2: 'Your first payday', body2: 'Once hired, weekly wages join your income. Living costs still matter.',
+        },
+        business: {
+            label: 'Create a business', headline: 'An idea becomes a plan', detail: 'Start small. Turn your ideas into something of your own.',
+            moment0: 'Compare the possibilities', body0: 'Different businesses have different startup costs.',
+            moment1: 'Make your first move', body1: 'Found a company when you meet its requirements and can afford it.',
+            moment2: 'Build it week by week', body2: 'Manage the company as revenue, costs and opportunities change.',
+        },
+        people: {
+            label: 'Find your people', headline: 'Someone worth knowing', detail: 'Make time for connections. Build a life together.',
+            moment0: 'Meet someone new', body0: 'Explore dating and get to know someone.',
+            moment1: 'Make time for each other', body1: 'Call, spend time together and deepen the relationship.',
+            moment2: 'Life gets a little bigger', body2: 'Friendships, partnerships and family become part of your story.',
+        },
+    },
     common: {
         ok: 'OK',
         cancel: 'Cancel',

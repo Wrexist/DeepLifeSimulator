@@ -1,5 +1,6 @@
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
 import { uiPalette } from '@/lib/config/theme';
+import { rewardArtwork } from '@/lib/config/rewardArtwork';
 /**
  * PromotionCelebrationModal - the payoff moment for a career promotion.
  *
@@ -33,10 +34,11 @@ import {
   Platform,
   StyleSheet,
   Text,
+  Image,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Crown, TrendingUp } from 'lucide-react-native';
+import { TrendingUp } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import ConfettiBurst from '@/components/ui/ConfettiBurst';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -53,7 +55,6 @@ const { width: SCREEN_W } = Dimensions.get('window');
 /** Gold leaf → deep amber. The "premium" read comes from this ramp + the hairline border. */
 const GOLD_LIGHT = '#FDE9B0';
 const GOLD = '#E8C15C';
-const GOLD_DEEP = '#B8862F';
 const INK = '#0B0D14';
 
 const COUNT_UP_MS = 1100;
@@ -275,7 +276,7 @@ export default function PromotionCelebrationModal({
           ]}
         >
           <LinearGradient
-            colors={['#151A2B', '#0C0F1A']}
+            colors={[uiPalette.surface, uiPalette.surface]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -347,14 +348,7 @@ export default function PromotionCelebrationModal({
                 },
               ]}
             >
-              <LinearGradient
-                colors={[GOLD_LIGHT, GOLD, GOLD_DEEP]}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
-                style={styles.medallionFill}
-              >
-                <Crown size={scale(30)} color={INK} strokeWidth={2.4} />
-              </LinearGradient>
+              <Image source={rewardArtwork.crown} style={{ width: '100%', height: '100%' }} resizeMode="contain" accessible={false} />
             </Animated.View>
           </View>
 
@@ -493,11 +487,6 @@ const styles = StyleSheet.create({
     height: scale(66),
     borderRadius: layoutRadius['2xl'],
     overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: GOLD, shadowOpacity: 0.85, shadowRadius: 26, shadowOffset: { width: 0, height: 0 } },
-      android: { elevation: 12 },
-      default: { boxShadow: `0 0 ${scale(34)}px rgba(232, 193, 92, 0.55)` } as object,
-    }),
   },
   medallionFill: {
     flex: 1,

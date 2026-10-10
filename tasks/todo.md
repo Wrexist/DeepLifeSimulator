@@ -1,3 +1,23 @@
+# DeepLife Glossy asset style frame - 5 October 2026
+
+- [x] Owner approved corrected grounded work/MacBook preview. Reviewed theme consistency and mapped mounted asset consumers. [Rollout review](modern-theme-rollout-2026-10-05.md).
+- [x] Implemented Work Career thumbnails (food service, office, study) through existing JobCard/SceneCard. Focused tests, types, lint and compact/tablet browser checks pass. [Evidence](work-modern-2026-10-05.md).
+- [x] Aligned Home identity/divider surfaces and removed shared button glass/glow. Compact and tablet layout bounds unchanged; navigation and 12 focused tests pass. [Evidence](home-modern-2026-10-05.md).
+- [x] Grounded contextual art integrated in Education, Contacts, Hustle and Health. Eight phone/tablet browser cases, source types and lint pass. [Evidence](context-modern-2026-10-06.md).
+- [x] Revised Start/Legacy heroes prepared for Group D review; four matching scenario cards now use approved props with contain framing. Six flow tests, source types/lint and phone/tablet selection checks pass. [Evidence](entry-modern-2026-10-06.md).
+- [x] Owner rejected static wallet/album slides as boring. Built an interactive three-chapter UX proposal with direction choices, weekly story reveals and a people-focused legacy; six browser layouts and keyboard/reduced-motion checks pass. [Preview and evidence](immersive-entry-2026-10-06.md).
+- [x] Owner authorized integration. Replaced placeholder logo with actual app icon in preview and app; added skippable interactive Custom life opening leading to existing Scenarios/Identity. Quick Start and Continue preserved. 74 focused tests and three browser sizes pass. [Evidence](entry-integration-2026-10-06.md).
+- [x] Completed entry-art batch: 11 new studio props, all 69 life-path/challenge/perk/mindset options mapped; SaveSlots solid framing and refresh-loop fix. 152 focused tests, source/test types, lint and phone/tablet journeys pass. [Evidence and art review](entry-art-completion-2026-10-06.md).
+- [x] Profile/reward framing and Apps launcher materials aligned: approved metal rarity badges, trophy/crown renders, solid navy toast/tiles. 49 focused checks and phone/tablet Profile, achievement-sheet and launcher journeys pass. [Evidence](profile-celebration-modern-2026-10-06.md).
+- [x] Completed individual achievement artwork for all 159 catalogue IDs. Original PNGs, 512px runtime WebPs and stable-ID mappings are complete; source/runtime transparency, catalogue counts and all map/file references were audited. [Full 159-art gallery and validation](achievement-art-completion-2026-10-10.md). Phone/tablet browser layout and all 159 runtime image loads verified; native-device acceptance and release checks remain separate. [In-app evidence](release/evidence/achievement-art-in-app-acceptance-2026-10-10.md).
+
+- [x] Create three Blender/Cycles style icons, linked studio, PNG/GLB exports and navy/light 48px/160px review sheet. [Evidence](astra-gate1-2026-10-05.md).
+- [x] Owner approved Gate 1; completed all 12 Group A icons and passed file/geometry/alpha checks. [Gate 2 evidence](astra-gate2-2026-10-05.md).
+- [x] Owner approved Gate 2; six tiers and five badge-kit assets completed, including platinum/laurel/100 preview. [Gate 3 evidence](astra-gate3-2026-10-05.md).
+- [x] Owner selected front-facing badges with clean centered numbers. Rebuilt all four finishes and laurel; preserved Group A/B exports; validation passed.
+- [x] Owner approved Gate 3 with skinny matching-metal numerals. Three Group D heroes and 390x844 phone previews completed; alpha, geometry, exports and reserved bands pass. [Gate 4 evidence](astra-gate4-2026-10-05.md).
+- [ ] Gate 4: owner rejected the toy-like artwork/scenes. Owner approved the grounded work direction. Completed requested powered silver MacBook and bag clearance corrections; revised phone preview ready. Remaining heroes still need this direction. Do not advance to loops or intake. [Pilot evidence](astra-grounded-hero-2026-10-05.md).
+
 # Gem wallet and contextual work art - 28 September 2026
 
 - [x] Centered HUD gem text; replaced the read-only popup with Top up / Spend gems using existing IAP and upgrade owners. Added ten original matching 3D props and compact action-specific Work art. [Changes, screenshots and verification](gem-wallet-work-art-2026-09-28.md).

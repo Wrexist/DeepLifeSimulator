@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "profile": true,
+    "apps": true,
+    "contactsOpens": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "profile": true,
+    "apps": true,
+    "contactsOpens": true,
+    "errors": []
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "contacts-modern": {
+    "triangles": 8680,
+    "max_mesh": 1280
+  },
+  "health-modern": {
+    "triangles": 6712,
+    "max_mesh": 764
+  }
+}

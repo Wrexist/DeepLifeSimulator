@@ -408,7 +408,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             is an activity like the ones above, not shopping. The membership
             ITEM is still bought in the Market's Items section. */}
         <View style={styles.section}>
-          <SceneCard scene="gym" title="At the gym" subtitle="Build fitness with a membership and a workout." />
+          <SceneCard scene="health-modern" title="At the gym" subtitle="Build fitness with a membership and a workout." />
           <GymCard />
         </View>
 

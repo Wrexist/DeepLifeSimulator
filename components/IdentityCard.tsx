@@ -1,6 +1,6 @@
 import LifeLine from '@/components/ui/LifeLine';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
-import { uiPalette } from '@/lib/config/theme';
+import { colors, uiPalette } from '@/lib/config/theme';
 import React, { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { View,
   Text,
@@ -711,7 +711,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
             </Text>
           </View>
         </View>
-      <View style={[styles.list, { backgroundColor: '#182236' }]}>
+      <View style={[styles.list, { backgroundColor: colors.dark.surfaceInset }]}>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowCash(true)}>
           <View style={styles.listItemContent}>
             <DollarSign size={20} color="#10B981" />

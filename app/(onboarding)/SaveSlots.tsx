@@ -47,7 +47,6 @@ import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation
 // Cloud device backup (flag-gated, `cloudSave`). Both helpers no-op when the
 // flag is off, so nothing here can reach the network in a default build.
 import { isCloudBackupEnabled, probeCloudSlot, restoreCloudSaveToSlot } from '@/services/cloudBackup';
-import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 import { gameAlert } from '@/utils/gameAlert';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
@@ -96,8 +95,10 @@ function RevealItem({
   return <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
 
+// A stable logger keeps loadSlots and its focus/mount effects stable after state updates.
+const log = logger.scope('SaveSlots');
+
 export default function SaveSlots() {
-  const log = logger.scope('SaveSlots');
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -560,9 +561,10 @@ export default function SaveSlots() {
               <RevealItem key={slot.id} index={index} reduced={reduced}>
                 <TouchableOpacity
                   accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
                   accessibilityLabel={`Save slot ${slot.id}, ${
                     slot.hasData ? fullName || 'Unnamed Character' : needsRecovery ? 'needs recovery' : 'empty'
-                  }`}
+                  }${isSelected ? ', selected' : ''}`}
                   activeOpacity={0.9}
                   onPress={() => selectSlot(slot.id)}
                   style={[styles.card, isSelected && styles.cardSelected]}
@@ -754,18 +756,17 @@ const styles = StyleSheet.create({
     paddingBottom: responsiveSpacing.lg,
   },
   card: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    backgroundColor: uiPalette.surface,
     borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: uiPalette.raised,
     padding: responsiveSpacing.lg,
     gap: responsiveSpacing.sm,
-    ...getPlatformShadows(6, 0.25, 4, 14),
   },
   cardSelected: {
-    borderColor: '#3B82F6',
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    borderColor: uiPalette.blue,
+    borderWidth: 1,
+    backgroundColor: uiPalette.surface,
   },
   slotHeader: {
     alignItems: 'center',
@@ -801,7 +802,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   statBlock: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: uiPalette.navy,
     borderRadius: responsiveBorderRadius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',

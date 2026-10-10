@@ -1,0 +1,1274 @@
+[
+  {
+    "id": "beginner_triple_digits",
+    "title": "Triple Digits",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b762db60-775e-469c-b31e-99306891f585.png",
+    "sha256": "1c04e5f46476ccebeb6f672077c3ae876dafda074783e323f5ef7af7f944d6a3",
+    "runtimeBytes": 91694
+  },
+  {
+    "id": "career_first_job",
+    "title": "First Paycheck",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-48442964-6833-455b-acf7-39278204f257.png",
+    "sha256": "7fc6e3e02fc89c7b2a9677b5748c17ecaa06ad373155e85f21f95dd3e2c26971",
+    "runtimeBytes": 77650
+  },
+  {
+    "id": "real_estate_mogul",
+    "title": "Real Estate Mogul",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0531eed4-09da-4146-bc64-77c102409483.png",
+    "sha256": "e5d20a5f6f157fe774d3589250027f688d543cdadce1a25c31a3bc6c9c4ffa35",
+    "runtimeBytes": 76944
+  },
+  {
+    "id": "beginner_first_gig",
+    "title": "First Gig",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-2f2ae7d4-e7e9-4132-8dc6-0db4ebf18c03.png",
+    "sha256": "d91f3b12fb6f8af9deb5e070f8dba42637b0c660b0f6a23c37f74c263c7b6771",
+    "runtimeBytes": 61284
+  },
+  {
+    "id": "beginner_hustler",
+    "title": "Hustler",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-77c51d64-3ea1-499a-a172-e942bc069f7d.png",
+    "sha256": "fafee792b35977951274c2aaa773e5e7b8a1db9c40a24327b67d9439a78abf65",
+    "runtimeBytes": 72496
+  },
+  {
+    "id": "beginner_four_figures",
+    "title": "Four Figures",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-18859962-60ae-40a9-a62f-71a5f0eed520.png",
+    "sha256": "5eb9b11719f483ab75e465144a5a59d9ecbc6dbb6e7732d396ded5781bc98493",
+    "runtimeBytes": 80120
+  },
+  {
+    "id": "beginner_five_k",
+    "title": "Stacking Up",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-65cbee09-6fdb-4a0d-804d-7d6ac66cce2e.png",
+    "sha256": "d351fe5053780763db30f9d4b7779a5e230bd8a571db35e11ef1a5b7c8485fb3",
+    "runtimeBytes": 80460
+  },
+  {
+    "id": "beginner_social_life",
+    "title": "Social Life",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0b490ae1-f0f0-4275-bafe-3b384bf33757.png",
+    "sha256": "3af18d98f6bcfeafd7385cabca8c0ae83170d79278783a2f1adee758143e3043",
+    "runtimeBytes": 71834
+  },
+  {
+    "id": "beginner_connected",
+    "title": "Connected",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b9e108b2-8ad6-4aa8-9397-bfd68b547e70.png",
+    "sha256": "90b6d51f7c79a0407c0e46b7aa79c54f84a0babf4f91b3dc1e668e3ac3eb1d32",
+    "runtimeBytes": 56964
+  },
+  {
+    "id": "beginner_survivor",
+    "title": "Survivor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-33a3c8f2-af83-4e2c-ba36-afc579a47bf9.png",
+    "sha256": "e0c34aed56bea2331636dd659a9e4ee150d4faf075356c64ec1881b386cda3d9",
+    "runtimeBytes": 59998
+  },
+  {
+    "id": "beginner_getting_started",
+    "title": "Getting Started",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d8f473bb-6d35-4fb3-ad32-5836d48bad6a.png",
+    "sha256": "7f697426086e707d3099104d7f09316e836039eef178401424223bf697fb1f57",
+    "runtimeBytes": 54322
+  },
+  {
+    "id": "beginner_grinder",
+    "title": "Grinder",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b03e524b-73ef-40a2-9004-d2f5be228b7c.png",
+    "sha256": "055213792e97f79c7b19a141b8eed9962fa5dbd13f9ba2e180262cf57193091e",
+    "runtimeBytes": 93228
+  },
+  {
+    "id": "wealth_1m",
+    "title": "Seven Figures",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-6fc39548-2fc2-4d2d-9c39-3d9e6352fb36.png",
+    "sha256": "00d5ecc259eef86a6414bd318caae6676fae86aeb4fdb653df284532b2cccc6b",
+    "runtimeBytes": 75038
+  },
+  {
+    "id": "wealth_10m",
+    "title": "Eight Figures",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-5f8c7fd7-0f26-4184-9586-d2f33a45f93c.png",
+    "sha256": "ee79d4f157cf61fec2a1c290a94d8fe140473e327b424d88d385a2d7dfe24ebf",
+    "runtimeBytes": 64564
+  },
+  {
+    "id": "wealth_100m",
+    "title": "Nine Figures",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c6a2201f-5afe-43c4-beda-94ba6aae4c32.png",
+    "sha256": "46fce1a9443e974fcf6e40f0c9b2314afd8ee7856ec72f60298ab0617b579aee",
+    "runtimeBytes": 77134
+  },
+  {
+    "id": "wealth_1b",
+    "title": "Billionaire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-121d0e83-eff5-4b02-9c6c-d12d65189211.png",
+    "sha256": "4a5db7d80f26d37412b5a97feba98fcd4a9c09c013a16fd86cb5b7c9ffde9214",
+    "runtimeBytes": 69834
+  },
+  {
+    "id": "wealth_10b",
+    "title": "Deca-Billionaire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-93902f06-5d63-4b79-995d-76ed51d76edf.png",
+    "sha256": "376a7b64b32b773e281b0e2364c15cff7743443548c0840911a4dc4ee66d855a",
+    "runtimeBytes": 76708
+  },
+  {
+    "id": "wealth_100b",
+    "title": "Centibillionaire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-285957d9-c53c-4ca2-a926-e325024c4c31.png",
+    "sha256": "553ab567d929217d34ab6ef582294727b3b4ee126432bb513bedd7b9fc481bec",
+    "runtimeBytes": 81654
+  },
+  {
+    "id": "career_promotion",
+    "title": "Moving Up",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-21459579-1fda-48bf-9ab3-c79af2f2e680.png",
+    "sha256": "5bcf1e2362576ddaa4ef1a63d3a2c71b5db76e05c00642fa7d989d5b895e7667",
+    "runtimeBytes": 64234
+  },
+  {
+    "id": "career_high_earner",
+    "title": "High Earner",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-e8ef0017-2c92-4e26-8a16-eae7ff7a50c0.png",
+    "sha256": "34dc88a0f641de71c49b0e945a1aa08520415e37fbb2bf815a861cedf91dee60",
+    "runtimeBytes": 67016
+  },
+  {
+    "id": "career_workaholic",
+    "title": "Workaholic",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cfaf4a64-02ee-4e15-893f-271825a2d802.png",
+    "sha256": "c3986bafb83a8c447e10f0aba17586549f87301b946088248fb72d0f794fbf9d",
+    "runtimeBytes": 80922
+  },
+  {
+    "id": "career_top_performer",
+    "title": "Top Performer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-76db05c3-ed42-4533-b162-d00e0b6ac7c7.png",
+    "sha256": "0bee1820e85793147f636b539b0111d4b2034f8cb910befcd255d3c7024ac52b",
+    "runtimeBytes": 72914
+  },
+  {
+    "id": "career_summit",
+    "title": "Corner Office",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d319e5c3-4759-4b71-a668-84b569139014.png",
+    "sha256": "24cfd08d2666bfdb698c92a8b247b3ec7588dad5d5d17055d8ed45bb642f2432",
+    "runtimeBytes": 85128
+  },
+  {
+    "id": "celebrity_icon",
+    "title": "Celebrity Icon",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-93312842-f618-432e-9dbc-3955cf292e97.png",
+    "sha256": "728f892e85d02fe17d25dc6735b738530f01bda9515680d8b514a8c0a588311b",
+    "runtimeBytes": 60458
+  },
+  {
+    "id": "athletic_champion",
+    "title": "Athletic Champion",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-e15db1e0-eb7f-42f6-8c12-8cc9942c3c14.png",
+    "sha256": "d2c670d8c60b8765b54f2a7a93eb1e23ca72faa9bf1aac57f788b74baec743a4",
+    "runtimeBytes": 78856
+  },
+  {
+    "id": "company_owner",
+    "title": "Entrepreneur",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d36eb72b-6b32-4b56-af9a-a875c0644ce1.png",
+    "sha256": "929dab1297f63df2b40937c40bc77392197b54d8161d736288ad0b32a61b977d",
+    "runtimeBytes": 64766
+  },
+  {
+    "id": "company_mogul",
+    "title": "Business Mogul",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-a29f3042-26c4-4ddc-a616-2a1aa337d849.png",
+    "sha256": "cb46af4d5fc0d78d5f94946d49819a97180024d55029f664c94ead1a63da0708",
+    "runtimeBytes": 79116
+  },
+  {
+    "id": "company_magnate",
+    "title": "Corporate Magnate",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d18e9b76-b4b3-498a-8f3b-e72d2b598010.png",
+    "sha256": "a0c86e36eb651b35c064a68a2b822cccd4c2d4cace4aee0fd85f32d3a5ab6204",
+    "runtimeBytes": 61332
+  },
+  {
+    "id": "company_emperor",
+    "title": "Company Emperor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-da9e70e3-8ddd-48cb-af10-990582bd9562.png",
+    "sha256": "330f841e88a48764be1d0e8fbb7251d52db1aa876dd46053f05bf33d3a7e0c0e",
+    "runtimeBytes": 90460
+  },
+  {
+    "id": "workforce_builder",
+    "title": "Workforce Builder",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-921ff29b-9dea-4a44-82b0-ba13b1e38095.png",
+    "sha256": "e2c7ba17d66dc1d777cf14913ef037fa6a52cae8673f7733f108e6a32030537a",
+    "runtimeBytes": 55746
+  },
+  {
+    "id": "workforce_leader",
+    "title": "Workforce Leader",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-8c89fe49-05be-4fb3-bcd7-16e790fd868f.png",
+    "sha256": "a38247f88c26a966ffbb220f38fa6fbfb75e8f32893af5d6fcff978917766e15",
+    "runtimeBytes": 73620
+  },
+  {
+    "id": "workforce_tycoon",
+    "title": "Workforce Tycoon",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-14427e98-31f5-4eda-9b55-931b82a324e6.png",
+    "sha256": "7a7a4f570e9172b6d36688ea12adcce0dad3e05ffdbbb1c35084f5a178e3df42",
+    "runtimeBytes": 64100
+  },
+  {
+    "id": "scholar",
+    "title": "Scholar",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-f340c3c2-16d5-43a4-84ee-0297de93ffba.png",
+    "sha256": "f50812e26f91228ccfd10f7c5f7dd7e74ecdef4dfd6bd41c3225dbbf943dcee8",
+    "runtimeBytes": 64750
+  },
+  {
+    "id": "academic",
+    "title": "Academic",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-54993a14-f17e-48fc-a902-70f6fc17ca54.png",
+    "sha256": "e3b5651a5f019209ca458732b48863f493ca050a8dd1c885f11b8562e37377c0",
+    "runtimeBytes": 70016
+  },
+  {
+    "id": "professor",
+    "title": "Professor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0f46c1de-251b-4a0a-9c8c-ebee9d1260ac.png",
+    "sha256": "6cd09037106a80e67453d296ff96c6d5aeefbd089df0ae948d0c4a7e0fd06d85",
+    "runtimeBytes": 84534
+  },
+  {
+    "id": "fitness_champ",
+    "title": "Fitness Champion",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-273f9794-1a72-41c2-9d2f-700985902af1.png",
+    "sha256": "2e80d0e9fd04c897339772cc2a3519526cbed50314692adc01a4de533cb528a1",
+    "runtimeBytes": 48698
+  },
+  {
+    "id": "fitness_guru",
+    "title": "Fitness Guru",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-f811ccd6-ee25-4c3f-bf65-d24bdcd17237.png",
+    "sha256": "142beb753a1932b7e00ffc7f34532ae94a7b32afb90431ed585e08a773cbab21",
+    "runtimeBytes": 61554
+  },
+  {
+    "id": "fitness_deity",
+    "title": "Fitness Deity",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-828abf94-bca7-42b7-82cf-8212f70973a3.png",
+    "sha256": "72e5c341178898a17077ce8356707c72baf608e43176218d44f770dbf069ad64",
+    "runtimeBytes": 63076
+  },
+  {
+    "id": "joyful_life",
+    "title": "Joyful Life",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-540dce60-b03c-41d9-86f0-6d36e86647e0.png",
+    "sha256": "035142941f9e51d6f1cd2fb871cf4cd22913085c72067a04233a77135acc29d3",
+    "runtimeBytes": 87452
+  },
+  {
+    "id": "health_disease_survivor",
+    "title": "Disease Survivor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b46c6dd8-e581-4ae2-b5bd-0740ded64c4c.png",
+    "sha256": "84a08bcde6add786c9af636ae8019ece5b39bc592fc354e9eafe16aa45151a62",
+    "runtimeBytes": 70050
+  },
+  {
+    "id": "health_vaccinated",
+    "title": "Fully Vaccinated",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-2acda6b1-f819-430a-abe9-5c86290158a1.png",
+    "sha256": "9a69e49156299c478ee86ff09b60a589eeeee7dc9bd0610fc42320f21c455abc",
+    "runtimeBytes": 72258
+  },
+  {
+    "id": "health_peak_condition",
+    "title": "Peak Condition",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-e35d14d9-02ec-4791-acad-7effff1a1ab0.png",
+    "sha256": "610de8931ab270a67be3b0f8682168fdccd74d0e7b8dcddc3b9c687d6bf1c9c3",
+    "runtimeBytes": 64550
+  },
+  {
+    "id": "health_near_death",
+    "title": "Near Death",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-6e8b4512-46a2-4563-a2dc-e338c310bbb1.png",
+    "sha256": "800a84d225619d67a622f14149be1b0d0a32356aa69ce9b0648adc799acdf46d",
+    "runtimeBytes": 67052
+  },
+  {
+    "id": "health_iron_will",
+    "title": "Iron Will",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c7b34e3b-8e41-4e5a-b750-7ac8a08a4862.png",
+    "sha256": "80d0d400bd4fecbba88a2258c0778bbf6b1e1a5ee174ef77e54f31a46ad426bf",
+    "runtimeBytes": 66208
+  },
+  {
+    "id": "healthy_lifestyle",
+    "title": "Healthy Lifestyle",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-948b5266-8591-44e0-aa9e-09b2c7659c44.png",
+    "sha256": "ff0a24c9e85f974cffa11aca1991fbbc0bf4c3adde6754d878904289854bae71",
+    "runtimeBytes": 60342
+  },
+  {
+    "id": "fun_all_nighter",
+    "title": "All Nighter",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d609b920-a16d-43f1-a504-92376d19ed86.png",
+    "sha256": "b58d02e74c47e1073f5ffd38e18c533bf3d89dc8e63cf5a7240886c9865ec9ca",
+    "runtimeBytes": 61354
+  },
+  {
+    "id": "get_married",
+    "title": "Tied the Knot",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b17bf22e-e063-4e67-a37f-1168c2470a6c.png",
+    "sha256": "fd1a1b1bb00768cd8416bf0ad7ba87ee3257a28ac8b5d6d877d32ac9aa35b755",
+    "runtimeBytes": 64206
+  },
+  {
+    "id": "first_child",
+    "title": "Proud Parent",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-939c2bb0-66b7-406d-9d6b-8cf8c9954a06.png",
+    "sha256": "234e18c46a2094dc76b51e77f2118f9c9668ff1a66dd035799622114dbc6a0ee",
+    "runtimeBytes": 90686
+  },
+  {
+    "id": "family_builder",
+    "title": "Family Builder",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4b3f00cf-c3cb-4129-9751-df6e7f89269c.png",
+    "sha256": "9a7d02302d7c704b252255c9f351e694d6e8a77309557341762e9bc897a68bc0",
+    "runtimeBytes": 94384
+  },
+  {
+    "id": "family_empire",
+    "title": "Family Empire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-15059b23-d664-4efd-9dd2-19129d81d7e4.png",
+    "sha256": "d246180936d120f7e75ce446efea5ddf5ad0e55f8371544533377937275e90a3",
+    "runtimeBytes": 105302
+  },
+  {
+    "id": "relationship_soulmate",
+    "title": "Soulmate",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-132ccd72-57f5-445d-9015-ab73b6e6c5e9.png",
+    "sha256": "1a64db749f296018afcddab236697bc87925a270662cbd27a060e3a77be87ad5",
+    "runtimeBytes": 87740
+  },
+  {
+    "id": "relationship_big_family",
+    "title": "Big Family",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-31b639b0-42c7-402c-ba2d-e2376e1b00e7.png",
+    "sha256": "663dd385e3ff6245adead7d2759bc92cd0bcc0d3b448522a34a66377530fa6c5",
+    "runtimeBytes": 115878
+  },
+  {
+    "id": "relationship_cohabitation",
+    "title": "Moving In Together",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-1df2c591-672b-4e52-bbb4-fc908c3e4033.png",
+    "sha256": "70a15f4c8f979d42e9ae744d10c90d8c74d37bcd8c3e4fa9b82fa3001b3ca04a",
+    "runtimeBytes": 77460
+  },
+  {
+    "id": "relationship_serial_dater",
+    "title": "Serial Dater",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-a534c5f9-5139-40a7-b9fb-a1d4ce827590.png",
+    "sha256": "d870ddb1a4ee7b348e859c686ca1934471515f8ae66c3fb43875cace4c9d3bd9",
+    "runtimeBytes": 82776
+  },
+  {
+    "id": "relationship_social_network",
+    "title": "Social Network",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-9f8b7199-a12c-4f86-ae04-3b2111a0257d.png",
+    "sha256": "c401c79b5968594348103cb3940bb6e42f508ca5b8cbf2365d715d0f62e64db4",
+    "runtimeBytes": 119848
+  },
+  {
+    "id": "parenting_devoted",
+    "title": "Devoted Parent",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-9ac9025e-7cf0-4553-89b3-653c4e92d1e1.png",
+    "sha256": "66a8d8a359dc998cc50f4a02cbbb7545c06133dedfb72730674c1d800cc36217",
+    "runtimeBytes": 107948
+  },
+  {
+    "id": "parenting_heir",
+    "title": "Worthy Heir",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-44b75c6d-e7d1-4113-be66-58d9f5090f03.png",
+    "sha256": "e4973c0174208823c6c0608933a37edce5bf2bb439a4e32b2b94e0b90006c029",
+    "runtimeBytes": 101638
+  },
+  {
+    "id": "collector_supreme",
+    "title": "Collector Supreme",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-2bd6b9dd-7124-4c7c-9ea4-04ccf4cf677f.png",
+    "sha256": "e14514f270bfc4373d904c05a344cd92f2154a1dae4b4aee75251f35daa34d55",
+    "runtimeBytes": 152224
+  },
+  {
+    "id": "collector_legend",
+    "title": "Collector Legend",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-f1cd9b6d-b977-40b5-943b-1841645faf15.png",
+    "sha256": "db73cb4bfe47d704dfa4a1575766b7da6d280c17a8dfa6d7761bdb5fcfd3e84f",
+    "runtimeBytes": 147892
+  },
+  {
+    "id": "gold_hoarder",
+    "title": "Gold Hoarder",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-15d48e07-4533-4ce7-9824-995bec20ce9c.png",
+    "sha256": "55d35d8feb002c5b0e930b27b13083e579aae0d21b4514d103fb10665760235e",
+    "runtimeBytes": 108058
+  },
+  {
+    "id": "gold_collector",
+    "title": "Gold Collector",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b3864b66-3c34-4143-830c-89acd7cfdc3f.png",
+    "sha256": "0f49377d05c75671ff044c21a578da20240d80c68545a0cb11235ca22106e851",
+    "runtimeBytes": 110870
+  },
+  {
+    "id": "gold_magnate",
+    "title": "Gold Magnate",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cc2faa46-a33d-4928-a251-f71b4026f36b.png",
+    "sha256": "3ec8a7757ebaf195e810971ccf46ee2a89bf474ca22e9410a60464a7298b9e74",
+    "runtimeBytes": 110274
+  },
+  {
+    "id": "gold_tycoon",
+    "title": "Gold Tycoon",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4bee3f09-0d64-4f33-9ed1-72759c16a691.png",
+    "sha256": "10cb40ff5c228aa35b04218d82569a28374d80a85ac423916d75064640381121",
+    "runtimeBytes": 126256
+  },
+  {
+    "id": "gold_empire",
+    "title": "Gold Empire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-1d2784a5-8207-4845-a929-1058b7f2344e.png",
+    "sha256": "75e940c35af6ac08ed26e80d23b98e3ab2401b68163232750b8b2c3bec4c2347",
+    "runtimeBytes": 132758
+  },
+  {
+    "id": "crypto_portfolio",
+    "title": "Crypto Portfolio",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cbcd39d6-1d7c-44cf-9cf1-5fc4c7c4a3b3.png",
+    "sha256": "5abf2967be6cc48c88f8b208a94adf22db9fd55c88462dc6686e1c9bb2eb0f91",
+    "runtimeBytes": 97172
+  },
+  {
+    "id": "fun_crypto",
+    "title": "Crypto Curious",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-910713f0-86c7-4b20-9813-400330abb254.png",
+    "sha256": "40ef0862fdd304b73060c6207db8b524e0a29633bfbe088cf10d5147057a7ecb",
+    "runtimeBytes": 87792
+  },
+  {
+    "id": "crypto_trader",
+    "title": "Crypto Trader",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-6aa86fa2-c3ed-4c42-998f-aa0e4a880837.png",
+    "sha256": "a947a51beb4f58911ead92f755747eae22536ff6631d51284b38d0d6cf743220",
+    "runtimeBytes": 89008
+  },
+  {
+    "id": "crypto_millionaire",
+    "title": "Crypto Millionaire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-40be493b-77b1-47cd-9b1a-fcbc4d145f61.png",
+    "sha256": "b90bf0f05a42709fd2acf9c2a9d8b002b1e9bb1d3f99988be936b8e9f617d1a6",
+    "runtimeBytes": 106684
+  },
+  {
+    "id": "crypto_tycoon",
+    "title": "Crypto Tycoon",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-85ac6861-30bc-49b6-a24d-d26e5a0c9c79.png",
+    "sha256": "8d86b21b557ff17e2f61a2d38bd8bfc6b5fbf21ee297d852070d81ef54aebce7",
+    "runtimeBytes": 122662
+  },
+  {
+    "id": "crime_raid",
+    "title": "Raid Survivor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-f78ce2e0-d9b2-48b4-9047-686581e2511c.png",
+    "sha256": "2aaadc698bf1fb746e4f83fc7b6ef7f45a05cbc38e9613f31c43837a3e61e9d7",
+    "runtimeBytes": 87276
+  },
+  {
+    "id": "crime_trial",
+    "title": "Courtroom Drama",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-3eaba724-bd9f-402e-b4e3-c71b6c7fce37.png",
+    "sha256": "23354ed83658122b0e48caf99eb30534360a81573dbe662ee9979272a378e669",
+    "runtimeBytes": 89912
+  },
+  {
+    "id": "escape_artist",
+    "title": "Escape Artist",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-5a854bb6-7598-4d7a-8f82-ba641d595e13.png",
+    "sha256": "a16d9cb10715d4d3f371a7666e361a1d5255e7f727c9be69fedc0547faf562ac",
+    "runtimeBytes": 88028
+  },
+  {
+    "id": "prison_survivor",
+    "title": "Prison Survivor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-2bc1080b-c6b8-4ca4-a59c-4893901915e0.png",
+    "sha256": "fd402a096d6b5156032151c64ceb45c571dd63a1d15ab4025e61fdfe8f25d0e5",
+    "runtimeBytes": 81998
+  },
+  {
+    "id": "prison_reformed",
+    "title": "Reformed",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-22fee5a9-f5b4-4521-a83b-f2d2b5d76d2f.png",
+    "sha256": "c32c03d70c9d13acc2fe23f87f0b0ea17a324168497e433d6cf649fecf5e62e5",
+    "runtimeBytes": 99208
+  },
+  {
+    "id": "crime_skill_master",
+    "title": "Crime Master",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-a476178a-a3b2-4ee1-8660-0e3b793fac7c.png",
+    "sha256": "ba9b636da4790cd2692e9f9ff5db20cd57a39b0ab9a5c80d66cedb06df0b0d64",
+    "runtimeBytes": 97824
+  },
+  {
+    "id": "crime_first_offense",
+    "title": "First Offense",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cd94a7c6-6441-4d7d-8f6c-0abf1f12ec59.png",
+    "sha256": "f9076b2f94e48e83cd67bf404502924647974988cba9283e82214f143c0d5599",
+    "runtimeBytes": 77126
+  },
+  {
+    "id": "crime_most_wanted",
+    "title": "Most Wanted",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-9273c8b8-3a8f-421e-a158-9438c8b8b4bb.png",
+    "sha256": "83667a1a3f8963b3feb8b60298e59076315655ef818332c9b6b8668dfcda8045",
+    "runtimeBytes": 86296
+  },
+  {
+    "id": "crime_kingpin",
+    "title": "Crime Kingpin",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-92dd2f2a-fc40-4cf6-8e5b-a1dd63ee2d01.png",
+    "sha256": "8f282c8862d3358926c14fd056701875c9fbb89c7b70af97f665281e44c63252",
+    "runtimeBytes": 122340
+  },
+  {
+    "id": "crime_hacker_elite",
+    "title": "Elite Hacker",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cc9c7ec5-0e2c-4b1a-91ea-73e5c197ae92.png",
+    "sha256": "922643af131fb5ff3878e834ee4cf43f521cffe0f900a76bccd6e5aa10582bab",
+    "runtimeBytes": 90076
+  },
+  {
+    "id": "crime_life_of_crime",
+    "title": "Life of Crime",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0c0c5c34-3b10-4e2f-bedd-7463960f0ac5.png",
+    "sha256": "aeb9140191eadf19680dd389a97345ee95b8900d574d57e9aa71623dd88d9cf3",
+    "runtimeBytes": 116576
+  },
+  {
+    "id": "longevity_50",
+    "title": "Midlife Milestone",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b6fc91ba-4632-4c0e-8b6c-7db823fcf80c.png",
+    "sha256": "aae5f222aab1d9f1d872f200001dbf97819feb3bb4e990b791a06712f5d856fa",
+    "runtimeBytes": 94452
+  },
+  {
+    "id": "longevity_75",
+    "title": "Three Quarters",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d559dc8e-2de9-4cf6-ab68-94caa733cd05.png",
+    "sha256": "e779377ce40b53b5bcffc020fabdc58810e6d9252c934a27f4eeda387a9c92c2",
+    "runtimeBytes": 109146
+  },
+  {
+    "id": "longevity_100",
+    "title": "Centenarian",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-41cc4620-2804-4a0a-8287-d8da5ea026d2.png",
+    "sha256": "8ed4709660e9a5b159899cb86b11c27bc38dab6b59fd269ba865120677c691c8",
+    "runtimeBytes": 157582
+  },
+  {
+    "id": "longevity_120",
+    "title": "Legendary Life",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-700825e9-237a-48ae-8ff4-689fd6f745aa.png",
+    "sha256": "c38f7a976b8ff56f06b3d57c70fa73f22c488f8553f13848cd62e6d6ad3061b6",
+    "runtimeBytes": 135996
+  },
+  {
+    "id": "longevity_150",
+    "title": "Immortal",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-6e39f3a8-c7ec-485b-8e2b-180b08c49e44.png",
+    "sha256": "586b418de11889833a45214fe154fa5b97e35ef9658bcbfd2a7c816574e5f3ad",
+    "runtimeBytes": 149194
+  },
+  {
+    "id": "milestone_100_weeks",
+    "title": "Century",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-30e955c3-d4fa-42cc-af21-2e9c9dd17721.png",
+    "sha256": "d25b6d206cf55d8649500bb124a36275e880ea5a3dae4babf2e63ae41992e0a4",
+    "runtimeBytes": 78278
+  },
+  {
+    "id": "milestone_500_weeks",
+    "title": "Half Millennium",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-517a49ce-c82f-494c-8cfe-5c9db1f99bee.png",
+    "sha256": "008d62bc789a1f3b27bc738a5d874277ad62a81064fe2288bc8035c8d4f7ec3b",
+    "runtimeBytes": 104570
+  },
+  {
+    "id": "ambition_fulfilled",
+    "title": "Life's Work",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-153f766b-67cc-406c-9935-d29f9e41295e.png",
+    "sha256": "3ea422ce85b9e2abb113d553e65f82cddb3ce8b8922275c4035f9dbedcdcab6e",
+    "runtimeBytes": 99178
+  },
+  {
+    "id": "retirement_retire",
+    "title": "Freedom at Last",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-8ddb11f0-8dcf-4e1c-93b3-44de5116e837.png",
+    "sha256": "8730c41a25371eaacc1515d4e0a2d344b898ebbcd7fe912e3cb04d585a102d6a",
+    "runtimeBytes": 110604
+  },
+  {
+    "id": "retirement_nest_egg",
+    "title": "Golden Years",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-8635951f-4a99-4eae-ab55-126242efd310.png",
+    "sha256": "3f57a0a2801c4c8da368f91aa093a935111d5e14504278cab03edf9cbd4fd77b",
+    "runtimeBytes": 90090
+  },
+  {
+    "id": "financially_independent",
+    "title": "Financially Independent",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-612b86ae-8fe7-4bbd-bcc2-cd5218aa2069.png",
+    "sha256": "d394646092843c3f4bfebd57df57bf5a2882ebdd6d5781e2ce3abf44785d1c13",
+    "runtimeBytes": 101330
+  },
+  {
+    "id": "first_election",
+    "title": "First Victory",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cc641172-5e67-46af-9f91-3bf62859d500.png",
+    "sha256": "d69dce51e604adbe2f906cccf6278ae6ba28a94e6773f3ea7cf0ba5e1281701e",
+    "runtimeBytes": 53242
+  },
+  {
+    "id": "mayor",
+    "title": "Mayor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-1a9c0718-10e6-48c8-835d-78c4f5f3d078.png",
+    "sha256": "56d715b512873591a8148bd6a9d7246c5163a960b7a4c09b2ca592488942b816",
+    "runtimeBytes": 110320
+  },
+  {
+    "id": "governor",
+    "title": "Governor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-a4e8eb94-21a5-4d04-b92c-aef2d832058d.png",
+    "sha256": "4c57d719d3465a43e77e6c0f336d419c2c7a4447767cfa0fdecbf683ac943df1",
+    "runtimeBytes": 71424
+  },
+  {
+    "id": "president",
+    "title": "President",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-1e7883e9-4fc7-4727-b1a1-5019b6dd860e.png",
+    "sha256": "a83d5b99ac31d2e5d4c9bc0e53f7b381510a5cdb73182a2225ed4e59d332ae91",
+    "runtimeBytes": 84084
+  },
+  {
+    "id": "policy_maker",
+    "title": "Policy Maker",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-6fa36523-bec6-40fe-a644-58a01e4d1657.png",
+    "sha256": "31f11d38e7c93cfb71f0269ade56bbc8d21924d96db91303b99c2fc57c746d7a",
+    "runtimeBytes": 86638
+  },
+  {
+    "id": "popular_politician",
+    "title": "Popular Politician",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-1052b9a1-5225-4a93-a87c-dd87198c61b5.png",
+    "sha256": "d9c4735e63d7fda3290c517ae625d576ca7faf1297f00a6c9649ff96dbb9e3af",
+    "runtimeBytes": 121154
+  },
+  {
+    "id": "election_champion",
+    "title": "Election Champion",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c0c2d38e-2026-4f2e-a198-9e67b01d6965.png",
+    "sha256": "4d3f064676dcd719f084be7a05646c3dbee6356f3170d32738472b52cb4daee5",
+    "runtimeBytes": 112454
+  },
+  {
+    "id": "political_influencer",
+    "title": "Political Influencer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-ef579661-0b43-469b-bc45-c7b189fdf500.png",
+    "sha256": "6ecd43c975ecc78e2cd402f9925af79fdf80b022be7b6269ffc6c36ffa5d7b28",
+    "runtimeBytes": 101460
+  },
+  {
+    "id": "politician_legend",
+    "title": "Political Legend",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4efdbe78-12ef-428b-9df9-bc0161e63b85.png",
+    "sha256": "04ca21457ee22f83217ac520bafea7d1d46945ac901790ae7e095cdb56fbd1b3",
+    "runtimeBytes": 101454
+  },
+  {
+    "id": "pulse_first_viral_post",
+    "title": "Going Viral",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-7f97f877-9ac9-4a53-94ce-738422a87227.png",
+    "sha256": "f0e4f626617eb81fc895dd2f9b3867675c6b6ed3d8972af1e0e534f63a65eb5c",
+    "runtimeBytes": 94646
+  },
+  {
+    "id": "pulse_rising_star",
+    "title": "Rising Star",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0f9ca372-99a5-4416-816c-5cba20d2abd4.png",
+    "sha256": "c36027f3fb41e1f098ca7dd4d8c91f90d1d2a70502a9a4e5e6eb63216b0f6bac",
+    "runtimeBytes": 85928
+  },
+  {
+    "id": "pulse_popular",
+    "title": "Popular",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-fc20016a-98de-4462-b636-26ea3cfa8990.png",
+    "sha256": "9fed663b14befbe8841ac168e2696caf5e6034aad98858a1ab459cd04255df2d",
+    "runtimeBytes": 91346
+  },
+  {
+    "id": "pulse_influencer",
+    "title": "Influencer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4e06a52f-06c0-43a8-803b-324b556cae74.png",
+    "sha256": "eb6058c2994095182b0a3a439ef865b7fe3eda1977f42d7762620fc7302c3c0d",
+    "runtimeBytes": 84570
+  },
+  {
+    "id": "pulse_celebrity",
+    "title": "Celebrity",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-057f8704-7b42-4930-87df-058b7c2ac014.png",
+    "sha256": "8cd8fbe4bf92fe28d03f1de602d0ec690210046d025b1cc761c1da1eb041105d",
+    "runtimeBytes": 102506
+  },
+  {
+    "id": "pulse_scandal_survivor",
+    "title": "Scandal Survivor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c17a22e6-ccbd-45a1-85c5-fa655b7cee28.png",
+    "sha256": "c392a9de3e1622312c77c5e9ef7eb703b4ed5a05aa1861e8e466285aaec34194",
+    "runtimeBytes": 64470
+  },
+  {
+    "id": "pulse_unbreakable",
+    "title": "Unbreakable",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cf992a1d-e17f-44b7-a146-a8116e974663.png",
+    "sha256": "caabf9295721da47ae2edee91bf9e7ea6b8febe1acd0a54158d7567366dde6b6",
+    "runtimeBytes": 69656
+  },
+  {
+    "id": "pulse_brand_ambassador",
+    "title": "Brand Ambassador",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-fa4b644b-fd30-4b52-b21c-ef464a9dc996.png",
+    "sha256": "16e7c555cb30abc353768c647ad9cf177dddad3b2a04351726bf274d2232a3f2",
+    "runtimeBytes": 68278
+  },
+  {
+    "id": "pulse_verified_pro_member",
+    "title": "Verified Pro",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-7393c8c7-b97e-41cf-b9d0-e8d41118c893.png",
+    "sha256": "e6987000e89eb4e43aafb6b30132a0343bfb45aa0de842aad9878a3a2feaac62",
+    "runtimeBytes": 53020
+  },
+  {
+    "id": "pulse_live_streamer",
+    "title": "Live Streamer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-9f3200a6-8f84-4c51-888b-70d41a2dabd9.png",
+    "sha256": "e600a22f84f05e591ea2c94c6c0514aa98ed7a8511fec6797fd486a5a7373728",
+    "runtimeBytes": 83758
+  },
+  {
+    "id": "pulse_viral_century",
+    "title": "Viral Century",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c667c5cb-cc57-49f6-8755-2e4f4b379e7c.png",
+    "sha256": "9b6d714671b2927be26d8ded2980a8dc055ddd0654ad0289c5468f841a380c69",
+    "runtimeBytes": 154818
+  },
+  {
+    "id": "social_butterfly",
+    "title": "Social Butterfly",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-40843f84-9fcb-4db7-9cd8-af51bf1de53e.png",
+    "sha256": "4869069b48ed866272bcd65508cf318a23084edebde7ab94779fff9ae37c6cf6",
+    "runtimeBytes": 132220
+  },
+  {
+    "id": "social_celebrity",
+    "title": "Social Celebrity",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cd9ca7a2-f3f3-46a9-8b80-81a743db2b9e.png",
+    "sha256": "e30bc5629bcbd9cb5c0326f55030697d841b1a910f0f1ebc9781565cbbf758fa",
+    "runtimeBytes": 153538
+  },
+  {
+    "id": "social_dating_first_match",
+    "title": "First Match",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-6cd29c33-eda7-41bd-beac-a23528d5063a.png",
+    "sha256": "3264674bb7272a347dc1d6eb838244438090e00cda09a4d4567cb018e90861ac",
+    "runtimeBytes": 47896
+  },
+  {
+    "id": "social_dating_casanova",
+    "title": "Casanova",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-352d62d2-96b9-484a-a507-6fd3e32f1f4a.png",
+    "sha256": "e7b007c61ea1a5067c8e42363ed9402f47ae90e76a5055df70727db0bc176787",
+    "runtimeBytes": 94912
+  },
+  {
+    "id": "social_media_first_post",
+    "title": "First Post",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-20855d55-f354-46d1-91a2-2bc2e62a4639.png",
+    "sha256": "822b07f95f798b0a4732d459002306df66f9341171f410808dbbecc301105f85",
+    "runtimeBytes": 79040
+  },
+  {
+    "id": "social_media_influencer",
+    "title": "Social Media Influencer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-81191623-2fd6-4403-9f58-10c83998f3c4.png",
+    "sha256": "5c9153ec8534c336a72c215943bc5183016299ef7670848ca654b1096810edfd",
+    "runtimeBytes": 119772
+  },
+  {
+    "id": "social_media_celebrity",
+    "title": "Social Media Celebrity",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-8bf82ab5-53f4-4cde-af3a-73969f21639d.png",
+    "sha256": "f9bbee9f69a30cf690ca1be8d377cdb0e2e185cb2e9859f64ebeb311855303c8",
+    "runtimeBytes": 90380
+  },
+  {
+    "id": "social_media_viral",
+    "title": "Viral Sensation",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-33738c19-2125-45f2-9f0f-da6dda817166.png",
+    "sha256": "77e6f2ce5513de7d75f0e2e5a132c53bd854370ee5027aa1d1fdc43cb99c2f65",
+    "runtimeBytes": 92232
+  },
+  {
+    "id": "social_media_brand_deals",
+    "title": "Brand Ambassador",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-ec1d0835-e5bd-4578-a4bb-5505963e9ba6.png",
+    "sha256": "6f29510355cd00d67aaa9a87c98140d2593c4660c40df8adc08d7176c3548566",
+    "runtimeBytes": 79540
+  },
+  {
+    "id": "social_media_posts_milestone",
+    "title": "Content Creator",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c7a9c196-232f-47e4-b00c-fed5054b25f6.png",
+    "sha256": "12721cc64b229bf755dd32c52dd1b0c3c03fe2b2991c9607001fe4ce057e05e7",
+    "runtimeBytes": 78832
+  },
+  {
+    "id": "social_star",
+    "title": "Social Star",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c844efc8-4ffa-465e-bc66-d134587fefa4.png",
+    "sha256": "e0f24ad78db15636f40cda7c5b5635f377aa0f4d101bf8c48b3dcbaea71a9259",
+    "runtimeBytes": 122978
+  },
+  {
+    "id": "spark_first_swipe",
+    "title": "First Spark",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-c3bb3b4a-c094-45e0-9cef-eb4757a17cb1.png",
+    "sha256": "4f41c03906b90b5a4cd3d80abf2cdd0108c4abd308fca285e78f60e1a587b6a2",
+    "runtimeBytes": 62844
+  },
+  {
+    "id": "spark_first_match",
+    "title": "It's a Match",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-23e8ca7d-fdb6-4e99-b37a-7db4eff1027f.png",
+    "sha256": "8b46fef446e2adcab84e260a243dfdee061e1374b56748bfb5b5434d5e098205",
+    "runtimeBytes": 60158
+  },
+  {
+    "id": "spark_serial_swiper",
+    "title": "Serial Swiper",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-28944b4b-7d77-4e11-b7b2-decb490fa09f.png",
+    "sha256": "9cb8d61365fb29516f315a5440485d037fe871530532ac637fc6f1926ce2aea1",
+    "runtimeBytes": 59708
+  },
+  {
+    "id": "spark_heartbreaker",
+    "title": "Heartbreaker",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4dc4d600-9143-4746-966b-620f86b86213.png",
+    "sha256": "baf716544c7c2ebcdc4b7dfe9d3d9ce19fe0d784f8814c87c185d393755ec3b1",
+    "runtimeBytes": 84062
+  },
+  {
+    "id": "spark_super_liker",
+    "title": "Super Liker",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-82fb556c-6333-40f1-893b-284cdf024a70.png",
+    "sha256": "4ec49d904358d7f1bdddc84bff3b0fc8390995f66e6130abeb6733e9521ab6b7",
+    "runtimeBytes": 84426
+  },
+  {
+    "id": "spark_catfish_exposed",
+    "title": "Detective",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-09888926-c28b-4039-9126-aa0499c99ed7.png",
+    "sha256": "e8ae5fd96a0eef9eba5bc76f17d15c505b139360f495ed717a8f825367a60931",
+    "runtimeBytes": 104886
+  },
+  {
+    "id": "spark_plus_subscriber",
+    "title": "Spark Plus",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-23480038-a5a9-40bf-951f-f67d990636bf.png",
+    "sha256": "e7e5b8d9033696880f0232487e1dee6942d5d8a12277adf43b33e3f9984a6e28",
+    "runtimeBytes": 66912
+  },
+  {
+    "id": "spark_ultra_subscriber",
+    "title": "Spark Ultra",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-e176a904-f0f9-45b9-b4ba-d54e8cff00c1.png",
+    "sha256": "e1c14498648863a9de3bdc366abbc88e72be2ec8e336e81bf9a5c2b2d84655ef",
+    "runtimeBytes": 94536
+  },
+  {
+    "id": "spark_survivor",
+    "title": "Survivor",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-fc640600-933b-4420-9481-b13a21119c59.png",
+    "sha256": "35d0c14ec4263f7d0d4435d19be5c1da9c19e70d46d5f0ae82b9b96b1fc11b0d",
+    "runtimeBytes": 81486
+  },
+  {
+    "id": "spark_celebrity_dater",
+    "title": "Celebrity Dater",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-1fd299bd-acc6-4821-905e-2f27b3290e1f.png",
+    "sha256": "7f0c2235042d27b2e932203de06a6944af63cf768c993dbec2cedd3bd306fede",
+    "runtimeBytes": 107316
+  },
+  {
+    "id": "reputation_star",
+    "title": "Reputation Star",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-dcea6fa6-de33-462d-9a56-407199dd6e74.png",
+    "sha256": "df288d39523882d10e4d90b0726b0ffc4791243ee052ad1deebeb6d5fd4855fd",
+    "runtimeBytes": 141442
+  },
+  {
+    "id": "reputation_icon",
+    "title": "Reputation Icon",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-f2cc9046-5124-404c-a724-6eacb0bb7e18.png",
+    "sha256": "6e43bfae9cc22727bc5cd05d897d4ac02f72cad2efe5f452427a7e7fc562759e",
+    "runtimeBytes": 100932
+  },
+  {
+    "id": "reputation_legend",
+    "title": "Reputation Legend",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-2f112eed-3734-4d17-bac6-099265b7158c.png",
+    "sha256": "9773606662f945bde345e6cf00870808a615893b16b8363871c555e41e47bfef",
+    "runtimeBytes": 109918
+  },
+  {
+    "id": "reputation_mythic",
+    "title": "Reputation Mythic",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cf00f4e3-acd9-46aa-ae09-44c3482b077b.png",
+    "sha256": "3ef14520de538d5fee42c35d95a06d6aa6fa36a8611b8e215c6bf5114388939d",
+    "runtimeBytes": 100918
+  },
+  {
+    "id": "prestige_first",
+    "title": "First Prestige",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-f90aafae-f31d-4732-89c2-377942f382c6.png",
+    "sha256": "53afea6136e57f26cc77949e2ed8c215e688598626715192b557b66f3fbb6546",
+    "runtimeBytes": 116010
+  },
+  {
+    "id": "prestige_veteran",
+    "title": "Prestige Veteran",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0810b593-5df3-46a6-8e34-f6dec5eabe25.png",
+    "sha256": "7ede51aad653a0087b22d0a4ae3670a46e43d02798149cb271622b0f826613e7",
+    "runtimeBytes": 109376
+  },
+  {
+    "id": "prestige_legend",
+    "title": "Prestige Legend",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-7f54c263-dc19-43ff-9057-a26ca301b025.png",
+    "sha256": "1b1792c8b7a369507cd57657bace7e2fd12f63934bee141a6637093225f2c83c",
+    "runtimeBytes": 136256
+  },
+  {
+    "id": "prestige_generations",
+    "title": "Generational Wealth",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b5b9c9df-98e6-4e68-b04f-9253a2d64f17.png",
+    "sha256": "f903dc6802c1faf023a9e0c0ad9d4aac62d582ba0e450924f085766fdb8e6e41",
+    "runtimeBytes": 163008
+  },
+  {
+    "id": "prestige_points_master",
+    "title": "Prestige Points Master",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-b40d7098-87f5-4542-a761-6544e2f010db.png",
+    "sha256": "bb604383b0194b130bfc2c7c7c33fe678cd722403cbf79a9a4e27f3496498d86",
+    "runtimeBytes": 126050
+  },
+  {
+    "id": "real_estate_tycoon",
+    "title": "Real Estate Tycoon",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4031528a-6f8d-4196-b044-04c68d550718.png",
+    "sha256": "934f12663c9ee76323bfaa09c19228e36fc8995466bef66066010c1607c77253",
+    "runtimeBytes": 106278
+  },
+  {
+    "id": "savings_million",
+    "title": "Savings Millionaire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-0ebfdbaf-83f3-4ba9-8072-43b7a15235b1.png",
+    "sha256": "58e468a7672822ac38d4d5aed7d1cc7233403abcab4e628d25021eb3cca85f14",
+    "runtimeBytes": 96792
+  },
+  {
+    "id": "savings_billion",
+    "title": "Savings Billionaire",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-aad97e95-39e0-4015-bbe3-46604f19d6e3.png",
+    "sha256": "787ef2e04767ff9fd62c6097910e319f868a736ce2c44e9daa3f99fa2734cbbf",
+    "runtimeBytes": 120646
+  },
+  {
+    "id": "first_million",
+    "title": "First Million",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-26f9af6a-0d83-48b2-a671-a0025bbc7fcd.png",
+    "sha256": "8996f42c79a849578e2fb5176c707ccf518fb28b84d28e64a848243d787175cf",
+    "runtimeBytes": 117468
+  },
+  {
+    "id": "debt_free",
+    "title": "Debt Free",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-4dcc6470-8c70-461f-9ecd-5abc7caabe1f.png",
+    "sha256": "0f1bd61abe4cc3af18298f587c9c586fb2427222776865652ad8c51ff7e6b8b9",
+    "runtimeBytes": 103786
+  },
+  {
+    "id": "luxury_life",
+    "title": "Luxury Life",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-79c6c6c5-d544-4fe4-9995-37c538763bb9.png",
+    "sha256": "b103f62164cdfd27c06f11d6aa4f918a76518d8cb0109dd9701a35e0a282e051",
+    "runtimeBytes": 109310
+  },
+  {
+    "id": "luxury_collector",
+    "title": "Connoisseur",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-da07cfaa-c2a3-443d-b0b8-d49f02ff8ca6.png",
+    "sha256": "c448738f6d9b885aa54be37023e72e0ebc81576050939cac940e38d1c700a6aa",
+    "runtimeBytes": 81380
+  },
+  {
+    "id": "luxury_magnate",
+    "title": "Trophy Cabinet",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-5852b8d5-bb97-454b-9cca-ecebab2396c0.png",
+    "sha256": "c70e6b304dd5948e0933de796df739be198cc0d4abe652efd39604a9522c039c",
+    "runtimeBytes": 119046
+  },
+  {
+    "id": "travel_passport",
+    "title": "Passport Holder",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-311748b7-4ce6-41ad-94b5-e00af1a7bf56.png",
+    "sha256": "827772e57caf46db16fef07af30df233dbee7ce58c34e326b700e591c4d70092",
+    "runtimeBytes": 113710
+  },
+  {
+    "id": "travel_first_trip",
+    "title": "First Voyage",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-319796ee-1a0a-4858-ace5-edc19da70709.png",
+    "sha256": "635b500f5441f6d41175b94c108b763651c6807b6db323acaf6992cc7ad81af9",
+    "runtimeBytes": 95514
+  },
+  {
+    "id": "travel_explorer",
+    "title": "World Explorer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-550a9182-37b6-41b3-a209-0ca5cec685ae.png",
+    "sha256": "c91111dff2e1d58e07447680596efd480c36e5c8238668be9dbf4e487b4b17a6",
+    "runtimeBytes": 108048
+  },
+  {
+    "id": "travel_globetrotter",
+    "title": "Globetrotter",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-43c541c6-d4de-4690-a081-ca9d69d4d16e.png",
+    "sha256": "b9272ab298360f9b081a779ae0b498ab6aef064413a85bf30a629a53719655e6",
+    "runtimeBytes": 118388
+  },
+  {
+    "id": "travel_frequent_flyer",
+    "title": "Frequent Flyer",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-9d0eb41a-9146-4b51-86ea-445d55426780.png",
+    "sha256": "a8dad69da74f9ebc2c3102603e908b941511b464c04f7efb67d90ecab1d67e4f",
+    "runtimeBytes": 80228
+  },
+  {
+    "id": "street_grinder",
+    "title": "Street Grinder",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-7bc5db09-3883-4c6f-8591-33d5699d2ed6.png",
+    "sha256": "bd2fe6b69ad64f420e00b77d9b56b469e572f672ea57ca8c78a0e65b7d83c903",
+    "runtimeBytes": 116238
+  },
+  {
+    "id": "street_legend",
+    "title": "Street Legend",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-dda02114-9c57-4db2-84fd-483b3c281614.png",
+    "sha256": "72a47d2e7db0a30ecc41f61c284337a2de09aafef3a1ddf7f8362dbca9c9dc84",
+    "runtimeBytes": 163982
+  },
+  {
+    "id": "street_myth",
+    "title": "Street Myth",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-db245bfb-3b76-4c06-b631-20f427c10a08.png",
+    "sha256": "653a02b83f4aa01c9aa2c28486cf64c6b4d22f98d9ffa92a92a8aa9e4fcedb33",
+    "runtimeBytes": 124384
+  },
+  {
+    "id": "hobby_master",
+    "title": "Master of the Craft",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-cd2376c9-d743-46ae-aa09-5a58bd4f77a3.png",
+    "sha256": "92dc3530a3fce4eefb161ce7b35006a9df935693952d11a5f28d2ed54a77d590",
+    "runtimeBytes": 124770
+  },
+  {
+    "id": "hobby_polymath",
+    "title": "Renaissance Soul",
+    "generator": "Built-in image generation",
+    "sourceFile": "exec-d5ad7b3f-89e4-445c-b6c1-2f4c48e0a24a.png",
+    "sha256": "5b6fc38f93bb7560d6ff2f640b157b73c6a56fd5bb5ea8512cd615bd458254dd",
+    "runtimeBytes": 101898
+  }
+]

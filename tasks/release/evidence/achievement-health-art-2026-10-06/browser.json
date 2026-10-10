@@ -1,0 +1,40 @@
+[
+  {
+    "width": 375,
+    "titles": [
+      "Fitness Champion",
+      "Fitness Guru",
+      "Fitness Deity",
+      "Joyful Life",
+      "Disease Survivor",
+      "Fully Vaccinated",
+      "Peak Condition",
+      "Near Death",
+      "Iron Will",
+      "Healthy Lifestyle",
+      "All Nighter"
+    ],
+    "loadedImages": 11,
+    "close": true,
+    "pageErrors": []
+  },
+  {
+    "width": 768,
+    "titles": [
+      "Fitness Champion",
+      "Fitness Guru",
+      "Fitness Deity",
+      "Joyful Life",
+      "Disease Survivor",
+      "Fully Vaccinated",
+      "Peak Condition",
+      "Near Death",
+      "Iron Will",
+      "Healthy Lifestyle",
+      "All Nighter"
+    ],
+    "loadedImages": 11,
+    "close": true,
+    "pageErrors": []
+  }
+]

@@ -1,0 +1,236 @@
+[
+  {
+    "id": "wealth_1m",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      46,
+      1192,
+      1224
+    ],
+    "runtimeBytes": 75038
+  },
+  {
+    "id": "wealth_10m",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1200,
+      1232
+    ],
+    "runtimeBytes": 64564
+  },
+  {
+    "id": "wealth_100m",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      45,
+      1230,
+      1254
+    ],
+    "runtimeBytes": 77134
+  },
+  {
+    "id": "wealth_1b",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      96,
+      89,
+      1200,
+      1246
+    ],
+    "runtimeBytes": 69834
+  },
+  {
+    "id": "wealth_10b",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      37,
+      1206,
+      1254
+    ],
+    "runtimeBytes": 76708
+  },
+  {
+    "id": "wealth_100b",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      33,
+      1192,
+      1246
+    ],
+    "runtimeBytes": 81654
+  },
+  {
+    "id": "career_promotion",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      23,
+      8,
+      1236,
+      1254
+    ],
+    "runtimeBytes": 64234
+  },
+  {
+    "id": "career_high_earner",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      65,
+      49,
+      1166,
+      1214
+    ],
+    "runtimeBytes": 67016
+  },
+  {
+    "id": "career_workaholic",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      19,
+      61,
+      1188,
+      1254
+    ],
+    "runtimeBytes": 80922
+  },
+  {
+    "id": "career_top_performer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      19,
+      1206,
+      1219
+    ],
+    "runtimeBytes": 72914
+  },
+  {
+    "id": "career_summit",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      2,
+      1224,
+      1254
+    ],
+    "runtimeBytes": 85128
+  },
+  {
+    "id": "celebrity_icon",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      25,
+      49,
+      1220,
+      1228
+    ],
+    "runtimeBytes": 60458
+  },
+  {
+    "id": "athletic_champion",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      29,
+      21,
+      1232,
+      1222
+    ],
+    "runtimeBytes": 78856
+  }
+]

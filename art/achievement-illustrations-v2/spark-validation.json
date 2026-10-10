@@ -1,0 +1,182 @@
+[
+  {
+    "id": "spark_first_swipe",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      37,
+      1223,
+      1198
+    ],
+    "runtimeBytes": 62844
+  },
+  {
+    "id": "spark_first_match",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 60158
+  },
+  {
+    "id": "spark_serial_swiper",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      25,
+      1240,
+      1237
+    ],
+    "runtimeBytes": 59708
+  },
+  {
+    "id": "spark_heartbreaker",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      40,
+      23,
+      1230,
+      1254
+    ],
+    "runtimeBytes": 84062
+  },
+  {
+    "id": "spark_super_liker",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1234,
+      1254
+    ],
+    "runtimeBytes": 84426
+  },
+  {
+    "id": "spark_catfish_exposed",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      23,
+      1214,
+      1254
+    ],
+    "runtimeBytes": 104886
+  },
+  {
+    "id": "spark_plus_subscriber",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      25,
+      1222,
+      1254
+    ],
+    "runtimeBytes": 66912
+  },
+  {
+    "id": "spark_ultra_subscriber",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      16,
+      1253,
+      1254
+    ],
+    "runtimeBytes": 94536
+  },
+  {
+    "id": "spark_survivor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      27,
+      17,
+      1252,
+      1254
+    ],
+    "runtimeBytes": 81486
+  },
+  {
+    "id": "spark_celebrity_dater",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      56,
+      1241,
+      1232
+    ],
+    "runtimeBytes": 107316
+  }
+]
