@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { colors, uiPalette } from '@/lib/config/theme';
 /**
  * GoalsCard - ONE answer to "what should I do next?".
  *
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     gap: rhythm.tight,
     paddingTop: rhythm.tight,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: colors.dark.border,
   },
   nextKicker: { ...kicker, color: uiPalette.lightMuted },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },

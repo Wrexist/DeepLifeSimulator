@@ -1,0 +1,266 @@
+{
+  "flame": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      259,
+      127,
+      765,
+      897
+    ],
+    "coverage": 0.751953125,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      264386
+    ],
+    "triangles": 6336,
+    "max_object_triangles": 2448,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "gem-stack": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      129,
+      222,
+      895,
+      802
+    ],
+    "coverage": 0.748046875,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      258273
+    ],
+    "triangles": 2100,
+    "max_object_triangles": 700,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "trophy": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      130,
+      188,
+      895,
+      836
+    ],
+    "coverage": 0.7470703125,
+    "center_error_px": 0.5,
+    "alpha_component_sizes": [
+      265257
+    ],
+    "triangles": 33012,
+    "max_object_triangles": 24576,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "briefcase-up": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      157,
+      128,
+      867,
+      896
+    ],
+    "coverage": 0.75,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      368174
+    ],
+    "triangles": 3752,
+    "max_object_triangles": 960,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "money-bag": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      235,
+      128,
+      789,
+      896
+    ],
+    "coverage": 0.75,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      261507
+    ],
+    "triangles": 19036,
+    "max_object_triangles": 3748,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "house-key": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      157,
+      134,
+      867,
+      890
+    ],
+    "coverage": 0.73828125,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      324881
+    ],
+    "triangles": 6220,
+    "max_object_triangles": 1216,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "rings": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      133,
+      204,
+      891,
+      819
+    ],
+    "coverage": 0.740234375,
+    "center_error_px": 0.5,
+    "alpha_component_sizes": [
+      226952
+    ],
+    "triangles": 5112,
+    "max_object_triangles": 1216,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "rattle": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      304,
+      129,
+      720,
+      896
+    ],
+    "coverage": 0.7490234375,
+    "center_error_px": 0.5,
+    "alpha_component_sizes": [
+      189211
+    ],
+    "triangles": 5792,
+    "max_object_triangles": 1216,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "crown": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      130,
+      130,
+      894,
+      895
+    ],
+    "coverage": 0.7470703125,
+    "center_error_px": 0.5,
+    "alpha_component_sizes": [
+      383527
+    ],
+    "triangles": 9740,
+    "max_object_triangles": 1216,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "heart": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      129,
+      138,
+      895,
+      886
+    ],
+    "coverage": 0.748046875,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      405135
+    ],
+    "triangles": 2304,
+    "max_object_triangles": 2304,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "grad-cap": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      125,
+      301,
+      900,
+      723
+    ],
+    "coverage": 0.7568359375,
+    "center_error_px": 0.5,
+    "alpha_component_sizes": [
+      193078
+    ],
+    "triangles": 6376,
+    "max_object_triangles": 1216,
+    "external_uris": [],
+    "glb_version": 2
+  },
+  "storefront": {
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGBA",
+    "alpha_bbox": [
+      129,
+      168,
+      895,
+      856
+    ],
+    "coverage": 0.748046875,
+    "center_error_px": 0.0,
+    "alpha_component_sizes": [
+      400361
+    ],
+    "triangles": 15744,
+    "max_object_triangles": 1216,
+    "external_uris": [],
+    "glb_version": 2
+  }
+}

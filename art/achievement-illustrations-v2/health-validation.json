@@ -1,0 +1,200 @@
+[
+  {
+    "id": "fitness_champ",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      19,
+      16,
+      1218,
+      1230
+    ],
+    "runtimeBytes": 48698
+  },
+  {
+    "id": "fitness_guru",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1213,
+      1254
+    ],
+    "runtimeBytes": 61554
+  },
+  {
+    "id": "fitness_deity",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      67,
+      43,
+      1146,
+      1232
+    ],
+    "runtimeBytes": 63076
+  },
+  {
+    "id": "joyful_life",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      11,
+      1230,
+      1254
+    ],
+    "runtimeBytes": 87452
+  },
+  {
+    "id": "health_disease_survivor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1232,
+      1254
+    ],
+    "runtimeBytes": 70050
+  },
+  {
+    "id": "health_vaccinated",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      8,
+      1224,
+      1254
+    ],
+    "runtimeBytes": 72258
+  },
+  {
+    "id": "health_peak_condition",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      33,
+      0,
+      1230,
+      1254
+    ],
+    "runtimeBytes": 64550
+  },
+  {
+    "id": "health_near_death",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      23,
+      1226,
+      1182
+    ],
+    "runtimeBytes": 67052
+  },
+  {
+    "id": "health_iron_will",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      31,
+      1236,
+      1254
+    ],
+    "runtimeBytes": 66208
+  },
+  {
+    "id": "healthy_lifestyle",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1226,
+      1158
+    ],
+    "runtimeBytes": 60342
+  },
+  {
+    "id": "fun_all_nighter",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      79,
+      1218,
+      1254
+    ],
+    "runtimeBytes": 61354
+  }
+]

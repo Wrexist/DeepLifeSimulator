@@ -1,0 +1,39 @@
+PASS __tests__/stress/achievementsFlow.stress.test.ts (6.012 s)
+  Achievement / Progress audit
+    √ Registry: every achievement has id, title, description, progressSpec, goldReward (50 ms)
+    √ All accessors handle a fresh state without throwing or returning NaN/Infinity (5 ms)
+    √ All accessors handle a fat populated state cleanly (2 ms)
+    √ All accessors survive a state where every optional collection is undefined (2 ms)
+    √ netWorth: returns finite + non-negative for fresh state (2 ms)
+    √ netWorth: returns finite + non-negative for fat state (1 ms)
+    √ netWorth: NaN inputs are sanitized (no NaN escape) (1 ms)
+    √ netWorth: extreme inputs near MAX_SAFE_INTEGER are clamped, not overflowed (1 ms)
+    √ evaluateAchievements: returns an array even for fresh state (1 ms)
+    √ evaluateAchievements: hides already-claimed achievements (1 ms)
+    √ claimProgressAchievement: grants gold reward + records claim (54 ms)
+    √ claimProgressAchievement: double-claim is a no-op (no double gold) (3 ms)
+    √ claimProgressAchievement: lifetimeStatistics.totalAchievementsUnlocked increments (2 ms)
+    √ claimProgressAchievement: first-ever claim stamps prestige.claimedAchievementIds (2 ms)
+    √ claimProgressAchievement: re-claim after prestige clears per-life claims does NOT re-mint gems (4 ms)
+    √ Counter accessor: beginner_triple_digits goal = 100 fires when money >= 100 (1 ms)
+    √ Counter accessor: beginner_survivor fires at exactly 4 weeks lived (1 ms)
+    √ Boolean accessor: beginner_connected fires when smartphone is owned (1 ms)
+    √ Cross: 50 nextWeek ticks with achievement counters stay finite (300 ms)
+    √ Invariant: claiming 5 achievements in a row keeps state JSON-safe (5 ms)
+
+PASS __tests__/progression/achievementStoreWiring.test.ts
+  no live surface decides anything from the dead achievement flag
+    √ has no `a.completed` filter over an achievements array outside tests (338 ms)
+  the surfaces that summarise a life read the live store
+    √ inheritance carries the achievements the player actually claimed (2 ms)
+    √ reports nothing for a player who genuinely has claimed nothing (1 ms)
+    √ is not fooled by the deprecated array being populated
+
+Test Suites: 2 passed, 2 total
+Tests:       24 passed, 24 total
+Snapshots:   0 total
+Time:        6.618 s, estimated 9 s
+Ran all test suites matching /achievementStoreWiring|achievementsFlow.stress/i.
+Test results written to: tasks\release\evidence\achievement-ui-2026-10-06\tests.json
+
+Exit: 0

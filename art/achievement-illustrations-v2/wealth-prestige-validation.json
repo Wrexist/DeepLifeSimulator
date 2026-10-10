@@ -1,0 +1,308 @@
+[
+  {
+    "id": "reputation_star",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1248,
+      1254
+    ],
+    "runtimeBytes": 141442
+  },
+  {
+    "id": "reputation_icon",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      13,
+      10,
+      1237,
+      1254
+    ],
+    "runtimeBytes": 100932
+  },
+  {
+    "id": "reputation_legend",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      29,
+      1240,
+      1235
+    ],
+    "runtimeBytes": 109918
+  },
+  {
+    "id": "reputation_mythic",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 100918
+  },
+  {
+    "id": "prestige_first",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      16,
+      1254,
+      1234
+    ],
+    "runtimeBytes": 116010
+  },
+  {
+    "id": "prestige_veteran",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      22,
+      1246,
+      1254
+    ],
+    "runtimeBytes": 109376
+  },
+  {
+    "id": "prestige_legend",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 136256
+  },
+  {
+    "id": "prestige_generations",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 163008
+  },
+  {
+    "id": "prestige_points_master",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1222,
+      1254
+    ],
+    "runtimeBytes": 126050
+  },
+  {
+    "id": "real_estate_tycoon",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 106278
+  },
+  {
+    "id": "savings_million",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 96792
+  },
+  {
+    "id": "savings_billion",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 120646
+  },
+  {
+    "id": "first_million",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1253,
+      1228
+    ],
+    "runtimeBytes": 117468
+  },
+  {
+    "id": "debt_free",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      19,
+      1244,
+      1238
+    ],
+    "runtimeBytes": 103786
+  },
+  {
+    "id": "luxury_life",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 109310
+  },
+  {
+    "id": "luxury_collector",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      21,
+      1208,
+      1254
+    ],
+    "runtimeBytes": 81380
+  },
+  {
+    "id": "luxury_magnate",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      3,
+      1244,
+      1254
+    ],
+    "runtimeBytes": 119046
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "width": 375,
+    "height": 667,
+    "choiceAndReveal": true,
+    "backRetainsProgress": true,
+    "scenarioToIdentity": true,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "choiceAndReveal": true,
+    "backRetainsProgress": true,
+    "scenarioToIdentity": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "choiceAndReveal": true,
+    "backRetainsProgress": true,
+    "scenarioToIdentity": true,
+    "errors": []
+  },
+  {
+    "skipToScenarios": true
+  }
+]

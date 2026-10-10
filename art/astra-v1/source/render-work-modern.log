@@ -1,0 +1,215 @@
+00:09.594  blend            | Read blend: "C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\proposals\grounded-work\grounded-work.blend"
+00:10.125  cycles           | WARNING HIPEW initialization failed: Error opening HIP dynamic library
+Info: Read library: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\shared-scene.blend', '//..\..\blend\shared-scene.blend', parent '<direct>'
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+22:42:38 | INFO: Starting glTF 2.0 export
+22:42:39 | INFO: Extracting primitive: Cube.095
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.098
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.009
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.008
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.093
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.097
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.096
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.094
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.092
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.099
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.100
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.101
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.102
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.103
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.104
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.105
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.010
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.011
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.012
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.013
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.014
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.015
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.016
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.017
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.018
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.019
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.020
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.021
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.022
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.023
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.024
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.025
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.026
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.027
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.028
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.029
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.060
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.061
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.062
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.063
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.064
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.065
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.066
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.067
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.068
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.069
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.070
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.071
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.072
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.073
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.074
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.075
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.076
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.077
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.078
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.079
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.080
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.081
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.082
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.083
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.084
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.085
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.086
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.087
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.088
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.089
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.090
+22:42:39 | INFO: Primitives created: 1
+22:42:39 | INFO: Extracting primitive: Cube.091
+22:42:39 | INFO: Primitives created: 1
+22:42:40 | INFO: Finished glTF 2.0 export in 1.0635976791381836 s
+00:24.813  render           | Saved: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\work-modern\work-office-modern.png'
+00:24.860  blend            | Read blend: "C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\proposals\grounded-work\grounded-work.blend"
+
+Info: Saved as "work-office-modern.blend"
+Info: Total files 1 | Changed 0 | Failed 0
+Info: Saved as "work-office-modern.blend"
+Info: Read library: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\shared-scene.blend', '//..\..\blend\shared-scene.blend', parent '<direct>'
+22:42:49 | INFO: Starting glTF 2.0 export
+22:42:49 | INFO: Extracting primitive: Cylinder.002
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.036
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cylinder
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cylinder.001
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.035
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.037
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cylinder.003
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.030
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.033
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.034
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.031
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Extracting primitive: Cube.032
+22:42:49 | INFO: Primitives created: 1
+22:42:49 | INFO: Finished glTF 2.0 export in 0.08551287651062012 s
+00:33.891  render           | Saved: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\work-modern\work-food-modern.png'
+00:33.938  blend            | Read blend: "C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\proposals\grounded-work\grounded-work.blend"
+
+Info: Saved as "work-food-modern.blend"
+Info: Total files 1 | Changed 0 | Failed 0
+Info: Saved as "work-food-modern.blend"
+Info: Read library: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\shared-scene.blend', '//..\..\blend\shared-scene.blend', parent '<direct>'
+22:42:58 | INFO: Starting glTF 2.0 export
+22:42:58 | INFO: Extracting primitive: Cube.030
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cube.035
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cube.031
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cube.034
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cube.032
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cube.033
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cylinder.001
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cube.036
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Extracting primitive: Cylinder
+22:42:58 | INFO: Primitives created: 1
+22:42:58 | INFO: Finished glTF 2.0 export in 0.04453539848327637 s
+00:40.453  render           | Saved: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\work-modern\work-study-modern.png'
+
+Info: Saved as "work-study-modern.blend"
+Info: Total files 1 | Changed 0 | Failed 0
+Info: Saved as "work-study-modern.blend"
+WORK_MODERN_COMPLETE
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+
+Blender quit
+
+helpers:54: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+helpers:54: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0

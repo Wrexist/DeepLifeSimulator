@@ -42,6 +42,7 @@ import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import ImageScrim from '@/components/ui/ImageScrim';
+import { perkArtwork, mindsetArtwork } from '@/lib/config/entryArtwork';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 import { useStartLife } from '@/src/features/onboarding/useStartLife';
@@ -159,8 +160,7 @@ const PerkCard = React.memo(function PerkCard({
               which blacked out over half of every illustration behind a hard
               horizontal edge. */}
           <View style={styles.heroWrap}>
-            <Image source={perk.icon} style={styles.heroImage} resizeMode="cover" />
-            <ImageScrim height={0.42} strength={0.72} />
+            {perkArtwork[perk.id] ? <View style={styles.groundedArtwork}><Image source={perkArtwork[perk.id]} style={styles.heroImage} resizeMode="contain" /><ImageScrim height={0.28} strength={0.55} /></View> : <><Image source={perk.icon} style={styles.heroImage} resizeMode="cover" /><ImageScrim height={0.42} strength={0.72} /></>}
             {isPermanent ? (
               <View style={styles.permanentPill}>
                 <Text style={styles.permanentPillText}>PERMANENT</Text>
@@ -284,8 +284,7 @@ const MindsetCard = React.memo(function MindsetCard({
           {/* Hero symbol - the mindset's glowing icon, full-bleed with a scrim
               to match the perk cards; the purple accent marks the category. */}
           <View style={styles.heroWrap}>
-            <Image source={trait.icon} style={styles.heroImage} resizeMode="cover" />
-            <ImageScrim height={0.42} strength={0.72} />
+            {mindsetArtwork[trait.id] ? <View style={styles.groundedArtwork}><Image source={mindsetArtwork[trait.id]} style={styles.heroImage} resizeMode="contain" /><ImageScrim height={0.28} strength={0.55} /></View> : <><Image source={trait.icon} style={styles.heroImage} resizeMode="cover" /><ImageScrim height={0.42} strength={0.72} /></>}
             {isRecommended ? (
               <View style={[styles.recommendedPill, styles.recommendedPillPurple]}>
                 <Star size={11} color="#A78BFA" />
@@ -458,7 +457,7 @@ export default function Perks() {
   );
 
   return (
-    <OnboardingScreenShellV2 showParticles floatingButton={floatingStartButton}>
+    <OnboardingScreenShellV2 quiet floatingButton={floatingStartButton}>
         <OnboardingGlassHeader
           title="Choose Perks"
           onBack={handleBack}
@@ -739,6 +738,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  groundedArtwork: {
+    position: 'absolute', top: 8, bottom: 40, left: 16, right: 16, overflow: 'hidden',
+  },
   // (the flat `heroScrim` band is gone - see ImageScrim in the heroes above)
   heroTitleRow: {
     position: 'absolute',
@@ -812,7 +814,7 @@ const styles = StyleSheet.create({
     color: uiPalette.secondary,
     lineHeight: fontScale(16),
   },
-  lockedPerkCard: { opacity: 0.6 },
+  lockedPerkCard: { opacity: 1 },
   lockedPerkTitle: { color: uiPalette.muted },
   lockedPerkDescription: { color: uiPalette.muted },
 

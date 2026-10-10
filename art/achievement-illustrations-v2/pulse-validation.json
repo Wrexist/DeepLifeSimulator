@@ -1,0 +1,200 @@
+[
+  {
+    "id": "pulse_first_viral_post",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      35,
+      1244,
+      1254
+    ],
+    "runtimeBytes": 94646
+  },
+  {
+    "id": "pulse_rising_star",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1208,
+      1236
+    ],
+    "runtimeBytes": 85928
+  },
+  {
+    "id": "pulse_popular",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      37,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 91346
+  },
+  {
+    "id": "pulse_influencer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      13,
+      1238,
+      1228
+    ],
+    "runtimeBytes": 84570
+  },
+  {
+    "id": "pulse_celebrity",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      15,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 102506
+  },
+  {
+    "id": "pulse_scandal_survivor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      7,
+      1209,
+      1254
+    ],
+    "runtimeBytes": 64470
+  },
+  {
+    "id": "pulse_unbreakable",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      23,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 69656
+  },
+  {
+    "id": "pulse_brand_ambassador",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      19,
+      1248,
+      1254
+    ],
+    "runtimeBytes": 68278
+  },
+  {
+    "id": "pulse_verified_pro_member",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      15,
+      1232,
+      1238
+    ],
+    "runtimeBytes": 53020
+  },
+  {
+    "id": "pulse_live_streamer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      30,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 83758
+  },
+  {
+    "id": "pulse_viral_century",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      3,
+      1251,
+      1254
+    ],
+    "runtimeBytes": 154818
+  }
+]

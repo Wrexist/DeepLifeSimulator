@@ -35,6 +35,7 @@ import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import ImageScrim from '@/components/ui/ImageScrim';
+import { entryArtwork, challengeArtwork } from '@/lib/config/entryArtwork';
 import {
   getDifficultyColor,
   getDifficultyLabel,
@@ -201,6 +202,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   onSelect,
 }: ScenarioCardViewProps) {
   const isChallenge = 'isChallenge' in scenario && scenario.isChallenge;
+  const groundedArt = (isChallenge ? challengeArtwork : entryArtwork)[scenario.id];
   const isRecommended = !isChallenge && scenario.id === RECOMMENDED_SCENARIO_ID;
   const rewardGems = isChallenge ? scenario.rewardGems : 0;
   const difficultyBadgeColor = isChallenge
@@ -240,8 +242,15 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
               the bottom 55%, which blacked out over half of every painting
               behind a hard horizontal edge. */}
           <View style={styles.heroWrap}>
-            <Image source={scenario.icon} style={styles.heroImage} resizeMode="cover" />
-            <ImageScrim height={0.42} strength={0.72} />
+            {groundedArt ? (
+              <View style={styles.groundedHeroImage}>
+                <Image source={groundedArt} style={styles.heroImage} resizeMode="contain" />
+                <ImageScrim height={0.28} strength={0.55} />
+              </View>
+            ) : <>
+              <Image source={scenario.icon} style={styles.heroImage} resizeMode="cover" />
+              <ImageScrim height={0.42} strength={0.72} />
+            </>}
             {isRecommended ? (
               <View style={styles.recommendedPill}>
                 <Star size={11} color={uiPalette.blue} />
@@ -471,7 +480,7 @@ export default function Scenarios() {
   };
 
   return (
-    <OnboardingScreenShellV2
+    <OnboardingScreenShellV2 quiet
       floatingButton={
         <OnboardingFloatingButton
           title="Continue To Identity"
@@ -697,6 +706,14 @@ const styles = StyleSheet.create({
   heroImage: {
     width: '100%',
     height: '100%',
+  },
+  groundedHeroImage: {
+    position: 'absolute',
+    top: scale(8),
+    bottom: scale(40),
+    left: scale(16),
+    right: scale(16),
+    overflow: 'hidden',
   },
   // (the flat `heroScrim` band is gone - see ImageScrim in the hero above)
   heroTitleRow: {

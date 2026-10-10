@@ -1,0 +1,22 @@
+{
+  "contacts-modern": {
+    "runtime_bytes": 15158,
+    "sha256": "20fbc216bb9ef59ff43db781bdf5debcf88399824ea254043b0b2ac7d5c6bfab",
+    "bbox": [
+      82,
+      208,
+      942,
+      560
+    ]
+  },
+  "health-modern": {
+    "runtime_bytes": 11666,
+    "sha256": "2ca2f25acacddb6641a5c6f29a425caf8eab150addd81e114c781f03e31bc1c0",
+    "bbox": [
+      226,
+      65,
+      798,
+      703
+    ]
+  }
+}

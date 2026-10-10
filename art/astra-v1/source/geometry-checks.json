@@ -1,0 +1,167 @@
+{
+  "flame": {
+    "triangles": 6336,
+    "objects": {
+      "Coral outer flame": 2448,
+      "Orange middle flame": 2448,
+      "Warm yellow core": 1440
+    }
+  },
+  "gem-stack": {
+    "triangles": 2100,
+    "objects": {
+      "Left violet gem": 700,
+      "Right blue violet gem": 700,
+      "Front indigo gem": 700
+    }
+  },
+  "trophy": {
+    "triangles": 33012,
+    "objects": {
+      "Hollow rounded trophy cup": 24576,
+      "Left rounded handle": 2304,
+      "Right rounded handle": 2304,
+      "Stem": 1276,
+      "Upper round plinth": 1276,
+      "Lower round plinth": 1276
+    }
+  },
+  "briefcase-up": {
+    "triangles": 3752,
+    "objects": {
+      "Rounded leather briefcase": 300,
+      "Briefcase front flap": 300,
+      "Leather carry handle": 960,
+      "Gold clasp": 300,
+      "Leather reinforced strap": 300,
+      "Leather reinforced strap.001": 300,
+      "Promotion green badge": 764,
+      "Up arrow shape": 528
+    }
+  },
+  "money-bag": {
+    "triangles": 19036,
+    "objects": {
+      "Plump green sack": 1216,
+      "Gathered sack neck": 1216,
+      "Gathered cloth lobe 0": 1216,
+      "Gathered cloth lobe 1": 1216,
+      "Gathered cloth lobe 2": 1216,
+      "Gathered cloth lobe 3": 1216,
+      "Gathered cloth lobe 4": 1216,
+      "Gold neck rope": 1152,
+      "Gold neck rope.001": 1152,
+      "Gold rope loose end": 640,
+      "Embossed dollar": 3748,
+      "Left coin": 764,
+      "Left coin rim": 1152,
+      "Right coin": 764,
+      "Right coin rim": 1152
+    }
+  },
+  "house-key": {
+    "triangles": 6220,
+    "objects": {
+      "Cream house": 300,
+      "Terracotta pitched roof": 224,
+      "Front door": 300,
+      "Round window gold surround": 764,
+      "Round warm window": 764,
+      "Round window cross vertical": 300,
+      "Round window cross horizontal": 300,
+      "Door knob": 1216,
+      "Key bow": 1152,
+      "Key shaft": 300,
+      "Key tooth": 300,
+      "Key tooth.001": 300
+    }
+  },
+  "rings": {
+    "triangles": 5112,
+    "objects": {
+      "Left wedding band": 1152,
+      "Diamond wedding band": 1152,
+      "Diamond pavilion": 188,
+      "Diamond crown": 188,
+      "Soft gold diamond prong": 1216,
+      "Soft gold diamond prong.001": 1216
+    }
+  },
+  "rattle": {
+    "triangles": 5792,
+    "objects": {
+      "Mint grip ring": 1152,
+      "Mint rattle handle": 300,
+      "Lilac rattle head": 1216,
+      "Cream head equator": 1152,
+      "Cream head front": 1216,
+      "Soft lilac star": 756
+    }
+  },
+  "crown": {
+    "triangles": 9740,
+    "objects": {
+      "Gold crown band": 764,
+      "Three rounded crown points": 528,
+      "Red crown tip gem": 1216,
+      "Red crown tip gem.001": 1216,
+      "Red crown tip gem.002": 1216,
+      "Blue band jewel": 1216,
+      "Blue band jewel.001": 1216,
+      "Blue band jewel.002": 1216,
+      "Rounded crown lower rim": 1152
+    }
+  },
+  "heart": {
+    "triangles": 2304,
+    "objects": {
+      "Inflated pink red heart": 2304
+    }
+  },
+  "grad-cap": {
+    "triangles": 6376,
+    "objects": {
+      "Rounded cap skull": 764,
+      "Square mortarboard": 300,
+      "Gold tassel button": 1216,
+      "Gold tassel cord": 960,
+      "Tassel knot": 1216,
+      "Tassel strand 0": 320,
+      "Tassel strand 1": 320,
+      "Tassel strand 2": 320,
+      "Tassel strand 3": 320,
+      "Tassel strand 4": 320,
+      "Tassel strand 5": 320
+    }
+  },
+  "storefront": {
+    "triangles": 15744,
+    "objects": {
+      "Cream shop building": 300,
+      "Blue shop cornice": 300,
+      "Blue door surround": 300,
+      "Door glass": 300,
+      "Gold shop door knob": 1216,
+      "Blue window surround": 300,
+      "Glowing shop window": 300,
+      "Window center mullion": 300,
+      "Awning stripe 0": 300,
+      "Scalloped awning edge 0": 1216,
+      "Awning stripe 1": 300,
+      "Scalloped awning edge 1": 1216,
+      "Awning stripe 2": 300,
+      "Scalloped awning edge 2": 1216,
+      "Awning stripe 3": 300,
+      "Scalloped awning edge 3": 1216,
+      "Awning stripe 4": 300,
+      "Scalloped awning edge 4": 1216,
+      "Awning stripe 5": 300,
+      "Scalloped awning edge 5": 1216,
+      "Awning stripe 6": 300,
+      "Scalloped awning edge 6": 1216,
+      "Awning stripe 7": 300,
+      "Scalloped awning edge 7": 1216,
+      "Cream shop doorstep": 300
+    }
+  }
+}

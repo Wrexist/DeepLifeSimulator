@@ -1,0 +1,200 @@
+[
+  {
+    "id": "get_married",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      23,
+      49,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 64206
+  },
+  {
+    "id": "first_child",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      14,
+      1232,
+      1232
+    ],
+    "runtimeBytes": 90686
+  },
+  {
+    "id": "family_builder",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 94384
+  },
+  {
+    "id": "family_empire",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      33,
+      1241,
+      1254
+    ],
+    "runtimeBytes": 105302
+  },
+  {
+    "id": "relationship_soulmate",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      48,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 87740
+  },
+  {
+    "id": "relationship_big_family",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1244,
+      1254
+    ],
+    "runtimeBytes": 115878
+  },
+  {
+    "id": "relationship_cohabitation",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      72,
+      36,
+      1240,
+      1238
+    ],
+    "runtimeBytes": 77460
+  },
+  {
+    "id": "relationship_serial_dater",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      29,
+      1228,
+      1254
+    ],
+    "runtimeBytes": 82776
+  },
+  {
+    "id": "relationship_social_network",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      27,
+      1253,
+      1254
+    ],
+    "runtimeBytes": 119848
+  },
+  {
+    "id": "parenting_devoted",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      33,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 107948
+  },
+  {
+    "id": "parenting_heir",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1253,
+      1226
+    ],
+    "runtimeBytes": 101638
+  }
+]

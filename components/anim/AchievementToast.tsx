@@ -175,10 +175,10 @@ export default function AchievementToast() {
       ]}
     >
       <LinearGradient
-        colors={[categoryColor, categoryColor + 'DD']}
+        colors={[uiPalette.surface, uiPalette.surface]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.background}
+        style={[styles.background, { borderWidth: 1, borderColor: categoryColor }]}
       />
 
       <View style={styles.content}>

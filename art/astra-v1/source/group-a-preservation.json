@@ -1,0 +1,29 @@
+{
+  "unchanged": true,
+  "sha256": {
+    "icons\\briefcase-up.glb": "a113756e08e66ec0fdbb21e0010a8d443389e18e02946e6ce6258cb60f3fad9a",
+    "icons\\briefcase-up.png": "ca3cef96997d6c576dc7eab7c534a81bf5ac49dd1ed4264be66505b0ac4b1885",
+    "icons\\crown.glb": "efe636733164ceec2df27660b1d1da359e4e6aba4fc3cca6da1a362045f0c339",
+    "icons\\crown.png": "f0b9d81696aea94c91ce9da419e707af6ab9bfce537481701bdf426cdfc367a9",
+    "icons\\flame.glb": "452a2ddae0e9285de07582e5250b4d15e22bdeddbe25c66898e4c8d87efda96b",
+    "icons\\flame.png": "92309ba71d71c62e94f78f404c19aa6321bc37ec2809023d79b2bdfa54910bd5",
+    "icons\\gem-stack.glb": "e94239a48b59110f371fea875293ca120e0fb827ee38affc8fe7e2448cf883f4",
+    "icons\\gem-stack.png": "7cb52b9ff1b31967063c0f674b8c351ec121205847b7b1f27c29c74b83d62c7f",
+    "icons\\grad-cap.glb": "58d0920867088e3545b8b00c83e43f2d45ac605e2a7ee19d7885aaf79fcf830a",
+    "icons\\grad-cap.png": "f6b71ab3040555ee6bc425aadf121bd8fa3587af3652682a3e4ce58127999886",
+    "icons\\heart.glb": "cafe3f0ded67ccb10bdc429d1b32eedcfb75328dabd1c60c8684b62f37a440d8",
+    "icons\\heart.png": "7d0c5c02f5b01921eb44b85de6de94dfe8edd46e81f766755d815faccab907be",
+    "icons\\house-key.glb": "05eff377bd6efc41ec9d4572480688d638e569b992cb9cff21b7566801e6dab9",
+    "icons\\house-key.png": "89458902a5983645cbb4ccdf71c058fd7cb9b8a6ab89ebe1565a4d47b0f7e8f2",
+    "icons\\money-bag.glb": "c136041b200591d1b87a1b8ff7f2c4a713a5f54f3f1d498bd83f2a57555e4438",
+    "icons\\money-bag.png": "2c451ba9986f9d555bb3d04259a4da0ec1f598315675cc83070ff09abc11457a",
+    "icons\\rattle.glb": "e9862ac711453fa808a123b8ea764046496091498857cfc974c0389d51b16cd7",
+    "icons\\rattle.png": "75d3fbaa6588d5cafe38693be48fbd950292dcd41d5af2ddb89b163199cd565e",
+    "icons\\rings.glb": "e1ac1556dc604fb67e0f6bef5ca259a184d56c9b29172f05013246f7e4bcc32e",
+    "icons\\rings.png": "d3355e74b809cfab2717995c5f2376785031573264efbe846330f20659503ae2",
+    "icons\\storefront.glb": "a54e2f9f2b1df8debfb7e1687421608fd6107a23206ed5302abf3f5cbb309ad8",
+    "icons\\storefront.png": "c37d52c86a1f1c605c5ddf5fcccd2c8c6f49746ce971aed29ba7c057e3ce2ccb",
+    "icons\\trophy.glb": "f31bb69f18080e1c412b9659739567feacb8d6e6d345471beef9ae3205dc1b65",
+    "icons\\trophy.png": "7f3a14bd816136067024ae987ce81aad689f651ef14b0d64cfb03ab8bc16c11b"
+  }
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>DeepLife — Your next chapter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="prototype-label">DeepLife · interactive direction preview</div>
+  <div class="app">
+    <div class="city" aria-hidden="true"></div>
+    <header>
+      <button id="back" class="quiet back" aria-label="Previous chapter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12"/></svg></button>
+      <a class="brand" href="./index.html" aria-label="Restart DeepLife preview"><img class="brand-icon" src="../../../../assets/images/icon.png" alt="">DEEP LIFE</a>
+      <button id="skip" class="quiet">Skip</button>
+    </header>
+    <nav class="progress" aria-label="Intro chapters">
+      <button aria-label="Chapter 1: Your direction" data-step="0"><span></span></button>
+      <button aria-label="Chapter 2: Your week" data-step="1"><span></span></button>
+      <button aria-label="Chapter 3: Your legacy" data-step="2"><span></span></button>
+    </nav>
+    <main id="chapter" tabindex="-1"></main>
+    <footer>
+      <button id="next" class="primary"></button>
+      <p id="footer-note">A glimpse of the game. Your real life starts after setup.</p>
+    </footer>
+  </div>
+  <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <script src="preview.js"></script>
+</body>
+</html>

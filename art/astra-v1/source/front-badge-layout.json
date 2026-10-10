@@ -1,0 +1,74 @@
+{
+  "badge-bronze": {
+    "face_bounds_normalized": [
+      0.1872788816690445,
+      0.19709396362304688,
+      0.8127211928367615,
+      0.7926243245601654
+    ],
+    "face_backing_width_ratio": 0.8151697559161883,
+    "label_anchor": [
+      0.5,
+      0.407
+    ],
+    "number_anchor": [
+      0.5,
+      0.525
+    ],
+    "text_is_preview_only": true
+  },
+  "badge-silver": {
+    "face_bounds_normalized": [
+      0.1872788816690445,
+      0.19709396362304688,
+      0.8127211928367615,
+      0.7926243245601654
+    ],
+    "face_backing_width_ratio": 0.8151697559161883,
+    "label_anchor": [
+      0.5,
+      0.407
+    ],
+    "number_anchor": [
+      0.5,
+      0.525
+    ],
+    "text_is_preview_only": true
+  },
+  "badge-gold": {
+    "face_bounds_normalized": [
+      0.1872788816690445,
+      0.19709396362304688,
+      0.8127211928367615,
+      0.7926243245601654
+    ],
+    "face_backing_width_ratio": 0.8151697559161883,
+    "label_anchor": [
+      0.5,
+      0.407
+    ],
+    "number_anchor": [
+      0.5,
+      0.525
+    ],
+    "text_is_preview_only": true
+  },
+  "badge-platinum": {
+    "face_bounds_normalized": [
+      0.1872788816690445,
+      0.19709396362304688,
+      0.8127211928367615,
+      0.7926243245601654
+    ],
+    "face_backing_width_ratio": 0.8151697559161883,
+    "label_anchor": [
+      0.5,
+      0.407
+    ],
+    "number_anchor": [
+      0.5,
+      0.525
+    ],
+    "text_is_preview_only": true
+  }
+}

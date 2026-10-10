@@ -1,0 +1,16 @@
+[
+  {
+    "width": 375,
+    "scenarioToPerks": true,
+    "mindsetSelection": true,
+    "emptySlotSelection": true,
+    "errors": []
+  },
+  {
+    "width": 768,
+    "scenarioToPerks": true,
+    "mindsetSelection": true,
+    "emptySlotSelection": true,
+    "errors": []
+  }
+]

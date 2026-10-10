@@ -1,0 +1,126 @@
+{
+  "flame-1": {
+    "triangles": 6336,
+    "objects": {
+      "Coral outer flame.001": 2448,
+      "Orange middle flame.001": 2448,
+      "Warm yellow core.001": 1440
+    }
+  },
+  "flame-2": {
+    "triangles": 6336,
+    "objects": {
+      "Coral outer flame.002": 2448,
+      "Orange middle flame.002": 2448,
+      "Warm yellow core.002": 1440
+    }
+  },
+  "flame-3": {
+    "triangles": 10992,
+    "objects": {
+      "Coral outer flame.003": 2448,
+      "Orange middle flame.003": 2448,
+      "Warm yellow core.003": 1440,
+      "Extra blazing flick": 1008,
+      "Floating ember 1": 1216,
+      "Floating ember 2": 1216,
+      "Floating ember 3": 1216
+    }
+  },
+  "trophy-bronze": {
+    "triangles": 33012,
+    "objects": {
+      "Hollow rounded trophy cup.001": 24576,
+      "Left rounded handle.001": 2304,
+      "Right rounded handle.001": 2304,
+      "Stem.001": 1276,
+      "Upper round plinth.001": 1276,
+      "Lower round plinth.001": 1276
+    }
+  },
+  "trophy-silver": {
+    "triangles": 33012,
+    "objects": {
+      "Hollow rounded trophy cup.002": 24576,
+      "Left rounded handle.002": 2304,
+      "Right rounded handle.002": 2304,
+      "Stem.002": 1276,
+      "Upper round plinth.002": 1276,
+      "Lower round plinth.002": 1276
+    }
+  },
+  "trophy-gold": {
+    "triangles": 33012,
+    "objects": {
+      "Hollow rounded trophy cup.003": 24576,
+      "Left rounded handle.003": 2304,
+      "Right rounded handle.003": 2304,
+      "Stem.003": 1276,
+      "Upper round plinth.003": 1276,
+      "Lower round plinth.003": 1276
+    }
+  },
+  "badge-bronze": {
+    "triangles": 752,
+    "objects": {
+      "Rounded pentagon backing badge-bronze": 376,
+      "Empty smooth face badge-bronze": 376
+    }
+  },
+  "badge-silver": {
+    "triangles": 752,
+    "objects": {
+      "Rounded pentagon backing badge-silver": 376,
+      "Empty smooth face badge-silver": 376
+    }
+  },
+  "badge-gold": {
+    "triangles": 752,
+    "objects": {
+      "Rounded pentagon backing badge-gold": 376,
+      "Empty smooth face badge-gold": 376
+    }
+  },
+  "badge-platinum": {
+    "triangles": 752,
+    "objects": {
+      "Rounded pentagon backing badge-platinum": 376,
+      "Empty smooth face badge-platinum": 376
+    }
+  },
+  "laurel": {
+    "triangles": 37888,
+    "objects": {
+      "Left laurel branch": 1920,
+      "Left leaf 0--1": 1216,
+      "Left leaf 0-1": 1216,
+      "Left leaf 1--1": 1216,
+      "Left leaf 1-1": 1216,
+      "Left leaf 2--1": 1216,
+      "Left leaf 2-1": 1216,
+      "Left leaf 3--1": 1216,
+      "Left leaf 3-1": 1216,
+      "Left leaf 4--1": 1216,
+      "Left leaf 4-1": 1216,
+      "Left leaf 5--1": 1216,
+      "Left leaf 5-1": 1216,
+      "Left leaf 6--1": 1216,
+      "Left leaf 6-1": 1216,
+      "Right laurel branch": 1920,
+      "Right leaf 0--1": 1216,
+      "Right leaf 0-1": 1216,
+      "Right leaf 1--1": 1216,
+      "Right leaf 1-1": 1216,
+      "Right leaf 2--1": 1216,
+      "Right leaf 2-1": 1216,
+      "Right leaf 3--1": 1216,
+      "Right leaf 3-1": 1216,
+      "Right leaf 4--1": 1216,
+      "Right leaf 4-1": 1216,
+      "Right leaf 5--1": 1216,
+      "Right leaf 5-1": 1216,
+      "Right leaf 6--1": 1216,
+      "Right leaf 6-1": 1216
+    }
+  }
+}

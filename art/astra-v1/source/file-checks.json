@@ -1,0 +1,65 @@
+{
+  "flame": {
+    "alpha_component_sizes": [
+      264386
+    ],
+    "rgba": "RGBA",
+    "size": [
+      1024,
+      1024
+    ],
+    "alpha_bbox": [
+      259,
+      127,
+      765,
+      897
+    ],
+    "frame_coverage": 0.751953125,
+    "corner_alpha": 0,
+    "glb_version": 2,
+    "glb_length_valid": true,
+    "external_uris": []
+  },
+  "gem-stack": {
+    "alpha_component_sizes": [
+      258273
+    ],
+    "rgba": "RGBA",
+    "size": [
+      1024,
+      1024
+    ],
+    "alpha_bbox": [
+      129,
+      222,
+      895,
+      802
+    ],
+    "frame_coverage": 0.748046875,
+    "corner_alpha": 0,
+    "glb_version": 2,
+    "glb_length_valid": true,
+    "external_uris": []
+  },
+  "trophy": {
+    "alpha_component_sizes": [
+      265257
+    ],
+    "rgba": "RGBA",
+    "size": [
+      1024,
+      1024
+    ],
+    "alpha_bbox": [
+      130,
+      188,
+      895,
+      836
+    ],
+    "frame_coverage": 0.7470703125,
+    "corner_alpha": 0,
+    "glb_version": 2,
+    "glb_length_valid": true,
+    "external_uris": []
+  }
+}

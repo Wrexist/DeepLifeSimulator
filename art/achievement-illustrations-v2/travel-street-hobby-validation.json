@@ -1,0 +1,182 @@
+[
+  {
+    "id": "travel_passport",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1253,
+      1254
+    ],
+    "runtimeBytes": 113710
+  },
+  {
+    "id": "travel_first_trip",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1253,
+      1254
+    ],
+    "runtimeBytes": 95514
+  },
+  {
+    "id": "travel_explorer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 108048
+  },
+  {
+    "id": "travel_globetrotter",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      15,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 118388
+  },
+  {
+    "id": "travel_frequent_flyer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      21,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 80228
+  },
+  {
+    "id": "street_grinder",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 116238
+  },
+  {
+    "id": "street_legend",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      7,
+      1254,
+      1236
+    ],
+    "runtimeBytes": 163982
+  },
+  {
+    "id": "street_myth",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1242,
+      1254
+    ],
+    "runtimeBytes": 124384
+  },
+  {
+    "id": "hobby_master",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      33,
+      1254,
+      1230
+    ],
+    "runtimeBytes": 124770
+  },
+  {
+    "id": "hobby_polymath",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      12,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 101898
+  }
+]

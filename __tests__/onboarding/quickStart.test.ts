@@ -122,8 +122,11 @@ describe('Quick Start does not open a second way to overwrite a save', () => {
 });
 
 describe('the long flow is still there', () => {
-  it('keeps New Game routing to the full four-screen path', () => {
-    expect(menuSrc).toMatch(/router\.push\('\/\(onboarding\)\/Scenarios'\)/);
+  it('keeps Custom life connected to scenario selection through the skippable intro', () => {
+    expect(menuSrc).toMatch(/router\.push\('\/\(onboarding\)\/Intro'\)/);
+    const intro = fs.readFileSync(path.join(process.cwd(), 'app', '(onboarding)', 'Intro.tsx'), 'utf8');
+    expect(intro).toMatch(/router\.replace\('\/\(onboarding\)\/Scenarios'\)/);
+    expect(intro).not.toMatch(/initializeAndSaveGame|forceSave|createBackupFromState/);
   });
 
   it('offers the quick path only when there is no save to protect', () => {

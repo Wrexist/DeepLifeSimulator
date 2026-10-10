@@ -1,0 +1,14 @@
+{
+  "work-office-modern": {
+    "triangles": 20400,
+    "max_mesh": 300
+  },
+  "work-food-modern": {
+    "triangles": 5456,
+    "max_mesh": 764
+  },
+  "work-study-modern": {
+    "triangles": 3628,
+    "max_mesh": 764
+  }
+}

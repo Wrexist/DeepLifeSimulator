@@ -1,0 +1,32 @@
+{
+  "work-food-modern": {
+    "runtime_bytes": 14908,
+    "sha256": "0eb40c975450c2c31108ab2c56df775abdaf66e3446de6c8f13de438db9828f2",
+    "bbox": [
+      82,
+      89,
+      942,
+      679
+    ]
+  },
+  "work-office-modern": {
+    "runtime_bytes": 19184,
+    "sha256": "04b7af561771fc755e0b81a612bdd3451740de87c11eb45d4f58b0d3ad70b768",
+    "bbox": [
+      110,
+      73,
+      914,
+      695
+    ]
+  },
+  "work-study-modern": {
+    "runtime_bytes": 13274,
+    "sha256": "2aa5eb5e856ef967db2af19c975aa616cc09ed5c1f08d981f7c5a976d1a9a1a8",
+    "bbox": [
+      203,
+      65,
+      821,
+      702
+    ]
+  }
+}

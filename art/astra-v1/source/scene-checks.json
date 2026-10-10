@@ -1,0 +1,11 @@
+{
+  "engine": "CYCLES",
+  "camera_lens": 50.0,
+  "transparent": true,
+  "libraries": [
+    "//shared-scene.blend"
+  ],
+  "unit_scales": true,
+  "camera_linked": true,
+  "world_linked": true
+}

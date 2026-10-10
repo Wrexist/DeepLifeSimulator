@@ -1,0 +1,68 @@
+00:06.313  blend            | Read blend: "C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\proposals\grounded-work\grounded-work.blend"
+00:06.532  cycles           | WARNING HIPEW initialization failed: Error opening HIP dynamic library
+Info: Read library: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\shared-scene.blend', '//..\..\blend\shared-scene.blend', parent '<direct>'
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+06:42:58 | INFO: Starting glTF 2.0 export
+06:42:58 | INFO: Extracting primitive: Cylinder
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Cylinder.003
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Ceramic mug handle
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Ceramic mug handle.001
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Cylinder.001
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Cylinder.004
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Cylinder.002
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Cylinder.005
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Open ceramic mug
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Extracting primitive: Open ceramic mug.001
+06:42:58 | INFO: Primitives created: 1
+06:42:58 | INFO: Finished glTF 2.0 export in 0.14107990264892578 s
+00:14.547  render           | Saved: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\context-modern\contacts-modern.png'
+00:14.578  blend            | Read blend: "C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\proposals\grounded-work\grounded-work.blend"
+
+Info: Saved as "contacts-modern.blend"
+Info: Total files 1 | Changed 0 | Failed 0
+Info: Saved as "contacts-modern.blend"
+Info: Read library: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\blend\shared-scene.blend', '//..\..\blend\shared-scene.blend', parent '<direct>'
+06:43:04 | INFO: Starting glTF 2.0 export
+06:43:04 | INFO: Extracting primitive: Cylinder.002
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder.001
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder.005
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder.007
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder.003
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cube.030
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder.004
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cylinder.006
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Extracting primitive: Cube.031
+06:43:04 | INFO: Primitives created: 1
+06:43:04 | INFO: Finished glTF 2.0 export in 0.036530256271362305 s
+00:18.719  render           | Saved: 'C:\Users\IsacC\Downloads\DeepLifeSimulator\art\astra-v1\context-modern\health-modern.png'
+
+Info: Saved as "health-modern.blend"
+Info: Total files 1 | Changed 0 | Failed 0
+Info: Saved as "health-modern.blend"
+CONTEXT_MODERN_COMPLETE
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+
+Blender quit
+
+helpers:54: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+helpers:54: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0

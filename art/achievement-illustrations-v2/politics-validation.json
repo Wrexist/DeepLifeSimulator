@@ -1,0 +1,164 @@
+[
+  {
+    "id": "first_election",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      36,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 53242
+  },
+  {
+    "id": "mayor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1242,
+      1240
+    ],
+    "runtimeBytes": 110320
+  },
+  {
+    "id": "governor",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 71424
+  },
+  {
+    "id": "president",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 84084
+  },
+  {
+    "id": "policy_maker",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      41,
+      1239,
+      1254
+    ],
+    "runtimeBytes": 86638
+  },
+  {
+    "id": "popular_politician",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1234,
+      1254
+    ],
+    "runtimeBytes": 121154
+  },
+  {
+    "id": "election_champion",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      29,
+      1226,
+      1254
+    ],
+    "runtimeBytes": 112454
+  },
+  {
+    "id": "political_influencer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      3,
+      1241,
+      1254
+    ],
+    "runtimeBytes": 101460
+  },
+  {
+    "id": "politician_legend",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      31,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 101454
+  }
+]

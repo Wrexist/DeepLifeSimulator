@@ -1,0 +1,27 @@
+group,file,width,height,triangles,main_hex_colors,notes
+A,icons/flame.png,1024,1024,6336,#F0442E #FF8A1F #FFD45C,Review Gate 1; original local Blender/Cycles geometry
+A,icons/gem-stack.png,1024,1024,2100,#6366F1 #8B5CF6,Review Gate 1; original local Blender/Cycles geometry
+A,icons/trophy.png,1024,1024,33012,#F5B731,Review Gate 1; original local Blender/Cycles geometry
+A,icons/briefcase-up.png,1024,1024,3752,#A86B3C #10B981 #F5B731,Review Gate 2; original local Blender/Cycles geometry
+A,icons/money-bag.png,1024,1024,19036,#10B981 #F5B731,Review Gate 2; original local Blender/Cycles geometry
+A,icons/house-key.png,1024,1024,6220,#FAF3DF #B97455 #F5B731,Review Gate 2; original local Blender/Cycles geometry
+A,icons/rings.png,1024,1024,5112,#F5B731 #62B4FF,Review Gate 2; original local Blender/Cycles geometry
+A,icons/rattle.png,1024,1024,5792,#9AE3CE #B9A4ED #FAF3DF,Review Gate 2; original local Blender/Cycles geometry
+A,icons/crown.png,1024,1024,9740,#F5B731 #E63B5A #168BFF,Review Gate 2; original local Blender/Cycles geometry
+A,icons/heart.png,1024,1024,2304,#E63B5A #EC4899,Review Gate 2; original local Blender/Cycles geometry
+A,icons/grad-cap.png,1024,1024,6376,#293D43 #F5B731,Review Gate 2; original local Blender/Cycles geometry
+A,icons/storefront.png,1024,1024,15744,#168BFF #FAF3DF #FFD45C,Review Gate 2; original local Blender/Cycles geometry
+B,tiers/flame-1.png,1024,1024,6336,#F0442E #FF8A1F #FFD45C,Review Gate 3
+B,tiers/flame-2.png,1024,1024,6336,#F0442E #FF8A1F #FFD45C,Review Gate 3
+B,tiers/flame-3.png,1024,1024,10992,#F0442E #FF8A1F #9BD7FF #FFD45C,Review Gate 3
+B,tiers/trophy-bronze.png,1024,1024,33012,#C07A45,Review Gate 3
+B,tiers/trophy-silver.png,1024,1024,33012,#C9D2DC,Review Gate 3
+B,tiers/trophy-gold.png,1024,1024,33012,#F5B731,Review Gate 3
+C,badges/badge-bronze.png,1024,1024,752,#102235 #C07A45,Owner-selected front-facing revision; masters text-free
+C,badges/badge-silver.png,1024,1024,752,#102235 #C9D2DC,Owner-selected front-facing revision; masters text-free
+C,badges/badge-gold.png,1024,1024,752,#102235 #F5B731,Owner-selected front-facing revision; masters text-free
+C,badges/badge-platinum.png,1024,1024,752,#102235 #D5DFEB,Owner-selected front-facing revision; masters text-free
+C,badges/laurel.png,1024,1024,37888,#102235 #F5B731,Owner-selected front-facing revision; masters text-free
+D,heroes/hero-start.png,1600,1200,6132,#A86B3C #293D43 #F5B731,Review Gate 4; empty top 15% / bottom 30%
+D,heroes/hero-grow.png,1600,1200,23928,#A86B3C #F5B731 #168BFF #F2EEE6,Review Gate 4; empty top 15% / bottom 30%
+D,heroes/hero-legacy.png,1600,1200,21816,#FAF3DF #B97455 #F5B731 #168BFF #8B5CF6 #F2EEE6,Review Gate 4; empty top 15% / bottom 30%

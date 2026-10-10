@@ -1,0 +1,38 @@
+[
+  {
+    "width": 375,
+    "titles": [
+      "Entrepreneur",
+      "Business Mogul",
+      "Corporate Magnate",
+      "Company Emperor",
+      "Workforce Builder",
+      "Workforce Leader",
+      "Workforce Tycoon",
+      "Scholar",
+      "Academic",
+      "Professor"
+    ],
+    "loadedImages": 10,
+    "close": true,
+    "pageErrors": []
+  },
+  {
+    "width": 768,
+    "titles": [
+      "Entrepreneur",
+      "Business Mogul",
+      "Corporate Magnate",
+      "Company Emperor",
+      "Workforce Builder",
+      "Workforce Leader",
+      "Workforce Tycoon",
+      "Scholar",
+      "Academic",
+      "Professor"
+    ],
+    "loadedImages": 10,
+    "close": true,
+    "pageErrors": []
+  }
+]

@@ -1307,7 +1307,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
              empty. The portfolio hero below still is, because a summary of
              nothing was the reason for the old blanket suppression. */
           <View style={styles.leadWrap}>
-            <SceneCard scene="lounge" title="Your circle" subtitle="Catch up with someone you know." />
+            <SceneCard scene="contacts-modern" title="Your circle" subtitle="Catch up with someone you know." />
             {renderMeetCard()}
             {/* The lead slot. "At risk" used to be a number whose only
                 affordance was a tab switch; the worst at-risk contact now

@@ -1,0 +1,38 @@
+{
+  "badge-bronze": {
+    "source": "art/astra-v1/badges/badge-bronze.png",
+    "sourceSha256": "36fc20663a4061fc3d258055ccc9a5dc6e560682aa03ae6be1b65e45e47b44ac",
+    "runtimeBytes": 7348,
+    "sha256": "0d1d8ca15d1b1ac947aa7ed789df8e97145995df12ee5f94b8f96f2ef488bd95"
+  },
+  "badge-silver": {
+    "source": "art/astra-v1/badges/badge-silver.png",
+    "sourceSha256": "ff58a6f55df52b6d4f1ca96c0f7425d11a10261478ad5e824450cffd7b353983",
+    "runtimeBytes": 6630,
+    "sha256": "2e9e9aa674e643e678e1f84c92b8839b1df664cc72e40d0ed2c57c20d9a4203c"
+  },
+  "badge-gold": {
+    "source": "art/astra-v1/badges/badge-gold.png",
+    "sourceSha256": "2b2ec558d5adc72820d30e2eeb5277b0d6e9929f374d4afc92cdf6225fce932c",
+    "runtimeBytes": 7584,
+    "sha256": "06122c91c1e9d4f1c4750ad6eb48dd600d7c6ac3e1ea82fb71be4986a4642854"
+  },
+  "badge-platinum": {
+    "source": "art/astra-v1/badges/badge-platinum.png",
+    "sourceSha256": "4134f3cc10d8d8d38c78ab9741928aba00e89e30ecc9e55bc874ebf474dff463",
+    "runtimeBytes": 6660,
+    "sha256": "af43f2995ba505684211350c11d51db7c87460c23babccf88f214f284fa89702"
+  },
+  "crown": {
+    "source": "art/astra-v1/icons/crown.png",
+    "sourceSha256": "f0b9d81696aea94c91ce9da419e707af6ab9bfce537481701bdf426cdfc367a9",
+    "runtimeBytes": 11932,
+    "sha256": "133e38adae358bba2d7aa42d6400ee356b06825e00aa0cc9e764d84d100abe02"
+  },
+  "trophy": {
+    "source": "art/astra-v1/icons/trophy.png",
+    "sourceSha256": "7f3a14bd816136067024ae987ce81aad689f651ef14b0d64cfb03ab8bc16c11b",
+    "runtimeBytes": 11680,
+    "sha256": "63b279b07c02d173069b938ee34ab9ccece130c5e2237015d8adb5c8633c4399"
+  }
+}

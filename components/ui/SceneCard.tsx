@@ -8,6 +8,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { responsiveSpacing as layoutSpace, scale, responsiveBorderRadius } from '@/utils/scaling';
 
 const scenes = {
+  'contacts-modern': require('@/assets/images/scenes/contacts-modern.webp'),
+  'health-modern': require('@/assets/images/scenes/health-modern.webp'),
+  'work-food-modern': require('@/assets/images/scenes/work-food-modern.webp'),
+  'work-office-modern': require('@/assets/images/scenes/work-office-modern.webp'),
+  'work-study-modern': require('@/assets/images/scenes/work-study-modern.webp'),
   'work-lost-items': require('@/assets/images/scenes/work-lost-items.webp'),
   'work-delivery': require('@/assets/images/scenes/work-delivery.webp'),
   'work-cleaning': require('@/assets/images/scenes/work-cleaning.webp'),

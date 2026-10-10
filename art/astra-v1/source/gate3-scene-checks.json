@@ -1,0 +1,55 @@
+{
+  "b": {
+    "cycles": true,
+    "camera_lens": 50.0,
+    "camera_linked": true,
+    "world_linked": true,
+    "relative_library_paths": [
+      "//shared-scene.blend"
+    ],
+    "unit_scales": true,
+    "no_text_objects": true,
+    "render_size": [
+      1024,
+      1024
+    ],
+    "transparent": true,
+    "collections": [
+      "flame-1",
+      "flame-2",
+      "flame-3",
+      "trophy-bronze",
+      "trophy-silver",
+      "trophy-gold"
+    ]
+  },
+  "c": {
+    "cycles": true,
+    "camera_lens": 50.0,
+    "camera_linked": true,
+    "world_linked": true,
+    "relative_library_paths": [
+      "//shared-scene.blend"
+    ],
+    "unit_scales": true,
+    "no_text_objects": true,
+    "render_size": [
+      1024,
+      1024
+    ],
+    "transparent": true,
+    "collections": [
+      "badge-bronze",
+      "badge-silver",
+      "badge-gold",
+      "badge-platinum",
+      "laurel"
+    ],
+    "face_width_ratios": {
+      "badge-bronze": 0.8151697559161883,
+      "badge-silver": 0.8151697559161883,
+      "badge-gold": 0.8151697559161883,
+      "badge-platinum": 0.8151697559161883
+    }
+  }
+}

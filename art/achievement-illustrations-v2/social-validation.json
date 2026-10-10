@@ -1,0 +1,200 @@
+[
+  {
+    "id": "social_butterfly",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 132220
+  },
+  {
+    "id": "social_celebrity",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      23,
+      1241,
+      1254
+    ],
+    "runtimeBytes": 153538
+  },
+  {
+    "id": "social_dating_first_match",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      53,
+      17,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 47896
+  },
+  {
+    "id": "social_dating_casanova",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      2,
+      1240,
+      1254
+    ],
+    "runtimeBytes": 94912
+  },
+  {
+    "id": "social_media_first_post",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      17,
+      1241,
+      1254
+    ],
+    "runtimeBytes": 79040
+  },
+  {
+    "id": "social_media_influencer",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      4,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 119772
+  },
+  {
+    "id": "social_media_celebrity",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      42,
+      1236,
+      1254
+    ],
+    "runtimeBytes": 90380
+  },
+  {
+    "id": "social_media_viral",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 92232
+  },
+  {
+    "id": "social_media_brand_deals",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      4,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 79540
+  },
+  {
+    "id": "social_media_posts_milestone",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1254,
+      1254
+    ],
+    "runtimeBytes": 78832
+  },
+  {
+    "id": "social_star",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "bounds": [
+      0,
+      9,
+      1238,
+      1254
+    ],
+    "runtimeBytes": 122978
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "width": 375,
+    "errors": [],
+    "applyBox": {
+      "x": 33,
+      "y": 550,
+      "width": 309,
+      "height": 44
+    },
+    "cards": [
+      "Fast Food Worker",
+      "Accounting Clerk",
+      "Teaching Assistant"
+    ]
+  },
+  {
+    "width": 768,
+    "errors": [],
+    "applyBox": {
+      "x": 39,
+      "y": 625.5,
+      "width": 690,
+      "height": 53
+    },
+    "cards": [
+      "Fast Food Worker",
+      "Accounting Clerk",
+      "Teaching Assistant"
+    ]
+  }
+]

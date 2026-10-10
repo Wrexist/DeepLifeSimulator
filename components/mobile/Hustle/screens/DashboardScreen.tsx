@@ -164,7 +164,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   if (companies.length === 0) {
     return (
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        <SceneCard scene="studio" title="Your first business" subtitle="Compare startup costs before choosing a company." />
+        <SceneCard scene="work-office-modern" title="Your first business" subtitle="Compare startup costs before choosing a company." />
         <EmptyState
           icon={<Building2 size={fontScale(26)} color={HUSTLE_COLORS.accent} />}
           observation="You don't run any companies yet."
@@ -179,7 +179,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
-        <SceneCard scene="studio" title="At the studio" subtitle="Manage your projects and clients." />
+        <SceneCard scene="work-office-modern" title="At the studio" subtitle="Manage your projects and clients." />
         {/* Hero - the ONE number, one sentence about it, and the bars. */}
         <View
           style={[

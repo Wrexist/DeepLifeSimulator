@@ -1,0 +1,171 @@
+{
+  "generator": "Blender 5.2 Cycles; original geometry; shared grounded-work studio",
+  "license": "Original project artwork, no third-party assets",
+  "assets": {
+    "entry-camera": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        79,
+        64,
+        945,
+        704
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 17526,
+      "sha256": "95177887a79202959c708e18d38206e54181a5a519649634aa98342adda6b2fc"
+    },
+    "entry-collection": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        83,
+        237,
+        941,
+        531
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 15110,
+      "sha256": "86eacd206ce6d9676397046fca2185d8fbb8cdb0c5b233c082e720a643533306"
+    },
+    "entry-dice": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        83,
+        99,
+        941,
+        668
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 14768,
+      "sha256": "a3530c381d1975ac16500f1ace2a7d17a96fdb5d81e3fcfd99224adeb3b18207"
+    },
+    "entry-headphones": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        216,
+        60,
+        809,
+        708
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 17260,
+      "sha256": "1fbab0331846036fec743dec7e258de2f8703367d83a1d3905bd60f84dd6b8a5"
+    },
+    "entry-keys": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        78,
+        190,
+        946,
+        578
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 21860,
+      "sha256": "d9be5d634656558dd3fddf3c6cd821d49223ee52f2ad8022c483997bff57ae4c"
+    },
+    "entry-medical": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        78,
+        237,
+        946,
+        531
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 16264,
+      "sha256": "59431a414a079ee09bd854cf206fb09b5ece6577c5c4dbe5a8d8bfa35027f945"
+    },
+    "entry-planner": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        88,
+        239,
+        936,
+        529
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 14190,
+      "sha256": "5d385406a689b300732ec3e7bfba806c44c189f3c1f78ef9864575080264a9f0"
+    },
+    "entry-plant": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        332,
+        60,
+        692,
+        708
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 17720,
+      "sha256": "82e60470b3b34b890f41cdd7a09f3fb68766da84e21a09ad0729fb63f2880f93"
+    },
+    "entry-safe": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        181,
+        63,
+        843,
+        705
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 13450,
+      "sha256": "e8a4efbeb4f7c508d6c9f31b04749324b1afc5ba2b493d3e3eb44330dc22351e"
+    },
+    "entry-travel": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        319,
+        61,
+        706,
+        707
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 11820,
+      "sha256": "f02275140e62dc95fdda4d2f13f59c9bad9b82b3b0d8ba16f50ca68c3b61cb77"
+    },
+    "entry-wallet": {
+      "pngSize": [
+        1024,
+        768
+      ],
+      "alphaBounds": [
+        164,
+        61,
+        860,
+        707
+      ],
+      "embeddedGlb": true,
+      "runtimeBytes": 17688,
+      "sha256": "27f05fb907694f35933498d45368d5fe175cc4c152495d5247f61364aa774e7d"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { uiPalette } from '@/lib/config/theme';
+import { rewardArtwork } from '@/lib/config/rewardArtwork';
 import React, { useState, useMemo, useCallback } from 'react';
-import { Platform, View,
+import { Platform, View, Image,
   Text,
   StyleSheet,
   ScrollView,
@@ -222,7 +223,6 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
   // Render achievement card
   const renderAchievementCard = (achievement: Achievement, index: number) => {
     const categoryInfo = getCategoryInfo(achievement.category);
-    const IconComponent = categoryInfo.icon;
     const isCompleted = achievement.completed;
     const unlockedAt = unlockedMap.get(achievement.id);
     const isSecret = achievement.category === 'secret';
@@ -251,13 +251,13 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           ]}
         >
           <LinearGradient
-            colors={isCompleted ? categoryInfo.gradient as [string, string] : (darkMode ? [uiPalette.slate, uiPalette.surface] : [uiPalette.lightSurface, uiPalette.line]) as [string, string]}
+            colors={darkMode ? [uiPalette.navy, uiPalette.navy] : [uiPalette.lightSurface, uiPalette.lightSurface]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.achievementIconContainer}
           >
             {isCompleted ? (
-              <IconComponent size={scale(24)} color={uiPalette.white} />
+              <Image source={rewardArtwork.trophy} style={{ width: scale(40), height: scale(40) }} resizeMode="contain" accessible={false} />
             ) : (
               <Lock size={scale(24)} color={darkMode ? uiPalette.muted : uiPalette.muted} />
             )}
