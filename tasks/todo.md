@@ -1,5 +1,11 @@
 # DeepLife Glossy asset style frame - 5 October 2026
 
+## Internal TestFlight candidate - 10 October 2026
+
+- [x] Build 2.15.2 (191) from PR #233 / `680a7a51` via GitHub Actions run [38056456464](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/38056456464). Verification, macOS build and TestFlight upload all passed; App Store Connect accepted the upload.
+- [ ] Confirm Apple processing shows the build as `VALID` in App Store Connect, then run native iPhone/iPad acceptance for the current source. The ASC page required login in this session, so processing status is not verified. [Dated evidence](release/evidence/testflight-2.15.2-2026-10-10.md).
+- The PR is still open and unmerged. This is an internal QA upload; no production OTA or public App Store release was triggered.
+
 - [x] Owner approved corrected grounded work/MacBook preview. Reviewed theme consistency and mapped mounted asset consumers. [Rollout review](modern-theme-rollout-2026-10-05.md).
 - [x] Implemented Work Career thumbnails (food service, office, study) through existing JobCard/SceneCard. Focused tests, types, lint and compact/tablet browser checks pass. [Evidence](work-modern-2026-10-05.md).
 - [x] Aligned Home identity/divider surfaces and removed shared button glass/glow. Compact and tablet layout bounds unchanged; navigation and 12 focused tests pass. [Evidence](home-modern-2026-10-05.md).
