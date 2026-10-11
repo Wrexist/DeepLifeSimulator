@@ -10,6 +10,10 @@
  *   iphone-6.9/  -> APP_IPHONE_67   (1320 x 2868)
  *   iphone-6.5/  -> APP_IPHONE_65   (1284 x 2778)
  *   ipad-13/     -> APP_IPAD_PRO_3GEN_129 (2064 x 2752)
+ *   header/      -> Product Page header creative asset (one PNG)
+ *   search/      -> search results creative asset (one PNG)
+ * Any folder may be absent; a --dir holding only header/ and search/ places
+ * the creative assets and leaves the screenshot sets alone.
  *
  * Screenshots belong to a VERSION record, and Apple only lets them change while
  * that version is editable. This never creates a version - that is a release
@@ -28,6 +32,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { AscClient, loadCredentials, missingCredentialNames } from './lib/ascClient.mjs';
+import { collectCreative, syncCreative } from './lib/ascCreative.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ARGS = process.argv.slice(2);
@@ -147,7 +152,8 @@ async function main() {
 
   const sets = Object.fromEntries(Object.keys(DISPLAY_TYPES).map((d) => [d, collectSet(dir, d)]));
   const devices = Object.keys(sets).filter((d) => sets[d].length > 0);
-  if (devices.length === 0) die(`No screenshots under ${dir}`);
+  const creative = collectCreative(dir, (buf) => { const { w, h } = pngSize(buf); return { w, h }; });
+  if (devices.length === 0 && creative.length === 0) die(`No screenshots or creative assets under ${dir}`);
   for (const d of devices) console.log(`${d}: ${sets[d].length} screenshots (${DISPLAY_TYPES[d].type})`);
 
   const credentials = loadCredentials();
@@ -201,6 +207,10 @@ async function main() {
         console.log(`    uploaded ${shot.name}`);
       }
     }
+  }
+  if (creative.length) {
+    const failed = await syncCreative({ client, appId, locs, assets: creative, apply });
+    if (failed) die(`${failed} creative placement(s) failed - see above.`);
   }
   if (apply && uploaded.length) {
     console.log(`\nWaiting for Apple to process ${uploaded.length} screenshots`);
