@@ -121,7 +121,12 @@ export async function syncCreative({ client, appId, locs, assets, apply, log = c
   for (const loc of locs) {
     try {
       const existing = await client.getAll(`/v1/appStoreVersionLocalizations/${loc.id}/placements?limit=50`);
-      log(`  ${loc.attributes.locale}: ${existing.length} existing placement(s) ${existing.map((p) => `${p.attributes?.placementType}/${p.attributes?.placementGroup}`).join(', ')}`);
+      const counts = {};
+      for (const p of existing) {
+        const k = `${p.attributes?.placementType}/${p.attributes?.placementGroup}`;
+        counts[k] = (counts[k] ?? 0) + 1;
+      }
+      log(`  ${loc.attributes.locale}: ${Object.entries(counts).map(([k, n]) => `${k} x${n}`).join(', ') || 'no placements'}`);
     } catch (e) {
       log(`  ${loc.attributes.locale}: could not read placements (${e.message.split('\n')[0]})`);
     }
