@@ -45,6 +45,30 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.4',
+    date: 'October 2026',
+    headline: 'See how it went',
+    summary:
+      'A stream recap worth celebrating, one-tap skill unlocks and locked apps that tell you how to open them.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Stream recap',
+        bullets: ['Every broadcast ends with your viewers, followers, subs, donations and earnings.'],
+      },
+      {
+        category: 'improved',
+        title: 'One-tap Life Skills',
+        bullets: ['Tap a skill to read it, then unlock it from the panel with its price shown.'],
+      },
+      {
+        category: 'improved',
+        title: 'Locked apps explain themselves',
+        bullets: ['Tap a locked app to see every way to open it and how close you are.'],
+      },
+    ],
+  },
+  {
     version: '2.15.3',
     date: 'October 2026',
     headline: 'Polished from top to bottom',
