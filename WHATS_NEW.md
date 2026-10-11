@@ -1,5 +1,15 @@
 # What's New - DeepLife Simulator
 
+## v2.15.6 - Garage hero (store version 1.6.0)
+
+**Compatibility:** every save loads; save format unchanged (v53).
+
+- The Exotic Supercar art is yellow, matching the store screenshots, and the
+  garage hero and detail art show the current car larger (`CatalogArt` `zoom`,
+  clipped by sizing rather than a transform so it also clips on web).
+
+---
+
 ## v2.15.5 - Go live, level up (store version 1.6.0, build 194)
 
 **Covers:** 2.15.1-2.15.5, shipped to the store together with the 2.15.0

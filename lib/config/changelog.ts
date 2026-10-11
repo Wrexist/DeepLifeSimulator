@@ -45,6 +45,19 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.6',
+    date: 'October 2026',
+    headline: 'Your dream car, in full view',
+    summary: 'The Exotic Supercar now comes in yellow, and your garage shows every car bigger.',
+    changes: [
+      {
+        category: 'improved',
+        title: 'A bigger garage view',
+        bullets: ['Your current car fills the garage card, and the Exotic Supercar is now yellow.'],
+      },
+    ],
+  },
+  {
     version: '2.15.5',
     date: 'October 2026',
     headline: 'Moments worth celebrating',
