@@ -474,8 +474,9 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 
 ## App Store screenshot refresh - 11 October 2026 (2.15.5)
 
-- [ ] Fresh captures from HEAD: update `scripts/capture-rich-state.mjs` to the current onboarding/menu flow and add the new moments (stream recap, skill unlock, video recap, Life Skills tree).
-- [ ] Re-cut the storyboard: first three frames carry the search result on their own; every claim still asserted against capture text.
-- [ ] Render all sizes (iPhone 6.9 / 6.5, iPad 13) with the existing compositor; review every frame by eye.
-- [ ] Upload: `scripts/asc-screenshots.mjs` + a dispatch-only workflow using the existing ASC secrets; dry run first, then replace the sets on the editable version.
-- [ ] Record evidence and confirm in App Store Connect.
+- [x] Fresh captures from HEAD: update `scripts/capture-rich-state.mjs` to the current onboarding/menu flow and add the new moments (stream recap, skill unlock, video recap, Life Skills tree).
+- [x] Re-cut the storyboard: first three frames carry the search result on their own; every claim still asserted against capture text.
+- [x] Render all sizes (iPhone 6.9 / 6.5, iPad 13) with the existing compositor; review every frame by eye.
+- [x] Upload tooling: `scripts/asc-screenshots.mjs` + a dispatch-only workflow using the existing ASC secrets; dry run first, then replace the sets on the editable version.
+- [x] Store 1.6.0 created and filled by `asc-release` (full listing, 5 languages, build 194 attached); screenshots uploaded to every locale. [Evidence](release/evidence/store-1.6.0-2026-10-11.md).
+- [ ] Owner: review 1.6.0 in App Store Connect, then submit (`asc-release.yml` mode `apply-and-submit`, confirm `SUBMIT`).

@@ -241,20 +241,16 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
     },
     'pt-BR': {
       // Players asked for Portuguese (a 1★ review on 1.5.5 names it), and Brazil
-      // is a large life-sim market. `pending: true` because the language does
-      // not exist on the App Store record yet, and `asc-release.mjs` writes only
-      // What's New: it cannot add a language. `npm run aso` prints this copy
-      // paste-ready. Add pt-BR by hand in App Store Connect (App Information
-      // takes `name` and `subtitle`; the version takes description, keywords,
-      // promotional text and What's New), then remove `pending` so every later
-      // release updates its notes automatically. Not `shipped: false`: that
-      // means reference only, never created (en-GB below).
+      // is a large life-sim market. pt-BR, fr-FR and de-DE were created on the
+      // 1.6.0 record by `asc-release.mjs` (2026-10-11), which now writes the
+      // whole listing for every managed locale. A future new language can be
+      // marked `pending: true` until its first release run creates it. Not
+      // `shipped: false`: that means reference only, never created (en-GB).
       //
       // The UI is English only, so the description says so. A Portuguese page
       // for an English game, with nothing said, is exactly how the "not in
       // Portuguese" 1★ happens. UI labels stay in English in the notes for the
       // same reason: "Next Week" is what the button says.
-      pending: true,
       // "simulador de vida" is the query this market types. The name is per
       // locale on the App Store, so it can carry it without touching en-US.
       name: 'Deep Life: Simulador de Vida',
@@ -313,7 +309,6 @@ Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na
       // France is the largest non-English market by new customers (RevenueCat,
       // 2026-08-28 → 09-24: 34 of 820). Same reasoning and the same manual first
       // step as pt-BR above; the name matches the live French Play listing.
-      pending: true,
       name: 'Deep Life : Simulateur de vie',
       subtitle: 'Carrière, crime, crypto, luxe',
       promotionalText:
@@ -371,7 +366,6 @@ Une vie dure des décennies et chaque semaine est une décision. La plupart des 
       // Germany is the next non-English market by new customers (RevenueCat,
       // 2026-08-28 → 09-24: 20 of 820, level with Canada). Same manual first
       // step as pt-BR; the name matches the live German Play listing.
-      pending: true,
       name: 'Deep Life: Lebenssimulation',
       subtitle: 'Karriere, Verbrechen, Krypto',
       promotionalText:
