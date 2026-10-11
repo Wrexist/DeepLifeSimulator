@@ -423,3 +423,27 @@ export function infoLocalizationCreatePayload({ appInfoId, locale, attributes })
 export function infoLocalizationUpdatePayload({ id, attributes }) {
   return { data: { type: 'appInfoLocalizations', id: String(id), attributes: { ...attributes } } };
 }
+
+/**
+ * URLs a language needs before Apple will review it (a new locale without a
+ * support URL fails submission with a 409). The repo does not own these - the
+ * live en-US listing does - so a locale missing one inherits en-US's value
+ * from Apple's own record. A value already set on a locale is never touched.
+ *
+ * @param {Record<string, Record<string, string>>} desired  per-locale copy, mutated
+ * @param {any[]} existing  localizations read from Apple
+ * @param {string[]} fields
+ * @returns {Record<string, Record<string, string>>}
+ */
+export function inheritUrlsFromPrimary(desired, existing, fields, primary = 'en-US') {
+  const byLocale = new Map((existing ?? []).map((l) => [l?.attributes?.locale, l?.attributes ?? {}]));
+  const source = byLocale.get(primary) ?? {};
+  for (const [locale, attrs] of Object.entries(desired)) {
+    if (locale === primary) continue;
+    const current = byLocale.get(locale) ?? {};
+    for (const f of fields) {
+      if (!attrs[f] && !current[f] && source[f]) attrs[f] = source[f];
+    }
+  }
+  return desired;
+}

@@ -473,3 +473,18 @@ describe('full listing sync', () => {
     });
   });
 });
+
+describe('required URLs for new languages', () => {
+  it('copies en-US URLs Apple holds into a locale missing them, never over an existing one', () => {
+    const existing = [
+      { attributes: { locale: 'en-US', supportUrl: 'https://s', marketingUrl: 'https://m' } },
+      { attributes: { locale: 'fr-FR', supportUrl: 'https://fr-own' } },
+      { attributes: { locale: 'de-DE' } },
+    ];
+    const desired: Record<string, Record<string, string>> = { 'en-US': {}, 'fr-FR': {}, 'de-DE': {} };
+    R.inheritUrlsFromPrimary(desired, existing, ['supportUrl', 'marketingUrl']);
+    expect(desired['de-DE']).toEqual({ supportUrl: 'https://s', marketingUrl: 'https://m' });
+    expect(desired['fr-FR']).toEqual({ marketingUrl: 'https://m' });
+    expect(desired['en-US']).toEqual({});
+  });
+});

@@ -46,6 +46,7 @@ import {
   listingByLocale,
   planFieldLocalizations,
   pickEditableAppInfo,
+  inheritUrlsFromPrimary,
   versionCreatePayload,
   versionLocalizationCreatePayload,
   versionLocalizationUpdatePayload,
@@ -195,11 +196,13 @@ async function main() {
   const readVersionLocs = () => (versionId
     ? client.getAll(
         `/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations` +
-          '?fields[appStoreVersionLocalizations]=locale,whatsNew,description,keywords,promotionalText&limit=200',
+          '?fields[appStoreVersionLocalizations]=locale,whatsNew,description,keywords,promotionalText,supportUrl,marketingUrl&limit=200',
       )
     : Promise.resolve([]));
 
-  const localizationOps = planFieldLocalizations({ existing: await readVersionLocs(), desired: versionCopy });
+  const existingVersionLocs = await readVersionLocs();
+  inheritUrlsFromPrimary(versionCopy, existingVersionLocs, ['supportUrl', 'marketingUrl']);
+  const localizationOps = planFieldLocalizations({ existing: existingVersionLocs, desired: versionCopy });
   say(`\n${C.bold}Version copy${C.off} ${C.dim}(What's New, description, keywords, promotional text)${C.off}`);
   for (const op of localizationOps) {
     if (reportOp(op)) continue;
@@ -230,8 +233,9 @@ async function main() {
   const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=10`);
   const appInfo = pickEditableAppInfo(appInfos);
   const infoLocs = appInfo
-    ? await client.getAll(`/v1/appInfos/${appInfo.id}/appInfoLocalizations?fields[appInfoLocalizations]=locale,name,subtitle&limit=200`)
+    ? await client.getAll(`/v1/appInfos/${appInfo.id}/appInfoLocalizations?fields[appInfoLocalizations]=locale,name,subtitle,privacyPolicyUrl&limit=200`)
     : [];
+  inheritUrlsFromPrimary(infoCopy, infoLocs, ['privacyPolicyUrl']);
   const infoOps = planFieldLocalizations({ existing: infoLocs, desired: infoCopy });
   say(`\n${C.bold}App Information${C.off} ${C.dim}(name, subtitle)${C.off}`);
   if (!appInfo && versionPlan.action !== 'create') {
