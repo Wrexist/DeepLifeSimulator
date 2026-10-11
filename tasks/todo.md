@@ -468,3 +468,6 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 
 - [x] Build 2.15.3 (192) from PR #233 / `9238d19b` via GitHub Actions run [38109492651](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/38109492651). Verification, macOS build and TestFlight upload passed; App Store Connect accepted the upload. [Evidence](release/evidence/testflight-2.15.3-2026-10-11.md).
 - [ ] Confirm build 192 is `VALID` in App Store Connect, then verify on device that live streaming advances and Life Skills is stable.
+
+- [x] Build 2.15.4 (193) from `cbc16ed7` via run [38137834634](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/38137834634); upload accepted. [Evidence](release/evidence/testflight-2.15.4-2026-10-11.md).
+- [ ] Verify on device: stream recap, one-button Life Skills unlock, locked-app guidance.
