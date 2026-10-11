@@ -512,6 +512,30 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
         } as any,
       };
     }, 'BTC granted + opsec skill boosted. Open the Dark Web app.');
+  /**
+   * A grown creator channel: an audience, a full studio kit and a mid rig, so
+   * Streaming and YouVideo can be QA'd (and photographed) at a scale a player
+   * reaches in ordinary play rather than at 0 followers.
+   */
+  const setupCreator = () =>
+    patch((prev) => {
+      const ch = prev.gamingStreaming || initialGameState.gamingStreaming;
+      return {
+        ...prev,
+        stats: { ...prev.stats, energy: 100 },
+        gamingStreaming: {
+          ...ch,
+          followers: Math.max(ch?.followers || 0, 240_000),
+          subscribers: Math.max(ch?.subscribers || 0, 18_500),
+          level: Math.max(ch?.level || 1, 9),
+          experience: Math.max(ch?.experience || 0, 4_000),
+          equipment: { microphone: true, webcam: true, gamingChair: true, greenScreen: true, lighting: true },
+          pcUpgradeLevels: { cpu: 4, gpu: 4, ram: 3, ssd: 3, motherboard: 3, cooling: 3, psu: 3, case: 2, network: 3 },
+          hypeStreak: 3,
+          currentStream: null,
+        } as any,
+      };
+    }, 'Creator channel grown (240K followers, full studio). Open Streaming or YouVideo.');
   const setupPolitics = () =>
     patch(
       (prev) => ({
@@ -647,6 +671,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     { label: 'Ambition (near-done)', icon: Crown, tone: 'unlock', onPress: setupAmbition },
     { label: 'Darkweb (BTC + opsec)', icon: Globe, tone: 'gem', onPress: setupDarkweb },
     { label: 'Politics (enter office)', icon: Landmark, tone: 'unlock', onPress: setupPolitics },
+    { label: 'Creator (big channel)', icon: Sparkles, tone: 'gem', onPress: setupCreator },
     { label: 'Elder Events (age 70)', icon: Clock, tone: 'life', onPress: setupElder },
   ];
 

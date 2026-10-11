@@ -187,7 +187,10 @@ export default function AlertHost() {
   const buttons = current.buttons;
   // Two buttons sit side by side (the familiar cancel/confirm pair); one or
   // three-plus stack, because a squeezed third label wraps to two lines.
-  const sideBySide = buttons.length === 2;
+  // A pair also stacks when either label is long: "Erase and start over" in a
+  // half-width button wrapped onto four lines (screenshot pass, 2026-10-11).
+  // ~14 characters is what a half-width button holds on one line at 390pt.
+  const sideBySide = buttons.length === 2 && buttons.every((b) => (b.text ?? '').length <= 14);
 
   const renderButton = (button: GameAlertButton, index: number) => {
     const isCancel = button.style === 'cancel';
