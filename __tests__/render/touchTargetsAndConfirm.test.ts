@@ -204,7 +204,7 @@ describe('a life skill is seen before it is bought, with ONE unlock control', ()
     // `Alert.alert` this once asserted - see
     // __tests__/tooling/noNativeAlertInGameUI.test.ts. What is pinned here is
     // that a success is still REPORTED, and still from the preview run.
-    expect(CODE).toMatch(/gameAlert\('Skill Unlocked'/);
+    expect(CODE).toMatch(/setCelebrated\(node\)/);
     expect(CODE).toMatch(/if \(preview\.purchased\)/);
   });
 

@@ -75,7 +75,7 @@ import {
   LIVE_ENERGY_DRAIN_PER_SEC,
   LIVE_MIN_ENERGY,
   LIVE_TICK_MS,
-  LIVE_MAX_TICK_GAP_S,
+  liveTickDelta,
   isLiveSessionFromThisRuntime,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -358,6 +358,10 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // clock rather than assumed to be one second per callback, so a late or
   // coalesced timer still pays out the time that really passed. The gap is
   // capped, so time the app spent suspended in the background is not charged.
+  //
+  // The clock itself lives outside this component (`liveTickDelta`) and the
+  // loop ticks once immediately on mount, so a screen that keeps re-mounting
+  // still advances the broadcast - the old-save 0:00 report (2026-10-11).
   const handleStopStreamRef = useRef(handleStopStream);
   const saveGameRef = useRef(saveGame);
   useEffect(() => {
@@ -367,19 +371,17 @@ export default function GamingStreamingApp({ onBack }: Props) {
   useEffect(() => {
     if (!isLiveNow) return;
     let ticksSinceSave = 0;
-    let lastTickAt = Date.now();
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const deltaSeconds = Math.min(LIVE_MAX_TICK_GAP_S, Math.max(0, (now - lastTickAt) / 1000));
-      lastTickAt = now;
+    const runTick = () => {
       const gs = gameStateRef.current;
-      if (!gs.gamingStreaming?.currentStream?.live) return;
+      const session = gs.gamingStreaming?.currentStream;
+      if (!session?.live) return;
       const energyNow = gs.stats?.energy ?? 0;
       if (energyNow <= 0) {
         handleStopStreamRef.current(true);
         return;
       }
-      tickLiveStream(setGameState, deltaSeconds);
+      const deltaSeconds = liveTickDelta(session.id, session.startedAtMs);
+      if (deltaSeconds > 0) tickLiveStream(setGameState, deltaSeconds);
       // Checkpoint accrued progress ~every 10s so a crash/kill mid-stream can't
       // make the stale-session resolver finalize from an older snapshot and
       // under-pay the player. Throttled (saveGame validates + writes) - not
@@ -388,7 +390,9 @@ export default function GamingStreamingApp({ onBack }: Props) {
         ticksSinceSave = 0;
         saveGameRef.current();
       }
-    }, LIVE_TICK_MS);
+    };
+    runTick();
+    const interval = setInterval(runTick, LIVE_TICK_MS);
     return () => clearInterval(interval);
   }, [isLiveNow, setGameState]);
 

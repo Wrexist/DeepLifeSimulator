@@ -21,7 +21,7 @@ import { uiPalette, creatorBrand, getThemeColors, accent, withAlpha } from '@/li
  * Solid video-red publishing action; draft previews never show earned metrics.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -63,6 +63,7 @@ import {
   CircuitBoard,
   Coins,
   Upload,
+  Shuffle,
   Check,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -106,7 +107,8 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import KeyValueRow from '@/components/ui/KeyValueRow';
 import { useToast } from '@/contexts/ToastContext';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
-import { gameAlert } from '@/utils/gameAlert';
+import VideoSummaryModal, { type VideoSummary } from './VideoSummaryModal';
+import { suggestVideoTitle } from '@/lib/content/videoTitles';
 
 
 // The deep stop of the ONE gradient in this file (the upload CTA). Everything
@@ -206,6 +208,10 @@ export default function GamingApp({ onBack }: Props) {
   // Lands on Record: the tab that holds the primary action.
   const [activeTab, setActiveTab] = useState<TabType>('record');
   const [title, setTitle] = useState('');
+  // The recap shown after an upload (was a two-line alert, 2026-10-11).
+  const [videoSummary, setVideoSummary] = useState<VideoSummary | null>(null);
+  // Press counter for the title shuffle - see `suggestVideoTitle`.
+  const titleShuffles = useRef(0);
   const [selectedGame, setSelectedGame] = useState(GAME_OPTIONS[0]);
   // list → detail routing (presentational; no new mechanics).
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
@@ -332,14 +338,31 @@ export default function GamingApp({ onBack }: Props) {
       },
       week
     );
-    if (r.success) {
+    if (r.success && r.video && r.outcome) {
       saveGame();
       setTitle('');
-      gameAlert(r.outcome?.viral ? 'Viral hit!' : 'Uploaded', r.message);
+      const prior = (channel?.videos ?? []).reduce((m, v) => Math.max(m, v.views ?? 0), 0);
+      setVideoSummary({
+        title: r.video.title,
+        topic: selectedGame,
+        art: videoThumb(r.video),
+        views: r.outcome.views,
+        newSubs: r.outcome.subscribersGained,
+        earnings: r.earnings ?? 0,
+        viral: r.outcome.viral,
+        priorBestViews: prior,
+        levelBefore: r.levelBefore ?? 1,
+        levelAfter: r.levelAfter ?? r.levelBefore ?? 1,
+        trending: selectedGame === trendingTopic,
+      });
+    } else if (r.success) {
+      saveGame();
+      setTitle('');
+      flash(r.message);
     } else {
       flash(r.message);
     }
-  }, [gameState, setGameState, saveGame, title, selectedGame, week, flash]);
+  }, [gameState, setGameState, saveGame, title, selectedGame, week, flash, channel?.videos, trendingTopic]);
 
   const handleAccessory = useCallback(
     (id: keyof GamingStreamingState['equipment']) => {
@@ -516,14 +539,29 @@ export default function GamingApp({ onBack }: Props) {
             </View>
             <VideoThumb v={previewVideo} style={styles.previewThumb} badge="DRAFT" />
 
-            <TextInput
-              accessibilityLabel="Video title"
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Video title…"
-              placeholderTextColor={theme.textMuted}
-              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
-            />
+            {/* Title + a shuffle that fills it, so a player does not have to
+                type one for every upload (2026-10-11). Typing still works. */}
+            <View style={styles.titleRow}>
+              <TextInput
+                accessibilityLabel="Video title"
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Video title…"
+                placeholderTextColor={theme.textMuted}
+                style={[styles.input, styles.titleInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  titleShuffles.current += 1;
+                  setTitle(suggestVideoTitle(selectedGame, titleShuffles.current, title));
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Suggest a title"
+                style={[styles.shuffleBtn, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+              >
+                <Shuffle size={scale(18)} color={creatorBrand.video.accent} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.topicHeadRow}>
               <Text style={[styles.label, { color: theme.textMuted, marginTop: 0 }]}>Topic</Text>
               {trendingTopic ? (
@@ -804,6 +842,23 @@ export default function GamingApp({ onBack }: Props) {
         : activeTab === 'videos'
         ? renderVideos()
         : renderStudio()}
+
+      <VideoSummaryModal
+        summary={videoSummary}
+        onClose={() => setVideoSummary(null)}
+        // Only when another upload is possible - the cap or energy would
+        // refuse it otherwise. Pre-fills a fresh title so it is one tap away.
+        onRecordAgain={
+          videoSummary && energy >= 15 && uploadsThisWeek < WEEKLY_VIDEO_CAP
+            ? () => {
+                setVideoSummary(null);
+                goTab('record');
+                titleShuffles.current += 1;
+                setTitle(suggestVideoTitle(selectedGame, titleShuffles.current, videoSummary.title));
+              }
+            : undefined
+        }
+      />
     </View>
   );
 }
@@ -1141,6 +1196,9 @@ const styles = StyleSheet.create({
   topicRail: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   topicOption: { minHeight: 44, borderRadius: br.md, flexBasis: '47%', flexGrow: 1, justifyContent: 'center' },
   previewThumb: { width: '100%', height: scale(112), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
+  titleInput: { flex: 1 },
+  shuffleBtn: { width: 44, height: 44, borderWidth: 1, borderRadius: br.lg, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 44, borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '600', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },

@@ -47,7 +47,9 @@ import { ChevronDown, ChevronUp, LayoutGrid, Lock, Smartphone } from 'lucide-rea
 import { useGame } from '@/contexts/GameContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { isFeatureUnlocked, unlockGuide, unlockRequirement } from '@/lib/progress/featureUnlocks';
+import { isFeatureUnlocked, unlockGuide, unlockRequirement, type UnlockGuide } from '@/lib/progress/featureUnlocks';
+import LockedAppSheet, { type LockedAppInfo } from './LockedAppSheet';
+import { useRouter } from 'expo-router';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 import { trackFeatureUse } from '@/lib/analytics/featureAdoption';
 import { featureForAppId } from '@/lib/analytics/featureRoutes';
@@ -77,10 +79,12 @@ interface AppLauncherProps {
 type DecoratedApp = LauncherApp & {
   locked: boolean;
   lockReason: string;
-  /** One short progress line under the requirement on the tile. */
-  lockProgress?: string;
-  /** The full how-to-unlock text the tap dialog shows. */
-  lockDetails?: string;
+  /** Two-word tag on the tile's lock pill ("Chapter 5", "Needs PC"). */
+  lockShort?: string;
+  /** Routes + progress for the locked-app sheet. */
+  guide?: UnlockGuide | null;
+  /** Phone-launcher preview of a computer-only app. */
+  needsComputer?: boolean;
 };
 
 /**
@@ -89,9 +93,6 @@ type DecoratedApp = LauncherApp & {
  * Streaming and the rest exist at all (tester, 2026-10-11).
  */
 const NEEDS_COMPUTER = 'Needs a Computer';
-const NEEDS_COMPUTER_DETAILS =
-  'This is a desktop app. Buy a Computer in Life → Market (about $5,000) and every desktop app appears here.\n\n' +
-  'Some of them also open later in your life - once you have the computer, the tile tells you what is still needed.';
 
 export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: AppLauncherProps) {
   const { t } = useTranslation();
@@ -103,6 +104,9 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
   const navigation = useNavigation<{ addListener: (e: string, cb: () => void) => () => void }>();
   const { buttonPress } = useFeedback();
   const [activeApp, setActiveApp] = useState<string | null>(null);
+  // The locked app whose how-to-unlock sheet is open.
+  const [lockedApp, setLockedApp] = useState<LockedAppInfo | null>(null);
+  const router = useRouter();
   // Which sections have their locked shelf expanded (progressive disclosure).
   const [expandedLocked, setExpandedLocked] = useState<Record<string, boolean>>({});
 
@@ -187,8 +191,8 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
         ...app,
         locked: !isFeatureUnlocked(gameState, `app:${app.id}`),
         lockReason: unlockRequirement(gameState, `app:${app.id}`),
-        lockProgress: unlockGuide(gameState, `app:${app.id}`)?.progress,
-        lockDetails: unlockGuide(gameState, `app:${app.id}`)?.details,
+        guide: unlockGuide(gameState, `app:${app.id}`),
+        lockShort: unlockGuide(gameState, `app:${app.id}`)?.short,
       }));
     const hosted = appsForHost(host);
     const sections =
@@ -208,7 +212,8 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                 ...app,
                 locked: true,
                 lockReason: NEEDS_COMPUTER,
-                lockDetails: NEEDS_COMPUTER_DETAILS,
+                lockShort: 'Needs PC',
+                needsComputer: true,
               })),
             },
           ];
@@ -264,7 +269,13 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           if (app.locked) {
             // Tapping a locked app explains itself rather than doing nothing -
             // a dead tap reads as a bug, not a gate.
-            gameAlert(`${name} is locked`, app.lockDetails || app.lockReason || 'Not available yet.');
+            setLockedApp({
+              name,
+              icon: iconAsset ?? undefined,
+              Glyph: app.icon,
+              guide: app.guide,
+              needsComputer: app.needsComputer,
+            });
             return;
           }
           setActiveApp(app.id);
@@ -310,17 +321,16 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
             {name}
           </Text>
-          {/* Only the locked shelf carries a second line: the requirement is
-              the one description worth a tile's space. */}
-          {app.locked && !!app.lockProgress && (
-            <Text style={[styles.lockProgress, settings.darkMode && styles.lockProgressDark]} numberOfLines={2}>
-              {app.lockProgress}
-            </Text>
-          )}
-          {app.locked && !!app.lockReason && (
-            <Text style={[styles.lockReason, settings.darkMode && styles.lockReasonDark]} numberOfLines={2}>
-              {app.lockReason}
-            </Text>
+          {/* ONE short pill, sized to fit the tile. Two lines of requirement
+              text overflowed the card (tester, 2026-10-11); the full
+              explanation lives in the sheet a tap opens. */}
+          {app.locked && !!(app.lockShort || app.lockReason) && (
+            <View style={styles.lockPill}>
+              <Lock size={scale(10)} color="#FBBF24" />
+              <Text style={styles.lockPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                {app.lockShort || app.lockReason}
+              </Text>
+            </View>
           )}
         </View>
         <ClaimableBadge count={appBadges[app.id] ?? 0} />
@@ -396,6 +406,14 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           );
         })}
       </ScrollView>
+      <LockedAppSheet
+        app={lockedApp}
+        onClose={() => setLockedApp(null)}
+        onGoToMarket={() => {
+          setLockedApp(null);
+          router.navigate({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } });
+        }}
+      />
     </View>
   );
 }
@@ -533,26 +551,24 @@ const styles = StyleSheet.create({
     color: uiPalette.white,
   },
   /** The unlock requirement, shown only on tiles inside the locked shelf. */
-  lockReason: {
-    fontSize: responsiveFontSize.xs,
-    color: uiPalette.lightMuted,
-    textAlign: 'center',
-    marginTop: responsiveSpacing.xs / 2,
+  lockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: '100%',
+    marginTop: responsiveSpacing.xs,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(251, 191, 36, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
   },
-  lockReasonDark: {
-    color: uiPalette.muted,
-  },
-  // The progress line sits above the requirement and is the one that changes
-  // as the player advances, so it carries the accent colour.
-  lockProgress: {
+  lockPillText: {
+    flexShrink: 1,
     fontSize: responsiveFontSize.xs,
     fontWeight: '600',
-    color: uiPalette.blue,
-    textAlign: 'center',
-    marginTop: responsiveSpacing.xs / 2,
-  },
-  lockProgressDark: {
-    color: uiPalette.blue,
+    color: '#FBBF24',
   },
   /** The collapsed "Locked (N)" disclosure row. */
   lockedRow: {

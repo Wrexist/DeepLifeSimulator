@@ -47,6 +47,9 @@ import { haptic } from '@/utils/haptics';
 import { purchaseLifeSkill, lifeSkillPointCost, lifeSkillPointsAvailable } from '@/lib/skillTrees/lifeSkillEffects';
 import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
+import ConfettiBurst from '@/components/ui/ConfettiBurst';
+import { playSound } from '@/utils/soundManager';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 const LinearGradient = Gradient;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -421,6 +424,18 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
   const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const [selectedCategory, setSelectedCategory] = useState<string>('career');
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
+  // The skill just bought - drives the in-sheet celebration (was a plain
+  // "Skill Unlocked" alert, which the tester found flat, 2026-10-11).
+  const [celebrated, setCelebrated] = useState<SkillNode | null>(null);
+  const reducedMotion = useReducedMotion();
+  const celebrateAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!celebrated) return;
+    celebrateAnim.setValue(reducedMotion ? 1 : 0);
+    if (!reducedMotion) {
+      Animated.spring(celebrateAnim, { toValue: 1, tension: 70, friction: 8, useNativeDriver: true }).start();
+    }
+  }, [celebrated, reducedMotion, celebrateAnim]);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -541,7 +556,8 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     setGameState(prev => purchaseLifeSkill(prev, args).state);
     if (preview.purchased) {
       haptic.success();
-      gameAlert('Skill Unlocked', `${node.name} - ${node.effect}`, [{ text: 'Nice' }]);
+      void playSound('level_up');
+      setCelebrated(node);
     }
   }, [gameState, setGameState]);
 
@@ -985,6 +1001,43 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           covers the screen - the tap that raised it looks dead. This nested
           host registers on top of the gameAlert stack while this Modal is up.
           See __tests__/tooling/nestedAlertHosts.test.ts. */}
+      {celebrated ? (() => {
+        const CelebratedIcon = celebrated.icon;
+        const ring = celebrateAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+        return (
+          <View style={styles.celebrateBackdrop}>
+            {!reducedMotion ? <ConfettiBurst play count={26} colors={[...celebrated.color, '#FDE9B0', '#F0F4FF']} /> : null}
+            <Animated.View
+              style={[styles.celebrateCard, { opacity: celebrateAnim, transform: [{ scale: ring }] }]}
+              accessibilityViewIsModal
+            >
+              <View style={[styles.celebrateHalo, { backgroundColor: `${celebrated.color[0]}33`, borderColor: `${celebrated.color[0]}66` }]}>
+                <View style={[styles.celebrateIcon, { backgroundColor: celebrated.color[0] }]}>
+                  <CelebratedIcon size={scale(40)} color={uiPalette.white} />
+                </View>
+              </View>
+              <Text style={styles.celebrateEyebrow}>SKILL UNLOCKED</Text>
+              <Text style={styles.celebrateName} accessibilityRole="header">{celebrated.name}</Text>
+              <Text style={styles.celebrateCategory}>{currentCategory.name}</Text>
+              <View style={[styles.celebrateEffect, { borderColor: `${celebrated.color[0]}55`, backgroundColor: `${celebrated.color[0]}1F` }]}>
+                <Sparkles size={scale(16)} color="#FBBF24" />
+                <Text style={styles.celebrateEffectText}>{celebrated.effect}</Text>
+              </View>
+              <Text style={styles.celebrateDesc}>{celebrated.description}</Text>
+              <TouchableOpacity
+                onPress={() => setCelebrated(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Awesome"
+                style={styles.celebrateButtonWrap}
+              >
+                <View style={[styles.celebrateButton, { backgroundColor: celebrated.color[0] }]}>
+                  <Text style={styles.celebrateButtonText}>Awesome</Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        );
+      })() : null}
       <AlertHost />
     </Modal>
   );
@@ -1286,6 +1339,96 @@ const styles = StyleSheet.create({
   },
   textDark: {
     color: uiPalette.paper,
+  },
+  // ── Unlock celebration ──
+  celebrateBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: scale(24),
+  },
+  celebrateCard: {
+    width: '100%',
+    maxWidth: scale(340),
+    alignItems: 'center',
+    padding: scale(24),
+    borderRadius: scale(24),
+    backgroundColor: uiPalette.navy,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+  },
+  celebrateHalo: {
+    width: scale(112),
+    height: scale(112),
+    borderRadius: scale(56),
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: scale(16),
+  },
+  celebrateIcon: {
+    width: scale(84),
+    height: scale(84),
+    borderRadius: scale(42),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  celebrateEyebrow: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    letterSpacing: 2,
+    color: '#FBBF24',
+  },
+  celebrateName: {
+    fontSize: fontScale(26),
+    fontWeight: '600',
+    color: uiPalette.paper,
+    textAlign: 'center',
+    marginTop: scale(4),
+  },
+  celebrateCategory: {
+    fontSize: fontScale(13),
+    color: uiPalette.muted,
+    marginTop: scale(2),
+  },
+  celebrateEffect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(10),
+    borderRadius: scale(14),
+    borderWidth: 1,
+    marginTop: scale(16),
+  },
+  celebrateEffectText: {
+    fontSize: fontScale(15),
+    fontWeight: '600',
+    color: uiPalette.paper,
+    flexShrink: 1,
+  },
+  celebrateDesc: {
+    fontSize: fontScale(13),
+    color: uiPalette.muted,
+    textAlign: 'center',
+    marginTop: scale(10),
+  },
+  celebrateButtonWrap: {
+    alignSelf: 'stretch',
+    marginTop: scale(20),
+    borderRadius: scale(14),
+    overflow: 'hidden',
+  },
+  celebrateButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  celebrateButtonText: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: uiPalette.white,
   },
   textMuted: {
     color: uiPalette.muted,

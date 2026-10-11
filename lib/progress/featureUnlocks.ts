@@ -423,6 +423,12 @@ export interface UnlockGuide {
   requirement: string;
   /** One short line for the tile: where the player stands. */
   progress: string;
+  /** Two-word tag that always fits a tile, e.g. "Chapter 5". */
+  short: string;
+  /** Each route with its live progress, for a rich explanation. */
+  routes: { label: string; detail: string; progress: number }[];
+  /** Unfinished goals of the active chapter (route 1's next steps). */
+  nextGoals: string[];
   /** The full explanation for the tap dialog, one route per line. */
   details: string;
 }
@@ -461,5 +467,30 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     `3. Play ${OPEN_ALL_WEEKS} weeks in this life (you're at week ${weeksNow}).`,
   ].join('\n');
 
-  return { requirement: feature.requirement, progress, details };
+  const chapterProgress = active ? getChapterProgress(active, state) : undefined;
+  const routes = [
+    {
+      label: feature.requirement,
+      detail: chapterLine,
+      progress: Math.min(1, (chapterIndex >= 0 ? chapterIndex + (chapterProgress ? chapterProgress.completedGoals / Math.max(1, chapterProgress.totalGoals) : 0) : 0) / Math.max(1, tier)),
+    },
+    {
+      label: `Reach ${formatMoney(wealthNeeded)} net worth`,
+      detail: `Best so far: ${formatMoney(wealthNow)}`,
+      progress: wealthNeeded > 0 ? Math.min(1, wealthNow / wealthNeeded) : 0,
+    },
+    {
+      label: `Play ${OPEN_ALL_WEEKS} weeks in this life`,
+      detail: `You're at week ${weeksNow}`,
+      progress: Math.min(1, weeksNow / OPEN_ALL_WEEKS),
+    },
+  ];
+  return {
+    requirement: feature.requirement,
+    progress,
+    details,
+    short: `Chapter ${tier}`,
+    routes,
+    nextGoals: remainingGoals.map((g) => g.trim().replace(/^- /, '')),
+  };
 }

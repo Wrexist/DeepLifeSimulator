@@ -75,3 +75,43 @@ describe('live stream drain loop', () => {
     unmount();
   });
 });
+
+describe('a screen that keeps re-mounting still streams (old-save 0:00, 2026-10-11)', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.runOnlyPendingTimers(); jest.useRealTimers(); });
+
+  it('advances even when the app re-mounts faster than the 1s tick', () => {
+    let elapsed = -1;
+    // Seeds the session ONCE; only the Streaming screen re-mounts.
+    function Remounting() {
+      const { gameState, setGameState } = useGame();
+      const [k, setK] = React.useState(0);
+      const seeded = React.useRef(false);
+      useEffect(() => {
+        if (seeded.current) return;
+        seeded.current = true;
+        setGameState((prev) => ({
+          ...prev,
+          stats: { ...prev.stats, energy: 70 },
+          gamingStreaming: {
+            ...(prev.gamingStreaming ?? ({} as never)),
+            currentStream: {
+              id: 'live-remount', game: 'RPG Marathon', duration: 0, viewers: 0, earnings: 0,
+              followers: 0, subscribers: 0, chatMessages: 0, donations: 0,
+              live: true, startedAtMs: Date.now(), elapsedSeconds: 0, uploadedAt: 0,
+            },
+          },
+        }) as never);
+        const id = setInterval(() => setK((n) => n + 1), 500);
+        return () => clearInterval(id);
+      }, [setGameState]);
+      elapsed = gameState.gamingStreaming?.currentStream?.elapsedSeconds ?? -1;
+      return gameState.gamingStreaming?.currentStream?.live ? <GamingStreamingApp key={k} onBack={() => {}} /> : null;
+    }
+    const { unmount } = renderWithProviders(<Remounting />);
+    act(() => {});
+    for (let i = 0; i < 10; i++) act(() => { jest.advanceTimersByTime(500); });
+    expect(elapsed).toBeGreaterThanOrEqual(3);
+    unmount();
+  });
+});

@@ -17,7 +17,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { BookOpen, Check, Gift } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { Card } from '@/components/ui/Card';
-import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
+import { getActiveChapter, getChapterProgress, getUpcomingChapter } from '@/lib/progress/lifeChapters';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
@@ -33,6 +33,28 @@ function LifeChapterCard() {
     return { chapter, progress: getChapterProgress(chapter, state) };
   }, [state]);
 
+  // Between chapters: the next one opens at a later week of the life. Say so,
+  // instead of the whole card vanishing (player report, 2026-10-11).
+  const upcoming = !chapterData && state ? getUpcomingChapter(state) : undefined;
+  if (upcoming) {
+    return (
+      <Card>
+        <View style={styles.header}>
+          <View style={styles.iconBubble}>
+            <BookOpen size={scale(18)} color="#A855F7" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.chapterTitle}>
+              Chapter {upcoming.number}: {upcoming.chapter.subtitle}
+            </Text>
+            <Text style={styles.chapterSub}>
+              Opens in {upcoming.weeksUntil} {upcoming.weeksUntil === 1 ? 'week' : 'weeks'} - keep living your life.
+            </Text>
+          </View>
+        </View>
+      </Card>
+    );
+  }
   if (!chapterData) return null;
   const { chapter, progress } = chapterData;
   const reward = {

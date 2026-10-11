@@ -97,8 +97,11 @@ describe('locked apps collapse instead of walling the grid', () => {
   });
 
   it('a locked tile still teaches - tap explains, requirement shown', () => {
-    expect(launcher).toMatch(/gameAlert\(`\$\{name\} is locked`, app\.lockDetails \|\| app\.lockReason \|\| 'Not available yet\.'\)/);
-    expect(launcher).toMatch(/app\.locked && !!app\.lockReason/);
+    // Tap opens the locked-app sheet; the tile carries ONE short lock pill that
+    // fits (two text lines overflowed the card, 2026-10-11).
+    expect(launcher).toMatch(/setLockedApp\(\{/);
+    expect(launcher).toMatch(/<LockedAppSheet/);
+    expect(launcher).toMatch(/app\.locked && !!\(app\.lockShort \|\| app\.lockReason\)/);
   });
 });
 

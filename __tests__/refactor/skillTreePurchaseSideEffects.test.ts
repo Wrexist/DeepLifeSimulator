@@ -61,7 +61,8 @@ describe('the updater is pure', () => {
   it('the side effects are driven by a PREVIEW run on the snapshot', () => {
     expect(COMMIT).toMatch(/const preview = purchaseLifeSkill\(gameState, args\)/);
     expect(COMMIT).toMatch(/setGameState\(prev => purchaseLifeSkill\(prev, args\)\.state\)/);
-    expect(COMMIT).toMatch(/if \(preview\.purchased\)[\s\S]{0,200}gameAlert\('Skill Unlocked'/);
+    // The report is now the in-sheet celebration (2026-10-11), still driven by the preview.
+    expect(COMMIT).toMatch(/if \(preview\.purchased\)[\s\S]{0,200}setCelebrated\(node\)/);
   });
 });
 

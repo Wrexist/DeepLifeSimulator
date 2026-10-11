@@ -33,7 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { Card } from '@/components/ui/Card';
-import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
+import { getActiveChapter, getChapterProgress, getUpcomingChapter } from '@/lib/progress/lifeChapters';
 import {
   evaluateChallengeProgress,
   getWeeklyChallengeDefinition,
@@ -142,6 +142,19 @@ export function buildGoalRows(
 
   // The chapter keeps the wider progression visible after the next action and personal aim.
   const chapter = getActiveChapter(state);
+  // Waiting for the next chapter's week: keep it on the list with a countdown
+  // rather than letting the chapter row disappear (player report, 2026-10-11).
+  const upcomingChapter = chapter ? undefined : getUpcomingChapter(state);
+  if (upcomingChapter) {
+    const start = upcomingChapter.chapter.weekRange[0];
+    rows.push({
+      id: `chapter-upcoming:${upcomingChapter.chapter.id}`,
+      system: 'chapter',
+      title: `Chapter ${upcomingChapter.number}: ${upcomingChapter.chapter.subtitle}`,
+      progress: start > 0 ? Math.max(0, Math.min(1, 1 - upcomingChapter.weeksUntil / start)) : 0,
+      fraction: `opens in ${upcomingChapter.weeksUntil} ${upcomingChapter.weeksUntil === 1 ? 'week' : 'weeks'}`,
+    });
+  }
   if (chapter) {
     const progress = getChapterProgress(chapter, state);
     const next = progress.goals.find((g) => !g.complete);
