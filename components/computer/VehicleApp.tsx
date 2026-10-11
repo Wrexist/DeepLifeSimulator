@@ -359,11 +359,11 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   };
 
   // --- Vehicle art (require() image from the template, keyed by id) --------
-  const renderArt = (v: Vehicle, height: number, radius: number) => {
+  const renderArt = (v: Vehicle, height: number, radius: number, zoom = 1) => {
 
     return (
       <View style={[styles.artStage, { height: scale(height), backgroundColor: theme.surfaceElevated, borderRadius: radius }]}>
-        <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
+        <CatalogArt family="vehicles" id={v.id} zoom={zoom} style={{ width: '100%', height: '100%' }} />
       </View>
     );
   };
@@ -416,7 +416,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             <Chip label="Active" tint={accent.amber} selected />
           </View>
 
-          {renderArt(v, 138, responsiveBorderRadius.xl)}
+          {renderArt(v, 190, responsiveBorderRadius.xl, 1.45)}
 
           <View style={styles.heroBody}>
             <ProgressRing
@@ -501,7 +501,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           style={styles.fleetHeader}
         >
           <View style={[styles.thumbStage, { backgroundColor: theme.surfaceElevated }]}>
-            <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
+            <CatalogArt family="vehicles" id={v.id} zoom={1.3} style={{ width: '100%', height: '100%' }} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.fleetNameRow}>
@@ -634,7 +634,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               )}
             </View>
 
-            {renderArt(v, 150, responsiveBorderRadius.xl)}
+            {renderArt(v, 190, responsiveBorderRadius.xl, 1.35)}
 
             <Text style={[styles.heroName, { color: theme.text }]} numberOfLines={1}>{v.name}</Text>
             <Text style={[styles.heroSub, { color: theme.textMuted }]} numberOfLines={1}>

@@ -309,7 +309,13 @@ export const INFO_FIELDS = ['name', 'subtitle'];
 /** Apple stores keywords as one comma-separated string; the repo keeps an array. */
 export const keywordString = (k) => (Array.isArray(k) ? k.join(',') : k);
 
+/**
+ * @param {any} src
+ * @param {string[]} fields
+ * @returns {Record<string, string>}
+ */
 function pickFields(src, fields) {
+  /** @type {Record<string, string>} */
   const out = {};
   for (const f of fields) {
     const v = f === 'keywords' ? keywordString(src?.[f]) : src?.[f];
@@ -326,7 +332,12 @@ function pickFields(src, fields) {
  * A field the repo does not declare for a locale is left out, and therefore
  * left alone on Apple's side (es-MX has no localized name, for instance).
  */
+/**
+ * @param {any} APPLE
+ * @returns {Record<string, { version: Record<string, string>, info: Record<string, string> }>}
+ */
 export function listingByLocale(APPLE) {
+  /** @type {Record<string, { version: Record<string, string>, info: Record<string, string> }>} */
   const out = {};
   if (APPLE) {
     out['en-US'] = { version: pickFields(APPLE, VERSION_FIELDS), info: pickFields(APPLE, INFO_FIELDS) };

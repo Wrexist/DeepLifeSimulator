@@ -528,8 +528,11 @@ async function scrollMain(page, dy) {
     if (!scrollers.length) return;
     // The biggest one is the screen's own list; the rest are modals and rails.
     scrollers.sort((a, b) => b.clientHeight * b.clientWidth - a.clientHeight * a.clientWidth);
+    // "Top" means every list: the biggest scroller is not always the screen's
+    // own list (the garage hero was left parked under its tab bar).
+    if (amount === 0) { scrollers.forEach((e) => { e.scrollTop = 0; }); return; }
     const el = scrollers[0];
-    el.scrollTop = amount === 0 ? 0 : el.scrollTop + amount;
+    el.scrollTop = el.scrollTop + amount;
   }, dy);
   await sleep(900);
 }
@@ -671,6 +674,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: DSF, isMobile: VIEWPORT.width < 700, hasTouch: true });
   page.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 200)));
+  page.on('console', m => { if (m.type() === 'error') console.log('[console.error]', m.text().slice(0, 400)); });
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 180000 });
   if (!(await waitFor(page, 'Custom life', 120000))) throw new Error('menu never appeared');
   await sleep(2000);

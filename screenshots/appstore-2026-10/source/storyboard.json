@@ -1,321 +1,419 @@
-[
-  {
-    "id": "01-any-life",
-    "art": "01",
-    "shot": "home",
-    "title": [
-      "Live any life.",
-      "Your rules."
-    ],
-    "sub": "Career, love, money and legacy - every week is your choice.",
-    "proof": "ONE LIFE \u00b7 ENDLESS PATHS",
-    "category": "LIFE SIMULATION",
-    "accent": "#A5DFFF",
-    "crop": [
-      0,
-      0,
-      1290,
-      2020
-    ],
-    "w": 1010,
-    "y": 1240,
-    "angle": -2,
-    "checks": [
-      "Engineering Manager",
-      "Married",
-      "Net Worth"
-    ],
-    "cropPad": [
-      0,
-      0,
-      1300,
-      1150
-    ]
-  },
-  {
-    "id": "02-go-live",
-    "art": "13",
-    "shot": "stream-recap",
-    "title": [
-      "Go live.",
-      "Get famous."
-    ],
-    "sub": "Stream, grow a following and watch the money roll in.",
-    "proof": "NEW PERSONAL BEST",
-    "category": "STREAMING",
-    "accent": "#D7CEF4",
-    "crop": [
-      40,
-      530,
-      1200,
-      1870
-    ],
-    "w": 1060,
-    "y": 1230,
-    "angle": 2,
-    "checks": [
-      "New personal best",
-      "Peak viewers",
-      "New followers"
-    ],
-    "cropPad": [
-      560,
-      820,
-      880,
-      1260
-    ]
-  },
-  {
-    "id": "03-drive-the-dream",
-    "art": "09",
-    "shot": "garage",
-    "title": [
-      "Drive the",
-      "dream."
-    ],
-    "sub": "Work your way up to the garage you always wanted.",
-    "proof": "EXOTIC SUPERCAR \u00b7 211 MPH",
-    "category": "LIFESTYLE",
-    "accent": "#FFE0A0",
-    "crop": [
-      0,
-      0,
-      1290,
-      2260
-    ],
-    "w": 1000,
-    "y": 1240,
-    "angle": -2,
-    "checks": [
-      "Exotic Supercar",
-      "211 mph"
-    ],
-    "cropPad": [
-      0,
-      100,
-      1600,
-      1050
-    ]
-  },
-  {
-    "id": "04-find-love",
-    "art": "03",
-    "shot": "spark",
-    "title": [
-      "Find your",
-      "person."
-    ],
-    "sub": "Swipe, chat, date - and build a life together.",
-    "proof": "MEET \u00b7 DATE \u00b7 MARRY",
-    "category": "DATING",
-    "accent": "#FFD4C2",
-    "crop": [
-      0,
-      90,
-      1290,
-      2560
-    ],
-    "w": 900,
-    "y": 1240,
-    "angle": 2,
-    "checks": [
-      "Spark",
-      "swipes left"
-    ],
-    "cropPad": [
-      0,
-      900,
-      1350,
-      1700
-    ]
-  },
-  {
-    "id": "05-build-an-empire",
-    "art": "02",
-    "shot": "company",
-    "title": [
-      "Build your",
-      "empire."
-    ],
-    "sub": "Found a company and turn it into weekly revenue.",
-    "proof": "FROM FIRST COMPANY TO EMPIRE",
-    "category": "BUSINESS",
-    "accent": "#ECD2A1",
-    "crop": [
-      0,
-      0,
-      1290,
-      2640
-    ],
-    "w": 900,
-    "y": 1240,
-    "angle": -2,
-    "checks": [
-      "Take-home per week",
-      "Weekly revenue"
-    ],
-    "cropPad": [
-      0,
-      0,
-      1400,
-      1850
-    ]
-  },
-  {
-    "id": "06-every-choice",
-    "art": "04",
-    "shot": "event-decision",
-    "title": [
-      "Every choice",
-      "counts."
-    ],
-    "sub": "Life throws decisions at you. See what each one costs.",
-    "proof": "YOUR DECISIONS \u00b7 YOUR STORY",
-    "category": "LIFE EVENTS",
-    "accent": "#ECD2A1",
-    "crop": [
-      40,
-      540,
-      1200,
-      1900
-    ],
-    "w": 1060,
-    "y": 1240,
-    "angle": 2,
-    "checks": [
-      "Choice Effects"
-    ],
-    "cropPad": [
-      500,
-      640,
-      1000,
-      1620
-    ]
-  },
-  {
-    "id": "07-level-up",
-    "art": "05",
-    "shot": "skill-unlocked",
-    "title": [
-      "Level up",
-      "your life."
-    ],
-    "sub": "Unlock skills that make every career and goal easier.",
-    "proof": "20 LIFE SKILLS TO MASTER",
-    "category": "PROGRESSION",
-    "accent": "#BBDFD5",
-    "crop": [
-      60,
-      780,
-      1170,
-      1420
-    ],
-    "w": 1060,
-    "y": 1300,
-    "angle": -2,
-    "checks": [
-      "SKILL UNLOCKED",
-      "Networking"
-    ],
-    "cropPad": [
-      560,
-      950,
-      880,
-      1010
-    ]
-  },
-  {
-    "id": "08-own-the-city",
-    "art": "08",
-    "shot": "realestate",
-    "title": [
-      "Own the",
-      "city."
-    ],
-    "sub": "Buy homes, collect rent and build a portfolio.",
-    "proof": "FROM FIRST HOME TO PORTFOLIO",
-    "category": "REAL ESTATE",
-    "accent": "#D9D0F3",
-    "crop": [
-      0,
-      0,
-      1290,
-      2300
-    ],
-    "w": 980,
-    "y": 1240,
-    "angle": 2,
-    "checks": [
-      "Buy this home"
-    ],
-    "cropPad": [
-      0,
-      350,
-      2048,
-      1500
-    ]
-  },
-  {
-    "id": "09-play-the-markets",
-    "art": "06",
-    "shot": "stocks",
-    "title": [
-      "Play the",
-      "markets."
-    ],
-    "sub": "Invest in stocks, ride the trends, grow your wealth.",
-    "proof": "TURN INCOME INTO WEALTH",
-    "category": "INVESTING",
-    "accent": "#BBDFD5",
-    "crop": [
-      0,
-      0,
-      1290,
-      2640
-    ],
-    "w": 900,
-    "y": 1240,
-    "angle": -2,
-    "checks": [
-      "AAPL",
-      "AMZN"
-    ],
-    "cropPad": [
-      0,
-      950,
-      2048,
-      1250
-    ]
-  },
-  {
-    "id": "10-live-in-luxury",
-    "art": "15",
-    "shot": "luxury",
-    "title": [
-      "Live in",
-      "luxury."
-    ],
-    "sub": "Collect the rare things only success can buy.",
-    "proof": "COLLECT WHAT SUCCESS UNLOCKS",
-    "category": "LUXURY",
-    "accent": "#ECD2A1",
-    "crop": [
-      0,
-      0,
-      1290,
-      2400
-    ],
-    "w": 960,
-    "y": 1240,
-    "angle": 2,
-    "checks": [
-      "Collection"
-    ],
-    "cropPad": [
-      0,
-      0,
-      1400,
-      1800
-    ]
-  }
-]
+{
+  "frames": [
+    {
+      "id": "01-any-life",
+      "art": "01",
+      "shot": "home",
+      "title": [
+        "Live any life.",
+        "Your rules."
+      ],
+      "sub": "Career, love, money and legacy - every week is your choice.",
+      "proof": "ONE LIFE · ENDLESS PATHS",
+      "category": "LIFE SIMULATION",
+      "accent": "#A5DFFF",
+      "checks": [
+        "Engineering Manager",
+        "Married",
+        "Net Worth"
+      ],
+      "focus": [
+        30,
+        680,
+        1230,
+        480
+      ],
+      "focusPad": [
+        30,
+        440,
+        1300,
+        400
+      ],
+      "popWPad": 1450
+    },
+    {
+      "id": "02-go-live",
+      "art": "13",
+      "shot": "stream-recap",
+      "title": [
+        "Go live.",
+        "Get famous."
+      ],
+      "sub": "Stream, grow a following and watch the money roll in.",
+      "proof": "NEW PERSONAL BEST",
+      "category": "STREAMING",
+      "accent": "#D7CEF4",
+      "checks": [
+        "New personal best",
+        "Peak viewers",
+        "New followers"
+      ],
+      "focus": [
+        60,
+        1270,
+        1180,
+        740
+      ],
+      "focusPad": [
+        575,
+        1240,
+        845,
+        580
+      ],
+      "popWPad": 1050
+    },
+    {
+      "id": "03-drive-the-dream",
+      "art": "09",
+      "shot": "garage",
+      "title": [
+        "Drive the",
+        "dream."
+      ],
+      "sub": "Work your way up to the garage you always wanted.",
+      "proof": "EXOTIC SUPERCAR · 211 MPH",
+      "category": "LIFESTYLE",
+      "accent": "#FFE0A0",
+      "checks": [
+        "Exotic Supercar",
+        "211 mph"
+      ],
+      "focus": [
+        50,
+        450,
+        1190,
+        1150
+      ],
+      "focusPad": [
+        20,
+        310,
+        2010,
+        1050
+      ],
+      "popWPad": 1300,
+      "popW": 900
+    },
+    {
+      "id": "04-find-love",
+      "art": "03",
+      "shot": "spark",
+      "title": [
+        "Find your",
+        "person."
+      ],
+      "sub": "Swipe, chat, date - and build a life together.",
+      "proof": "MEET · DATE · MARRY",
+      "category": "DATING",
+      "accent": "#FFD4C2",
+      "checks": [
+        "Spark",
+        "swipes left"
+      ],
+      "focus": [
+        60,
+        540,
+        1180,
+        1460
+      ],
+      "focusPad": [
+        30,
+        1690,
+        1750,
+        560
+      ],
+      "popWPad": 1450,
+      "popW": 840
+    },
+    {
+      "id": "05-build-an-empire",
+      "art": "02",
+      "shot": "company",
+      "title": [
+        "Build your",
+        "empire."
+      ],
+      "sub": "Found a company and turn it into weekly revenue.",
+      "proof": "FROM FIRST COMPANY TO EMPIRE",
+      "category": "BUSINESS",
+      "accent": "#ECD2A1",
+      "checks": [
+        "Take-home per week",
+        "Weekly revenue"
+      ],
+      "focus": [
+        50,
+        600,
+        1190,
+        470
+      ],
+      "focusPad": [
+        20,
+        400,
+        2030,
+        400
+      ],
+      "popWPad": 1300
+    },
+    {
+      "id": "06-every-choice",
+      "art": "04",
+      "shot": "event-decision",
+      "title": [
+        "Every choice",
+        "counts."
+      ],
+      "sub": "Life throws decisions at you. See what each one costs.",
+      "proof": "YOUR DECISIONS · YOUR STORY",
+      "category": "LIFE EVENTS",
+      "accent": "#ECD2A1",
+      "checks": [
+        "Choice Effects"
+      ],
+      "focus": [
+        90,
+        430,
+        1130,
+        1330
+      ],
+      "focusPad": [
+        537,
+        740,
+        990,
+        960
+      ],
+      "popWPad": 1050,
+      "popW": 880
+    },
+    {
+      "id": "07-level-up",
+      "art": "05",
+      "shot": "skill-unlocked",
+      "title": [
+        "Level up",
+        "your life."
+      ],
+      "sub": "Unlock skills that make every career and goal easier.",
+      "proof": "20 LIFE SKILLS TO MASTER",
+      "category": "PROGRESSION",
+      "accent": "#BBDFD5",
+      "checks": [
+        "SKILL UNLOCKED",
+        "Networking"
+      ],
+      "focus": [
+        90,
+        740,
+        1120,
+        1320
+      ],
+      "focusPad": [
+        606,
+        875,
+        830,
+        935
+      ],
+      "popWPad": 950,
+      "popW": 880
+    },
+    {
+      "id": "08-own-the-city",
+      "art": "08",
+      "shot": "realestate",
+      "title": [
+        "Own the",
+        "city."
+      ],
+      "sub": "Buy homes, collect rent and build a portfolio.",
+      "proof": "FROM FIRST HOME TO PORTFOLIO",
+      "category": "REAL ESTATE",
+      "accent": "#D9D0F3",
+      "checks": [
+        "Buy this home"
+      ],
+      "focus": [
+        56,
+        620,
+        1180,
+        1240
+      ],
+      "focusPad": [
+        20,
+        400,
+        2000,
+        880
+      ],
+      "popWPad": 1300,
+      "popW": 880
+    },
+    {
+      "id": "09-play-the-markets",
+      "art": "06",
+      "shot": "stocks",
+      "title": [
+        "Play the",
+        "markets."
+      ],
+      "sub": "Invest in stocks, ride the trends, grow your wealth.",
+      "proof": "TURN INCOME INTO WEALTH",
+      "category": "INVESTING",
+      "accent": "#BBDFD5",
+      "checks": [
+        "AAPL",
+        "AMZN"
+      ],
+      "focus": [
+        40,
+        1370,
+        1210,
+        720
+      ],
+      "focusPad": [
+        20,
+        960,
+        2010,
+        560
+      ],
+      "popWPad": 1300
+    },
+    {
+      "id": "10-live-in-luxury",
+      "art": "15",
+      "shot": "luxury",
+      "title": [
+        "Live in",
+        "luxury."
+      ],
+      "sub": "Collect the rare things only success can buy.",
+      "proof": "COLLECT WHAT SUCCESS UNLOCKS",
+      "category": "LUXURY",
+      "accent": "#ECD2A1",
+      "checks": [
+        "Collection"
+      ],
+      "focus": [
+        52,
+        1380,
+        1180,
+        1020
+      ],
+      "focusPad": [
+        20,
+        860,
+        2010,
+        800
+      ],
+      "popWPad": 1300,
+      "popW": 900
+    }
+  ],
+  "header": [
+    {
+      "id": "a",
+      "title": [
+        "Live any life.",
+        "Your rules."
+      ],
+      "sub": "Career, love, money and legacy. Every week is your call.",
+      "shots": [
+        "garage",
+        "home",
+        "stream-recap"
+      ],
+      "plates": [
+        "09",
+        "01",
+        "13",
+        "03",
+        "02"
+      ],
+      "accent": "#A5DFFF"
+    },
+    {
+      "id": "b",
+      "title": [
+        "Go live.",
+        "Get famous."
+      ],
+      "sub": "Stream, find love, build an empire. One life, endless paths.",
+      "shots": [
+        "spark",
+        "stream-recap",
+        "luxury"
+      ],
+      "plates": [
+        "13",
+        "03",
+        "15",
+        "02",
+        "08"
+      ],
+      "accent": "#D7CEF4"
+    },
+    {
+      "id": "c",
+      "layout": "center",
+      "title": [
+        "Live any life.",
+        "Your rules."
+      ],
+      "shots": [
+        "stream-recap",
+        "home",
+        "luxury"
+      ],
+      "plates": [
+        "01",
+        "13",
+        "09",
+        "03",
+        "15"
+      ],
+      "accent": "#A5DFFF",
+      "sub": ""
+    }
+  ],
+  "search": [
+    {
+      "id": "a",
+      "title": [
+        "Live any life.",
+        "Your rules."
+      ],
+      "sub": "Careers, love, money and legacy - one week at a time.",
+      "shots": [
+        "garage",
+        "home",
+        "stream-recap"
+      ],
+      "plates": [
+        "09",
+        "01",
+        "13",
+        "03",
+        "02"
+      ],
+      "accent": "#A5DFFF"
+    },
+    {
+      "id": "b",
+      "title": [
+        "Go live.",
+        "Get famous."
+      ],
+      "sub": "Stream, find love and build an empire.",
+      "shots": [
+        "spark",
+        "stream-recap",
+        "luxury"
+      ],
+      "plates": [
+        "13",
+        "03",
+        "15",
+        "02",
+        "08"
+      ],
+      "accent": "#D7CEF4"
+    }
+  ]
+}
