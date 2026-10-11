@@ -276,8 +276,15 @@ async function main() {
   // ---- 5 · optional submission -------------------------------------------
   if (submit) {
     say(`\n${C.bold}Review submission${C.off}`);
-    const created = await client.post('/v1/reviewSubmissions', reviewSubmissionCreatePayload({ appId, platform }));
-    const submissionId = created?.data?.id;
+    // Apple allows one open submission per platform. A run that failed after
+    // step 1 leaves an empty READY_FOR_REVIEW draft behind; reuse it rather
+    // than creating a second one Apple will refuse.
+    const open = await client.getAll(
+      `/v1/reviewSubmissions?filter[app]=${appId}&filter[platform]=${platform}&filter[state]=READY_FOR_REVIEW&limit=5`,
+    );
+    const submissionId = open[0]?.id
+      ?? (await client.post('/v1/reviewSubmissions', reviewSubmissionCreatePayload({ appId, platform })))?.data?.id;
+    if (open[0]) say(`  ${C.dim}REUSE${C.off}     open draft submission ${submissionId}`);
     if (submissionId) {
       await client.post(
         '/v1/reviewSubmissionItems',
