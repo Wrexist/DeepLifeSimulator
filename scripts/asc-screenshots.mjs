@@ -176,7 +176,13 @@ async function main() {
       const type = DISPLAY_TYPES[device].type;
       let set = existingSets.find((s) => s.attributes.screenshotDisplayType === type);
       const old = set ? await client.getAll(`/v1/appScreenshotSets/${set.id}/appScreenshots?limit=50`) : [];
-      console.log(`  ${loc.attributes.locale} ${type}: replace ${old.length} -> ${sets[device].length}`);
+      // Name what Apple has NOT finished processing, so a plan run doubles as
+      // the status check after an apply that hit its deadline.
+      const unfinished = old
+        .filter((s) => s.attributes?.assetDeliveryState?.state !== 'COMPLETE')
+        .map((s) => `${s.attributes?.fileName} ${s.attributes?.assetDeliveryState?.state ?? '?'}`);
+      console.log(`  ${loc.attributes.locale} ${type}: replace ${old.length} -> ${sets[device].length}` +
+        (unfinished.length ? ` · not processed: ${unfinished.join(', ')}` : ''));
       if (!apply) continue;
       if (!set) {
         const created = await client.post('/v1/appScreenshotSets', {
