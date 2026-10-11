@@ -45,6 +45,35 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.3',
+    date: 'October 2026',
+    headline: 'Polished from top to bottom',
+    summary:
+      'Live streams that actually run, a calmer Life Skills screen, fairer diet prices and dozens of small fixes.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Live streaming works',
+        bullets: ['Going live now counts time, drains energy and grows your audience as it should.'],
+      },
+      {
+        category: 'improved',
+        title: 'Life Skills, rebuilt',
+        bullets: ['The skill tree fits the screen, and skill points are now spent alongside money.'],
+      },
+      {
+        category: 'improved',
+        title: 'Diet plans you can afford',
+        bullets: ['Basic, Premium and Athlete diets now cost $140, $350 and $595 a week.'],
+      },
+      {
+        category: 'fixed',
+        title: 'Cleaner screens everywhere',
+        bullets: ['No cut-off tab names or split numbers, and mail now shows the right dates.'],
+      },
+    ],
+  },
+  {
     version: '2.15.2',
     date: 'October 2026',
     headline: 'Every milestone has a story',
