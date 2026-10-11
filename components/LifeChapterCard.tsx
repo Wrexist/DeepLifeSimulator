@@ -107,7 +107,7 @@ function LifeChapterCard() {
         <View style={styles.completeBanner}>
           <Gift size={scale(15)} color="#FBBF24" />
           <Text style={styles.completeText}>
-            All goals complete - +${reward.money.toLocaleString()} and +{reward.gems} gems
+            All goals complete - +${reward.money.toLocaleString('en-US')} and +{reward.gems} gems
             arrive when you end the week.
           </Text>
         </View>
@@ -115,7 +115,7 @@ function LifeChapterCard() {
         <View style={styles.rewardHint}>
           <Gift size={scale(13)} color={uiPalette.muted} />
           <Text style={styles.rewardHintText}>
-            Reward: ${reward.money.toLocaleString()} + {reward.gems} gems
+            Reward: ${reward.money.toLocaleString('en-US')} + {reward.gems} gems
           </Text>
         </View>
       )}

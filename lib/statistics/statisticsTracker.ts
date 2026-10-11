@@ -381,7 +381,7 @@ export function formatStatNumber(value: number): string {
   if (value > 10_000) {
     return `${(value / 1_000).toFixed(2)}K`;
   }
-  return value.toLocaleString();
+  return value.toLocaleString('en-US');
 }
 
 /**

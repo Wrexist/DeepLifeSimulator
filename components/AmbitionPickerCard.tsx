@@ -21,7 +21,7 @@ import { uiPalette } from '@/lib/config/theme';
  * cannot cross-satisfy a different ambition either.
  */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Check, Compass, Gem, Star } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { Card, IconBubble } from '@/components/ui/Card';
@@ -107,7 +107,10 @@ function AmbitionPickerCard() {
           <Text style={styles.ctaText}>Pick an Ambition</Text>
         </TouchableOpacity>
       ) : (
-        <ScrollView style={styles.list} nestedScrollEnabled contentContainerStyle={styles.listContent}>
+        // A plain column, not a capped inner ScrollView: this card sits inside
+        // Home's vertical scroller, and a nested one captured every swipe that
+        // started over the list - the page stopped scrolling under the thumb.
+        <View style={styles.listContent}>
           {LIFE_AMBITIONS.map((a) => (
             <TouchableOpacity
               key={a.id}
@@ -138,7 +141,7 @@ function AmbitionPickerCard() {
               )}
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       )}
     </Card>
   );
@@ -160,7 +163,6 @@ const styles = StyleSheet.create({
     backgroundColor: uiPalette.blue,
   },
   ctaText: { color: uiPalette.navy, fontSize: fontScale(13), fontWeight: '800' },
-  list: { maxHeight: scale(280) },
   listContent: { gap: scale(8) },
   option: {
     flexDirection: 'row',

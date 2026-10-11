@@ -218,7 +218,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
       notifications.push({
         id: `stk-div-${input.currentWeek}`,
         title: '💵 Dividends Paid',
-        message: `Received $${Math.round(dividendsUSD).toLocaleString()} across ${payouts.length} ${payouts.length === 1 ? 'stock' : 'stocks'}.`,
+        message: `Received $${Math.round(dividendsUSD).toLocaleString('en-US')} across ${payouts.length} ${payouts.length === 1 ? 'stock' : 'stocks'}.`,
       });
     }
   }
@@ -323,10 +323,10 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
         id: `stk-tax-${input.currentWeek}`,
         title: '🧾 Investment Tax',
         message:
-          `Withheld $${Math.round(capitalGainsTaxUSD).toLocaleString()} (${Math.round(effectiveRate * 100)}% of ` +
-          `$${Math.round(taxableThisTick).toLocaleString()} realized stock gains + dividends).` +
+          `Withheld $${Math.round(capitalGainsTaxUSD).toLocaleString('en-US')} (${Math.round(effectiveRate * 100)}% of ` +
+          `$${Math.round(taxableThisTick).toLocaleString('en-US')} realized stock gains + dividends).` +
           (capitalGainsTaxUnpaid > 0
-            ? ` $${Math.round(capitalGainsTaxUnpaid).toLocaleString()} carried over as unpaid.`
+            ? ` $${Math.round(capitalGainsTaxUnpaid).toLocaleString('en-US')} carried over as unpaid.`
             : ''),
       });
     }

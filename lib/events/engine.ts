@@ -1921,8 +1921,8 @@ const investmentTip: EventTemplate = {
       // it (50/50, EV ≈ 0). Description updated to match the real stakes.
       description: 'A successful investor shares a tip about an undervalued stock. You could double your money - or lose your whole stake.',
       choices: [
-        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, outcomeHidden: true, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
-        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, outcomeHidden: true, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
+        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString('en-US')}`, outcomeHidden: true, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
+        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString('en-US')}`, outcomeHidden: true, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
         { id: 'pass', text: 'Pass on the opportunity', effects: {} },
       ],
     };
@@ -1949,7 +1949,7 @@ const businessPartnership: EventTemplate = {
 
     return {
       id: 'business_partnership',
-      description: `A successful entrepreneur wants to partner with your business. They offer $${scaledOffer.toLocaleString()} capital for equity.`,
+      description: `A successful entrepreneur wants to partner with your business. They offer $${scaledOffer.toLocaleString('en-US')} capital for equity.`,
       choices: [
         { id: 'accept', text: 'Accept the partnership', effects: { money: scaledOffer, stats: { reputation: 10 } } },
         { id: 'negotiate', text: 'Negotiate better terms', effects: { money: negotiateOffer, stats: { reputation: 5 } } },
@@ -1977,7 +1977,7 @@ const distantRelativeInheritance: EventTemplate = {
 
     return {
       id: 'distant_relative_inheritance',
-      description: `You receive news that a distant relative passed away and left you $${inheritance.toLocaleString()} in their will.`,
+      description: `You receive news that a distant relative passed away and left you $${inheritance.toLocaleString('en-US')} in their will.`,
       choices: [
         { id: 'accept', text: 'Accept the inheritance', effects: { money: inheritance, stats: { happiness: -5 } } },
         { id: 'donate', text: 'Donate to charity in their name', effects: { stats: { happiness: 10, reputation: 15 } } },
@@ -2128,7 +2128,7 @@ const brandDealOffer: EventTemplate = {
     const payment = Math.floor((state.socialMedia?.followers || 10000) * 0.05);
     return {
       id: 'brand_deal_offer',
-      description: `A company wants you to promote their product. They're offering $${payment.toLocaleString()}.`,
+      description: `A company wants you to promote their product. They're offering $${payment.toLocaleString('en-US')}.`,
       choices: [
         { id: 'accept', text: 'Accept the deal', effects: { money: payment, stats: { reputation: -5 } } },
         { id: 'negotiate', text: 'Negotiate higher pay', effects: { money: Math.floor(payment * 1.5), stats: { reputation: -10 } } },
@@ -3876,13 +3876,13 @@ const eventChainDefinitions: EventChainDefinition[] = [
         const payout = investedBig ? 6000 : 3000;
         return {
           id: 'biz_results',
-          description: `The venture paid off! Your ${investedBig ? '$2,000' : '$1,000'} investment returned $${payout.toLocaleString()}.`,
+          description: `The venture paid off! Your ${investedBig ? '$2,000' : '$1,000'} investment returned $${payout.toLocaleString('en-US')}.`,
           chainId: 'business_opportunity',
           chainStage: 3,
           choices: [
             {
               id: 'celebrate',
-              text: `Collect your triple return (+$${payout.toLocaleString()})`,
+              text: `Collect your triple return (+$${payout.toLocaleString('en-US')})`,
               effects: { money: payout, stats: { happiness: 20 } },
             },
           ],

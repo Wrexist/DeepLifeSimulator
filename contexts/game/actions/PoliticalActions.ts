@@ -523,7 +523,7 @@ export const runForOffice = (
     });
 
     log.info(`Won election for ${office}, now at level ${newLevel}, reward: $${reward}`);
-    const rewardMessage = reward > 0 ? ` You received $${reward.toLocaleString()} as an election bonus!` : '';
+    const rewardMessage = reward > 0 ? ` You received $${reward.toLocaleString('en-US')} as an election bonus!` : '';
     // Validate newLevel is within bounds before accessing levels array
     const safeLevel = Math.max(0, Math.min(newLevel, POLITICAL_CAREER.levels.length - 1));
     const levelName = POLITICAL_CAREER.levels[safeLevel]?.name || 'Unknown Office';
@@ -1129,7 +1129,7 @@ export const raisePACDirty = (
     const price = btc?.price ?? 0;
     const politics = ensurePoliticsHasNewFields(prev.politics ?? initialGameState.politics!);
     const r = pacRaiseDirty(politics, btcAmount, price, prev.weeksLived);
-    log.info(`Funneled ${btcAmount} BTC ($${Math.round(r.usdConverted).toLocaleString()}) through the PAC`);
+    log.info(`Funneled ${btcAmount} BTC ($${Math.round(r.usdConverted).toLocaleString('en-US')}) through the PAC`);
     return {
       ...prev,
       cryptos: prev.cryptos.map((c) =>
@@ -1157,7 +1157,7 @@ export const spendPACOnCampaign = (
       return prev;
     }
     log.info(
-      `PAC spend $${Math.round(r.spentUSD).toLocaleString()} (dirty $${Math.round(r.spentFromDirty).toLocaleString()}) → +${r.approvalGain.toFixed(1)} approval`
+      `PAC spend $${Math.round(r.spentUSD).toLocaleString('en-US')} (dirty $${Math.round(r.spentFromDirty).toLocaleString('en-US')}) → +${r.approvalGain.toFixed(1)} approval`
     );
     return { ...prev, politics: r.politics };
   });

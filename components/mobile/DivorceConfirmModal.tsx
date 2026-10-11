@@ -134,7 +134,7 @@ export default function DivorceConfirmModal({
                     Base Lawyer Fees:
                   </Text>
                   <Text style={[styles.infoValue, isDarkMode && styles.infoValueDark]}>
-                    ${lawyerFees.toLocaleString()}
+                    ${lawyerFees.toLocaleString('en-US')}
                   </Text>
                 </View>
                 
@@ -264,7 +264,7 @@ export default function DivorceConfirmModal({
                               Expected Settlement:
                             </Text>
                             <Text style={[styles.lawyerOutcomeValue, isDarkMode && styles.lawyerOutcomeValueDark]}>
-                              ${Math.round(outcome.expected.expectedSettlement).toLocaleString()}
+                              ${Math.round(outcome.expected.expectedSettlement).toLocaleString('en-US')}
                             </Text>
                           </View>
                           <View style={styles.lawyerOutcomeRow}>
@@ -275,7 +275,7 @@ export default function DivorceConfirmModal({
                               styles.lawyerOutcomeValue,
                               outcome.netSavings > 0 ? styles.positiveSavings : styles.negativeSavings
                             ]}>
-                              {outcome.netSavings > 0 ? '+' : ''}${Math.round(outcome.netSavings).toLocaleString()}
+                              {outcome.netSavings > 0 ? '+' : ''}${Math.round(outcome.netSavings).toLocaleString('en-US')}
                             </Text>
                           </View>
                           {outcome.expected.roi > 0 && (
@@ -291,14 +291,14 @@ export default function DivorceConfirmModal({
                             Lawyer Cost:
                           </Text>
                           <Text style={[styles.lawyerCostValue, isDarkMode && styles.lawyerCostValueDark]}>
-                            ${outcome.lawyerCost.toLocaleString()}
+                            ${outcome.lawyerCost.toLocaleString('en-US')}
                           </Text>
                         </View>
 
                         {!outcome.canAfford && (
                           <View style={styles.cannotAffordBadge}>
                             <Text style={styles.cannotAffordText}>
-                              Need ${(outcome.totalCost - currentMoney).toLocaleString()} more
+                              Need ${(outcome.totalCost - currentMoney).toLocaleString('en-US')} more
                             </Text>
                           </View>
                         )}
@@ -340,7 +340,7 @@ export default function DivorceConfirmModal({
                       Expected Settlement:
                     </Text>
                     <Text style={[styles.infoValue, isDarkMode && styles.infoValueDark]}>
-                      ${Math.round(selectedLawyerData.expected.expectedSettlement).toLocaleString()}
+                      ${Math.round(selectedLawyerData.expected.expectedSettlement).toLocaleString('en-US')}
                     </Text>
                   </View>
                   <View style={styles.infoRow}>
@@ -348,7 +348,7 @@ export default function DivorceConfirmModal({
                       Base Fees:
                     </Text>
                     <Text style={[styles.infoValue, isDarkMode && styles.infoValueDark]}>
-                      ${lawyerFees.toLocaleString()}
+                      ${lawyerFees.toLocaleString('en-US')}
                     </Text>
                   </View>
                   <View style={styles.infoRow}>
@@ -356,7 +356,7 @@ export default function DivorceConfirmModal({
                       Lawyer Cost:
                     </Text>
                     <Text style={[styles.infoValue, isDarkMode && styles.infoValueDark]}>
-                      ${selectedLawyerData.lawyerCost.toLocaleString()}
+                      ${selectedLawyerData.lawyerCost.toLocaleString('en-US')}
                     </Text>
                   </View>
                   <View style={styles.divider} />
@@ -365,13 +365,13 @@ export default function DivorceConfirmModal({
                       Expected Total:
                     </Text>
                     <Text style={[styles.totalValue, styles.finalTotalValue, isDarkMode && styles.totalValueDark]}>
-                      ${Math.round(selectedLawyerData.finalCost).toLocaleString()}
+                      ${Math.round(selectedLawyerData.finalCost).toLocaleString('en-US')}
                     </Text>
                   </View>
                   {selectedLawyerData.netSavings > 0 && (
                     <View style={styles.savingsHighlight}>
                       <Text style={styles.savingsText}>
-                        Expected Savings: ${Math.round(selectedLawyerData.netSavings).toLocaleString()}
+                        Expected Savings: ${Math.round(selectedLawyerData.netSavings).toLocaleString('en-US')}
                       </Text>
                     </View>
                   )}
@@ -407,7 +407,7 @@ export default function DivorceConfirmModal({
                     Your Gems:
                   </Text>
                   <Text style={[styles.infoValue, styles.gemValue]}>
-                    {currentGems.toLocaleString()}
+                    {currentGems.toLocaleString('en-US')}
                   </Text>
                 </View>
                 <Text style={[styles.infoSubtext, styles.gemSubtext, isDarkMode && styles.infoSubtextDark]}>
@@ -446,8 +446,8 @@ export default function DivorceConfirmModal({
               <View style={[styles.errorBox, isDarkMode && styles.errorBoxDark]}>
                 <Text style={styles.errorText}>
                   {selectedLawyerData 
-                    ? `You need $${Math.round(selectedLawyerData.finalCost).toLocaleString()} total to proceed with this lawyer.`
-                    : `You need at least $${lawyerFees.toLocaleString()} for lawyer fees to proceed with the divorce.`
+                    ? `You need $${Math.round(selectedLawyerData.finalCost).toLocaleString('en-US')} total to proceed with this lawyer.`
+                    : `You need at least $${lawyerFees.toLocaleString('en-US')} for lawyer fees to proceed with the divorce.`
                   }
                 </Text>
               </View>

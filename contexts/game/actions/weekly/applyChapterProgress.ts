@@ -115,8 +115,8 @@ export function applyChapterProgress(input: ChapterProgressInput): ChapterProgre
       id: `chapter-complete-${active.id}`,
       title: `📖 ${active.title} complete - ${active.subtitle}`,
       message: unlocked
-        ? `${unlocked} +$${money.toLocaleString()}, +${gems} gems.`
-        : `+$${money.toLocaleString()}, +${gems} gems.`,
+        ? `${unlocked} +$${money.toLocaleString('en-US')}, +${gems} gems.`
+        : `+$${money.toLocaleString('en-US')}, +${gems} gems.`,
     }],
   };
 }

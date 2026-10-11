@@ -150,7 +150,7 @@ function wealthEntries(state: GameState): TimelineEntry[] {
       week,
       age: ageFromWeeksLived(week),
       kind: 'wealth',
-      title: `Fortune peaked at $${Math.round(peak).toLocaleString()}`,
+      title: `Fortune peaked at $${Math.round(peak).toLocaleString('en-US')}`,
     },
   ];
 }

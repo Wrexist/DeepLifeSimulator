@@ -442,7 +442,13 @@ describe('the §7 carve-out fields survive the load merge', () => {
     // authored as v50 on separate branches, so the merged history carries two
     // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`.
     expect(CARVE_OUTS).toHaveLength(27);
-    expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
+    // Bumps that add NO field, so they have no row here: v53 reprices the
+    // stored diet catalogue. Declared, so an undeclared new field still fails.
+    const NON_FIELD_BUMPS = [53];
+    const latestCarveOut = Math.max(...CARVE_OUTS.map((c) => c.version));
+    for (let v = latestCarveOut + 1; v <= STATE_VERSION; v++) {
+      expect(NON_FIELD_BUMPS).toContain(v);
+    }
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });
 

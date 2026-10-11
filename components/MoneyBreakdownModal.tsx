@@ -131,7 +131,7 @@ export default function MoneyBreakdownModal({ visible, onClose }: MoneyBreakdown
           color: '#10B981',
           iconColor: isPositive ? '#10B981' : '#EF4444',
           description: [
-            `${item.shares.toLocaleString()} shares @ ${formatMoney(item.currentPrice)} each`,
+            `${item.shares.toLocaleString('en-US')} shares @ ${formatMoney(item.currentPrice)} each`,
             `Avg: ${formatMoney(item.averagePrice)} | Current: ${formatMoney(item.currentPrice)}`,
           ],
           subValue: {

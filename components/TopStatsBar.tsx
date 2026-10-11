@@ -463,7 +463,7 @@ function TopStatsBarComponent() {
  return `${Math.floor(a / 1_000)}K`;
  }
  // Regular numbers (0-10,000) - show full number
- return a.toLocaleString();
+ return a.toLocaleString('en-US');
  };
 
  return (

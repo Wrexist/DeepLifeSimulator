@@ -835,7 +835,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <Text style={styles.clueRewardLabel}>
  {currentClue.claimed ? 'Reward (already claimed):' : 'Reward added to your balance:'}
  </Text>
- <Text style={styles.clueRewardValue}> +${currentClue.rewardCash.toLocaleString()}</Text>
+ <Text style={styles.clueRewardValue}> +${currentClue.rewardCash.toLocaleString('en-US')}</Text>
  </View>
  )}
  

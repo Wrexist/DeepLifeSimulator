@@ -318,7 +318,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
                   theme={theme}
                   icon={OPTION_ICONS[venue.icon] ?? Sparkles}
                   label={venue.label}
-                  cost={`$${cashCost.toLocaleString()} · ${energyCost} energy`}
+                  cost={`$${cashCost.toLocaleString('en-US')} · ${energyCost} energy`}
                   reason={available ? undefined : reason}
                   disabled={!available}
                   onPress={() => play('ask_date', venue.id)}
@@ -338,7 +338,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
                   label={option.label}
                   cost={
                     cashCost > 0
-                      ? `from $${cashCost.toLocaleString()} · ${energyCost} energy`
+                      ? `from $${cashCost.toLocaleString('en-US')} · ${energyCost} energy`
                       : `${energyCost} energy`
                   }
                   reason={available ? undefined : reason}

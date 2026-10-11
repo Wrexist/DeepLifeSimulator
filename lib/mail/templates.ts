@@ -21,7 +21,7 @@
 import type { GameState, MailAttachment, MailMessage } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { SENDERS } from './senders';
-import { docDate, docMoney, docPercent, docReference, docWhole } from './format';
+import { docDate, docMoney, docPercent, docReference, docWhole, docYear, mailCalendarAnchor } from './format';
 import { characterName, getMailState } from './state';
 import type { MailContext, MailTemplate } from './types';
 
@@ -137,10 +137,10 @@ const payslip: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.payroll, {
     idSuffix: 'payslip',
-    subject: `Payslip - period ending ${docDate(ctx.week)}`,
+    subject: `Payslip - period ending ${docDate(ctx.week, mailCalendarAnchor(ctx.state))}`,
     preview: `Net pay ${docMoney(net)} has been deposited.`,
     body:
-      `Your pay for the period ending ${docDate(ctx.week)} has been processed ` +
+      `Your pay for the period ending ${docDate(ctx.week, mailCalendarAnchor(ctx.state))} has been processed ` +
       `and deposited.\n\n` +
       `Role: ${job?.title ?? 'Staff'}\n` +
       `Payment method: direct deposit\n\n` +
@@ -149,7 +149,7 @@ const payslip: MailTemplate = (ctx) => {
     category: 'finance',
     attachment: {
       kind: 'payslip',
-      title: `Payslip - period ending ${docDate(ctx.week)}`,
+      title: `Payslip - period ending ${docDate(ctx.week, mailCalendarAnchor(ctx.state))}`,
       issuer: `${job?.title ?? 'Employment'} · Payroll Services`,
       reference: docReference('PAY', ctx.week),
       rows: [
@@ -209,7 +209,7 @@ const bankStatement: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.bank, {
     idSuffix: 'statement',
-    subject: `Your statement is ready - ${docDate(ctx.week)}`,
+    subject: `Your statement is ready - ${docDate(ctx.week, mailCalendarAnchor(ctx.state))}`,
     preview: `Closing balance ${docMoney(cash + savings)}.`,
     body:
       'Your statement for this period is attached.\n\n' +
@@ -223,7 +223,7 @@ const bankStatement: MailTemplate = (ctx) => {
     category: 'finance',
     attachment: {
       kind: 'statement',
-      title: `Account statement - ${docDate(ctx.week)}`,
+      title: `Account statement - ${docDate(ctx.week, mailCalendarAnchor(ctx.state))}`,
       issuer: 'DeepLife Bank · Personal Banking',
       reference: docReference('STM', ctx.week, 3),
       rows,
@@ -246,7 +246,7 @@ const rentInvoice: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.landlord, {
     idSuffix: 'rent',
-    subject: `Rent due - ${docDate(ctx.week)}`,
+    subject: `Rent due - ${docDate(ctx.week, mailCalendarAnchor(ctx.state))}`,
     preview: `${docMoney(period)} for the coming period.`,
     body:
       'Your rent invoice for the coming period is attached.\n\n' +
@@ -259,7 +259,7 @@ const rentInvoice: MailTemplate = (ctx) => {
     category: 'finance',
     attachment: {
       kind: 'invoice',
-      title: `Rent invoice - ${docDate(ctx.week)}`,
+      title: `Rent invoice - ${docDate(ctx.week, mailCalendarAnchor(ctx.state))}`,
       issuer: 'Meridian Property Management',
       reference: docReference('INV', ctx.week, 5),
       rows: [
@@ -281,7 +281,9 @@ const rentInvoice: MailTemplate = (ctx) => {
 const taxNotice: MailTemplate = (ctx) => {
   if (ctx.week < WEEKS_PER_YEAR || ctx.week % WEEKS_PER_YEAR !== 0) return null;
   const paid = Math.round(ctx.state.banking?.taxDueThisYear ?? 0);
-  const taxYear = Math.floor(ctx.week / WEEKS_PER_YEAR);
+  // The calendar year that just closed, as the HUD counts it - not the
+  // absolute week / 52, which reads "Tax year 4" after two years of play.
+  const taxYear = docYear(ctx.week - 1, mailCalendarAnchor(ctx.state));
 
   return compose(ctx, SENDERS.revenue, {
     idSuffix: 'tax-year',

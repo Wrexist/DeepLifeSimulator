@@ -23,7 +23,7 @@ import { Star, Paperclip, BadgeCheck, Clock } from 'lucide-react-native';
 import type { MailMessage } from '@/contexts/game/types';
 import { getThemeColors } from '@/lib/config/theme';
 import { senderColor, senderInitial } from '@/lib/mail/senders';
-import { docDateShort } from '@/lib/mail/format';
+import { docDateShort, type MailCalendarAnchor } from '@/lib/mail/format';
 import { decisionDeadline } from '@/lib/mail/filters';
 import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scaling';
 import { mailPalette } from './mailPalette';
@@ -33,6 +33,8 @@ interface Props {
   darkMode: boolean;
   /** Absolute `weeksLived`, for the deadline chip. */
   currentWeek: number;
+  /** The HUD's calendar, so the date reads like the rest of the game. */
+  calendar?: MailCalendarAnchor;
   /**
    * Where this message lives, shown only when the list spans folders.
    *
@@ -53,6 +55,7 @@ function MailRow({
   message,
   darkMode,
   currentWeek,
+  calendar,
   folderLabel,
   onPress,
   onToggleStar,
@@ -91,7 +94,7 @@ function MailRow({
           {message.verified ? (
             <BadgeCheck size={scale(13)} color={mail.link} />
           ) : null}
-          <Text style={[s.date, unread && s.strong]}>{docDateShort(message.atWeek)}</Text>
+          <Text style={[s.date, unread && s.strong]}>{docDateShort(message.atWeek, calendar)}</Text>
         </View>
 
         <Text style={[s.subject, unread && s.strong]} numberOfLines={1}>

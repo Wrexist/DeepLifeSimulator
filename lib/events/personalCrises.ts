@@ -112,7 +112,7 @@ export const medicalEmergency: EventTemplate = {
       choices: [
         {
           id: 'treat',
-          text: `Seek treatment ($${cost.toLocaleString()})`,
+          text: `Seek treatment ($${cost.toLocaleString('en-US')})`,
           effects: {
             money: -cost,
             stats: {
@@ -253,7 +253,7 @@ export const investmentOpportunity: EventTemplate = {
       choices: [
         {
           id: 'invest',
-          text: `Invest $${investmentAmount.toLocaleString()}`,
+          text: `Invest $${investmentAmount.toLocaleString('en-US')}`,
           effects: {
             // Net-outcome model (the principal is never separately withdrawn):
             // success = +50% net, loss = -50% net, break-even = 0. The old
@@ -280,7 +280,7 @@ export const investmentOpportunity: EventTemplate = {
         },
         {
           id: 'small',
-          text: `Invest $${Math.floor(investmentAmount * 0.5).toLocaleString()} (smaller amount)`,
+          text: `Invest $${Math.floor(investmentAmount * 0.5).toLocaleString('en-US')} (smaller amount)`,
           effects: {
             money: isSuccess 
               ? investmentAmount * 0.75 // 50% return on smaller amount
@@ -325,7 +325,7 @@ export const jobOffer: EventTemplate = {
       // job" hook, so accepting pays a one-time signing bonus (≈ its first
       // paycheck) instead of silently promising an ongoing salary that never
       // applied. The happiness/reputation still land.
-      description: `You receive a strong job offer - accepting comes with a $${newSalary.toLocaleString()} signing bonus${currentSalary > 0 ? ' and a real step up from your current pay' : ''}.`,
+      description: `You receive a strong job offer - accepting comes with a $${newSalary.toLocaleString('en-US')} signing bonus${currentSalary > 0 ? ' and a real step up from your current pay' : ''}.`,
       choices: [
         {
           id: 'accept',
@@ -454,7 +454,7 @@ export const legalIssue: EventTemplate = {
       choices: [
         {
           id: 'lawyer',
-          text: `Hire a lawyer ($${legalCost.toLocaleString()})`,
+          text: `Hire a lawyer ($${legalCost.toLocaleString('en-US')})`,
           effects: {
             money: -legalCost,
             stats: {

@@ -286,7 +286,7 @@ export default function StatisticsApp({ onBack }: Props) {
         <View style={styles.heroInner}>
           <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
           <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-            ${Math.round(netWorth).toLocaleString()}
+            ${Math.round(netWorth).toLocaleString('en-US')}
           </Text>
           <View style={styles.trendRow}>
             <TrendChip trend={netWorthTrend} label="vs prior weeks" />
@@ -298,7 +298,7 @@ export default function StatisticsApp({ onBack }: Props) {
           ) : null}
           <View style={styles.peakRow}>
             <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
-            <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString()}</Text>
+            <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString('en-US')}</Text>
             {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>{formatLifeWeek(s.peakNetWorthWeek, gameState.lifeStartWeek)}</Text> : null}
           </View>
         </View>
@@ -363,9 +363,9 @@ export default function StatisticsApp({ onBack }: Props) {
         current={`${formatMoney(earningsTrend.recentAverage)}/wk`}
         trend={earningsTrend}
         footer={[
-          { label: 'Recent avg', value: `${formatMoney(earningsTrend.recentAverage)}/wk` },
+          { label: 'Recent avg / wk', value: formatMoney(earningsTrend.recentAverage) },
           { label: 'Sample', value: `${earningsTrend.sampleSize}wk` },
-          { label: 'Baseline', value: `${formatMoney(earningsTrend.baselineAverage)}/wk` },
+          { label: 'Baseline / wk', value: formatMoney(earningsTrend.baselineAverage) },
         ]}
         theme={theme}
         darkMode={darkMode}
@@ -424,7 +424,7 @@ export default function StatisticsApp({ onBack }: Props) {
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SectionTitle title="Open IOUs" />
           <Text style={[styles.heroValue, { color: summary.netFavorMoney >= 0 ? accent.success : accent.danger }]}>
-            {summary.netFavorMoney >= 0 ? '+' : '−'}${Math.abs(summary.netFavorMoney).toLocaleString()}
+            {summary.netFavorMoney >= 0 ? '+' : '−'}${Math.abs(summary.netFavorMoney).toLocaleString('en-US')}
           </Text>
           <Text style={[styles.peakLabel, { color: theme.textSecondary }]}>
             {summary.netFavorMoney >= 0 ? 'net owed to you' : 'net you owe'}
@@ -630,7 +630,7 @@ export default function StatisticsApp({ onBack }: Props) {
               <DetailRow label="Projected year" value={`${retirement.projectedRetirementDate}`} theme={theme} />
             </View>
             <Text style={[styles.recItem, { color: theme.textSecondary }]}>
-              • Save ${Math.round(retirement.monthlySavingsNeeded).toLocaleString()}/mo to close the gap
+              • Save ${Math.round(retirement.monthlySavingsNeeded).toLocaleString('en-US')}/mo to close the gap
             </Text>
             <Text style={[styles.recItem, { color: theme.textSecondary }]}>
               • Assumes {retirement.assumptions.expectedReturnRate}% returns, {retirement.assumptions.inflationRate}% inflation
@@ -655,7 +655,7 @@ export default function StatisticsApp({ onBack }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.cardName, { color: theme.text }]}>Life {idx + 1}{typeof pl.generation === 'number' ? ` · Gen ${pl.generation}` : ''}</Text>
                 <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>
-                  Net worth ${Math.round(safeNum(pl.netWorth ?? pl.peakNetWorth)).toLocaleString()}
+                  Net worth ${Math.round(safeNum(pl.netWorth ?? pl.peakNetWorth)).toLocaleString('en-US')}
                   {typeof pl.ageAtDeath === 'number' ? ` · died at ${pl.ageAtDeath}` : ''}
                 </Text>
               </View>
@@ -860,7 +860,7 @@ export default function StatisticsApp({ onBack }: Props) {
             {rows.map((r, i) => (
               <View key={`${r.week}-${i}`} style={[styles.snapRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
                 <Text style={[styles.snapWeek, { color: theme.textSecondary }]}>{formatLifeWeek(r.week, gameState.lifeStartWeek)}</Text>
-                <Text style={[styles.snapValue, { color: theme.text }]}>${Math.round(r.value).toLocaleString()}</Text>
+                <Text style={[styles.snapValue, { color: theme.text }]}>${Math.round(r.value).toLocaleString('en-US')}</Text>
                 <DeltaChip delta={r.delta} isFirst={r.isFirst} />
               </View>
             ))}
@@ -1245,9 +1245,9 @@ function metricRange(series: number[], weekly: boolean): { label: string; value:
   const max = Math.max(...clean);
   const avg = clean.reduce((a, b) => a + b, 0) / clean.length;
   return [
-    { label: 'Low', value: `${formatMoney(Math.round(min))}${weekly ? '/wk' : ''}` },
-    { label: 'Avg', value: `${formatMoney(Math.round(avg))}${weekly ? '/wk' : ''}` },
-    { label: 'High', value: `${formatMoney(Math.round(max))}${weekly ? '/wk' : ''}` },
+    { label: weekly ? 'Low / wk' : 'Low', value: formatMoney(Math.round(min)) },
+    { label: weekly ? 'Avg / wk' : 'Avg', value: formatMoney(Math.round(avg)) },
+    { label: weekly ? 'High / wk' : 'High', value: formatMoney(Math.round(max)) },
   ];
 }
 

@@ -1340,6 +1340,28 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 52;
     return state;
   },
+  /**
+   * v53 reprices the three diet plans. NOT a new field: `dietPlans` is a
+   * catalogue that saves carry by value, so lowering the defaults in
+   * `initialState` would only reach new lives - every existing save would
+   * keep charging $17.5K-$70K a week. Only `dailyCost` of the three known ids
+   * is rewritten; `active` (the player's choice) and any unknown entry are
+   * left exactly as saved. No `repairGameState` mirror: repair already
+   * restores a MISSING catalogue from the (now repriced) defaults.
+   */
+  53: (state) => {
+    const prices: Record<string, number> = { basic: 20, premium: 50, athlete: 85 };
+    const plans = (state as { dietPlans?: unknown }).dietPlans;
+    if (Array.isArray(plans)) {
+      (state as { dietPlans: unknown[] }).dietPlans = plans.map((p) =>
+        p && typeof p === 'object' && typeof (p as { id?: unknown }).id === 'string' && (p as { id: string }).id in prices
+          ? { ...(p as object), dailyCost: prices[(p as { id: string }).id] }
+          : p
+      );
+    }
+    state.version = 53;
+    return state;
+  },
 };
 
 /**

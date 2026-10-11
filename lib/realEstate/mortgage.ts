@@ -104,7 +104,7 @@ export function originateMortgage(input: MortgageOriginationInputs): MortgageOri
 export function mortgagePreflight(input: MortgageOriginationInputs): string | null {
   const orig = originateMortgage(input);
   if (input.availableCash < orig.downPaymentUSD) {
-    return `Need $${Math.ceil(orig.downPaymentUSD - input.availableCash).toLocaleString()} more for down payment`;
+    return `Need $${Math.ceil(orig.downPaymentUSD - input.availableCash).toLocaleString('en-US')} more for down payment`;
   }
   if (orig.ltv > MAX_LTV) {
     return 'Loan-to-value ratio exceeds lender ceiling';

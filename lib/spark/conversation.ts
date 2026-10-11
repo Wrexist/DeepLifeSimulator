@@ -398,7 +398,7 @@ export function resolveOptionAvailability(
     return { ...base, reason: `Needs ${energyCost} energy` };
   }
   if (cashCost > 0 && input.money < cashCost) {
-    return { ...base, reason: `Needs $${cashCost.toLocaleString()}` };
+    return { ...base, reason: `Needs $${cashCost.toLocaleString('en-US')}` };
   }
   return { ...base, available: true };
 }
@@ -426,7 +426,7 @@ export function listDateVenues(
   return SPARK_DATE_VENUES.map((venue) => {
     const energyCost = option.energyCost + venue.energyCost;
     if (input.money < venue.cashCost) {
-      return { venue, available: false, reason: `Needs $${venue.cashCost.toLocaleString()}`, energyCost, cashCost: venue.cashCost };
+      return { venue, available: false, reason: `Needs $${venue.cashCost.toLocaleString('en-US')}`, energyCost, cashCost: venue.cashCost };
     }
     if (input.energy < energyCost) {
       return { venue, available: false, reason: `Needs ${energyCost} energy`, energyCost, cashCost: venue.cashCost };

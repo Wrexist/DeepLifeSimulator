@@ -169,7 +169,7 @@ describe('a life skill is confirmed before the point is spent', () => {
     // after the unrecoverable spend.
     expect(CODE).toMatch(/Unlock \$\{node\.name\}\?/);
     expect(CODE).toMatch(/\$\{node\.effect\}/);
-    expect(CODE).toMatch(/Cost: \$\$\{node\.cost\.toLocaleString\(\)\}/);
+    expect(CODE).toMatch(/Cost: \$\$\{node\.cost\.toLocaleString\('en-US'\)\} and \$\{pointCost\} skill/);
   });
 
   it('offers a way out', () => {

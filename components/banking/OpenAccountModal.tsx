@@ -151,7 +151,7 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                     </View>
                     <Text style={[styles.productDesc, { color: theme.textMuted }]}>{p.description}</Text>
                     <Text style={[styles.meta, { color: theme.textMuted }]}>
-                      Min ${p.minDeposit.toLocaleString()}
+                      Min ${p.minDeposit.toLocaleString('en-US')}
                       {p.lockWeeks > 0 ? ` · Locked ${p.lockWeeks}w` : ''}
                     </Text>
                   </View>

@@ -204,7 +204,7 @@ function resolveBuyProperty(
     // instead of silently flooring.
     if (cash < downPayment) {
       log.info(`Purchase rejected: insufficient cash for down payment (need ${downPayment}, have ${cash})`);
-      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down - you have $${Math.round(cash).toLocaleString()}.` }, next: null };
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString('en-US')} down - you have $${Math.round(cash).toLocaleString('en-US')}.` }, next: null };
     }
     // Route the down-payment debit through the canonical money helper
     // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
@@ -213,7 +213,7 @@ function resolveBuyProperty(
     const spend = applyMoneyDelta(state, -downPayment, `Property down payment: ${catalog.name}`);
     if (!spend) {
       log.info(`Purchase rejected by money guard: down ${downPayment}, cash ${cash}`);
-      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down - you have $${Math.round(cash).toLocaleString()}.` }, next: null };
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString('en-US')} down - you have $${Math.round(cash).toLocaleString('en-US')}.` }, next: null };
     }
 
     // Create the Loan record if there's a mortgage.
@@ -274,7 +274,7 @@ function resolveBuyProperty(
     }
 
     log.info(
-      `Bought ${catalog.name} for $${catalog.price.toLocaleString()} (down: $${(quote.downPaymentUSD ?? 0).toLocaleString()}, financed: $${(quote.loanPrincipal ?? 0).toLocaleString()})`
+      `Bought ${catalog.name} for $${catalog.price.toLocaleString('en-US')} (down: $${(quote.downPaymentUSD ?? 0).toLocaleString('en-US')}, financed: $${(quote.loanPrincipal ?? 0).toLocaleString('en-US')})`
     );
 
     // Budget tab: the down payment leaves cash today → housing spending. The
@@ -287,8 +287,8 @@ function resolveBuyProperty(
       result: {
         success: true,
         message: spec.tier === 'cash'
-          ? `You bought ${catalog.name} outright for $${catalog.price.toLocaleString()}!`
-          : `You bought ${catalog.name} - $${Math.round(downPayment).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
+          ? `You bought ${catalog.name} outright for $${catalog.price.toLocaleString('en-US')}!`
+          : `You bought ${catalog.name} - $${Math.round(downPayment).toLocaleString('en-US')} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
       },
       next: {
         ...state,
@@ -350,9 +350,9 @@ export const sellOwnedProperty = (
         : (prev.loans ?? []).filter((l) => l.id !== result.releasedMortgageId);
 
     log.info(
-      `Sold ${property.name}: proceeds $${result.saleProceeds.toLocaleString()}, mortgage paid off $${result.mortgagePayoff.toLocaleString()}, capital gain $${result.capitalGain.toLocaleString()}` +
+      `Sold ${property.name}: proceeds $${result.saleProceeds.toLocaleString('en-US')}, mortgage paid off $${result.mortgagePayoff.toLocaleString('en-US')}, capital gain $${result.capitalGain.toLocaleString('en-US')}` +
         (result.residualDebt > 0
-          ? `, deficiency balance remaining $${result.residualDebt.toLocaleString()}`
+          ? `, deficiency balance remaining $${result.residualDebt.toLocaleString('en-US')}`
           : '')
     );
 
@@ -453,7 +453,7 @@ export const maintainProperty = (
   if ((gameState.stats?.money ?? 0) < quotedCost) {
     return {
       success: false,
-      message: `Maintenance costs $${Math.round(quotedCost).toLocaleString()} - you have $${Math.round(gameState.stats?.money ?? 0).toLocaleString()}.`,
+      message: `Maintenance costs $${Math.round(quotedCost).toLocaleString('en-US')} - you have $${Math.round(gameState.stats?.money ?? 0).toLocaleString('en-US')}.`,
     };
   }
 
@@ -489,7 +489,7 @@ export const maintainProperty = (
 
   return {
     success: true,
-    message: `Maintenance done - $${Math.round(quotedCost).toLocaleString()}.`,
+    message: `Maintenance done - $${Math.round(quotedCost).toLocaleString('en-US')}.`,
   };
 };
 
@@ -533,7 +533,7 @@ function resolveInstallDecor(state: GameState, propertyId: string, decorId: stri
   const cash = state.stats?.money ?? 0;
   if (cash < item.cost) {
     return {
-      result: { success: false, message: `You need $${item.cost.toLocaleString()} for the ${item.name}.` },
+      result: { success: false, message: `You need $${item.cost.toLocaleString('en-US')} for the ${item.name}.` },
       next: null,
     };
   }
@@ -542,7 +542,7 @@ function resolveInstallDecor(state: GameState, propertyId: string, decorId: stri
   const spend = applyMoneyDelta(state, -item.cost, 'Property decor');
   if (!spend) {
     return {
-      result: { success: false, message: `You need $${item.cost.toLocaleString()} for the ${item.name}.` },
+      result: { success: false, message: `You need $${item.cost.toLocaleString('en-US')} for the ${item.name}.` },
       next: null,
     };
   }
@@ -574,7 +574,7 @@ function resolveAddRoom(state: GameState, propertyId: string, roomId: string): I
   const cash = state.stats?.money ?? 0;
   if (cash < room.cost) {
     return {
-      result: { success: false, message: `You need $${room.cost.toLocaleString()} to add the ${room.name}.` },
+      result: { success: false, message: `You need $${room.cost.toLocaleString('en-US')} to add the ${room.name}.` },
       next: null,
     };
   }
@@ -582,7 +582,7 @@ function resolveAddRoom(state: GameState, propertyId: string, roomId: string): I
   const spend = applyMoneyDelta(state, -room.cost, 'Property room addition');
   if (!spend) {
     return {
-      result: { success: false, message: `You need $${room.cost.toLocaleString()} to add the ${room.name}.` },
+      result: { success: false, message: `You need $${room.cost.toLocaleString('en-US')} to add the ${room.name}.` },
       next: null,
     };
   }
@@ -611,7 +611,7 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
   const cash = state.stats?.money ?? 0;
   if (cash < nextTier.cost) {
     return {
-      result: { success: false, message: `You need $${nextTier.cost.toLocaleString()} to reach tier ${nextTier.level}.` },
+      result: { success: false, message: `You need $${nextTier.cost.toLocaleString('en-US')} to reach tier ${nextTier.level}.` },
       next: null,
     };
   }
@@ -619,7 +619,7 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
   const spend = applyMoneyDelta(state, -nextTier.cost, 'Property tier upgrade');
   if (!spend) {
     return {
-      result: { success: false, message: `You need $${nextTier.cost.toLocaleString()} to reach tier ${nextTier.level}.` },
+      result: { success: false, message: `You need $${nextTier.cost.toLocaleString('en-US')} to reach tier ${nextTier.level}.` },
       next: null,
     };
   }

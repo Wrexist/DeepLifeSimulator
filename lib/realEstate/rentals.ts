@@ -332,7 +332,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
     if (owed > 0) {
       return {
         allowed: false,
-        reason: `Clear your $${owed.toLocaleString()} overdue balance before a landlord will sign a new lease.`,
+        reason: `Clear your $${owed.toLocaleString('en-US')} overdue balance before a landlord will sign a new lease.`,
       };
     }
   }
@@ -341,7 +341,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
   if (income < tier.incomeRequirement) {
     return {
       allowed: false,
-      reason: `Needs proof of $${tier.incomeRequirement.toLocaleString()}/wk income - you earn $${income.toLocaleString()}/wk.`,
+      reason: `Needs proof of $${tier.incomeRequirement.toLocaleString('en-US')}/wk income - you earn $${income.toLocaleString('en-US')}/wk.`,
     };
   }
   const cash = state.stats?.money;
@@ -349,7 +349,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
   if (safeCash < tier.weeklyRent) {
     return {
       allowed: false,
-      reason: `The first week is due on signing: $${tier.weeklyRent.toLocaleString()}.`,
+      reason: `The first week is due on signing: $${tier.weeklyRent.toLocaleString('en-US')}.`,
     };
   }
   return { allowed: true, reason: '' };

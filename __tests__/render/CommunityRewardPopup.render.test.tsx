@@ -21,7 +21,7 @@ describe('render - CommunityRewardPopup', () => {
     );
     expect(renderer.toJSON()).not.toBeNull();
     // Formatted reward amount (e.g. "5,000") + the join CTA + the quiet dismiss.
-    expect(json).toContain(DISCORD_JOIN_REWARD_MONEY.toLocaleString());
+    expect(json).toContain(DISCORD_JOIN_REWARD_MONEY.toLocaleString('en-US'));
     expect(json).toContain('Join');
     expect(json).toContain('Maybe later');
     // The invite URL is PRINTED on the sheet: the CTA leaves the app, so the

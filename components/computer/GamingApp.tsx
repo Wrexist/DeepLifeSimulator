@@ -401,11 +401,11 @@ export default function GamingApp({ onBack }: Props) {
           <View style={styles.heroRow}>
             <View style={styles.heroStat}>
               <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Subscribers</Text>
-              <Text style={[styles.heroValue, { color: theme.text }]}>{subscribers.toLocaleString()}</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>{subscribers.toLocaleString('en-US')}</Text>
             </View>
             <View style={styles.heroStat}>
               <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Total views</Text>
-              <Text style={[styles.heroValue, { color: theme.text }]}>{totalViews.toLocaleString()}</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>{totalViews.toLocaleString('en-US')}</Text>
             </View>
           </View>
 
@@ -440,7 +440,7 @@ export default function GamingApp({ onBack }: Props) {
             <VideoThumb v={videos[0]} style={styles.featuredThumb} scrim showPlay overlayTitle />
             <View style={styles.featuredBody}>
               <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-                {videos[0].game ?? 'General'} · {videos[0].views.toLocaleString()} views · +{(videos[0].subscribersGained ?? 0).toLocaleString()} subs
+                {videos[0].game ?? 'General'} · {videos[0].views.toLocaleString('en-US')} views · +{(videos[0].subscribersGained ?? 0).toLocaleString('en-US')} subs
               </Text>
             </View>
           </TouchableOpacity>
@@ -464,12 +464,12 @@ export default function GamingApp({ onBack }: Props) {
         tint={creatorBrand.video.accent}
         summary={`${paidMembers} members · ${compact(totalViews)} views`}
       >
-        <KeyValueRow label="Members" value={paidMembers.toLocaleString()} />
+        <KeyValueRow label="Members" value={paidMembers.toLocaleString('en-US')} />
         <KeyValueRow label="$ / viewer" value={`$${monetization.viewerPay}`} />
         <KeyValueRow label="Members / wk" value={formatMoney(monetization.membershipWeekly)} />
         <KeyValueRow label="Donations" value={formatMoney(totalDonations)} />
         <KeyValueRow label="Sub earnings" value={formatMoney(totalSubEarnings)} />
-        <KeyValueRow label="Total views" value={totalViews.toLocaleString()} />
+        <KeyValueRow label="Total views" value={totalViews.toLocaleString('en-US')} />
         <KeyValueRow label="Watch hours" value={streamHours.toFixed(streamHours >= 100 ? 0 : 1)} />
         <KeyValueRow label="Average viewers" value={compact(avgViewers)} />
         <KeyValueRow label="Level" value={`${level}`} />
@@ -666,9 +666,9 @@ export default function GamingApp({ onBack }: Props) {
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Performance</Text>
           <View style={styles.aGrid}>
-            <AnalyticStat Icon={Eye} label="Views" value={v.views.toLocaleString()} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={Eye} label="Views" value={v.views.toLocaleString('en-US')} theme={theme} darkMode={darkMode} />
             <AnalyticStat Icon={TrendingUp} label="Earned" value={formatMoney(v.earnings)} valueColor={accent.success} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={Users} label="Subs" value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={Users} label="Subs" value={`+${(v.subscribersGained ?? 0).toLocaleString('en-US')}`} theme={theme} darkMode={darkMode} />
             {v.rpm != null ? <AnalyticStat Icon={Coins} label="RPM ×" value={`${v.rpm}`} theme={theme} darkMode={darkMode} /> : null}
             {v.likes != null ? <AnalyticStat Icon={Heart} label="Likes" value={compact(v.likes)} theme={theme} darkMode={darkMode} /> : null}
             {v.comments != null ? <AnalyticStat Icon={MessageCircle} label="Comments" value={compact(v.comments)} theme={theme} darkMode={darkMode} /> : null}
@@ -892,7 +892,7 @@ function VideoRow({
       <View style={{ flex: 1 }}>
         <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={2}>{v.title}</Text>
         <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-          {v.views.toLocaleString()} views · {formatMoney(v.earnings)}
+          {v.views.toLocaleString('en-US')} views · {formatMoney(v.earnings)}
           {age != null ? ` · ${age === 0 ? 'new' : `${age}w`}` : ''}
         </Text>
       </View>
@@ -930,8 +930,8 @@ function VideoCard({
           {v.game ?? 'General'} · quality {v.quality ?? '?'}/100{age != null ? ` · ${age === 0 ? 'this week' : `${age}w ago`}` : ''}
         </Text>
         <View style={styles.videoStatRow}>
-          <VideoStat Icon={Eye} value={v.views.toLocaleString()} color={accent.info} theme={theme} />
-          <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} color={creatorBrand.video.accent} theme={theme} />
+          <VideoStat Icon={Eye} value={v.views.toLocaleString('en-US')} color={accent.info} theme={theme} />
+          <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString('en-US')}`} color={creatorBrand.video.accent} theme={theme} />
           <VideoStat Icon={TrendingUp} value={formatMoney(v.earnings)} color={accent.success} theme={theme} />
         </View>
       </View>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Wallet, PiggyBank, Landmark, Lock, ChevronRight, TrendingUp, Clock } from 'lucide-react-native';
 import { BankAccount } from '@/contexts/game/types';
@@ -12,6 +13,13 @@ import { formatMoney } from '@/utils/moneyFormatting';
 interface Props {
   account: BankAccount;
   currentWeek: number;
+  /**
+   * `weeksLived` when this life began. The two primary accounts are stamped
+   * `openedWeek: 0`, and `weeksLived` is seeded from the starting age, so an
+   * age-20 life read "Opened wk 0 · 208w old" two years in. Clamped to the
+   * life's start, the same baseline the rest of the game counts from.
+   */
+  lifeStartWeek?: number;
   darkMode: boolean;
   /** Row tap - opens the deposit flow (kept for backwards compat). */
   onPress?: () => void;
@@ -45,6 +53,24 @@ export function accountTypeLabel(type: BankAccount['type']): string {
 }
 
 /**
+ * The same type in a word or two, for a stat tile a third of a card wide.
+ * The full name ("Certificate of Deposit") is already the screen's eyebrow;
+ * in a tile it could only shrink to unreadable or truncate.
+ */
+export function accountTypeShortLabel(type: BankAccount['type']): string {
+  switch (type) {
+    case 'highYieldSavings':
+      return 'HYSA';
+    case 'cd':
+      return 'CD';
+    case 'moneyMarket':
+      return 'Money mkt';
+    default:
+      return accountTypeLabel(type);
+  }
+}
+
+/**
  * Apple-Wallet per-type card tint. checking = blue (identity), CD = violet,
  * every savings flavour = green. RGB triplet feeds the flat wash / bubble / chip;
  * hex feeds the glyph + label. Kept as a helper so the row and card variants and
@@ -71,6 +97,7 @@ function accountGlyph(type: BankAccount['type']) {
 export default function AccountRow({
   account,
   currentWeek,
+  lifeStartWeek,
   darkMode,
   onPress,
   onWithdraw,
@@ -107,7 +134,8 @@ export default function AccountRow({
   // ── Apple-Wallet card face ────────────────────────────────────────────────
   if (variant === 'card') {
     const pal = accountPalette(account.type);
-    const ageWeeks = Math.max(0, currentWeek - account.openedWeek);
+    const openedAt = Math.max(account.openedWeek, lifeStartWeek ?? 0);
+    const ageWeeks = Math.max(0, currentWeek - openedAt);
     const cardTap = onDetail ?? onPress;
     return (
       /**
@@ -221,7 +249,7 @@ export default function AccountRow({
           <View style={styles.cardMetaRow}>
             <Clock size={scale(11)} color={theme.textMuted} />
             <Text style={[styles.cardMeta, { color: theme.textMuted }]} numberOfLines={1}>
-              Opened wk {account.openedWeek} · {ageWeeks}w old
+              Opened {formatLifeWeek(openedAt, lifeStartWeek).toLowerCase()} · {ageWeeks}w old
               {account.minBalance ? ` · min ${formatMoney(account.minBalance)}` : ''}
             </Text>
           </View>

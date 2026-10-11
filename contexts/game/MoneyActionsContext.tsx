@@ -263,7 +263,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
         return {
           ok: false as const,
           title: 'Insufficient Gems',
-          message: `You need ${cost.toLocaleString()} gems to purchase ${upgrade.name}.`,
+          message: `You need ${cost.toLocaleString('en-US')} gems to purchase ${upgrade.name}.`,
         };
       }
       return { ok: true as const, upgrade, cost };

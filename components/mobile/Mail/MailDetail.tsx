@@ -31,7 +31,7 @@ import {
 import type { MailMessage } from '@/contexts/game/types';
 import { getThemeColors } from '@/lib/config/theme';
 import { senderColor, senderInitial } from '@/lib/mail/senders';
-import { docDate, docMoney } from '@/lib/mail/format';
+import { docDate, docMoney, type MailCalendarAnchor } from '@/lib/mail/format';
 import { decisionDeadline } from '@/lib/mail/filters';
 import MailDocument from './MailDocument';
 import { mailPalette } from './mailPalette';
@@ -71,6 +71,8 @@ interface Props {
   onChoose: (choiceId: string) => void;
   /** Current absolute week, for the countdown on an open decision. */
   currentWeek: number;
+  /** The HUD's calendar, so the header date reads like the rest of the game. */
+  calendar?: MailCalendarAnchor;
   /**
    * Earlier messages in the same thread, oldest first.
    *
@@ -96,6 +98,7 @@ function MailDetail({
   onDispute,
   onChoose,
   currentWeek,
+  calendar,
   thread,
 }: Props) {
   const theme = getThemeColors(darkMode);
@@ -189,7 +192,7 @@ function MailDetail({
             <Text style={s.senderEmail} numberOfLines={1}>
               {message.senderEmail}
             </Text>
-            <Text style={s.date}>{docDate(message.atWeek)}</Text>
+            <Text style={s.date}>{docDate(message.atWeek, calendar)}</Text>
           </View>
         </View>
 

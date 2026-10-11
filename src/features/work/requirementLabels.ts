@@ -12,7 +12,7 @@ export function advancedRequirementLabels(req: AdvancedCareerUnlockRequirements)
   }
   if (req.experience) labels.push(`Experience: ${req.experience} weeks`);
   if (req.reputation) labels.push(`Reputation: ${req.reputation}+`);
-  if (req.netWorth) labels.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
+  if (req.netWorth) labels.push(`Net Worth: $${req.netWorth.toLocaleString('en-US')}+`);
   if (req.achievements?.length) {
     labels.push(`Claimed achievement${req.achievements.length > 1 ? 's' : ''}: ${req.achievements.map(id => achievements.find(a => a.id === id)?.title ?? readableKey(id)).join(' and ')}`);
   }

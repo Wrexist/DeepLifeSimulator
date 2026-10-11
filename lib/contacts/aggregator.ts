@@ -173,7 +173,7 @@ export function aggregateContacts(
         kind: 'business',
         name: opp.name,
         subtitle: opp.invested
-          ? `Partner · $${safe(opp.weeklyIncome, 0).toLocaleString()}/wk`
+          ? `Partner · $${safe(opp.weeklyIncome, 0).toLocaleString('en-US')}/wk`
           : `Prospect · ${opp.destinationId}`,
         strength: opp.invested ? 80 : 30,
         tags: [opp.invested ? 'partner' : 'prospect'],
@@ -191,7 +191,7 @@ export function aggregateContacts(
       id: `company:${c.id}`,
       kind: 'employee',
       name: `${c.name} team`,
-      subtitle: `${headcount} ${headcount === 1 ? 'employee' : 'employees'} · $${safe(c.workerSalary, 0).toLocaleString()}/wk each`,
+      subtitle: `${headcount} ${headcount === 1 ? 'employee' : 'employees'} · $${safe(c.workerSalary, 0).toLocaleString('en-US')}/wk each`,
       strength: Math.max(0, Math.min(100, 50 + Math.round(safe(c.workerMultiplier, 1) * 10))),
       costPerWeek: safe(c.workerSalary, 0) * headcount,
       tags: ['company'],

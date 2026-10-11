@@ -87,7 +87,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
         {isSelected && (
           <View style={styles.expandedDetails}>
              <Text style={[styles.detailText, settings.darkMode && styles.textDarkSecondary]}>
-               Net Worth: ${member.netWorth?.toLocaleString() || 0}
+               Net Worth: ${member.netWorth?.toLocaleString('en-US') || 0}
              </Text>
              <Text style={[styles.detailText, settings.darkMode && styles.textDarkSecondary]}>
                Occupation: {member.occupation || 'Unknown'}

@@ -14,6 +14,8 @@ import { Platform, View,
   ScrollView,
   Animated,
   Dimensions } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
 import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
@@ -42,12 +44,17 @@ import { scale, fontScale } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
-import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
+import { purchaseLifeSkill, lifeSkillPointCost, lifeSkillPointsAvailable } from '@/lib/skillTrees/lifeSkillEffects';
 import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const NODE_SIZE = scale(56);
+const NODE_WRAPPER_WIDTH = scale(96);
+/** Room under a node for its name, so the label never meets the next row. */
+const NODE_LABEL_OFFSET = scale(28);
 
 interface SkillNode {
   id: string;
@@ -67,6 +74,8 @@ interface SkillNode {
 interface SkillCategory {
   id: string;
   name: string;
+  /** Tab label. Five tabs share one row, so the full name cannot fit. */
+  shortName: string;
   description: string;
   icon: any;
   color: string[];
@@ -78,6 +87,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
   {
     id: 'career',
     name: 'Career Mastery',
+    shortName: 'Career',
     description: 'Advance your professional skills',
     icon: Briefcase,
     color: ['#3B82F6', '#1D4ED8'],
@@ -142,6 +152,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
   {
     id: 'social',
     name: 'Social Intelligence',
+    shortName: 'Social',
     description: 'Master interpersonal relationships',
     icon: Heart,
     color: ['#EC4899', '#DB2777'],
@@ -206,6 +217,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
   {
     id: 'health',
     name: 'Physical Wellness',
+    shortName: 'Health',
     description: 'Optimize your body and mind',
     icon: Dumbbell,
     color: ['#10B981', '#059669'],
@@ -270,6 +282,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
   {
     id: 'finance',
     name: 'Financial Acumen',
+    shortName: 'Finance',
     description: 'Master the art of wealth',
     icon: DollarSign,
     color: ['#10B981', '#059669'],
@@ -334,6 +347,7 @@ const SKILL_CATEGORIES: SkillCategory[] = [
   {
     id: 'education',
     name: 'Intellectual Growth',
+    shortName: 'Mind',
     description: 'Expand your knowledge',
     icon: GraduationCap,
     color: ['#8B5CF6', '#7C3AED'],
@@ -417,21 +431,14 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     return gameState.unlockedLifeSkills || [];
   }, [gameState.unlockedLifeSkills]);
 
-  // Calculate skill points (based on achievements, age, education)
-  const skillPoints = useMemo(() => {
-    let points = 0;
-    // Base points from age
-    points += Math.floor(gameState.date.age / 5);
-    // Points from completed education
-    const completedEducation = (gameState.educations || []).filter(e => e.completed);
-    points += completedEducation.length * 2;
-    // Points from achievements - the LIVE claimed store. This read
-    // `achievements[].completed`, which nothing in play ever sets, so every
-    // achievement a player earned contributed ZERO skill points, for the whole
-    // game. 2026-07-30 audit GP-3.
-    points += (gameState.claimedProgressAchievements || []).length;
-    return points;
-  }, [gameState.date.age, gameState.educations, gameState.claimedProgressAchievements]);
+  // Spendable skill points: earned (age, education, achievements) minus the
+  // price of what is already unlocked. One definition, shared with the purchase
+  // reducer - lib/skillTrees/lifeSkillEffects.ts.
+  const skillPoints = useMemo(
+    () => lifeSkillPointsAvailable(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the exact fields the point math reads
+    [gameState.date.age, gameState.educations, gameState.claimedProgressAchievements, gameState.unlockedLifeSkills]
+  );
 
   useEffect(() => {
     if (visible) {
@@ -487,13 +494,14 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
   const canUnlockNode = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return false;
     if (gameState.stats.money < node.cost) return false;
+    if (skillPoints < lifeSkillPointCost(node.id)) return false;
     if (gameState.date.age < node.levelRequired) return false;
     
     if (node.requires) {
       return node.requires.every(req => isNodeUnlocked(req));
     }
     return true;
-  }, [gameState.stats.money, gameState.date.age, isNodeUnlocked]);
+  }, [gameState.stats.money, gameState.date.age, isNodeUnlocked, skillPoints]);
 
   /**
    * The purchase itself, after the player has confirmed.
@@ -553,8 +561,17 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
       gameAlert('Locked', `First unlock: ${names}.`, [{ text: 'OK' }]);
       return;
     }
+    const pointCost = lifeSkillPointCost(node.id);
+    if (skillPoints < pointCost) {
+      gameAlert(
+        'Not enough skill points',
+        `${node.name} costs ${pointCost} skill ${pointCost === 1 ? 'point' : 'points'}. You have ${skillPoints}.\n\nYou earn points by growing older (1 every 5 years), finishing an education (2 each) and claiming achievements (1 each).`,
+        [{ text: 'OK' }],
+      );
+      return;
+    }
     if (gameState.stats.money < node.cost) {
-      gameAlert('Not enough money', `${node.name} costs $${node.cost.toLocaleString()}. You have $${Math.floor(gameState.stats.money).toLocaleString()}.`, [{ text: 'OK' }]);
+      gameAlert('Not enough money', `${node.name} costs $${node.cost.toLocaleString('en-US')}. You have $${Math.floor(gameState.stats.money).toLocaleString('en-US')}.`, [{ text: 'OK' }]);
       return;
     }
 
@@ -573,13 +590,13 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
      */
     gameAlert(
       `Unlock ${node.name}?`,
-      `${node.effect}\n\nCost: $${node.cost.toLocaleString()}`,
+      `${node.effect}\n\nCost: $${node.cost.toLocaleString('en-US')} and ${pointCost} skill ${pointCost === 1 ? 'point' : 'points'}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Unlock', onPress: () => commitUnlock(node) },
       ],
     );
-  }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, commitUnlock]);
+  }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, commitUnlock, skillPoints]);
 
   const getNodeStatus = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return 'unlocked';
@@ -591,60 +608,101 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     return SKILL_CATEGORIES.find(c => c.id === selectedCategory) || SKILL_CATEGORIES[0];
   }, [selectedCategory]);
 
+  /**
+   * Five equal cells in one fixed row - no horizontal scroller.
+   *
+   * This was a horizontal ScrollView of pills carrying each category's FULL
+   * name ("Social Intelligence"), so only one and a half fit, the rest ran off
+   * the card edge, and the strip dragged sideways under the thumb. Each cell
+   * now carries the icon, a short name and the unlocked count.
+   */
   const renderCategoryTabs = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.categoryTabs}
-      contentContainerStyle={styles.categoryTabsContent}
-    >
+    <View style={styles.categoryTabs} accessibilityRole="tablist">
       {SKILL_CATEGORIES.map(category => {
         const CategoryIcon = category.icon;
         const isActive = selectedCategory === category.id;
         const unlockedCount = category.nodes.filter(n => isNodeUnlocked(n.id)).length;
-        
+
         return (
           <TouchableOpacity
             key={category.id}
-            style={[styles.categoryTab, isActive && styles.categoryTabActive]}
-            onPress={() => setSelectedCategory(category.id)}
+            style={styles.categoryTab}
+            onPress={() => { setSelectedCategory(category.id); setSelectedNode(null); }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={`${category.name}, ${unlockedCount} of ${category.nodes.length} unlocked`}
           >
             <LinearGradient
               colors={(isActive ? category.color : ['transparent', 'transparent']) as unknown as readonly [string, string, ...string[]]}
               style={styles.categoryTabGradient}
             >
-              <CategoryIcon size={20} color={isActive ? uiPalette.white : settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
-              <Text style={[
-                styles.categoryTabText,
-                isActive && styles.categoryTabTextActive,
-                settings.darkMode && !isActive && styles.textMuted,
-              ]}>
-                {category.name}
+              <CategoryIcon size={scale(18)} color={isActive ? uiPalette.white : settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
+              <Text
+                style={[
+                  styles.categoryTabText,
+                  isActive && styles.categoryTabTextActive,
+                  settings.darkMode && !isActive && styles.textMuted,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+                maxFontSizeMultiplier={1.2}
+              >
+                {category.shortName}
               </Text>
-              <View style={[styles.categoryBadge, isActive && styles.categoryBadgeActive]}>
-                <Text style={[styles.categoryBadgeText, isActive && styles.categoryBadgeTextActive]}>
-                  {unlockedCount}/{category.nodes.length}
-                </Text>
-              </View>
+              <Text
+                style={[styles.categoryBadgeText, isActive && styles.categoryBadgeTextActive]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.2}
+              >
+                {unlockedCount}/{category.nodes.length}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </View>
   );
+
+  /**
+   * The tree is a FIXED canvas sized to the space it is given - never a
+   * scroller. Columns sit at 1/6, 3/6 and 5/6 of the measured width and rows
+   * split the measured height, so the tree always fits and there is nothing to
+   * drag. It used to be absolute pixel offsets inside a vertical ScrollView
+   * that bounced and drifted under the thumb, and its connectors were dashed
+   * RECTANGLES anchored at the parent and always extending right - so the line
+   * to a left-hand child ran off the card edge instead of reaching it.
+   * Connectors are now straight SVG lines between node centres.
+   */
+  const [canvas, setCanvas] = useState({ width: 0, height: 0 });
+  const onCanvasLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setCanvas(prev => (prev.width === width && prev.height === height ? prev : { width, height }));
+  }, []);
+  const rowCount = useMemo(
+    () => Math.max(1, ...currentCategory.nodes.map(n => n.row + 1)),
+    [currentCategory]
+  );
+  const nodeCenter = useCallback((node: SkillNode) => ({
+    x: canvas.width * ((node.column * 2 + 1) / 6),
+    y: canvas.height * ((node.row * 2 + 1) / (rowCount * 2)) - NODE_LABEL_OFFSET / 2,
+  }), [canvas.width, canvas.height, rowCount]);
 
   const renderNode = (node: SkillNode) => {
     const status = getNodeStatus(node);
     const NodeIcon = node.icon;
     const isSelected = selectedNode?.id === node.id;
+    const center = nodeCenter(node);
 
     return (
       <TouchableOpacity
         key={node.id}
         style={[
           styles.nodeWrapper,
-          { top: node.row * scale(100) + scale(20), left: node.column * scale(100) + scale(20) },
+          { top: center.y - NODE_SIZE / 2, left: center.x - NODE_WRAPPER_WIDTH / 2 },
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={`${node.name}, ${status}`}
         onPress={() => {
           setSelectedNode(node);
           if (status === 'available') {
@@ -679,12 +737,19 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
             color={status === 'unlocked' ? uiPalette.white : status === 'available' ? uiPalette.blue : uiPalette.lightMuted}
           />
         </LinearGradient>
-        <Text style={[
-          styles.nodeName,
-          status === 'unlocked' && styles.nodeNameUnlocked,
-          status === 'locked' && styles.nodeNameLocked,
-          settings.darkMode && styles.textDark,
-        ]}>
+        <Text
+          style={[
+            styles.nodeName,
+            status === 'unlocked' && styles.nodeNameUnlocked,
+            status === 'locked' && styles.nodeNameLocked,
+            settings.darkMode && styles.textDark,
+            // A chip in the canvas colour, so the connector lines pass BEHIND
+            // the name instead of striking through it.
+            { backgroundColor: settings.darkMode ? uiPalette.navy : uiPalette.white },
+          ]}
+          numberOfLines={2}
+          maxFontSizeMultiplier={1.2}
+        >
           {node.name}
         </Text>
       </TouchableOpacity>
@@ -692,32 +757,32 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
   };
 
   const renderConnections = () => {
-    return currentCategory.nodes.map(node => {
-      if (!node.requires) return null;
-      
-      return node.requires.map(reqId => {
-        const reqNode = currentCategory.nodes.find(n => n.id === reqId);
-        if (!reqNode) return null;
-
-        const isActive = isNodeUnlocked(reqId);
-        
-        return (
-          <View
-            key={`${reqId}-${node.id}`}
-            style={[
-              styles.connection,
-              {
-                top: reqNode.row * scale(100) + scale(55),
-                left: reqNode.column * scale(100) + scale(55),
-                width: Math.abs(node.column - reqNode.column) * scale(100),
-                height: Math.abs(node.row - reqNode.row) * scale(100),
-                borderColor: isActive ? '#10B981' : uiPalette.slate,
-              },
-            ]}
-          />
-        );
-      });
-    });
+    if (canvas.width <= 0 || canvas.height <= 0) return null;
+    return (
+      <Svg width={canvas.width} height={canvas.height} style={StyleSheet.absoluteFill} pointerEvents="none">
+        {currentCategory.nodes.flatMap(node =>
+          (node.requires ?? []).map(reqId => {
+            const reqNode = currentCategory.nodes.find(n => n.id === reqId);
+            if (!reqNode) return null;
+            const from = nodeCenter(reqNode);
+            const to = nodeCenter(node);
+            const isActive = isNodeUnlocked(reqId);
+            return (
+              <Line
+                key={`${reqId}-${node.id}`}
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke={isActive ? '#10B981' : uiPalette.slate}
+                strokeWidth={2}
+                strokeDasharray={isActive ? undefined : '6,5'}
+              />
+            );
+          })
+        )}
+      </Svg>
+    );
   };
 
   const renderNodeDetails = () => {
@@ -759,7 +824,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           Splitting it means the prose can grow without ever pushing the button
           out: the text shrinks and scrolls, the button is pinned below it.
         */}
-        <ScrollView style={styles.detailsScroll} contentContainerStyle={styles.detailsBody}>
+        <ScrollView style={styles.detailsScroll} contentContainerStyle={styles.detailsBody} bounces={false}>
           <Text style={[styles.detailsDescription, settings.darkMode && styles.textMuted]}>
             {selectedNode.description}
           </Text>
@@ -778,7 +843,16 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 styles.requirementText,
                 { color: gameState.stats.money >= selectedNode.cost ? '#10B981' : '#EF4444' }
               ]}>
-                ${selectedNode.cost.toLocaleString()}
+                ${selectedNode.cost.toLocaleString('en-US')}
+              </Text>
+            </View>
+            <View style={styles.requirement}>
+              <Brain size={14} color={skillPoints >= lifeSkillPointCost(selectedNode.id) ? '#10B981' : '#EF4444'} />
+              <Text style={[
+                styles.requirementText,
+                { color: skillPoints >= lifeSkillPointCost(selectedNode.id) ? '#10B981' : '#EF4444' }
+              ]}>
+                {lifeSkillPointCost(selectedNode.id)} {lifeSkillPointCost(selectedNode.id) === 1 ? 'point' : 'points'}
               </Text>
             </View>
             <View style={styles.requirement}>
@@ -872,20 +946,6 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 Life Skills
               </Text>
             </View>
-            <View style={styles.headerStats}>
-              <View style={styles.statBadge}>
-                <Star size={14} color="#F59E0B" />
-                <Text style={styles.statBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                  {skillPoints} Points
-                </Text>
-              </View>
-              <View style={styles.statBadge}>
-                <CheckCircle size={14} color="#10B981" />
-                <Text style={styles.statBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                  {unlockedSkills.length} Unlocked
-                </Text>
-              </View>
-            </View>
             <TouchableOpacity
                 onPress={onClose}
                 style={[styles.closeButton, minTouchTargetStyle]}
@@ -895,22 +955,32 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
               <X size={24} color={settings.darkMode ? uiPalette.paper : uiPalette.navy} />
             </TouchableOpacity>
           </View>
+          {/* The stats get their own row. Sharing the title's row squeezed all
+              three to "Life Ski...", "6 P..." and "1 Unl..." on a 390pt phone. */}
+          <View style={styles.headerStats}>
+            <View style={styles.statBadge}>
+              <Star size={14} color="#F59E0B" />
+              <Text style={styles.statBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                {skillPoints} {skillPoints === 1 ? 'Point' : 'Points'} left
+              </Text>
+            </View>
+            <View style={styles.statBadge}>
+              <CheckCircle size={14} color="#10B981" />
+              <Text style={styles.statBadgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                {unlockedSkills.length} Unlocked
+              </Text>
+            </View>
+          </View>
 
           {/* Category Tabs */}
           {renderCategoryTabs()}
 
-          {/* Skill Tree */}
+          {/* Skill Tree - a fixed canvas, see `nodeCenter`. */}
           <View style={styles.treeContainer}>
-            <ScrollView
-              style={styles.treeScroll}
-              contentContainerStyle={styles.treeContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.tree}>
-                {renderConnections()}
-                {currentCategory.nodes.map(renderNode)}
-              </View>
-            </ScrollView>
+            <View style={styles.tree} onLayout={onCanvasLayout}>
+              {renderConnections()}
+              {canvas.width > 0 ? currentCategory.nodes.map(renderNode) : null}
+            </View>
           </View>
 
           {/* Details Panel */}
@@ -949,9 +1019,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: scale(16),
-    borderBottomWidth: 1,
-    borderBottomColor: uiPalette.lightSecondary,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(14),
+    paddingBottom: scale(6),
   },
   headerContent: {
     flexDirection: 'row',
@@ -973,6 +1043,10 @@ const styles = StyleSheet.create({
   headerStats: {
     flexDirection: 'row',
     gap: scale(8),
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: uiPalette.lightSecondary,
     flexShrink: 1,
     minWidth: 0,
   },
@@ -1004,44 +1078,34 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   categoryTabs: {
-    maxHeight: scale(60),
+    flexDirection: 'row',
+    gap: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(8),
     borderBottomWidth: 1,
     borderBottomColor: uiPalette.lightSecondary,
   },
-  categoryTabsContent: {
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(8),
-    gap: scale(8),
-  },
   categoryTab: {
+    flex: 1,
+    minWidth: 0,
     borderRadius: scale(12),
-    marginRight: scale(8),
   },
-  categoryTabActive: {},
   categoryTabGradient: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(10),
+    justifyContent: 'center',
+    paddingHorizontal: scale(2),
+    paddingVertical: scale(8),
     borderRadius: scale(12),
-    gap: scale(6),
+    gap: scale(2),
+    minHeight: 44,
   },
   categoryTabText: {
-    fontSize: fontScale(13),
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: uiPalette.lightMuted,
   },
   categoryTabTextActive: {
     color: uiPalette.white,
-  },
-  categoryBadge: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    paddingHorizontal: scale(6),
-    paddingVertical: scale(2),
-    borderRadius: scale(8),
-  },
-  categoryBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   categoryBadgeText: {
     fontSize: fontScale(10),
@@ -1053,33 +1117,23 @@ const styles = StyleSheet.create({
   },
   treeContainer: {
     flex: 1,
-  },
-  treeScroll: {
-    flex: 1,
-  },
-  treeContent: {
-    padding: scale(20),
-    minHeight: scale(400),
+    paddingHorizontal: scale(8),
+    paddingTop: scale(16),
+    paddingBottom: scale(4),
   },
   tree: {
+    flex: 1,
     position: 'relative',
-    height: scale(350),
-  },
-  connection: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderRadius: scale(4),
   },
   nodeWrapper: {
     position: 'absolute',
     alignItems: 'center',
-    width: scale(70),
+    width: NODE_WRAPPER_WIDTH,
   },
   node: {
-    width: scale(56),
-    height: scale(56),
-    borderRadius: scale(28),
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    borderRadius: NODE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
@@ -1118,11 +1172,15 @@ const styles = StyleSheet.create({
   },
   nodeName: {
     marginTop: scale(6),
-    fontSize: fontScale(10),
+    fontSize: fontScale(11),
     fontWeight: '600',
     color: uiPalette.slate,
     textAlign: 'center',
-    maxWidth: scale(70),
+    maxWidth: NODE_WRAPPER_WIDTH,
+    paddingHorizontal: scale(5),
+    paddingVertical: scale(1),
+    borderRadius: scale(6),
+    overflow: 'hidden',
   },
   nodeNameUnlocked: {
     color: '#10B981',

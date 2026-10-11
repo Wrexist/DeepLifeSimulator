@@ -75,6 +75,7 @@ import {
   LIVE_ENERGY_DRAIN_PER_SEC,
   LIVE_MIN_ENERGY,
   LIVE_TICK_MS,
+  LIVE_MAX_TICK_GAP_S,
   isLiveSessionFromThisRuntime,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -175,7 +176,9 @@ function splitDur(label: string): [string, string] {
   return m ? [m[1], m[2]] : [label, ''];
 }
 
-const fmt = (n?: number) => Math.round(n ?? 0).toLocaleString();
+// Counts read in full up to 10,000 and abbreviate above (12.35K), so a big
+// channel's numbers fit a quarter-width stat tile.
+const fmt = (n?: number) => formatMoney(Math.round(n ?? 0), false);
 
 interface Props {
   onBack: () => void;
@@ -322,29 +325,49 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // viewers; when energy hits 0 the stream auto-stops. The interval is cleared
   // on Stop, on auto-stop (isLiveNow flips false), AND on unmount - so no leaked
   // timers and no setState-after-unmount.
+  //
+  // Ref-stable on purpose: the effect depends on `isLiveNow` ALONE. It used to
+  // also depend on the Stop handler and `saveGame`, so any re-render that
+  // produced a new identity tore the interval down and started a fresh one-
+  // second wait - on a device where something re-renders this screen more often
+  // than once a second, the first tick never landed and the broadcast sat at
+  // 0:00 (tester report, 2026-10-10). Accrual is also measured from the wall
+  // clock rather than assumed to be one second per callback, so a late or
+  // coalesced timer still pays out the time that really passed. The gap is
+  // capped, so time the app spent suspended in the background is not charged.
+  const handleStopStreamRef = useRef(handleStopStream);
+  const saveGameRef = useRef(saveGame);
+  useEffect(() => {
+    handleStopStreamRef.current = handleStopStream;
+    saveGameRef.current = saveGame;
+  }, [handleStopStream, saveGame]);
   useEffect(() => {
     if (!isLiveNow) return;
     let ticksSinceSave = 0;
+    let lastTickAt = Date.now();
     const interval = setInterval(() => {
+      const now = Date.now();
+      const deltaSeconds = Math.min(LIVE_MAX_TICK_GAP_S, Math.max(0, (now - lastTickAt) / 1000));
+      lastTickAt = now;
       const gs = gameStateRef.current;
       if (!gs.gamingStreaming?.currentStream?.live) return;
       const energyNow = gs.stats?.energy ?? 0;
       if (energyNow <= 0) {
-        handleStopStream(true);
+        handleStopStreamRef.current(true);
         return;
       }
-      tickLiveStream(setGameState, LIVE_TICK_MS / 1000);
+      tickLiveStream(setGameState, deltaSeconds);
       // Checkpoint accrued progress ~every 10s so a crash/kill mid-stream can't
       // make the stale-session resolver finalize from an older snapshot and
       // under-pay the player. Throttled (saveGame validates + writes) - not
       // every tick.
       if (++ticksSinceSave >= 10) {
         ticksSinceSave = 0;
-        saveGame();
+        saveGameRef.current();
       }
     }, LIVE_TICK_MS);
     return () => clearInterval(interval);
-  }, [isLiveNow, setGameState, handleStopStream, saveGame]);
+  }, [isLiveNow, setGameState]);
 
   // Safety: if a live session survived a save/reload (app closed mid-stream),
   // resolve it once on mount instead of letting it stream forever - but ONLY
@@ -671,7 +694,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
               { label: 'Viewers', value: fmt(liveViewers) },
               { label: 'Elapsed', value: fmtElapsed(elapsed) },
               { label: 'Chat', value: fmt(session.chatMessages) },
-              { label: 'Setup', value: quality.tier.toUpperCase(), tint: qualityColor(quality.tier) },
+              { label: 'Setup', value: quality.tier.charAt(0).toUpperCase() + quality.tier.slice(1), tint: qualityColor(quality.tier) },
             ]}
           />
         </View>

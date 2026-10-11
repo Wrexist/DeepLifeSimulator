@@ -176,8 +176,8 @@ export function publishVideo(
   return {
     success: true,
     message: outcome.viral
-      ? `${args.title} went viral! +${outcome.views.toLocaleString()} views.`
-      : `${args.title} published - ${outcome.views.toLocaleString()} views.`,
+      ? `${args.title} went viral! +${outcome.views.toLocaleString('en-US')} views.`
+      : `${args.title} published - ${outcome.views.toLocaleString('en-US')} views.`,
     video,
     outcome,
     earnings,
@@ -316,6 +316,12 @@ export const LIVE_ENERGY_DRAIN_PER_SEC = 1.6;
 export const LIVE_MIN_ENERGY = 8;
 /** Recommended tick cadence for the UI loop (ms). */
 export const LIVE_TICK_MS = 1000;
+/**
+ * Most real seconds one UI tick may charge. The loop measures the wall-clock
+ * gap between callbacks so a late timer still pays the time that passed; the
+ * cap stops a resume from the background billing the whole suspension at once.
+ */
+export const LIVE_MAX_TICK_GAP_S = 3;
 
 /** Type guard: is `currentStream` an in-progress live broadcast? */
 export function isLiveSession(ch: GamingStreamingState | null | undefined): boolean {
@@ -468,7 +474,16 @@ export function tickLiveStream(setGameState: SetGS, deltaSeconds = 1): void {
     const wobble = 0.85 + Math.random() * 0.35; // 0.85..1.20
     const target = base * (0.4 + 0.9 * ramp) * wobble;
     const prevViewers = safe(live.viewers, 0);
-    const viewers = Math.max(0, Math.round(prevViewers + (target - prevViewers) * 0.4));
+    // Smooth 40% of the way toward the target, but always move at least one
+    // viewer when the target is half a viewer or more away. A starter rig's
+    // early target is ~1, and 40% of that rounded back to 0 every tick - a new
+    // streamer sat at "0 watching" for the first third of the broadcast
+    // (tester report, 2026-10-10).
+    let viewers = Math.round(prevViewers + (target - prevViewers) * 0.4);
+    if (viewers === prevViewers && Math.abs(target - prevViewers) >= 0.5) {
+      viewers += target > prevViewers ? 1 : -1;
+    }
+    viewers = Math.max(0, viewers);
 
     return {
       ...prev,
@@ -607,7 +622,7 @@ export function buyAccessory(
   const channel = ensureChannel(gameState);
   if (channel.equipment[id]) return { success: false, message: 'Already owned.' };
   if (safe(gameState.stats?.money, 0) < price) {
-    return { success: false, message: `Need $${price.toLocaleString()}.` };
+    return { success: false, message: `Need $${price.toLocaleString('en-US')}.` };
   }
   // Atomic gate→debit→grant: the old split (updateMoney dispatch + separate
   // flag setGameState) let a same-batch double-tap charge twice for one item.
@@ -642,7 +657,7 @@ export function upgradePCComponent(
   const nextTier = currentTier + 1;
   const cost = Math.round(basePrice * Math.pow(2, currentTier));
   if (safe(gameState.stats?.money, 0) < cost) {
-    return { success: false, message: `Need $${cost.toLocaleString()}.` };
+    return { success: false, message: `Need $${cost.toLocaleString('en-US')}.` };
   }
   // Atomic: re-derive the tier and cost from prev so a same-batch double-tap
   // can't charge tier-N price twice for one upgrade.

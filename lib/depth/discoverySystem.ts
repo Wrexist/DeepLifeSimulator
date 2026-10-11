@@ -358,7 +358,7 @@ export function getSystemUnlockRequirements(systemId: string): {
       requirements.push(`Age: ${unlockReq.minAge}+`);
     }
     if ('minMoney' in unlockReq && unlockReq.minMoney) {
-      requirements.push(`Money: $${unlockReq.minMoney.toLocaleString()}+`);
+      requirements.push(`Money: $${unlockReq.minMoney.toLocaleString('en-US')}+`);
     }
     if ('minReputation' in unlockReq && unlockReq.minReputation) {
       requirements.push(`Reputation: ${unlockReq.minReputation}+`);

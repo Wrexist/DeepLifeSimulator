@@ -152,7 +152,7 @@ export class LongTermSimulator {
             
             // Log action attempt for debugging (every 10 weeks, first action)
             if (week % 10 === 0 && actionIndex === 0) {
-              log.info(`[LongTermSim] Week ${week + 1}, Action ${actionIndex + 1}, Money: $${money.toLocaleString()}, Health: ${currentState.stats?.health?.toFixed(1)}, Happiness: ${currentState.stats?.happiness?.toFixed(1)}, Job: ${currentState.currentJob || 'None'}`);
+              log.info(`[LongTermSim] Week ${week + 1}, Action ${actionIndex + 1}, Money: $${money.toLocaleString('en-US')}, Health: ${currentState.stats?.health?.toFixed(1)}, Happiness: ${currentState.stats?.happiness?.toFixed(1)}, Job: ${currentState.currentJob || 'None'}`);
             }
             
             // ============================================

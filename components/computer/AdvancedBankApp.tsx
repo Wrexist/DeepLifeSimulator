@@ -55,7 +55,7 @@ import {
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
-import AccountRow, { accountPalette, accountTypeLabel } from '@/components/banking/AccountRow';
+import AccountRow, { accountPalette, accountTypeLabel, accountTypeShortLabel } from '@/components/banking/AccountRow';
 import LoanRow from '@/components/banking/LoanRow';
 import CreditCardRow from '@/components/banking/CreditCardRow';
 import BillPayRow from '@/components/banking/BillPayRow';
@@ -526,6 +526,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             key={acct.id}
             account={acct}
             currentWeek={gameState.weeksLived}
+            lifeStartWeek={gameState.lifeStartWeek}
             darkMode={darkMode}
             onPress={() => setDepositTarget(acct)}
             onWithdraw={() => setWithdrawTarget(acct)}
@@ -806,8 +807,11 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const isMirrored =
       isReadOnlyMirror(account.id);
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
-    const ageWeeks = Math.max(0, gameState.weeksLived - account.openedWeek);
-    const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y · ${ageWeeks}w` : `${ageWeeks}w`;
+    // Primary accounts are stamped week 0; count from when this life began.
+    const openedAt = Math.max(account.openedWeek, gameState.lifeStartWeek ?? 0);
+    const ageWeeks = Math.max(0, gameState.weeksLived - openedAt);
+    // The tile shows one token; the exact week count rides in the sub-line.
+    const ageLabel = ageWeeks >= 52 ? `${(ageWeeks / 52).toFixed(1)}y` : `${ageWeeks}w`;
     const relatedBills = banking.billPayRules.filter((b) => b.fromAccountId === account.id);
 
     return (
@@ -906,7 +910,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <StatStrip
               items={[
-                { label: 'Type', value: accountTypeLabel(account.type), tint: pal.hex },
+                { label: 'Type', value: accountTypeShortLabel(account.type), tint: pal.hex },
                 {
                   label: 'Interest APR',
                   value: `${(displayedDepositAPR(account.baseAPR, banking.rateEnvironment) * 100).toFixed(2)}%`,
@@ -921,8 +925,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             <StatStrip
               items={[
                 { label: 'Balance', value: formatMoneyExact(account.balance) },
-                { label: 'Opened', value: formatLifeWeek(account.openedWeek, gameState.lifeStartWeek) },
-                { label: 'Age', value: ageLabel },
+                { label: 'Opened', value: formatLifeWeek(openedAt, gameState.lifeStartWeek) },
+                { label: 'Age', value: ageLabel, sub: ageWeeks >= 52 ? `${ageWeeks} weeks` : undefined },
               ]}
             />
           </View>

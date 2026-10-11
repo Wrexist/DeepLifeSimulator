@@ -551,7 +551,9 @@ const styles = StyleSheet.create({
   },
   levelBar: {
     height: scale(8),
-    backgroundColor: uiPalette.line,
+    // A subdued track. `uiPalette.line` is near-white, so on the dark card an
+    // EMPTY bar (0/100) read as a full one (tester pass, 2026-10-10).
+    backgroundColor: 'rgba(148, 163, 184, 0.22)',
     borderRadius: scale(4),
     overflow: 'hidden',
   },

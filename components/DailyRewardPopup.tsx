@@ -136,7 +136,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  <Gem size={scale(20)} color="#8B5CF6" strokeWidth={2.4} />
  </View>
  <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Gems</Text>
- <Text style={[styles.rewardAmount, { color: palette.title }]}>+{safeRewardAmount.toLocaleString()}</Text>
+ <Text style={[styles.rewardAmount, { color: palette.title }]}>+{safeRewardAmount.toLocaleString('en-US')}</Text>
  </View>
  </View>
 

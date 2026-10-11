@@ -44,6 +44,14 @@ it('does not clamp supporting headings or stat explanations and keeps scaled lin
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => { tree = TestRenderer.create(<><SectionTitle title="Research and development opportunities" subtitle="Full requirement and cost explanation" /><StatTile label="Weekly company contribution" value="$123,456" sub="After the existing income adjustments" /></>); });
   for (const text of tree.root.findAllByType(Text)) {
+    // A stat VALUE is one token (a number or one word): wrapping can only split
+    // it mid-word ("START / ER"), so it is one line that shrinks to fit. Every
+    // explanation around it stays unclamped.
+    if (text.props.children === '$123,456') {
+      expect(text.props.numberOfLines).toBe(1);
+      expect(text.props.adjustsFontSizeToFit).toBe(true);
+      continue;
+    }
     expect(text.props.numberOfLines).toBeUndefined();
     const style = flatten(text.props.style);
     if (typeof style.lineHeight !== 'number' || typeof style.fontSize !== 'number') {

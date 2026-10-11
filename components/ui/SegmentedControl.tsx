@@ -61,7 +61,8 @@ interface SegmentedControlProps<T extends string> {
   /**
    * Horizontal scrolling for long labels or larger groups (Travel, Bank, Shop).
    * Segments keep natural widths; visible arrows appear only when they overflow.
-   * Short fixed groups share the row and allow their text to wrap.
+   * Short fixed groups share the row; their labels stay on one line and
+   * shrink to fit rather than breaking mid-word.
    */
   scrollable?: boolean;
 }
@@ -109,6 +110,12 @@ export default function SegmentedControl<T extends string>({
     setScrollX(next);
     scrollRef.current?.scrollTo({ x: next, animated: !reducedMotion });
   }, [value, positions, viewportWidth, contentWidth, scrollable, reducedMotion]);
+  // Four or more icon tabs sharing one row leave each label about a quarter of
+  // a 390pt phone minus its icon, so "Dashboard" broke as "Dashbo / ard" in the
+  // Streaming app. Stacking the icon over the label hands the label the whole
+  // slot width; the label is also capped to one line and shrinks to fit, so no
+  // shared-row tab can ever split a word again.
+  const stacked = !scrollable && segments.length >= 4 && segments.some((seg) => !!seg.icon);
   const MUTED = theme.textSecondary;
   const ACTIVE_TEXT = theme.text;
   const material = { backgroundColor: theme.surfaceInset, borderColor: theme.border };
@@ -130,6 +137,7 @@ export default function SegmentedControl<T extends string>({
                 styles.tab,
                 compact && styles.tabCompact,
                 scrollable && styles.tabScroll,
+                stacked && styles.tabStacked,
                 active && { backgroundColor: withAlpha(activeColor, 0.24) },
                 locked && styles.tabLocked,
               ]}
@@ -142,7 +150,12 @@ export default function SegmentedControl<T extends string>({
               accessibilityLabel={locked ? `${seg.label}, locked. ${seg.lockReason || ''}`.trim() : seg.label}
             >
               {Icon ? <Icon size={compact ? scale(14) : scale(16)} color={active ? activeColor : MUTED} /> : null}
-              <Text style={[styles.text, compact && styles.textCompact, { color: active ? ACTIVE_TEXT : MUTED }]} >
+              <Text
+                style={[styles.text, compact && styles.textCompact, stacked && styles.textStacked, { color: active ? ACTIVE_TEXT : MUTED }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={!scrollable}
+                minimumFontScale={0.75}
+              >
                 {seg.label}
               </Text>
             </TouchableOpacity>
@@ -268,6 +281,12 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     minHeight: Math.max(44, scale(40)),
   },
+  // Icon over label - see `stacked` above.
+  tabStacked: {
+    flexDirection: 'column',
+    gap: 2,
+    paddingHorizontal: 2,
+  },
   // Matches the dimming the app grids use for locked entries.
   tabLocked: {
     opacity: 0.75,
@@ -280,5 +299,8 @@ const styles = StyleSheet.create({
   },
   textCompact: {
     fontSize: fontScale(12),
+  },
+  textStacked: {
+    fontSize: fontScale(11),
   },
 });

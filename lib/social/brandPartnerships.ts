@@ -38,7 +38,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
         minFollowers: 10_000,
         minEngagementRate: 10,
       },
-      description: `Post about our product for $${sponsoredPayment.toLocaleString()}`,
+      description: `Post about our product for $${sponsoredPayment.toLocaleString('en-US')}`,
       expiresIn: 1, // Expires in 1 week
     });
   }
@@ -55,7 +55,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
         minFollowers: 50_000,
         minEngagementRate: 15,
       },
-      description: `Multi-post campaign for $${brandDealPayment.toLocaleString()}`,
+      description: `Multi-post campaign for $${brandDealPayment.toLocaleString('en-US')}`,
       expiresIn: 4, // Expires in 4 weeks
     });
   }
@@ -72,7 +72,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
         minFollowers: 100_000,
         minEngagementRate: 20,
       },
-      description: `Exclusive partnership for $${premiumPayment.toLocaleString()}`,
+      description: `Exclusive partnership for $${premiumPayment.toLocaleString('en-US')}`,
       expiresIn: 8, // Expires in 8 weeks
     });
   }
@@ -97,7 +97,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
         minFollowers: 40_000,
         minEngagementRate: 12,
       },
-      description: `${luxuryPull.hook} - $${payment.toLocaleString()}`,
+      description: `${luxuryPull.hook} - $${payment.toLocaleString('en-US')}`,
       expiresIn: 6,
     });
   }

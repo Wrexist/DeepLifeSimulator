@@ -408,7 +408,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         <View style={[styles.specDot, { backgroundColor: theme.border }]} />
         <View style={styles.specItem}>
           <Ruler size={scale(13)} color={theme.textMuted} />
-          <Text style={[styles.specText, { color: theme.textSecondary }]}>{s.sqft.toLocaleString()} sqft</Text>
+          <Text style={[styles.specText, { color: theme.textSecondary }]}>{s.sqft.toLocaleString('en-US')} sqft</Text>
         </View>
       </View>
     );
@@ -1038,7 +1038,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           <View style={styles.amenityGrid}>
             <AmenityChip icon={Bed} label={`${specs.beds === 0 ? 'Studio' : `${specs.beds} bedroom`}`} />
             <AmenityChip icon={Bath} label={`${specs.baths} bath`} />
-            <AmenityChip icon={Ruler} label={`${specs.sqft.toLocaleString()} sqft`} />
+            <AmenityChip icon={Ruler} label={`${specs.sqft.toLocaleString('en-US')} sqft`} />
             {!isCommercialCatalogId(p.id) && p.weeklyHappiness > 0 && (
               <AmenityChip icon={Sparkles} label={`+${p.weeklyHappiness} comfort (as home)`} />
             )}

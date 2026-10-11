@@ -103,7 +103,7 @@ export default function RingSelectionModal({
                     </Text>
                     <View style={styles.ringStatsRow}>
                       <Text style={[styles.ringPrice, !affordable && styles.priceUnaffordable]}>
-                        ${ring.price.toLocaleString()}
+                        ${ring.price.toLocaleString('en-US')}
                       </Text>
                       <View style={styles.successChip}>
                         <Heart size={12} color="#EC4899" />
@@ -132,7 +132,7 @@ export default function RingSelectionModal({
               <Gem size={18} color={uiPalette.white} />
               <Text style={styles.proposeText}>
                 {selected
-                  ? `Propose with ${selected.ring.name} ($${selected.ring.price.toLocaleString()})`
+                  ? `Propose with ${selected.ring.name} ($${selected.ring.price.toLocaleString('en-US')})`
                   : 'Select a ring'}
               </Text>
             </LinearGradient>

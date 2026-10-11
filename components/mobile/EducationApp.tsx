@@ -460,7 +460,11 @@ function EducationAppInner({ onBack }: EducationAppProps) {
           </View>
           <StatStrip
             items={[
-              { label: 'Best GPA', value: bestGpa.toFixed(2), tint: bestGradeColor },
+              // No graded programme yet reads "-", not a red "0.00" beside a
+              // wall of credentials (diplomas granted outright carry no GPA).
+              bestGpa > 0
+                ? { label: 'Best GPA', value: bestGpa.toFixed(2), tint: bestGradeColor }
+                : { label: 'Best GPA', value: '-' },
               {
                 label: 'Honors',
                 value: honorsCount,

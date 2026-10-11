@@ -312,7 +312,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
               {achievement.reward && isCompleted && (
                 <View style={styles.rewardContainer}>
                   <Sparkles size={scale(12)} color="#F59E0B" />
-                  <Text style={styles.rewardText}>${achievement.reward.toLocaleString()}</Text>
+                  <Text style={styles.rewardText}>${achievement.reward.toLocaleString('en-US')}</Text>
                 </View>
               )}
             </View>

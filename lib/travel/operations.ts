@@ -112,7 +112,7 @@ export function quoteTrip(
     return {
       ok: false,
       reason: 'needs-money',
-      message: `Need at least $${reqMoney.toLocaleString()} of cash on hand to visit.`,
+      message: `Need at least $${reqMoney.toLocaleString('en-US')} of cash on hand to visit.`,
       needed: reqMoney,
       have: safe(state.stats?.money, 0),
     };
@@ -132,7 +132,7 @@ export function quoteTrip(
     return {
       ok: false,
       reason: 'needs-money',
-      message: `Trip costs $${adjustedCost.toLocaleString()} - you have $${safe(state.stats?.money, 0).toLocaleString()}.`,
+      message: `Trip costs $${adjustedCost.toLocaleString('en-US')} - you have $${safe(state.stats?.money, 0).toLocaleString('en-US')}.`,
       needed: adjustedCost,
       have: safe(state.stats?.money, 0),
     };

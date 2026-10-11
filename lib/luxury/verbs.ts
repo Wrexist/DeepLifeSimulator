@@ -140,7 +140,7 @@ export function getVerbAvailability(
   if (verb.cost > 0 && num(state?.stats?.money) < verb.cost) {
     return {
       available: false,
-      reason: `Costs $${verb.cost.toLocaleString()}.`,
+      reason: `Costs $${verb.cost.toLocaleString('en-US')}.`,
       weeksRemaining: 0,
     };
   }

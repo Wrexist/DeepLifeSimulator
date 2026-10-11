@@ -102,13 +102,19 @@ describe('SkillTreeModal - the header keeps its close button', () => {
   });
 
   it('caps the header text to one line so Dynamic Type cannot widen it', () => {
-    // Three texts live in the header: the title and the two badge labels.
-    // Anchored on CODE, not on the comments — `CODE` has them stripped.
+    // The title shares its row with the close X only; the two stat badges have
+    // their own row underneath (sharing one row ellipsized all three to
+    // "Life Ski...", "6 P...", "1 Unl..." on a 390pt phone, 2026-10-10).
     const header = /<View style=\{styles\.header\}>[\s\S]*?styles\.closeButton/.exec(CODE);
     expect(header).not.toBeNull();
     const block = (header as RegExpExecArray)[0];
-    expect(block.match(/numberOfLines=\{1\}/g)).toHaveLength(3);
-    expect(block.match(/maxFontSizeMultiplier=\{1\.3\}/g)).toHaveLength(3);
+    expect(block.match(/numberOfLines=\{1\}/g)).toHaveLength(1);
+    expect(block.match(/maxFontSizeMultiplier=\{1\.3\}/g)).toHaveLength(1);
+    expect(block).not.toContain('styles.statBadge');
+
+    const stats = /<View style=\{styles\.headerStats\}>[\s\S]*?Unlocked/.exec(CODE);
+    expect(stats).not.toBeNull();
+    expect((stats as RegExpExecArray)[0].match(/numberOfLines=\{1\}/g)).toHaveLength(2);
   });
 
   it('gives the sheet a second exit, so no header regression can strand a player', () => {

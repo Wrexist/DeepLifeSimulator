@@ -1420,7 +1420,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    pendingNotifications.push({
      id: `arrears-${nextWeeksLived}`,
      title: 'Bills Overdue',
-     message: `You came up $${arrears.newShortfall.toLocaleString()} short this week. $${arrears.overdueBalance.toLocaleString()} is now overdue and comes out of next week's income first.`,
+     message: `You came up $${arrears.newShortfall.toLocaleString('en-US')} short this week. $${arrears.overdueBalance.toLocaleString('en-US')} is now overdue and comes out of next week's income first.`,
    });
  }
  // Eviction clock. Runs AFTER settlement, so it reads the arrears that actually
@@ -5640,7 +5640,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  for (const a of newlyAwardedPrestigeAchievements) {
  showInfoBanner(
  `prestige-achievement-${a.id}`,
- `${a.name} - +${(a.reward?.prestigePoints ?? 0).toLocaleString()} prestige points`,
+ `${a.name} - +${(a.reward?.prestigePoints ?? 0).toLocaleString('en-US')} prestige points`,
  'Prestige Achievement',
  );
  }
@@ -5653,7 +5653,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const more = newlyAwardedPrestigeAchievements.length - 3;
  showInfoBanner(
  'prestige-achievements-summary',
- `${names}${more > 0 ? ` +${more} more` : ''}\n+${totalPoints.toLocaleString()} prestige points`,
+ `${names}${more > 0 ? ` +${more} more` : ''}\n+${totalPoints.toLocaleString('en-US')} prestige points`,
  `${newlyAwardedPrestigeAchievements.length} Prestige Achievements`,
  );
  }

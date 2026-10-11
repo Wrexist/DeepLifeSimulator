@@ -23,6 +23,10 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
   const prestigeLevel = 0; // Preview for players who haven't prestiged yet
   const threshold = getPrestigeThreshold(prestigeLevel);
   const progress = Math.min(100, (currentNetWorth / threshold) * 100);
+  // Past the threshold the card used to keep saying "Reach $10M net worth to
+  // unlock" directly under a full bar and the Home banner's "PRESTIGE
+  // AVAILABLE!" - it read as a goal the player had not met yet.
+  const unlocked = currentNetWorth >= threshold;
 
   return (
     <TouchableOpacity
@@ -50,7 +54,9 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
                 Prestige System
               </Text>
               <Text style={[styles.subtitle, darkMode && styles.subtitleDark]}>
-                Reach {formatMoney(threshold)} net worth to unlock
+                {unlocked
+                  ? 'Unlocked - tap to see what your next life gets'
+                  : `Reach ${formatMoney(threshold)} net worth to unlock`}
               </Text>
             </View>
           </View>

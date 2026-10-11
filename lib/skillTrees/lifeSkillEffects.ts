@@ -61,6 +61,57 @@ export const LIFE_SKILL_IDS = [
 
 export type LifeSkillId = typeof LIFE_SKILL_IDS[number];
 
+/**
+ * Skill POINTS - what the tree's "N Points" badge finally means.
+ *
+ * The modal showed a points total for its whole life and nothing ever spent
+ * it: skills cost money only, so the number was decoration a player could
+ * reasonably think they were wasting (tester report, 2026-10-10). Points are
+ * now the second price of a skill, which makes them the PACING gate money is
+ * not - cash buys the whole tree in one sitting late in a life, points arrive
+ * with age, education and achievements.
+ *
+ * Every tree is root -> two middles -> capstone (LIFE_SKILL_IDS order), priced
+ * 1 / 2 / 2 / 3, so a full tree is 8 points and the whole board 40.
+ *
+ * Nothing new is stored. Points SPENT are derived from `unlockedLifeSkills`
+ * (the v29 legacy-points approach: balance = earned - spent), so there is no
+ * field, no migration, and no way for the two numbers to drift apart. A save
+ * that unlocked skills before points cost anything simply reads 0 available
+ * until it earns more - nothing it owns is taken away.
+ */
+const TIER_POINT_COST = [1, 2, 2, 3] as const;
+
+export const LIFE_SKILL_POINT_COST: Readonly<Record<LifeSkillId, number>> = Object.fromEntries(
+  LIFE_SKILL_IDS.map((id, i) => [id, TIER_POINT_COST[i % 4]]),
+) as Record<LifeSkillId, number>;
+
+/** Point price of a node; unknown ids cost nothing (they grant nothing either). */
+export function lifeSkillPointCost(id: string): number {
+  return (LIFE_SKILL_POINT_COST as Record<string, number>)[id] ?? 0;
+}
+
+/** Points earned so far this life: 1 per 5 years of age, 2 per finished education, 1 per claimed achievement. */
+export function lifeSkillPointsEarned(state: GameState): number {
+  const age = Math.max(0, Number(state?.date?.age) || 0);
+  const educations = Array.isArray(state?.educations) ? state.educations.filter((e) => e?.completed).length : 0;
+  // The LIVE claimed store. Reading `achievements[].completed` (never set in
+  // play) made every achievement worth zero points - 2026-07-30 audit GP-3.
+  const achievements = Array.isArray(state?.claimedProgressAchievements) ? state.claimedProgressAchievements.length : 0;
+  return Math.floor(age / 5) + educations * 2 + achievements;
+}
+
+/** Points already spent - derived from what is unlocked, never stored. */
+export function lifeSkillPointsSpent(state: GameState): number {
+  const list = Array.isArray(state?.unlockedLifeSkills) ? state.unlockedLifeSkills : [];
+  return list.reduce((sum, id) => sum + lifeSkillPointCost(id), 0);
+}
+
+/** Spendable points, floored at 0 (see the pre-points saves note above). */
+export function lifeSkillPointsAvailable(state: GameState): number {
+  return Math.max(0, lifeSkillPointsEarned(state) - lifeSkillPointsSpent(state));
+}
+
 export interface LifeSkillModifiers {
   /** Additive percentage points added to a job-application acceptance chance. */
   jobApplicationBonus: number;
@@ -257,6 +308,7 @@ export type LifeSkillPurchaseReason =
   | 'too-young'
   | 'missing-prereq'
   | 'insufficient-funds'
+  | 'insufficient-points'
   | 'invalid';
 
 export interface LifeSkillPurchaseResult {
@@ -271,7 +323,7 @@ export interface LifeSkillPurchaseResult {
 /**
  * Atomically buy one Life Skill node. Pure — returns a NEW state on success and
  * the SAME state (plus a reason) on any rejection. Guards, in order:
- * already-unlocked → age → prereqs → affordability. Money only ever decreases
+ * already-unlocked → age → prereqs → points → affordability. Money only ever decreases
  * (mirror-safe: no cash minted). `unlockedLifeSkills` is created if absent, so
  * old saves migrate on first purchase.
  */
@@ -292,6 +344,11 @@ export function purchaseLifeSkill(
   }
   if (spec.requires && !spec.requires.every((req) => list.includes(req))) {
     return { state, purchased: false, reason: 'missing-prereq' };
+  }
+  // Points before money: the friendlier refusal names the slower resource.
+  // Checked against THIS state, so a same-batch double tap re-checks it too.
+  if (lifeSkillPointsAvailable(state) < lifeSkillPointCost(spec.id)) {
+    return { state, purchased: false, reason: 'insufficient-points' };
   }
   const money = state.stats?.money ?? 0;
   if (money < spec.cost) {

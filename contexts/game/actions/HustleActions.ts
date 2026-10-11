@@ -400,7 +400,7 @@ export const fireNamedHire = (
 
   const severance = Math.floor(hire.salary * 4); // 4 weeks severance
   if ((gameState.stats?.money ?? 0) < severance) {
-    return { success: false, message: `Need $${severance.toLocaleString()} to cover severance`, severance: 0 };
+    return { success: false, message: `Need $${severance.toLocaleString('en-US')} to cover severance`, severance: 0 };
   }
   const weeksLived = gameState.weeksLived ?? 0;
 
@@ -423,7 +423,7 @@ export const fireNamedHire = (
           },
         },
         'system',
-        `Fired employee. Severance paid: $${severance.toLocaleString()}`,
+        `Fired employee. Severance paid: $${severance.toLocaleString('en-US')}`,
         weeksLived,
       );
     });
@@ -438,7 +438,7 @@ export const fireNamedHire = (
     return withReputationDelta({ ...next, ...spend }, -1);
   });
 
-  return { success: true, message: `Fired. Severance: $${severance.toLocaleString()}`, severance };
+  return { success: true, message: `Fired. Severance: $${severance.toLocaleString('en-US')}`, severance };
 };
 
 // ── Campaigns ────────────────────────────────────────────────────────────
@@ -456,7 +456,7 @@ export const launchCampaign = (
   }
   const floor = campaignCostFloor(kind);
   if (spendPerWeek < floor) {
-    return { status: 'rejected', message: `Min spend for ${kind} campaign is $${floor.toLocaleString()}/week` };
+    return { status: 'rejected', message: `Min spend for ${kind} campaign is $${floor.toLocaleString('en-US')}/week` };
   }
   const company = gameState.companies?.find((c) => c.id === companyId);
   if (!company) return { status: 'rejected', message: 'Company not found' };
@@ -608,7 +608,7 @@ export const resolveScandal = (
   const { cost, rep, severityDrop, msg } = COSTS_AND_EFFECTS[method];
 
   if (cost > 0 && (gameState.stats?.money ?? 0) < cost) {
-    return { success: false, message: `Need $${cost.toLocaleString()} for ${method}`, reputationDelta: 0, costPaid: 0 };
+    return { success: false, message: `Need $${cost.toLocaleString('en-US')} for ${method}`, reputationDelta: 0, costPaid: 0 };
   }
 
   const weeksLived = gameState.weeksLived ?? 0;
@@ -754,7 +754,7 @@ export const launchIPO = (
           },
         },
         'ipo_milestone',
-        `🎉 IPO complete! Raised $${cashRaised.toLocaleString()} at $${sharePrice}/share`,
+        `🎉 IPO complete! Raised $${cashRaised.toLocaleString('en-US')} at $${sharePrice}/share`,
         weeksLived,
       );
     });
@@ -841,7 +841,7 @@ export const acceptAcquisition = (
   if (!Number.isFinite(offer.askingPrice) || offer.askingPrice <= 0) return { success: false, message: 'Invalid acquisition price' };
 
   if ((gameState.stats?.money ?? 0) < offer.askingPrice) {
-    return { success: false, message: `Need $${offer.askingPrice.toLocaleString()} to close` };
+    return { success: false, message: `Need $${offer.askingPrice.toLocaleString('en-US')} to close` };
   }
 
   setGameState((prev) => {
@@ -880,7 +880,7 @@ export const acceptAcquisition = (
           ),
         },
         'acquisition_offer',
-        `Acquired ${offer.targetName} for $${offer.askingPrice.toLocaleString()}`,
+        `Acquired ${offer.targetName} for $${offer.askingPrice.toLocaleString('en-US')}`,
         weeksLived,
       );
     });

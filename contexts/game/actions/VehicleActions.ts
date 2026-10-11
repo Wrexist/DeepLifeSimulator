@@ -67,7 +67,7 @@ export const getDriversLicense = (
 
   // Check if can afford
   if (gameState.stats.money < DRIVERS_LICENSE.cost) {
-    return { success: false, message: `You need $${DRIVERS_LICENSE.cost.toLocaleString()} to get a driver's license.` };
+    return { success: false, message: `You need $${DRIVERS_LICENSE.cost.toLocaleString('en-US')} to get a driver's license.` };
   }
 
   // Atomic: merge money deduction + license grant into single update
@@ -166,7 +166,7 @@ const resolvePurchaseVehicle = (
   // CRITICAL: Validate money before comparison. Refuse, never clamp.
   const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) && state.stats.money >= 0 ? state.stats.money : 0;
   if (currentMoney < vehiclePrice) {
-    return reject(`You need $${vehiclePrice.toLocaleString()} to purchase this vehicle.`);
+    return reject(`You need $${vehiclePrice.toLocaleString('en-US')} to purchase this vehicle.`);
   }
 
   const newVehicle = createVehicleFromTemplate(template, state.weeksLived || 0);
@@ -315,7 +315,7 @@ export const sellVehicle = (
   });
 
   log.info(`Player sold vehicle: ${vehicle.name} for $${sellPrice}`);
-  return { success: true, message: `Sold ${vehicle.name} for $${sellPrice.toLocaleString()}!`, sellPrice };
+  return { success: true, message: `Sold ${vehicle.name} for $${sellPrice.toLocaleString('en-US')}!`, sellPrice };
 };
 
 /**
@@ -348,7 +348,7 @@ export const refuelVehicle = (
   const fuelCost = calculateFuelCost(vehicle);
 
   if (gameState.stats.money < fuelCost) {
-    return { success: false, message: `You need $${fuelCost.toLocaleString()} to fill up.` };
+    return { success: false, message: `You need $${fuelCost.toLocaleString('en-US')} to fill up.` };
   }
 
   // Atomic: merge fuel cost + fuel level update into single update
@@ -384,7 +384,7 @@ export const refuelVehicle = (
   });
 
   log.info(`Player refueled vehicle: ${vehicle.name}`);
-  return { success: true, message: `Filled up ${vehicle.name} for $${fuelCost.toLocaleString()}!` };
+  return { success: true, message: `Filled up ${vehicle.name} for $${fuelCost.toLocaleString('en-US')}!` };
 };
 
 /**
@@ -414,7 +414,7 @@ export const repairVehicle = (
   }
 
   if (gameState.stats.money < repairCost) {
-    return { success: false, message: `You need $${repairCost.toLocaleString()} to repair this vehicle.` };
+    return { success: false, message: `You need $${repairCost.toLocaleString('en-US')} to repair this vehicle.` };
   }
 
   // Atomic: merge repair cost + condition update into single update
@@ -443,7 +443,7 @@ export const repairVehicle = (
   });
 
   log.info(`Player repaired vehicle: ${vehicle.name}`);
-  return { success: true, message: `Repaired ${vehicle.name} for $${repairCost.toLocaleString()}!` };
+  return { success: true, message: `Repaired ${vehicle.name} for $${repairCost.toLocaleString('en-US')}!` };
 };
 
 /**
@@ -489,7 +489,7 @@ export const purchaseInsurance = (
   const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
   
   if (currentMoney < premiumCost) {
-    return { success: false, message: `You need $${premiumCost.toLocaleString()} for 6 months of ${insuranceType} insurance.` };
+    return { success: false, message: `You need $${premiumCost.toLocaleString('en-US')} for 6 months of ${insuranceType} insurance.` };
   }
 
   // Safe string operations - ensure insuranceType is not empty
@@ -618,7 +618,7 @@ export const cancelInsurance = (
   return {
     success: true,
     message: refund > 0
-      ? `Insurance cancelled for ${vehicle.name}. Refund: $${refund.toLocaleString()} (pro-rata, less $25 admin fee).`
+      ? `Insurance cancelled for ${vehicle.name}. Refund: $${refund.toLocaleString('en-US')} (pro-rata, less $25 admin fee).`
       : `Insurance cancelled for ${vehicle.name}. No refund - policy was already near expiry.`,
   };
 };
@@ -1005,7 +1005,7 @@ function resolveBuyVehicle(
     // writing NaN money. The amount charged is unchanged.
     const spend = applyMoneyDelta(state, -downPayment, `Vehicle down payment: ${template.name}`);
     if (!spend) {
-      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down - you have $${Math.round(cash).toLocaleString()}.` }, next: null };
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString('en-US')} down - you have $${Math.round(cash).toLocaleString('en-US')}.` }, next: null };
     }
 
     let updatedLoans = state.loans ?? [];
@@ -1033,7 +1033,7 @@ function resolveBuyVehicle(
       };
       updatedLoans = [...updatedLoans, loan];
       log.info(
-        `Auto loan: $${(quote.loanPrincipal ?? 0).toLocaleString()} @ ${((quote.offeredAPR ?? 0) * 100).toFixed(2)}% APR over ${AUTO_TERM_WEEKS[spec.term]}w`
+        `Auto loan: $${(quote.loanPrincipal ?? 0).toLocaleString('en-US')} @ ${((quote.offeredAPR ?? 0) * 100).toFixed(2)}% APR over ${AUTO_TERM_WEEKS[spec.term]}w`
       );
     }
 
@@ -1065,8 +1065,8 @@ function resolveBuyVehicle(
         success: true,
         message:
           spec.tier === 'cash'
-            ? `Bought ${template.name} for $${template.price.toLocaleString()}`
-            : `Financed ${template.name} - $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
+            ? `Bought ${template.name} for $${template.price.toLocaleString('en-US')}`
+            : `Financed ${template.name} - $${(quote.downPaymentUSD ?? 0).toLocaleString('en-US')} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
       },
       next: {
         ...state,
@@ -1236,7 +1236,7 @@ export const getPilotLicense = (
   if (money < PILOT_LICENSE.cost) {
     return {
       success: false,
-      message: `Flight training costs $${PILOT_LICENSE.cost.toLocaleString()}.`,
+      message: `Flight training costs $${PILOT_LICENSE.cost.toLocaleString('en-US')}.`,
     };
   }
 

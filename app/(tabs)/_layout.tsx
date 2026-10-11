@@ -45,6 +45,13 @@ interface EventInboxPillProps {
   count: number;
   bottom: number;
   onPress: () => void;
+  /**
+   * Inside a full-screen app the tab bar is gone, so the wide centred pill sat
+   * over the app's own content - it covered "Run for Council Member", section
+   * headers and stat labels across every desktop app (screenshot pass,
+   * 2026-10-11). There it shrinks to a bell + count badge in the corner.
+   */
+  compact?: boolean;
 }
 
 // The inbox pill conditional-mounts after weeks with queued events, so it would
@@ -53,7 +60,7 @@ interface EventInboxPillProps {
 // native driver). Reduce Motion keeps the opacity feedback but drops the
 // movement - it renders settled. No exit animation (the conditional unmount is
 // acceptable). Tap behavior and copy are unchanged from the inline pill.
-function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
+function EventInboxPill({ count, bottom, onPress, compact = false }: EventInboxPillProps) {
   const reducedMotion = useReducedMotion();
   const opacity = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
   const translateY = useRef(new Animated.Value(reducedMotion ? 0 : 8)).current;
@@ -88,7 +95,7 @@ function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
       style={{
         position: 'absolute',
         bottom,
-        alignSelf: 'center',
+        ...(compact ? { right: scale(14) } : { alignSelf: 'center' as const }),
         opacity,
         transform: [{ translateY }],
       }}
@@ -103,7 +110,10 @@ function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
           alignItems: 'center',
           gap: layoutSpace.sm,
           paddingVertical: layoutSpace.sm,
-          paddingHorizontal: layoutSpace.md,
+          paddingHorizontal: compact ? layoutSpace.sm : layoutSpace.md,
+          minHeight: 44,
+          minWidth: 44,
+          justifyContent: 'center',
           borderRadius: scale(999),
           backgroundColor: 'rgba(15, 23, 42, 0.92)',
           borderWidth: 1,
@@ -112,7 +122,7 @@ function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
       >
         <Bell size={scale(15)} color={uiPalette.blue} />
         <Text style={{ color: uiPalette.paper, fontWeight: '700', fontSize: scale(13) }}>
-          {count} decision{count === 1 ? '' : 's'} waiting
+          {compact ? count : `${count} decision${count === 1 ? '' : 's'} waiting`}
         </Text>
       </TouchableOpacity>
     </Animated.View>
@@ -388,7 +398,8 @@ export default function TabLayout() {
     {showEventPill ? (
       <EventInboxPill
         count={pendingEventCount}
-        bottom={scale(88) + insets.bottom}
+        compact={fullscreenApp}
+        bottom={fullscreenApp ? insets.bottom + scale(12) : scale(88) + insets.bottom}
         onPress={() => setEventInboxOpen(true)}
       />
     ) : null}

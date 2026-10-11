@@ -106,7 +106,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerMetric}>
                         <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Asking</Text>
                         <Text style={[styles.metricValue, { color: theme.text }]}>
-                          ${offer.askingPrice.toLocaleString()}
+                          ${offer.askingPrice.toLocaleString('en-US')}
                         </Text>
                       </View>
                       {/**
@@ -129,7 +129,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                       <View style={styles.offerMetric}>
                         <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Adds weekly</Text>
                         <Text style={[styles.metricValue, { color: HUSTLE_COLORS.success }]}>
-                          +${weeklyGain.toLocaleString()}
+                          +${weeklyGain.toLocaleString('en-US')}
                         </Text>
                       </View>
                     </View>

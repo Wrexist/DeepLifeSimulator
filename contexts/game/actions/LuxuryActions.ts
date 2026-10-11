@@ -80,7 +80,7 @@ export const purchaseLuxuryItem = (
   if (currentMoney < item.price) {
     return {
       success: false,
-      message: `You need $${item.price.toLocaleString()} to buy the ${item.name}.`,
+      message: `You need $${item.price.toLocaleString('en-US')} to buy the ${item.name}.`,
     };
   }
 
@@ -126,7 +126,7 @@ export const purchaseLuxuryItem = (
     };
   });
 
-  log.info(`Player purchased luxury: ${item.name} ($${item.price.toLocaleString()})`);
+  log.info(`Player purchased luxury: ${item.name} ($${item.price.toLocaleString('en-US')})`);
   return { success: true, message: `You are now the proud owner of a ${item.name}! ${item.emoji}` };
 };
 
@@ -198,8 +198,8 @@ export const sellLuxuryItem = (
     };
   });
 
-  log.info(`Player sold luxury: ${item.name} (+$${quotedRefund.toLocaleString()})`);
-  return { success: true, message: `Sold your ${item.name} for $${quotedRefund.toLocaleString()}.` };
+  log.info(`Player sold luxury: ${item.name} (+$${quotedRefund.toLocaleString('en-US')})`);
+  return { success: true, message: `Sold your ${item.name} for $${quotedRefund.toLocaleString('en-US')}.` };
 };
 
 
@@ -434,7 +434,7 @@ export const restoreLuxuryItem = (
     return { success: false, message: `The ${item.name} is already in perfect condition.` };
   }
   if ((gameState.stats?.money ?? 0) < cost) {
-    return { success: false, message: `Restoration would cost $${cost.toLocaleString()}.` };
+    return { success: false, message: `Restoration would cost $${cost.toLocaleString('en-US')}.` };
   }
 
   setGameState((prev) => {
@@ -455,5 +455,5 @@ export const restoreLuxuryItem = (
     };
   });
 
-  return { success: true, message: `${item.name} restored for $${cost.toLocaleString()}.` };
+  return { success: true, message: `${item.name} restored for $${cost.toLocaleString('en-US')}.` };
 };

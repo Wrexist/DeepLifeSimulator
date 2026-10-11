@@ -57,7 +57,7 @@ export default function HustleApp({ onBack }: HustleAppProps) {
       {route.kind === 'dashboard' && (
         <>
           <AppHeader
-            title="hustle"
+            title="Hustle"
             onBack={onBack}
 
             right={<CashChip value={formatMoney(cash)} />}

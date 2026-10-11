@@ -617,7 +617,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               <View style={styles.statItem}>
                 <DollarSign size={16} color="#F59E0B" />
                 <Text style={styles.statLabel}>Money</Text>
-                <Text style={styles.statValue}>${stats.money.toLocaleString()}</Text>
+                <Text style={styles.statValue}>${stats.money.toLocaleString('en-US')}</Text>
               </View>
             </View>
           </View>

@@ -284,7 +284,7 @@ export function applyLuxuryRiskForWeek(
         conditionLost: 0,
         cost: deductible,
         insured: true,
-        message: `${item.name}: ${risk.label}. Insurance covered it - you paid $${deductible.toLocaleString()}.`,
+        message: `${item.name}: ${risk.label}. Insurance covered it - you paid $${deductible.toLocaleString('en-US')}.`,
       });
       continue;
     }

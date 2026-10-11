@@ -89,7 +89,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Open ${company.name}`}
-      accessibilityHint={`$${weekly.toLocaleString()} per week, brand ${brand}, ${company.employees} employees`}
+      accessibilityHint={`$${weekly.toLocaleString('en-US')} per week, brand ${brand}, ${company.employees} employees`}
       style={({ pressed }) => [
         getGlassCard(isDark, 6),
         styles.card,
@@ -116,10 +116,10 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
       <View style={styles.revBlock}>
         <View style={styles.revTopRow}>
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Weekly revenue</Text>
-          {lift > 0 ? <Chip label={`+$${lift.toLocaleString()} vs base`} tone="success" /> : null}
+          {lift > 0 ? <Chip label={`+$${lift.toLocaleString('en-US')} vs base`} tone="success" /> : null}
         </View>
         <View style={styles.revValueRow}>
-          <Text style={[styles.revValue, { color: theme.text }]}>${weekly.toLocaleString()}</Text>
+          <Text style={[styles.revValue, { color: theme.text }]}>${weekly.toLocaleString('en-US')}</Text>
           <Text style={[styles.revSuffix, { color: theme.textMuted }]}>/wk</Text>
         </View>
         <ProgressBar value={revPct / 100} color={color} label="Weekly revenue against the portfolio leader" />

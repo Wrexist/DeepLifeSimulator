@@ -231,7 +231,7 @@ export function getHostingAvailability(
   if (num(state?.stats?.money) < quote.cost) {
     return {
       available: false,
-      reason: `A ${quote.spec.label.toLowerCase()} here costs $${quote.cost.toLocaleString()}.`,
+      reason: `A ${quote.spec.label.toLowerCase()} here costs $${quote.cost.toLocaleString('en-US')}.`,
       weeksRemaining: 0,
     };
   }

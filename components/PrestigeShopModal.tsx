@@ -224,7 +224,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       Prestige Points
                     </Text>
                     <Text style={[styles.pointsText, isDarkMode && styles.pointsTextDark]}>
-                      {prestigePoints.toLocaleString()}
+                      {prestigePoints.toLocaleString('en-US')}
                     </Text>
                   </View>
                 </View>
@@ -237,7 +237,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   */}
                 {legacyAvailable > 0 && (
                   <Text style={[styles.pointsLabel, isDarkMode && styles.pointsLabelDark, { marginTop: 6 }]}>
-                    {`Legacy Points: ${legacyAvailable.toLocaleString()}`}
+                    {`Legacy Points: ${legacyAvailable.toLocaleString('en-US')}`}
                   </Text>
                 )}
               </View>
@@ -348,7 +348,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       so the entire shop was unreachable in the app. */}
                   <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', marginBottom: scale(10) }]}>
                     {legacyAvailable > 0
-                      ? `${legacyAvailable.toLocaleString()} legacy points to spend on your heir's starting position.`
+                      ? `${legacyAvailable.toLocaleString('en-US')} legacy points to spend on your heir's starting position.`
                       : 'Legacy points accrue as you live. Spend them here on the next generation.'}
                   </Text>
 
@@ -377,7 +377,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       }}
                       accessibilityRole="button"
                       accessibilityState={{ disabled: !p.claimable }}
-                      accessibilityLabel={`${p.contract.name}: ${p.current.toLocaleString()} of ${p.target.toLocaleString()}`}
+                      accessibilityLabel={`${p.contract.name}: ${p.current.toLocaleString('en-US')} of ${p.target.toLocaleString('en-US')}`}
                       style={{
                         padding: scale(10),
                         marginBottom: scale(6),
@@ -404,11 +404,11 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                           <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontSize: fontScale(11) }]}>
                             {p.claimed
                               ? p.contract.description
-                              : `${p.contract.description}  ·  ${p.current.toLocaleString()} / ${p.target.toLocaleString()}`}
+                              : `${p.contract.description}  ·  ${p.current.toLocaleString('en-US')} / ${p.target.toLocaleString('en-US')}`}
                           </Text>
                         </View>
                         <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { fontWeight: '800', color: p.claimable ? '#10B981' : undefined }]}>
-                          {p.claimed ? 'Claimed' : p.claimable ? 'Claim' : `+${p.contract.reward.toLocaleString()}`}
+                          {p.claimed ? 'Claimed' : p.claimable ? 'Claim' : `+${p.contract.reward.toLocaleString('en-US')}`}
                         </Text>
                       </View>
                       <View style={{ height: scale(6), borderRadius: scale(3), overflow: 'hidden', marginTop: scale(8), backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
@@ -483,7 +483,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                                 { fontWeight: '800', color: owned ? '#10B981' : affordable && unlocked ? '#D97706' : undefined },
                               ]}
                             >
-                              {owned ? 'Owned' : node.cost.toLocaleString()}
+                              {owned ? 'Owned' : node.cost.toLocaleString('en-US')}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -615,7 +615,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                                   !canAfford && styles.costTextInsufficient,
                                 ]}
                               >
-                                {cost.toLocaleString()}
+                                {cost.toLocaleString('en-US')}
                               </Text>
                             </View>
                           )}

@@ -68,7 +68,7 @@ export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
         <Text style={[styles.costLabel, { color: theme.textSecondary }]}>gems</Text>
       </View>
       <Text style={[styles.balance, { color: canAfford ? theme.textSecondary : SPARK_COLORS.danger }]}>
-        You have {gems.toLocaleString()} gems
+        You have {gems.toLocaleString('en-US')} gems
       </Text>
 
       <Pressable

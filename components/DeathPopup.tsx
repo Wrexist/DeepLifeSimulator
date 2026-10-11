@@ -375,7 +375,7 @@ function DeathPopup() {
     }
     gameAlert(
       'Not Enough Gems',
-      `You need ${reviveCost.toLocaleString()} gems to revive.`,
+      `You need ${reviveCost.toLocaleString('en-US')} gems to revive.`,
       [
         { text: 'Not now', style: 'cancel' },
         { text: 'Get Gems', onPress: () => bridgeToStore('gems') },
@@ -485,7 +485,7 @@ function DeathPopup() {
       if (gems < cost) {
         gameAlert(
           'Not Enough Gems',
-          `You need ${cost.toLocaleString()} gems to rewind.`,
+          `You need ${cost.toLocaleString('en-US')} gems to rewind.`,
           [
             { text: 'Not now', style: 'cancel' },
             // Same pending+dismiss bridge as the revive path - the native Alert
@@ -498,7 +498,7 @@ function DeathPopup() {
       }
       gameAlert(
         'Rewind Time',
-        `Spend ${cost.toLocaleString()} gems to rewind? You'll lose all progress after this checkpoint.`,
+        `Spend ${cost.toLocaleString('en-US')} gems to rewind? You'll lose all progress after this checkpoint.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -1244,7 +1244,7 @@ function DeathPopup() {
                           </View>
                           <View style={styles.prestigePreviewCard}>
                             <Text style={styles.prestigePointsValue}>
-                              {earnedPoints.toLocaleString()} pts
+                              {earnedPoints.toLocaleString('en-US')} pts
                             </Text>
                             <Text style={styles.prestigeHint}>
                               {/* Honest about the mechanics: neither button on
@@ -1335,7 +1335,7 @@ function DeathPopup() {
                       onPress={handleRevive}
                       activeOpacity={0.85}
                       accessibilityRole="button"
-                      accessibilityLabel={`Revive for ${REVIVE_GEM_COST.toLocaleString()} gems`}
+                      accessibilityLabel={`Revive for ${REVIVE_GEM_COST.toLocaleString('en-US')} gems`}
                       accessibilityHint={!canAffordRevive ? 'Not enough gems' : undefined}
                     >
                       <View style={[styles.optionIcon, styles.optionIconRevive]}>
@@ -1354,7 +1354,7 @@ function DeathPopup() {
                       >
                         <Gem size={13} color="#F472B6" />
                         <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
-                          {REVIVE_GEM_COST.toLocaleString()}
+                          {REVIVE_GEM_COST.toLocaleString('en-US')}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -1423,7 +1423,7 @@ function DeathPopup() {
                         onPress={() => handleRewind(cp.id)}
                         activeOpacity={0.85}
                         accessibilityRole="button"
-                        accessibilityLabel={`Rewind time to ${cp.label}, age ${cp.age}, for ${rewindCost.toLocaleString()} gems`}
+                        accessibilityLabel={`Rewind time to ${cp.label}, age ${cp.age}, for ${rewindCost.toLocaleString('en-US')} gems`}
                         accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
                       >
                         <View style={[styles.optionIcon, styles.optionIconRewind]}>
@@ -1444,7 +1444,7 @@ function DeathPopup() {
                         >
                           <Gem size={13} color={accent.warning} />
                           <Text style={[styles.optionPillText, styles.optionPillTextRewind]}>
-                            {rewindCost.toLocaleString()}
+                            {rewindCost.toLocaleString('en-US')}
                           </Text>
                         </View>
                       </TouchableOpacity>

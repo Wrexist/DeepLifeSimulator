@@ -83,7 +83,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
     }
 
     if (!canAfford) {
-      gameAlert('Insufficient Funds', `You need $${deposit.toLocaleString()} for the deposit.`);
+      gameAlert('Insufficient Funds', `You need $${deposit.toLocaleString('en-US')} for the deposit.`);
       return;
     }
 
@@ -101,7 +101,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
       saveGame();
       gameAlert(
         'Wedding Planned!',
-        `Your wedding at ${selectedVenue?.name} is scheduled for 4 weeks from now! Deposit paid: $${deposit.toLocaleString()}`,
+        `Your wedding at ${selectedVenue?.name} is scheduled for 4 weeks from now! Deposit paid: $${deposit.toLocaleString('en-US')}`,
         [{ text: 'OK', onPress: onClose }]
       );
     } else {
@@ -179,9 +179,15 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                   </Text>
                 </View>
               ) : (
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={true} 
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={true}
+                  // Card-by-card, locked to its axis: a free-coasting carousel
+                  // inside this modal's vertical scroller drifted past venues
+                  // and fought the page scroll.
+                  snapToInterval={scale(192)}
+                  decelerationRate="fast"
+                  directionalLockEnabled
                   style={styles.venueScroll}
                   contentContainerStyle={styles.venueScrollContent}
                 >
@@ -211,7 +217,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                           Up to {venue.guestCapacity} guests
                         </Text>
                         <Text style={[styles.venueCost, isDarkMode && styles.venueCostDark]}>
-                          ${venue.baseCost.toLocaleString()}
+                          ${venue.baseCost.toLocaleString('en-US')}
                         </Text>
                         {isSelected && (
                           <View style={[styles.selectedBadge, { backgroundColor: venueColor }]}>
@@ -287,7 +293,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                       </Text>
                     </View>
                     <Text style={[styles.serviceCost, isDarkMode && styles.serviceCostDark]}>
-                      ${cost.toLocaleString()}
+                      ${cost.toLocaleString('en-US')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -304,19 +310,19 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                   <View style={styles.costRow}>
                     <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>Total Cost:</Text>
                     <Text style={[styles.costValue, isDarkMode && styles.costValueDark]}>
-                      ${totalCost.toLocaleString()}
+                      ${totalCost.toLocaleString('en-US')}
                     </Text>
                   </View>
                   <View style={styles.costRow}>
                     <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>Deposit (25%):</Text>
                     <Text style={[styles.costValue, isDarkMode && styles.costValueDark]}>
-                      ${deposit.toLocaleString()}
+                      ${deposit.toLocaleString('en-US')}
                     </Text>
                   </View>
                   <View style={[styles.costRow, styles.costRowTotal]}>
                     <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>Due at Wedding:</Text>
                     <Text style={[styles.costValue, isDarkMode && styles.costValueDark]}>
-                      ${(totalCost - deposit).toLocaleString()}
+                      ${(totalCost - deposit).toLocaleString('en-US')}
                     </Text>
                   </View>
                 </View>

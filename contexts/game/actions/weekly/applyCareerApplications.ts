@@ -96,7 +96,7 @@ export function applyCareerApplications(input: CareerApplicationsInput): CareerA
       const title = entry?.name || pendingCareer.id;
       const weeklyPay = input.weeklyPay?.(pendingCareer) ?? entry?.salary;
       const salary = typeof weeklyPay === 'number' && Number.isFinite(weeklyPay) && weeklyPay > 0
-        ? ` $${Math.round(weeklyPay).toLocaleString()} a week,`
+        ? ` $${Math.round(weeklyPay).toLocaleString('en-US')} a week,`
         : '';
       hiredNotification = {
         id: `hired-${pendingCareer.id}`,

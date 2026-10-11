@@ -75,7 +75,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
                     {dynasty.rank.title}
                   </Text>
                   <Text style={[styles.rankScore, settings.darkMode && styles.textDark]}>
-                    {dynasty.score.toLocaleString()}
+                    {dynasty.score.toLocaleString('en-US')}
                   </Text>
                 </View>
                 <Text style={[styles.rankDesc, settings.darkMode && styles.rankDescDark]}>
@@ -91,7 +91,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
                 </View>
                 <Text style={[styles.rankDesc, settings.darkMode && styles.rankDescDark]}>
                   {dynasty.next
-                    ? `${(dynasty.next.minScore - dynasty.score).toLocaleString()} to ${dynasty.next.title}`
+                    ? `${(dynasty.next.minScore - dynasty.score).toLocaleString('en-US')} to ${dynasty.next.title}`
                     : 'The highest rank a family can reach.'}
                 </Text>
               </View>

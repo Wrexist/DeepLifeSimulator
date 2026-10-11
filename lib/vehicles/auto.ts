@@ -82,7 +82,7 @@ export function originateAuto(input: AutoQuoteInputs): AutoOrigination {
 export function autoPreflight(input: AutoQuoteInputs): string | null {
   const orig = originateAuto(input);
   if (input.availableCash < orig.downPaymentUSD) {
-    return `Need $${Math.ceil(orig.downPaymentUSD - input.availableCash).toLocaleString()} more for down payment`;
+    return `Need $${Math.ceil(orig.downPaymentUSD - input.availableCash).toLocaleString('en-US')} more for down payment`;
   }
   const maxLtv = maxLTVFor(input.vehicleYear, input.currentYear);
   if (orig.ltv > maxLtv) {

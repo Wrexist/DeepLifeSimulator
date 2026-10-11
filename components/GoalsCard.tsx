@@ -56,7 +56,7 @@ const compactMoney = (n: number): string => {
   const v = Math.max(0, Math.round(n));
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
   if (v >= 10_000) return `$${Math.round(v / 1000)}k`;
-  return `$${v.toLocaleString()}`;
+  return `$${v.toLocaleString('en-US')}`;
 };
 
 /** Which system a row came from - drives the icon and accent only. */

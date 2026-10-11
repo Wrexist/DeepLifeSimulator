@@ -47,7 +47,7 @@ import { SEAT_FEATURE, SEAT_WINGS, getSeatWing } from '@/lib/dynasty/seat';
 import { activeTrialIds, pendingTrialIds, seatWingIds } from '@/lib/dynasty/state';
 import { scale, fontScale } from '@/utils/scaling';
 
-const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 
 interface RowProps {
   title: string;
@@ -240,9 +240,9 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
                 ? tranche.description
                 : wingLocked
                   ? `${tranche.description} Needs ${getSeatWing(tranche.requiresWing ?? '')?.name ?? 'a Seat wing'}.`
-                  : `${money(tranche.cost)} → ${payout.toLocaleString()} legacy points`
+                  : `${money(tranche.cost)} → ${payout.toLocaleString('en-US')} legacy points`
             }
-            action={taken ? 'Endowed' : `+${payout.toLocaleString()}`}
+            action={taken ? 'Endowed' : `+${payout.toLocaleString('en-US')}`}
             enabled={endowmentOpen && !taken && !wingLocked && affordable}
             done={taken}
             locked={wingLocked}
@@ -268,7 +268,7 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
             <Row
               key={`trial-active-${id}`}
               title={trial.name}
-              subtitle={`Being borne now. Pays ${(trial.reward * trialMultiplier).toLocaleString()} when this life ends.`}
+              subtitle={`Being borne now. Pays ${(trial.reward * trialMultiplier).toLocaleString('en-US')} when this life ends.`}
               action="Bearing"
               enabled={false}
               done
@@ -285,7 +285,7 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
               key={`trial-${trial.id}`}
               title={trial.name}
               subtitle={trial.cost}
-              action={isSworn ? 'Withdraw' : `+${(trial.reward * trialMultiplier).toLocaleString()}`}
+              action={isSworn ? 'Withdraw' : `+${(trial.reward * trialMultiplier).toLocaleString('en-US')}`}
               enabled={trialsOpen && (isSworn || sworn.length < trialSlots)}
               isDark={isDark}
               onPress={() => (isSworn ? withdrawDynastyTrial(trial.id) : swearDynastyTrial(trial.id))}

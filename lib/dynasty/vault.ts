@@ -145,7 +145,7 @@ export function storeInVault(
   if (cash < fee) {
     return {
       success: false,
-      message: `Preserving ${item.name} costs $${fee.toLocaleString()} - you have $${Math.floor(cash).toLocaleString()}.`,
+      message: `Preserving ${item.name} costs $${fee.toLocaleString('en-US')} - you have $${Math.floor(cash).toLocaleString('en-US')}.`,
       cost: 0,
     };
   }

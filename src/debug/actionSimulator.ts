@@ -26,7 +26,7 @@ export function generateActionSimulations(): SimulatedAction[] {
   moneyAmounts.forEach((amount, i) => {
     actions.push({
       id: `add-money-${i}`,
-      name: `Add $${amount.toLocaleString()}`,
+      name: `Add $${amount.toLocaleString('en-US')}`,
       category: 'money',
       execute: async (_gameState, setGameState) => {
         try {
@@ -37,7 +37,7 @@ export function generateActionSimulations(): SimulatedAction[] {
               money: (prev.stats?.money ?? 0) + amount,
             },
           }));
-          return { success: true, message: `Added $${amount.toLocaleString()}` };
+          return { success: true, message: `Added $${amount.toLocaleString('en-US')}` };
         } catch (error) {
           return { success: false, message: `Failed: ${String(error)}` };
         }
@@ -46,7 +46,7 @@ export function generateActionSimulations(): SimulatedAction[] {
 
     actions.push({
       id: `spend-money-${i}`,
-      name: `Spend $${amount.toLocaleString()}`,
+      name: `Spend $${amount.toLocaleString('en-US')}`,
       category: 'money',
       execute: async (gameState, setGameState) => {
         try {
@@ -59,7 +59,7 @@ export function generateActionSimulations(): SimulatedAction[] {
                 money: Math.max(0, (prev.stats?.money ?? 0) - amount),
               },
             }));
-            return { success: true, message: `Spent $${amount.toLocaleString()}` };
+            return { success: true, message: `Spent $${amount.toLocaleString('en-US')}` };
           }
           return { success: false, message: `Insufficient funds` };
         } catch (error) {

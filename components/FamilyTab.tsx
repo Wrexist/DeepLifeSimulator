@@ -547,7 +547,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <Text style={styles.progressText}>
  <Text style={{ color: bondColor(score), fontWeight: '700' }}>{score}% bond</Text>
- {person.income ? ` · $${person.income.toLocaleString()}/yr` : ''}
+ {person.income ? ` · $${person.income.toLocaleString('en-US')}/yr` : ''}
  </Text>
  </View>
  </View>
@@ -865,7 +865,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {action.moneyCost > 0 && (
  <View style={styles.parentingCostChip}>
  <DollarSign size={scale(11)} color={accent.success} />
- <Text style={[styles.parentingCostText, { color: accent.success }]}>{action.moneyCost.toLocaleString()}</Text>
+ <Text style={[styles.parentingCostText, { color: accent.success }]}>{action.moneyCost.toLocaleString('en-US')}</Text>
  </View>
  )}
  {action.energyCost > 0 && (
@@ -950,7 +950,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <>
  <View style={styles.childStatCard}>
  <DollarSign size={scale(18)} color={accent.success} />
- <Text style={styles.childStatValue}>${(child.savings || 0).toLocaleString()}</Text>
+ <Text style={styles.childStatValue}>${(child.savings || 0).toLocaleString('en-US')}</Text>
  <Text style={styles.childStatLabel}>Savings</Text>
  </View>
  <View style={styles.childStatCard}>
@@ -1053,7 +1053,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={styles.statsDivider} />
  <View style={styles.statsItem}>
  <DollarSign size={scale(18)} color={accent.success} />
- <Text style={styles.statsValue}>${familyIncome.toLocaleString()}</Text>
+ <Text style={styles.statsValue}>${familyIncome.toLocaleString('en-US')}</Text>
  <Text style={styles.statsLabel}>Partner Income/wk</Text>
  </View>
  </View>

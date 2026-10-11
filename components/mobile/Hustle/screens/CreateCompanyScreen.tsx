@@ -189,7 +189,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                         ? prestigeUnlockRequirement(gameState, 'feature:conglomerate')
                       : locked
                         ? lockReason
-                        : `You need $${shortfall.toLocaleString()} more to found ${ind.name}.`,
+                        : `You need $${shortfall.toLocaleString('en-US')} more to found ${ind.name}.`,
                   );
                   return;
                 }

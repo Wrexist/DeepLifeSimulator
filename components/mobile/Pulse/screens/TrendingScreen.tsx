@@ -65,7 +65,7 @@ export default function TrendingScreen() {
               />
             </View>
             <Text style={[styles.count, { color: theme.textSecondary }]}>
-              {(t.postCount ?? 0).toLocaleString()} posts · {SOURCE_LABELS[t.source] ?? t.source}
+              {(t.postCount ?? 0).toLocaleString('en-US')} posts · {SOURCE_LABELS[t.source] ?? t.source}
             </Text>
             {t.whyReason ? (
               <Text style={[styles.why, { color: theme.text }]} numberOfLines={2}>

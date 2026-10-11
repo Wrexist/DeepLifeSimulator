@@ -1,7 +1,7 @@
 import { uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
-import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, Circle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
 import type { EnhancedEventChoice, EventSpecial } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
@@ -160,6 +160,24 @@ export default function WeeklyEventModal() {
  if (event.id === 'medical_emergency' || event.id === 'identity_theft' || event.id === 'legal_issue' ||
  event.id === 'burglary' || event.id === 'police_raid' || event.id === 'court_trial') {
  return 'bad';
+ }
+
+ // Every choice is pure upside (a winning scratch ticket, a lucky feeling):
+ // that is good news whatever its id. The id lists above cover a handful of
+ // templates out of hundreds, so before this a windfall fell through to the
+ // amber "Heads Up" warning header (tester pass, 2026-10-10). Read from the
+ // same effects the "Choice Effects" preview shows, so header and preview
+ // can never disagree.
+ if (event.choices.length > 0 && event.choices.every((choice) => {
+ const effects = choice.effects || {};
+ const special = SPECIAL_EFFECT_LABELS[choice.special ?? ''];
+ return resolveEventMoney(effects, safeNetWorth(gameState)) >= 0
+ && Object.values(effects.stats || {}).every((v) => (v as number) >= 0)
+ && (effects.relationship || 0) >= 0
+ && (!effects.karma || effects.karma.amount >= 0)
+ && (!special || special.positive);
+ })) {
+ return 'good';
  }
 
  // Warning events (yellow) - everything else
@@ -519,7 +537,9 @@ function renderChoiceInner(
  {isPrimary ? (
  <CheckCircle size={scale(19)} color={uiPalette.white} />
  ): (
- <XCircle size={scale(19)} color="rgba(148, 163, 184, 0.9)" />
+ // A hollow circle, not an X: the other choices are real options, and
+ // a crossed circle read as "Cancel" (tester pass, 2026-10-10).
+ <Circle size={scale(19)} color="rgba(148, 163, 184, 0.9)" />
  )}
  <Text style={[
  styles.choiceText,

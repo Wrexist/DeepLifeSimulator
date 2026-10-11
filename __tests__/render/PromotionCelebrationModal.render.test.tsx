@@ -75,16 +75,16 @@ describe('render - PromotionCelebrationModal', () => {
 
   it('shows the new pay, the raise, and what it replaced', () => {
     const json = text(render());
-    expect(json).toContain(`$${(2310).toLocaleString()}`);
+    expect(json).toContain(`$${(2310).toLocaleString('en-US')}`);
     expect(json).toContain('+59%'); // (2310 - 1450) / 1450
-    expect(json).toContain(`was $${(1450).toLocaleString()}/wk`);
+    expect(json).toContain(`was $${(1450).toLocaleString('en-US')}/wk`);
   });
 
   it('lands the new pay immediately under reduced motion - nothing to watch count', () => {
     // With motion off the salary must already read the final figure; a player
     // who disabled animation should never be shown the pre-promotion number.
     const json = text(render());
-    expect(json).toContain(`NEW WEEKLY PAY$${(2310).toLocaleString()}`);
+    expect(json).toContain(`NEW WEEKLY PAY$${(2310).toLocaleString('en-US')}`);
   });
 
   it('names the rank reached', () => {

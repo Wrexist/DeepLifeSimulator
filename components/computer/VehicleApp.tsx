@@ -351,7 +351,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           ]}
         >
           <Text style={[styles.btnText, { color: enabled ? uiPalette.white : theme.textMuted }]}>
-            ${PILOT_LICENSE.cost.toLocaleString()}
+            ${PILOT_LICENSE.cost.toLocaleString('en-US')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -438,7 +438,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 {v.name}
               </Text>
               <Text style={[styles.heroSub, { color: theme.textMuted }]} numberOfLines={1}>
-                {v.brand} · {v.year} · {(v.mileage ?? 0).toLocaleString()} mi
+                {v.brand} · {v.year} · {(v.mileage ?? 0).toLocaleString('en-US')} mi
               </Text>
               <View style={styles.chipWrap}>
                 <Chip icon={<Fuel size={scale(11)} color={fuelColorFor(fuel)} />} label={`Fuel ${Math.round(fuel)}%`} tint={fuelColorFor(fuel)} />
@@ -511,7 +511,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               {isActive && <Chip label="Active" tint={accent.amber} selected />}
             </View>
             <Text style={[styles.fleetSub, { color: theme.textMuted }]} numberOfLines={1}>
-              {v.type} · {v.year} · {(v.mileage ?? 0).toLocaleString()} mi · {v.fuelEfficiency} mpg
+              {v.type} · {v.year} · {(v.mileage ?? 0).toLocaleString('en-US')} mi · {v.fuelEfficiency} mpg
             </Text>
           </View>
           <ChevronRight size={scale(18)} color={theme.textMuted} />
@@ -705,7 +705,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <CollapsibleSection id="vehicle-all-specs" title="All specs" compact defaultCollapsed summary={`${v.year} · ${v.maxSpeed} mph`}>
             <View style={styles.detailRows}>
               <DetailRow label="Sticker price" value={formatMoney(v.price)} theme={theme} />
-              <DetailRow label="Mileage" value={`${(v.mileage ?? 0).toLocaleString()} mi`} theme={theme} />
+              <DetailRow label="Mileage" value={`${(v.mileage ?? 0).toLocaleString('en-US')} mi`} theme={theme} />
               <DetailRow label="Efficiency" value={`${v.fuelEfficiency} mpg`} theme={theme} />
               <DetailRow label="Fuel tank" value={`${v.fuelCapacity} gal`} theme={theme} />
               <DetailRow label="Top speed" value={`${v.maxSpeed} mph`} theme={theme} />

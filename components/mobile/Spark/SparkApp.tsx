@@ -114,7 +114,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <AppHeader
-        title="spark"
+        title="Spark"
         onBack={onBack}
         backLabel="Back to phone home"
         right={

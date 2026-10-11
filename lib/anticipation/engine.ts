@@ -30,7 +30,7 @@ import type { UpcomingEvent } from './types';
  *  being a spreadsheet. */
 export const ANTICIPATION_HORIZON_WEEKS = 12;
 
-const money = (n: number): string => `$${Math.round(Math.max(0, n)).toLocaleString()}`;
+const money = (n: number): string => `$${Math.round(Math.max(0, n)).toLocaleString('en-US')}`;
 
 /** Collects education completions still in progress. */
 function educationEvents(state: GameState, now: number): UpcomingEvent[] {

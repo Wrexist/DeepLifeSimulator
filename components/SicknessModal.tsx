@@ -439,7 +439,7 @@ function SicknessModal() {
                     >
                       <Stethoscope size={20} color={uiPalette.white} />
                       <Text style={styles.treatmentButtonText}>Visit Doctor</Text>
-                      <Text style={styles.treatmentButtonPrice}>${doctorPrice.toLocaleString()}</Text>
+                      <Text style={styles.treatmentButtonPrice}>${doctorPrice.toLocaleString('en-US')}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -475,7 +475,7 @@ function SicknessModal() {
                     >
                       <Heart size={20} color={uiPalette.white} />
                       <Text style={styles.treatmentButtonText}>Hospital Stay</Text>
-                      <Text style={styles.treatmentButtonPrice}>${hospitalPrice.toLocaleString()}</Text>
+                      <Text style={styles.treatmentButtonPrice}>${hospitalPrice.toLocaleString('en-US')}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>

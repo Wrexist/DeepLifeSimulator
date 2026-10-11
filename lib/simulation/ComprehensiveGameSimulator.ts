@@ -2688,7 +2688,7 @@ export class ComprehensiveGameSimulator {
             
             // Log action attempt for debugging (every 10 weeks, first action)
             if (weekIndex % 10 === 0 && actionIndex === 0) {
-              log.info(`[StressTest] Week ${weekIndex + 1}, Action ${actionIndex + 1}, Money: $${money.toLocaleString()}, Health: ${currentState.stats?.health?.toFixed(1)}, Happiness: ${currentState.stats?.happiness?.toFixed(1)}, Job: ${currentState.currentJob || 'None'}`);
+              log.info(`[StressTest] Week ${weekIndex + 1}, Action ${actionIndex + 1}, Money: $${money.toLocaleString('en-US')}, Health: ${currentState.stats?.health?.toFixed(1)}, Happiness: ${currentState.stats?.happiness?.toFixed(1)}, Job: ${currentState.currentJob || 'None'}`);
             }
             
             // ============================================
@@ -3991,8 +3991,8 @@ export class ComprehensiveGameSimulator {
     const cryptoHoldings = (currentState.cryptos || []).filter(c => (c.owned || 0) > 0).length - (initialGameState.cryptos || []).filter(c => (c.owned || 0) > 0).length;
     
     // Log performance metrics
-    log.info(`[StressTest Performance] Net Worth: $${initialNetWorth.toLocaleString()} → $${finalNetWorth.toLocaleString()} (${netWorthGrowthPercent > 0 ? '+' : ''}${netWorthGrowthPercent.toFixed(2)}%)`);
-    log.info(`[StressTest Performance] Money: $${initialMoney.toLocaleString()} → $${finalMoney.toLocaleString()} (${moneyGrowth > 0 ? '+' : ''}$${moneyGrowth.toLocaleString()})`);
+    log.info(`[StressTest Performance] Net Worth: $${initialNetWorth.toLocaleString('en-US')} → $${finalNetWorth.toLocaleString('en-US')} (${netWorthGrowthPercent > 0 ? '+' : ''}${netWorthGrowthPercent.toFixed(2)}%)`);
+    log.info(`[StressTest Performance] Money: $${initialMoney.toLocaleString('en-US')} → $${finalMoney.toLocaleString('en-US')} (${moneyGrowth > 0 ? '+' : ''}$${moneyGrowth.toLocaleString('en-US')})`);
     log.info(`[StressTest Performance] Investments: ${companiesCreated} companies, ${propertiesOwned} properties, ${stocksHeld} stocks, ${cryptoHoldings} cryptos`);
     
     // EXPLOIT DETECTION: Check for suspiciously high growth rates

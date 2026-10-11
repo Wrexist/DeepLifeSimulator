@@ -730,7 +730,7 @@ export const planWedding = (
   log.info(`Wedding planned at ${venue.name} for week ${scheduledWeek}`);
   return { 
     success: true, 
-    message: `Wedding planned for ${weeksFromNow} weeks from now at ${venue.name}! Deposit paid: $${deposit.toLocaleString()}`,
+    message: `Wedding planned for ${weeksFromNow} weeks from now at ${venue.name}! Deposit paid: $${deposit.toLocaleString('en-US')}`,
     plan,
   };
 };
@@ -1253,7 +1253,7 @@ export const fileDivorce = (
 
   log.info(
     `Divorced ${spouse.name}, settlement: $${settlementObligation} ` +
-    `(${(settlementRatio * 100).toFixed(1)}% of $${netWorth.toLocaleString()} net worth), ` +
+    `(${(settlementRatio * 100).toFixed(1)}% of $${netWorth.toLocaleString('en-US')} net worth), ` +
     `immediate payment: $${Math.round(immediatePaymentApplied)}, debt: $${Math.round(divorceDebtCreated)}`
   );
 
@@ -1261,30 +1261,30 @@ export const fileDivorce = (
 
   if (lawyerResult && lawyerResult.success) {
     message += `Your lawyer successfully reduced the settlement.\n`;
-    message += `Original settlement: $${baseSettlement.toLocaleString()}\n`;
-    message += `Reduced settlement: $${settlementObligation.toLocaleString()} (${safeNumber(lawyerResult.reductionPercent).toFixed(1)}% reduction)\n\n`;
+    message += `Original settlement: $${baseSettlement.toLocaleString('en-US')}\n`;
+    message += `Reduced settlement: $${settlementObligation.toLocaleString('en-US')} (${safeNumber(lawyerResult.reductionPercent).toFixed(1)}% reduction)\n\n`;
   } else if (lawyerResult && !lawyerResult.success) {
     message += `Your lawyer failed to reduce the settlement.\n`;
-    message += `Settlement: $${settlementObligation.toLocaleString()}\n\n`;
+    message += `Settlement: $${settlementObligation.toLocaleString('en-US')}\n\n`;
   } else {
-    message += `Net worth settlement: $${settlementObligation.toLocaleString()} (${(settlementRatio * 100).toFixed(1)}% of your ${formatMoney(netWorth)} net worth)\n\n`;
+    message += `Net worth settlement: $${settlementObligation.toLocaleString('en-US')} (${(settlementRatio * 100).toFixed(1)}% of your ${formatMoney(netWorth)} net worth)\n\n`;
   }
 
-  message += `Base lawyer fees: $${lawyerFees.toLocaleString()}\n`;
+  message += `Base lawyer fees: $${lawyerFees.toLocaleString('en-US')}\n`;
   if (lawyerCost > 0) {
-    message += `Lawyer cost: $${lawyerCost.toLocaleString()}\n`;
+    message += `Lawyer cost: $${lawyerCost.toLocaleString('en-US')}\n`;
   }
   if (forcedStockLiquidationPaid > 0) {
-    message += `Forced stock liquidation: $${Math.round(forcedStockLiquidationPaid).toLocaleString()}\n`;
+    message += `Forced stock liquidation: $${Math.round(forcedStockLiquidationPaid).toLocaleString('en-US')}\n`;
   }
   if (forcedPropertyLiquidationPaid > 0) {
-    message += `Forced property liquidation: $${Math.round(forcedPropertyLiquidationPaid).toLocaleString()}\n`;
+    message += `Forced property liquidation: $${Math.round(forcedPropertyLiquidationPaid).toLocaleString('en-US')}\n`;
   }
   if (divorceDebtCreated > 0) {
-    message += `Settlement debt created: $${Math.round(divorceDebtCreated).toLocaleString()} (auto-paid weekly)\n`;
+    message += `Settlement debt created: $${Math.round(divorceDebtCreated).toLocaleString('en-US')} (auto-paid weekly)\n`;
   }
-  message += `Total obligation: $${totalObligation.toLocaleString()}\n`;
-  message += `Immediate payment: $${Math.round(immediatePaymentApplied).toLocaleString()}`;
+  message += `Total obligation: $${totalObligation.toLocaleString('en-US')}\n`;
+  message += `Immediate payment: $${Math.round(immediatePaymentApplied).toLocaleString('en-US')}`;
 
   return {
     success: true,

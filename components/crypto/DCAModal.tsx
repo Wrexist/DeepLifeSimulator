@@ -117,7 +117,7 @@ export default function DCAModal({ visible, cryptos, accounts, cashAvailable, da
                   checkingAccounts.map((a) => (
                     <Chip
                       key={a.id}
-                      label={`${a.name} ($${Math.round(a.id === 'checking-default' && cashAvailable !== undefined ? cashAvailable : a.balance).toLocaleString()})`}
+                      label={`${a.name} ($${Math.round(a.id === 'checking-default' && cashAvailable !== undefined ? cashAvailable : a.balance).toLocaleString('en-US')})`}
                       active={accountId === a.id}
                       theme={theme}
                       onPress={() => setAccountId(a.id)}

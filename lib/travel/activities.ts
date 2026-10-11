@@ -322,7 +322,7 @@ export function quoteActivity(activityId: string, state: GameState): ActivityQuo
     return {
       ok: false,
       reason: 'needs-money',
-      message: `Costs $${activity.cost.toLocaleString()} - you have $${Math.floor(money).toLocaleString()}.`,
+      message: `Costs $${activity.cost.toLocaleString('en-US')} - you have $${Math.floor(money).toLocaleString('en-US')}.`,
       activity,
     };
   }

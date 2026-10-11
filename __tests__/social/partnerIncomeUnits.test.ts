@@ -99,8 +99,8 @@ describe('the labels and the tick agree', () => {
   it('the Contacts card says /yr, because the stored number is annual', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const src: string = require('fs').readFileSync('components/mobile/ContactsApp.tsx', 'utf8');
-    expect(src).toContain('Income · $${r.income.toLocaleString()}/yr');
-    expect(src).not.toContain('Income · $${r.income.toLocaleString()}/wk');
+    expect(src).toContain("Income · $${r.income.toLocaleString('en-US')}/yr");
+    expect(src).not.toContain("Income · $${r.income.toLocaleString('en-US')}/wk");
   });
 
   it('the Bank app reads the tick’s own function rather than re-deriving it', () => {

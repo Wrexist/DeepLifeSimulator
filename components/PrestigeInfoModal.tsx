@@ -100,13 +100,13 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
           case 'starting':
             if (bonus.id === 'starting_money_1') {
               const totalAmount = 10000 * level;
-              effect = `+$${totalAmount.toLocaleString()} starting money`;
+              effect = `+$${totalAmount.toLocaleString('en-US')} starting money`;
             } else if (bonus.id === 'starting_money_2') {
               const totalAmount = 50000 * level;
-              effect = `+$${totalAmount.toLocaleString()} starting money`;
+              effect = `+$${totalAmount.toLocaleString('en-US')} starting money`;
             } else if (bonus.id === 'starting_money_3') {
               const totalAmount = 250000 * level;
-              effect = `+$${totalAmount.toLocaleString()} starting money`;
+              effect = `+$${totalAmount.toLocaleString('en-US')} starting money`;
             } else if (bonus.id === 'starting_stats_1') {
               const totalStats = 5 * level;
               effect = `+${totalStats} to all starting stats`;
