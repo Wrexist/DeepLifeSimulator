@@ -213,7 +213,7 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   if (loc.pending === true && loc.shipped === false) {
     fail(`${locale} is both \`pending\` and \`shipped: false\`. Pick one: pending ships once created, shipped: false never does.`);
   } else if (loc.pending === true) {
-    note(`${locale} is pending: create it in App Store Connect by hand from \`npm run aso\`, then remove \`pending\`.`);
+    note(`${locale} is pending: \`npm run asc:release:apply\` creates the language on the next version record, then remove \`pending\`.`);
   }
   if (loc.shipped !== false) {
     if (!loc.description) fail(`${locale} has keywords but no translated description — that is a keyword grab, not a localisation.`);

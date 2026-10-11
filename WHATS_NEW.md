@@ -1,5 +1,31 @@
 # What's New - DeepLife Simulator
 
+## v2.15.5 - Go live, level up (store version 1.6.0, build 194)
+
+**Covers:** 2.15.1-2.15.5, shipped to the store together with the 2.15.0
+section below as store version 1.6.0.
+**Compatibility:** every existing save loads. The save format is **v53**
+(v53 reprices the stored diet plans; no new field).
+**Source of truth:** `marketing/aso/metadata.mjs` (`APPLE.whatsNew` and the
+four localisations) and `lib/config/changelog.ts`.
+
+- Streaming: live streams tick on every save (old saves stalled at 0:00), and
+  every broadcast ends in a recap card (peak viewers, followers, subs,
+  donations, earnings; hype train / personal best / level-up verdicts).
+- YouVideo: the same recap after every upload, plus a deterministic title
+  shuffle so a title never has to be typed.
+- Life Skills: a fixed, non-scrolling tree with drawn connectors, skill-point
+  costs alongside money, one unlock button, and an unlock celebration.
+- Locked apps: a shelf that is open by default, a lock pill naming the
+  chapter, and a sheet listing every route to open the app with progress.
+- Chapters: between chapters the card counts down to the next one instead of
+  disappearing.
+- Diet plans: $20 / $50 / $85 a day (were $2,500 / $6,000 / $10,000).
+- Polish: tabs and stat values no longer truncate, mail carries in-game dates,
+  numbers format en-US everywhere, long dialog buttons stack.
+
+---
+
 ## v2.15.0 - No more frozen Home screen (store version 1.6.0)
 
 **Covers:** the 2026-09-25 pass on `claude/great-davinci-cr2nh8`, on top of
