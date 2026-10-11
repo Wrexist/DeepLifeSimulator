@@ -8,7 +8,7 @@ Prepared for review, **not submitted**.
 | Build | 194 (binary 2.15.5) attached, processing VALID | run 38160766474 |
 | Version copy | en-US updated; es-MX, pt-BR, fr-FR, de-DE created - What's New, description, keywords, promotional text | `marketing/aso/metadata.mjs`, `npm run check:aso` green |
 | App Information | en-US unchanged; es-MX subtitle; pt-BR/fr-FR/de-DE name + subtitle | run 38160766474 |
-| Screenshots | 10 x iPhone 6.9 / 6.5 / iPad 13 for every locale | asc-screenshots run 38160967350 |
+| Screenshots | 10 x iPhone 6.9 / 6.5 / iPad 13 for all 5 locales, 150/150 processed | asc-screenshots runs 38160967350 (per-image timeout), 38161242465 (uploaded, 9 slow), 38163038045 (status: all complete) |
 
 Remaining owner step: review the record in App Store Connect and submit
 (`asc-release.yml`, mode `apply-and-submit`, confirm `SUBMIT`).
