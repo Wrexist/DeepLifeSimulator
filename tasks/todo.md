@@ -463,3 +463,8 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 - [x] All-stage December event `winter_holidays_home` (Dec 18 → Jan 4, 200 gems; late-stage budget 850/900) + winter art + guide. Owner submits the Play event between Oct 19 and Dec 4.
 - [x] Skipped a "Major update" Play event for 2.15.0: it is fixes only, and Play rejects routine updates.
 - [x] Reddit posts filled with per-subreddit tracked links.
+
+## Internal TestFlight candidate - 11 October 2026
+
+- [x] Build 2.15.3 (192) from PR #233 / `9238d19b` via GitHub Actions run [38109492651](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/38109492651). Verification, macOS build and TestFlight upload passed; App Store Connect accepted the upload. [Evidence](release/evidence/testflight-2.15.3-2026-10-11.md).
+- [ ] Confirm build 192 is `VALID` in App Store Connect, then verify on device that live streaming advances and Life Skills is stable.
