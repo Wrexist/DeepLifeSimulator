@@ -479,4 +479,4 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 - [x] Render all sizes (iPhone 6.9 / 6.5, iPad 13) with the existing compositor; review every frame by eye.
 - [x] Upload tooling: `scripts/asc-screenshots.mjs` + a dispatch-only workflow using the existing ASC secrets; dry run first, then replace the sets on the editable version.
 - [x] Store 1.6.0 created and filled by `asc-release` (full listing, 5 languages, build 194 attached); screenshots uploaded to every locale. [Evidence](release/evidence/store-1.6.0-2026-10-11.md).
-- [ ] Owner: review 1.6.0 in App Store Connect, then submit (`asc-release.yml` mode `apply-and-submit`, confirm `SUBMIT`).
+- [x] 1.6.0 submitted for review with build 195 (2.15.6) on 2026-10-12 - WAITING_FOR_REVIEW. [Evidence](release/evidence/store-1.6.0-2026-10-11.md).
