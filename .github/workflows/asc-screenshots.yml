@@ -1,0 +1,79 @@
+name: App Store Connect — screenshots
+
+# Replace the App Store screenshot sets on the editable version record from a
+# committed folder (see scripts/asc-screenshots.mjs for the layout).
+#
+# Runs here for the same reason as asc-release.yml: the App Store Connect API
+# key lives here as repo secrets. Manual trigger only - nothing about a push or
+# a merge may write to a store listing.
+#
+# Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (already configured)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'What to do'
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan    # read-only: show what would change
+          - apply   # replace the sets
+      dir:
+        description: 'Screenshot folder (iphone-6.9/, iphone-6.5/, ipad-13/ inside)'
+        required: true
+        default: screenshots/appstore-2026-10/final
+        type: string
+      locales:
+        description: 'Comma-separated locales (blank = every locale on the version)'
+        required: false
+        type: string
+
+concurrency:
+  group: asc-screenshots
+  cancel-in-progress: false
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    env:
+      HAS_ASC: ${{ secrets.ASC_KEY_ID != '' && secrets.ASC_ISSUER_ID != '' && secrets.ASC_KEY_P8 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Require App Store Connect credentials
+        if: ${{ env.HAS_ASC != 'true' }}
+        run: |
+          echo "::error title=Missing credentials::Set ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_P8 under Settings ▸ Secrets ▸ Actions."
+          exit 1
+
+      # The script imports only Node built-ins and scripts/lib/ascClient.mjs,
+      # so no npm install is needed.
+      - name: Run
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -o pipefail
+          ARGS="--dir ${{ inputs.dir }}"
+          [ -n "${{ inputs.locales }}" ] && ARGS="$ARGS --locales ${{ inputs.locales }}"
+          [ "${{ inputs.mode }}" = "apply" ] && ARGS="$ARGS --apply"
+          echo "Running: node scripts/asc-screenshots.mjs $ARGS"
+          node scripts/asc-screenshots.mjs $ARGS 2>&1 | tee /tmp/asc-output.txt
+
+      - name: Report
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## App Store screenshots — \`${{ inputs.mode }}\`"
+            echo
+            echo '```'
+            cat /tmp/asc-output.txt 2>/dev/null || echo '(no output)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
