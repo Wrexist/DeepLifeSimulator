@@ -142,6 +142,17 @@ if (!/^[A-Z]/.test(APPLE.description.trim())) warn('Description does not open on
 for (const field of ['description', 'promotionalText']) {
   if (/\b(lorem|TODO|TBD|XXX)\b/i.test(APPLE[field])) fail(`Apple ${field} still contains placeholder text.`);
 }
+// App Store Connect refuses box-drawing characters at write time (HTTP 409,
+// "Description can't contain the following character(s): ━"), which aborts a
+// release run halfway. The 1.6.0 run hit it on a divider line. Catch it here.
+const BOX_DRAWING = /[─-╿]/;
+const appleCopies = [['en-US', APPLE], ...Object.entries(APPLE.localized ?? {})];
+for (const [locale, copy] of appleCopies) {
+  for (const field of ['name', 'subtitle', 'description', 'promotionalText', 'whatsNew']) {
+    const m = typeof copy?.[field] === 'string' && copy[field].match(BOX_DRAWING);
+    if (m) fail(`${locale} ${field} contains "${m[0]}" — App Store Connect rejects box-drawing characters.`);
+  }
+}
 
 // Google Play DOES index the long description, unlike Apple. Check the target
 // terms actually appear in it.

@@ -128,51 +128,37 @@ What happens next is entirely yours.
 
 Deep Life Simulator is a life sim with a real economy underneath it. Wages are taxed. Loans charge interest. Rent is due whether or not you can pay. Markets move on their own and do not care that you are in them. Every choice compounds, for decades, until you die and hand what is left to an heir.
 
-━━━━━━━━━━━━━━━━━━━━
 BUILD A CAREER, OR DON'T
-━━━━━━━━━━━━━━━━━━━━
 • 20+ career ladders, from courier to surgeon to CEO
 • Go to university, or skip it and start earning at 16
 • Or take the other road: street work, the dark web, and the chance of prison
 
-━━━━━━━━━━━━━━━━━━━━
 GO LIVE AND GET FAMOUS
-━━━━━━━━━━━━━━━━━━━━
 • Stream live, upload videos and grow a following from zero
 • Hype trains, personal bests and a recap after every broadcast
 • Level up Life Skills that make every career and goal easier
 
-━━━━━━━━━━━━━━━━━━━━
 MAKE REAL MONEY MOVES
-━━━━━━━━━━━━━━━━━━━━
 • A live stock market with sectors that rotate
 • Crypto you can trade or mine
 • Property to rent out, businesses to found, staff to hire
 • Loans, credit scores, arrears and the very real possibility of bankruptcy
 
-━━━━━━━━━━━━━━━━━━━━
 LIVE AN ACTUAL LIFE
-━━━━━━━━━━━━━━━━━━━━
 • Date, marry, argue, divorce
 • Raise children who inherit your looks and your money
 • Keep your health, your friends and your reputation alive
 • Buy the watch, the car, the house — or don't, and retire early
 
-━━━━━━━━━━━━━━━━━━━━
 THEN DO IT ALL AGAIN
-━━━━━━━━━━━━━━━━━━━━
 When you die, your heir takes over. They keep the fortune you built, the family name you made, and the mess you left behind. Prestige across generations, unlock permanent advantages, and find out how far a dynasty can go.
 
-━━━━━━━━━━━━━━━━━━━━
 WHY THIS ONE AND NOT ANOTHER LIFE SIM
-━━━━━━━━━━━━━━━━━━━━
 Most life sims resolve a choice with a dice roll and a line of text. Here the economy keeps running between your decisions and pushes back on them. Nothing waits for you to look at it.
 
 You can be a surgeon who never breaks the law, or a courier who ends up running a dark web operation out of a rented room. Both are real routes through the same economy, and neither is the "correct" one.
 
-━━━━━━━━━━━━━━━━━━━━
 HOW IT TREATS YOU
-━━━━━━━━━━━━━━━━━━━━
 • Plays offline — your save lives on your device
 • Full-screen ads only at year-end breaks, never in your first two years, and one purchase removes them permanently
 • No real-time energy bar standing between you and the next week
