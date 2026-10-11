@@ -23,13 +23,13 @@ Fresh captures of the shipping 2.15.5 UI, re-sequenced so the **first three fram
 
 | File | Size | Use |
 |---|---|---|
-| `final/header/header-a.png` | 3840 × 1646 | Header A — "Live any life. Your rules.", text left, garage / home / stream |
-| `final/header/header-b.png` | 3840 × 1646 | Header B — "Go live. Get famous.", text left, Spark / stream / luxury |
-| `final/header/header-c.png` | 3840 × 1646 | Header C — centred, crop-proof: survives any centred crop Apple applies |
+| `final/header/header-a.png` | 5244 × 2950 | Header A — "Live any life. Your rules.", text left, garage / home / stream |
+| `final/header/header-b.png` | 5244 × 2950 | Header B — "Go live. Get famous.", text left, Spark / stream / luxury |
+| `final/header/header-c.png` | 5244 × 2950 | Header C — centred, crop-proof: survives any centred crop Apple applies |
 | `final/search/search-a.png` (+ `-1920x1280`) | 3840 × 2560 | Search visual A — "Live any life. Your rules." |
 | `final/search/search-b.png` (+ `-1920x1280`) | 3840 × 2560 | Search visual B — "Go live. Get famous." |
 
-Everything that matters sits inside a central safe zone; the edges carry only blurred art. No prices of the app and no buzzwords. A/B pairs: header A vs C tests text-left against centred, A vs B tests life-sim against streaming as the lead promise. Upload in App Store Connect › the version › Header and Search Results.
+App Store Connect accepts 5244 × 2950 for the header (the 21:9 3840 × 1646 first cut was rejected) and 3840 × 2560 or 1920 × 1280 for search. Each header is laid out in a 21:9 band scaled into the centre of the 16:9 canvas, so everything that matters sits inside a central safe zone; the edges carry only blurred art. No prices of the app and no buzzwords. A/B pairs: header A vs C tests text-left against centred, A vs B tests life-sim against streaming as the lead promise. Upload in App Store Connect › the version › Header and Search Results.
 
 ## Honest by construction
 

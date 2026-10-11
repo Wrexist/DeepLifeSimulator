@@ -11,7 +11,7 @@
 // is printed over (Guideline 2.3.3).
 //
 // Also renders the two Product Page creative assets:
-//   final/header/*.png   3840 x 1646 (21:9 header)
+//   final/header/*.png   5244 x 2950 (header)
 //   final/search/*.png   3840 x 2560 (3:2 search results visual)
 //
 //   node screenshots/appstore-2026-10/source/build.mjs [--ids=01,02] [--devices=iphone-6.9,ipad-13,header,search]
@@ -245,15 +245,26 @@ async function phoneTrio(shots, { cx, y, w, spread, tilt, sideScale = 0.86, maxH
   return out.join('');
 }
 
+// App Store Connect's Header slot takes 5244 x 2950 (16:9). The layout is
+// designed in a 3840 x 1646 band and scaled into the centre of that canvas,
+// so a 21:9 crop of the header still holds everything that matters and the
+// edges carry only atmosphere.
+const HEADER = { W: 5244, H: 2950 };
+
 async function renderHeader(v) {
   const W = 3840, H = 1646;
+  const OW = HEADER.W, OH = HEADER.H;
   const SAFE = { x0: 560, x1: 3280, y0: 190, y1: 1456 };
-  const p = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs>${DEFS(v.accent)}
-    <linearGradient id="hl" x1="0" x2="1"><stop stop-color="#040812" stop-opacity=".92"/><stop offset=".45" stop-color="#040812" stop-opacity=".55"/><stop offset="1" stop-color="#040812" stop-opacity=".35"/></linearGradient>
+  const center = v.layout === 'center';
+  const k = center ? 1.75 : 1.5;
+  const [bx, by] = center ? [1920, 835] : [1965, 835];
+  const open = `<g transform="translate(${OW / 2 - k * bx} ${OH / 2 - k * by}) scale(${k})">`;
+  const p = [`<svg xmlns="http://www.w3.org/2000/svg" width="${OW}" height="${OH}" viewBox="0 0 ${OW} ${OH}"><defs>${DEFS(v.accent)}
+    <linearGradient id="hl" x1="0" x2="1"><stop stop-color="#040812" stop-opacity="${center ? '.6' : '.92'}"/><stop offset=".45" stop-color="#040812" stop-opacity=".55"/><stop offset="1" stop-color="#040812" stop-opacity="${center ? '.6' : '.35'}"/></linearGradient>
     <radialGradient id="aura" cx=".5" cy=".5" r=".5"><stop stop-color="${v.accent}" stop-opacity=".55"/><stop offset="1" stop-color="${v.accent}" stop-opacity="0"/></radialGradient>
     <linearGradient id="vig" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#040812" stop-opacity=".6"/><stop offset=".3" stop-color="#040812" stop-opacity="0"/><stop offset=".7" stop-color="#040812" stop-opacity="0"/><stop offset="1" stop-color="#040812" stop-opacity=".7"/></linearGradient>
     <clipPath id="iconClip"><rect x="${SAFE.x0 + 40}" y="330" width="150" height="150" rx="34"/></clipPath>
-  </defs><rect width="${W}" height="${H}" fill="#060B16"/>${mosaic(W, H, v.plates)}<rect width="${W}" height="${H}" fill="url(#hl)"/><rect width="${W}" height="${H}" fill="url(#vig)"/>`];
+  </defs><rect width="${OW}" height="${OH}" fill="#060B16"/>${mosaic(OW, OH, v.plates)}<rect width="${OW}" height="${OH}" fill="url(#hl)"/><rect width="${OW}" height="${OH}" fill="url(#vig)"/>${open}`];
   if (v.layout === 'center') {
     // Crop-proof: everything stacks on the vertical centre line, so any
     // centred crop Apple applies keeps the name, the headline and the phones.
@@ -267,7 +278,7 @@ async function renderHeader(v) {
     const ax = W / 2 - lw / 2;
     p.push(txt(v.title[0], ax, SAFE.y0 + 330, fs), txt(v.title[1], ax + measure(v.title[0] + ' ', fs), SAFE.y0 + 330, fs, v.accent));
     p.push(await phoneTrio(v.shots, { cx: W / 2, y: SAFE.y0 + 430, w: 440, spread: 520, tilt: 8, maxH: 960 }));
-    p.push('</svg>');
+    p.push('</g></svg>');
     return p.join('');
   }
   const cx = 2560;
@@ -279,7 +290,7 @@ async function renderHeader(v) {
   const fs = fit(v.title, 1260, 176);
   v.title.forEach((s, i) => p.push(txt(s, tx, 700 + i * fs * 0.98, fs, i ? v.accent : '#FAF5EA')));
   p.push(txt(v.sub, tx, 700 + (v.title.length - 1) * fs * 0.98 + 130, fit([v.sub], 1250, 54, 500), '#E9E2D6', 500));
-  p.push('</svg>');
+  p.push('</g></svg>');
   return p.join('');
 }
 
