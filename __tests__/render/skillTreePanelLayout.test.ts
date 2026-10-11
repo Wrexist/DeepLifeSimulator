@@ -53,12 +53,12 @@ describe('SkillTreeModal - the detail panel', () => {
     // description puts it below the fold - better than clipped, still wrong.
     const body = /<ScrollView style=\{styles\.detailsScroll\}[\s\S]*?<\/ScrollView>/.exec(CODE);
     expect(body).not.toBeNull();
-    expect((body as RegExpExecArray)[0]).not.toContain('Unlock Skill');
+    expect((body as RegExpExecArray)[0]).not.toContain('Unlock ·');
 
     // And it is still rendered, after the scroller, in its own footer.
     const afterBody = CODE.slice((body as RegExpExecArray).index + (body as RegExpExecArray)[0].length);
     expect(afterBody).toContain('styles.detailsFooter');
-    expect(afterBody).toContain('Unlock Skill');
+    expect(afterBody).toContain('Unlock ·');
   });
 
   it('still gates the button on availability (the control)', () => {

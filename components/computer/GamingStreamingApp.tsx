@@ -105,6 +105,7 @@ import {
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
+import StreamSummaryModal, { type StreamSummary } from './StreamSummaryModal';
 
 
 // Canonical creator-platform accents; live state retains semantic red.
@@ -304,18 +305,40 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // effect can depend on it without re-subscribing. Idempotent - finalize is a
   // no-op once the session is cleared, so a manual Stop racing an auto-stop
   // can't double-pay.
+  // The recap shown after a broadcast ends - manual Stop and out-of-energy
+  // alike. It used to be a two-line alert (manual) or a toast (auto-stop).
+  const [summary, setSummary] = useState<StreamSummary | null>(null);
   const handleStopStream = useCallback(
     (autoStopped: boolean) => {
+      const before = gameStateRef.current;
+      const elapsed = before.gamingStreaming?.currentStream?.elapsedSeconds ?? 0;
+      const priorBest = before.gamingStreaming?.bestStream?.viewers ?? 0;
       const r = finalizeLiveStream(
-        gameStateRef.current,
+        before,
         setGameState,
         { autoStopped },
           weekRef.current
       );
-      if (r.success) {
+      if (r.success && r.stream && r.outcome) {
         saveGame();
-        if (autoStopped) flash(r.message);
-        else gameAlert(r.outcome?.hypeTrain ? 'HYPE TRAIN' : 'Stream ended', r.message);
+        setSummary({
+          game: r.stream.game,
+          art: gameArtFor(r.stream.game),
+          seconds: elapsed,
+          viewers: r.outcome.viewers,
+          newFollowers: r.outcome.newFollowers,
+          newSubs: r.outcome.newSubs,
+          donations: r.outcome.donations,
+          earnings: r.earnings ?? 0,
+          hypeTrain: r.outcome.hypeTrain,
+          autoStopped,
+          newBest: r.outcome.viewers > priorBest && r.outcome.viewers > 0,
+          levelBefore: r.levelBefore ?? 1,
+          levelAfter: r.levelAfter ?? r.levelBefore ?? 1,
+        });
+      } else if (r.success) {
+        saveGame();
+        flash(r.message);
       }
     },
     [setGameState, saveGame, flash]
@@ -1192,6 +1215,21 @@ export default function GamingStreamingApp({ onBack }: Props) {
         </>
       )}
 
+      <StreamSummaryModal
+        summary={summary}
+        onClose={() => setSummary(null)}
+        // Only when another broadcast can actually start - an offer the
+        // energy or weekly-cap gate would refuse is a dead button.
+        onGoAgain={
+          summary && energy >= LIVE_MIN_ENERGY && streamsThisWeek < 5
+            ? () => {
+                setSummary(null);
+                setActiveTab('live');
+                handleGoLive();
+              }
+            : undefined
+        }
+      />
     </View>
   );
 }

@@ -65,7 +65,8 @@
  * not reshuffle underneath the player as things unlock.
  */
 import type { GameState } from '@/contexts/game/types';
-import { LIFE_CHAPTERS, wealthMark, weeksInThisLife } from './lifeChapters';
+import { LIFE_CHAPTERS, getActiveChapter, getChapterProgress, wealthMark, weeksInThisLife } from './lifeChapters';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 /**
  * Tier 0 is "before you have finished anything" — the state a brand-new
@@ -237,13 +238,18 @@ export function unlockTier(state: GameState | undefined | null): UnlockTier {
     num(state.lifetimeStatistics?.totalWeeksWorked) > 0
     || (state.lifetimeStatistics?.careerHistory?.length ?? 0) > 0;
   if (state.currentJob || everEmployed || wealth >= 500 || weeksThisLife >= 4) byMilestone = 1;
-  if (wealth >= 2_000) byMilestone = 2;
-  if (wealth >= 10_000) byMilestone = 3;
-  if (wealth >= 50_000) byMilestone = 4;
-  if (wealth >= 200_000) byMilestone = 5;
+  if (wealth >= TIER_WEALTH[2]) byMilestone = 2;
+  if (wealth >= TIER_WEALTH[3]) byMilestone = 3;
+  if (wealth >= TIER_WEALTH[4]) byMilestone = 4;
+  if (wealth >= TIER_WEALTH[5]) byMilestone = 5;
 
   return Math.min(5, Math.max(byChapters, byMilestone)) as UnlockTier;
 }
+
+/** Peak net worth that opens each tier on its own (the milestone fallback). */
+const TIER_WEALTH: Record<UnlockTier, number> = { 0: 0, 1: 500, 2: 2_000, 3: 10_000, 4: 50_000, 5: 200_000 };
+/** Weeks into a life after which everything is open (the veteran hatch). */
+const OPEN_ALL_WEEKS = 120;
 
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
@@ -400,4 +406,60 @@ export function prestigeUnlockRequirement(
   const feature = PRESTIGE_BY_ID.get(id);
   if (!feature || isPrestigeFeatureUnlocked(state, id)) return '';
   return feature.requirement;
+}
+
+/**
+ * How to open a locked feature, with the player's progress on each route.
+ *
+ * The padlock used to say only "Finish Chapter 5: Legacy". Players did not
+ * know which chapter they were on, and never learned that two other routes
+ * exist - a net-worth mark and the 120-week hatch (`unlockTier` above) - so
+ * apps like the Dark Web read as permanently closed (tester, 2026-10-11).
+ * Every number here comes from the same inputs `unlockTier` reads, so what the
+ * guide promises is exactly what opens the app.
+ */
+export interface UnlockGuide {
+  /** The headline requirement, as on the padlock. */
+  requirement: string;
+  /** One short line for the tile: where the player stands. */
+  progress: string;
+  /** The full explanation for the tap dialog, one route per line. */
+  details: string;
+}
+
+export function unlockGuide(state: GameState | undefined | null, id: string): UnlockGuide | null {
+  const feature = BY_ID.get(id);
+  if (!state || !feature || isFeatureUnlocked(state, id)) return null;
+  const tier = feature.tier;
+
+  const chapterIndex = (() => {
+    const active = getActiveChapter(state);
+    return active ? LIFE_CHAPTERS.findIndex((c) => c.id === active.id) : -1;
+  })();
+  const active = chapterIndex >= 0 ? LIFE_CHAPTERS[chapterIndex] : undefined;
+  const chapterLine = active
+    ? (() => {
+        const p = getChapterProgress(active, state);
+        return `You're on Chapter ${chapterIndex + 1} of ${LIFE_CHAPTERS.length} (${p.completedGoals}/${p.totalGoals} goals done)`;
+      })()
+    : `Keep playing to start your next chapter`;
+  const remainingGoals = active
+    ? getChapterProgress(active, state).goals.filter((g) => !g.complete).map((g) => `  - ${g.title}`)
+    : [];
+
+  const wealthNeeded = TIER_WEALTH[tier];
+  const wealthNow = wealthMark(state);
+  const weeksNow = Math.floor(weeksInThisLife(state));
+
+  const progress = active ? `Chapter ${chapterIndex + 1} of ${LIFE_CHAPTERS.length} · or reach ${formatMoney(wealthNeeded)}` : `Or reach ${formatMoney(wealthNeeded)} net worth`;
+  const details = [
+    `Any ONE of these unlocks it:`,
+    ``,
+    `1. ${feature.requirement}. ${chapterLine}.`,
+    ...(remainingGoals.length ? [`  Next goals (Home → Your Progress):`, ...remainingGoals] : []),
+    `2. Reach ${formatMoney(wealthNeeded)} net worth (best so far: ${formatMoney(wealthNow)}).`,
+    `3. Play ${OPEN_ALL_WEEKS} weeks in this life (you're at week ${weeksNow}).`,
+  ].join('\n');
+
+  return { requirement: feature.requirement, progress, details };
 }

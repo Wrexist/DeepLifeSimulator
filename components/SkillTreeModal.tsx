@@ -576,26 +576,20 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     }
 
     /**
-     * CONFIRM FIRST.
+     * SEE FIRST, THEN ONE TAP.
      *
-     * PLAYER REPORT (1.4 bug-reports): "A QoL I would like to see is an option
-     * to see what it is I'm clicking before accepting it. Right now clicking
-     * any unlocks what it is using a point."
+     * PLAYER REPORT (1.4 bug-reports): "an option to see what it is I'm
+     * clicking before accepting it. Right now clicking any unlocks what it is
+     * using a point." Tapping a node therefore never buys it - it only opens
+     * the details panel, which shows the effect, the price in money and
+     * points, and the requirements. The panel's one Unlock button (labelled
+     * with that price) is the purchase.
      *
-     * A tap used to buy the node outright. The cost is real money AND a node in
-     * a tree the player cannot refund, so the first time they explore the
-     * screen they spend something unrecoverable on a node whose effect they
-     * have not read yet. The effect string exists - it was only ever shown in
-     * the SUCCESS alert, after the purchase.
+     * There used to be a confirm dialog ON TOP of that panel, so tapping a
+     * node raised two Unlock buttons at once - the dialog's and the panel's -
+     * which read as a bug (tester, 2026-10-11). The panel is the confirmation.
      */
-    gameAlert(
-      `Unlock ${node.name}?`,
-      `${node.effect}\n\nCost: $${node.cost.toLocaleString('en-US')} and ${pointCost} skill ${pointCost === 1 ? 'point' : 'points'}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Unlock', onPress: () => commitUnlock(node) },
-      ],
-    );
+    commitUnlock(node);
   }, [isNodeUnlocked, gameState.date.age, gameState.stats.money, commitUnlock, skillPoints]);
 
   const getNodeStatus = useCallback((node: SkillNode) => {
@@ -703,12 +697,9 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
         ]}
         accessibilityRole="button"
         accessibilityLabel={`${node.name}, ${status}`}
-        onPress={() => {
-          setSelectedNode(node);
-          if (status === 'available') {
-            handleUnlockNode(node);
-          }
-        }}
+        // Selecting only - see `handleUnlockNode`. The details panel below is
+        // where a skill is bought.
+        onPress={() => setSelectedNode(node)}
       >
         <LinearGradient
           colors={
@@ -886,7 +877,9 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 style={styles.unlockButtonGradient}
               >
                 <Zap size={18} color={uiPalette.white} />
-                <Text style={styles.unlockButtonText}>Unlock Skill</Text>
+                <Text style={styles.unlockButtonText}>
+                  Unlock · ${selectedNode.cost.toLocaleString('en-US')} · {lifeSkillPointCost(selectedNode.id)} {lifeSkillPointCost(selectedNode.id) === 1 ? 'pt' : 'pts'}
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

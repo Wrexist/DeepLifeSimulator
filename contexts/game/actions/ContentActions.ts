@@ -505,6 +505,9 @@ export function tickLiveStream(setGameState: SetGS, deltaSeconds = 1): void {
 export interface FinalizeLiveResult extends RunStreamResult {
   /** True when the stream ended because energy ran out (vs. a manual Stop). */
   autoStopped?: boolean;
+  /** Channel level before and after this broadcast's XP (for the recap). */
+  levelBefore?: number;
+  levelAfter?: number;
 }
 
 /**
@@ -606,6 +609,8 @@ export function finalizeLiveStream(
     outcome,
     earnings,
     autoStopped: args.autoStopped,
+    levelBefore: channel.level,
+    levelAfter: creatorLevelFromExperience(channel.experience + Math.floor(outcome.viewers / 50)),
   };
 }
 

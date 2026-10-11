@@ -97,7 +97,7 @@ describe('locked apps collapse instead of walling the grid', () => {
   });
 
   it('a locked tile still teaches - tap explains, requirement shown', () => {
-    expect(launcher).toMatch(/gameAlert\(name, app\.lockReason \|\| 'Not available yet\.'\)/);
+    expect(launcher).toMatch(/gameAlert\(`\$\{name\} is locked`, app\.lockDetails \|\| app\.lockReason \|\| 'Not available yet\.'\)/);
     expect(launcher).toMatch(/app\.locked && !!app\.lockReason/);
   });
 });
