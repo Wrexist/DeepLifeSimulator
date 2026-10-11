@@ -45,6 +45,30 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.5',
+    date: 'October 2026',
+    headline: 'Moments worth celebrating',
+    summary:
+      'Video recaps, a real skill unlock moment, clearer locked apps and a chapter countdown.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Video recaps',
+        bullets: ['Every upload ends with its views, subs and earnings - and a title shuffle button.'],
+      },
+      {
+        category: 'improved',
+        title: 'Locked apps, explained',
+        bullets: ['See every way to unlock an app and which one you are closest to.'],
+      },
+      {
+        category: 'fixed',
+        title: 'Streams and chapters',
+        bullets: ['Streams run on every save, and the next chapter shows a countdown.'],
+      },
+    ],
+  },
+  {
     version: '2.15.4',
     date: 'October 2026',
     headline: 'See how it went',
