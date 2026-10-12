@@ -75,6 +75,7 @@ import {
   LIVE_ENERGY_DRAIN_PER_SEC,
   LIVE_MIN_ENERGY,
   LIVE_TICK_MS,
+  liveTickDelta,
   isLiveSessionFromThisRuntime,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -104,6 +105,7 @@ import {
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
+import StreamSummaryModal, { type StreamSummary } from './StreamSummaryModal';
 
 
 // Canonical creator-platform accents; live state retains semantic red.
@@ -175,7 +177,9 @@ function splitDur(label: string): [string, string] {
   return m ? [m[1], m[2]] : [label, ''];
 }
 
-const fmt = (n?: number) => Math.round(n ?? 0).toLocaleString();
+// Counts read in full up to 10,000 and abbreviate above (12.35K), so a big
+// channel's numbers fit a quarter-width stat tile.
+const fmt = (n?: number) => formatMoney(Math.round(n ?? 0), false);
 
 interface Props {
   onBack: () => void;
@@ -301,18 +305,40 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // effect can depend on it without re-subscribing. Idempotent - finalize is a
   // no-op once the session is cleared, so a manual Stop racing an auto-stop
   // can't double-pay.
+  // The recap shown after a broadcast ends - manual Stop and out-of-energy
+  // alike. It used to be a two-line alert (manual) or a toast (auto-stop).
+  const [summary, setSummary] = useState<StreamSummary | null>(null);
   const handleStopStream = useCallback(
     (autoStopped: boolean) => {
+      const before = gameStateRef.current;
+      const elapsed = before.gamingStreaming?.currentStream?.elapsedSeconds ?? 0;
+      const priorBest = before.gamingStreaming?.bestStream?.viewers ?? 0;
       const r = finalizeLiveStream(
-        gameStateRef.current,
+        before,
         setGameState,
         { autoStopped },
           weekRef.current
       );
-      if (r.success) {
+      if (r.success && r.stream && r.outcome) {
         saveGame();
-        if (autoStopped) flash(r.message);
-        else gameAlert(r.outcome?.hypeTrain ? 'HYPE TRAIN' : 'Stream ended', r.message);
+        setSummary({
+          game: r.stream.game,
+          art: gameArtFor(r.stream.game),
+          seconds: elapsed,
+          viewers: r.outcome.viewers,
+          newFollowers: r.outcome.newFollowers,
+          newSubs: r.outcome.newSubs,
+          donations: r.outcome.donations,
+          earnings: r.earnings ?? 0,
+          hypeTrain: r.outcome.hypeTrain,
+          autoStopped,
+          newBest: r.outcome.viewers > priorBest && r.outcome.viewers > 0,
+          levelBefore: r.levelBefore ?? 1,
+          levelAfter: r.levelAfter ?? r.levelBefore ?? 1,
+        });
+      } else if (r.success) {
+        saveGame();
+        flash(r.message);
       }
     },
     [setGameState, saveGame, flash]
@@ -322,29 +348,53 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // viewers; when energy hits 0 the stream auto-stops. The interval is cleared
   // on Stop, on auto-stop (isLiveNow flips false), AND on unmount - so no leaked
   // timers and no setState-after-unmount.
+  //
+  // Ref-stable on purpose: the effect depends on `isLiveNow` ALONE. It used to
+  // also depend on the Stop handler and `saveGame`, so any re-render that
+  // produced a new identity tore the interval down and started a fresh one-
+  // second wait - on a device where something re-renders this screen more often
+  // than once a second, the first tick never landed and the broadcast sat at
+  // 0:00 (tester report, 2026-10-10). Accrual is also measured from the wall
+  // clock rather than assumed to be one second per callback, so a late or
+  // coalesced timer still pays out the time that really passed. The gap is
+  // capped, so time the app spent suspended in the background is not charged.
+  //
+  // The clock itself lives outside this component (`liveTickDelta`) and the
+  // loop ticks once immediately on mount, so a screen that keeps re-mounting
+  // still advances the broadcast - the old-save 0:00 report (2026-10-11).
+  const handleStopStreamRef = useRef(handleStopStream);
+  const saveGameRef = useRef(saveGame);
+  useEffect(() => {
+    handleStopStreamRef.current = handleStopStream;
+    saveGameRef.current = saveGame;
+  }, [handleStopStream, saveGame]);
   useEffect(() => {
     if (!isLiveNow) return;
     let ticksSinceSave = 0;
-    const interval = setInterval(() => {
+    const runTick = () => {
       const gs = gameStateRef.current;
-      if (!gs.gamingStreaming?.currentStream?.live) return;
+      const session = gs.gamingStreaming?.currentStream;
+      if (!session?.live) return;
       const energyNow = gs.stats?.energy ?? 0;
       if (energyNow <= 0) {
-        handleStopStream(true);
+        handleStopStreamRef.current(true);
         return;
       }
-      tickLiveStream(setGameState, LIVE_TICK_MS / 1000);
+      const deltaSeconds = liveTickDelta(session.id, session.startedAtMs);
+      if (deltaSeconds > 0) tickLiveStream(setGameState, deltaSeconds);
       // Checkpoint accrued progress ~every 10s so a crash/kill mid-stream can't
       // make the stale-session resolver finalize from an older snapshot and
       // under-pay the player. Throttled (saveGame validates + writes) - not
       // every tick.
       if (++ticksSinceSave >= 10) {
         ticksSinceSave = 0;
-        saveGame();
+        saveGameRef.current();
       }
-    }, LIVE_TICK_MS);
+    };
+    runTick();
+    const interval = setInterval(runTick, LIVE_TICK_MS);
     return () => clearInterval(interval);
-  }, [isLiveNow, setGameState, handleStopStream, saveGame]);
+  }, [isLiveNow, setGameState]);
 
   // Safety: if a live session survived a save/reload (app closed mid-stream),
   // resolve it once on mount instead of letting it stream forever - but ONLY
@@ -671,7 +721,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
               { label: 'Viewers', value: fmt(liveViewers) },
               { label: 'Elapsed', value: fmtElapsed(elapsed) },
               { label: 'Chat', value: fmt(session.chatMessages) },
-              { label: 'Setup', value: quality.tier.toUpperCase(), tint: qualityColor(quality.tier) },
+              { label: 'Setup', value: quality.tier.charAt(0).toUpperCase() + quality.tier.slice(1), tint: qualityColor(quality.tier) },
             ]}
           />
         </View>
@@ -1169,6 +1219,21 @@ export default function GamingStreamingApp({ onBack }: Props) {
         </>
       )}
 
+      <StreamSummaryModal
+        summary={summary}
+        onClose={() => setSummary(null)}
+        // Only when another broadcast can actually start - an offer the
+        // energy or weekly-cap gate would refuse is a dead button.
+        onGoAgain={
+          summary && energy >= LIVE_MIN_ENERGY && streamsThisWeek < 5
+            ? () => {
+                setSummary(null);
+                setActiveTab('live');
+                handleGoLive();
+              }
+            : undefined
+        }
+      />
     </View>
   );
 }

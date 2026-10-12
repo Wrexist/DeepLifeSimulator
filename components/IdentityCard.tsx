@@ -1204,13 +1204,13 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
                         {mining.power && mining.power > 0 && (
                           <View style={styles.modalSubItemDetails}>
                             <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark, { fontSize: fontScale(13) }]}>
-                              {'  '}Total power consumption: {mining.power.toLocaleString()} kW
+                              {'  '}Total power consumption: {mining.power.toLocaleString('en-US')} kW
                             </Text>
                             {mining.miners && mining.miners.length > 0 && (
                               <>
                                 {mining.miners.map((miner, mIdx) => (
                                   <Text key={mIdx} style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark, { fontSize: fontScale(13) }]}>
-                                    {'  '}{miner.type} miners: {miner.count}x ({miner.power.toLocaleString()} kW each)
+                                    {'  '}{miner.type} miners: {miner.count}x ({miner.power.toLocaleString('en-US')} kW each)
                                   </Text>
                                 ))}
                               </>

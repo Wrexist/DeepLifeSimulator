@@ -44,17 +44,18 @@ export const APPLE = {
    * described for three audiences, and a reader who finds them disagreeing
    * cannot tell which one is the lie.
    */
-  whatsNew: `No more frozen Home screen, and gambles that stay a gamble.
+  whatsNew: `Go live, level up, and always know what comes next.
 
-• Ad-free stays ad-free. DeepLife+ members no longer see ads, and Remove Ads now stays on in every save, slot and new life. Restore Purchases brings it back if it went missing.
-• A gem wallet. Tap your gems to top up or spend them in one place, with prices in your own currency.
-• Home no longer freezes. Closing one reward popup could leave the screen visible with nothing responding. Popups now wait their turn, and one on screen is never pulled out from under your thumb.
-• Smoother saving. Each save does half the work it did, so Next Week stutters less on a long life.
-• Gambles are gambles again. Investment tips, contested tickets and pushing for a bigger raise no longer show you the outcome before you choose.
-• Your choices count. Honesty, loyalty and generosity now change after work and travel decisions, and workplace events happen at your very first job.
-• Friends are friends. Friend events are about the people you met, not your mom or your newborn, and a surprise wedding can no longer cancel the one you planned.
-• Quick actions do what they say. Long-press a stat ring and every option raises that stat.
-• Honest numbers. A failed purchase no longer also says "Purchased!", and save slots show the weeks you actually played.`,
+• Stream recaps. Every broadcast ends with your peak viewers, new followers, subs, donations and earnings, and hype trains, personal bests and level-ups get a real celebration.
+• Video recaps and a title shuffle. Every upload shows how it did, and one tap writes a title for you.
+• Life Skills, rebuilt. The tree fits your screen, skills cost skill points as well as money, and every unlock gets its own moment.
+• Locked apps explain themselves. Tap one to see every way to open it and how close you are.
+• Chapters never vanish. Between chapters you now see when the next one opens.
+• Fairer diets. Basic, Premium and Athlete plans now cost $140, $350 and $595 a week.
+• Live streams run on every save, including older ones.
+• Ad-free stays ad-free. DeepLife+ and Remove Ads now hold in every save, slot and new life.
+• Plus a gem wallet, a Home screen that no longer freezes, smoother saving, and gambles that no longer show the outcome before you choose.
+• Polish everywhere: no cut-off tabs or split numbers, mail dated correctly, and numbers that read the same on every phone.`,
 
   /**
    * 30 chars. The highest-weighted field there is.
@@ -115,9 +116,7 @@ export const APPLE = {
 
   /** 170 chars. The ONLY field that updates without a review cycle. */
   promotionalText:
-    'Start with nothing. Take a job, a loan, a risk. Build a fortune in stocks, '
-    + 'property and crime — then die and hand it to an heir who inherits your '
-    + 'mistakes too.',
+    'New: go live and get famous. Stream, grow a following and level up your Life Skills, then build a fortune, raise a family and hand it all to an heir.',
 
   /**
    * 4000 chars. NOT indexed by Apple — this field is pure conversion.
@@ -129,44 +128,37 @@ What happens next is entirely yours.
 
 Deep Life Simulator is a life sim with a real economy underneath it. Wages are taxed. Loans charge interest. Rent is due whether or not you can pay. Markets move on their own and do not care that you are in them. Every choice compounds, for decades, until you die and hand what is left to an heir.
 
-━━━━━━━━━━━━━━━━━━━━
 BUILD A CAREER, OR DON'T
-━━━━━━━━━━━━━━━━━━━━
 • 20+ career ladders, from courier to surgeon to CEO
 • Go to university, or skip it and start earning at 16
 • Or take the other road: street work, the dark web, and the chance of prison
 
-━━━━━━━━━━━━━━━━━━━━
+GO LIVE AND GET FAMOUS
+• Stream live, upload videos and grow a following from zero
+• Hype trains, personal bests and a recap after every broadcast
+• Level up Life Skills that make every career and goal easier
+
 MAKE REAL MONEY MOVES
-━━━━━━━━━━━━━━━━━━━━
 • A live stock market with sectors that rotate
 • Crypto you can trade or mine
 • Property to rent out, businesses to found, staff to hire
 • Loans, credit scores, arrears and the very real possibility of bankruptcy
 
-━━━━━━━━━━━━━━━━━━━━
 LIVE AN ACTUAL LIFE
-━━━━━━━━━━━━━━━━━━━━
 • Date, marry, argue, divorce
 • Raise children who inherit your looks and your money
 • Keep your health, your friends and your reputation alive
 • Buy the watch, the car, the house — or don't, and retire early
 
-━━━━━━━━━━━━━━━━━━━━
 THEN DO IT ALL AGAIN
-━━━━━━━━━━━━━━━━━━━━
 When you die, your heir takes over. They keep the fortune you built, the family name you made, and the mess you left behind. Prestige across generations, unlock permanent advantages, and find out how far a dynasty can go.
 
-━━━━━━━━━━━━━━━━━━━━
 WHY THIS ONE AND NOT ANOTHER LIFE SIM
-━━━━━━━━━━━━━━━━━━━━
 Most life sims resolve a choice with a dice roll and a line of text. Here the economy keeps running between your decisions and pushes back on them. Nothing waits for you to look at it.
 
 You can be a surgeon who never breaks the law, or a courier who ends up running a dark web operation out of a rented room. Both are real routes through the same economy, and neither is the "correct" one.
 
-━━━━━━━━━━━━━━━━━━━━
 HOW IT TREATS YOU
-━━━━━━━━━━━━━━━━━━━━
 • Plays offline — your save lives on your device
 • Full-screen ads only at year-end breaks, never in your first two years, and one purchase removes them permanently
 • No real-time energy bar standing between you and the next week
@@ -199,23 +191,22 @@ A life runs for decades and every week is a decision you make. Most people start
     'es-MX': {
       subtitle: 'Carrera, crimen, cripto, lujo',
       promotionalText:
-        'Empieza sin nada. Un trabajo, un préstamo, un riesgo. Construye una '
-        + 'fortuna en la bolsa, la propiedad y el crimen; después muere y déjaselo '
-        + 'todo a un heredero.',
+        'Nuevo: sal en directo y hazte famoso. Haz streams, gana seguidores y mejora tus habilidades; luego crea una fortuna, una familia y déjaselo todo a un heredero.',
       // Mirrors APPLE.whatsNew. Kept in the register of the description above
       // — this locale is a real translation, not machine output, and a
       // machine-shaped release note next to hand-written copy reads as one.
-      whatsNew: `Adiós a la pantalla de inicio congelada, y las apuestas vuelven a ser apuestas.
+      whatsNew: `Sal en directo, sube de nivel y sabe siempre qué viene después.
 
-• Sin anuncios es sin anuncios. Los miembros de DeepLife+ ya no ven anuncios, y «Remove Ads» sigue activo en cada partida, ranura y vida nueva. «Restore Purchases» lo recupera si se había perdido.
-• Una cartera de gemas. Toca tus gemas para recargar o gastarlas en un solo lugar, con precios en tu moneda.
-• Inicio ya no se congela. Cerrar una ventana de recompensa podía dejar la pantalla visible sin responder a nada. Ahora las ventanas esperan su turno y ninguna desaparece bajo tu dedo.
-• Guardado más fluido. Cada guardado hace la mitad de trabajo, así que Semana siguiente se traba menos en una vida larga.
-• Las apuestas vuelven a serlo. Los consejos de inversión, las multas recurridas y pedir un aumento mayor ya no te enseñan el resultado antes de elegir.
-• Tus decisiones cuentan. La honestidad, la lealtad y la generosidad cambian tras las decisiones de trabajo y de viaje, y los eventos laborales llegan desde tu primer empleo.
-• Los amigos son amigos. Los eventos de amistad hablan de la gente que conociste, no de tu madre ni de tu bebé, y una boda sorpresa ya no cancela la que planeaste.
-• Las acciones rápidas hacen lo que dicen. Mantén pulsado un anillo de estadística y cada opción sube esa estadística.
-• Números honestos. Una compra fallida ya no dice también «¡Comprado!», y las ranuras de guardado muestran las semanas que jugaste de verdad.`,
+• Resúmenes de directo. Cada emisión termina con tus espectadores máximos, nuevos seguidores, suscriptores, donaciones y ganancias, y los hype trains, récords personales y subidas de nivel se celebran de verdad.
+• Resúmenes de vídeo y títulos al azar. Cada subida muestra cómo le fue, y un toque te escribe el título.
+• Habilidades de vida, renovadas. El árbol cabe en tu pantalla, las habilidades cuestan puntos además de dinero, y cada desbloqueo tiene su momento.
+• Las apps bloqueadas se explican. Toca una para ver todas las formas de abrirla y cuánto te falta.
+• Los capítulos ya no desaparecen. Entre capítulos ves cuándo se abre el siguiente.
+• Dietas más justas. Los planes Básico, Premium y Atleta cuestan ahora $140, $350 y $595 por semana.
+• Los directos funcionan en todas las partidas, también en las antiguas.
+• Sin anuncios es sin anuncios. DeepLife+ y Remove Ads se mantienen en cada partida, ranura y vida nueva.
+• Además: una cartera de gemas, un Inicio que ya no se congela, guardado más fluido y apuestas que ya no muestran el resultado antes de elegir.
+• Pulido en todas partes: pestañas sin cortes, números enteros, correo con la fecha correcta y cifras iguales en cualquier teléfono.`,
 
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
 Lo que pasa después depende solo de ti.
@@ -224,6 +215,9 @@ Deep Life Simulator es un simulador de vida con una economía real por debajo. E
 
 CARRERA Y ESTUDIOS
 Más de 20 carreras, de repartidor a cirujano o director general. Ve a la universidad, o sáltatela y empieza a ganar dinero a los 16. O toma el otro camino: la calle, la dark web y el riesgo de acabar en la cárcel.
+
+FAMA EN DIRECTO
+Haz directos, sube vídeos y crea una comunidad desde cero, con hype trains, récords personales y un resumen tras cada emisión. Mejora tus habilidades de vida para que cada carrera y cada meta sean más fáciles.
 
 DINERO DE VERDAD
 Una bolsa en vivo con sectores que rotan. Cripto para intercambiar o minar. Propiedades para alquilar, negocios que fundar y personal que contratar. Préstamos con intereses reales, historial crediticio, deudas atrasadas y la posibilidad muy real de la quiebra.
@@ -247,38 +241,34 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
     },
     'pt-BR': {
       // Players asked for Portuguese (a 1★ review on 1.5.5 names it), and Brazil
-      // is a large life-sim market. `pending: true` because the language does
-      // not exist on the App Store record yet, and `asc-release.mjs` writes only
-      // What's New: it cannot add a language. `npm run aso` prints this copy
-      // paste-ready. Add pt-BR by hand in App Store Connect (App Information
-      // takes `name` and `subtitle`; the version takes description, keywords,
-      // promotional text and What's New), then remove `pending` so every later
-      // release updates its notes automatically. Not `shipped: false`: that
-      // means reference only, never created (en-GB below).
+      // is a large life-sim market. pt-BR, fr-FR and de-DE were created on the
+      // 1.6.0 record by `asc-release.mjs` (2026-10-11), which now writes the
+      // whole listing for every managed locale. A future new language can be
+      // marked `pending: true` until its first release run creates it. Not
+      // `shipped: false`: that means reference only, never created (en-GB).
       //
       // The UI is English only, so the description says so. A Portuguese page
       // for an English game, with nothing said, is exactly how the "not in
       // Portuguese" 1★ happens. UI labels stay in English in the notes for the
       // same reason: "Next Week" is what the button says.
-      pending: true,
       // "simulador de vida" is the query this market types. The name is per
       // locale on the App Store, so it can carry it without touching en-US.
       name: 'Deep Life: Simulador de Vida',
       subtitle: 'Carreira, crime, cripto, luxo',
       promotionalText:
-        'Comece do zero. Um emprego, um empréstimo, um risco. Faça fortuna na '
-        + 'bolsa, em imóveis e no crime; depois morra e deixe tudo para um herdeiro.',
-      whatsNew: `Chega de tela inicial congelada, e as apostas voltam a ser apostas.
+        'Novo: entre ao vivo e fique famoso. Faça lives, ganhe seguidores e evolua suas habilidades; depois faça fortuna, crie uma família e deixe tudo a um herdeiro.',
+      whatsNew: `Entre ao vivo, suba de nível e saiba sempre o que vem depois.
 
-• Sem anúncios é sem anúncios. Membros do DeepLife+ não veem mais anúncios, e o "Remove Ads" agora continua ativo em todo salvamento, espaço e vida nova. "Restore Purchases" traz de volta se tiver sumido.
-• Uma carteira de gemas. Toque nas suas gemas para recarregar ou gastar num só lugar, com preços na sua moeda.
-• A tela inicial não congela mais. Fechar uma janela de recompensa podia deixar a tela visível sem responder a nada. Agora as janelas esperam a vez delas, e nenhuma some debaixo do seu dedo.
-• Salvamento mais leve. Cada salvamento faz metade do trabalho de antes, então o botão Next Week trava menos numa vida longa.
-• Apostas voltam a ser apostas. Dicas de investimento, multas contestadas e pedir um aumento maior não mostram mais o resultado antes da sua escolha.
-• Suas escolhas contam. Honestidade, lealdade e generosidade agora mudam depois de decisões de trabalho e de viagem, e os eventos do trabalho acontecem já no seu primeiro emprego.
-• Amigos são amigos. Os eventos de amizade falam das pessoas que você conheceu, não da sua mãe nem do seu bebê, e um casamento surpresa não cancela mais o que você planejou.
-• Ações rápidas fazem o que prometem. Segure um anel de atributo e toda opção aumenta esse atributo.
-• Números honestos. Uma compra que falhou não mostra mais "Purchased!", e os espaços de salvamento mostram as semanas que você realmente jogou.`,
+• Resumos de live. Cada transmissão termina com o pico de espectadores, novos seguidores, inscritos, doações e ganhos, e hype trains, recordes pessoais e subidas de nível ganham uma comemoração de verdade.
+• Resumos de vídeo e títulos aleatórios. Cada envio mostra como foi, e um toque escreve o título por você.
+• Habilidades de vida, refeitas. A árvore cabe na sua tela, habilidades custam pontos além de dinheiro, e cada desbloqueio tem seu momento.
+• Apps bloqueados se explicam. Toque em um para ver todas as formas de abri-lo e o quanto falta.
+• Os capítulos não somem mais. Entre capítulos você vê quando o próximo começa.
+• Dietas mais justas. Os planos Básico, Premium e Atleta agora custam $140, $350 e $595 por semana.
+• As lives funcionam em todos os saves, inclusive nos antigos.
+• Sem anúncios é sem anúncios. DeepLife+ e Remove Ads valem em todo save, slot e nova vida.
+• E mais: uma carteira de gemas, uma tela inicial que não trava, salvamento mais leve e apostas que não mostram o resultado antes da escolha.
+• Acabamento em tudo: abas sem cortes, números inteiros, e-mails com a data certa e valores iguais em qualquer celular.`,
 
       description: `Toda vida começa do mesmo jeito: sem dinheiro, sem emprego, sem plano.
 O que acontece depois depende só de você.
@@ -290,6 +280,9 @@ O jogo está em inglês. Esta página está em português para você saber exata
 
 CARREIRA E ESTUDOS
 Mais de 20 carreiras, de entregador a cirurgião ou CEO. Faça faculdade, ou pule essa parte e comece a ganhar dinheiro aos 16. Ou siga pelo outro caminho: a rua, a dark web e o risco de acabar na prisão.
+
+FAMA AO VIVO
+Faça lives, envie vídeos e construa uma comunidade do zero, com hype trains, recordes pessoais e um resumo depois de cada transmissão. Evolua suas habilidades de vida para deixar cada carreira e cada meta mais fáceis.
 
 DINHEIRO DE VERDADE
 Uma bolsa ao vivo com setores que giram. Cripto para negociar ou minerar. Imóveis para alugar, empresas para abrir e funcionários para contratar. Empréstimos com juros reais, score de crédito, dívidas em atraso e a possibilidade bem real de falência.
@@ -316,23 +309,22 @@ Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na
       // France is the largest non-English market by new customers (RevenueCat,
       // 2026-08-28 → 09-24: 34 of 820). Same reasoning and the same manual first
       // step as pt-BR above; the name matches the live French Play listing.
-      pending: true,
       name: 'Deep Life : Simulateur de vie',
       subtitle: 'Carrière, crime, crypto, luxe',
       promotionalText:
-        'Partez de rien. Un emploi, un prêt, un risque. Bâtissez une fortune en '
-        + "bourse, dans l'immobilier et le crime, puis léguez tout à un héritier.",
-      whatsNew: `Fini l'écran d'accueil figé, et les paris redeviennent des paris.
+        "Nouveau : passez en live et devenez célèbre. Streamez, gagnez des abonnés, améliorez vos compétences, puis bâtissez une fortune et léguez-la.",
+      whatsNew: `Passez en live, montez en niveau et sachez toujours ce qui vient ensuite.
 
-• Sans pub, c'est sans pub. Les membres DeepLife+ ne voient plus de publicités, et « Remove Ads » reste actif dans chaque partie, emplacement et nouvelle vie. « Restore Purchases » le rétablit s'il avait disparu.
-• Un portefeuille de gemmes. Touchez vos gemmes pour recharger ou les dépenser au même endroit, avec les prix dans votre devise.
-• L'accueil ne se fige plus. Fermer une fenêtre de récompense pouvait laisser l'écran visible sans plus rien répondre. Les fenêtres attendent désormais leur tour, et aucune ne disparaît sous votre doigt.
-• Des sauvegardes plus fluides. Chaque sauvegarde fait moitié moins de travail, donc le bouton Next Week accroche moins sur une longue vie.
-• Les paris redeviennent des paris. Les tuyaux d'investissement, les amendes contestées et la demande d'une plus grosse augmentation ne vous montrent plus le résultat avant votre choix.
-• Vos choix comptent. L'honnêteté, la loyauté et la générosité évoluent après les décisions de travail et de voyage, et les événements professionnels arrivent dès votre premier emploi.
-• Les amis sont des amis. Les événements d'amitié parlent des gens que vous avez rencontrés, pas de votre mère ni de votre bébé, et un mariage surprise n'annule plus celui que vous aviez prévu.
-• Les actions rapides font ce qu'elles annoncent. Appuyez longuement sur un anneau de statistique et chaque option augmente cette statistique.
-• Des chiffres honnêtes. Un achat échoué n'affiche plus aussi "Purchased!", et les emplacements de sauvegarde montrent les semaines réellement jouées.`,
+• Récaps de live. Chaque diffusion se termine avec votre pic de spectateurs, vos nouveaux abonnés, vos subs, vos dons et vos gains, et les hype trains, records personnels et montées de niveau sont vraiment célébrés.
+• Récaps de vidéo et titres aléatoires. Chaque mise en ligne montre son résultat, et un toucher écrit le titre pour vous.
+• Compétences de vie, repensées. L'arbre tient sur votre écran, les compétences coûtent des points en plus de l'argent, et chaque déblocage a son moment.
+• Les apps verrouillées s'expliquent. Touchez-en une pour voir toutes les façons de l'ouvrir et où vous en êtes.
+• Les chapitres ne disparaissent plus. Entre deux chapitres, vous voyez quand le suivant commence.
+• Des régimes plus justes. Les formules Basique, Premium et Athlète coûtent désormais 140 $, 350 $ et 595 $ par semaine.
+• Les lives fonctionnent sur toutes les sauvegardes, même les anciennes.
+• Sans pub, c'est sans pub. DeepLife+ et Remove Ads tiennent dans chaque sauvegarde, emplacement et nouvelle vie.
+• Et aussi : un portefeuille de gemmes, un écran d'accueil qui ne se fige plus, des sauvegardes plus fluides, et des paris qui ne montrent plus le résultat avant votre choix.
+• Des finitions partout : onglets complets, nombres entiers, courrier à la bonne date et chiffres identiques sur tous les téléphones.`,
 
       description: `Toute vie commence de la même façon : sans argent, sans emploi, sans plan.
 La suite ne dépend que de vous.
@@ -344,6 +336,9 @@ Le jeu est en anglais. Cette page est en français pour que vous sachiez exactem
 
 CARRIÈRE ET ÉTUDES
 Plus de 20 carrières, de livreur à chirurgien ou PDG. Allez à l'université, ou passez-vous-en et commencez à gagner de l'argent à 16 ans. Ou prenez l'autre route : la rue, le dark web et le risque de finir en prison.
+
+LA GLOIRE EN LIVE
+Lancez des lives, publiez des vidéos et bâtissez une communauté à partir de rien, avec hype trains, records personnels et un récap après chaque diffusion. Améliorez vos compétences de vie pour faciliter chaque carrière et chaque objectif.
 
 DE L'ARGENT QUI SE COMPORTE COMME DE L'ARGENT
 Une bourse en direct où les secteurs tournent. Des cryptos à échanger ou à miner. Des biens à louer, des entreprises à fonder et du personnel à recruter. Des prêts avec de vrais intérêts, une cote de crédit, des impayés et la possibilité bien réelle de la faillite.
@@ -371,23 +366,22 @@ Une vie dure des décennies et chaque semaine est une décision. La plupart des 
       // Germany is the next non-English market by new customers (RevenueCat,
       // 2026-08-28 → 09-24: 20 of 820, level with Canada). Same manual first
       // step as pt-BR; the name matches the live German Play listing.
-      pending: true,
       name: 'Deep Life: Lebenssimulation',
       subtitle: 'Karriere, Verbrechen, Krypto',
       promotionalText:
-        'Fang bei null an. Ein Job, ein Kredit, ein Risiko. Bau ein Vermögen mit '
-        + 'Aktien, Immobilien und Verbrechen auf und vererbe am Ende alles.',
-      whatsNew: `Kein eingefrorener Startbildschirm mehr, und Wetten sind wieder Wetten.
+        'Neu: Geh live und werde berühmt. Streame, gewinne Follower und verbessere deine Fähigkeiten, dann bau ein Vermögen und eine Familie auf und vererbe alles.',
+      whatsNew: `Geh live, steig auf und wisse immer, was als Nächstes kommt.
 
-• Werbefrei heißt werbefrei. DeepLife+-Mitglieder sehen keine Werbung mehr, und „Remove Ads“ bleibt in jedem Spielstand, Slot und neuen Leben aktiv. „Restore Purchases“ holt es zurück, falls es fehlte.
-• Eine Edelstein-Geldbörse. Tippe auf deine Edelsteine, um aufzuladen oder sie an einem Ort auszugeben, mit Preisen in deiner Währung.
-• Der Startbildschirm friert nicht mehr ein. Das Schließen eines Belohnungsfensters konnte den Bildschirm sichtbar, aber ohne Reaktion zurücklassen. Fenster warten jetzt, bis sie dran sind, und keines verschwindet mehr unter deinem Finger.
-• Flüssigeres Speichern. Jeder Speichervorgang erledigt nur noch die Hälfte der Arbeit, daher ruckelt der Button Next Week in einem langen Leben weniger.
-• Wetten sind wieder Wetten. Investment-Tipps, angefochtene Strafzettel und die Bitte um eine größere Gehaltserhöhung zeigen das Ergebnis nicht mehr vor deiner Entscheidung.
-• Deine Entscheidungen zählen. Ehrlichkeit, Loyalität und Großzügigkeit ändern sich nach Entscheidungen bei Arbeit und Reisen, und Arbeitsereignisse gibt es schon im ersten Job.
-• Freunde sind Freunde. Freundschaftsereignisse drehen sich um Menschen, die du kennengelernt hast, nicht um deine Mutter oder dein Baby, und eine Überraschungshochzeit sagt deine geplante nicht mehr ab.
-• Schnellaktionen tun, was sie versprechen. Halte einen Statusring gedrückt, und jede Option erhöht genau diesen Wert.
-• Ehrliche Zahlen. Ein fehlgeschlagener Kauf zeigt nicht mehr zusätzlich "Purchased!", und Speicherplätze zeigen die Wochen, die du wirklich gespielt hast.`,
+• Stream-Rückblicke. Jede Übertragung endet mit deinen Spitzen-Zuschauern, neuen Followern, Abos, Spenden und Einnahmen, und Hype Trains, persönliche Rekorde und Levelaufstiege werden richtig gefeiert.
+• Video-Rückblicke und Zufallstitel. Jeder Upload zeigt, wie er lief, und ein Tipp schreibt dir den Titel.
+• Lebensfähigkeiten, neu gebaut. Der Baum passt auf deinen Bildschirm, Fähigkeiten kosten Punkte und Geld, und jede Freischaltung bekommt ihren Moment.
+• Gesperrte Apps erklären sich. Tippe eine an und sieh alle Wege, sie zu öffnen, und wie nah du dran bist.
+• Kapitel verschwinden nicht mehr. Zwischen zwei Kapiteln siehst du, wann das nächste beginnt.
+• Fairere Ernährungspläne. Basis, Premium und Athlet kosten jetzt 140 $, 350 $ und 595 $ pro Woche.
+• Livestreams laufen in jedem Spielstand, auch in älteren.
+• Werbefrei bleibt werbefrei. DeepLife+ und Remove Ads gelten in jedem Spielstand, Slot und neuen Leben.
+• Außerdem: eine Edelstein-Geldbörse, ein Startbildschirm, der nicht mehr einfriert, flüssigeres Speichern und Wetten, die das Ergebnis nicht mehr vor deiner Wahl verraten.
+• Feinschliff überall: keine abgeschnittenen Tabs oder Zahlen, Post mit richtigem Datum und Zahlen, die auf jedem Handy gleich aussehen.`,
 
       description: `Jedes Leben beginnt gleich: kein Geld, kein Job, kein Plan.
 Was danach passiert, liegt ganz bei dir.
@@ -399,6 +393,9 @@ Das Spiel ist auf Englisch. Diese Seite ist auf Deutsch, damit du genau weißt, 
 
 KARRIERE UND AUSBILDUNG
 Über 20 Karrieren, vom Kurier bis zur Chirurgin oder zum CEO. Geh an die Uni, oder lass es und verdiene schon mit 16 Geld. Oder nimm den anderen Weg: die Straße, das Darknet und das Risiko, im Gefängnis zu landen.
+
+BERÜHMT WERDEN, LIVE
+Streame live, lade Videos hoch und bau dir eine Community von null auf, mit Hype Trains, persönlichen Rekorden und einem Rückblick nach jeder Übertragung. Verbessere deine Lebensfähigkeiten, damit jede Karriere und jedes Ziel leichter wird.
 
 GELD, DAS SICH WIE GELD VERHÄLT
 Eine Live-Börse mit rotierenden Sektoren. Krypto zum Handeln oder Minen. Immobilien zum Vermieten, Firmen zum Gründen und Personal zum Einstellen. Kredite mit echten Zinsen, Bonität, Zahlungsrückstände und die sehr reale Möglichkeit der Pleite.
@@ -531,6 +528,8 @@ export const CLAIMS = [
   { claim: '20+ career ladders', evidence: 'lib/careers/careerData.ts — 30 career ids.' },
   { claim: 'Children inherit your features', evidence: 'lib/avatar/inherit.ts, wired through CharacterAvatar on every screen that renders a child.' },
   { claim: 'Live stock market with rotating sectors', evidence: 'lib/stocks/ — sector rotation is in the weekly tick.' },
+  { claim: 'Stream live, upload videos, recap after every broadcast', evidence: 'components/computer/GamingStreamingApp.tsx + StreamSummaryModal, GamingApp.tsx + VideoSummaryModal, contexts/game/actions/ContentActions.ts.' },
+  { claim: 'Life Skills that make careers and goals easier', evidence: 'components/SkillTreeModal.tsx, lib/skillTrees/lifeSkillEffects.ts (skill-point + money cost, effects applied in play).' },
   { claim: 'Interest, arrears and bankruptcy', evidence: 'overdueBalance (STATE_VERSION 31) and the weekly cash line.' },
 ];
 

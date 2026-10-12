@@ -463,3 +463,20 @@ at **93 % conversion** — the bottleneck is traffic, not the listing.
 - [x] All-stage December event `winter_holidays_home` (Dec 18 → Jan 4, 200 gems; late-stage budget 850/900) + winter art + guide. Owner submits the Play event between Oct 19 and Dec 4.
 - [x] Skipped a "Major update" Play event for 2.15.0: it is fixes only, and Play rejects routine updates.
 - [x] Reddit posts filled with per-subreddit tracked links.
+
+## Internal TestFlight candidate - 11 October 2026
+
+- [x] Build 2.15.3 (192) from PR #233 / `9238d19b` via GitHub Actions run [38109492651](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/38109492651). Verification, macOS build and TestFlight upload passed; App Store Connect accepted the upload. [Evidence](release/evidence/testflight-2.15.3-2026-10-11.md).
+- [ ] Confirm build 192 is `VALID` in App Store Connect, then verify on device that live streaming advances and Life Skills is stable.
+
+- [x] Build 2.15.4 (193) from `cbc16ed7` via run [38137834634](https://github.com/Wrexist/DeepLifeSimulator/actions/runs/38137834634); upload accepted. [Evidence](release/evidence/testflight-2.15.4-2026-10-11.md).
+- [ ] Verify on device: stream recap, one-button Life Skills unlock, locked-app guidance.
+
+## App Store screenshot refresh - 11 October 2026 (2.15.5)
+
+- [x] Fresh captures from HEAD: update `scripts/capture-rich-state.mjs` to the current onboarding/menu flow and add the new moments (stream recap, skill unlock, video recap, Life Skills tree).
+- [x] Re-cut the storyboard: first three frames carry the search result on their own; every claim still asserted against capture text.
+- [x] Render all sizes (iPhone 6.9 / 6.5, iPad 13) with the existing compositor; review every frame by eye.
+- [x] Upload tooling: `scripts/asc-screenshots.mjs` + a dispatch-only workflow using the existing ASC secrets; dry run first, then replace the sets on the editable version.
+- [x] Store 1.6.0 created and filled by `asc-release` (full listing, 5 languages, build 194 attached); screenshots uploaded to every locale. [Evidence](release/evidence/store-1.6.0-2026-10-11.md).
+- [x] 1.6.0 submitted for review with build 195 (2.15.6) on 2026-10-12 - WAITING_FOR_REVIEW. [Evidence](release/evidence/store-1.6.0-2026-10-11.md).

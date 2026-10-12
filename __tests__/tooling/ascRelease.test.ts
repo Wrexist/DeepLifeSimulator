@@ -406,3 +406,85 @@ describe('which locales the release manages', () => {
     expect(R.pendingLocales({})).toEqual([]);
   });
 });
+
+describe('full listing sync', () => {
+  const APPLE = {
+    name: 'Deep Life',
+    subtitle: 'Sub',
+    keywords: ['a', 'b'],
+    description: 'en desc',
+    promotionalText: 'en promo',
+    whatsNew: 'en notes',
+    localized: {
+      'es-MX': { subtitle: 'Sub es', description: 'es desc', keywords: 'x,y', whatsNew: 'es notes' },
+      'pt-BR': { pending: true, name: 'Vida', subtitle: 'Sub pt', description: 'pt desc', whatsNew: 'pt notes' },
+      'en-GB': { shipped: false, subtitle: 'GB', keywords: ['gb'] },
+    },
+  };
+
+  it('manages pending languages (this tool creates them) but never a reference-only one', () => {
+    const l = R.listingByLocale(APPLE);
+    expect(Object.keys(l)).toEqual(['en-US', 'es-MX', 'pt-BR']);
+    expect(l['en-US'].version.keywords).toBe('a,b');
+    expect(l['en-US'].info).toEqual({ name: 'Deep Life', subtitle: 'Sub' });
+    // A field the repo does not declare is left out, so Apple's value is kept.
+    expect(l['es-MX'].info).toEqual({ subtitle: 'Sub es' });
+    expect(l['es-MX'].version).not.toHaveProperty('promotionalText');
+  });
+
+  it('sends only the fields that changed, and nothing on a second run', () => {
+    const existing = [{ id: 'L1', attributes: { locale: 'en-US', description: 'en desc', keywords: 'old', whatsNew: 'en notes' } }];
+    const desired = { 'en-US': { description: 'en desc', keywords: 'a,b', whatsNew: 'en notes' } };
+    expect(R.planFieldLocalizations({ existing, desired })).toEqual([
+      { op: 'update', locale: 'en-US', id: 'L1', attributes: { keywords: 'a,b' } },
+    ]);
+    const after = [{ id: 'L1', attributes: { locale: 'en-US', description: 'en desc', keywords: 'a,b', whatsNew: 'en notes' } }];
+    expect(R.planFieldLocalizations({ existing: after, desired })).toEqual([{ op: 'unchanged', locale: 'en-US', id: 'L1' }]);
+  });
+
+  it('creates a missing language with all its copy and never deletes an unmanaged one', () => {
+    const ops = R.planFieldLocalizations({
+      existing: [{ id: 'J', attributes: { locale: 'ja' } }],
+      desired: { 'pt-BR': { name: 'Vida', subtitle: 'Sub pt' } },
+    });
+    expect(ops).toEqual([
+      { op: 'create', locale: 'pt-BR', attributes: { name: 'Vida', subtitle: 'Sub pt' } },
+      { op: 'skip-unmanaged', locale: 'ja' },
+    ]);
+  });
+
+  it('edits only the App Information record that is still being prepared', () => {
+    const live = { id: 'live', attributes: { state: 'READY_FOR_DISTRIBUTION' } };
+    const prep = { id: 'prep', attributes: { state: 'PREPARE_FOR_SUBMISSION' } };
+    expect(R.pickEditableAppInfo([live, prep])?.id).toBe('prep');
+    expect(R.pickEditableAppInfo([live])).toBeNull();
+  });
+
+  it('builds the documented payload shapes', () => {
+    expect(R.infoLocalizationCreatePayload({ appInfoId: 'I', locale: 'pt-BR', attributes: { name: 'Vida' } })).toEqual({
+      data: {
+        type: 'appInfoLocalizations',
+        attributes: { locale: 'pt-BR', name: 'Vida' },
+        relationships: { appInfo: { data: { type: 'appInfos', id: 'I' } } },
+      },
+    });
+    expect(R.versionLocalizationUpdatePayload({ id: 'L', attributes: { keywords: 'a,b' } })).toEqual({
+      data: { type: 'appStoreVersionLocalizations', id: 'L', attributes: { keywords: 'a,b' } },
+    });
+  });
+});
+
+describe('required URLs for new languages', () => {
+  it('copies en-US URLs Apple holds into a locale missing them, never over an existing one', () => {
+    const existing = [
+      { attributes: { locale: 'en-US', supportUrl: 'https://s', marketingUrl: 'https://m' } },
+      { attributes: { locale: 'fr-FR', supportUrl: 'https://fr-own' } },
+      { attributes: { locale: 'de-DE' } },
+    ];
+    const desired: Record<string, Record<string, string>> = { 'en-US': {}, 'fr-FR': {}, 'de-DE': {} };
+    R.inheritUrlsFromPrimary(desired, existing, ['supportUrl', 'marketingUrl']);
+    expect(desired['de-DE']).toEqual({ supportUrl: 'https://s', marketingUrl: 'https://m' });
+    expect(desired['fr-FR']).toEqual({ marketingUrl: 'https://m' });
+    expect(desired['en-US']).toEqual({});
+  });
+});

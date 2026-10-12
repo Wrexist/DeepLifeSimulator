@@ -97,7 +97,7 @@ import {
 import { scamLossSummary, scamRisk } from '@/lib/mail/scam';
 import { protections } from '@/lib/mail/security';
 import { modalEventCount } from '@/lib/events/routing';
-import { docMoney } from '@/lib/mail/format';
+import { docMoney, mailCalendarAnchor } from '@/lib/mail/format';
 import {
   actOnScamMail,
   chooseMailDecision,
@@ -185,6 +185,16 @@ function MailAppInner({ onBack }: Props) {
   // letter the player is already reading.
   const decisionPending = useGameSelector((s) => modalEventCount(s) > 0);
   const currentWeek = useGameSelector((s) => s?.weeksLived ?? 0);
+  // The HUD's calendar, so row and header dates read on the same calendar the
+  // player sees rather than 2025 + weeksLived / 52 (two years ahead for an
+  // age-20 start - see `mailCalendarAnchor`).
+  const lifeStartWeek = useGameSelector((s) => s?.lifeStartWeek ?? 0);
+  const calendarYear = useGameSelector((s) => s?.date?.year);
+  const calendarMonth = useGameSelector((s) => s?.date?.month);
+  const calendar = useMemo(
+    () => mailCalendarAnchor({ weeksLived: currentWeek, lifeStartWeek, date: { year: calendarYear, month: calendarMonth } }),
+    [currentWeek, lifeStartWeek, calendarYear, calendarMonth]
+  );
   // The From line. Derived from the CHARACTER, so it follows a prestige into
   // the next life instead of carrying the previous one's name. Selected as a
   // string rather than by passing `userProfile` through `getMailState`, which
@@ -386,6 +396,7 @@ function MailAppInner({ onBack }: Props) {
           onDispute={handleDispute}
           onChoose={handleChoose}
           currentWeek={currentWeek}
+          calendar={calendar}
           thread={thread}
         />
       </View>
@@ -561,6 +572,7 @@ function MailAppInner({ onBack }: Props) {
               message={m}
               darkMode={darkMode}
               currentWeek={currentWeek}
+              calendar={calendar}
               // Only on results from somewhere else - labelling every row
               // "Inbox" while standing in the Inbox is noise, and the label
               // exists so a search hit can be found again afterwards.

@@ -81,10 +81,10 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
 
       <StatStrip
         items={[
-          { label: 'Cost', value: `${GEM_COST.toLocaleString()} gems`, tint: PULSE_COLORS.verified },
+          { label: 'Cost', value: `${GEM_COST.toLocaleString('en-US')} gems`, tint: PULSE_COLORS.verified },
           {
             label: 'Your balance',
-            value: gems.toLocaleString(),
+            value: gems.toLocaleString('en-US'),
             tint: canAfford ? undefined : PULSE_COLORS.danger,
           },
         ]}

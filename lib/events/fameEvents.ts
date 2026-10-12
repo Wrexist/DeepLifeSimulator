@@ -56,7 +56,7 @@ const paparazziAmbush: EventTemplate = {
     const followers = getFollowers(state);
     return {
       id: 'fame_paparazzi_ambush',
-      description: `Paparazzi ambush you outside a restaurant! With ${followers.toLocaleString()} followers, you're hot property. Cameras are flashing everywhere.`,
+      description: `Paparazzi ambush you outside a restaurant! With ${followers.toLocaleString('en-US')} followers, you're hot property. Cameras are flashing everywhere.`,
       choices: [
         {
           id: 'smile',
@@ -198,7 +198,7 @@ const endorsementDeal: EventTemplate = {
     const basePay = isCelebrity(state) ? 25000 : 8000;
     return {
       id: 'fame_endorsement_deal',
-      description: `A major brand wants you as their spokesperson! They're offering $${basePay.toLocaleString()} for a campaign.`,
+      description: `A major brand wants you as their spokesperson! They're offering $${basePay.toLocaleString('en-US')} for a campaign.`,
       choices: [
         {
           id: 'accept',
@@ -411,7 +411,7 @@ const impostorAccount: EventTemplate = {
     const followers = getFollowers(state);
     return {
       id: 'fame_impostor',
-      description: `Someone created a fake account impersonating you and scamming your ${followers.toLocaleString()} followers.`,
+      description: `Someone created a fake account impersonating you and scamming your ${followers.toLocaleString('en-US')} followers.`,
       choices: [
         {
           id: 'report',

@@ -69,7 +69,7 @@ export default function ScandalRow({ scandal, darkMode, onSuppress }: Props) {
               <View style={styles.footLeft}>
                 <Clock size={scale(10)} color={theme.textMuted} />
                 <Text style={[styles.footText, { color: theme.textMuted }]}>
-                  Suppressed: ${Math.round(scandal.suppressedUSD).toLocaleString()} / ${cost.toLocaleString()}
+                  Suppressed: ${Math.round(scandal.suppressedUSD).toLocaleString('en-US')} / ${cost.toLocaleString('en-US')}
                 </Text>
               </View>
               {onSuppress && (

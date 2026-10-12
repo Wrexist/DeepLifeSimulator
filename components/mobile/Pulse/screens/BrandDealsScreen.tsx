@@ -71,7 +71,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       if ((gameState.stats?.money ?? 0) < penalty) {
         gameAlert(
           'Not enough cash',
-          `Breaching ${name} costs $${penalty.toLocaleString()}. Withdraw from your bank or sell something first.`,
+          `Breaching ${name} costs $${penalty.toLocaleString('en-US')}. Withdraw from your bank or sell something first.`,
           [{ text: 'OK' }],
         );
         return;
@@ -79,7 +79,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
 
       gameAlert(
         `Breach ${name}?`,
-        `You'll lose $${penalty.toLocaleString()} and the deal will be marked as breached in your history.`,
+        `You'll lose $${penalty.toLocaleString('en-US')} and the deal will be marked as breached in your history.`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Breach', style: 'destructive', onPress: () => { breachBrandDeal(gameState, setGameState, id); persist(); } },
@@ -211,7 +211,7 @@ function BrandOfferCard({
       <StatStrip
         style={styles.metaRow}
         items={[
-          { label: 'Payment', value: `$${offer.payment.toLocaleString()}`, tint: PULSE_COLORS.success },
+          { label: 'Payment', value: `$${offer.payment.toLocaleString('en-US')}`, tint: PULSE_COLORS.success },
           { label: 'Posts', value: String(offer.postsRequired) },
           { label: 'Duration', value: `${offer.duration}w` },
         ]}
@@ -256,7 +256,7 @@ function ActiveDealCard({
         <View style={styles.cardHeaderText}>
           <Text style={[styles.brandName, { color: theme.text }]}>{deal.brandName}</Text>
           <Text style={[styles.brandSub, { color: theme.textSecondary }]}>
-            ${(deal.weeklyPayment ?? 0).toLocaleString()}/wk · {remaining}w remaining
+            ${(deal.weeklyPayment ?? 0).toLocaleString('en-US')}/wk · {remaining}w remaining
           </Text>
         </View>
       </View>
@@ -304,7 +304,7 @@ function HistoryRow({ entry, theme }: { entry: PulseDealHistoryEntry; theme: any
       <View style={styles.histText}>
         <Text style={[styles.histBrand, { color: theme.text }]}>{entry.brandName}</Text>
         <Text style={[styles.histSub, { color: theme.textSecondary }]}>
-          {entry.result.toUpperCase()} · ${entry.totalPaid.toLocaleString()} · week {entry.completedWeek}
+          {entry.result.toUpperCase()} · ${entry.totalPaid.toLocaleString('en-US')} · week {entry.completedWeek}
         </Text>
       </View>
     </View>

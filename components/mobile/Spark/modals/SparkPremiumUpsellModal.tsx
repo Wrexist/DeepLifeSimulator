@@ -146,7 +146,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
         tint={SPARK_COLORS.accent}
         name="Plus"
         price={plan === 'annual'
-          ? `$${SPARK_TIER_PRICING.plus.annual.toLocaleString()}/yr`
+          ? `$${SPARK_TIER_PRICING.plus.annual.toLocaleString('en-US')}/yr`
           : `$${SPARK_TIER_PRICING.plus.weekly}/wk`}
         perks={PLUS_PERKS}
         onPress={() => handleSubscribe('plus')}
@@ -160,7 +160,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
         tint={SPARK_COLORS.tierUltra}
         name="Ultra"
         price={plan === 'annual'
-          ? `$${SPARK_TIER_PRICING.ultra.annual.toLocaleString()}/yr`
+          ? `$${SPARK_TIER_PRICING.ultra.annual.toLocaleString('en-US')}/yr`
           : `$${SPARK_TIER_PRICING.ultra.weekly}/wk`}
         perks={ULTRA_PERKS}
         onPress={() => handleSubscribe('ultra')}

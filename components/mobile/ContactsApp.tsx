@@ -1,5 +1,6 @@
 import PersonalContactActions, { CONTACT_INTERACTIONS } from '@/components/contacts/PersonalContactActions';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import { formatMoney } from '@/utils/moneyFormatting';
 import SceneCard from '@/components/ui/SceneCard';
 /**
  * ContactsApp - Social-CRM remake (Remake 11, on top of Slate Glass).
@@ -507,7 +508,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               kind: 'money',
               value: amount,
               createdWeek: prevWs,
-              note: `Borrowed $${amount.toLocaleString()} from ${target.name}`,
+              note: `Borrowed $${amount.toLocaleString('en-US')} from ${target.name}`,
             });
         return { ...prev, ...grant, relationships: newRels, favorLedger: nextLedger };
       });
@@ -516,7 +517,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       const { granted, amount } = askOutcome(rel, roll);
       flash(
         granted
-          ? `${rel.name} lent you $${amount.toLocaleString()}. (-3)`
+          ? `${rel.name} lent you $${amount.toLocaleString('en-US')}. (-3)`
           : `${rel.name} said no this time. (-5)`,
         contactId
       );
@@ -768,7 +769,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                   Spark profile; it read "/wk" here and in FamilyTab while the
                   tick added a quarter of it to a WEEKLY total - see
                   `householdPartnerIncome`. */}
-              {r.income ? <Chip label={`Income · $${r.income.toLocaleString()}/yr`} /> : null}
+              {r.income ? <Chip label={`Income · $${r.income.toLocaleString('en-US')}/yr`} /> : null}
               {typeof r.datesCount === 'number' && r.datesCount > 0 ? <Chip label={`Dates · ${r.datesCount}`} /> : null}
               {typeof r.giftsReceived === 'number' && r.giftsReceived > 0 ? <Chip label={`Gifts · ${r.giftsReceived}`} /> : null}
               {typeof r.weeklyInteractions === 'number' && r.weeklyInteractions > 0 ? <Chip label={`This week · ${r.weeklyInteractions}`} /> : null}
@@ -983,7 +984,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             <Chip key={t} label={t} tint={color} />
           ))}
           {c.costPerWeek ? (
-            <Chip label={`$${c.costPerWeek.toLocaleString()}/wk`} tone="warning" />
+            <Chip label={`$${c.costPerWeek.toLocaleString('en-US')}/wk`} tone="warning" />
           ) : null}
         </View>
         <View style={styles.tileFooter}>
@@ -1038,7 +1039,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           <DetailRow label="Relationship strength" value={`${Math.round(c.strength)} / 100`} theme={theme} />
           <DetailRow label="Category" value={kindLabel(c.kind)} theme={theme} />
           <DetailRow label="Managed in" value={sourceLabel(c.sourceApp)} theme={theme} />
-          {c.costPerWeek ? <DetailRow label="Weekly cost" value={`$${c.costPerWeek.toLocaleString()}`} theme={theme} /> : null}
+          {c.costPerWeek ? <DetailRow label="Weekly cost" value={`$${c.costPerWeek.toLocaleString('en-US')}`} theme={theme} /> : null}
           {c.weeksSinceContact != null ? <DetailRow label="Last contact" value={`${c.weeksSinceContact}w ago`} theme={theme} /> : null}
         </View>
         {c.tags.length > 0 ? (
@@ -1394,7 +1395,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             { label: 'People', value: networkContacts.length, tint: accent.amber },
             {
               label: 'Cost per week',
-              value: networkCost > 0 ? `$${networkCost.toLocaleString()}` : '$0',
+              value: networkCost > 0 ? `$${networkCost.toLocaleString('en-US')}` : '$0',
               tint: networkCost > 0 ? accent.warning : undefined,
             },
             {
@@ -1423,11 +1424,11 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         /* "Open" is the tab's own badge, so it does not need a tile too. */
         <StatStrip
           items={[
-            { label: 'Owed to you', value: `$${moneyPos.owedToPlayer.toLocaleString()}`, tint: accent.success },
-            { label: 'You owe', value: `$${moneyPos.owedByPlayer.toLocaleString()}`, tint: accent.danger },
+            { label: 'Owed to you', value: formatMoney(moneyPos.owedToPlayer), tint: accent.success },
+            { label: 'You owe', value: formatMoney(moneyPos.owedByPlayer), tint: accent.danger },
             {
               label: 'Net',
-              value: `${moneyPos.net >= 0 ? '+' : '−'}$${Math.abs(moneyPos.net).toLocaleString()}`,
+              value: `${moneyPos.net >= 0 ? '+' : '−'}${formatMoney(Math.abs(moneyPos.net))}`,
               tint: moneyPos.net >= 0 ? accent.success : accent.danger,
             },
           ]}
@@ -1759,7 +1760,7 @@ function sourceLabel(source: ContactView['sourceApp']): string {
 function favorAmount(f: Favor): { text: string; color: string } {
   const sign = f.direction === 'owed-to-player' ? '+' : '−';
   const color = f.direction === 'owed-to-player' ? accent.success : accent.danger;
-  const val = f.kind === 'money' ? `$${f.value.toLocaleString()}` : `${f.value} pts`;
+  const val = f.kind === 'money' ? `$${f.value.toLocaleString('en-US')}` : `${f.value} pts`;
   return { text: `${sign}${val}`, color };
 }
 

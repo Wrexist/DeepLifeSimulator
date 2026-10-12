@@ -207,7 +207,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                   ]}
                 >
                   <Text style={styles.ctaText}>
-                    {canLaunch ? `Launch · $${spendNum.toLocaleString()}` : pendingId ? 'Launching...' : 'Check spend, duration and energy'}
+                    {canLaunch ? `Launch · $${spendNum.toLocaleString('en-US')}` : pendingId ? 'Launching...' : 'Check spend, duration and energy'}
                   </Text>
                 </Pressable>
               </View>

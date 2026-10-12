@@ -53,7 +53,7 @@ export function repairRig(
   }
 
   if ((gameState.stats?.money ?? 0) < cost) {
-    return { success: false, message: `Insufficient funds. Need $${Math.ceil(cost).toLocaleString()}` };
+    return { success: false, message: `Insufficient funds. Need $${Math.ceil(cost).toLocaleString('en-US')}` };
   }
 
   // Every rejection inside mirrors an outer guard above (no warehouse, none
@@ -217,7 +217,7 @@ export function buyMinerUpgrade(
   const cost = getInflatedPrice(nextLevelCost, priceIndex);
 
   if (gameState.stats.money < cost) {
-    return { success: false, message: `Insufficient funds. Need ${cost.toLocaleString()}` };
+    return { success: false, message: `Insufficient funds. Need ${cost.toLocaleString('en-US')}` };
   }
 
   setGameState(prev => {
@@ -592,7 +592,7 @@ export function upgradeEnergySystem(
   const cost = getInflatedPrice(energy.cost, priceIndex);
 
   if (gameState.stats.money < cost) {
-    return { success: false, message: `Insufficient funds. Need ${cost.toLocaleString()}` };
+    return { success: false, message: `Insufficient funds. Need ${cost.toLocaleString('en-US')}` };
   }
 
   setGameState(prev => {
@@ -648,7 +648,7 @@ export function upgradeAutomation(
   const inflatedCost = getInflatedPrice(cost, priceIndex);
 
   if (gameState.stats.money < inflatedCost) {
-    return { success: false, message: `Insufficient funds. Need ${inflatedCost.toLocaleString()}` };
+    return { success: false, message: `Insufficient funds. Need ${inflatedCost.toLocaleString('en-US')}` };
   }
 
   setGameState(prev => {

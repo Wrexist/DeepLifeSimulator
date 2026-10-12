@@ -124,7 +124,7 @@ export const buildRDLab = (
   });
 
   // Log the money update
-  log.info(`Money deducted: $${cost.toLocaleString()} for building ${LAB_TYPES[labType].name}`);
+  log.info(`Money deducted: $${cost.toLocaleString('en-US')} for building ${LAB_TYPES[labType].name}`);
 
   log.info(`Built ${LAB_TYPES[labType].name} for ${companyId}`);
   return { success: true, message: `${LAB_TYPES[labType].name} built successfully!` };
@@ -269,7 +269,7 @@ export const startResearch = (
   });
 
   // Log the money update
-  log.info(`Money deducted: $${technology.researchCost.toLocaleString()} for researching ${technology.name}`);
+  log.info(`Money deducted: $${technology.researchCost.toLocaleString('en-US')} for researching ${technology.name}`);
 
   log.info(`Started research: ${technology.name} for ${companyId}`);
   return { success: true, message: `Research started: ${technology.name} (${researchTime} weeks)` };
@@ -421,7 +421,7 @@ export const filePatent = (
   const patentCost = PATENT_COSTS[technology.tier] || 100000;
 
   if (gameState.stats.money < patentCost) {
-    return { success: false, message: `You need $${patentCost.toLocaleString()} to file this patent` };
+    return { success: false, message: `You need $${patentCost.toLocaleString('en-US')} to file this patent` };
   }
 
   // Create patent
@@ -463,10 +463,10 @@ export const filePatent = (
   });
 
   // Log the money update
-  log.info(`Money deducted: $${patentCost.toLocaleString()} for filing patent: ${technology.name}`);
+  log.info(`Money deducted: $${patentCost.toLocaleString('en-US')} for filing patent: ${technology.name}`);
 
   log.info(`Filed patent: ${technology.name} for ${companyId}`);
-  return { success: true, message: `Patent filed: ${technology.name}! Weekly income: $${patent.weeklyIncome.toLocaleString()}` };
+  return { success: true, message: `Patent filed: ${technology.name}! Weekly income: $${patent.weeklyIncome.toLocaleString('en-US')}` };
 };
 
 export const enterCompetition = (
@@ -524,7 +524,7 @@ export const enterCompetition = (
 
   // Check entry cost
   if (gameState.stats.money < competition.entryCost) {
-    return { success: false, message: `You need $${competition.entryCost.toLocaleString()} to enter this competition` };
+    return { success: false, message: `You need $${competition.entryCost.toLocaleString('en-US')} to enter this competition` };
   }
 
   // Optimistic score for the log line below; the authoritative score is

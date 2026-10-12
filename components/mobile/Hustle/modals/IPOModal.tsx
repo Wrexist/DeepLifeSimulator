@@ -48,7 +48,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
       hustleHaptics.success();
       void saveGame?.();
       const raised = Math.floor(Math.floor(ipo.sharesOutstandingK * 1000 * ((100 - ipo.ownershipPercent) / 100)) * ipo.sharePrice);
-      setResultMsg(`Raised $${raised.toLocaleString()} at $${ipo.sharePrice}/share - you kept ${ipo.ownershipPercent}%`);
+      setResultMsg(`Raised $${raised.toLocaleString('en-US')} at $${ipo.sharePrice}/share - you kept ${ipo.ownershipPercent}%`);
     } else {
       hustleHaptics.error();
       setResultMsg('IPO was not completed. Check revenue and resolve any active scandal before trying again.');
@@ -144,7 +144,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                 <View style={styles.previewRow}>
                   <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>Cash raised</Text>
                   <Text style={[styles.previewValue, { color: HUSTLE_COLORS.success }]}>
-                    ${previewCash.toLocaleString()}
+                    ${previewCash.toLocaleString('en-US')}
                   </Text>
                 </View>
               </View>

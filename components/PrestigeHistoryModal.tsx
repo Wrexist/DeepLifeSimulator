@@ -222,7 +222,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                                 darkMode && styles.statValueDark,
                               ]}
                             >
-                              {record.prestigePointsEarned.toLocaleString()}
+                              {record.prestigePointsEarned.toLocaleString('en-US')}
                             </Text>
                           </View>
                           <View style={styles.statRow}>

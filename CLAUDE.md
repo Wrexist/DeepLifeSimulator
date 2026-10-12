@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 52`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 53`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -522,7 +522,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 52`** — single source of truth in
+- **Canonical `STATE_VERSION = 53`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -924,6 +924,13 @@ including the crash screen.
   `pac.lifetimeDirtyUSD` so it feeds the EXISTING `scandalProbability` driver:
   corruption risk stays one number with one tuning point, not two curves that
   have to be kept in step.
+- **v53 reprices `dietPlans`** - not a new field. The catalogue is stored by
+  value in every save, so lowering the defaults alone would only reach new
+  lives. The migration rewrites `dailyCost` for the three known ids ($2,500 /
+  $6,000 / $10,000 a day -> $20 / $50 / $85) and leaves `active` and unknown
+  entries untouched. No repair mirror: repair restores a missing catalogue from
+  the repriced defaults. The rule it records: a catalogue stored by value needs
+  a migration for a PRICE change, not just for a new field.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

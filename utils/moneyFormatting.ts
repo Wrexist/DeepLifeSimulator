@@ -31,7 +31,7 @@ export function formatMoney(amount: number, showDollarSign: boolean = true): str
     formatted = `${(absAmount / 1_000).toFixed(2)}K`;
   } else {
     // Regular numbers (0-10,000) - show full number
-    formatted = Math.floor(absAmount).toLocaleString();
+    formatted = Math.floor(absAmount).toLocaleString('en-US');
   }
   
   // Remove trailing zeros and the decimal point when not needed. The lookahead
@@ -72,7 +72,7 @@ export function formatMoneyCompact(amount: number, showDollarSign: boolean = tru
   } else if (absAmount >= 10_000) {
     formatted = `${(absAmount / 1_000).toFixed(1)}k`;
   } else {
-    formatted = Math.round(absAmount).toLocaleString();
+    formatted = Math.round(absAmount).toLocaleString('en-US');
   }
 
   // Same trailing-zero trim as formatMoney - the lookahead has to include the
@@ -121,7 +121,7 @@ export function formatCurrency(amount: number, currency: string = ''): string {
     formatted = `${(absAmount / 1_000).toFixed(2)}K`;
   } else {
     // Regular numbers (0-10,000) - show full number
-    formatted = Math.floor(absAmount).toLocaleString();
+    formatted = Math.floor(absAmount).toLocaleString('en-US');
   }
   
   // Remove trailing zeros and the decimal point when not needed (lookahead:

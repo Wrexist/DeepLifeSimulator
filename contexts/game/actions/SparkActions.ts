@@ -1151,7 +1151,7 @@ export const subscribeSparkPremium = (
   if ((gameState.stats?.money ?? 0) < price) {
     return {
       success: false,
-      message: `You can't afford Spark ${tierLabel} ($${price.toLocaleString()}).`,
+      message: `You can't afford Spark ${tierLabel} ($${price.toLocaleString('en-US')}).`,
     };
   }
   setGameState((prev) => {
@@ -1200,7 +1200,7 @@ export const subscribeSparkPremium = (
     success: true,
     message:
       plan === 'annual'
-        ? `Spark ${tierLabel} active - $${price.toLocaleString()} for 52 weeks.`
+        ? `Spark ${tierLabel} active - $${price.toLocaleString('en-US')} for 52 weeks.`
         : `Spark ${tierLabel} active - $${price}/week.`,
   };
 };

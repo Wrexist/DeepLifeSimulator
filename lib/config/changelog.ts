@@ -45,6 +45,96 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15.6',
+    date: 'October 2026',
+    headline: 'Your dream car, in full view',
+    summary: 'The Exotic Supercar now comes in yellow, and your garage shows every car bigger.',
+    changes: [
+      {
+        category: 'improved',
+        title: 'A bigger garage view',
+        bullets: ['Your current car fills the garage card, and the Exotic Supercar is now yellow.'],
+      },
+    ],
+  },
+  {
+    version: '2.15.5',
+    date: 'October 2026',
+    headline: 'Moments worth celebrating',
+    summary:
+      'Video recaps, a real skill unlock moment, clearer locked apps and a chapter countdown.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Video recaps',
+        bullets: ['Every upload ends with its views, subs and earnings - and a title shuffle button.'],
+      },
+      {
+        category: 'improved',
+        title: 'Locked apps, explained',
+        bullets: ['See every way to unlock an app and which one you are closest to.'],
+      },
+      {
+        category: 'fixed',
+        title: 'Streams and chapters',
+        bullets: ['Streams run on every save, and the next chapter shows a countdown.'],
+      },
+    ],
+  },
+  {
+    version: '2.15.4',
+    date: 'October 2026',
+    headline: 'See how it went',
+    summary:
+      'A stream recap worth celebrating, one-tap skill unlocks and locked apps that tell you how to open them.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Stream recap',
+        bullets: ['Every broadcast ends with your viewers, followers, subs, donations and earnings.'],
+      },
+      {
+        category: 'improved',
+        title: 'One-tap Life Skills',
+        bullets: ['Tap a skill to read it, then unlock it from the panel with its price shown.'],
+      },
+      {
+        category: 'improved',
+        title: 'Locked apps explain themselves',
+        bullets: ['Tap a locked app to see every way to open it and how close you are.'],
+      },
+    ],
+  },
+  {
+    version: '2.15.3',
+    date: 'October 2026',
+    headline: 'Polished from top to bottom',
+    summary:
+      'Live streams that actually run, a calmer Life Skills screen, fairer diet prices and dozens of small fixes.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Live streaming works',
+        bullets: ['Going live now counts time, drains energy and grows your audience as it should.'],
+      },
+      {
+        category: 'improved',
+        title: 'Life Skills, rebuilt',
+        bullets: ['The skill tree fits the screen, and skill points are now spent alongside money.'],
+      },
+      {
+        category: 'improved',
+        title: 'Diet plans you can afford',
+        bullets: ['Basic, Premium and Athlete diets now cost $140, $350 and $595 a week.'],
+      },
+      {
+        category: 'fixed',
+        title: 'Cleaner screens everywhere',
+        bullets: ['No cut-off tab names or split numbers, and mail now shows the right dates.'],
+      },
+    ],
+  },
+  {
     version: '2.15.2',
     date: 'October 2026',
     headline: 'Every milestone has a story',

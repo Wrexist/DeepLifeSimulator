@@ -167,7 +167,7 @@ export function applyScheduledWedding(
       title: 'Wedding Postponed',
       message:
         `The wedding to ${rel.name} could not go ahead - the venue needed the remaining ` +
-        `$${remainingBalance.toLocaleString()} and you had $${Math.max(0, Math.floor(ctx.newStats.money)).toLocaleString()}. ` +
+        `$${remainingBalance.toLocaleString('en-US')} and you had $${Math.max(0, Math.floor(ctx.newStats.money)).toLocaleString('en-US')}. ` +
         `It is rebooked for 4 weeks' time. The plan is cancelled and the deposit lost if it ` +
         `still cannot go ahead a year after the original date - you can call off the engagement ` +
         `or re-plan a cheaper wedding before then.`,

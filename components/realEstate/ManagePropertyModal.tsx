@@ -152,7 +152,7 @@ export default function ManagePropertyModal({
                 if (!over) return null;
                 return (
                   <Text style={[styles.capNote, { color: accent.warning }]}>
-                    Tenants top out at ${Math.round(over.collected).toLocaleString()}/wk for this property - asking more collects the same.
+                    Tenants top out at ${Math.round(over.collected).toLocaleString('en-US')}/wk for this property - asking more collects the same.
                   </Text>
                 );
               })()}

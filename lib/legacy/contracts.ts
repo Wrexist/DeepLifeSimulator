@@ -263,14 +263,14 @@ export function claimContract(
   if (!progress.complete) {
     return {
       success: false,
-      message: `${contract.name}: ${progress.current.toLocaleString()} / ${contract.target.toLocaleString()}.`,
+      message: `${contract.name}: ${progress.current.toLocaleString('en-US')} / ${contract.target.toLocaleString('en-US')}.`,
       reward: 0,
     };
   }
 
   return {
     success: true,
-    message: `${contract.name} complete - ${contract.reward.toLocaleString()} legacy points.`,
+    message: `${contract.name} complete - ${contract.reward.toLocaleString('en-US')} legacy points.`,
     reward: contract.reward,
     claimedIds: [...claimedIds, contractId],
   };

@@ -351,7 +351,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           ]}
         >
           <Text style={[styles.btnText, { color: enabled ? uiPalette.white : theme.textMuted }]}>
-            ${PILOT_LICENSE.cost.toLocaleString()}
+            ${PILOT_LICENSE.cost.toLocaleString('en-US')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -359,11 +359,11 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   };
 
   // --- Vehicle art (require() image from the template, keyed by id) --------
-  const renderArt = (v: Vehicle, height: number, radius: number) => {
+  const renderArt = (v: Vehicle, height: number, radius: number, zoom = 1) => {
 
     return (
       <View style={[styles.artStage, { height: scale(height), backgroundColor: theme.surfaceElevated, borderRadius: radius }]}>
-        <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
+        <CatalogArt family="vehicles" id={v.id} zoom={zoom} style={{ width: '100%', height: '100%' }} />
       </View>
     );
   };
@@ -416,7 +416,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             <Chip label="Active" tint={accent.amber} selected />
           </View>
 
-          {renderArt(v, 138, responsiveBorderRadius.xl)}
+          {renderArt(v, 190, responsiveBorderRadius.xl, 1.45)}
 
           <View style={styles.heroBody}>
             <ProgressRing
@@ -438,7 +438,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 {v.name}
               </Text>
               <Text style={[styles.heroSub, { color: theme.textMuted }]} numberOfLines={1}>
-                {v.brand} · {v.year} · {(v.mileage ?? 0).toLocaleString()} mi
+                {v.brand} · {v.year} · {(v.mileage ?? 0).toLocaleString('en-US')} mi
               </Text>
               <View style={styles.chipWrap}>
                 <Chip icon={<Fuel size={scale(11)} color={fuelColorFor(fuel)} />} label={`Fuel ${Math.round(fuel)}%`} tint={fuelColorFor(fuel)} />
@@ -501,7 +501,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           style={styles.fleetHeader}
         >
           <View style={[styles.thumbStage, { backgroundColor: theme.surfaceElevated }]}>
-            <CatalogArt family="vehicles" id={v.id} style={{ width: '100%', height: '100%' }} />
+            <CatalogArt family="vehicles" id={v.id} zoom={1.3} style={{ width: '100%', height: '100%' }} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.fleetNameRow}>
@@ -511,7 +511,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               {isActive && <Chip label="Active" tint={accent.amber} selected />}
             </View>
             <Text style={[styles.fleetSub, { color: theme.textMuted }]} numberOfLines={1}>
-              {v.type} · {v.year} · {(v.mileage ?? 0).toLocaleString()} mi · {v.fuelEfficiency} mpg
+              {v.type} · {v.year} · {(v.mileage ?? 0).toLocaleString('en-US')} mi · {v.fuelEfficiency} mpg
             </Text>
           </View>
           <ChevronRight size={scale(18)} color={theme.textMuted} />
@@ -634,7 +634,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               )}
             </View>
 
-            {renderArt(v, 150, responsiveBorderRadius.xl)}
+            {renderArt(v, 190, responsiveBorderRadius.xl, 1.35)}
 
             <Text style={[styles.heroName, { color: theme.text }]} numberOfLines={1}>{v.name}</Text>
             <Text style={[styles.heroSub, { color: theme.textMuted }]} numberOfLines={1}>
@@ -705,7 +705,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <CollapsibleSection id="vehicle-all-specs" title="All specs" compact defaultCollapsed summary={`${v.year} · ${v.maxSpeed} mph`}>
             <View style={styles.detailRows}>
               <DetailRow label="Sticker price" value={formatMoney(v.price)} theme={theme} />
-              <DetailRow label="Mileage" value={`${(v.mileage ?? 0).toLocaleString()} mi`} theme={theme} />
+              <DetailRow label="Mileage" value={`${(v.mileage ?? 0).toLocaleString('en-US')} mi`} theme={theme} />
               <DetailRow label="Efficiency" value={`${v.fuelEfficiency} mpg`} theme={theme} />
               <DetailRow label="Fuel tank" value={`${v.fuelCapacity} gal`} theme={theme} />
               <DetailRow label="Top speed" value={`${v.maxSpeed} mph`} theme={theme} />

@@ -39,7 +39,7 @@ export interface CrossSystemSummary {
 function fmtMoney(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
+  return `$${Math.round(n).toLocaleString('en-US')}`;
 }
 
 function fmtPct(n: number): string {
@@ -186,9 +186,9 @@ function contentCard(state: GameState): SystemCard | null {
     label: 'Content',
     lead: { label: 'Lifetime $', value: fmtMoney(earned) },
     details: [
-      { label: 'Subscribers', value: subs.toLocaleString() },
-      { label: 'Followers', value: followers.toLocaleString() },
-      { label: 'Total views', value: totalViews.toLocaleString() },
+      { label: 'Subscribers', value: subs.toLocaleString('en-US') },
+      { label: 'Followers', value: followers.toLocaleString('en-US') },
+      { label: 'Total views', value: totalViews.toLocaleString('en-US') },
     ],
   };
 }

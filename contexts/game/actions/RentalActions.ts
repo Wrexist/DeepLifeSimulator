@@ -66,7 +66,7 @@ export function resolveRentHome(state: GameState, tierId: string): RentalTransit
   if (!spend) {
     return {
       next: state,
-      result: { success: false, message: `The first week is due on signing: $${tier.weeklyRent.toLocaleString()}.` },
+      result: { success: false, message: `The first week is due on signing: $${tier.weeklyRent.toLocaleString('en-US')}.` },
     };
   }
 

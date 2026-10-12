@@ -47,7 +47,9 @@ import { ChevronDown, ChevronUp, LayoutGrid, Lock, Smartphone } from 'lucide-rea
 import { useGame } from '@/contexts/GameContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
+import { isFeatureUnlocked, unlockGuide, unlockRequirement, type UnlockGuide } from '@/lib/progress/featureUnlocks';
+import LockedAppSheet, { type LockedAppInfo } from './LockedAppSheet';
+import { useRouter } from 'expo-router';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 import { trackFeatureUse } from '@/lib/analytics/featureAdoption';
 import { featureForAppId } from '@/lib/analytics/featureRoutes';
@@ -62,7 +64,7 @@ import { getAppIconAsset } from '@/components/ui/appIconAssets';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
-import { appsForHost, resolveAppComponent, type LauncherApp, type LauncherHost } from './appCatalog';
+import { APP_CATALOG, appsForHost, resolveAppComponent, type LauncherApp, type LauncherHost } from './appCatalog';
 
 
 
@@ -74,7 +76,23 @@ interface AppLauncherProps {
 }
 
 /** A catalog entry decorated with this save's lock state. */
-type DecoratedApp = LauncherApp & { locked: boolean; lockReason: string };
+type DecoratedApp = LauncherApp & {
+  locked: boolean;
+  lockReason: string;
+  /** Two-word tag on the tile's lock pill ("Chapter 5", "Needs PC"). */
+  lockShort?: string;
+  /** Routes + progress for the locked-app sheet. */
+  guide?: UnlockGuide | null;
+  /** Phone-launcher preview of a computer-only app. */
+  needsComputer?: boolean;
+};
+
+/**
+ * Computer-only apps shown on the PHONE launcher as a preview. Without this a
+ * player who had not bought a computer never saw that the Dark Web, Crypto,
+ * Streaming and the rest exist at all (tester, 2026-10-11).
+ */
+const NEEDS_COMPUTER = 'Needs a Computer';
 
 export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: AppLauncherProps) {
   const { t } = useTranslation();
@@ -86,6 +104,9 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
   const navigation = useNavigation<{ addListener: (e: string, cb: () => void) => () => void }>();
   const { buttonPress } = useFeedback();
   const [activeApp, setActiveApp] = useState<string | null>(null);
+  // The locked app whose how-to-unlock sheet is open.
+  const [lockedApp, setLockedApp] = useState<LockedAppInfo | null>(null);
+  const router = useRouter();
   // Which sections have their locked shelf expanded (progressive disclosure).
   const [expandedLocked, setExpandedLocked] = useState<Record<string, boolean>>({});
 
@@ -170,6 +191,8 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
         ...app,
         locked: !isFeatureUnlocked(gameState, `app:${app.id}`),
         lockReason: unlockRequirement(gameState, `app:${app.id}`),
+        guide: unlockGuide(gameState, `app:${app.id}`),
+        lockShort: unlockGuide(gameState, `app:${app.id}`)?.short,
       }));
     const hosted = appsForHost(host);
     const sections =
@@ -178,9 +201,22 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
             { key: 'phone', title: 'Phone', apps: decorate(hosted.filter((a) => a.section === 'phone')) },
             { key: 'computer', title: 'Computer', apps: decorate(hosted.filter((a) => a.section === 'computer')) },
           ]
-        : // The phone launcher is one ungrouped grid - there is no second
-          // device to distinguish from, so a "Phone" heading would be noise.
-          [{ key: 'phone', title: '', apps: decorate(hosted) }];
+        : // The phone launcher is the phone grid plus a preview of what a
+          // computer adds - see NEEDS_COMPUTER.
+          [
+            { key: 'phone', title: '', apps: decorate(hosted) },
+            {
+              key: 'computer',
+              title: 'Computer apps',
+              apps: APP_CATALOG.filter((a) => !a.onPhone).map((app) => ({
+                ...app,
+                locked: true,
+                lockReason: NEEDS_COMPUTER,
+                lockShort: 'Needs PC',
+                needsComputer: true,
+              })),
+            },
+          ];
     return sections.filter((section) => section.apps.length > 0);
   }, [gameState, host]);
 
@@ -233,7 +269,13 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           if (app.locked) {
             // Tapping a locked app explains itself rather than doing nothing -
             // a dead tap reads as a bug, not a gate.
-            gameAlert(name, app.lockReason || 'Not available yet.');
+            setLockedApp({
+              name,
+              icon: iconAsset ?? undefined,
+              Glyph: app.icon,
+              guide: app.guide,
+              needsComputer: app.needsComputer,
+            });
             return;
           }
           setActiveApp(app.id);
@@ -279,12 +321,16 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
             {name}
           </Text>
-          {/* Only the locked shelf carries a second line: the requirement is
-              the one description worth a tile's space. */}
-          {app.locked && !!app.lockReason && (
-            <Text style={[styles.lockReason, settings.darkMode && styles.lockReasonDark]} numberOfLines={2}>
-              {app.lockReason}
-            </Text>
+          {/* ONE short pill, sized to fit the tile. Two lines of requirement
+              text overflowed the card (tester, 2026-10-11); the full
+              explanation lives in the sheet a tap opens. */}
+          {app.locked && !!(app.lockShort || app.lockReason) && (
+            <View style={styles.lockPill}>
+              <Lock size={scale(10)} color="#FBBF24" />
+              <Text style={styles.lockPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                {app.lockShort || app.lockReason}
+              </Text>
+            </View>
           )}
         </View>
         <ClaimableBadge count={appBadges[app.id] ?? 0} />
@@ -319,7 +365,9 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
         {appSections.filter(section => category === 'all' || section.key === category).map((section) => {
           const unlocked = section.apps.filter((app) => !app.locked);
           const locked = section.apps.filter((app) => app.locked);
-          const expanded = !!expandedLocked[section.key];
+          // Open by default. Folded away, nobody found out what the Dark Web
+          // needs - the shelf was there and never opened (tester, 2026-10-11).
+          const expanded = expandedLocked[section.key] ?? true;
           const ExpandChevron = expanded ? ChevronUp : ChevronDown;
           return (
             <View key={section.key} style={styles.appSection}>
@@ -337,7 +385,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                     style={[styles.lockedRow, settings.darkMode && styles.lockedRowDark]}
                     onPress={() => {
                       buttonPress();
-                      setExpandedLocked((prev) => ({ ...prev, [section.key]: !prev[section.key] }));
+                      setExpandedLocked((prev) => ({ ...prev, [section.key]: !(prev[section.key] ?? true) }));
                     }}
                     activeOpacity={0.8}
                     accessibilityRole="button"
@@ -347,7 +395,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                   >
                     <Lock size={scale(14)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                     <Text style={[styles.lockedRowText, settings.darkMode && styles.lockedRowTextDark]}>
-                      Locked ({locked.length})
+                      Locked ({locked.length}) - tap an app to see how to unlock it
                     </Text>
                     <ExpandChevron size={scale(16)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                   </TouchableOpacity>
@@ -358,6 +406,14 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           );
         })}
       </ScrollView>
+      <LockedAppSheet
+        app={lockedApp}
+        onClose={() => setLockedApp(null)}
+        onGoToMarket={() => {
+          setLockedApp(null);
+          router.navigate({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } });
+        }}
+      />
     </View>
   );
 }
@@ -495,14 +551,24 @@ const styles = StyleSheet.create({
     color: uiPalette.white,
   },
   /** The unlock requirement, shown only on tiles inside the locked shelf. */
-  lockReason: {
-    fontSize: responsiveFontSize.xs,
-    color: uiPalette.lightMuted,
-    textAlign: 'center',
-    marginTop: responsiveSpacing.xs / 2,
+  lockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: '100%',
+    marginTop: responsiveSpacing.xs,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(251, 191, 36, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
   },
-  lockReasonDark: {
-    color: uiPalette.muted,
+  lockPillText: {
+    flexShrink: 1,
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    color: '#FBBF24',
   },
   /** The collapsed "Locked (N)" disclosure row. */
   lockedRow: {

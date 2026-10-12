@@ -69,7 +69,7 @@ const helpContent = [
       },
       {
         question: 'What happens when stats reach 0?',
-        answer: `If Health reaches 0: You have 4 weeks to improve it or you die. A warning popup appears each week showing weeks remaining. If Happiness reaches 0: You have 4 weeks to improve it or you die. Same warning system applies. Death triggers a popup with options: Continue as a child (if you have children), Revive with gems (${REVIVE_GEM_COST.toLocaleString()} gems), or Start a new life. Keep both health and happiness above 20 to avoid the warning system.`,
+        answer: `If Health reaches 0: You have 4 weeks to improve it or you die. A warning popup appears each week showing weeks remaining. If Happiness reaches 0: You have 4 weeks to improve it or you die. Same warning system applies. Death triggers a popup with options: Continue as a child (if you have children), Revive with gems (${REVIVE_GEM_COST.toLocaleString('en-US')} gems), or Start a new life. Keep both health and happiness above 20 to avoid the warning system.`,
       },
       {
         question: 'How do I increase my stats?',
@@ -622,7 +622,7 @@ const helpContent = [
       },
       {
         question: 'What happens when I die?',
-        answer: `A death popup appears with options: Continue as a child (if you have children), Revive with gems (costs ${REVIVE_GEM_COST.toLocaleString()} gems), or Start a new life. Your previous character is added to the family tree. Generation increases if continuing as child. All your progress, wealth, and achievements are recorded. Choose wisely - each option has different benefits.`,
+        answer: `A death popup appears with options: Continue as a child (if you have children), Revive with gems (costs ${REVIVE_GEM_COST.toLocaleString('en-US')} gems), or Start a new life. Your previous character is added to the family tree. Generation increases if continuing as child. All your progress, wealth, and achievements are recorded. Choose wisely - each option has different benefits.`,
       },
       {
         question: 'How does inheritance work?',

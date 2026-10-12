@@ -162,7 +162,7 @@ export function applyVehiclesForWeek(
 
       ctx.notifications.push({
         id: `vehicle-accident-${v.id}`,
-        message: `Your ${v.name} was in a ${severity} accident! Condition: -${damage}%, Health: -${healthLoss}. Repair cost: $${outOfPocket.toLocaleString()}.`,
+        message: `Your ${v.name} was in a ${severity} accident! Condition: -${damage}%, Health: -${healthLoss}. Repair cost: $${outOfPocket.toLocaleString('en-US')}.`,
         title: 'Vehicle Accident',
       });
     }

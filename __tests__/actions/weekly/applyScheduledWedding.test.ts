@@ -107,7 +107,7 @@ describe('a wedding that does not happen tells the player why', () => {
     expect(ctx.notifications).toHaveLength(1);
     const note = ctx.notifications[0];
     expect(note.title).toBe('Wedding Postponed');
-    expect(note.message).toContain(balanceOf(8000).toLocaleString());
+    expect(note.message).toContain(balanceOf(8000).toLocaleString('en-US'));
     expect(note.message).toContain('4 weeks');
     expect(note.message).toContain('Alex');
   });

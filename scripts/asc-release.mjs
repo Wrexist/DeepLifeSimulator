@@ -2,7 +2,9 @@
 // scripts/asc-release.mjs
 //
 // Creates the App Store Connect version record for a release and fills its
-// "What's New" from marketing/aso/metadata.mjs — so the store copy is written
+// listing — What's New, description, keywords and promotional text on the
+// version, name and subtitle on App Information, for every managed language
+// (creating languages marked `pending`) — from marketing/aso/metadata.mjs — so the store copy is written
 // once, in the repo, validated by `npm run check:aso`, and sent to Apple
 // verbatim. Retyping it into the App Store Connect UI is what this replaces.
 //
@@ -41,12 +43,15 @@ import {
   planVersionRecord,
   fetchAppStoreVersions,
   stateOf,
-  planLocalizations,
-  whatsNewByLocale,
-  pendingLocales,
+  listingByLocale,
+  planFieldLocalizations,
+  pickEditableAppInfo,
+  inheritUrlsFromPrimary,
   versionCreatePayload,
-  localizationCreatePayload,
-  localizationUpdatePayload,
+  versionLocalizationCreatePayload,
+  versionLocalizationUpdatePayload,
+  infoLocalizationCreatePayload,
+  infoLocalizationUpdatePayload,
   attachBuildPayload,
   reviewSubmissionCreatePayload,
   reviewSubmissionItemCreatePayload,
@@ -86,6 +91,22 @@ function readAscAppId() {
   return eas?.submit?.production?.ios?.ascAppId ?? null;
 }
 
+/** Prints one planned op; returns true when there is nothing to write. */
+function reportOp(op) {
+  if (op.op === 'unchanged') {
+    say(`  ${C.dim}UNCHANGED${C.off} ${op.locale}`);
+    return true;
+  }
+  if (op.op === 'skip-unmanaged') {
+    say(`  ${C.yellow}SKIP${C.off}      ${op.locale} ${C.dim}— present on Apple's record, not declared in metadata.mjs${C.off}`);
+    return true;
+  }
+  const fields = Object.keys(op.attributes).join(', ');
+  say(`  ${C.green}${op.op === 'create' ? 'CREATE' : 'UPDATE'}${C.off}    ${op.locale.padEnd(6)} ${C.dim}${fields}${C.off}`);
+  if (op.attributes.whatsNew) say(`            ${C.dim}${preview(op.attributes.whatsNew)}${C.off}`);
+  return false;
+}
+
 function preview(text, width = 88) {
   const firstLine = String(text).split('\n').find((l) => l.trim()) ?? '';
   return firstLine.length > width ? `${firstLine.slice(0, width - 1)}…` : firstLine;
@@ -121,8 +142,10 @@ async function main() {
 
   const client = new AscClient({ credentials, dryRun: !apply });
 
-  const copy = whatsNewByLocale(APPLE);
-  if (Object.keys(copy).length === 0) {
+  const listing = listingByLocale(APPLE);
+  const versionCopy = Object.fromEntries(Object.entries(listing).map(([l, c]) => [l, c.version]));
+  const infoCopy = Object.fromEntries(Object.entries(listing).map(([l, c]) => [l, c.info]));
+  if (!Object.values(versionCopy).some((c) => c.whatsNew)) {
     die('marketing/aso/metadata.mjs declares no whatsNew copy for any shipped locale — nothing to publish.');
   }
 
@@ -165,52 +188,76 @@ async function main() {
     say(`${C.dim}REUSE${C.off}  version record ${versionString} (state ${versionPlan.state})`);
   }
 
-  // ---- 3 · What's New, per shipped locale --------------------------------
+  // ---- 3 · the version's copy, per managed locale ------------------------
   // In a plan run against a not-yet-created version there is nothing to read,
   // so every managed locale is reported as a create. That is the truth of what
-  // would happen, not a guess.
-  const existingLocalizations = versionId
-    ? await client.getAll(
+  // would happen, not a guess. (On apply, Apple copies the previous version's
+  // localizations onto a new record, so most of these become updates.)
+  const readVersionLocs = () => (versionId
+    ? client.getAll(
         `/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations` +
-          '?fields[appStoreVersionLocalizations]=locale,whatsNew&limit=200',
+          '?fields[appStoreVersionLocalizations]=locale,whatsNew,description,keywords,promotionalText,supportUrl,marketingUrl&limit=200',
       )
-    : [];
+    : Promise.resolve([]));
 
-  const localizationOps = planLocalizations({ existingLocalizations, whatsNewByLocale: copy });
-
-  say(`\n${C.bold}What's New${C.off}`);
-  for (const locale of pendingLocales(APPLE)) {
-    say(`  ${C.yellow}SKIP${C.off}      ${locale} ${C.dim}— pending: add this language in App Store Connect by hand (npm run aso prints its copy)${C.off}`);
-  }
+  const existingVersionLocs = await readVersionLocs();
+  inheritUrlsFromPrimary(versionCopy, existingVersionLocs, ['supportUrl', 'marketingUrl']);
+  const localizationOps = planFieldLocalizations({ existing: existingVersionLocs, desired: versionCopy });
+  say(`\n${C.bold}Version copy${C.off} ${C.dim}(What's New, description, keywords, promotional text)${C.off}`);
   for (const op of localizationOps) {
-    if (op.op === 'unchanged') {
-      say(`  ${C.dim}UNCHANGED${C.off} ${op.locale}`);
-      continue;
-    }
-    if (op.op === 'skip-unmanaged') {
-      say(`  ${C.yellow}SKIP${C.off}      ${op.locale} ${C.dim}— present on the version, not declared in metadata.mjs${C.off}`);
-      continue;
-    }
-    say(`  ${C.green}${op.op === 'create' ? 'CREATE' : 'UPDATE'}${C.off}    ${op.locale}  ${C.dim}${preview(op.whatsNew)}${C.off}`);
-
+    if (reportOp(op)) continue;
     if (op.op === 'create') {
       // Planning a version that does not exist yet: there is no id to
       // reference, but the write still HAPPENS on apply, so it is recorded
-      // against a placeholder. Dropping it would make the plan claim one write
-      // and then perform three — a plan that under-reports is worse than none.
+      // against a placeholder. A plan that under-reports is worse than none.
       await client.post(
         '/v1/appStoreVersionLocalizations',
-        localizationCreatePayload({
+        versionLocalizationCreatePayload({
           versionId: versionId ?? '<id of the version created above>',
           locale: op.locale,
-          whatsNew: op.whatsNew,
+          attributes: op.attributes,
         }),
       );
     } else {
       await client.patch(
         `/v1/appStoreVersionLocalizations/${op.id}`,
-        localizationUpdatePayload({ id: op.id, whatsNew: op.whatsNew }),
+        versionLocalizationUpdatePayload({ id: op.id, attributes: op.attributes }),
       );
+    }
+  }
+
+  // ---- 3b · name and subtitle on App Information --------------------------
+  // Only the App Information record attached to the version being prepared is
+  // editable. Read AFTER the version localizations are written, because adding
+  // a language to the version can create its App Information row too.
+  const appInfos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=10`);
+  const appInfo = pickEditableAppInfo(appInfos);
+  const infoLocs = appInfo
+    ? await client.getAll(`/v1/appInfos/${appInfo.id}/appInfoLocalizations?fields[appInfoLocalizations]=locale,name,subtitle,privacyPolicyUrl&limit=200`)
+    : [];
+  inheritUrlsFromPrimary(infoCopy, infoLocs, ['privacyPolicyUrl']);
+  const infoOps = planFieldLocalizations({ existing: infoLocs, desired: infoCopy });
+  say(`\n${C.bold}App Information${C.off} ${C.dim}(name, subtitle)${C.off}`);
+  if (!appInfo && versionPlan.action !== 'create') {
+    say(`  ${C.yellow}SKIP${C.off}      no editable App Information record — name and subtitle are locked while a version is in review or live`);
+  } else {
+    for (const op of infoOps) {
+      if (reportOp(op)) continue;
+      if (op.op === 'create') {
+        await client.post(
+          '/v1/appInfoLocalizations',
+          infoLocalizationCreatePayload({
+            appInfoId: appInfo?.id ?? '<id of the App Information record for the new version>',
+            locale: op.locale,
+            attributes: op.attributes,
+          }),
+        );
+      } else {
+        await client.patch(
+          `/v1/appInfoLocalizations/${op.id}`,
+          infoLocalizationUpdatePayload({ id: op.id, attributes: op.attributes }),
+        );
+      }
     }
   }
 
@@ -233,8 +280,15 @@ async function main() {
   // ---- 5 · optional submission -------------------------------------------
   if (submit) {
     say(`\n${C.bold}Review submission${C.off}`);
-    const created = await client.post('/v1/reviewSubmissions', reviewSubmissionCreatePayload({ appId, platform }));
-    const submissionId = created?.data?.id;
+    // Apple allows one open submission per platform. A run that failed after
+    // step 1 leaves an empty READY_FOR_REVIEW draft behind; reuse it rather
+    // than creating a second one Apple will refuse.
+    const open = await client.getAll(
+      `/v1/reviewSubmissions?filter[app]=${appId}&filter[platform]=${platform}&filter[state]=READY_FOR_REVIEW&limit=5`,
+    );
+    const submissionId = open[0]?.id
+      ?? (await client.post('/v1/reviewSubmissions', reviewSubmissionCreatePayload({ appId, platform })))?.data?.id;
+    if (open[0]) say(`  ${C.dim}REUSE${C.off}     open draft submission ${submissionId}`);
     if (submissionId) {
       await client.post(
         '/v1/reviewSubmissionItems',
@@ -267,7 +321,8 @@ async function main() {
           applied: apply,
           submitted: submit,
           versionAction: versionPlan.action,
-          localizations: localizationOps.map(({ whatsNew, previous, ...rest }) => rest),
+          localizations: localizationOps.map(({ attributes, ...rest }) => ({ ...rest, fields: Object.keys(attributes ?? {}) })),
+          appInfoLocalizations: infoOps.map(({ attributes, ...rest }) => ({ ...rest, fields: Object.keys(attributes ?? {}) })),
           plannedWrites: client.plannedWrites.map(({ method, path: p }) => ({ method, path: p })),
         },
         null,

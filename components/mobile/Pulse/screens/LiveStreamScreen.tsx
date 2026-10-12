@@ -192,7 +192,7 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
           <View style={[styles.recapCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <RecapRow label="Duration" value={`${Math.floor(summary.minutesElapsed)} min`} theme={theme} />
             <RecapRow label="Peak viewers" value={formatPulseNumber(summary.peakViewers)} theme={theme} />
-            <RecapRow label="New followers" value={`+${summary.newFollowers.toLocaleString()}`} theme={theme} color={PULSE_COLORS.success} />
+            <RecapRow label="New followers" value={`+${summary.newFollowers.toLocaleString('en-US')}`} theme={theme} color={PULSE_COLORS.success} />
             <RecapRow label="Tips earned" value={`$${summary.totalDonations.toFixed(2)}`} theme={theme} color={PULSE_COLORS.success} />
           </View>
           <Pressable

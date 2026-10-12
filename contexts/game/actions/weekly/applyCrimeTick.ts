@@ -106,7 +106,7 @@ export function applyCrimeTick(input: CrimeTickInput, ctx: WeekContext): CrimeTi
       logger.info(`[POLICE] Random encounter! Wanted ${newWantedLevel}, jailed ${policeEncounterJailWeeks} weeks, fined $${fine}`);
       ctx.notifications.push({
         id: 'police-encounter',
-        message: `The police caught up with you! You've been fined $${fine.toLocaleString()} and sentenced to ${policeEncounterJailWeeks} week(s) in jail.`,
+        message: `The police caught up with you! You've been fined $${fine.toLocaleString('en-US')} and sentenced to ${policeEncounterJailWeeks} week(s) in jail.`,
         title: 'Police Encounter',
       });
     }

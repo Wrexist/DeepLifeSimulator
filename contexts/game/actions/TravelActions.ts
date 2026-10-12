@@ -389,7 +389,7 @@ export const investInBusinessOpportunity = (
   }
 
   if (gameState.stats.money < opportunity.cost) {
-    return { success: false, message: `You need $${opportunity.cost.toLocaleString()} to invest in this opportunity` };
+    return { success: false, message: `You need $${opportunity.cost.toLocaleString('en-US')} to invest in this opportunity` };
   }
 
   // Atomic gate→debit→grant: re-check invested + funds against prev so a
@@ -418,7 +418,7 @@ export const investInBusinessOpportunity = (
   log.info(`Invested in business opportunity: ${opportunity.name}`);
   return {
     success: true,
-    message: `Successfully invested $${opportunity.cost.toLocaleString()} in ${opportunity.name}! You will earn $${opportunity.weeklyIncome.toLocaleString()} per week.`,
+    message: `Successfully invested $${opportunity.cost.toLocaleString('en-US')} in ${opportunity.name}! You will earn $${opportunity.weeklyIncome.toLocaleString('en-US')} per week.`,
   };
 };
 

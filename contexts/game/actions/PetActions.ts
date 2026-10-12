@@ -46,7 +46,7 @@ export function buyPet(
   const breed = findBreed(breedId);
   if (!breed) return { success: false, message: 'Unknown breed' };
   if (safe(gameState.stats?.money, 0) < breed.price) {
-    return { success: false, message: `Need $${breed.price.toLocaleString()}.` };
+    return { success: false, message: `Need $${breed.price.toLocaleString('en-US')}.` };
   }
   // Minted against the pets already owned, because the duplicate-id guard in
   // the updater below makes a collision SILENTLY DESTRUCTIVE: it would reject a
@@ -148,7 +148,7 @@ export function buyFood(
   if (!food) return { success: false, message: 'Unknown food' };
   const total = food.price * qty;
   if (safe(gameState.stats?.money, 0) < total) {
-    return { success: false, message: `Need $${total.toLocaleString()}.` };
+    return { success: false, message: `Need $${total.toLocaleString('en-US')}.` };
   }
   // M-batch-A (R8): atomic debit + grant (see buyPet).
   setGameState((prev) => {
@@ -176,7 +176,7 @@ export function buyToy(
   if (!toy) return { success: false, message: 'Unknown toy' };
   if ((pet.toys ?? []).includes(toyId)) return { success: false, message: 'Already owns this toy.' };
   if (safe(gameState.stats?.money, 0) < toy.price) {
-    return { success: false, message: `Need $${toy.price.toLocaleString()}.` };
+    return { success: false, message: `Need $${toy.price.toLocaleString('en-US')}.` };
   }
   // M-batch-A (R8): atomic debit + grant; also re-check ownership inside the
   // updater so a double-tap can't buy the same toy twice.
@@ -332,7 +332,7 @@ export function payForVet(
   const activeSickness = pet.isSick && pet.sickness ? findSickness(pet.sickness) : null;
   const price = vetServicePrice(service, activeSickness);
   if (safe(gameState.stats?.money, 0) < price) {
-    return { success: false, message: `Need $${price.toLocaleString()}.` };
+    return { success: false, message: `Need $${price.toLocaleString('en-US')}.` };
   }
   /**
    * The "nothing left to do" gate, checked OUTSIDE - which is where it was
@@ -425,7 +425,7 @@ export function enterCompetition(
   if (!result || !result.competition) return { success: false, message: 'Unknown competition' };
   const comp = result.competition;
   if (safe(gameState.stats?.money, 0) < comp.entryFee) {
-    return { success: false, message: `Entry fee $${comp.entryFee.toLocaleString()}.` };
+    return { success: false, message: `Entry fee $${comp.entryFee.toLocaleString('en-US')}.` };
   }
   // M-batch-A (R8): apply the net delta (entry fee always; prize only if won)
   // AND the pet update in one atomic updater, so the entry fee can't be charged
@@ -453,7 +453,7 @@ export function enterCompetition(
   return {
     success: true,
     message: result.won
-      ? `${pet.name} won ${comp.name}! +$${comp.prize.toLocaleString()}`
+      ? `${pet.name} won ${comp.name}! +$${comp.prize.toLocaleString('en-US')}`
       : `${pet.name} didn't place at ${comp.name}.`,
     won: result.won,
     payout: result.payoutDelta,

@@ -198,7 +198,7 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
     notifications.push({
       id: `card-interest-${input.currentWeek}`,
       title: '💳 Card Interest Charged',
-      message: `Your credit card balance grew by $${Math.round(cardAccrual.totalInterest).toLocaleString()} in interest.`,
+      message: `Your credit card balance grew by $${Math.round(cardAccrual.totalInterest).toLocaleString('en-US')} in interest.`,
     });
   }
 

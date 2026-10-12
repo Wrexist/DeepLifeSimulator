@@ -394,7 +394,7 @@ export function processPulseWeeklyTick(
         notifications = pushNotification(
           notifications,
           'brand_offer',
-          `${o.brandName} offered you a deal - $${o.payment.toLocaleString()}`,
+          `${o.brandName} offered you a deal - $${o.payment.toLocaleString('en-US')}`,
           nextWeeksLived,
           { refDealId: o.id, fromHandle: o.brandName },
         );
@@ -448,7 +448,7 @@ export function processPulseWeeklyTick(
         notifications = pushNotification(
           notifications,
           'brand_offer',
-          `✅ ${deal.brandName} deal complete - $${(deal.payment || 0).toLocaleString()}`,
+          `✅ ${deal.brandName} deal complete - $${(deal.payment || 0).toLocaleString('en-US')}`,
           nextWeeksLived,
         );
       } else {

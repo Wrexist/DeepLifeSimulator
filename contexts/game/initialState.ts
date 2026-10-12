@@ -6,7 +6,7 @@ import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 // header each carried their own identical copy of the thresholds.
 import { getLifeStage } from '@/lib/config/gameConstants';
 
-export const STATE_VERSION = 52;
+export const STATE_VERSION = 53;
 
 export const initialGameState: GameState = {
   version: STATE_VERSION,
@@ -1110,10 +1110,13 @@ export const initialGameState: GameState = {
     { id: 'vacation', name: 'Weekend Getaway', description: 'Short vacation to recharge', price: 16000, happinessGain: 35, healthGain: 10, energyCost: -20 },
     { id: 'retreat', name: 'Wellness Retreat', description: 'Multi-day wellness experience', price: 30000, happinessGain: 40, healthGain: 20, energyCost: 6 },
   ],
+  // Priced against groceries, not against a fortune (v53). They were $2,500 /
+  // $6,000 / $10,000 a DAY - $17.5K-$70K a week beside $5-$41 meals and
+  // $110-$6,000 starting wages, so no ordinary life could ever use them.
   dietPlans: [
-    { id: 'basic', name: 'Basic Diet', description: 'Simple, healthy meals', dailyCost: 2500, healthGain: 3, energyGain: 2, active: false },
-    { id: 'premium', name: 'Premium Diet', description: 'Organic, high-quality ingredients', dailyCost: 6000, healthGain: 8, energyGain: 5, happinessGain: 3, active: false },
-    { id: 'athlete', name: 'Athlete Diet', description: 'High-protein, performance-focused', dailyCost: 10000, healthGain: 12, energyGain: 8, happinessGain: 5, active: false },
+    { id: 'basic', name: 'Basic Diet', description: 'Simple, healthy meals', dailyCost: 20, healthGain: 3, energyGain: 2, active: false },
+    { id: 'premium', name: 'Premium Diet', description: 'Organic, high-quality ingredients', dailyCost: 50, healthGain: 8, energyGain: 5, happinessGain: 3, active: false },
+    { id: 'athlete', name: 'Athlete Diet', description: 'High-protein, performance-focused', dailyCost: 85, healthGain: 12, energyGain: 8, happinessGain: 5, active: false },
   ],
   educations: [],
   userProfile: {

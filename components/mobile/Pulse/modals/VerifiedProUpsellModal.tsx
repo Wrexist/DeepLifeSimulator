@@ -180,7 +180,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
             ]}
           >
             <Text style={styles.planLabelPrimary}>Annual · Save 17%</Text>
-            <Text style={styles.planPricePrimary}>${VERIFIED_PRO_ANNUAL_PRICE.toLocaleString()}/yr</Text>
+            <Text style={styles.planPricePrimary}>${VERIFIED_PRO_ANNUAL_PRICE.toLocaleString('en-US')}/yr</Text>
           </Pressable>
         </View>
       )}

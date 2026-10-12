@@ -47,6 +47,13 @@ export interface SmartNotification {
     hasDebt?: boolean;
     isInJail?: boolean;
     hasDiseases?: boolean;
+    /**
+     * A disease was cured in the last week. "Disease Cured!" used to key on
+     * `hasDiseases: false` alone, which is true for every healthy player, so it
+     * fired every 12 hours from the first week of a life that had never been
+     * ill (tester pass, 2026-10-10).
+     */
+    curedDiseaseRecently?: boolean;
     hasCriticalDisease?: boolean;
     hasDeathWarning?: boolean;
     /**
@@ -233,7 +240,7 @@ class SmartNotificationSystem {
         priority: 'medium',
         category: 'health',
         icon: '✅',
-        conditions: { hasDiseases: false },
+        conditions: { hasDiseases: false, curedDiseaseRecently: true },
         cooldown: 12,
       },
       {
@@ -588,6 +595,14 @@ class SmartNotificationSystem {
         case 'hasDiseases':
           if ((gameState.diseases?.length || 0) > 0 !== (value as boolean)) return false;
           break;
+        case 'curedDiseaseRecently': {
+          const now = gameState.weeksLived || 0;
+          const recent = (gameState.diseaseHistory?.diseases || []).some(
+            d => typeof d.curedWeek === 'number' && now - d.curedWeek <= 1
+          );
+          if (recent !== (value as boolean)) return false;
+          break;
+        }
         case 'hasCriticalDisease':
           const hasCritical = (gameState.diseases || []).some(d => d.severity === 'critical');
           if (hasCritical !== (value as boolean)) return false;

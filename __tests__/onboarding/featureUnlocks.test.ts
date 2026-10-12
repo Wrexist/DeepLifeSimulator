@@ -477,7 +477,10 @@ describe('the grid shows locked apps rather than hiding them', () => {
     // Channel note: these asserted the OS `Alert.alert`. The game's alerts are
     // now `gameAlert` (themed, in-app) - see
     // __tests__/tooling/noNativeAlertInGameUI.test.ts.
-    expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}gameAlert\(name, app\.lockReason/);
+    // The dialog now carries every route and the player's progress on each
+    // (`unlockGuide`), falling back to the bare requirement (2026-10-11).
+    // It opens LockedAppSheet: every route with the player's progress (2026-10-11).
+    expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}setLockedApp\(\{/);
   });
 
   it('a screen reader hears the lock and can still request its explanation', () => {

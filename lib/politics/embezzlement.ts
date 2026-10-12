@@ -140,15 +140,15 @@ export function planSkim(input: {
   const pot = skimmablePot(input);
   const allowance = maxWeeklySkim(pot);
   if (allowance <= 0) {
-    return { ok: false, reason: `There is not enough in the war chest to be worth the risk (minimum $${MIN_SKIM_USD.toLocaleString()}).` };
+    return { ok: false, reason: `There is not enough in the war chest to be worth the risk (minimum $${MIN_SKIM_USD.toLocaleString('en-US')}).` };
   }
 
   const requested = Math.floor(safe(input.requested, 0));
   if (requested < MIN_SKIM_USD) {
-    return { ok: false, reason: `The smallest transfer worth hiding is $${MIN_SKIM_USD.toLocaleString()}.` };
+    return { ok: false, reason: `The smallest transfer worth hiding is $${MIN_SKIM_USD.toLocaleString('en-US')}.` };
   }
   if (requested > allowance) {
-    return { ok: false, reason: `Moving more than $${allowance.toLocaleString()} in one week would not survive an audit.` };
+    return { ok: false, reason: `Moving more than $${allowance.toLocaleString('en-US')} in one week would not survive an audit.` };
   }
 
   const campaignAvailable = Math.max(0, Math.floor(safe(input.campaignFunds, 0)));

@@ -49,7 +49,9 @@ const METRICS = {
     // HUD's primary action for information the player cannot act on.
     // 153 -> 152 on 2026-09-02 (Program 5): Streaming's dashboard link became a
     // GradientButton (no JSX gradient) and its old hero link went.
-    max: 141,
+    // 141 -> 136 on 2026-10-10: locked in at the measured count after the
+    // Life Skills / shared-control layout pass.
+    max: 136,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },
@@ -64,7 +66,8 @@ const METRICS = {
     // 243 -> 94 on 2026-09-02 (Program 5): modal and screen titles moved to the
     // tier tokens, bodies to fontScale(); the splash, the crash screens and
     // the tab-bar label keep their raw values on purpose (documented there).
-    max: 94,
+    // 94 -> 93 on 2026-10-10: locked in at the measured count.
+    max: 93,
     goal: 0,
     pattern: /fontSize:\s*\d/g,
   },

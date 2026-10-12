@@ -142,6 +142,17 @@ if (!/^[A-Z]/.test(APPLE.description.trim())) warn('Description does not open on
 for (const field of ['description', 'promotionalText']) {
   if (/\b(lorem|TODO|TBD|XXX)\b/i.test(APPLE[field])) fail(`Apple ${field} still contains placeholder text.`);
 }
+// App Store Connect refuses box-drawing characters at write time (HTTP 409,
+// "Description can't contain the following character(s): ━"), which aborts a
+// release run halfway. The 1.6.0 run hit it on a divider line. Catch it here.
+const BOX_DRAWING = /[─-╿]/;
+const appleCopies = [['en-US', APPLE], ...Object.entries(APPLE.localized ?? {})];
+for (const [locale, copy] of appleCopies) {
+  for (const field of ['name', 'subtitle', 'description', 'promotionalText', 'whatsNew']) {
+    const m = typeof copy?.[field] === 'string' && copy[field].match(BOX_DRAWING);
+    if (m) fail(`${locale} ${field} contains "${m[0]}" — App Store Connect rejects box-drawing characters.`);
+  }
+}
 
 // Google Play DOES index the long description, unlike Apple. Check the target
 // terms actually appear in it.
@@ -213,7 +224,7 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   if (loc.pending === true && loc.shipped === false) {
     fail(`${locale} is both \`pending\` and \`shipped: false\`. Pick one: pending ships once created, shipped: false never does.`);
   } else if (loc.pending === true) {
-    note(`${locale} is pending: create it in App Store Connect by hand from \`npm run aso\`, then remove \`pending\`.`);
+    note(`${locale} is pending: \`npm run asc:release:apply\` creates the language on the next version record, then remove \`pending\`.`);
   }
   if (loc.shipped !== false) {
     if (!loc.description) fail(`${locale} has keywords but no translated description — that is a keyword grab, not a localisation.`);

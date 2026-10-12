@@ -161,23 +161,28 @@ describe('a screen reader can name the controls', () => {
   });
 });
 
-describe('a life skill is confirmed before the point is spent', () => {
+describe('a life skill is seen before it is bought, with ONE unlock control', () => {
   const CODE = strip(read('components/SkillTreeModal.tsx'));
 
-  it('asks before buying, quoting the effect and the cost', () => {
-    // The effect string always existed - it was shown in the SUCCESS alert,
-    // after the unrecoverable spend.
-    expect(CODE).toMatch(/Unlock \$\{node\.name\}\?/);
-    expect(CODE).toMatch(/\$\{node\.effect\}/);
-    expect(CODE).toMatch(/Cost: \$\$\{node\.cost\.toLocaleString\(\)\}/);
+  it('tapping a node only selects it - it never buys', () => {
+    // The 1.4 report: "clicking any unlocks what it is using a point".
+    expect(CODE).toMatch(/onPress=\{\(\) => setSelectedNode\(node\)\}/);
   });
 
-  it('offers a way out', () => {
-    expect(CODE).toMatch(/text: 'Cancel', style: 'cancel'/);
+  it('the purchase is the details panel button, which states the price', () => {
+    // The panel shows the effect and requirements; the button names the money
+    // AND point cost, so nothing is bought unseen.
+    expect(CODE).toMatch(/onPress=\{\(\) => handleUnlockNode\(selectedNode\)\}/);
+    expect(CODE).toMatch(/Unlock · \$\{selectedNode\.cost\.toLocaleString\('en-US'\)\}/);
+    expect(CODE).toMatch(/\{selectedNode\.effect\}/);
   });
 
-  it('the purchase happens only from the confirm handler', () => {
-    expect(CODE).toMatch(/onPress: \(\) => commitUnlock\(node\)/);
+  it('has no second Unlock in a confirm dialog on top of the panel (2026-10-11)', () => {
+    expect(CODE).not.toMatch(/Unlock \$\{node\.name\}\?/);
+  });
+
+  it('the purchase still goes through the one atomic commit', () => {
+    expect(CODE).toMatch(/commitUnlock\(node\);/);
     expect(CODE).toMatch(/const commitUnlock = useCallback/);
   });
 
@@ -199,7 +204,7 @@ describe('a life skill is confirmed before the point is spent', () => {
     // `Alert.alert` this once asserted - see
     // __tests__/tooling/noNativeAlertInGameUI.test.ts. What is pinned here is
     // that a success is still REPORTED, and still from the preview run.
-    expect(CODE).toMatch(/gameAlert\('Skill Unlocked'/);
+    expect(CODE).toMatch(/setCelebrated\(node\)/);
     expect(CODE).toMatch(/if \(preview\.purchased\)/);
   });
 

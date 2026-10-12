@@ -113,7 +113,7 @@ function LastWeekRecap() {
 
   const positive = net >= 0;
   const netColor = positive ? (isDark ? '#5EEAD4' : '#0F766E') : (isDark ? '#FCA5A5' : '#B91C1C');
-  const fmt = (n: number) => `$${Math.abs(Math.round(n)).toLocaleString()}`;
+  const fmt = (n: number) => `$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
   const subColor = isDark ? 'rgba(226, 232, 240, 0.6)' : 'rgba(15, 23, 42, 0.55)';
 
   return (

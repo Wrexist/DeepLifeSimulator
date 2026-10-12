@@ -500,7 +500,7 @@ export default function AchievementsProgress() {
                     <Text style={[styles.narrativeText, darkMode && styles.narrativeTextDark]}>
                       Unlocked at age {achievementUnlocks[a.id].age} ({achievementUnlocks[a.id].year})
                       {achievementUnlocks[a.id].money > 0
-                        ? ` with $${achievementUnlocks[a.id].money.toLocaleString()}`
+                        ? ` with $${achievementUnlocks[a.id].money.toLocaleString('en-US')}`
                         : ''}
                     </Text>
                   )}

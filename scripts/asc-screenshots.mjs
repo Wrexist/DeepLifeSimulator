@@ -10,6 +10,10 @@
  *   iphone-6.9/  -> APP_IPHONE_67   (1320 x 2868)
  *   iphone-6.5/  -> APP_IPHONE_65   (1284 x 2778)
  *   ipad-13/     -> APP_IPAD_PRO_3GEN_129 (2064 x 2752)
+ *   header/      -> Product Page header creative asset (one PNG)
+ *   search/      -> search results creative asset (one PNG)
+ * Any folder may be absent; a --dir holding only header/ and search/ places
+ * the creative assets and leaves the screenshot sets alone.
  *
  * Screenshots belong to a VERSION record, and Apple only lets them change while
  * that version is editable. This never creates a version - that is a release
@@ -28,6 +32,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { AscClient, loadCredentials, missingCredentialNames } from './lib/ascClient.mjs';
+import { collectCreative, syncCreative } from './lib/ascCreative.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ARGS = process.argv.slice(2);
@@ -108,18 +113,36 @@ async function uploadOne(client, setId, shot) {
   await client.patch(`/v1/appScreenshots/${id}`, {
     data: { type: 'appScreenshots', id, attributes: { uploaded: true, sourceFileChecksum: shot.md5 } },
   });
-  // Apple processes the asset asynchronously; wait so a failure is reported
-  // here rather than discovered later as a broken image in the set.
-  for (let i = 0; i < 40; i++) {
-    const s = await client.get(`/v1/appScreenshots/${id}`);
-    const state = s?.data?.attributes?.assetDeliveryState?.state;
-    if (state === 'COMPLETE') return;
-    if (state === 'FAILED') {
-      throw new Error(`${shot.name} failed processing: ${JSON.stringify(s.data.attributes.assetDeliveryState.errors)}`);
+  return { id, name: shot.name };
+}
+
+/**
+ * Apple processes each asset asynchronously, and a single image can take
+ * minutes. Waiting on each upload in turn (the first version: 2 minutes per
+ * image) failed on the first image of a 150-image run, so every upload is
+ * sent first and processing is checked for all of them at the end, against
+ * one overall deadline. A failure is still reported here rather than
+ * discovered later as a broken image in the set.
+ */
+async function awaitProcessing(client, uploaded, { deadlineMs = 20 * 60_000, intervalMs = 10_000 } = {}) {
+  const pending = new Map(uploaded.map((u) => [u.id, u]));
+  const failed = [];
+  const end = Date.now() + deadlineMs;
+  while (pending.size > 0 && Date.now() < end) {
+    for (const [id, u] of [...pending]) {
+      const s = await client.get(`/v1/appScreenshots/${id}`);
+      const state = s?.data?.attributes?.assetDeliveryState?.state;
+      if (state === 'COMPLETE') pending.delete(id);
+      else if (state === 'FAILED') {
+        pending.delete(id);
+        failed.push(`${u.label}: ${JSON.stringify(s.data.attributes.assetDeliveryState.errors)}`);
+      }
     }
-    await new Promise((r) => setTimeout(r, 3000));
+    console.log(`  processing: ${uploaded.length - pending.size - failed.length}/${uploaded.length} complete, ${failed.length} failed`);
+    if (pending.size > 0) await new Promise((r) => setTimeout(r, intervalMs));
   }
-  throw new Error(`${shot.name} did not finish processing in time`);
+  if (failed.length) throw new Error(`Apple failed to process:\n  ${failed.join('\n  ')}`);
+  if (pending.size) throw new Error(`Still processing after ${deadlineMs / 60_000} min: ${[...pending.values()].map((u) => u.label).join(', ')}. Re-check in App Store Connect; re-running replaces the sets.`);
 }
 
 async function main() {
@@ -129,7 +152,8 @@ async function main() {
 
   const sets = Object.fromEntries(Object.keys(DISPLAY_TYPES).map((d) => [d, collectSet(dir, d)]));
   const devices = Object.keys(sets).filter((d) => sets[d].length > 0);
-  if (devices.length === 0) die(`No screenshots under ${dir}`);
+  const creative = collectCreative(dir, (buf) => { const { w, h } = pngSize(buf); return { w, h }; });
+  if (devices.length === 0 && creative.length === 0) die(`No screenshots or creative assets under ${dir}`);
   for (const d of devices) console.log(`${d}: ${sets[d].length} screenshots (${DISPLAY_TYPES[d].type})`);
 
   const credentials = loadCredentials();
@@ -151,13 +175,20 @@ async function main() {
   const locs = (await client.getAll(`/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=50`))
     .filter((l) => !onlyLocales || onlyLocales.includes(l.attributes.locale));
 
+  const uploaded = [];
   for (const loc of locs) {
     const existingSets = await client.getAll(`/v1/appStoreVersionLocalizations/${loc.id}/appScreenshotSets?limit=50`);
     for (const device of devices) {
       const type = DISPLAY_TYPES[device].type;
       let set = existingSets.find((s) => s.attributes.screenshotDisplayType === type);
       const old = set ? await client.getAll(`/v1/appScreenshotSets/${set.id}/appScreenshots?limit=50`) : [];
-      console.log(`  ${loc.attributes.locale} ${type}: replace ${old.length} -> ${sets[device].length}`);
+      // Name what Apple has NOT finished processing, so a plan run doubles as
+      // the status check after an apply that hit its deadline.
+      const unfinished = old
+        .filter((s) => s.attributes?.assetDeliveryState?.state !== 'COMPLETE')
+        .map((s) => `${s.attributes?.fileName} ${s.attributes?.assetDeliveryState?.state ?? '?'}`);
+      console.log(`  ${loc.attributes.locale} ${type}: replace ${old.length} -> ${sets[device].length}` +
+        (unfinished.length ? ` · not processed: ${unfinished.join(', ')}` : ''));
       if (!apply) continue;
       if (!set) {
         const created = await client.post('/v1/appScreenshotSets', {
@@ -171,10 +202,19 @@ async function main() {
       }
       for (const s of old) await client.request('DELETE', `/v1/appScreenshots/${s.id}`);
       for (const shot of sets[device]) {
-        await uploadOne(client, set.id, shot);
+        const u = await uploadOne(client, set.id, shot);
+        uploaded.push({ ...u, label: `${loc.attributes.locale} ${device} ${shot.name}` });
         console.log(`    uploaded ${shot.name}`);
       }
     }
+  }
+  if (creative.length) {
+    const failed = await syncCreative({ client, appId, locs, assets: creative, apply });
+    if (failed) die(`${failed} creative placement(s) failed - see above.`);
+  }
+  if (apply && uploaded.length) {
+    console.log(`\nWaiting for Apple to process ${uploaded.length} screenshots`);
+    await awaitProcessing(client, uploaded);
   }
   console.log(apply ? '\nDone - screenshots replaced.' : '\nPlan only. Re-run with --apply to write.');
 }

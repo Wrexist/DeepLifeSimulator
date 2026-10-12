@@ -37,8 +37,17 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 /** An App Store Connect API error carrying Apple's own error objects. */
 export class AscApiError extends Error {
   constructor(status, errors, method, path) {
+    // A 409 on submission says only "check associated errors"; the actual
+    // reasons (a missing URL, a locale without screenshots...) live in
+    // meta.associatedErrors, keyed by the resource path. Print them.
+    const describe = (e) => `${e.title ?? e.code ?? 'error'}: ${e.detail ?? ''}`.trim();
     const detail = errors.length
-      ? errors.map((e) => `${e.title ?? e.code ?? 'error'}: ${e.detail ?? ''}`.trim()).join(' | ')
+      ? errors.map((e) => {
+        const assoc = Object.entries(e.meta?.associatedErrors ?? {})
+          .flatMap(([where, list]) => (list ?? []).map((a) => `
+    - ${where}: ${describe(a)}`));
+        return describe(e) + assoc.join('');
+      }).join(' | ')
       : '(no error body)';
     super(`App Store Connect ${method} ${path} → HTTP ${status}: ${detail}`);
     this.name = 'AscApiError';

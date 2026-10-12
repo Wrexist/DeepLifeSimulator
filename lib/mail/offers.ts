@@ -9,7 +9,7 @@
 
 import type { GameState, MailChoice, MailMessage } from '@/contexts/game/types';
 import { SENDERS } from './senders';
-import { docDate, docMoney, docReference } from './format';
+import { docDate, docMoney, docReference, mailCalendarAnchor } from './format';
 import { applyRaisePremium } from '@/lib/careers/raisePremium';
 import { OFFER_NEGOTIATION_PREMIUM } from './resolve';
 
@@ -124,7 +124,7 @@ export function jobOfferLetter(
         { label: 'Position', value: pending.title },
         { label: 'Basic pay, weekly', value: docMoney(pending.salary) },
         { label: 'Annualised', value: docMoney(pending.salary * 52), muted: true },
-        { label: 'Start date', value: docDate(week + 1), muted: true },
+        { label: 'Start date', value: docDate(week + 1, mailCalendarAnchor(state)), muted: true },
       ],
       total: { label: 'Weekly pay on signing', value: docMoney(pending.salary) },
       note: 'Tax is withheld at source. This offer stands for two weeks.',

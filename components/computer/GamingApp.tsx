@@ -21,7 +21,7 @@ import { uiPalette, creatorBrand, getThemeColors, accent, withAlpha } from '@/li
  * Solid video-red publishing action; draft previews never show earned metrics.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -63,6 +63,7 @@ import {
   CircuitBoard,
   Coins,
   Upload,
+  Shuffle,
   Check,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -106,7 +107,8 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import KeyValueRow from '@/components/ui/KeyValueRow';
 import { useToast } from '@/contexts/ToastContext';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
-import { gameAlert } from '@/utils/gameAlert';
+import VideoSummaryModal, { type VideoSummary } from './VideoSummaryModal';
+import { suggestVideoTitle } from '@/lib/content/videoTitles';
 
 
 // The deep stop of the ONE gradient in this file (the upload CTA). Everything
@@ -206,6 +208,10 @@ export default function GamingApp({ onBack }: Props) {
   // Lands on Record: the tab that holds the primary action.
   const [activeTab, setActiveTab] = useState<TabType>('record');
   const [title, setTitle] = useState('');
+  // The recap shown after an upload (was a two-line alert, 2026-10-11).
+  const [videoSummary, setVideoSummary] = useState<VideoSummary | null>(null);
+  // Press counter for the title shuffle - see `suggestVideoTitle`.
+  const titleShuffles = useRef(0);
   const [selectedGame, setSelectedGame] = useState(GAME_OPTIONS[0]);
   // list → detail routing (presentational; no new mechanics).
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
@@ -332,14 +338,31 @@ export default function GamingApp({ onBack }: Props) {
       },
       week
     );
-    if (r.success) {
+    if (r.success && r.video && r.outcome) {
       saveGame();
       setTitle('');
-      gameAlert(r.outcome?.viral ? 'Viral hit!' : 'Uploaded', r.message);
+      const prior = (channel?.videos ?? []).reduce((m, v) => Math.max(m, v.views ?? 0), 0);
+      setVideoSummary({
+        title: r.video.title,
+        topic: selectedGame,
+        art: videoThumb(r.video),
+        views: r.outcome.views,
+        newSubs: r.outcome.subscribersGained,
+        earnings: r.earnings ?? 0,
+        viral: r.outcome.viral,
+        priorBestViews: prior,
+        levelBefore: r.levelBefore ?? 1,
+        levelAfter: r.levelAfter ?? r.levelBefore ?? 1,
+        trending: selectedGame === trendingTopic,
+      });
+    } else if (r.success) {
+      saveGame();
+      setTitle('');
+      flash(r.message);
     } else {
       flash(r.message);
     }
-  }, [gameState, setGameState, saveGame, title, selectedGame, week, flash]);
+  }, [gameState, setGameState, saveGame, title, selectedGame, week, flash, channel?.videos, trendingTopic]);
 
   const handleAccessory = useCallback(
     (id: keyof GamingStreamingState['equipment']) => {
@@ -401,11 +424,11 @@ export default function GamingApp({ onBack }: Props) {
           <View style={styles.heroRow}>
             <View style={styles.heroStat}>
               <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Subscribers</Text>
-              <Text style={[styles.heroValue, { color: theme.text }]}>{subscribers.toLocaleString()}</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>{subscribers.toLocaleString('en-US')}</Text>
             </View>
             <View style={styles.heroStat}>
               <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Total views</Text>
-              <Text style={[styles.heroValue, { color: theme.text }]}>{totalViews.toLocaleString()}</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>{totalViews.toLocaleString('en-US')}</Text>
             </View>
           </View>
 
@@ -440,7 +463,7 @@ export default function GamingApp({ onBack }: Props) {
             <VideoThumb v={videos[0]} style={styles.featuredThumb} scrim showPlay overlayTitle />
             <View style={styles.featuredBody}>
               <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-                {videos[0].game ?? 'General'} · {videos[0].views.toLocaleString()} views · +{(videos[0].subscribersGained ?? 0).toLocaleString()} subs
+                {videos[0].game ?? 'General'} · {videos[0].views.toLocaleString('en-US')} views · +{(videos[0].subscribersGained ?? 0).toLocaleString('en-US')} subs
               </Text>
             </View>
           </TouchableOpacity>
@@ -464,12 +487,12 @@ export default function GamingApp({ onBack }: Props) {
         tint={creatorBrand.video.accent}
         summary={`${paidMembers} members · ${compact(totalViews)} views`}
       >
-        <KeyValueRow label="Members" value={paidMembers.toLocaleString()} />
+        <KeyValueRow label="Members" value={paidMembers.toLocaleString('en-US')} />
         <KeyValueRow label="$ / viewer" value={`$${monetization.viewerPay}`} />
         <KeyValueRow label="Members / wk" value={formatMoney(monetization.membershipWeekly)} />
         <KeyValueRow label="Donations" value={formatMoney(totalDonations)} />
         <KeyValueRow label="Sub earnings" value={formatMoney(totalSubEarnings)} />
-        <KeyValueRow label="Total views" value={totalViews.toLocaleString()} />
+        <KeyValueRow label="Total views" value={totalViews.toLocaleString('en-US')} />
         <KeyValueRow label="Watch hours" value={streamHours.toFixed(streamHours >= 100 ? 0 : 1)} />
         <KeyValueRow label="Average viewers" value={compact(avgViewers)} />
         <KeyValueRow label="Level" value={`${level}`} />
@@ -516,14 +539,29 @@ export default function GamingApp({ onBack }: Props) {
             </View>
             <VideoThumb v={previewVideo} style={styles.previewThumb} badge="DRAFT" />
 
-            <TextInput
-              accessibilityLabel="Video title"
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Video title…"
-              placeholderTextColor={theme.textMuted}
-              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
-            />
+            {/* Title + a shuffle that fills it, so a player does not have to
+                type one for every upload (2026-10-11). Typing still works. */}
+            <View style={styles.titleRow}>
+              <TextInput
+                accessibilityLabel="Video title"
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Video title…"
+                placeholderTextColor={theme.textMuted}
+                style={[styles.input, styles.titleInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  titleShuffles.current += 1;
+                  setTitle(suggestVideoTitle(selectedGame, titleShuffles.current, title));
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Suggest a title"
+                style={[styles.shuffleBtn, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+              >
+                <Shuffle size={scale(18)} color={creatorBrand.video.accent} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.topicHeadRow}>
               <Text style={[styles.label, { color: theme.textMuted, marginTop: 0 }]}>Topic</Text>
               {trendingTopic ? (
@@ -666,9 +704,9 @@ export default function GamingApp({ onBack }: Props) {
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Performance</Text>
           <View style={styles.aGrid}>
-            <AnalyticStat Icon={Eye} label="Views" value={v.views.toLocaleString()} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={Eye} label="Views" value={v.views.toLocaleString('en-US')} theme={theme} darkMode={darkMode} />
             <AnalyticStat Icon={TrendingUp} label="Earned" value={formatMoney(v.earnings)} valueColor={accent.success} theme={theme} darkMode={darkMode} />
-            <AnalyticStat Icon={Users} label="Subs" value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} theme={theme} darkMode={darkMode} />
+            <AnalyticStat Icon={Users} label="Subs" value={`+${(v.subscribersGained ?? 0).toLocaleString('en-US')}`} theme={theme} darkMode={darkMode} />
             {v.rpm != null ? <AnalyticStat Icon={Coins} label="RPM ×" value={`${v.rpm}`} theme={theme} darkMode={darkMode} /> : null}
             {v.likes != null ? <AnalyticStat Icon={Heart} label="Likes" value={compact(v.likes)} theme={theme} darkMode={darkMode} /> : null}
             {v.comments != null ? <AnalyticStat Icon={MessageCircle} label="Comments" value={compact(v.comments)} theme={theme} darkMode={darkMode} /> : null}
@@ -804,6 +842,23 @@ export default function GamingApp({ onBack }: Props) {
         : activeTab === 'videos'
         ? renderVideos()
         : renderStudio()}
+
+      <VideoSummaryModal
+        summary={videoSummary}
+        onClose={() => setVideoSummary(null)}
+        // Only when another upload is possible - the cap or energy would
+        // refuse it otherwise. Pre-fills a fresh title so it is one tap away.
+        onRecordAgain={
+          videoSummary && energy >= 15 && uploadsThisWeek < WEEKLY_VIDEO_CAP
+            ? () => {
+                setVideoSummary(null);
+                goTab('record');
+                titleShuffles.current += 1;
+                setTitle(suggestVideoTitle(selectedGame, titleShuffles.current, videoSummary.title));
+              }
+            : undefined
+        }
+      />
     </View>
   );
 }
@@ -892,7 +947,7 @@ function VideoRow({
       <View style={{ flex: 1 }}>
         <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={2}>{v.title}</Text>
         <Text style={[styles.videoMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-          {v.views.toLocaleString()} views · {formatMoney(v.earnings)}
+          {v.views.toLocaleString('en-US')} views · {formatMoney(v.earnings)}
           {age != null ? ` · ${age === 0 ? 'new' : `${age}w`}` : ''}
         </Text>
       </View>
@@ -930,8 +985,8 @@ function VideoCard({
           {v.game ?? 'General'} · quality {v.quality ?? '?'}/100{age != null ? ` · ${age === 0 ? 'this week' : `${age}w ago`}` : ''}
         </Text>
         <View style={styles.videoStatRow}>
-          <VideoStat Icon={Eye} value={v.views.toLocaleString()} color={accent.info} theme={theme} />
-          <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString()}`} color={creatorBrand.video.accent} theme={theme} />
+          <VideoStat Icon={Eye} value={v.views.toLocaleString('en-US')} color={accent.info} theme={theme} />
+          <VideoStat Icon={Users} value={`+${(v.subscribersGained ?? 0).toLocaleString('en-US')}`} color={creatorBrand.video.accent} theme={theme} />
           <VideoStat Icon={TrendingUp} value={formatMoney(v.earnings)} color={accent.success} theme={theme} />
         </View>
       </View>
@@ -1141,6 +1196,9 @@ const styles = StyleSheet.create({
   topicRail: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   topicOption: { minHeight: 44, borderRadius: br.md, flexBasis: '47%', flexGrow: 1, justifyContent: 'center' },
   previewThumb: { width: '100%', height: scale(112), borderRadius: br.lg, overflow: 'hidden', marginTop: sp.xs },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
+  titleInput: { flex: 1 },
+  shuffleBtn: { width: 44, height: 44, borderWidth: 1, borderRadius: br.lg, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 44, borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '600', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },

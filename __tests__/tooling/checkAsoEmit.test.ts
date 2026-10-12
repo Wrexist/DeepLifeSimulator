@@ -28,8 +28,11 @@ describe('check-aso --emit', () => {
     referenceOnly = locales.filter(([, l]) => l.shipped === false).map(([k]) => k);
   });
 
-  it('has pending and reference-only locales to check', () => {
-    expect(pending.length).toBeGreaterThan(0);
+  // `pending` is a transient state: pt-BR, fr-FR and de-DE were pending until
+  // the 1.6.0 release run created them (2026-10-11), and none are now. The
+  // paste-ready check below applies to whichever locales are pending at the
+  // time; requiring at least one would fail the suite for having shipped them.
+  it('has reference-only locales to check', () => {
     expect(referenceOnly).toContain('en-GB');
   });
 

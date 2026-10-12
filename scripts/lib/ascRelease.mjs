@@ -293,3 +293,157 @@ export function reviewSubmissionSubmitPayload({ submissionId }) {
     data: { type: 'reviewSubmissions', id: String(submissionId), attributes: { submitted: true } },
   };
 }
+
+// ---------------------------------------------------------------------------
+// The full listing. What's New alone was the first version of this tool; the
+// rest of the copy (description, keywords, promotional text, and the name and
+// subtitle on App Information) lived in metadata.mjs but had to be retyped
+// into the App Store Connect UI, so the repo and the store drifted apart.
+// ---------------------------------------------------------------------------
+
+/** Version-level copy, on appStoreVersionLocalizations. */
+export const VERSION_FIELDS = ['description', 'keywords', 'promotionalText', 'whatsNew'];
+/** App-level copy, on appInfoLocalizations (only editable while a version is). */
+export const INFO_FIELDS = ['name', 'subtitle'];
+
+/** Apple stores keywords as one comma-separated string; the repo keeps an array. */
+export const keywordString = (k) => (Array.isArray(k) ? k.join(',') : k);
+
+/**
+ * @param {any} src
+ * @param {string[]} fields
+ * @returns {Record<string, string>}
+ */
+function pickFields(src, fields) {
+  /** @type {Record<string, string>} */
+  const out = {};
+  for (const f of fields) {
+    const v = f === 'keywords' ? keywordString(src?.[f]) : src?.[f];
+    if (typeof v === 'string' && v.length > 0) out[f] = v;
+  }
+  return out;
+}
+
+/**
+ * Every locale this repo manages, with the copy for each object. Unlike
+ * `whatsNewByLocale`, `pending` locales ARE included: this tool creates the
+ * language (both the version localization and the App Information one), so
+ * "create it by hand" no longer applies. `shipped: false` stays excluded.
+ * A field the repo does not declare for a locale is left out, and therefore
+ * left alone on Apple's side (es-MX has no localized name, for instance).
+ */
+/**
+ * @param {any} APPLE
+ * @returns {Record<string, { version: Record<string, string>, info: Record<string, string> }>}
+ */
+export function listingByLocale(APPLE) {
+  /** @type {Record<string, { version: Record<string, string>, info: Record<string, string> }>} */
+  const out = {};
+  if (APPLE) {
+    out['en-US'] = { version: pickFields(APPLE, VERSION_FIELDS), info: pickFields(APPLE, INFO_FIELDS) };
+  }
+  for (const [locale, loc] of Object.entries(APPLE?.localized ?? {})) {
+    if (loc?.shipped === false) continue;
+    out[locale] = { version: pickFields(loc, VERSION_FIELDS), info: pickFields(loc, INFO_FIELDS) };
+  }
+  return out;
+}
+
+/**
+ * Generic per-locale plan for one localization type. Only fields whose stored
+ * value differs are sent, so a second run is a no-op and an update never
+ * rewrites a field the repo did not change.
+ *
+ * @param {{ existing: any[], desired: Record<string, Record<string,string>> }} input
+ */
+export function planFieldLocalizations({ existing, desired }) {
+  const ops = [];
+  const byLocale = new Map((existing ?? []).map((l) => [l?.attributes?.locale, l]));
+  for (const [locale, attrs] of Object.entries(desired ?? {})) {
+    if (!attrs || Object.keys(attrs).length === 0) continue;
+    const found = byLocale.get(locale);
+    if (!found) {
+      ops.push({ op: 'create', locale, attributes: { ...attrs } });
+      continue;
+    }
+    const changes = {};
+    for (const [k, v] of Object.entries(attrs)) {
+      if ((found.attributes?.[k] ?? '') !== v) changes[k] = v;
+    }
+    if (Object.keys(changes).length === 0) ops.push({ op: 'unchanged', locale, id: found.id });
+    else ops.push({ op: 'update', locale, id: found.id, attributes: changes });
+  }
+  for (const [locale] of byLocale) {
+    if (!(locale in (desired ?? {}))) ops.push({ op: 'skip-unmanaged', locale });
+  }
+  return ops;
+}
+
+/** appInfos states in which name and subtitle can still be edited. */
+export const EDITABLE_INFO_STATES = new Set([
+  'PREPARE_FOR_SUBMISSION',
+  'DEVELOPER_REJECTED',
+  'REJECTED',
+  'METADATA_REJECTED',
+  'INVALID_BINARY',
+]);
+
+/** The App Information record that belongs to the version being prepared, or null. */
+export function pickEditableAppInfo(appInfos) {
+  return (appInfos ?? []).find((i) => {
+    const s = i?.attributes?.state ?? i?.attributes?.appStoreState;
+    return s && EDITABLE_INFO_STATES.has(s);
+  }) ?? null;
+}
+
+export function versionLocalizationCreatePayload({ versionId, locale, attributes }) {
+  return {
+    data: {
+      type: 'appStoreVersionLocalizations',
+      attributes: { locale, ...attributes },
+      relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: String(versionId) } } },
+    },
+  };
+}
+
+export function versionLocalizationUpdatePayload({ id, attributes }) {
+  return { data: { type: 'appStoreVersionLocalizations', id: String(id), attributes: { ...attributes } } };
+}
+
+export function infoLocalizationCreatePayload({ appInfoId, locale, attributes }) {
+  return {
+    data: {
+      type: 'appInfoLocalizations',
+      attributes: { locale, ...attributes },
+      relationships: { appInfo: { data: { type: 'appInfos', id: String(appInfoId) } } },
+    },
+  };
+}
+
+export function infoLocalizationUpdatePayload({ id, attributes }) {
+  return { data: { type: 'appInfoLocalizations', id: String(id), attributes: { ...attributes } } };
+}
+
+/**
+ * URLs a language needs before Apple will review it (a new locale without a
+ * support URL fails submission with a 409). The repo does not own these - the
+ * live en-US listing does - so a locale missing one inherits en-US's value
+ * from Apple's own record. A value already set on a locale is never touched.
+ *
+ * @param {Record<string, Record<string, string>>} desired  per-locale copy, mutated
+ * @param {any[]} existing  localizations read from Apple
+ * @param {string[]} fields
+ * @returns {Record<string, Record<string, string>>}
+ */
+export function inheritUrlsFromPrimary(desired, existing, fields, primary = 'en-US') {
+  const byLocale = new Map((existing ?? []).map((l) => [l?.attributes?.locale, l?.attributes ?? {}]));
+  const source = byLocale.get(primary) ?? {};
+  for (const [locale, attrs] of Object.entries(desired)) {
+    if (locale === primary) continue;
+    const current = byLocale.get(locale) ?? {};
+    for (const f of fields) {
+      if (!attrs[f] && !current[f] && source[f]) attrs[f] = source[f];
+    }
+  }
+  return desired;
+}

@@ -162,3 +162,10 @@ __tests__/scratch_probe/
 # Python bytecode (marketing/play-store/promo-events build scripts)
 __pycache__/
 *.pyc
+!screenshots/appstore-2026-10/
+screenshots/appstore-2026-10/*
+!screenshots/appstore-2026-10/README.md
+!screenshots/appstore-2026-10/final/
+!screenshots/appstore-2026-10/source/
+screenshots/appstore-2026-10/source/fonts.conf
+screenshots/appstore-2026-10/source/.font-cache/

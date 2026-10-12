@@ -1,3 +1,4 @@
+import { resolveCalendar } from '@/utils/weekCounters';
 /**
  * Formatting for mail documents.
  *
@@ -48,8 +49,13 @@ const MONTHS = [
  * comes from the week-of-year; the game's own `date.month` is the CURRENT
  * month and would stamp every archived message with today's.
  */
-export function docDate(atWeek: number, startYear = 2025): string {
+export function docDate(atWeek: number, anchor?: MailCalendarAnchor | number): string {
   const w = Math.max(0, Math.floor(typeof atWeek === 'number' && Number.isFinite(atWeek) ? atWeek : 0));
+  if (anchor && typeof anchor === 'object') {
+    const { monthIndex, year, day } = calendarAt(w, anchor);
+    return `${MONTHS[monthIndex]} ${day}, ${year}`;
+  }
+  const startYear = typeof anchor === 'number' ? anchor : 2025;
   const year = startYear + Math.floor(w / 52);
   const weekInYear = w % 52;
   const month = MONTHS[Math.min(11, Math.floor(weekInYear / 4.35))];
@@ -58,8 +64,65 @@ export function docDate(atWeek: number, startYear = 2025): string {
 }
 
 /** The compact form Gmail uses in a list row: `Aug 6`. */
-export function docDateShort(atWeek: number, startYear = 2025): string {
-  return docDate(atWeek, startYear).replace(/,.*$/, '');
+export function docDateShort(atWeek: number, anchor?: MailCalendarAnchor | number): string {
+  return docDate(atWeek, anchor).replace(/,.*$/, '');
+}
+
+/** Calendar year a given absolute week fell in, on the game's own calendar. */
+export function docYear(atWeek: number, anchor: MailCalendarAnchor): number {
+  return calendarAt(Math.max(0, Math.floor(atWeek || 0)), anchor).year;
+}
+
+/**
+ * Where the game's calendar stands NOW, so a message's absolute week can be
+ * placed on the same calendar the HUD shows.
+ *
+ * Without it every date was `2025 + weeksLived / 52`. `weeksLived` is seeded
+ * from the starting age (an age-20 life starts at week 104), so mail ran two
+ * years ahead of the HUD: statements "Nov 22, 2028" in a game reading January
+ * 2027, and "Tax year 4" after two years of play (tester pass, 2026-10-10).
+ * CLAUDE.md §4.2 - this is that trap.
+ */
+export interface MailCalendarAnchor {
+  /** `weeksLived` now. */
+  nowWeek: number;
+  /** `weeksLived` when this life began (`lifeStartWeek`, 0 on old saves). */
+  lifeStartWeek: number;
+  /** The HUD's year and month (0-11) now. */
+  year: number;
+  monthIndex: number;
+}
+
+const FULL_MONTHS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+];
+
+export function mailCalendarAnchor(state: {
+  weeksLived?: number;
+  lifeStartWeek?: number;
+  date?: { year?: number; month?: string };
+} | null | undefined): MailCalendarAnchor {
+  const monthIndex = Math.max(0, FULL_MONTHS.indexOf(String(state?.date?.month ?? '').toLowerCase()));
+  const year = typeof state?.date?.year === 'number' && Number.isFinite(state.date.year) ? state.date.year : 2025;
+  return {
+    nowWeek: Math.max(0, Math.floor(state?.weeksLived ?? 0)),
+    lifeStartWeek: Math.max(0, Math.floor(state?.lifeStartWeek ?? 0)),
+    year,
+    monthIndex,
+  };
+}
+
+function calendarAt(atWeek: number, anchor: MailCalendarAnchor): { monthIndex: number; year: number; day: number } {
+  const start = anchor.lifeStartWeek;
+  const msg = resolveCalendar(Math.max(0, atWeek - start));
+  const now = resolveCalendar(Math.max(0, anchor.nowWeek - start));
+  const absMonth = anchor.year * 12 + anchor.monthIndex - (now.monthsElapsed - msg.monthsElapsed);
+  return {
+    year: Math.floor(absMonth / 12),
+    monthIndex: ((absMonth % 12) + 12) % 12,
+    day: Math.min(28, 1 + (msg.weekOfMonth - 1) * 7),
+  };
 }
 
 /** A stable, real-looking reference like `INV-4417-22`. */

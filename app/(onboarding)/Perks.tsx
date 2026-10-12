@@ -564,6 +564,20 @@ export default function Perks() {
                     locked tiles, fixed the same way (2026-09-01 UI audit).
                     Nothing is hidden: the shelf opens to the full list with
                     each perk's unlock requirement. */}
+                {/* A first life has no perks yet, and the screen used to be one
+                    "Locked (20)" row on an empty page - it read as broken
+                    (tester pass, 2026-10-10). Say what this step is for and
+                    that skipping it is the normal path. */}
+                {unlockedPerks.length === 0 ? (
+                  <View style={styles.noPerksCard}>
+                    <Gift size={28} color={uiPalette.blue} />
+                    <Text style={styles.noPerksTitle}>No perks yet - and that's fine</Text>
+                    <Text style={styles.noPerksBody}>
+                      Perks are starting bonuses you unlock by earning achievements. Play your first life,
+                      and the next one can start stronger. Tap "Start Your Life" to begin.
+                    </Text>
+                  </View>
+                ) : null}
                 {unlockedPerks.map((perk) => (
                   <PerkCard
                     key={perk.id}
@@ -678,6 +692,28 @@ const styles = StyleSheet.create({
   scrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
 
+  noPerksCard: {
+    alignItems: 'center',
+    gap: 8,
+    padding: 20,
+    marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.18)',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+  },
+  noPerksTitle: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: uiPalette.paper,
+    textAlign: 'center',
+  },
+  noPerksBody: {
+    fontSize: fontScale(13),
+    lineHeight: fontScale(19),
+    color: uiPalette.muted,
+    textAlign: 'center',
+  },
   lockedShelf: {
     flexDirection: 'row',
     alignItems: 'center',

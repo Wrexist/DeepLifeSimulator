@@ -373,7 +373,7 @@ const simPrestigeCycle = defineSim(
     const prestigesBefore = s.prestige?.totalPrestiges ?? 0;
     const livesBefore = s.previousLives?.length ?? 0;
     const weeksBefore = s.weeksLived ?? 0;
-    c.note(`threshold $${threshold.toLocaleString()}, seeded net worth $${Math.round(netWorth(s)).toLocaleString()}`);
+    c.note(`threshold $${threshold.toLocaleString('en-US')}, seeded net worth $${Math.round(netWorth(s)).toLocaleString('en-US')}`);
 
     const after = executePrestige(s, 'reset');
 
@@ -409,19 +409,19 @@ const simBuyEveryLuxury = defineSim(
     const spent = moneyBefore - st.stats.money;
 
     c.ok(allBought && owned.length === LUXURY_CATALOG.length, `all ${LUXURY_CATALOG.length} luxuries owned (${owned.length})`);
-    c.ok(approx(spent, totalPrice, Math.max(1, totalPrice * 0.001)), `cash decreased by ~catalog sum ($${Math.round(spent).toLocaleString()} vs $${totalPrice.toLocaleString()})`);
-    c.ok(isFiniteNum(st.stats.money) && st.stats.money >= 0, `money still finite & non-negative ($${Math.round(st.stats.money).toLocaleString()})`);
+    c.ok(approx(spent, totalPrice, Math.max(1, totalPrice * 0.001)), `cash decreased by ~catalog sum ($${Math.round(spent).toLocaleString('en-US')} vs $${totalPrice.toLocaleString('en-US')})`);
+    c.ok(isFiniteNum(st.stats.money) && st.stats.money >= 0, `money still finite & non-negative ($${Math.round(st.stats.money).toLocaleString('en-US')})`);
 
     // Net worth reflects the owned trophies' resale value (on TOP of remaining cash).
     const nw = netWorth(st);
     const resale = getTotalLuxuryResaleValue(owned);
     const luxuryContribution = nw - st.stats.money;
-    c.ok(luxuryContribution > 0, `net worth counts luxury beyond cash (+$${Math.round(luxuryContribution).toLocaleString()})`);
-    c.ok(approx(luxuryContribution, resale, Math.max(1, resale * 0.02)), `luxury net-worth contribution ≈ resale value ($${Math.round(resale).toLocaleString()})`);
+    c.ok(luxuryContribution > 0, `net worth counts luxury beyond cash (+$${Math.round(luxuryContribution).toLocaleString('en-US')})`);
+    c.ok(approx(luxuryContribution, resale, Math.max(1, resale * 0.02)), `luxury net-worth contribution ≈ resale value ($${Math.round(resale).toLocaleString('en-US')})`);
 
     // luxury_life predicate (real constants): ≥3 trophies AND value ≥ threshold.
     const luxuryLife = getOwnedLuxuryCount(owned) >= LUXURY_LIFE_MIN_ITEMS && getTotalLuxuryValue(owned) >= LUXURY_LIFE_VALUE_THRESHOLD;
-    c.ok(luxuryLife, `luxury_life predicate true (count ${getOwnedLuxuryCount(owned)}≥${LUXURY_LIFE_MIN_ITEMS}, value $${getTotalLuxuryValue(owned).toLocaleString()}≥$${LUXURY_LIFE_VALUE_THRESHOLD.toLocaleString()})`);
+    c.ok(luxuryLife, `luxury_life predicate true (count ${getOwnedLuxuryCount(owned)}≥${LUXURY_LIFE_MIN_ITEMS}, value $${getTotalLuxuryValue(owned).toLocaleString('en-US')}≥$${LUXURY_LIFE_VALUE_THRESHOLD.toLocaleString('en-US')})`);
     return 'Bought the entire trophy catalog - ownership, spend, net worth and luxury_life all check out.';
   },
 );
@@ -657,7 +657,7 @@ const simFulfillAmbition = defineSim(
 
     const granted = grantAmbitionPayout(s);
     c.ok(granted.ambitionRewardClaimed === true, 'reward marked claimed');
-    c.ok(granted.stats.money === moneyBefore + (payoff.money ?? 0), `money payoff granted (+$${(payoff.money ?? 0).toLocaleString()})`);
+    c.ok(granted.stats.money === moneyBefore + (payoff.money ?? 0), `money payoff granted (+$${(payoff.money ?? 0).toLocaleString('en-US')})`);
     c.ok((granted.stats.gems ?? 0) === gemsBefore + (payoff.gems ?? 0), `gem payoff granted (+${payoff.gems ?? 0})`);
 
     // Idempotent: a 2nd claim grants nothing.
@@ -745,7 +745,7 @@ const simMoneyIntegrity = defineSim(
     const h = makeHarness(s);
     const check = (label: string) => {
       const m = h.getState().stats.money;
-      c.ok(isFiniteNum(m) && m >= 0, `money valid after ${label} ($${Math.round(m).toLocaleString()})`);
+      c.ok(isFiniteNum(m) && m >= 0, `money valid after ${label} ($${Math.round(m).toLocaleString('en-US')})`);
     };
 
     // Earn (canonical path).
@@ -796,7 +796,7 @@ const simMoneyIntegrity = defineSim(
       });
       const checking = findAccount(tick.banking, 'checking-default');
       c.ok(!!checking, 'checking-default account exists');
-      c.ok(!!checking && approx(checking.balance, st.stats.money, 0.001), `checking mirror equals stats.money ($${Math.round(checking?.balance ?? -1).toLocaleString()})`);
+      c.ok(!!checking && approx(checking.balance, st.stats.money, 0.001), `checking mirror equals stats.money ($${Math.round(checking?.balance ?? -1).toLocaleString('en-US')})`);
     } else {
       c.note('no banking slice present - mirror-sync leg skipped');
     }
@@ -814,7 +814,7 @@ const simMoneyIntegrity = defineSim(
     noop.relationships = [];
     const moneyPreNoop = noop.stats.money;
     const afterNoop = advanceOneWeekHeadless(noop);
-    c.ok(afterNoop.stats.money === moneyPreNoop, `no money minted on a no-op tick ($${Math.round(afterNoop.stats.money).toLocaleString()})`);
+    c.ok(afterNoop.stats.money === moneyPreNoop, `no money minted on a no-op tick ($${Math.round(afterNoop.stats.money).toLocaleString('en-US')})`);
     c.ok(isFiniteNum(afterNoop.stats.money) && afterNoop.stats.money >= 0, 'money finite & non-negative after tick');
     return 'Money survived earn/buy/sell/overdraft/transfer/bill-pay/tick - no desync, no negative, no minting.';
   },
@@ -836,7 +836,7 @@ const simSkillEffects = defineSim(
     // Salary skill (negotiation → +15% salaryMult) via the real reducer.
     const buyNeg = purchaseLifeSkill(s, { id: 'negotiation', cost: 5000, levelRequired: 0 });
     c.ok(buyNeg.purchased, `negotiation purchased (${buyNeg.reason ?? 'ok'})`);
-    c.ok(buyNeg.state.stats.money === s.stats.money - 5000, `purchase charged real cash ($${(s.stats.money - 5000).toLocaleString()})`);
+    c.ok(buyNeg.state.stats.money === s.stats.money - 5000, `purchase charged real cash ($${(s.stats.money - 5000).toLocaleString('en-US')})`);
     const afterNeg = getLifeSkillModifiers(buyNeg.state);
     c.ok(afterNeg.salaryMult > baseline.salaryMult, `salaryMult increased (${baseline.salaryMult} → ${afterNeg.salaryMult})`);
 

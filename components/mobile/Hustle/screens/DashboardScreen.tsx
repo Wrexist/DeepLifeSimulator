@@ -197,10 +197,10 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
               hero
               align="left"
               label="Take-home per week"
-              value={`$${empire.paid.toLocaleString()}`}
+              value={`$${empire.paid.toLocaleString('en-US')}`}
               sub={
                 empire.lost > 0
-                  ? `$${empire.gross.toLocaleString()} earned · $${empire.lost.toLocaleString()} to ${[
+                  ? `$${empire.gross.toLocaleString('en-US')} earned · $${empire.lost.toLocaleString('en-US')} to ${[
                       empire.managementDrag ? 'management overhead' : null,
                       empire.overCap ? `the $${(empire.cap / 1000).toFixed(0)}K/wk ceiling` : null,
                       empire.softCap < 1 ? `net-worth overhead (${Math.round(empire.softCap * 100)}%)` : null,
@@ -302,7 +302,7 @@ function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boole
                 </View>
                 <Text style={[styles.milestoneLabel, { color: theme.textSecondary }]} numberOfLines={2}>{s.label}</Text>
               </View>
-              <Text style={[styles.milestoneValue, { color: theme.text }]}>{s.value.toLocaleString()}</Text>
+              <Text style={[styles.milestoneValue, { color: theme.text }]}>{s.value.toLocaleString('en-US')}</Text>
             </View>
           );
         })}

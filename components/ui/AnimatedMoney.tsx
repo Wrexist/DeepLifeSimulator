@@ -33,7 +33,7 @@ function formatNumber(num: number): string {
   } else if (a > 10_000) {
     formatted = `${Math.floor(a / 1_000)}K`;
   } else {
-    formatted = a.toLocaleString();
+    formatted = a.toLocaleString('en-US');
   }
 
   return `${sign}${formatted}`;

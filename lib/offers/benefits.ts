@@ -61,13 +61,13 @@ function derivedBullets(productId: string): string[] {
   }
   const out: string[] = [];
   if (typeof config.gems === 'number' && config.gems > 0) {
-    out.push(`${config.gems.toLocaleString()} Gems`);
+    out.push(`${config.gems.toLocaleString('en-US')} Gems`);
   }
   if (typeof config.youthPills === 'number' && config.youthPills > 0) {
     out.push(`${config.youthPills} Youth Pill${config.youthPills === 1 ? '' : 's'}`);
   }
   if (typeof config.money === 'number' && config.money > 0) {
-    out.push(`$${config.money.toLocaleString()} in cash`);
+    out.push(`$${config.money.toLocaleString('en-US')} in cash`);
   }
   if (out.length === 0 && config.description) out.push(config.description);
   return out;
@@ -102,7 +102,7 @@ export function offerBenefits(productId: string, liveUSD: number | null = null):
     const baseGems = baseline?.gems ?? 0;
     const perDollar = gems / price;
     if (Number.isFinite(perDollar) && perDollar > 0) {
-      const rounded = Math.round(perDollar).toLocaleString();
+      const rounded = Math.round(perDollar).toLocaleString('en-US');
       if (baseGems > 0 && Number.isFinite(basePrice) && basePrice > 0) {
         const multiple = perDollar / (baseGems / basePrice);
         // Only claim "more" when it IS more. A pack at or below the baseline

@@ -136,7 +136,7 @@ function storePriceInfo(product: any): { amount: number; currency: string } | nu
 
 // "≈ 300 gems per €1" (known symbol) or "≈ 300 gems per 1 SEK" (ISO fallback).
 function storeRatioLine(gems: number, amount: number, currency: string): string {
-  const perUnit = Math.round(gems / amount).toLocaleString();
+  const perUnit = Math.round(gems / amount).toLocaleString('en-US');
   const symbol = CURRENCY_SYMBOLS[currency];
   return symbol ? `≈ ${perUnit} gems per ${symbol}1` : `≈ ${perUnit} gems per 1 ${currency}`;
 }
@@ -275,7 +275,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
     const info = storePriceInfo(product);
     if (info) return storeRatioLine(gems, info.amount, info.currency);
     if (!product) {
-      return perDollarConfig > 0 ? `≈ ${Math.round(perDollarConfig).toLocaleString()} gems / $1` : undefined;
+      return perDollarConfig > 0 ? `≈ ${Math.round(perDollarConfig).toLocaleString('en-US')} gems / $1` : undefined;
     }
     return undefined;
   };
@@ -495,7 +495,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
     const config = getProductConfig(p.id);
     const displayPrice = resolveDisplayPrice(p.id);
     const available = isProductAvailable(p.id);
-    const name = config?.name ?? `${p.gems.toLocaleString()} Gems`;
+    const name = config?.name ?? `${p.gems.toLocaleString('en-US')} Gems`;
     const badges: ShopBadge[] = [];
     if (p.id === bestGemId) badges.push({ label: 'Best Value', color: BADGE_BEST });
     if (config?.popular === true) badges.push({ label: 'Most Popular', color: BADGE_POPULAR });
@@ -515,7 +515,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
         accent="gems"
         image={p.image}
         title={name}
-        description={wallet ? 'One-time top-up' : `${p.gems.toLocaleString()} gems`}
+        description={wallet ? 'One-time top-up' : `${p.gems.toLocaleString('en-US')} gems`}
         priceLabel={wallet && !available ? 'Price unavailable' : displayPrice}
         priceKind="money"
         valueLine={wallet ? (available ? baseValueLine : undefined) : valueLine}
@@ -621,7 +621,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
     ];
     // Show the member saving honestly: discounted price + "was X · DeepLife+ 20% off".
     const valueLine = discounted
-      ? `DeepLife+ · ${Math.round(DEEP_LIFE_PLUS_UPGRADE_DISCOUNT * 100)}% off (was ${item.price.toLocaleString()})`
+      ? `DeepLife+ · ${Math.round(DEEP_LIFE_PLUS_UPGRADE_DISCOUNT * 100)}% off (was ${item.price.toLocaleString('en-US')})`
       : undefined;
     const buttonText = item.owned ? 'Owned' : afford ? 'Redeem' : 'Not enough gems';
     return (
@@ -631,7 +631,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
         image={item.image}
         title={item.name}
         description={item.description}
-        priceLabel={cost.toLocaleString()}
+        priceLabel={cost.toLocaleString('en-US')}
         priceKind="gems"
         valueLine={valueLine}
         badges={badges}
@@ -639,7 +639,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
         accessibilityLabel={
           item.owned
             ? `${item.name}, already owned`
-            : `${item.name}, costs ${cost.toLocaleString()} gems`
+            : `${item.name}, costs ${cost.toLocaleString('en-US')} gems`
         }
         onPress={() => handleBuyUpgrade(item.id, cost)}
         owned={item.owned}
@@ -662,8 +662,8 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
       id: bestGem.id,
       accent: 'gems' as ShopAccent,
       image: bestGem.image,
-      title: getProductConfig(bestGem.id)?.name ?? `${bestGem.gems.toLocaleString()} Gems`,
-      description: `${bestGem.gems.toLocaleString()} gems - the best gem value in the store.`,
+      title: getProductConfig(bestGem.id)?.name ?? `${bestGem.gems.toLocaleString('en-US')} Gems`,
+      description: `${bestGem.gems.toLocaleString('en-US')} gems - the best gem value in the store.`,
       valueLine: bestGemValueLine ? `Best value · ${bestGemValueLine}` : undefined,
       badges: [{ label: 'Best Value', color: BADGE_BEST }] as ShopBadge[],
       owned: false,
@@ -993,7 +993,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
               style={styles.balancePill}
             >
               <Gem size={scale(14)} color={uiPalette.paper} />
-              <Text style={styles.balanceValue}>{gems.toLocaleString()}</Text>
+              <Text style={styles.balanceValue}>{gems.toLocaleString('en-US')}</Text>
               <Text style={styles.balanceLabel}>Gems</Text>
             </LinearGradient>}
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close store">
@@ -1005,7 +1005,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
             <View style={styles.walletGem}><Gem size={32} color="#A5B4FC" /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.balanceLabel}>AVAILABLE GEMS</Text>
-              <Text style={styles.walletValue}>{gems.toLocaleString()}</Text>
+              <Text style={styles.walletValue}>{gems.toLocaleString('en-US')}</Text>
               <Text style={styles.subtitle}>This save's balance. Kept through prestige.</Text>
             </View>
           </View>}
@@ -1027,7 +1027,14 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
                 >
                   <View style={styles.tabContent}>
                     <Icon size={scale(13)} color={isSelected ? uiPalette.paper : 'rgba(226, 232, 240, 0.55)'} />
-                    <Text style={[styles.tabLabel, isSelected && styles.tabLabelActive]}>{tabItem.label}</Text>
+                    <Text
+                      style={[styles.tabLabel, isSelected && styles.tabLabelActive]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {tabItem.label}
+                    </Text>
                   </View>
                   {isSelected ? <View style={[styles.tabUnderline, { backgroundColor: tabItem.color }]} /> : null}
                 </TouchableOpacity>
@@ -1282,12 +1289,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(6),
+    // Four tabs share the row; let the label give rather than overflow.
+    maxWidth: '100%',
   },
   tabLabel: {
     fontSize: fontScale(13),
     fontWeight: '600',
     color: 'rgba(226, 232, 240, 0.55)',
     letterSpacing: -0.1,
+    flexShrink: 1,
   },
   tabLabelActive: {
     color: uiPalette.paper,

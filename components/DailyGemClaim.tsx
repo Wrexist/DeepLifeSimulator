@@ -323,7 +323,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
               </Text>
               <Text style={[styles.teaserSub, light && styles.teaserSubLight]}>
                 {dailyGemMemberMultiple()}× your {DAILY_GEMS_BASE}/day ·{' '}
-                {dailyGemExtraPerYear().toLocaleString()} more a year
+                {dailyGemExtraPerYear().toLocaleString('en-US')} more a year
               </Text>
             </View>
             <ChevronRight size={fontScale(16)} color={light ? AMBER_BRAND : GOLD_SOFT} />

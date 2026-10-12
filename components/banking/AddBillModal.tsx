@@ -135,7 +135,7 @@ export default function AddBillModal({ visible, accounts, cashAvailable, current
                 {checkingAccounts.map((a) => (
                   <Chip
                     key={a.id}
-                    label={`${a.name} ($${Math.round(a.id === 'checking-default' && cashAvailable !== undefined ? cashAvailable : a.balance).toLocaleString()})`}
+                    label={`${a.name} ($${Math.round(a.id === 'checking-default' && cashAvailable !== undefined ? cashAvailable : a.balance).toLocaleString('en-US')})`}
                     active={selectedAccountId === a.id}
                     theme={theme}
                     onPress={() => setAccountId(a.id)}

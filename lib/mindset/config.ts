@@ -136,7 +136,7 @@ export function applyMindsetEffects(
         const bonus = Math.round(moneyDelta - original);
         if (bonus > 0) {
             feedbacks.push({
-              message: `Frugal: You saved a bit extra (+${bonus.toLocaleString()})`,
+              message: `Frugal: You saved a bit extra (+${bonus.toLocaleString('en-US')})`,
             type: 'bonus',
             });
         }
@@ -156,7 +156,7 @@ export function applyMindsetEffects(
         const diff = Math.round(moneyDelta - original);
         if (Math.abs(diff) > 0) {
           feedbacks.push({
-            message: `Gambler: ${diff > 0 ? 'Lucky!' : 'Unlucky!'} (${diff > 0 ? '+' : ''}${diff.toLocaleString()})`,
+            message: `Gambler: ${diff > 0 ? 'Lucky!' : 'Unlucky!'} (${diff > 0 ? '+' : ''}${diff.toLocaleString('en-US')})`,
             type: diff > 0 ? 'bonus' : 'penalty',
           });
       }
@@ -171,7 +171,7 @@ export function applyMindsetEffects(
           happinessDelta -= 1;
         if (bonus > 0) {
             feedbacks.push({
-              message: `Workaholic: +${bonus.toLocaleString()} income, -1 health, -1 happiness`,
+              message: `Workaholic: +${bonus.toLocaleString('en-US')} income, -1 health, -1 happiness`,
             type: 'bonus',
             });
         }
@@ -185,7 +185,7 @@ export function applyMindsetEffects(
         const extra = Math.round(Math.abs(moneyDelta - original));
         if (extra > 0) {
             feedbacks.push({
-              message: `Socialite: Spent more on social activities (+${extra.toLocaleString()} extra)`,
+              message: `Socialite: Spent more on social activities (+${extra.toLocaleString('en-US')} extra)`,
             type: 'info',
             });
           }
@@ -199,7 +199,7 @@ export function applyMindsetEffects(
         const saved = Math.round(Math.abs(moneyDelta - original));
         if (saved > 0) {
             feedbacks.push({
-              message: `Risk Averse: Avoided bigger loss (saved ${saved.toLocaleString()})`,
+              message: `Risk Averse: Avoided bigger loss (saved ${saved.toLocaleString('en-US')})`,
             type: 'bonus',
             });
         }
@@ -209,7 +209,7 @@ export function applyMindsetEffects(
         const reduced = Math.round(original - moneyDelta);
         if (reduced > 0) {
             feedbacks.push({
-            message: `Risk Averse: Capped upside (${reduced.toLocaleString()} less)`,
+            message: `Risk Averse: Capped upside (${reduced.toLocaleString('en-US')} less)`,
             type: 'info',
             });
         }
@@ -233,7 +233,7 @@ export function applyMindsetEffects(
           healthDelta -= 1; // Stress
           if (bonus > 0) {
             feedbacks.push({
-              message: `Perfectionist: Quality work (+${bonus.toLocaleString()}, -1 health from stress)`,
+              message: `Perfectionist: Quality work (+${bonus.toLocaleString('en-US')}, -1 health from stress)`,
               type: 'bonus',
             });
           }
@@ -263,7 +263,7 @@ export function applyMindsetEffects(
           const bonus = Math.round(moneyDelta * 0.15);
           moneyDelta += bonus;
           feedbacks.push({
-            message: `Hustler: Side income boost (+${bonus.toLocaleString()})`,
+            message: `Hustler: Side income boost (+${bonus.toLocaleString('en-US')})`,
             type: 'bonus',
           });
       }

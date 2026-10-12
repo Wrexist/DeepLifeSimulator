@@ -67,8 +67,8 @@ export default function InfluenceMeter({ followers, tier, compact = false }: Inf
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityLabel={`Influence: ${TIER_LABELS[tier]}, ${followers.toLocaleString()} followers${
-        nextTier ? `, ${(nextThreshold - followers).toLocaleString()} to ${TIER_LABELS[nextTier]}` : ''
+      accessibilityLabel={`Influence: ${TIER_LABELS[tier]}, ${followers.toLocaleString('en-US')} followers${
+        nextTier ? `, ${(nextThreshold - followers).toLocaleString('en-US')} to ${TIER_LABELS[nextTier]}` : ''
       }`}
       accessibilityValue={{ min: 0, max: 100, now: Math.floor(progress * 100) }}
     >
@@ -77,7 +77,7 @@ export default function InfluenceMeter({ followers, tier, compact = false }: Inf
           <Text style={[styles.tierName, { color: theme.text }]}>{TIER_LABELS[tier]}</Text>
           {nextTier ? (
             <Text style={[styles.tierHint, { color: theme.textSecondary }]}>
-              {followers.toLocaleString()} / {nextThreshold.toLocaleString()}
+              {followers.toLocaleString('en-US')} / {nextThreshold.toLocaleString('en-US')}
             </Text>
           ) : (
             <Text style={[styles.tierHint, { color: theme.textSecondary }]}>Max tier</Text>

@@ -172,7 +172,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
       <>
         {/* ── Header ──────────────────────────────────────────── */}
         <AppHeader
-          title="pulse"
+          title="Pulse"
           onBack={onBack}
           backLabel="Back to phone home"
           right={

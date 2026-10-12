@@ -508,18 +508,18 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     if (budgetUsd <= 0) {
       return {
         ok: false,
-        message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} need repair (~$${Math.round(bill).toLocaleString()}), but you hold no ${autoRepairCryptoId.toUpperCase()} to pay with.`,
+        message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} need repair (~$${Math.round(bill).toLocaleString('en-US')}), but you hold no ${autoRepairCryptoId.toUpperCase()} to pay with.`,
       };
     }
     if (budgetUsd < bill) {
       return {
         ok: false,
-        message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} need ~$${Math.round(bill).toLocaleString()}; your ${autoRepairCryptoId.toUpperCase()} covers $${Math.round(budgetUsd).toLocaleString()}, so they will be partly repaired.`,
+        message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} need ~$${Math.round(bill).toLocaleString('en-US')}; your ${autoRepairCryptoId.toUpperCase()} covers $${Math.round(budgetUsd).toLocaleString('en-US')}, so they will be partly repaired.`,
       };
     }
     return {
       ok: true,
-      message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} will be fully repaired next week for ~$${Math.round(bill).toLocaleString()} in ${autoRepairCryptoId.toUpperCase()}.`,
+      message: `${eligible.length} rig${eligible.length > 1 ? 's' : ''} will be fully repaired next week for ~$${Math.round(bill).toLocaleString('en-US')} in ${autoRepairCryptoId.toUpperCase()}.`,
     };
   }, [ownedMiners, minerDurability, cryptos, autoRepairCryptoId, fleetHealth]);
   const handleToggleAutoRepair = () => {
@@ -1626,7 +1626,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
               value: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
               tint: change < 0 ? accent.danger : accent.success,
             },
-            { label: 'Holdings', value: `${formatCoin(coin.owned)} ${coin.symbol}` },
+            { label: `Holdings (${coin.symbol})`, value: formatCoin(coin.owned) },
             {
               label: 'Unrealized P/L',
               value: cb ? `${unrealized >= 0 ? '+' : ''}${formatMoneyCompact(unrealized)}` : '-',

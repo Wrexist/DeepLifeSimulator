@@ -753,6 +753,31 @@ export function getActiveChapter(state: GameState): LifeChapter | undefined {
   return undefined;
 }
 
+/**
+ * The next chapter when none is active yet because its week has not come.
+ *
+ * Each chapter opens at a minimum week of the life (`weekRange[0]`): chapter 3
+ * at 15, chapter 4 at 30. A player who finished chapter 2 before week 15 got
+ * `getActiveChapter() === undefined`, and every chapter surface simply
+ * vanished - "once I get to chapter 2 it just disappears" (player report,
+ * 2026-10-11). This names the waiting chapter and how long until it opens, so
+ * the card can say so instead. Undefined when a chapter IS active, or when
+ * every chapter is done.
+ */
+export function getUpcomingChapter(state: GameState): {
+  chapter: LifeChapter;
+  number: number;
+  weeksUntil: number;
+} | undefined {
+  if (getActiveChapter(state)) return undefined;
+  const completed = state.completedChapters || [];
+  const index = LIFE_CHAPTERS.findIndex((c) => !completed.includes(c.id));
+  if (index < 0) return undefined;
+  const chapter = LIFE_CHAPTERS[index];
+  const weeksUntil = Math.max(1, Math.ceil(chapter.weekRange[0] - weeksInThisLife(state)));
+  return { chapter, number: index + 1, weeksUntil };
+}
+
 /** Get progress for a chapter (number of completed goals out of total) */
 export function getChapterProgress(chapter: LifeChapter, state: GameState): {
   completedGoals: number;

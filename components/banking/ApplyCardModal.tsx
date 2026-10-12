@@ -161,7 +161,7 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
                     </View>
                     <Text style={[styles.productDesc, { color: theme.textMuted }]}>{p.description}</Text>
                     <View style={styles.statsRow}>
-                      <Stat label="Limit" value={`$${p.creditLimit.toLocaleString()}`} theme={theme} />
+                      <Stat label="Limit" value={`$${p.creditLimit.toLocaleString('en-US')}`} theme={theme} />
                       <Stat label="APR" value={`${(p.baseAPR * 100).toFixed(0)}%`} theme={theme} />
                       <Stat label="Rewards" value={`${(p.rewardsRate * 100).toFixed(1)}%`} theme={theme} />
                       {/* v22 Wave A honesty fix: the annual fee is never charged in

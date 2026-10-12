@@ -63,7 +63,7 @@ export function recordInteraction(
     return { success: false, message: 'Already used this week.' };
   }
   if (cost > 0 && (gameState.stats?.money ?? 0) < cost) {
-    return { success: false, message: `Need $${cost.toLocaleString()}.` };
+    return { success: false, message: `Need $${cost.toLocaleString('en-US')}.` };
   }
 
   // VARIED OUTCOME: the same action lands differently depending on the NPC's
@@ -165,7 +165,7 @@ export function lendMoney(
     return { success: false, message: `You already lent ${rel.name} money this week.` };
   }
   if ((gameState.stats?.money ?? 0) < amount) {
-    return { success: false, message: `Need $${amount.toLocaleString()} to lend.` };
+    return { success: false, message: `Need $${amount.toLocaleString('en-US')} to lend.` };
   }
 
   // As in recordInteraction: the inner guards mirror the outer ones and exist
@@ -179,7 +179,7 @@ export function lendMoney(
     if (target.actions?.['lendmoney'] === prevWs) return prev; // already lent this week
 
     // Debit the loan atomically; abort if it can no longer be afforded.
-    const debit = applyMoneyDelta(prev, -amount, `Lent $${amount.toLocaleString()} to ${target.name}`);
+    const debit = applyMoneyDelta(prev, -amount, `Lent $${amount.toLocaleString('en-US')} to ${target.name}`);
     if (!debit) return prev;
 
     // Book the owed-to-player money IOU (stable id → same-batch double-tap safe).
@@ -194,7 +194,7 @@ export function lendMoney(
           kind: 'money',
           value: amount,
           createdWeek: prevWs,
-          note: `${target.name} owes you $${amount.toLocaleString()}`,
+          note: `${target.name} owes you $${amount.toLocaleString('en-US')}`,
         });
 
     // Lending builds goodwill - small bond bump + recency stamp (mirrors the
@@ -213,7 +213,7 @@ export function lendMoney(
     return { ...prev, ...debit, relationships: newRels, favorLedger: nextLedger };
   });
 
-  return { success: true, message: `You lent ${rel.name} $${amount.toLocaleString()}. They owe you one.` };
+  return { success: true, message: `You lent ${rel.name} $${amount.toLocaleString('en-US')}. They owe you one.` };
 }
 
 /**
@@ -385,7 +385,7 @@ export function repayFavor(
     return { success: false, message: 'This debt has an invalid amount.' };
   }
   if ((gameState.stats?.money ?? 0) < target.value) {
-    return { success: false, message: `Need $${target.value.toLocaleString()} to repay.` };
+    return { success: false, message: `Need $${target.value.toLocaleString('en-US')} to repay.` };
   }
 
   // Every inner rejection mirrors an outer guard above (not found / closed /
@@ -861,7 +861,7 @@ export function raiseRelationship(
   }
   const previewCost = relationshipBondCost(rel.relationshipScore ?? 0);
   if ((gameState.stats?.money ?? 0) < previewCost) {
-    return { success: false, message: `A meaningful gesture costs $${previewCost.toLocaleString()} - you have $${Math.floor(gameState.stats?.money ?? 0).toLocaleString()}.` };
+    return { success: false, message: `A meaningful gesture costs $${previewCost.toLocaleString('en-US')} - you have $${Math.floor(gameState.stats?.money ?? 0).toLocaleString('en-US')}.` };
   }
 
   setGameState((prev) => {

@@ -1009,7 +1009,7 @@ function resolveBreachBrandDeal(
     return {
       result: {
         success: false,
-        message: `You cannot afford the $${penalty.toLocaleString()} breach penalty. Free up cash first.`,
+        message: `You cannot afford the $${penalty.toLocaleString('en-US')} breach penalty. Free up cash first.`,
         penalty,
       },
       next: null,
@@ -1317,7 +1317,7 @@ export const subscribeVerifiedPro = (
   if ((gameState.stats?.money ?? 0) < price) {
     return {
       success: false,
-      message: `You can't afford Pulse Verified Pro ($${price.toLocaleString()}).`,
+      message: `You can't afford Pulse Verified Pro ($${price.toLocaleString('en-US')}).`,
     };
   }
   setGameState((prev) => {
@@ -1363,7 +1363,7 @@ export const subscribeVerifiedPro = (
     success: true,
     message:
       plan === 'annual'
-        ? `Pulse Verified Pro active - $${price.toLocaleString()} for 52 weeks.`
+        ? `Pulse Verified Pro active - $${price.toLocaleString('en-US')} for 52 weeks.`
         : `Pulse Verified Pro active - $${price}/week.`,
   };
 };

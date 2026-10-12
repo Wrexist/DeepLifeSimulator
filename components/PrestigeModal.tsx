@@ -299,54 +299,54 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                           },
                         ]}
                       />
-                      <Text style={styles.pointsValue}>{pointsBreakdown.total.toLocaleString()}</Text>
+                      <Text style={styles.pointsValue}>{pointsBreakdown.total.toLocaleString('en-US')}</Text>
                     </View>
                     
                     <View style={styles.breakdown}>
                       <View style={styles.breakdownRow}>
                         <Text style={styles.breakdownLabel}>Base (Net Worth)</Text>
-                        <Text style={styles.breakdownValue}>+{pointsBreakdown.basePoints.toLocaleString()}</Text>
+                        <Text style={styles.breakdownValue}>+{pointsBreakdown.basePoints.toLocaleString('en-US')}</Text>
                       </View>
                       {pointsBreakdown.achievementBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Achievements</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.achievementBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.achievementBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.generationBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Generations</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.generationBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.generationBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.ageBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Age Bonus</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.ageBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.ageBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.careerBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Maxed Careers</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.careerBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.careerBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.propertyBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Properties</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.propertyBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.propertyBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.companyBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Companies</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.companyBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.companyBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.childBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Children</Text>
-                          <Text style={styles.breakdownValue}>+{pointsBreakdown.childBonus.toLocaleString()}</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.childBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
                       {pointsBreakdown.multiplier > 1 && (
@@ -687,7 +687,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
 
                 <View style={styles.pointsEarnedContainer}>
                   <Text style={styles.pointsEarned}>
-                    You will earn {pointsBreakdown.total.toLocaleString()} prestige points!
+                    You will earn {pointsBreakdown.total.toLocaleString('en-US')} prestige points!
                   </Text>
                 </View>
               </View>
@@ -750,7 +750,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
               </Text>
               <Text style={styles.celebrationTitle}>Prestige {celebration.level}</Text>
               <Text style={styles.celebrationPoints}>
-                +{celebration.points.toLocaleString()} Prestige Points
+                +{celebration.points.toLocaleString('en-US')} Prestige Points
               </Text>
               <Text style={styles.celebrationBody}>
                 {celebration.heir

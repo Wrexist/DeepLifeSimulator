@@ -290,7 +290,7 @@ export function processHustleWeeklyTick(
       if (offer) {
         o = pushNotif(
           { ...o, pendingAcquisitions: [...o.pendingAcquisitions, offer] },
-          `New acquisition target: ${offer.targetName} for $${offer.askingPrice.toLocaleString()}`,
+          `New acquisition target: ${offer.targetName} for $${offer.askingPrice.toLocaleString('en-US')}`,
           'acquisition_offer',
           nextWeeksLived,
         );

@@ -1134,7 +1134,7 @@ export const promoteCareer = (
 
   return {
     success: true,
-    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${paid(newLevel).toLocaleString()}/week.`,
+    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${paid(newLevel).toLocaleString('en-US')}/week.`,
     promotion: {
       careerId,
       fromTitle: previousLevelData?.name ?? 'Your old role',

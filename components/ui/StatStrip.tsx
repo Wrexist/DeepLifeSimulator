@@ -41,7 +41,17 @@ export function StatTile({ label, value, sub, tint, align = 'center', hero = fal
       accessibilityRole="text"
       accessibilityLabel={`${label} ${value}${sub ? `, ${sub}` : ''}`}
     >
-      <Text style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]}>
+      {/* The VALUE is one line that shrinks to fit. A tile is a quarter of a
+          card on a 390pt phone, and a value is a single token - a number or
+          one word - so wrapping it can only split it mid-word ("START / ER",
+          2026-10-10). The label and sub stay unclamped: they are the
+          explanation, and Dynamic Type readers must get all of it. */}
+      <Text
+        style={[styles.value, hero && styles.valueHero, { color: tint ?? theme.text, textAlign }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.55}
+      >
         {value}
       </Text>
       <Text style={[styles.label, { color: theme.textMuted, textAlign }]}>

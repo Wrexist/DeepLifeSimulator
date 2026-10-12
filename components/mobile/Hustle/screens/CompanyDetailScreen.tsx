@@ -367,7 +367,7 @@ export default function CompanyDetailScreen({
               hero
               align="left"
               label={`${cap(company.type)}${isPublic ? ' · public' : ''} · per week`}
-              value={`$${weekly.toLocaleString()}`}
+              value={`$${weekly.toLocaleString('en-US')}`}
               /* employees already INCLUDES named hires - do not sum them */
               sub={`${company.employees} employees${namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''} · ×${factors.multiplier.toFixed(2)}`}
             />
@@ -380,7 +380,7 @@ export default function CompanyDetailScreen({
               </View>
             </View>
             <Text style={[styles.compCaption, { color: theme.textMuted }]}>
-              Base ${base.toLocaleString()}{lift > 0 ? ` + $${lift.toLocaleString()} lift` : ''}
+              Base ${base.toLocaleString('en-US')}{lift > 0 ? ` + $${lift.toLocaleString('en-US')} lift` : ''}
               {isPublic && overlay?.ipo ? ` · you own ${overlay.ipo.ownershipPercent.toFixed(0)}%` : ''}
             </Text>
           </View>
@@ -423,7 +423,7 @@ export default function CompanyDetailScreen({
                   </View>
                   <View style={styles.rosterText}>
                     <Text style={[styles.rosterName, { color: theme.text }]}>
-                      {cap(h.role)} · ${h.salary.toLocaleString()}/wk
+                      {cap(h.role)} · ${h.salary.toLocaleString('en-US')}/wk
                     </Text>
                     <View style={styles.rosterMeterRow}>
                       <Text style={[styles.rosterMeterLabel, { color: theme.textMuted }]}>Morale</Text>
@@ -454,13 +454,13 @@ export default function CompanyDetailScreen({
         {/* Generic staff - canonical addWorker/removeWorker */}
         <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
-            {company.employees} / {STAFF_CAP} employees · hiring cost ${company.workerSalary.toLocaleString()}/hire
+            {company.employees} / {STAFF_CAP} employees · hiring cost ${company.workerSalary.toLocaleString('en-US')}/hire
           </Text>
           <View style={styles.staffCapBar}>
             <ProgressBar value={company.employees / STAFF_CAP} color={HUSTLE_COLORS.accent} label="Headcount against the cap" />
           </View>
           <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
-            Hiring costs ${company.workerSalary.toLocaleString()} up front. Each employee compounds weekly income:
+            Hiring costs ${company.workerSalary.toLocaleString('en-US')} up front. Each employee compounds weekly income:
             +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing general staff is free but lowers income. Release named hires through Hiring pipeline; severance applies.
           </Text>
           <View style={styles.staffBtnRow}>
@@ -468,12 +468,12 @@ export default function CompanyDetailScreen({
               onPress={handleHireWorker}
               disabled={!canHireWorker}
               accessibilityRole="button"
-              accessibilityLabel={`Hire employee for $${company.workerSalary.toLocaleString()}`}
+              accessibilityLabel={`Hire employee for $${company.workerSalary.toLocaleString('en-US')}`}
               accessibilityState={{ disabled: !canHireWorker }}
               style={[styles.staffBtn, canHireWorker && getPlatformShadows(5, 0.3, 2, 8), { backgroundColor: HUSTLE_COLORS.accent, opacity: canHireWorker ? 1 : 0.5 }]}
             >
               <UserPlus size={fontScale(16)} color={uiPalette.white} strokeWidth={2.2} />
-              <Text style={styles.staffBtnText}>Hire · ${company.workerSalary.toLocaleString()}</Text>
+              <Text style={styles.staffBtnText}>Hire · ${company.workerSalary.toLocaleString('en-US')}</Text>
             </Pressable>
             <Pressable
               onPress={handleRemoveWorker}
@@ -531,7 +531,7 @@ export default function CompanyDetailScreen({
                       <Text style={[styles.campaignRoi, { color: roiColor }]}>{roiMult > 0 ? `${roiPct >= 0 ? '+' : ''}${roiPct}% ROI` : 'Below floor'}</Text>
                     </View>
                     <Text style={[styles.campaignMeta, { color: theme.textSecondary }]}>
-                      ${camp.spendPerWeek.toLocaleString()}/wk · {remaining}w left{camp.active ? '' : ' · paused'}
+                      ${camp.spendPerWeek.toLocaleString('en-US')}/wk · {remaining}w left{camp.active ? '' : ' · paused'}
                     </Text>
                     <View style={styles.campaignBar}>
                       <ProgressBar value={pct / 100} color={HUSTLE_COLORS.accentSecondary} height={5} label="Campaign run" />
@@ -589,7 +589,7 @@ export default function CompanyDetailScreen({
               </View>
               <View style={styles.ipoStat}>
                 <Text style={[styles.ipoStatLabel, { color: theme.textMuted }]}>Shares</Text>
-                <Text style={[styles.ipoStatValue, { color: theme.text }]}>{overlay.ipo.sharesOutstandingK.toLocaleString()}K</Text>
+                <Text style={[styles.ipoStatValue, { color: theme.text }]}>{overlay.ipo.sharesOutstandingK.toLocaleString('en-US')}K</Text>
               </View>
             </View>
             {overlay.ipo.recentEarnings.length > 0 ? (
@@ -667,7 +667,7 @@ export default function CompanyDetailScreen({
                       {cap(a.targetIndustry)} · +{a.synergyBonusPercent.toFixed(0)}% synergy · {expiresIn}w to decide
                     </Text>
                   </View>
-                  <Text style={[styles.acqPrice, { color: theme.text }]}>${a.askingPrice.toLocaleString()}</Text>
+                  <Text style={[styles.acqPrice, { color: theme.text }]}>${a.askingPrice.toLocaleString('en-US')}</Text>
                 </View>
               );
             })}
@@ -747,11 +747,11 @@ export default function CompanyDetailScreen({
                     onPress={() => handleManageFamilyBusiness(opt.action)}
                     disabled={!affordable}
                     accessibilityRole="button"
-                    accessibilityLabel={`${opt.label} for $${opt.cost.toLocaleString()}`}
+                    accessibilityLabel={`${opt.label} for $${opt.cost.toLocaleString('en-US')}`}
                     accessibilityState={{ disabled: !affordable }}
                     style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.14), opacity: affordable ? 1 : 0.5 }]}
                   >
-                    <Text style={[styles.upgradeBuyText, { color: HUSTLE_COLORS.warning }]}>${opt.cost.toLocaleString()}</Text>
+                    <Text style={[styles.upgradeBuyText, { color: HUSTLE_COLORS.warning }]}>${opt.cost.toLocaleString('en-US')}</Text>
                   </Pressable>
                 </View>
               );
@@ -766,7 +766,7 @@ export default function CompanyDetailScreen({
               <View style={styles.rdText}>
                 <Text style={[styles.rdRowTitle, { color: theme.text }]}>Convert to family business</Text>
                 <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
-                  A ${FAMILY_BUSINESS_COST.toLocaleString()} legacy that passes to your heirs, compounding brand value and reputation across generations.
+                  A ${FAMILY_BUSINESS_COST.toLocaleString('en-US')} legacy that passes to your heirs, compounding brand value and reputation across generations.
                 </Text>
               </View>
             </View>
@@ -775,13 +775,13 @@ export default function CompanyDetailScreen({
                 onPress={handleConvertToFamilyBusiness}
                 disabled={!canConvertToFamilyBusiness}
                 accessibilityRole="button"
-                accessibilityLabel={`Convert ${company.name} to a family business for $${FAMILY_BUSINESS_COST.toLocaleString()}`}
+                accessibilityLabel={`Convert ${company.name} to a family business for $${FAMILY_BUSINESS_COST.toLocaleString('en-US')}`}
                 accessibilityState={{ disabled: !canConvertToFamilyBusiness }}
                 style={[styles.staffBtn, canConvertToFamilyBusiness && getPlatformShadows(5, 0.3, 2, 8), { backgroundColor: HUSTLE_COLORS.warning, opacity: canConvertToFamilyBusiness ? 1 : 0.5 }]}
               >
                 <Crown size={fontScale(16)} color={uiPalette.white} strokeWidth={2.2} />
                 <Text style={styles.staffBtnText}>
-                  {money < FAMILY_BUSINESS_COST ? `Need $${FAMILY_BUSINESS_COST.toLocaleString()}` : `Convert · $${FAMILY_BUSINESS_COST.toLocaleString()}`}
+                  {money < FAMILY_BUSINESS_COST ? `Need $${FAMILY_BUSINESS_COST.toLocaleString('en-US')}` : `Convert · $${FAMILY_BUSINESS_COST.toLocaleString('en-US')}`}
                 </Text>
               </Pressable>
             </View>
@@ -833,14 +833,14 @@ export default function CompanyDetailScreen({
                       {def.name}
                     </Text>
                     <Text style={[styles.actionSub, { color: theme.textSecondary }]}>
-                      {def.description} · +${def.weeklyIncomeBonus.toLocaleString()}/wk base (reduced at higher levels)
+                      {def.description} · +${def.weeklyIncomeBonus.toLocaleString('en-US')}/wk base (reduced at higher levels)
                     </Text>
                   </View>
                   <Pressable
                     onPress={() => handleBuyUpgrade(def.id)}
                     disabled={maxed || !affordable}
                     accessibilityRole="button"
-                    accessibilityLabel={maxed ? `${def.name} is at max level` : `Buy ${def.name} for $${cost.toLocaleString()}`}
+                    accessibilityLabel={maxed ? `${def.name} is at max level` : `Buy ${def.name} for $${cost.toLocaleString('en-US')}`}
                     accessibilityState={{ disabled: maxed || !affordable }}
                     style={[
                       styles.upgradeBuyBtn,
@@ -850,7 +850,7 @@ export default function CompanyDetailScreen({
                       },
                     ]}
                   >
-                    <Text style={[styles.upgradeBuyText, { color: maxed ? theme.textMuted : HUSTLE_COLORS.accent }]}>{maxed ? 'MAX' : `$${cost.toLocaleString()}`}</Text>
+                    <Text style={[styles.upgradeBuyText, { color: maxed ? theme.textMuted : HUSTLE_COLORS.accent }]}>{maxed ? 'MAX' : `$${cost.toLocaleString('en-US')}`}</Text>
                   </Pressable>
                 </View>
               );
@@ -893,11 +893,11 @@ export default function CompanyDetailScreen({
                         onPress={() => handleBuildLab(lt)}
                         disabled={!affordable}
                         accessibilityRole="button"
-                        accessibilityLabel={`Build ${info.name} for $${cost.toLocaleString()}`}
+                        accessibilityLabel={`Build ${info.name} for $${cost.toLocaleString('en-US')}`}
                         accessibilityState={{ disabled: !affordable }}
                         style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: affordable ? 1 : 0.5 }]}
                       >
-                        <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${cost.toLocaleString()}</Text>
+                        <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${cost.toLocaleString('en-US')}</Text>
                       </Pressable>
                     </View>
                   );
@@ -922,11 +922,11 @@ export default function CompanyDetailScreen({
                         onPress={() => handleBuildLab(nextLabType)}
                         disabled={money < labUpgradeCost}
                         accessibilityRole="button"
-                        accessibilityLabel={`Upgrade lab for $${labUpgradeCost.toLocaleString()}`}
+                        accessibilityLabel={`Upgrade lab for $${labUpgradeCost.toLocaleString('en-US')}`}
                         accessibilityState={{ disabled: money < labUpgradeCost }}
                         style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: money < labUpgradeCost ? 0.5 : 1 }]}
                       >
-                        <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Upgrade ${labUpgradeCost.toLocaleString()}</Text>
+                        <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Upgrade ${labUpgradeCost.toLocaleString('en-US')}</Text>
                       </Pressable>
                     ) : (
                       <Chip label="Max" />
@@ -981,11 +981,11 @@ export default function CompanyDetailScreen({
                             onPress={() => handleStartResearch(tech.id)}
                             disabled={disabled}
                             accessibilityRole="button"
-                            accessibilityLabel={`Research ${tech.name} for $${tech.researchCost.toLocaleString()}`}
+                            accessibilityLabel={`Research ${tech.name} for $${tech.researchCost.toLocaleString('en-US')}`}
                             accessibilityState={{ disabled }}
                             style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: disabled ? 0.5 : 1 }]}
                           >
-                            <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${tech.researchCost.toLocaleString()}</Text>
+                            <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>${tech.researchCost.toLocaleString('en-US')}</Text>
                           </Pressable>
                         </View>
                       );
@@ -1028,11 +1028,11 @@ export default function CompanyDetailScreen({
                               onPress={() => handleFilePatent(techId)}
                               disabled={!affordable}
                               accessibilityRole="button"
-                              accessibilityLabel={`File patent for ${tech?.name ?? techId} for $${patentCost.toLocaleString()}`}
+                              accessibilityLabel={`File patent for ${tech?.name ?? techId} for $${patentCost.toLocaleString('en-US')}`}
                               accessibilityState={{ disabled: !affordable }}
                               style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: affordable ? 1 : 0.5 }]}
                             >
-                              <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Patent ${patentCost.toLocaleString()}</Text>
+                              <Text style={[styles.upgradeBuyText, { color: rdAccent }]}>Patent ${patentCost.toLocaleString('en-US')}</Text>
                             </Pressable>
                           )}
                         </View>
@@ -1054,7 +1054,7 @@ export default function CompanyDetailScreen({
                           <Text style={[styles.rdRowTitle, { color: theme.text }]}>{pt.name}</Text>
                           <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>{pt.duration}w remaining</Text>
                         </View>
-                        <Text style={[styles.rdIncome, { color: HUSTLE_COLORS.success }]}>+${pt.weeklyIncome.toLocaleString()}/wk</Text>
+                        <Text style={[styles.rdIncome, { color: HUSTLE_COLORS.success }]}>+${pt.weeklyIncome.toLocaleString('en-US')}/wk</Text>
                       </View>
                     ))}
                   </View>
@@ -1077,7 +1077,7 @@ export default function CompanyDetailScreen({
                           <View style={styles.rdText}>
                             <Text style={[styles.rdRowTitle, { color: theme.text }]}>{comp.name}</Text>
                             <Text style={[styles.rdRowMeta, { color: theme.textMuted }]}>
-                              1st ${comp.prizes.first.toLocaleString()} · entry ${comp.entryCost.toLocaleString()}
+                              1st ${comp.prizes.first.toLocaleString('en-US')} · entry ${comp.entryCost.toLocaleString('en-US')}
                             </Text>
                           </View>
                           {entered ? (
@@ -1087,7 +1087,7 @@ export default function CompanyDetailScreen({
                               onPress={() => handleEnterCompetition(comp.id)}
                               disabled={disabled}
                               accessibilityRole="button"
-                              accessibilityLabel={`Enter ${comp.name} for $${comp.entryCost.toLocaleString()}`}
+                              accessibilityLabel={`Enter ${comp.name} for $${comp.entryCost.toLocaleString('en-US')}`}
                               accessibilityState={{ disabled }}
                               style={[styles.upgradeBuyBtn, { backgroundColor: withAlpha(rdAccent, 0.14), opacity: disabled ? 0.5 : 1 }]}
                             >
@@ -1125,7 +1125,7 @@ export default function CompanyDetailScreen({
                     <View style={styles.boardText}>
                       <Text style={[styles.boardName, { color: theme.text }]}>{s.name}</Text>
                       <Text style={[styles.boardMeta, { color: theme.textMuted }]}>
-                        ${s.costPerWeek.toLocaleString()}/wk · {contract}
+                        ${s.costPerWeek.toLocaleString('en-US')}/wk · {contract}
                       </Text>
                     </View>
                     <View style={styles.boardSat}>
@@ -1160,7 +1160,7 @@ export default function CompanyDetailScreen({
                       {scandalKindLabel(s.kind)} · {cap(s.resolutionMethod)}
                     </Text>
                     <Text style={[styles.ledgerMeta, { color: theme.textMuted }]}>
-                      severity {s.severity} · -${Math.round(s.totalRevenueLoss).toLocaleString()} lost
+                      severity {s.severity} · -${Math.round(s.totalRevenueLoss).toLocaleString('en-US')} lost
                     </Text>
                   </View>
                 </View>

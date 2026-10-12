@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, ArrowRight, Briefcase, Check, Heart, Store } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Briefcase, Check, Circle, Heart, Store } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -97,7 +97,7 @@ export default function Intro() {
             <View style={styles.person}><View style={styles.portraitFrame}><Image source={require('@/assets/images/portraits/river.webp')} style={styles.portrait} accessible={false} /></View><Text style={styles.optionText}>{text('generation')}</Text></View>
             <View style={[styles.person, styles.heir]}><View style={styles.portraitFrame}><Image source={require('@/assets/images/portraits/dawn.webp')} style={styles.portrait} accessible={false} /></View><Text style={styles.optionText}>{text('heir')}</Text></View>
           </View>
-          <View style={styles.options}>{(['family', 'future'] as const).map(id => <TouchableOpacity key={id} accessibilityRole="button" accessibilityState={{ selected: legacy === id }} onPress={() => setLegacy(id)} style={[styles.option, legacy === id && styles.selected]}><Text style={styles.optionText}>{legacy === id ? '✓ ' : ''}{text(`${id}Label`)}</Text></TouchableOpacity>)}</View>
+          <View style={styles.options}>{(['family', 'future'] as const).map(id => <TouchableOpacity key={id} accessibilityRole="button" accessibilityState={{ selected: legacy === id }} onPress={() => setLegacy(id)} style={[styles.option, legacy === id && styles.selected]}>{legacy === id ? <Check size={22} color={'#71E2C4'} /> : <Circle size={22} color={uiPalette.muted} />}<Text style={styles.optionText}>{text(`${id}Label`)}</Text></TouchableOpacity>)}</View>
           <Text accessibilityLiveRegion="polite" style={styles.detail}>{text(`${legacy}Body`)}</Text>
         </>}
         <TouchableOpacity accessibilityRole="button" onPress={() => chapter === 2 ? finish() : setChapter(chapter + 1)} style={styles.primary}>
@@ -126,7 +126,9 @@ const styles = StyleSheet.create({
   intro: { fontSize: fontScale(16), lineHeight: fontScale(24), color: uiPalette.muted, marginTop: 12 },
   hero: { marginVertical: 18 },
   art: { width: '100%', height: 150 },
-  note: { backgroundColor: uiPalette.surface, borderColor: uiPalette.raised, borderWidth: 1, padding: 14, borderRadius: responsiveBorderRadius.lg, marginTop: -15, alignSelf: 'flex-start' },
+  // Full width, like every other card in the flow. It was a half-width card
+  // tucked under the art, which read as a layout slip (tester pass, 2026-10-10).
+  note: { backgroundColor: uiPalette.surface, borderColor: uiPalette.raised, borderWidth: 1, padding: 14, borderRadius: responsiveBorderRadius.lg, marginTop: 8 },
   noteText: { fontSize: fontScale(15), fontWeight: '600', color: uiPalette.paper },
   options: { flexDirection: 'row', gap: 8 },
   option: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 10, gap: 8, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, backgroundColor: uiPalette.surface },
@@ -139,7 +141,8 @@ const styles = StyleSheet.create({
   secondary: { minHeight: 48, padding: 14, borderRadius: responsiveBorderRadius.md, borderWidth: 1, justifyContent: 'center' },
   people: { flexDirection: 'row', gap: 20, alignItems: 'flex-start', marginVertical: 24 },
   person: { flex: 1, backgroundColor: uiPalette.surface, padding: 9, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, gap: 12 },
-  heir: { marginTop: 32, borderColor: '#71E2C4' },
+  // Accent border only. The 32pt drop made the two portraits look misaligned.
+  heir: { borderColor: '#71E2C4' },
   portraitFrame: { width: '100%', aspectRatio: 1 },
   portrait: { width: '100%', height: '100%', borderRadius: responsiveBorderRadius.md },
   primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, backgroundColor: '#FAF3DF', borderRadius: responsiveBorderRadius.lg, padding: 18, minHeight: 56, marginTop: 24 },

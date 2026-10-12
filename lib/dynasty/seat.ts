@@ -159,7 +159,7 @@ export function buySeatWing(
   if (cash < wing.cost) {
     return {
       success: false,
-      message: `${wing.name} costs $${wing.cost.toLocaleString()} - you have $${Math.floor(cash).toLocaleString()}.`,
+      message: `${wing.name} costs $${wing.cost.toLocaleString('en-US')} - you have $${Math.floor(cash).toLocaleString('en-US')}.`,
       cost: 0,
     };
   }

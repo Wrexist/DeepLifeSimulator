@@ -106,7 +106,7 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
           <View style={styles.statItem}>
             <Crown size={16} color="#F59E0B" />
             <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
-              {(prestigeData.prestigePoints ?? 0).toLocaleString()}
+              {(prestigeData.prestigePoints ?? 0).toLocaleString('en-US')}
             </Text>
             <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Points

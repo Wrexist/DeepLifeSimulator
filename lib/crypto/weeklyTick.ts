@@ -339,7 +339,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
         // would vanish from the journal.
         id: `crypto-tax-${input.currentWeek}`,
         title: '🧾 Capital Gains Tax',
-        message: `Debited $${Math.round(collected).toLocaleString()} (${Math.round(effectiveRate * 100)}% of $${Math.round(gains).toLocaleString()} realized gains).`,
+        message: `Debited $${Math.round(collected).toLocaleString('en-US')} (${Math.round(effectiveRate * 100)}% of $${Math.round(gains).toLocaleString('en-US')} realized gains).`,
       });
     }
     // Reduce YTD realized gains only by the fraction actually taxed this year.

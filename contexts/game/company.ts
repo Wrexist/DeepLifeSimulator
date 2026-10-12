@@ -700,7 +700,7 @@ export function resolveSellAllMiners(
 
   return {
     success: true,
-    message: `Sold all ${count} ${minerName}${count === 1 ? '' : 's'} for $${proceeds.toLocaleString()}.`,
+    message: `Sold all ${count} ${minerName}${count === 1 ? '' : 's'} for $${proceeds.toLocaleString('en-US')}.`,
     state: {
       ...state,
       ...salePatch,
@@ -786,5 +786,5 @@ export function sellMiner(
   });
   
   logger.debug('sellMiner returning success', { sellPrice });
-  return { success: true, message: `Sold ${minerName} for ${sellPrice.toLocaleString()}!` };
+  return { success: true, message: `Sold ${minerName} for ${sellPrice.toLocaleString('en-US')}!` };
 }

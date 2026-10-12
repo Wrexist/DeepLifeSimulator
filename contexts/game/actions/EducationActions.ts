@@ -260,7 +260,7 @@ export const enrollInProgram = (
       };
       newLoans = [...newLoans, loan];
       log.info(
-        `Student loan: $${netCost.toLocaleString()} @ ${(offeredAPR * 100).toFixed(2)}% APR over ${STUDENT_LOAN_TERM_WEEKS}w`
+        `Student loan: $${netCost.toLocaleString('en-US')} @ ${(offeredAPR * 100).toFixed(2)}% APR over ${STUDENT_LOAN_TERM_WEEKS}w`
       );
     }
 

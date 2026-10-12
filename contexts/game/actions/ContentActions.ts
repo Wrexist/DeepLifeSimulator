@@ -83,6 +83,9 @@ export interface PublishVideoResult {
   video?: Video;
   outcome?: { views: number; subscribersGained: number; viral: boolean };
   earnings?: number;
+  /** Channel level before and after this upload's XP (for the recap). */
+  levelBefore?: number;
+  levelAfter?: number;
 }
 
 /**
@@ -176,11 +179,13 @@ export function publishVideo(
   return {
     success: true,
     message: outcome.viral
-      ? `${args.title} went viral! +${outcome.views.toLocaleString()} views.`
-      : `${args.title} published - ${outcome.views.toLocaleString()} views.`,
+      ? `${args.title} went viral! +${outcome.views.toLocaleString('en-US')} views.`
+      : `${args.title} published - ${outcome.views.toLocaleString('en-US')} views.`,
     video,
     outcome,
     earnings,
+    levelBefore: ensureChannel(gameState).level,
+    levelAfter: creatorLevelFromExperience(ensureChannel(gameState).experience + Math.floor(outcome.views / 100)),
   };
 }
 
@@ -316,6 +321,37 @@ export const LIVE_ENERGY_DRAIN_PER_SEC = 1.6;
 export const LIVE_MIN_ENERGY = 8;
 /** Recommended tick cadence for the UI loop (ms). */
 export const LIVE_TICK_MS = 1000;
+/**
+ * Most real seconds one UI tick may charge. The loop measures the wall-clock
+ * gap between callbacks so a late timer still pays the time that passed; the
+ * cap stops a resume from the background billing the whole suspension at once.
+ */
+export const LIVE_MAX_TICK_GAP_S = 3;
+
+/**
+ * When each live session last ticked, kept OUTSIDE the screen.
+ *
+ * The drain loop used to remember its last tick in a local of the effect, so
+ * the clock died with the component. On a device where the Streaming screen
+ * re-mounts faster than once a second - observed only on large, older saves
+ * (tester, 2026-10-11) - every mount began a fresh one-second wait and no tick
+ * ever landed: the broadcast sat at 0:00. Module state survives a re-mount and,
+ * like `RUNTIME_STARTED_AT_MS`, dies with the runtime, where the stale-session
+ * resolver takes over. Nothing is added to the save format.
+ */
+const liveTickClock = new Map<string, number>();
+
+/**
+ * Seconds to charge this tick for `sessionId`, and stamp now as its last tick.
+ * The first tick of a session measures from `startedAtMs`. Capped, so a resume
+ * from the background does not bill the whole suspension at once.
+ */
+export function liveTickDelta(sessionId: string, startedAtMs: number | undefined, now = Date.now()): number {
+  const last = liveTickClock.get(sessionId)
+    ?? (typeof startedAtMs === 'number' && Number.isFinite(startedAtMs) ? startedAtMs : now);
+  liveTickClock.set(sessionId, now);
+  return Math.min(LIVE_MAX_TICK_GAP_S, Math.max(0, (now - last) / 1000));
+}
 
 /** Type guard: is `currentStream` an in-progress live broadcast? */
 export function isLiveSession(ch: GamingStreamingState | null | undefined): boolean {
@@ -468,7 +504,16 @@ export function tickLiveStream(setGameState: SetGS, deltaSeconds = 1): void {
     const wobble = 0.85 + Math.random() * 0.35; // 0.85..1.20
     const target = base * (0.4 + 0.9 * ramp) * wobble;
     const prevViewers = safe(live.viewers, 0);
-    const viewers = Math.max(0, Math.round(prevViewers + (target - prevViewers) * 0.4));
+    // Smooth 40% of the way toward the target, but always move at least one
+    // viewer when the target is half a viewer or more away. A starter rig's
+    // early target is ~1, and 40% of that rounded back to 0 every tick - a new
+    // streamer sat at "0 watching" for the first third of the broadcast
+    // (tester report, 2026-10-10).
+    let viewers = Math.round(prevViewers + (target - prevViewers) * 0.4);
+    if (viewers === prevViewers && Math.abs(target - prevViewers) >= 0.5) {
+      viewers += target > prevViewers ? 1 : -1;
+    }
+    viewers = Math.max(0, viewers);
 
     return {
       ...prev,
@@ -490,6 +535,9 @@ export function tickLiveStream(setGameState: SetGS, deltaSeconds = 1): void {
 export interface FinalizeLiveResult extends RunStreamResult {
   /** True when the stream ended because energy ran out (vs. a manual Stop). */
   autoStopped?: boolean;
+  /** Channel level before and after this broadcast's XP (for the recap). */
+  levelBefore?: number;
+  levelAfter?: number;
 }
 
 /**
@@ -509,6 +557,7 @@ export function finalizeLiveStream(
   const channel = ensureChannel(gameState);
   const live = channel.currentStream;
   if (!live?.live) return { success: false, message: 'Not live.' };
+  liveTickClock.delete(live.id);
 
   const quality = computeQuality(channel.equipment, channel.pcUpgradeLevels);
   const elapsedSeconds = safe(live.elapsedSeconds, 0);
@@ -591,6 +640,8 @@ export function finalizeLiveStream(
     outcome,
     earnings,
     autoStopped: args.autoStopped,
+    levelBefore: channel.level,
+    levelAfter: creatorLevelFromExperience(channel.experience + Math.floor(outcome.viewers / 50)),
   };
 }
 
@@ -607,7 +658,7 @@ export function buyAccessory(
   const channel = ensureChannel(gameState);
   if (channel.equipment[id]) return { success: false, message: 'Already owned.' };
   if (safe(gameState.stats?.money, 0) < price) {
-    return { success: false, message: `Need $${price.toLocaleString()}.` };
+    return { success: false, message: `Need $${price.toLocaleString('en-US')}.` };
   }
   // Atomic gate→debit→grant: the old split (updateMoney dispatch + separate
   // flag setGameState) let a same-batch double-tap charge twice for one item.
@@ -642,7 +693,7 @@ export function upgradePCComponent(
   const nextTier = currentTier + 1;
   const cost = Math.round(basePrice * Math.pow(2, currentTier));
   if (safe(gameState.stats?.money, 0) < cost) {
-    return { success: false, message: `Need $${cost.toLocaleString()}.` };
+    return { success: false, message: `Need $${cost.toLocaleString('en-US')}.` };
   }
   // Atomic: re-derive the tier and cost from prev so a same-batch double-tap
   // can't charge tier-N price twice for one upgrade.
