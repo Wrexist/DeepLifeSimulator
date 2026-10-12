@@ -29,6 +29,7 @@ on:
           - plan                     # read-only: show what would change
           - apply                    # create/fill the version record
           - apply-and-submit         # ...and submit for App Review
+          - cancel-review            # pull a WAITING_FOR_REVIEW version back to editable
       version:
         description: 'Store version record (blank = APPLE.storeVersion from metadata.mjs)'
         required: false
@@ -38,7 +39,7 @@ on:
         required: false
         type: string
       confirm_submit:
-        description: 'Type SUBMIT to confirm — required only for apply-and-submit'
+        description: 'Type SUBMIT for apply-and-submit, CANCEL for cancel-review'
         required: false
         type: string
 
@@ -78,6 +79,14 @@ jobs:
           echo "::error title=Confirmation required::mode=apply-and-submit needs confirm_submit to be exactly SUBMIT."
           exit 1
 
+      # Pulling a version out of review gives up its place in Apple's queue, so
+      # it takes a typed word too.
+      - name: Confirm cancellation
+        if: ${{ inputs.mode == 'cancel-review' && inputs.confirm_submit != 'CANCEL' }}
+        run: |
+          echo "::error title=Confirmation required::mode=cancel-review needs confirm_submit to be exactly CANCEL."
+          exit 1
+
       - name: Install dependencies
         run: npm ci
 
@@ -101,6 +110,7 @@ jobs:
           case "${{ inputs.mode }}" in
             apply)            ARGS="$ARGS --apply" ;;
             apply-and-submit) ARGS="$ARGS --apply --submit" ;;
+            cancel-review)    ARGS="$ARGS --apply --cancel-review" ;;
           esac
           echo "Running: node scripts/asc-release.mjs $ARGS"
           node scripts/asc-release.mjs $ARGS 2>&1 | tee /tmp/asc-output.txt

@@ -145,6 +145,21 @@ for (const field of ['description', 'promotionalText']) {
 // App Store Connect refuses box-drawing characters at write time (HTTP 409,
 // "Description can't contain the following character(s): ━"), which aborts a
 // release run halfway. The 1.6.0 run hit it on a divider line. Catch it here.
+// Guideline 3.1.2: DeepLife+ is an auto-renewing subscription, so the listing
+// must carry a functional Terms of Use (EULA) link and a privacy policy link.
+// 1.5.5's description had the EULA link; 1.6.0 was synced from this file,
+// which did not, and lost it on the store. Every shipped description must
+// carry both, in every language.
+const LEGAL = [
+  ['Terms of Use (EULA)', 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'],
+  ['privacy policy', 'https://wrexist.github.io/DeepLifeSimulator/privacy.html'],
+];
+for (const [locale, copy] of [['en-US', APPLE], ...Object.entries(APPLE.localized ?? {})]) {
+  if (copy?.shipped === false || !copy?.description) continue;
+  for (const [what, url] of LEGAL) {
+    if (!copy.description.includes(url)) fail(`${locale} description has no ${what} link (${url}) - Guideline 3.1.2 rejects a subscription app without it.`);
+  }
+}
 const BOX_DRAWING = /[─-╿]/;
 const appleCopies = [['en-US', APPLE], ...Object.entries(APPLE.localized ?? {})];
 for (const [locale, copy] of appleCopies) {

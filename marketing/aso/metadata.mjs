@@ -163,7 +163,10 @@ HOW IT TREATS YOU
 • Full-screen ads only at year-end breaks, never in your first two years, and one purchase removes them permanently
 • No real-time energy bar standing between you and the next week
 
-A life runs for decades and every week is a decision you make. Most people start a second one.`,
+A life runs for decades and every week is a decision you make. Most people start a second one.
+
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
 
   /**
    * A SECOND keyword field, indexed in the same storefront.
@@ -233,7 +236,10 @@ CÓMO TE TRATA
 • Anuncios a pantalla completa solo al cerrar un año, nunca en tus dos primeros años, y una compra los quita para siempre
 • Sin barra de energía en tiempo real entre tú y la semana siguiente
 
-Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda en una.`,
+Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda en una.
+
+Términos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de privacidad: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       keywords: [
         'simulador', 'vida', 'millonario', 'riqueza', 'imperio', 'dinero',
         'negocio', 'bolsa', 'citas', 'familia', 'herencia', 'magnate', 'carcel',
@@ -298,7 +304,10 @@ COMO O JOGO TE TRATA
 • Anúncios em tela cheia só na virada do ano, nunca nos seus dois primeiros anos, e uma compra os remove para sempre
 • Sem barra de energia em tempo real entre você e a próxima semana
 
-Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na primeira.`,
+Uma vida dura décadas e cada semana é uma decisão sua. Quase ninguém para na primeira.
+
+Termos de Uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de Privacidade: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       // No term from the name or subtitle: Apple matches across fields.
       keywords: [
         'jogo', 'offline', 'milionario', 'dinheiro', 'negocio', 'bolsa', 'namoro',
@@ -354,7 +363,10 @@ COMMENT LE JEU VOUS TRAITE
 • Publicités plein écran seulement en fin d'année de jeu, jamais pendant vos deux premières années, et un achat les supprime définitivement
 • Pas de barre d'énergie en temps réel entre vous et la semaine suivante
 
-Une vie dure des décennies et chaque semaine est une décision. La plupart des joueurs en commencent une deuxième.`,
+Une vie dure des décennies et chaque semaine est une décision. La plupart des joueurs en commencent une deuxième.
+
+Conditions d'utilisation (CLUF) : https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Politique de confidentialité : https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       // Accents dropped, as in es-MX and pt-BR. "hors" + "ligne" together
       // match "hors ligne" (Apple matches across the field).
       keywords: [
@@ -411,7 +423,10 @@ WIE DAS SPIEL DICH BEHANDELT
 • Vollbildwerbung nur am Ende eines Spieljahres, nie in deinen ersten zwei Jahren, und ein Kauf entfernt sie dauerhaft
 • Keine Echtzeit-Energieleiste zwischen dir und der nächsten Woche
 
-Ein Leben dauert Jahrzehnte, und jede Woche ist eine Entscheidung. Die meisten fangen ein zweites an.`,
+Ein Leben dauert Jahrzehnte, und jede Woche ist eine Entscheidung. Die meisten fangen ein zweites an.
+
+Nutzungsbedingungen (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Datenschutzerklärung: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       // Umlauts dropped (börse → borse), as accents are in the other locales.
       keywords: [
         'spiel', 'offline', 'geld', 'millionar', 'reichtum', 'imperium', 'borse',

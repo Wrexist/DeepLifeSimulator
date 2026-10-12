@@ -41,6 +41,7 @@ import {
 } from './lib/ascClient.mjs';
 import {
   planVersionRecord,
+  findVersion,
   fetchAppStoreVersions,
   stateOf,
   listingByLocale,
@@ -189,6 +190,28 @@ async function main() {
     }
     for (const [k, u] of privacy) say(`  privacyPolicyUrl ${k} ${u}`);
     say('');
+  }
+
+  // ---- 1c · pull a version out of review ---------------------------------
+  // Only while it is WAITING_FOR_REVIEW: the version then returns to an
+  // editable state (DEVELOPER_REJECTED) with its copy, build and screenshots
+  // intact, and the next --submit creates a fresh submission.
+  if (has('--cancel-review')) {
+    if (!apply) die('--cancel-review requires --apply.');
+    const state = target ? stateOf(target) : null;
+    if (state !== 'WAITING_FOR_REVIEW') die(`Version ${versionString} is ${state ?? 'missing'}; only WAITING_FOR_REVIEW can be pulled from review here.`);
+    const subs = await client.getAll(`/v1/reviewSubmissions?filter[app]=${appId}&filter[platform]=${platform}&filter[state]=WAITING_FOR_REVIEW&limit=5`);
+    if (!subs.length) die('No WAITING_FOR_REVIEW submission found for this app.');
+    for (const sub of subs) {
+      await client.patch(`/v1/reviewSubmissions/${sub.id}`, { data: { type: 'reviewSubmissions', id: sub.id, attributes: { canceled: true } } });
+      say(`  ${C.green}CANCELED${C.off} submission ${sub.id}`);
+    }
+    for (let i = 0; i < 30; i++) {
+      const now = stateOf(findVersion(await fetchAppStoreVersions(client, appId, platform), versionString));
+      if (now !== 'WAITING_FOR_REVIEW') { say(`  ${versionString} is now ${now}`); process.exit(0); }
+      await new Promise((r) => setTimeout(r, 10_000));
+    }
+    die(`${versionString} is still WAITING_FOR_REVIEW 5 minutes after cancelling - check App Store Connect.`);
   }
 
   // ---- 2 · the version record -------------------------------------------
