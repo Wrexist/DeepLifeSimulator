@@ -41,6 +41,7 @@ import {
 } from './lib/ascClient.mjs';
 import {
   planVersionRecord,
+  findVersion,
   fetchAppStoreVersions,
   stateOf,
   listingByLocale,
@@ -163,6 +164,54 @@ async function main() {
 
   if (has('--status')) {
     process.exit(0);
+  }
+
+  // ---- 1b · legal links, read-only ---------------------------------------
+  // Guideline 3.1.2: an app with an auto-renewing subscription needs a working
+  // Privacy Policy URL AND a Terms of Use (EULA) link in its metadata. This
+  // prints what Apple holds for the target version, whatever its state, so a
+  // submitted version can be checked without being editable.
+  const target = versions.find((v) => v.attributes?.versionString === versionString);
+  if (target) {
+    const vlocs = await client.getAll(
+      `/v1/appStoreVersions/${target.id}/appStoreVersionLocalizations?fields[appStoreVersionLocalizations]=locale,description,supportUrl,marketingUrl&limit=50`,
+    );
+    const infos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=10`);
+    const privacy = new Map();
+    for (const info of infos) {
+      for (const l of await client.getAll(`/v1/appInfos/${info.id}/appInfoLocalizations?fields[appInfoLocalizations]=locale,privacyPolicyUrl&limit=50`)) {
+        privacy.set(`${info.attributes?.state ?? info.attributes?.appStoreState}:${l.attributes.locale}`, l.attributes.privacyPolicyUrl ?? '-');
+      }
+    }
+    say(`${C.bold}Legal links on ${versionString}${C.off}`);
+    for (const l of vlocs) {
+      const d = l.attributes.description ?? '';
+      say(`  ${l.attributes.locale.padEnd(6)} EULA-in-description:${/stdeula|terms of use|eula/i.test(d) ? 'yes' : 'NO'} privacy-in-description:${/privacy/i.test(d) ? 'yes' : 'NO'} support:${l.attributes.supportUrl ?? '-'}`);
+    }
+    for (const [k, u] of privacy) say(`  privacyPolicyUrl ${k} ${u}`);
+    say('');
+  }
+
+  // ---- 1c · pull a version out of review ---------------------------------
+  // Only while it is WAITING_FOR_REVIEW: the version then returns to an
+  // editable state (DEVELOPER_REJECTED) with its copy, build and screenshots
+  // intact, and the next --submit creates a fresh submission.
+  if (has('--cancel-review')) {
+    if (!apply) die('--cancel-review requires --apply.');
+    const state = target ? stateOf(target) : null;
+    if (state !== 'WAITING_FOR_REVIEW') die(`Version ${versionString} is ${state ?? 'missing'}; only WAITING_FOR_REVIEW can be pulled from review here.`);
+    const subs = await client.getAll(`/v1/reviewSubmissions?filter[app]=${appId}&filter[platform]=${platform}&filter[state]=WAITING_FOR_REVIEW&limit=5`);
+    if (!subs.length) die('No WAITING_FOR_REVIEW submission found for this app.');
+    for (const sub of subs) {
+      await client.patch(`/v1/reviewSubmissions/${sub.id}`, { data: { type: 'reviewSubmissions', id: sub.id, attributes: { canceled: true } } });
+      say(`  ${C.green}CANCELED${C.off} submission ${sub.id}`);
+    }
+    for (let i = 0; i < 30; i++) {
+      const now = stateOf(findVersion(await fetchAppStoreVersions(client, appId, platform), versionString));
+      if (now !== 'WAITING_FOR_REVIEW') { say(`  ${versionString} is now ${now}`); process.exit(0); }
+      await new Promise((r) => setTimeout(r, 10_000));
+    }
+    die(`${versionString} is still WAITING_FOR_REVIEW 5 minutes after cancelling - check App Store Connect.`);
   }
 
   // ---- 2 · the version record -------------------------------------------

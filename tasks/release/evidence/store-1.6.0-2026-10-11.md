@@ -15,3 +15,11 @@ Submission: the first attempt returned 409 - es-MX, pt-BR, fr-FR and de-DE had
 no supportUrl (Apple's reasons were in meta.associatedErrors, which the client
 now prints). They inherit en-US's support and marketing URLs; the retry reused
 the open draft and submitted (run 38179028121).
+
+Legal links (2026-10-12): the first submission lacked the Terms of Use (EULA)
+link that 1.5.5's description carried - the repo copy never had it and the
+sync replaced the hand-typed store text. Pulled from review (cancel-review run
+38200078354, now DEVELOPER_REJECTED), all five descriptions updated with the
+EULA and privacy links, resubmitted (run 38200311544, submission e429b0ca).
+Verified on Apple's record: EULA and privacy in every description; privacy
+policy URL field set in every locale.
