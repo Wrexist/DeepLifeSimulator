@@ -165,6 +165,32 @@ async function main() {
     process.exit(0);
   }
 
+  // ---- 1b · legal links, read-only ---------------------------------------
+  // Guideline 3.1.2: an app with an auto-renewing subscription needs a working
+  // Privacy Policy URL AND a Terms of Use (EULA) link in its metadata. This
+  // prints what Apple holds for the target version, whatever its state, so a
+  // submitted version can be checked without being editable.
+  const target = versions.find((v) => v.attributes?.versionString === versionString);
+  if (target) {
+    const vlocs = await client.getAll(
+      `/v1/appStoreVersions/${target.id}/appStoreVersionLocalizations?fields[appStoreVersionLocalizations]=locale,description,supportUrl,marketingUrl&limit=50`,
+    );
+    const infos = await client.getAll(`/v1/apps/${appId}/appInfos?limit=10`);
+    const privacy = new Map();
+    for (const info of infos) {
+      for (const l of await client.getAll(`/v1/appInfos/${info.id}/appInfoLocalizations?fields[appInfoLocalizations]=locale,privacyPolicyUrl&limit=50`)) {
+        privacy.set(`${info.attributes?.state ?? info.attributes?.appStoreState}:${l.attributes.locale}`, l.attributes.privacyPolicyUrl ?? '-');
+      }
+    }
+    say(`${C.bold}Legal links on ${versionString}${C.off}`);
+    for (const l of vlocs) {
+      const d = l.attributes.description ?? '';
+      say(`  ${l.attributes.locale.padEnd(6)} EULA-in-description:${/stdeula|terms of use|eula/i.test(d) ? 'yes' : 'NO'} privacy-in-description:${/privacy/i.test(d) ? 'yes' : 'NO'} support:${l.attributes.supportUrl ?? '-'}`);
+    }
+    for (const [k, u] of privacy) say(`  privacyPolicyUrl ${k} ${u}`);
+    say('');
+  }
+
   // ---- 2 · the version record -------------------------------------------
   const versionPlan = planVersionRecord({ versions, versionString });
   if (versionPlan.action === 'refuse') {
