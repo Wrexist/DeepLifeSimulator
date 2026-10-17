@@ -78,6 +78,7 @@ import {
   getTotalLuxuryValue,
   getTotalLuxuryPrestige,
   getLuxuryHoldingValue,
+  luxuryItemHappiness,
   getCondition,
   getItemPremium,
   getExpectedWeeklyLoss,
@@ -96,6 +97,7 @@ import {
   quoteEvent,
   EVENT_TIERS,
 } from '@/lib/luxury';
+import { mindsetEffects } from '@/lib/mindset/effects';
 import {
   hostLuxuryEvent,
   performLuxuryVerb,
@@ -156,6 +158,7 @@ function LuxuryCard({
   onOpen,
   onBuy,
   onSell,
+  joyMult = 1,
 }: {
   item: LuxuryItem;
   isOwned: boolean;
@@ -167,6 +170,8 @@ function LuxuryCard({
   onOpen: (item: LuxuryItem) => void;
   onBuy: (item: LuxuryItem) => void;
   onSell: (item: LuxuryItem) => void;
+  /** The Mindset's luxury-happiness multiplier, so the label is what the week adds. */
+  joyMult?: number;
 }) {
   const tv = luxuryTierVisual(item.tier);
   const resale = getLuxuryHoldingValue(item, holding);
@@ -212,7 +217,7 @@ function LuxuryCard({
                   <ChevronRight size={scale(16)} color={theme.textMuted} />
                 </View>
                 <Text style={[styles.cardResale, { color: theme.textMuted }]} numberOfLines={1}>
-                  {isOwned ? `Resale ${formatMoney(resale)} · ` : ''}+{item.happiness} happiness
+                  {isOwned ? `Resale ${formatMoney(resale)} · ` : ''}+{luxuryItemHappiness(item.happiness, joyMult)} happiness
                 </Text>
                 <ItemStatChips item={item} />
               </View>
@@ -264,6 +269,8 @@ interface LuxuryAppProps {
 
 function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  // The life's Mindset luxury multiplier - the factor the weekly tick applies.
+  const luxuryJoyMult = mindsetEffects(gameState).luxuryHappiness;
   const insets = useSafeAreaInsets();
   const timers = useTimerManager();
   const darkMode = !!gameState.settings?.darkMode;
@@ -844,6 +851,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   onOpen={setSheetItem}
                   onBuy={requestBuy}
                   onSell={setPendingSell}
+                  joyMult={luxuryJoyMult}
                 />
               ))
             ) : (
@@ -872,6 +880,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 onOpen={setSheetItem}
                 onBuy={requestBuy}
                 onSell={setPendingSell}
+                joyMult={luxuryJoyMult}
               />
             ))}
           </>

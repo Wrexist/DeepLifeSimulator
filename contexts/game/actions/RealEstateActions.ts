@@ -46,6 +46,7 @@ import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
 import { propertyPriceMultiplier } from '@/lib/prestige/purchaseDiscounts';
 import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 const log = logger.scope('RealEstateActions');
 
@@ -80,8 +81,10 @@ export function quotePropertyPurchase(
   // owned entry's purchasePrice/currentValue basis is set to this same
   // discounted figure in resolveBuyProperty, so buy-then-sell cannot mint the
   // 10% back - the property appreciates from what was paid.
+  // An Investor's Mindset pays 5% more to buy (lib/mindset/effects.ts) - in
+  // the same one function, so the modal and the charge still agree.
   const effectivePrice = Math.round(
-    (property.price ?? 0) * propertyPriceMultiplier(state.prestige?.unlockedBonuses),
+    (property.price ?? 0) * propertyPriceMultiplier(state.prestige?.unlockedBonuses) * mindsetEffects(state).propertyPrice,
   );
   const orig = originateMortgage({
     purchasePrice: effectivePrice,

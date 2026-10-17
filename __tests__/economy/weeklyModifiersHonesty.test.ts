@@ -84,9 +84,10 @@ describe('C-4 - no weekly tick applies a low-health penalty', () => {
   it('the weekly health change does not vary with how low health is', () => {
     const loop = read('contexts/game/GameActionsContext.tsx');
 
-    // A single unconditional decay term is the whole of it.
+    // A single unconditional decay term is the whole of it. The Mindset factor
+    // (a Workaholic's 1.2) is a property of the LIFE, not of how low health is.
     expect(loop).toMatch(
-      /newStats\.health = Math\.max\(0, \(newStats\.health \|\| 0\) - effectiveDecayRate \* 0\.6\)/,
+      /newStats\.health = Math\.max\(0, \(newStats\.health \|\| 0\) - effectiveDecayRate \* 0\.6 \* mindsetMods\.healthDecay\)/,
     );
   });
 });

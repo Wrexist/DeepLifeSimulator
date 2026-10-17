@@ -30,6 +30,7 @@ import {
   hasDeepLifePlusEntitlement,
 } from '@/lib/subscription/deepLifePlus';
 import { getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 /**
  * Career ids whose `levels[].salary` is an ANNUAL figure.
@@ -108,6 +109,8 @@ export function careerPayMultiplier(state: GameState): number {
   if (state?.perks?.workBoost) mult *= WORK_BOOST_MULT;
   mult *= getLifeSkillModifiers(state).salaryMult;
   if (hasDeepLifePlusEntitlement(state?.settings)) mult *= DEEP_LIFE_PLUS_INCOME_MULTIPLIER;
+  // The life's Mindset (a Workaholic's 1.10, lib/mindset/effects.ts).
+  mult *= mindsetEffects(state).careerPay;
   return Number.isFinite(mult) && mult > 0 ? mult : 1;
 }
 

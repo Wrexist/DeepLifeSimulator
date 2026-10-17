@@ -7,6 +7,7 @@ import { BORROWED_CASH_TERM_WEEKS, LENT_CASH_TERM_WEEKS, OVERDUE_DEBT_BOND_HIT }
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { responsiveSpacing as sp, responsiveBorderRadius as br, responsiveFontSize as fs, scale } from '@/utils/scaling';
+import { mindsetPrice } from '@/lib/mindset/effects';
 
 export const CONTACT_INTERACTIONS = {
   call: { cost: 0, bonus: 3 },
@@ -26,17 +27,23 @@ interface Props {
    */
   blocked?: Partial<Record<PersonalContactAction, string | null>>;
   onAction: (action: PersonalContactAction) => void;
+  /**
+   * The Mindset's social price multiplier (a Socialite's 1.25). The hangout
+   * price shown is the one `recordInteraction` charges. Neutral when omitted.
+   */
+  socialCostMult?: number;
 }
 
 /** Decision copy only; the existing actions recheck all gates against latest state. */
-export default function PersonalContactActions({ relationship: r, money, week, darkMode, blocked, onAction }: Props) {
+export default function PersonalContactActions({ relationship: r, money, week, darkMode, blocked, onAction, socialCostMult = 1 }: Props) {
   const theme = getThemeColors(darkMode);
+  const hangoutPrice = mindsetPrice(CONTACT_INTERACTIONS.hangout.cost, socialCostMult);
   const bondCost = relationshipBondCost(r.relationshipScore ?? 0);
   const actions = [
     { key: 'call' as const, label: 'Call', Icon: Phone, cost: CONTACT_INTERACTIONS.call.cost,
       detail: 'Free catch-up. Bond gain varies with mood and memories.' },
-    { key: 'hangout' as const, label: 'Hang out', Icon: Coffee, cost: CONTACT_INTERACTIONS.hangout.cost,
-      detail: `${formatMoney(CONTACT_INTERACTIONS.hangout.cost)} now. Bond gain varies with mood and memories.` },
+    { key: 'hangout' as const, label: 'Hang out', Icon: Coffee, cost: hangoutPrice,
+      detail: `${formatMoney(hangoutPrice)} now. Bond gain varies with mood and memories.` },
     { key: 'askmoney' as const, label: 'Ask to borrow', Icon: DollarSign, cost: 0,
       detail: `${(r.moneyRequestAttempts ?? 0) >= BORROW_PITY_REFUSALS
         ? 'Guaranteed after repeated refusals. Costs 3 bond.'

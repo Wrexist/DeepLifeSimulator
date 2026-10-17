@@ -33,7 +33,7 @@ import { computeInheritance } from '@/lib/legacy/inheritance';
 import { RIBBONS } from '@/lib/legacy/ribbonSystem';
 import { netWorth as computeNetWorth } from '@/lib/progress/achievements';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
-import { MindsetId } from '@/lib/mindset/config';
+import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -80,6 +80,7 @@ function DeathPopup() {
     (gameState.mindset?.activeTraitId as MindsetId | null) || null
   );
   const [activeTab, setActiveTab] = useState<'summary' | 'legacy'>('summary');
+  const inheritedMindsetName = MINDSET_TRAITS.find((t) => t.id === selectedMindset)?.name ?? null;
 
   // The Revival Pack row prefers the store's localized price. The catalog loads
   // async, and a first death can render before it resolves, so subscribe to the
@@ -1718,6 +1719,13 @@ function DeathPopup() {
 
                   {/* Legacy actions - continue the bloodline, or start fresh */}
                   <View style={styles.actions}>
+                    {/* The heir keeps the parent's Mindset (handleContinueLegacy
+                        writes it). Said out loud so it is not a hidden rule. */}
+                    {heirs.length > 0 && inheritedMindsetName ? (
+                      <Text style={styles.inheritNote}>
+                        Your heir inherits the {inheritedMindsetName} mindset.
+                      </Text>
+                    ) : null}
                     <TouchableOpacity
                       style={[styles.actionButton, !canContinueLegacy && styles.disabledButton]}
                       onPress={handleContinueLegacy}

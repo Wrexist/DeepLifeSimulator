@@ -169,7 +169,11 @@ export function happinessGainFalloff(current: number): number {
  * Callers apply the RESULT and clamp as they already did; this function does
  * not clamp, so it composes with whatever bounds the call site enforces.
  */
-export function scaledHappinessGain(current: number, delta: number): number {
+export function scaledHappinessGain(current: number, delta: number, gainMult = 1): number {
   if (!Number.isFinite(delta) || delta <= 0) return Number.isFinite(delta) ? delta : 0;
-  return delta * happinessGainFalloff(current);
+  // `gainMult` (an Optimist's 1.15) scales the GAIN before the curve, so a
+  // thriving life still meets the same diminishing returns. Bounded, and a
+  // corrupt value is neutral - this sits on the weekly tick.
+  const mult = Number.isFinite(gainMult) && gainMult > 0 ? Math.min(1.6, Math.max(0.5, gainMult)) : 1;
+  return delta * mult * happinessGainFalloff(current);
 }

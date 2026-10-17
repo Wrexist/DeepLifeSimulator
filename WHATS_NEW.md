@@ -14,6 +14,9 @@ their own life seed).
   choice, 11 unreachable achievements, Bitcoin halving on week 1, Journal week
   labels, savings-goal and company-staff exploits, and more (PR #237).
 - **New:** "Make this my home" on a property's Manage sheet.
+- **Mindsets:** each now shapes the whole life its name promises (pay, decay,
+  bonds, travel, prices, assets), one upside and one downside, with card text
+  generated from the one effect table (PR #240).
 - **Balance:** prestige pays ~10x the points (anchored to the $10M threshold);
   Legacy Shop upgrades apply to the heir; every Mindset has a real effect;
   street rank raises pay; job applications can be rejected (entry tier stays

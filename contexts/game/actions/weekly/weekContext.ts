@@ -22,6 +22,7 @@
 
 import type { GameStats } from '@/contexts/game/types';
 import type { PreRolls } from './preTick';
+import type { ResolvedMindsetEffects } from '@/lib/mindset/effects';
 import type { LifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 /**
@@ -74,6 +75,11 @@ export interface WeekContext {
    * omit it keep working — consumers fall back to the neutral (all-1) set.
    */
   lifeSkillMods?: LifeSkillModifiers;
+  /**
+   * The life's Mindset multipliers (`mindsetEffects(prevState)`), resolved once
+   * per tick. Optional like `lifeSkillMods`; consumers fall back to neutral.
+   */
+  mindset?: ResolvedMindsetEffects;
   /**
    * Mandatory costs a reducer could not fully cover this week.
    *

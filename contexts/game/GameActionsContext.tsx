@@ -76,8 +76,8 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // wrapping try/catch blocks disabled JIT optimization for the entire ~1500-line
 // updater function. With these as ES imports, the JIT can finally inline the
 // updater and tests can mock via jest.mock(...) at the test setup layer.
-import { getStockInfo, restoreStockPrices, resetStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
-import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
+import { getStockInfo, restoreStockPrices, resetStockPrices, getAllStockSymbols, adjustStockPrice } from '@/lib/economy/stockMarket';
+import { accumulateDividendsThisYear, dividendYieldModifiers, playerDividendYield } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { advancePlayStreak, playStreakBonusPercent } from '@/lib/economy/playStreak';
 import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
@@ -148,6 +148,7 @@ import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
+import { mindsetEffects } from '@/lib/mindset/effects';
 import { applyResearchWeek } from './actions/RDActions';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
 import { resolveTenancyStep, computeHousingWellbeing } from '@/lib/realEstate/rentals';
@@ -867,12 +868,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // computed ONCE per tick and shared with every weekly reducer via weeklyCtx.
  // Neutral (all-1) for old saves / players who unlocked nothing.
  const lifeSkillMods = getLifeSkillModifiers(prevState);
+ // The life's Mindset, resolved ONCE per tick (lib/mindset/effects.ts) and
+ // shared through weeklyCtx like the life-skill modifiers above. Neutral for
+ // a life with no Mindset.
+ const mindsetMods = mindsetEffects(prevState);
  const weeklyCtx: WeekContext = {
    newStats,
    notifications: pendingNotifications,
    preRolls,
    nextWeeksLived,
    lifeSkillMods,
+   mindset: mindsetMods,
  };
 
  // Energy REGAINS when advancing weeks (like sleeping/resting)
@@ -943,7 +949,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Happiness Boost gold upgrade (was "Max increased to 100" - meaningless
  // since max is already 100): reframe as halving the natural happiness decay.
  const happinessDecayMul = prevState.goldUpgrades?.happiness_boost ? 0.5: 1.0;
- newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6);
+ // Mindset: a Workaholic's health and a Perfectionist's (or a restless
+ // Adventurer's) happiness wear down faster - the same factors Home's vitals
+ // projection applies (lib/economy/vitalDrift.ts).
+ newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay);
 
  // GL-3: the healthcare half of enacted policy. `PoliticalApp` has always
  // rendered "Health / week +N" for it; nothing ever added the health. Applied
@@ -954,7 +963,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (healthcarePolicy.weeklyHealthBonus > 0) {
  newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
  }
- newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
+ newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay);
  // The baseline for the single diminishing-returns application at the end of
  // this updater (Program 14): happiness AFTER natural decay, not before it.
  //
@@ -1074,6 +1083,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // C-1: the Commitment focus. Resolved from prevState so it reflects the
    // commitments in force at the start of the week the player is advancing.
    commitmentProgressMult: getCommitmentModifiers(prevState, 'career').progressMultiplier,
+   // A Perfectionist climbs faster (lib/mindset/effects.ts).
+   mindsetProgressMult: mindsetMods.careerProgress,
    // The early-career boost counts from this career's FIRST start in this
    // life, so quitting and re-applying cannot re-arm it.
    careerHistory: prevState.lifetimeStatistics?.careerHistory,
@@ -2943,7 +2954,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    const netHappinessMove = (newStats.happiness ?? 0) - happinessAfterDecay;
    if (netHappinessMove > 0) {
      newStats.happiness = clampStat0to100(
-       happinessAfterDecay + scaledHappinessGain(happinessAfterDecay, netHappinessMove),
+       // An Optimist's good week counts for more (before the diminishing curve).
+       happinessAfterDecay + scaledHappinessGain(happinessAfterDecay, netHappinessMove, mindsetMods.happinessGain),
      );
    }
  }
@@ -3040,21 +3052,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // modifier `stockReturnMult` had zero readers anywhere in the repo: the node
  // did nothing. Scaling the yield here applies it to the quarterly dividend,
  // which (since R1-01) is the only place stock dividends are paid.
- const stockReturnMult = Number(lifeSkillMods.stockReturnMult);
- const safeStockReturnMult =
- Number.isFinite(stockReturnMult) && stockReturnMult > 1 ? stockReturnMult : 1;
+ // ...and the Investor Mindset's +15%. All player-side modifiers are resolved
+ // by `dividendYieldModifiers` (lib/stocks/dividends.ts), which the Stocks
+ // screen's estimate reads too.
  // R3-M1: the standing policy dividend bonus is applied HERE, at read time.
  // `simulateWeek` used to add it to each stock's persistent yield once a week,
  // which compounded to a permanent 10% on every payer and survived both
  // save/reload and repealing the policy. As a read-time modifier it tracks the
  // policies actually in force.
- const policyDividendBonus = Number(prevState.politics?.activePolicyEffects?.stocks?.dividendBonus);
- const safeDividendBonus =
- Number.isFinite(policyDividendBonus) && policyDividendBonus > 0 ? policyDividendBonus : 0;
+ const dividendMods = dividendYieldModifiers(prevState);
  for (const sym of symbols) {
  const info = getStockInfo(sym);
  prices[sym] = info.price;
- yields[sym] = policyAdjustedYield(info.dividendYield, safeDividendBonus) * safeStockReturnMult;
+ yields[sym] = playerDividendYield(info.dividendYield, dividendMods);
  }
  const baseHoldings = (reinvestedStocks.length > 0 ? reinvestedStocks: (prevState.stocks?.holdings ?? []))
 .filter((h: any) => h && typeof h === 'object' && h.symbol)

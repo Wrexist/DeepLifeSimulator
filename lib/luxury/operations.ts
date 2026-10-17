@@ -88,8 +88,24 @@ export function getTotalLuxuryUpkeep(ownedIds: readonly string[] | undefined | n
 }
 
 /** Total weekly happiness benefit from owned luxury. */
-export function getTotalLuxuryHappiness(ownedIds: readonly string[] | undefined | null): number {
-  return getOwnedLuxuryItems(ownedIds).reduce((sum, item) => sum + item.happiness, 0);
+export function getTotalLuxuryHappiness(
+  ownedIds: readonly string[] | undefined | null,
+  /** The Mindset's luxury multiplier (Frugal 0.75, Big Spender 1.25). */
+  joyMult = 1,
+): number {
+  return getOwnedLuxuryItems(ownedIds).reduce((sum, item) => sum + luxuryItemHappiness(item.happiness, joyMult), 0);
+}
+
+/**
+ * One luxury item's weekly happiness for this life - its catalogue figure
+ * scaled by the Mindset and rounded, so the Luxury app's "+N happiness" label
+ * and the weekly tick add the same number.
+ */
+export function luxuryItemHappiness(base: number, joyMult = 1): number {
+  const b = Number.isFinite(base) ? base : 0;
+  if (b <= 0) return b;
+  const mult = Number.isFinite(joyMult) && joyMult > 0 ? Math.min(1.6, Math.max(0.5, joyMult)) : 1;
+  return Math.round(b * mult);
 }
 
 /** Total prestige points from owned luxury (feeds the reputation soft target). */

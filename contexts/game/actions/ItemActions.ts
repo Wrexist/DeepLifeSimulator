@@ -11,6 +11,7 @@ import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { rejectIfBlocked } from './_guards';
 import { ITEM_SELL_RATE } from '@/lib/config/gameConstants';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 const log = logger.scope('ItemActions');
 
@@ -44,6 +45,7 @@ export const buyItem = (
     basePrice,
     priceIndex,
     gameState.prestige?.unlockedBonuses,
+    mindsetEffects(gameState).marketPrice,
   );
   
   // CRITICAL: Validate calculated price before comparison

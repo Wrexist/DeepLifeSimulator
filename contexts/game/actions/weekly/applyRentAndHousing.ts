@@ -133,8 +133,10 @@ export function applyRentAndHousing(
       // perk (+7% - its card's promise, paid at the source it names; excluded
       // from the weekly tick's global perk product so it cannot apply twice).
       // Both applied inside the tick, before its $150K/wk cap.
+      // ...and an Investor's Mindset (+15%, lib/mindset/effects.ts), the same
+      // way: applied inside the tick, before the cap.
       rentalIncomeMultiplier:
-        rentalIncomeMultiplier(unlockedBonuses) * (perks?.landlord ? 1.07 : 1),
+        rentalIncomeMultiplier(unlockedBonuses) * (perks?.landlord ? 1.07 : 1) * (ctx.mindset?.rent ?? 1),
     });
     updatedRealEstate = reTick.properties;
     housingRentalIncome = reTick.rentalIncome;

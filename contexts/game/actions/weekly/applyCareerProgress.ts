@@ -84,6 +84,13 @@ export interface CareerProgressInput {
    */
   lifeSkillCareerProgressMult?: number;
   /**
+   * The Mindset's promotion multiplier (a Perfectionist's 1.15,
+   * lib/mindset/effects.ts). Defaults to 1 when omitted, like the life-skill
+   * multiplier above. NOT `goldMindset`/`perkMindset`, which are a gold upgrade
+   * and an IAP perk that happen to share the word.
+   */
+  mindsetProgressMult?: number;
+  /**
    * `prevState.lifetimeStatistics.careerHistory` — this life's job record.
    * Anchors the early-career boost on the FIRST time the job was started, so a
    * quit-and-rehire does not re-arm it. Omitted → the boost counts from
@@ -194,7 +201,24 @@ export function applyCareerProgress(input: CareerProgressInput): CareerProgressR
       // advertised since jobMarket.ts shipped, simulated only since the
       // 2026-08-24 audit). 1.0 for every career without a profile.
       const growthMult = growthProgressMultiplier(c.id);
-      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * lifeSkillMult * commitmentMult * growthMult);
+      // The life's Mindset (a Perfectionist's 1.15). Neutral when omitted.
+      const lifeMindsetMult = typeof input.mindsetProgressMult === 'number'
+        && isFinite(input.mindsetProgressMult) && input.mindsetProgressMult > 0
+        ? input.mindsetProgressMult
+        : 1;
+      const rawProgress = baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * commitmentMult * growthMult;
+      // The two small PLAYER bonuses - the Leadership/Executive life skill
+      // (+10%/+15%) and the Mindset (a Perfectionist's +15%) - are added as
+      // their OWN rounded step of at least one point. Folded into the single
+      // rounding they vanished: a typical week is 6.5 points, which rounds to 7
+      // with a 10% or a 15% boost (7.15 -> 7, 7.475 -> 7), so a $-priced life
+      // skill and a Mindset both climbed exactly as fast as nothing at all.
+      // A week with neither rounds exactly as before.
+      const playerBonusMult = lifeSkillMult * lifeMindsetMult;
+      const playerBonusStep = playerBonusMult === 1
+        ? 0
+        : Math.sign(playerBonusMult - 1) * Math.max(1, Math.round(rawProgress * Math.abs(playerBonusMult - 1)));
+      const progressRate = Math.max(0, Math.round(rawProgress) + playerBonusStep);
       const newProgress = Math.min(100, (c.progress || 0) + progressRate);
       return {
         ...c,

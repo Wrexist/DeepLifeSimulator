@@ -8,7 +8,7 @@ import { useGame } from '@/contexts/GameContext';
 import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { satietyHint, scaledFoodRestore } from '@/lib/economy/foodSatiety';
-import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
+import { getFoodPurchasePrice, getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { ShoppingBag, Apple, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -25,6 +25,7 @@ import { styles } from '@/components/market/marketScreenStyles';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 function MarketScreen() {
   return (
@@ -59,6 +60,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // screen. See hooks/useNavigationReady.ts.
   const navReady = useNavigationReady();
   const { gameState, setGameState, buyItem, sellItem, buyFood } = useGame();
+  // The life's Mindset market multiplier - the same factor buyItem / buyFood charge with.
+  const marketMindsetMult = mindsetEffects(gameState).marketPrice;
 
   // Prevent staying on market screen when in prison - redirect to work tab.
   // Embedded (inside the Life tab) the layout owns the jail redirect, so skip it.
@@ -83,7 +86,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     try {
       // Check if player can still afford it (in case something changed)
       const item = gameState.items.find(i => i.id === itemId);
-      const itemPrice = item ? getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses) : 0;
+      const itemPrice = item ? getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses, marketMindsetMult) : 0;
       if (!item || gameState.stats.money < itemPrice) {
         // Not an error - just a normal "you need more money" state. Use the
         // calmer info toast instead of the alarming red error toast.
@@ -150,10 +153,11 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // (ItemActionsContext), and the Premium Access discount is an ITEM-shop
   // effect, so gating food on the discounted figure would let the gate pass a
   // price the charge then rejects.
-  const canAfford = useCallback((price: number) => gameState.stats.money >= getInflatedPrice(price, gameState.economy?.priceIndex ?? 1), [gameState.stats.money, gameState.economy?.priceIndex]);
+  // FOOD affordability: the price `resolveFoodPurchase` charges.
+  const canAfford = useCallback((price: number) => gameState.stats.money >= getFoodPurchasePrice(price, gameState.economy?.priceIndex ?? 1, marketMindsetMult), [gameState.stats.money, gameState.economy?.priceIndex, marketMindsetMult]);
   // ITEM affordability: inflation × the prestige Premium Access discount - the
   // same helper buyItem charges with, so the card and the charge agree (§4.4).
-  const canAffordItem = useCallback((price: number) => gameState.stats.money >= getItemPurchasePrice(price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses), [gameState.stats.money, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses]);
+  const canAffordItem = useCallback((price: number) => gameState.stats.money >= getItemPurchasePrice(price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses, marketMindsetMult), [gameState.stats.money, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, marketMindsetMult]);
 
   const ownedCount = useMemo(
     () => (gameState.items || []).filter(item => item.owned).length,
@@ -162,7 +166,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
   // Memoized render functions with proper dependencies
   const renderItem = useCallback(({ item }: { item: typeof gameState.items[0] }) => {
-    const inflatedPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses);
+    const inflatedPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses, marketMindsetMult);
 
     // At most ONE badge now - 'Recommended', plain text. The 5-type emoji
     // taxonomy (Best Value / You Can Afford! / Popular / …) is deleted
@@ -250,7 +254,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         ) : (
           <LoadingButton
             onPress={() => {
-              const itemPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses);
+              const itemPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses, marketMindsetMult);
 
               // Check if can afford before doing anything
               if (gameState.stats.money < itemPrice) {
@@ -280,7 +284,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         )}
       </View>
     );
-  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, gameState.items, loadingStates, canAffordItem, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
+  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, gameState.items, loadingStates, canAffordItem, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm, marketMindsetMult]);
 
   const renderFood = useCallback(({ item: food }: { item: typeof gameState.foods[0] }, isLead = false) => {
     // Calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)
@@ -319,7 +323,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             * with what `buyFood` charges.
             */}
           <Text style={styles.itemPrice}>
-            {formatMoney(getInflatedPrice(food.price, gameState.economy?.priceIndex ?? 1))}
+            {formatMoney(getFoodPurchasePrice(food.price, gameState.economy?.priceIndex ?? 1, marketMindsetMult))}
           </Text>
 
           {/* One chip per stat, in the HUD's own colors - see
@@ -377,7 +381,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     // after a meal (and last month's price after an inflation tick) until some
     // other dependency happened to change.
   }, [settings.darkMode, buyFood, canAfford, showSuccess, showError, t,
-      gameState.weeklyFoodPurchases, gameState.economy?.priceIndex]);
+      gameState.weeklyFoodPurchases, gameState.economy?.priceIndex, marketMindsetMult]);
 
   // Pure and cheap over ~5 tiers; called once per render, used by both the
   // section body and the collapsed summary.

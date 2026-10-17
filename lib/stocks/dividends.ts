@@ -7,9 +7,41 @@
  *
  * Pure functions.
  */
+import type { GameState } from '@/contexts/game/types';
+import { policyAdjustedYield } from '@/lib/economy/stockMarket';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 const safe = (n: number, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
+
+/** Everything about THIS player that moves the yield they are paid. */
+export interface DividendYieldModifiers {
+  /** Standing policy dividend bonus, added to the base yield (capped). */
+  policyBonus: number;
+  /** Investing life skill x the Mindset (an Investor's 1.15). */
+  returnMult: number;
+}
+
+/**
+ * The player-side dividend modifiers, resolved once - the weekly tick (which
+ * pays) and the Stocks screen (which estimates) both read this, so the
+ * estimate is the payout. The screen used to apply none of them.
+ */
+export function dividendYieldModifiers(state: GameState): DividendYieldModifiers {
+  const policy = Number(state?.politics?.activePolicyEffects?.stocks?.dividendBonus);
+  const lifeSkill = Number(getLifeSkillModifiers(state).stockReturnMult);
+  const mindset = mindsetEffects(state).dividends;
+  return {
+    policyBonus: Number.isFinite(policy) && policy > 0 ? policy : 0,
+    returnMult: (Number.isFinite(lifeSkill) && lifeSkill > 1 ? lifeSkill : 1) * (Number.isFinite(mindset) && mindset > 0 ? mindset : 1),
+  };
+}
+
+/** The annual yield a player is paid on a stock with `baseYield`. */
+export function playerDividendYield(baseYield: number, mods: DividendYieldModifiers): number {
+  return policyAdjustedYield(baseYield, mods.policyBonus) * mods.returnMult;
+}
 
 /** Weeks per dividend cycle (quarterly). */
 export const DIVIDEND_INTERVAL_WEEKS = 13;

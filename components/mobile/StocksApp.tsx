@@ -40,7 +40,7 @@ import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import StockRow, { Sparkline, ChangeChip, SECTOR_COLOR, SECTOR_LABEL } from '@/components/stocks/StockRow';
 import StockTradeModal from '@/components/stocks/StockTradeModal';
 import { sectorForSymbol, ALL_SECTORS, Sector } from '@/lib/stocks/sectors';
-import { quarterlyDividend } from '@/lib/stocks/dividends';
+import { dividendYieldModifiers, playerDividendYield, quarterlyDividend } from '@/lib/stocks/dividends';
 import {
   buyStockMarket,
   sellStockMarket,
@@ -101,6 +101,7 @@ function formatPrice(n: number): string {
 
 function StocksAppInner({ onBack }: StocksAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  const dividendMods = useMemo(() => dividendYieldModifiers(gameState), [gameState]);
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
@@ -601,7 +602,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const positionCost = shares * avg;
     const positionPnl = marketValue - positionCost;
     const positionPnlPct = positionCost > 0 ? positionPnl / positionCost : undefined;
-    const estQuarterly = quarterlyDividend(shares, price, dividendYield);
+    // The yield the tick PAYS this player (policy, Investing skill, Mindset).
+    const estQuarterly = quarterlyDividend(shares, price, playerDividendYield(dividendYield, dividendMods));
     const estAnnual = estQuarterly * 4;
     const up = (changePct ?? 0) > 0;
     const down = (changePct ?? 0) < 0;

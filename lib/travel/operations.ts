@@ -9,6 +9,7 @@ import { GameState, TravelState } from '@/contexts/game/types';
 import { DESTINATIONS, TravelDestination } from './destinations';
 import { transportationMods } from './transportation';
 import { rollTripEvents, summarizeEvents, TravelEventDef } from './events';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -42,6 +43,38 @@ export function deriveExperienceStats(
     happiness: stressHappiness + mind,
     energy: stressEnergy,
   };
+}
+
+/**
+ * The happiness a trip itself gives - the destination's own happiness plus the
+ * stress relief and enrichment folded in by `deriveExperienceStats`, scaled by
+ * the Mindset (an Adventurer's 1.25) when it is a GAIN. Random trip events are
+ * separate and unscaled. One function for the return summary and the
+ * destination card, so the card shows what the trip pays.
+ */
+export function tripHappiness(
+  benefits: TravelDestination['benefits'] | undefined,
+  joyMult = 1,
+): number {
+  const base = safe(benefits?.happiness, 0) + deriveExperienceStats(benefits).happiness;
+  if (base <= 0) return base;
+  const mult = Number.isFinite(joyMult) && joyMult > 0 ? joyMult : 1;
+  return Math.round(base * mult);
+}
+
+/**
+ * The fare this player pays for a trip with `baseCost`: transport/policy
+ * modifiers x the Mindset (an Adventurer's 0.85). `quoteTrip` charges it and
+ * every screen that shows a fare reads it, so the advertised price is the
+ * charged price. `policyFare` is the same without the Mindset, for a fare
+ * breakdown that names each saving.
+ */
+export function tripFare(baseCost: number, state: GameState): { fare: number; policyFare: number } {
+  const base = safe(baseCost, 0);
+  const mods = transportationMods(state);
+  const policyFare = Math.max(0, Math.floor(base * mods.costMultiplier));
+  const fare = Math.max(0, Math.floor(base * mods.costMultiplier * mindsetEffects(state).travelCost));
+  return { fare, policyFare };
 }
 
 export interface TripQuoteFailure {
@@ -104,7 +137,9 @@ export function quoteTrip(
 
   const mods = transportationMods(state);
   const baseCost = safe(destination.cost, 0);
-  const adjustedCost = Math.max(0, Math.floor(baseCost * mods.costMultiplier));
+  // An Adventurer travels cheaper (lib/mindset/effects.ts) - via `tripFare`,
+  // the one fare every screen shows.
+  const adjustedCost = tripFare(baseCost, state).fare;
   const baseDuration = Math.max(1, safe(destination.duration, 1));
   const adjustedDuration = Math.max(1, Math.ceil(baseDuration * mods.durationMultiplier));
 
@@ -209,7 +244,7 @@ export function buildTripReturnSummary(
     destination,
     events,
     totals: {
-      happinessDelta: safe(benefits.happiness, 0) + eventTotals.happinessDelta + experience.happiness,
+      happinessDelta: tripHappiness(benefits, mindsetEffects(state).travelHappiness) + eventTotals.happinessDelta,
       healthDelta: safe(benefits.health, 0) + eventTotals.healthDelta,
       energyDelta: safe(benefits.energy, 0) + eventTotals.energyDelta + experience.energy,
       stressDelta: safe(benefits.stress, 0),

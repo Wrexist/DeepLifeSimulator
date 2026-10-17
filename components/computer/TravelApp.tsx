@@ -63,7 +63,8 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { transportationMods } from '@/lib/travel/transportation';
-import { quoteTrip, deriveExperienceStats } from '@/lib/travel/operations';
+import { quoteTrip, deriveExperienceStats, tripFare, tripHappiness } from '@/lib/travel/operations';
+import { mindsetEffects } from '@/lib/mindset/effects';
 import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
 import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
 import {
@@ -181,13 +182,15 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 // `core` limits to the four headline stats for compact grid tiles.
 function benefitDescriptors(
   b: TravelDestination['benefits'],
-  core = false
+  core = false,
+  /** The Mindset's trip-happiness multiplier, so the card shows what the trip pays. */
+  joyMult = 1,
 ): { Icon: React.ComponentType<{ size: number; color: string }>; color: string; value: string; key: string }[] {
   const out = [] as { Icon: React.ComponentType<{ size: number; color: string }>; color: string; value: string; key: string }[];
   // Fold stress-relief + intelligence enrichment into the concrete happiness/
   // energy deltas the game actually models (matches deriveExperienceStats).
   const experience = deriveExperienceStats(b);
-  const happiness = (b?.happiness ?? 0) + experience.happiness;
+  const happiness = tripHappiness(b, joyMult);
   const energy = (b?.energy ?? 0) + experience.energy;
   if (happiness) out.push({ Icon: Heart, color: accent.danger, value: `${happiness > 0 ? '+' : ''}${happiness}`, key: 'hap' });
   if (b.health) out.push({ Icon: Battery, color: accent.success, value: `${b.health > 0 ? '+' : ''}${b.health}`, key: 'hp' });
@@ -590,7 +593,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           const quote = quoteTrip(dest.id, gameState, week);
           const meta = metaFor(dest.id);
           const visited = travel.visitedDestinations?.includes(dest.id);
-          const adjusted = quote.ok ? quote.adjustedCost : Math.max(0, Math.floor(dest.cost * mods.costMultiplier));
+          const adjusted = quote.ok ? quote.adjustedCost : tripFare(dest.cost, gameState).fare;
           const adjustedDuration = quote.ok ? quote.adjustedDuration : Math.max(1, Math.ceil(dest.duration * mods.durationMultiplier));
           const hasDiscount = adjusted < dest.cost;
           const passportRequired = dest.requirements?.items?.includes('passport');
@@ -663,10 +666,14 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const meta = metaFor(dest.id);
     const quote = quoteTrip(dest.id, gameState, week);
     const baseCost = dest.cost;
-    const adjustedCost = Math.max(0, Math.floor(baseCost * mods.costMultiplier));
+    // The fare `quoteTrip` charges (transport/policy x the Mindset), split so
+    // the breakdown can name each saving.
+    const { fare: adjustedCost, policyFare } = tripFare(baseCost, gameState);
     const baseDuration = Math.max(1, dest.duration);
     const adjustedDuration = Math.max(1, Math.ceil(baseDuration * mods.durationMultiplier));
     const savings = baseCost - adjustedCost;
+    const policySavings = baseCost - policyFare;
+    const mindsetSavings = policyFare - adjustedCost;
     const visited = travel.visitedDestinations?.includes(dest.id);
     const visits = (travel.travelHistory || []).filter((h) => h.destinationId === dest.id);
     const lastVisit = visits[visits.length - 1];
@@ -739,10 +746,16 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               {formatMoney(baseCost)}
             </Text>
           </View>
-          {savings > 0 && (
+          {policySavings > 0 && (
             <View style={styles.fareRow}>
               <Text style={[styles.fareLabel, { color: accent.success }]}>Policy savings</Text>
-              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(savings)}</Text>
+              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(policySavings)}</Text>
+            </View>
+          )}
+          {mindsetSavings > 0 && (
+            <View style={styles.fareRow}>
+              <Text style={[styles.fareLabel, { color: accent.success }]}>Adventurous mindset</Text>
+              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(mindsetSavings)}</Text>
             </View>
           )}
           <View style={styles.fareRow}>
@@ -763,7 +776,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SectionTitle title="Stat effects" />
           <View style={styles.benefitRow}>
-            {benefitDescriptors(dest.benefits).map((d) => (
+            {benefitDescriptors(dest.benefits, false, mindsetEffects(gameState).travelHappiness).map((d) => (
               <BenefitChip key={d.key} Icon={d.Icon} color={d.color} value={d.value} />
             ))}
           </View>
@@ -876,7 +889,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const totalWeeks = Math.max(1, effectiveReturn - startWeek);
     const elapsed = clamp(week - startWeek, 0, totalWeeks);
     const progressPct = clamp((elapsed / totalWeeks) * 100, 0, 100);
-    const fare = Math.max(0, Math.floor(dest.cost * mods.costMultiplier));
+    const fare = tripFare(dest.cost, gameState).fare;
 
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>

@@ -648,6 +648,11 @@ export function createStyles(darkMode: boolean) {
       textAlign: 'center',
       fontStyle: 'italic',
     },
+    inheritNote: {
+      fontSize: fontScale(13),
+      color: c.textSecondary,
+      textAlign: 'center',
+    },
     // Heir Selection Styles
     heirHeader: {
       padding: scale(20),
