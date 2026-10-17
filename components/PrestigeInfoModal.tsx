@@ -109,19 +109,19 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
               effect = `+$${totalAmount.toLocaleString('en-US')} starting money`;
             } else if (bonus.id === 'starting_stats_1') {
               const totalStats = 5 * level;
-              effect = `+${totalStats} to all starting stats`;
+              effect = `+${totalStats} starting fitness (heirs: +${totalStats} health, happiness, energy too)`;
             } else if (bonus.id === 'starting_stats_2') {
               const totalStats = 10 * level;
-              effect = `+${totalStats} to all starting stats`;
+              effect = `+${totalStats} starting fitness (heirs: +${totalStats} health, happiness, energy too)`;
             } else if (bonus.id === 'starting_stats_3') {
               const totalStats = 20 * level;
-              effect = `+${totalStats} to all starting stats`;
+              effect = `+${totalStats} starting fitness (heirs: +${totalStats} health, happiness, energy too)`;
             } else if (bonus.id === 'starting_reputation') {
               effect = '+10 starting reputation';
             } else if (bonus.id === 'starting_energy') {
-              effect = '+20 starting energy';
+              effect = '+20 starting energy, +25% energy regen for the first year';
             } else if (bonus.id === 'perfect_start') {
-              effect = 'Start with 100 in all stats';
+              effect = 'Start at 100 health, happiness, energy and fitness';
             }
             break;
           case 'multiplier':
@@ -136,25 +136,19 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
               effect = `+${totalPercent}% to all income`;
             } else if (bonus.id === 'experience_multiplier_1') {
               const totalPercent = 10 * level;
-              effect = `+${totalPercent}% experience gain`;
+              effect = `+${totalPercent}% study speed`;
             } else if (bonus.id === 'experience_multiplier_2') {
               const totalPercent = 25 * level;
-              effect = `+${totalPercent}% experience gain`;
+              effect = `+${totalPercent}% study speed`;
             } else if (bonus.id === 'experience_multiplier_3') {
               const totalPercent = 50 * level;
-              effect = `+${totalPercent}% experience gain`;
+              effect = `+${totalPercent}% study speed`;
             } else if (bonus.id === 'skill_gain_multiplier') {
               const skillMultiplier = getSkillGainMultiplier(unlockedBonuses);
               effect = `+${Math.round((skillMultiplier - 1) * 100)}% skill gain rate`;
             } else if (bonus.id === 'stat_decay_reduction') {
               const decayMultiplier = getStatDecayMultiplier(unlockedBonuses);
               effect = `-${Math.round((1 - decayMultiplier) * 100)}% stat decay rate`;
-            } else if (bonus.id === 'wealth_magnet') {
-              // Soft-capped: full effect to +50%, quarter strength beyond
-              // (lib/prestige/applyBonuses.ts). Don't restate the raw headline.
-              effect = '+100% income (soft-capped past +50%)';
-            } else if (bonus.id === 'genius') {
-              effect = '+100% learning speed';
             }
             break;
           case 'unlock':
@@ -187,7 +181,16 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
             }
             break;
           case 'special':
-            if (bonus.id === 'immortality') {
+            // wealth_magnet and genius are 'special', not 'multiplier': their
+            // labels used to sit in the multiplier branch, which they never
+            // reach, so this screen fell back to the raw headline.
+            if (bonus.id === 'wealth_magnet') {
+              // Soft-capped: full effect to +50%, quarter strength beyond
+              // (lib/prestige/applyBonuses.ts). Don't restate the raw headline.
+              effect = '+100% to all income (soft-capped past +50%)';
+            } else if (bonus.id === 'genius') {
+              effect = '+100% study speed';
+            } else if (bonus.id === 'immortality') {
               effect = 'Never die from old age';
             } else if (bonus.id === 'social_master') {
               const relMultiplier = getRelationshipGainMultiplier(unlockedBonuses);

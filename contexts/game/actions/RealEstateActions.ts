@@ -35,6 +35,13 @@ import {
   getUpgradeTierCost,
 } from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
+import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
+import {
+  canMoveIn,
+  moveInResult,
+  moveIntoProperty,
+  movesBackInOnStopRenting,
+} from '@/lib/realEstate/residence';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
 import { propertyPriceMultiplier } from '@/lib/prestige/purchaseDiscounts';
 import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
@@ -242,18 +249,23 @@ function resolveBuyProperty(
       updatedLoans = [...updatedLoans, loan];
     }
 
+    // A commercial listing is never a home - the buy sheet hides the toggle for
+    // it, and `canMoveIn` refuses it; the action enforces the same rule rather
+    // than trusting the caller.
+    const asResidence = spec.asResidence === true && !isCommercialCatalogId(catalog.id);
+
     // Build the owned entry. If it existed (unowned), merge over it; otherwise append.
     const ownedEntry: RealEstate = {
       ...(existing ?? catalog),
       owned: true,
-      status: spec.asResidence ? 'owner' : 'owner',
+      status: 'owner',
       // Basis at the DISCOUNTED price when Real Estate Mogul applies - see the
       // anti-arbitrage note in quotePropertyPurchase.
       purchasePrice: quote.effectivePrice ?? catalog.price,
       purchasedWeek: state.weeksLived,
       currentValue: quote.effectivePrice ?? catalog.price,
       condition: 90,
-      currentResidence: spec.asResidence ?? false,
+      currentResidence: asResidence,
       mortgageId,
       neighborhood: existing?.neighborhood ?? catalog.id,
       marketCycle: 'stable',
@@ -268,7 +280,7 @@ function resolveBuyProperty(
     }
 
     // If marking as primary residence, demote any prior residence.
-    if (spec.asResidence) {
+    if (asResidence) {
       updatedRealEstate = updatedRealEstate.map((p) =>
         p.id !== ownedEntry.id && p.currentResidence ? { ...p, currentResidence: false } : p
       );
@@ -410,14 +422,79 @@ export const setPropertyRentMode = (
   });
 };
 
+/**
+ * PURE: what taking `propertyId` off the rental market does to `state`.
+ *
+ * Renting a property out clears `currentResidence` (`setRentMode`), and this
+ * used to give the property back as an empty investment only - so a player who
+ * rented out their home and then stopped was read as HOMELESS by the weekly
+ * tick while they owned an empty house. When they have nowhere else to live
+ * they now move straight back in, in the same transition (see
+ * `movesBackInOnStopRenting` for why that case does not ask). `next: null`
+ * means refuse.
+ */
+export function resolveStopRenting(state: GameState, propertyId: string): ImproveOutcome {
+  const property = findOwnedById(state.realEstate ?? [], propertyId);
+  if (!property) {
+    return { result: { success: false, message: 'You must own this property to stop renting it.' }, next: null };
+  }
+  if (property.status !== 'rented') {
+    return { result: { success: false, message: `${property.name} is not rented out.` }, next: null };
+  }
+  const movesBackIn = movesBackInOnStopRenting(state, propertyId);
+  const ended = endRental(state.realEstate ?? [], propertyId);
+  return {
+    result: {
+      success: true,
+      message: movesBackIn
+        ? `${property.name} is off the rental market, and you moved back in.`
+        : `${property.name} is off the rental market.`,
+    },
+    next: { ...state, realEstate: movesBackIn ? moveIntoProperty(ended, propertyId) : ended },
+  };
+}
+
 /** Stop renting out a property; convert back to owner-occupied. */
 export const stopRenting = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   propertyId: string
 ) => {
-  setGameState((prev) => {
-    return { ...prev, realEstate: endRental(prev.realEstate ?? [], propertyId) };
-  });
+  setGameState((prev) => resolveStopRenting(prev, propertyId).next ?? prev);
+};
+
+/**
+ * PURE: what making `propertyId` the player's home does to `state`.
+ *
+ * The verdict is `canMoveIn` - the same function the Manage sheet reads to
+ * enable the button and word its hint - so the sheet cannot offer a move the
+ * action refuses. A tenancy is left for the weekly tick to end, exactly as when
+ * a renter buys a home (see lib/realEstate/residence.ts). `next: null` means
+ * refuse, and is also the same-batch double-tap guard: the second call sees the
+ * property already marked as home.
+ */
+export function resolveMakeHome(state: GameState, propertyId: string): ImproveOutcome {
+  const verdict = canMoveIn(state, propertyId);
+  if (!verdict.allowed) {
+    return { result: { success: false, message: verdict.reason }, next: null };
+  }
+  const property = findOwnedById(state.realEstate ?? [], propertyId)!;
+  return {
+    result: { success: true, message: moveInResult(property.name, verdict) },
+    next: { ...state, realEstate: moveIntoProperty(state.realEstate ?? [], propertyId) },
+  };
+}
+
+/** Move into an owned property. Outcome from the snapshot, state from `prev`. */
+export const makePropertyHome = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  propertyId: string
+): { success: boolean; message: string } => {
+  const preview = resolveMakeHome(gameState, propertyId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveMakeHome(prev, propertyId).next ?? prev);
+  log.info(`Moved into ${propertyId}`);
+  return preview.result;
 };
 
 /** Kick the current tenant out. They lose the lease; property becomes vacant. */

@@ -169,7 +169,7 @@ const helpContent = [
       },
       {
         question: 'What is education and how do I get it?',
-        answer: 'Education unlocks better careers and increases promotion chances. Open Apps → Education to enroll. Education costs money and takes weeks to complete. Types: High School (basic requirement), University (unlocks professional careers), Specialized Training (unlocks expert careers). You can enroll in multiple courses simultaneously, but each adds health penalty. Prestige bonuses can unlock early education access or reduce costs.',
+        answer: 'Education unlocks better careers and increases promotion chances. Open Apps → Education to enroll. Education costs money and takes weeks to complete. Types: High School (basic requirement), University (unlocks professional careers), Specialized Training (unlocks expert careers). You can enroll in multiple courses simultaneously, but each adds health penalty. The Educated Start prestige bonus completes every education at the start of each life, and the Learner bonuses make courses finish faster.',
       },
       {
         question: 'How do I start a company?',
@@ -198,7 +198,7 @@ const helpContent = [
       },
       {
         question: 'How does Social Media work?',
-        answer: 'Post content to gain followers. More followers = more sponsorship income. Post regularly to maintain followers (they decrease if you don\'t post). Engage with trending topics for bonus followers. High follower counts unlock premium features and higher earnings. Social media provides passive income from sponsorships. It\'s a long-term investment - build your audience over time.',
+        answer: 'Post content to gain followers. More followers = more sponsorship income. Post regularly to maintain followers (they decrease if you don\'t post). Engage with trending topics for bonus followers. High follower counts unlock premium features and higher earnings. Brand deals pay per sponsored post you deliver, not passively - deliver the posts a deal asks for before it expires. It\'s a long-term investment - build your audience over time.',
       },
       {
         question: 'How does the Dating app work?',
@@ -228,15 +228,15 @@ const helpContent = [
       },
       {
         question: 'What is passive income?',
-        answer: 'Passive income is money earned automatically each week without active work. Sources: Stock dividends (from dividend-paying stocks), Rental properties (weekly rent income), Company profits (from your businesses), Cryptocurrency mining (from miners), Social media sponsorships (from followers), Bank interest (from savings). Passive income is key to wealth building - it compounds over time. Focus on building multiple passive income streams.',
+        answer: 'Passive income is money earned automatically each week without active work. Sources: Stock dividends (from dividend-paying stocks), Rental properties (weekly rent income), Company profits (from your businesses), Cryptocurrency mining (from miners), Bank interest (from savings). Passive income is key to wealth building - it compounds over time. Focus on building multiple passive income streams.',
       },
       {
         question: 'How do I maximize passive income?',
-        answer: '1. Invest in dividend stocks early and reinvest dividends. 2. Buy rental properties - they provide steady weekly income. 3. Start companies and hire workers to scale. 4. Mine cryptocurrency with good miners. 5. Grow social media following for sponsorships. 6. Save money in bank accounts for interest. 7. Use prestige bonuses to multiply passive income. 8. Reinvest all passive income to compound growth. The key is starting early and reinvesting everything.',
+        answer: '1. Invest in dividend stocks early and reinvest dividends. 2. Buy rental properties - they provide steady weekly income. 3. Start companies and hire workers to scale. 4. Mine cryptocurrency with good miners. 5. Grow a social media following - brand deals pay per sponsored post. 6. Save money in bank accounts for interest. 7. Use prestige bonuses to multiply passive income. 8. Reinvest all passive income to compound growth. The key is starting early and reinvesting everything.',
       },
       {
         question: 'What is net worth?',
-        answer: 'Net worth = Money + Bank Savings + Stock value + Real estate value + Crypto value + Company value + Vehicle value + Collectibles - Debts (loans). Net worth determines prestige eligibility (need $100M+ for first prestige). Track your net worth on the home screen. Net worth is your total wealth, not just cash. Diversify assets to grow net worth.',
+        answer: 'Net worth = Money + Bank Savings + Stock value + Real estate value + Crypto value + Company value + Vehicle value + Collectibles - Debts (loans). Net worth determines prestige eligibility (need $10M for the first prestige, 25% more for each one after). Track your net worth on the home screen. Net worth is your total wealth, not just cash. Diversify assets to grow net worth.',
       },
       {
         question: 'How do loans work?',
@@ -340,7 +340,7 @@ const helpContent = [
     items: [
       {
         question: 'What is prestige?',
-        answer: 'Prestige lets you reset your character while keeping permanent bonuses. Reach $100M net worth (or higher for subsequent prestiges) to unlock prestige. You lose all progress (age, stats, money, items) but gain prestige points to buy powerful bonuses. Prestige bonuses are permanent and apply to all future characters. This creates a progression system where each "life" gets easier.',
+        answer: 'Prestige lets you reset your character while keeping permanent bonuses. Reach $10M net worth to unlock your first prestige (each later prestige needs 25% more: $12.5M, then $15.6M, and so on). You lose all progress (age, stats, money, items) but gain prestige points to buy powerful bonuses. Prestige bonuses are permanent and apply to all future characters. This creates a progression system where each "life" gets easier.',
       },
       {
         question: 'How do prestige bonuses work?',
@@ -352,15 +352,15 @@ const helpContent = [
       },
       {
         question: 'How do I earn prestige points?',
-        answer: 'Earn prestige points based on your net worth when you prestige. Formula: Points = (Net Worth / 1,000,000) * 0.1. Example: $100M net worth = 10 points, $200M = 20 points, $1B = 100 points. Higher net worth = more points. Each prestige increases the required net worth threshold (Level 0 = $100M, Level 1 = $200M, etc.).',
+        answer: 'You earn prestige points when you prestige, mostly from net worth: 10,000 points at $10M (1,000 per $1M up to there), then growing with the square root of net worth - $40M pays 20,000 and $1B pays 100,000 - and never less than 100 per $1M. On top of that: +10 per newly earned achievement, +1 per year of age over 18 (max 100), +25 per maxed career, +5 per property, +50 per company, +20 per child and +50 per completed generation. The total is multiplied by 1.1 per prestige level (up to x2.59), and continuing as a child adds +25%. Prestige achievements and Life Ambitions also pay points, once each. You need $10M for the first prestige; each prestige after needs 25% more ($12.5M, then $15.6M, and so on).',
       },
       {
         question: 'Which prestige bonuses should I buy first?',
-        answer: 'Recommended order: 1. Starting money bonuses (faster early game), 2. Income multipliers (long-term growth), 3. Experience multipliers (faster progression), 4. QoL bonuses (convenience), 5. Unlock bonuses (early access). Focus on stackable bonuses you can buy multiple times. Starting money is most impactful for early game speed.',
+        answer: 'Recommended order: 1. Starting money bonuses (faster early game), 2. Income multipliers (long-term growth), 3. Learner bonuses (courses finish faster), 4. QoL bonuses (convenience), 5. Unlock bonuses (early access). Focus on stackable bonuses you can buy multiple times. Starting money is most impactful for early game speed.',
       },
       {
         question: 'What\'s the difference between Prestige and Legacy?',
-        answer: 'Prestige: Reset at $100M+ net worth, gain prestige points, keep prestige bonuses, generation stays same, lose all progress. Legacy: Continue as child when you die, inherit 10% wealth, generation increases, NO prestige points gained, keep family tree. Use prestige for bonuses and faster progression. Use legacy for family continuity and generation achievements.',
+        answer: 'Prestige: Reset at $10M+ net worth (25% more each time), gain prestige points, keep prestige bonuses, generation stays same, lose all progress. Legacy: Continue as child when you die, inherit 10% wealth, generation increases, NO prestige points gained, keep family tree. Use prestige for bonuses and faster progression. Use legacy for family continuity and generation achievements.',
       },
     ],
   },
@@ -468,7 +468,7 @@ const helpContent = [
       },
       {
         question: 'How does Social Media work?',
-        answer: 'Post content to gain followers. More followers = more sponsorship income. Post regularly to maintain followers (they decrease if you don\'t post). Engage with trending topics for bonus followers. High follower counts unlock premium features and higher earnings. Social media provides passive income from sponsorships. It\'s a long-term investment - build your audience over time. Consistency is key.',
+        answer: 'Post content to gain followers. More followers = more sponsorship income. Post regularly to maintain followers (they decrease if you don\'t post). Engage with trending topics for bonus followers. High follower counts unlock premium features and higher earnings. Brand deals pay per sponsored post you deliver, not passively - deliver the posts a deal asks for before it expires. It\'s a long-term investment - build your audience over time. Consistency is key.',
       },
       {
         question: 'How does the Dating app work?',
@@ -630,7 +630,7 @@ const helpContent = [
       },
       {
         question: 'What is the difference between Prestige and Legacy?',
-        answer: 'Prestige: Reset at $100M+ net worth, gain prestige points, keep prestige bonuses, generation stays same, lose all progress. Legacy: Continue as child when you die, inherit 10% wealth, generation increases, NO prestige points gained, keep family tree. Use prestige for bonuses and faster progression. Use legacy for family continuity and generation achievements.',
+        answer: 'Prestige: Reset at $10M+ net worth (25% more each time), gain prestige points, keep prestige bonuses, generation stays same, lose all progress. Legacy: Continue as child when you die, inherit 10% wealth, generation increases, NO prestige points gained, keep family tree. Use prestige for bonuses and faster progression. Use legacy for family continuity and generation achievements.',
       },
       {
         question: 'How do I continue my family line?',

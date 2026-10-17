@@ -14,8 +14,17 @@ import {
   emptyLedger,
   expireFavors as expireFavorsPure,
   redeemFavor as redeemFavorPure,
+  BORROWED_CASH_TERM_WEEKS,
+  LENT_CASH_TERM_WEEKS,
+  OVERDUE_DEBT_BOND_HIT,
+  cashLoanRepayableWeek,
+  isCashOwedToPlayer,
+  openCashDebtTo,
+  openCashLoanTo,
+  planOverdueDebtCollection,
 } from '@/lib/contacts/favors';
 import { logger } from '@/utils/logger';
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { applyMoneyDelta } from './MoneyActions';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
@@ -33,6 +42,110 @@ function ledgerOf(state: GameState): FavorLedger {
   return state.favorLedger ?? emptyLedger();
 }
 
+const usd = (n: number): string => `$${Math.round(isFinite(n) ? n : 0).toLocaleString('en-US')}`;
+
+// ---------------------------------------------------------------------------
+// Overdue debts - squared up before any other dealings with contacts
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect every borrowed-cash debt that has reached its due week. PURE.
+ *
+ * The lender takes what cash covers; the rest is booked as overdue bills
+ * (`overdueBalance`, v31) - which the weekly arrears pass collects first out of
+ * income, which drags the credit score while it stands, and which the canonical
+ * net worth already subtracts. Each lender who had to chase you loses
+ * `OVERDUE_DEBT_BOND_HIT` bond, once per settlement however many debts they
+ * held (older saves can carry several IOUs to one person from before borrowing
+ * was limited to one at a time).
+ *
+ * Returns the SAME state reference when nothing is due, so callers can use
+ * identity as "nothing happened". Everything uses fields the save already has:
+ * the due week is derived from each IOU's `createdWeek`.
+ */
+export function settleOverdueContactDebts(state: GameState): { state: GameState; notice: string | null } {
+  const week = state.weeksLived;
+  if (typeof week !== 'number' || !isFinite(week)) return { state, notice: null };
+  const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+  const plan = planOverdueDebtCollection(state.favorLedger, week, cash);
+  if (plan.collections.length === 0) return { state, notice: null };
+
+  let next: GameState = { ...state, favorLedger: plan.ledger };
+  let toArrears = plan.toArrears;
+  if (plan.cashCollected > 0) {
+    const paid = applyMoneyDelta(next, -plan.cashCollected, 'Overdue debts collected by contacts');
+    // Unreachable in practice (the plan never takes more than the cash on
+    // hand), but if the debit is refused the money is still owed - it goes on
+    // the overdue bills rather than being forgiven.
+    if (paid) next = { ...next, ...paid };
+    else toArrears += plan.cashCollected;
+  }
+  if (toArrears > 0) {
+    const standing = typeof state.overdueBalance === 'number' && isFinite(state.overdueBalance)
+      ? Math.max(0, state.overdueBalance)
+      : 0;
+    next = { ...next, overdueBalance: Math.round(standing + toArrears) };
+  }
+
+  const lenders = new Set(plan.collections.map((c) => c.contactId));
+  const rels = state.relationships ?? [];
+  // A lender the player has since removed from their life takes the money but
+  // has no bond left to lose.
+  const anyLenderKnown = rels.some((r) => r && lenders.has(r.id));
+  if (anyLenderKnown) {
+    next = {
+      ...next,
+      relationships: rels.map((r) =>
+        r && lenders.has(r.id)
+          ? { ...r, relationshipScore: Math.max(0, (r.relationshipScore ?? 0) - OVERDUE_DEBT_BOND_HIT) }
+          : r,
+      ),
+    };
+  }
+
+  const nameOf = (id: string) => rels.find((r) => r?.id === id)?.name ?? 'A former contact';
+  const who = plan.collections.map((c) => `${nameOf(c.contactId)} took back the ${usd(c.owed)} you owed`).join('; ');
+  const arrearsNote = toArrears > 0 ? ` ${usd(toArrears)} you could not cover went on your overdue bills.` : '';
+  return {
+    state: next,
+    notice: `Past due: ${who}${anyLenderKnown ? ` (bond -${OVERDUE_DEBT_BOND_HIT})` : ''}.${arrearsNote}`,
+  };
+}
+
+/**
+ * Commit `settleOverdueContactDebts` and hand back the settled snapshot.
+ *
+ * A SEPARATE updater dispatched first, rather than folded into each action's
+ * own: both are pure functions of `prev`, so in one batch the action's updater
+ * runs against the settled state, and the action's outer checks - run against
+ * the settled snapshot returned here - see the same thing it will. Settling
+ * twice collects once, because the first pass closes every debt it collects.
+ */
+function squareUpContactDebts(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+): { state: GameState; notice: string | null } {
+  const preview = settleOverdueContactDebts(gameState);
+  if (preview.state === gameState) return preview;
+  setGameState((prev) => settleOverdueContactDebts(prev).state);
+  log.info('Overdue contact debts collected');
+  return preview;
+}
+
+/**
+ * Run a Contacts action after overdue debts are squared up, prefixing what was
+ * collected to the action's own message so the player is told both.
+ */
+function afterSquaringUp<R extends { message: string }>(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  run: (settled: GameState) => R,
+): R {
+  const squared = squareUpContactDebts(gameState, setGameState);
+  const outcome = run(squared.state);
+  return squared.notice ? { ...outcome, message: `${squared.notice} ${outcome.message}` } : outcome;
+}
+
 /**
  * Record a lightweight Contacts interaction (Call / Hang Out and friends) against
  * a relationship. This is the single source of truth for the recency signal —
@@ -45,8 +158,22 @@ function ledgerOf(state: GameState): FavorLedger {
  * check, the money leg, the score bump, the recency stamp and the action record
  * all happen inside ONE updater against `prev`, so a same-batch double-tap can't
  * charge or bump twice.
+ *
+ * Overdue debts are collected first (`afterSquaringUp`).
  */
 export function recordInteraction(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string,
+  action: string,
+  cost: number,
+  bonus: number
+): { success: boolean; message: string } {
+  return afterSquaringUp(gameState, setGameState, (settled) =>
+    recordInteractionNow(settled, setGameState, contactId, action, cost, bonus));
+}
+
+function recordInteractionNow(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   contactId: string,
@@ -141,13 +268,44 @@ export function recordFavor(
  * Lend cash to a contact - the natural producer of an `owed-to-player` money
  * favor (the redeem side of the ledger, which otherwise had no producers so the
  * Redeem button never rendered). Debits the player now and books an IOU the
- * contact repays later via `redeemFavor` (which credits the cash back).
+ * contact repays via `redeemFavor` (which credits the cash back) once
+ * `LENT_CASH_TERM_WEEKS` have passed.
  *
- * Once per week per contact. The debit, the IOU, the small goodwill bump and the
- * recency stamp all happen in ONE updater against `prev`, so a same-batch
- * double-tap can neither double-charge nor mint two IOUs (stable per-week id).
+ * Once per week per contact, and ONE loan per contact at a time. Lend + redeem
+ * used to round-trip in the same week, so the +2 bond bump was free and
+ * repeatable: a probe took a parent from 50 to 70 bond in ten weeks for $0. The
+ * term makes the cash really leave for a month, and the one-at-a-time rule caps
+ * the bump at once per term per contact.
+ *
+ * The debit, the IOU, the small goodwill bump and the recency stamp all happen
+ * in ONE updater against `prev`, so a same-batch double-tap can neither
+ * double-charge nor mint two IOUs (stable per-week id).
  */
 export function lendMoney(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string,
+  amount: number
+): { success: boolean; message: string } {
+  return afterSquaringUp(gameState, setGameState, (settled) =>
+    lendMoneyNow(settled, setGameState, contactId, amount));
+}
+
+/** Why `contactId` cannot be lent cash this week, or null. For the action and the button. */
+export function lendBlockedReason(state: GameState, contactId: string): string | null {
+  const rel = state.relationships?.find((r) => r.id === contactId);
+  if (!rel) return 'Contact not found.';
+  if (rel.actions?.['lendmoney'] === (state.weeksLived ?? 0)) {
+    return `You already lent ${rel.name} money this week.`;
+  }
+  const outstanding = openCashLoanTo(ledgerOf(state), contactId);
+  if (outstanding) {
+    return `${rel.name} still owes you ${usd(outstanding.value)} - one loan at a time.`;
+  }
+  return null;
+}
+
+function lendMoneyNow(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   contactId: string,
@@ -161,9 +319,8 @@ export function lendMoney(
   const ws = gameState.weeksLived ?? 0;
   // Pre-checks for immediate UI feedback; the authoritative re-checks are inside
   // the updater below.
-  if (rel.actions?.['lendmoney'] === ws) {
-    return { success: false, message: `You already lent ${rel.name} money this week.` };
-  }
+  const blocked = lendBlockedReason(gameState, contactId);
+  if (blocked) return { success: false, message: blocked };
   if ((gameState.stats?.money ?? 0) < amount) {
     return { success: false, message: `Need $${amount.toLocaleString('en-US')} to lend.` };
   }
@@ -177,6 +334,7 @@ export function lendMoney(
     const target = rels[idx];
     const prevWs = prev.weeksLived ?? 0;
     if (target.actions?.['lendmoney'] === prevWs) return prev; // already lent this week
+    if (openCashLoanTo(ledgerOf(prev), contactId)) return prev; // they still owe you
 
     // Debit the loan atomically; abort if it can no longer be afforded.
     const debit = applyMoneyDelta(prev, -amount, `Lent $${amount.toLocaleString('en-US')} to ${target.name}`);
@@ -213,7 +371,147 @@ export function lendMoney(
     return { ...prev, ...debit, relationships: newRels, favorLedger: nextLedger };
   });
 
-  return { success: true, message: `You lent ${rel.name} $${amount.toLocaleString('en-US')}. They owe you one.` };
+  const repayable = formatLifeWeek(ws + LENT_CASH_TERM_WEEKS, gameState.lifeStartWeek);
+  return {
+    success: true,
+    message: `You lent ${rel.name} $${amount.toLocaleString('en-US')}. They can pay you back from ${repayable}.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Ask to borrow - cash FROM a contact, as a debt with a due date
+// ---------------------------------------------------------------------------
+
+/** Refusals in a row after which a contact always says yes. */
+export const BORROW_PITY_REFUSALS = 5;
+
+/**
+ * Whether a borrow request lands, and for how much. PURE - the roll is passed
+ * in, so the preview and the commit agree and the updater stays StrictMode-pure.
+ * Success scales with bond; `BORROW_PITY_REFUSALS` straight refusals guarantee
+ * the next one.
+ */
+export function borrowOutcome(rel: Relationship, roll: number): { granted: boolean; amount: number } {
+  const score = typeof rel.relationshipScore === 'number' && isFinite(rel.relationshipScore) ? rel.relationshipScore : 0;
+  const attempts = rel.moneyRequestAttempts ?? 0;
+  const granted = attempts >= BORROW_PITY_REFUSALS || roll < Math.min(0.85, score / 150);
+  return { granted, amount: granted ? Math.round(25 + score * 1.5) : 0 };
+}
+
+/** Why `contactId` cannot be asked for money this week, or null. For the action and the button. */
+export function borrowBlockedReason(state: GameState, contactId: string): string | null {
+  const rel = state.relationships?.find((r) => r.id === contactId);
+  if (!rel) return 'Contact not found.';
+  if (rel.actions?.['askmoney'] === (state.weeksLived ?? 0)) return 'Already asked this week.';
+  const debt = openCashDebtTo(ledgerOf(state), contactId);
+  if (debt) return `You still owe ${rel.name} ${usd(debt.value)} - pay it back first.`;
+  return null;
+}
+
+export interface BorrowResult {
+  success: boolean;
+  /** Whether the contact said yes. A refusal is still a committed action (bond, pity counter). */
+  granted: boolean;
+  message: string;
+}
+
+/**
+ * PURE: what asking `contactId` to borrow does to `state`. `next: null` refuses.
+ * Called once on the caller's snapshot for the report and once on `prev`.
+ */
+function resolveBorrow(
+  state: GameState,
+  contactId: string,
+  roll: number,
+): { result: BorrowResult; next: GameState | null } {
+  const refuse = (message: string) => ({ result: { success: false, granted: false, message }, next: null });
+  const blocked = borrowBlockedReason(state, contactId);
+  if (blocked) return refuse(blocked);
+  // The week is written into the IOU's id and `createdWeek`, which is what its
+  // due date is derived from - a fallback week would book a debt that is due
+  // the moment the counter is repaired. Refuse instead (the `askNetworkFavor`
+  // reasoning).
+  const ws = state.weeksLived;
+  if (typeof ws !== 'number' || !isFinite(ws) || ws < 0) {
+    return refuse('This save has no usable week counter - reload and try again.');
+  }
+  const rels = state.relationships ?? [];
+  const idx = rels.findIndex((r) => r.id === contactId);
+  const target = rels[idx];
+  const { granted, amount } = borrowOutcome(target, roll);
+  // Asking counts as a contact - stamp recency so the dot warms and the
+  // Attention tab clears (weeklyInteractions resets in a fresh week).
+  const weeklyInteractions = target.lastInteractionWeek === ws ? (target.weeklyInteractions ?? 0) + 1 : 1;
+  const updatedRel: Relationship = {
+    ...target,
+    relationshipScore: Math.max(0, (target.relationshipScore ?? 0) + (granted ? -3 : -5)),
+    actions: { ...(target.actions ?? {}), askmoney: ws },
+    moneyRequestAttempts: granted ? 0 : (target.moneyRequestAttempts ?? 0) + 1,
+    lastMoneyRequest: ws,
+    lastInteractionWeek: ws,
+    weeklyInteractions,
+  };
+  const newRels = [...rels];
+  newRels[idx] = updatedRel;
+  const asked: GameState = { ...state, relationships: newRels };
+  if (!granted) {
+    return { result: { success: true, granted: false, message: `${target.name} said no this time. (-5)` }, next: asked };
+  }
+  const grant = applyMoneyDelta(asked, amount, `Borrowed from ${target.name}`);
+  if (!grant) return refuse(`${target.name} could not lend you anything right now.`);
+  // A real owed-by-player IOU. Its due date is `createdWeek + BORROWED_CASH_TERM_WEEKS`
+  // (derived, not stored); past it, `settleOverdueContactDebts` collects it.
+  // Stable per-week id (once-per-week gate), so a double tap cannot mint two.
+  const iouId = `iou-${contactId}-${ws}`;
+  const ledger = ledgerOf(state);
+  const nextLedger = ledger.favors.some((f) => f.id === iouId)
+    ? ledger
+    : addFavorPure(ledger, {
+        id: iouId,
+        contactId,
+        direction: 'owed-by-player',
+        kind: 'money',
+        value: amount,
+        createdWeek: ws,
+        note: `Borrowed ${usd(amount)} from ${target.name}`,
+      });
+  const due = formatLifeWeek(ws + BORROWED_CASH_TERM_WEEKS, state.lifeStartWeek);
+  return {
+    result: {
+      success: true,
+      granted: true,
+      message: `${target.name} lent you ${usd(amount)} (-3). Pay it back by ${due}.`,
+    },
+    next: { ...asked, ...grant, favorLedger: nextLedger },
+  };
+}
+
+/**
+ * "Ask to borrow" - cash from a personal contact, booked as a debt that falls
+ * due `BORROWED_CASH_TERM_WEEKS` later.
+ *
+ * It used to live inline in ContactsApp and book an IOU with no due date that
+ * nothing ever read: $25 + 1.5 x bond, guaranteed after five refusals, never
+ * repaid, never counted. Relationships became a cash faucet, which §4.7 says
+ * they must never be. Now:
+ *   - one open debt per lender - repay before asking the same person again;
+ *   - past the due week it is collected (cash first, the rest as overdue
+ *     bills) with a bond hit, the next time the player takes a contact or
+ *     Favors action - see `settleOverdueContactDebts`.
+ *
+ * `roll` is drawn by the caller (0..1) so this stays a pure preview/commit pair.
+ */
+export function borrowMoney(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string,
+  roll: number,
+): BorrowResult {
+  return afterSquaringUp(gameState, setGameState, (settled) => {
+    const preview = resolveBorrow(settled, contactId, roll);
+    if (preview.next) setGameState((prev) => resolveBorrow(prev, contactId, roll).next ?? prev);
+    return preview.result;
+  });
 }
 
 /**
@@ -274,9 +572,21 @@ export function favorRedeemBlocker(state: GameState, favor: Favor): string | nul
 
   // Cash IOU owed-to-player → the amount must be usable BEFORE anything flips.
   // A redeemed-but-unpaid IOU is unrecoverable.
-  if (favor.kind === 'money' && favor.direction === 'owed-to-player') {
+  if (isCashOwedToPlayer(favor)) {
     if (typeof favor.value !== 'number' || !isFinite(favor.value) || favor.value <= 0) {
       return 'This favor has an invalid amount.';
+    }
+    /**
+     * Lent cash comes back after `LENT_CASH_TERM_WEEKS`, not the week it left.
+     * Same-week redemption made lending a free, repeatable +2 bond. A
+     * non-finite week counter cannot show the term has passed, so it refuses -
+     * the same reading the expiry gate above gives corruption.
+     */
+    const repayable = cashLoanRepayableWeek(favor);
+    if (!isFinite(nowWeek)) return 'This loan cannot be called in right now.';
+    if (nowWeek < repayable) {
+      const wait = Math.ceil(repayable - nowWeek);
+      return `They can pay you back in ${wait} week${wait === 1 ? '' : 's'}.`;
     }
     return null;
   }
@@ -297,6 +607,14 @@ export function favorRedeemBlocker(state: GameState, favor: Favor): string | nul
 }
 
 export function redeemFavor(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  favorId: string
+): { success: boolean; message: string; favor?: Favor } {
+  return afterSquaringUp(gameState, setGameState, (settled) => redeemFavorNow(settled, setGameState, favorId));
+}
+
+function redeemFavorNow(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   favorId: string
@@ -368,8 +686,28 @@ export function redeemFavor(
  * updater that re-checks the favor's status against `prev`, so two rapid taps
  * only debit once. `applyMoneyDelta`'s overdraft reject keeps an unaffordable
  * repay from ever closing the debt.
+ *
+ * Repaying a debt that is already past due IS the overdue collection: it is
+ * squared up first, with the same bond cost and the same cash-then-overdue-bills
+ * split, so paying late by hand and being collected from are one outcome.
  */
 export function repayFavor(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  favorId: string
+): { success: boolean; message: string; favor?: Favor } {
+  const squared = squareUpContactDebts(gameState, setGameState);
+  const before = ledgerOf(gameState).favors.find((f) => f.id === favorId);
+  const after = ledgerOf(squared.state).favors.find((f) => f.id === favorId);
+  if (squared.notice && before?.status === 'open' && after && after.status !== 'open') {
+    // This very debt was the overdue one - squaring up settled it.
+    return { success: true, message: squared.notice, favor: after };
+  }
+  const outcome = repayFavorNow(squared.state, setGameState, favorId);
+  return squared.notice ? { ...outcome, message: `${squared.notice} ${outcome.message}` } : outcome;
+}
+
+function repayFavorNow(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   favorId: string
@@ -844,6 +1182,14 @@ export function relationshipBondCost(currentScore: number): number {
  * cheaper bond, and the once-per-week gate rides the existing per-action map.
  */
 export function raiseRelationship(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string
+): { success: boolean; message: string } {
+  return afterSquaringUp(gameState, setGameState, (settled) => raiseRelationshipNow(settled, setGameState, contactId));
+}
+
+function raiseRelationshipNow(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   contactId: string

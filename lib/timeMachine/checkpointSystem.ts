@@ -265,12 +265,48 @@ function clampedWeekMarker(live: unknown, restoredWeeksLived: unknown): number |
 }
 
 /**
+ * An additive claim set merged across a rewind: every id the LIVE life holds,
+ * then any the snapshot holds that the live one somehow lacks. Never drops an
+ * id from either side - dropping one is exactly the re-opened claim this file
+ * exists to prevent. `undefined` when neither side has an array, so an absent
+ * key stays absent.
+ */
+function unionClaimIds(live: unknown, restored: unknown): string[] | undefined {
+  if (!Array.isArray(live) && !Array.isArray(restored)) return undefined;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const list of [live, restored]) {
+    if (!Array.isArray(list)) continue;
+    for (const id of list) {
+      if (typeof id === 'string' && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Claim ledgers are one-way, like the Live Ops ledger: a rewind must never
  * re-open a reward the player was already paid. The snapshot holds the day key,
  * epoch mark, week marker and streak of the claim BEFORE the ones made since,
  * so restoring them re-armed the daily login gems (and the DeepLife+ daily
  * drop's week gate, and every milestone / Legacy Pass tier claimed since) while
  * the gems they paid carried forward. Mutates `restored`.
+ *
+ * The same held for achievements, life chapters and the weekly challenge: all
+ * three pay GEMS, which carry forward, and their claim records lived only in
+ * the snapshot, so every one claimed since the checkpoint paid a second time on
+ * the replay - and with Chronomaster a rewind is free, so it could be repeated.
+ *
+ * NOT carried, deliberately: `prestige.claimedAmbitions`. A Life Ambition's
+ * payoff is cash + gems + prestige points, and the points live on the
+ * snapshot's `prestige` object, so they are rewound. Carrying the claim without
+ * them would forfeit the points (and the cash) for every future life, since that
+ * set is all-lives - not a ledger fix but a trade, and the owner's call.
+ * (`prestige.claimedPrestigeAchievements` needs nothing: it is only ever
+ * written inside `executePrestige`, never mid-life, so no rewind straddles it.)
  */
 function carryClaimLedgers(live: GameState, restored: GameState): void {
   // Daily login gems (home.tsx): calendar-day key, epoch mark, streak - verbatim.
@@ -302,6 +338,67 @@ function carryClaimLedgers(live: GameState, restored: GameState): void {
       claimedFreeTiers: [...(live.legacyPass.claimedFreeTiers || [])],
       claimedPremiumTiers: [...(live.legacyPass.claimedPremiumTiers || [])],
       ownedCosmetics: [...(live.legacyPass.ownedCosmetics || [])],
+    };
+  }
+
+  // ── Achievements ─────────────────────────────────────────────────────────
+  // Two gates guard the claim (`claimProgressAchievement`): the per-life
+  // `claimedProgressAchievements`, which hides the Claim button, and the
+  // all-lives `prestige.claimedAchievementIds`, which refuses the gem mint.
+  // Both carry, so a claimed achievement stays claimed and mints nothing on the
+  // replay. The unlock record carries with them so every claimed id still has
+  // the "Unlocked at age N" line the achievements screen renders beside it.
+  const claimedAchievements = unionClaimIds(live.claimedProgressAchievements, restored.claimedProgressAchievements);
+  if (claimedAchievements) restored.claimedProgressAchievements = claimedAchievements;
+  if (restored.prestige && typeof restored.prestige === 'object') {
+    const minted = unionClaimIds(live.prestige?.claimedAchievementIds, restored.prestige.claimedAchievementIds);
+    if (minted) restored.prestige = { ...restored.prestige, claimedAchievementIds: minted };
+  }
+  if (live.achievementUnlocks && typeof live.achievementUnlocks === 'object') {
+    restored.achievementUnlocks = { ...live.achievementUnlocks, ...(restored.achievementUnlocks ?? {}) };
+  }
+
+  // ── Life chapters ────────────────────────────────────────────────────────
+  // The week tick completes a chapter and pays it in one step
+  // (`applyChapterProgress`), so `completedChapters` IS the claim record. The
+  // live set is the snapshot's plus the chapters finished since: completion is
+  // strictly in catalogue order, so both are prefixes of `LIFE_CHAPTERS` and the
+  // union is simply the longer prefix. Nothing that reads it goes
+  // inconsistent: `getActiveChapter` skips completed chapters and
+  // `getUpcomingChapter` names the next one with its real opening week, so a
+  // rewind to before chapter 4 opens shows "Chapter 4 opens in N weeks" - the
+  // same card a player who finished chapter 3 early already sees - and
+  // `unlockTier` keeps the surfaces the player already uses. The cost, stated:
+  // a chapter's CASH share was earned in the timeline the rewind discards, and
+  // is discarded with it like every other dollar since the checkpoint; its gems
+  // carry forward with the balance.
+  const chapters = unionClaimIds(live.completedChapters, restored.completedChapters);
+  if (chapters) restored.completedChapters = chapters;
+
+  // ── Weekly challenge ─────────────────────────────────────────────────────
+  // Only the SAME instance carries: same challenge, minted in the same week.
+  // The tick freezes an instance once it is claimed (`completed` and
+  // `rewardClaimed` both true stop re-evaluation), so the live object is
+  // exactly the claimed shape; taking it whole keeps its progress rows in step
+  // with the flag. A later instance must NOT come back - its `startedWeek`
+  // would sit in the restored life's future and stall rotation - and an
+  // unclaimed live instance carries nothing the snapshot does not already say.
+  // Residual, known: if the instance that was live at the checkpoint was
+  // claimed AND has since rotated away, no record of that claim survives in the
+  // live state (the field holds one instance), so the replay can earn it again
+  // inside what is left of its 4-week window. Closing that needs a claimed-
+  // instance ledger, which is a new GameState field.
+  const liveChallenge = live.weeklyChallenge;
+  const restoredChallenge = restored.weeklyChallenge;
+  if (
+    liveChallenge?.rewardClaimed === true &&
+    restoredChallenge &&
+    restoredChallenge.challengeId === liveChallenge.challengeId &&
+    restoredChallenge.startedWeek === liveChallenge.startedWeek
+  ) {
+    restored.weeklyChallenge = {
+      ...liveChallenge,
+      progress: Array.isArray(liveChallenge.progress) ? liveChallenge.progress.map((p) => ({ ...p })) : [],
     };
   }
 

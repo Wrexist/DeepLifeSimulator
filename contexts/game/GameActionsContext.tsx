@@ -90,7 +90,7 @@ import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/pol
 import { getLifeSkillModifiers , applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
-import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
+import { companyPayrollTaxDeduction, processHustleWeeklyTick } from '@/lib/business/hustleTick';
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { reconcileDiscoveredSystems } from '@/lib/depth/discoverySystem';
@@ -153,7 +153,11 @@ import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
 import { resolveTenancyStep, computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { CLOSE_BOND_HAPPINESS_CAP } from '@/lib/social/closeness';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
-import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
+import {
+  applyContentMemberships,
+  membershipSoftCapEfficiency,
+  noMembershipPayout,
+} from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
 import { applyPovertyTracking } from './actions/weekly/applyPovertyTracking';
 import { applyAmbitionPayout } from './actions/weekly/applyAmbitionPayout';
@@ -162,6 +166,7 @@ import { applyMailLapse } from './actions/weekly/applyMailLapse';
 import { routeEvents } from '@/lib/events/routing';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
 import { expireFavors } from '@/lib/contacts/favors';
+import { settleOverdueContactDebts } from './actions/ContactsActions';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
 import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { applyDietPlanForWeek } from './actions/weekly/applyDietPlan';
@@ -1037,6 +1042,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevIsRetired: prevState.isRetired,
    nextWeeksLived,
    weeklyPay: career => paidWeeklySalaryForLevel(prevState, career, career.level),
+   // The applicant, so a pending application is REVIEWED at its real odds
+   // (lib/careers/applicationOdds.ts) instead of always accepted.
+   applicantState: prevState,
  }), { updatedCareers: prevState.careers || [], newCurrentJob: prevState.currentJob, logMessage: '', hiredNotification: null });
  let updatedCareers = applicationResult.updatedCareers;
  let newCurrentJob = applicationResult.newCurrentJob;
@@ -1045,6 +1053,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  if (applicationResult.hiredNotification) {
    pendingNotifications.push(applicationResult.hiredNotification);
+ }
+ if (applicationResult.rejectionNotification) {
+   pendingNotifications.push(applicationResult.rejectionNotification);
  }
 
  // R7 Phase 2 step 2.5b-iii: career progress extracted into
@@ -1063,6 +1074,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // C-1: the Commitment focus. Resolved from prevState so it reflects the
    // commitments in force at the start of the week the player is advancing.
    commitmentProgressMult: getCommitmentModifiers(prevState, 'career').progressMultiplier,
+   // The early-career boost counts from this career's FIRST start in this
+   // life, so quitting and re-applying cannot re-arm it.
+   careerHistory: prevState.lifetimeStatistics?.careerHistory,
  }).updatedCareers, updatedCareers);
 
  // Progress enrolled educations automatically
@@ -1212,17 +1226,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // cap/multiplier is active the ratio is 1 and this subtracts the exact company
  // figure; when the total was scaled, it removes only the company's proportional
  // slice so dividends and the rest keep theirs.
+ //
+ // The same proportional slice is what the week's company income really is,
+ // so it is also the ceiling on the payroll deduction below.
+ const passiveBreakdown = passiveIncomeResult.breakdown;
+ // Streams that actually feed the weekly cash total (realEstate is excluded
+ // above - it is paid separately by the tenancy tick), i.e. the pre-cap raw sum.
+ const activePassiveSum = passiveBreakdown.stocks + passiveBreakdown.socialMedia + passiveBreakdown.patents
+   + passiveBreakdown.businessOpportunities + passiveBreakdown.political + passiveBreakdown.cryptoMining
+   + passiveBreakdown.companies + passiveBreakdown.gamingStreaming;
+ const companyShare = activePassiveSum > 0
+   ? Math.max(0, Math.round(passiveBreakdown.companies * (passiveIncome / activePassiveSum)))
+   : 0;
  if (isJailed) {
-   const pb = passiveIncomeResult.breakdown;
-   // Streams that actually feed the weekly cash total (realEstate is excluded
-   // above - it is paid separately by the tenancy tick), i.e. the pre-cap raw sum.
-   const activePassiveSum = pb.stocks + pb.socialMedia + pb.patents + pb.businessOpportunities
-     + pb.political + pb.cryptoMining + pb.companies + pb.gamingStreaming;
-   const companyShare = activePassiveSum > 0
-     ? Math.round(pb.companies * (passiveIncome / activePassiveSum))
-     : 0;
    passiveIncome = Math.max(0, passiveIncome - companyShare);
  }
+ const companyIncomeThisWeek = isJailed ? 0 : companyShare;
 
  // R7 Phase 2 step 2.4a: income totals aggregation extracted into
  // ./actions/weekly/applyIncome.ts. The helper composes partner income +
@@ -1359,7 +1378,38 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const taxableLuxuryYield =
    getTotalLuxuryYield(prevState.luxuryItems) +
    getLoanIncome(prevState.luxuryItems, prevState.luxuryHoldings, nextWeeksLived);
- const taxableIncome = totalIncome + housingRentalIncome + taxableLuxuryYield;
+ // Channel memberships (YouVideo + Streamly) - computed HERE, before the tax,
+ // and credited through the same cash line as salary and rent below.
+ //
+ // They used to be paid late in the tick (beside the banking tick), after the
+ // tax had already been computed, so they never entered the base: a $74,850/wk
+ // channel paid $0 tax and sat outside the net-worth soft cap, while the SAME
+ // creator app's ad revenue (passiveIncome -> totalIncome) paid up to 40% and
+ // was soft-capped. Unlike luxury yield, the cash is moved here too, not just
+ // the taxable figure - otherwise a broke creator would be billed the tax at
+ // the arrears settlement before the payout that covers it had landed.
+ //
+ // Pure in prevState + nextWeeksLived, so a double-invoked updater computes the
+ // same single payout. The `lastMemberWeek` stamp it returns is written once,
+ // in the creator block further down (`membershipsResult.gamingStreaming`).
+ const membershipsResult = guardTick('contentMemberships', () => applyContentMemberships({
+   gamingStreaming: prevState.gamingStreaming,
+   currentWeek: nextWeeksLived,
+   softCapEfficiency: membershipSoftCapEfficiency(prevState),
+ }), noMembershipPayout(prevState.gamingStreaming));
+ const membershipIncome = membershipsResult.cashDelta;
+ // Company payroll is a business expense: it comes off the taxable figure, up
+ // to the company income actually paid this week (0 while jailed), so wages
+ // can never shelter salary or any other stream. See companyPayrollTaxDeduction.
+ const companyPayrollDeduction = guardTick(
+   'companyPayrollDeduction',
+   () => companyPayrollTaxDeduction(prevState, companyIncomeThisWeek),
+   0,
+ );
+ const taxableIncome = Math.max(
+   0,
+   totalIncome + housingRentalIncome + taxableLuxuryYield + membershipIncome - companyPayrollDeduction,
+ );
  const incomeTax = Math.round(calculateIncomeTax(taxableIncome) * lifeSkillMods.taxMult);
 
  // R7 Phase 2 step 2.4e: per-loan autopay extracted into
@@ -1377,7 +1427,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
  const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
- const arrearsAvailableCash = currentMoney + totalIncome + housingRentalIncome;
+ const arrearsAvailableCash = currentMoney + totalIncome + housingRentalIncome + membershipIncome;
  // Fallback inputs, normalized to the same finite/non-negative contract
  // applyArrears enforces on its OWN inputs (`safe()`). The fallback only runs if
  // the guard catches a throw - the case where inputs are least trustworthy - so
@@ -2465,7 +2515,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // The income sources above have already credited cash. Rental income comes
  // from the tenant tick separately; a negative rental result is a cash cost.
- const recapIncome = totalIncome + luckyBonus + streakBonusAmount + luxuryYield + Math.max(0, housingRentalIncome);
+ // Channel memberships are credited in the main cash line (gross; their tax is
+ // inside `incomeTax`), so they are income here, not a post-recap movement.
+ const recapIncome = totalIncome + luckyBonus + streakBonusAmount + luxuryYield + Math.max(0, housingRentalIncome) + membershipIncome;
  // Measure what actually left cash rather than adding nominal bills. This
  // includes tenancy rent, diet, tuition, vehicles and old-arrears settlement,
  // while excluding any unpaid amount that was carried forward as debt.
@@ -2493,16 +2545,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
 
  /**
-  * TICK-A4. The recap is built HERE, but eight cash movements happen after it:
+  * TICK-A4. The recap is built HERE, but seven cash movements happen after it:
   * subscriptions, the hustle tick, the crypto tick, banking late fees, banking
-  * bills, channel memberships, savings goals, and auto-reinvest. Only the
+  * bills, savings goals, and auto-reinvest (channel memberships were the
+  * eighth until 2026-10-17, when they moved into the taxed cash line). Only the
   * subscription fee folded itself back in (see just below), so a week whose
   * whole story was "the mining rig paid out and the bills came due" reported
   * neither, and `netChange` did not match the money the player watched change.
   *
   * This is the third instance of the same class in this one object -
   * `luxuryRiskCost` and `luxuryYield` were both fixed the same way for the same
-  * reason (recap-1). The remaining six sites now report through this helper.
+  * reason (recap-1). The remaining five sites now report through this helper.
   *
   * Takes the ACTUAL applied delta, not the nominal one. Every site floors with
   * `Math.max(0, …)`, so on a broke week the nominal overstates what really
@@ -2806,32 +2859,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //    pure helpers above. Idempotent per week (no wall-clock; use nextWeeksLived).
 
  // (1) Channel memberships (YouVideo + Streamly, shared gamingStreaming slice):
- //     ≤5% of subs convert to paid members; revenue is capped ($75k/wk) and
- //     credited to cash + totalSubEarnings. Also unfreezes the creator "Lv N"
- //     badge by recomputing level/perkTier from accumulated experience.
- let nextGamingStreaming = prevState.gamingStreaming;
+ //     the PAYOUT was computed before the income tax and credited (gross,
+ //     taxed with everything else) in the main cash line - see
+ //     `membershipsResult` there. This block only writes the slice it returned
+ //     (paidMembers, totalSubEarnings and the `lastMemberWeek` stamp - the one
+ //     place that marker is written) and unfreezes the creator "Lv N" badge by
+ //     recomputing level/perkTier from accumulated experience.
+ let nextGamingStreaming = membershipsResult.gamingStreaming;
  if (nextGamingStreaming) {
  // Wrapped like every other subsystem tick: a throw here (e.g. a partial
  // gamingStreaming slice) must not abort the whole `nextWeek` updater. On
- // error, carry the prior streaming slice forward with no membership revenue.
+ // error, keep the slice the payout returned so the stamp stays in step with
+ // the cash that was already credited.
  try {
- const membershipsResult = applyContentMemberships({
- gamingStreaming: nextGamingStreaming,
- currentWeek: nextWeeksLived,
- });
- nextGamingStreaming = membershipsResult.gamingStreaming;
- if (membershipsResult.cashDelta > 0) {
- applyCashAndRecord(membershipsResult.cashDelta); // TICK-A4
- logger.info(`[MEMBERSHIPS] +$${membershipsResult.cashDelta} (${membershipsResult.reason}, ${membershipsResult.paidMembers} members)`);
+ if (membershipIncome > 0) {
+ logger.info(`[MEMBERSHIPS] +$${membershipIncome} gross, taxed with income (${membershipsResult.reason}, ${membershipsResult.paidMembers} members)`);
  }
  // Persist level from experience (shared creatorLevel) so the badge advances.
- if (nextGamingStreaming) {
  const lvl = creatorLevelFromExperience(nextGamingStreaming.experience ?? 0);
  nextGamingStreaming = { ...nextGamingStreaming, level: lvl, perkTier: creatorPerkTier(lvl) };
- }
  } catch (memErr) {
  logger.error('[MEMBERSHIPS TICK] failed:', memErr);
- nextGamingStreaming = prevState.gamingStreaming;
+ nextGamingStreaming = membershipsResult.gamingStreaming;
  }
  }
 
@@ -3753,6 +3802,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Research belongs to this played week, not to a provider's observed week
  // change (which also occurs when loading a different save).
  nextState = guardTick('research', () => applyResearchWeek(nextState), nextState);
+
+ // Borrowed cash from contacts is collected on its due week HERE, not only at
+ // the player's next contact action - a player who never opens Contacts again
+ // must still be chased, or "never take another action" was a way to keep the
+ // money. Uses the post-tick weeksLived; each settled debt is closed, so a
+ // double-invoked updater collects once. Arrears it adds are settled by next
+ // week's arrears pass, like any other unpaid bill.
+ nextState = guardTick('contactDebts', () => {
+   const settled = settleOverdueContactDebts(nextState);
+   if (settled.notice) {
+     pendingNotifications.push({ id: `contact-debts-${nextWeeksLived}`, title: 'Debts collected', message: settled.notice });
+   }
+   return settled.state;
+ }, nextState);
 
  // PERF (freeze fix): expose the computed state to the post-update code below.
  postTickState = nextState;

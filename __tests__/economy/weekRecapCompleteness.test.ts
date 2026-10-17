@@ -4,6 +4,8 @@
  * `weekResult` is built partway through the week loop, and eight things move
  * cash AFTER it: subscriptions, the hustle tick, the crypto tick, banking late
  * fees, banking bills, channel memberships, savings goals, and auto-reinvest.
+ * (Channel memberships have since moved into the taxed cash line BEFORE the
+ * recap, 2026-10-17, so seven remain after it.)
  * Only the subscription fee folded itself back in. So a week whose entire story
  * was "the mining rig paid out and the bills came due" reported neither, and
  * the sheet's `netChange` did not match the money the player watched change.
@@ -92,7 +94,7 @@ describe('TICK-A4 - every post-recap cash movement reports itself', () => {
     expect(CODE).toMatch(/weekResult\.netChange -= chargeRounded;/);
   });
 
-  it('the six converted sites all route through the helper', () => {
+  it('the five converted sites all route through the helper', () => {
     const tail = afterRecapBuilt();
 
     for (const site of [
@@ -100,12 +102,19 @@ describe('TICK-A4 - every post-recap cash movement reports itself', () => {
       'cryptoTick.cashDelta',
       '-bankingTick.lateFeesDeducted',
       '-bankingTick.billsPaidFromCash',
-      'membershipsResult.cashDelta',
       'cashDeltaAfterReinvest',
     ]) {
       expect(`${site}: ${tail.includes(`applyCashAndRecord(${site})`)}`)
         .toBe(`${site}: true`);
     }
+  });
+
+  it('channel memberships are pre-recap income now, not a post-recap movement', () => {
+    // 2026-10-17: memberships moved into the taxed cash line, before the recap
+    // is built. They must therefore be in `recapIncome` itself, and must NOT
+    // also be applied after it - that would credit (and report) them twice.
+    expect(CODE).toMatch(/const recapIncome = [^;]*\+ membershipIncome;/);
+    expect(afterRecapBuilt()).not.toMatch(/applyCashAndRecord\(\s*membership/);
   });
 
   it('the savings-goal REWARD is reported but the transfer is not', () => {

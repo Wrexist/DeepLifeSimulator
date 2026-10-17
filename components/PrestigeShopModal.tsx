@@ -1,7 +1,7 @@
 import { uiPalette } from '@/lib/config/theme';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { incomeGainFromPurchase, incomeMultiplierHeadroom, isIncomeBonusWasted } from '@/lib/prestige/incomeHeadroom';
-import { inertBonusReason } from '@/lib/prestige/inertBonuses';
+import { inertBonusReason, redundantBonusReason } from '@/lib/prestige/inertBonuses';
 import {
   Modal,
   View,
@@ -510,6 +510,13 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   // Separate from the income cap: this one never does anything
                   // at any point, for any player.
                   const inertReason = inertBonusReason(bonus.id);
+                  // Works in general, but something this player already owns
+                  // grants the identical effect (e.g. the Gem Shop's
+                  // Immortality), so buying it would change nothing.
+                  const redundantReason = redundantBonusReason(bonus.id, {
+                    unlockedBonuses,
+                    goldUpgrades: gameState?.goldUpgrades,
+                  });
                   const canAfford = prestigePoints >= cost;
                   const isAtMaxLevel = bonus.maxLevel ? currentLevel >= bonus.maxLevel : currentLevel > 0;
                   const hasAnyLevel = currentLevel > 0;
@@ -574,6 +581,10 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             {inertReason ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>
                                 No effect - {inertReason}
+                              </Text>
+                            ) : redundantReason ? (
+                              <Text style={[styles.capNote, { color: '#f59e0b' }]}>
+                                No effect - {redundantReason}
                               </Text>
                             ) : incomeWasted ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>

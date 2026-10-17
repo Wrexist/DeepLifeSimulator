@@ -1,5 +1,4 @@
 import { ImageSourcePropType } from 'react-native';
-import { GameState } from '@/contexts/game/types';
 
 export type MindsetId = 
   // Personality traits
@@ -17,86 +16,91 @@ export interface MindsetTrait {
   icon: ImageSourcePropType;
 }
 
-// Personality-focused mindsets (affect behavior and lifestyle)
+// Every `description` below states exactly what the Mindset does, number for
+// number, as applied by `MINDSET_STREET_EFFECTS` (./streetWork.ts) - street
+// jobs are the one system that reads a Mindset. Change a number there and the
+// copy here together; mindsetEffects.test.ts checks they agree.
+
+// Personality-focused mindsets
 export const PERSONALITY_TRAITS: MindsetTrait[] = [
   {
     id: 'frugal',
     name: 'Frugal',
-    description: 'You save a bit more, but big spending hurts your happiness slightly.',
+    description: 'Street jobs pay 10% more - you make every job count.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Frugal_final.webp'),
   },
   {
     id: 'workaholic',
     name: 'Workaholic',
-    description: 'Higher income from work but faster burnout.',
+    description: 'Street jobs pay 20% more, but each one costs 1 extra health and 1 extra happiness.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Workaholic_final.webp'),
   },
   {
     id: 'socialite',
     name: 'Socialite',
-    description: 'Relationships grow faster, but you tend to spend more.',
+    description: "People tip you: legal street jobs pay 10% more. But you're memorable: illegal ones carry +5% arrest risk.",
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Socialite_final.webp'),
   },
   {
     id: 'optimist',
     name: 'Optimist',
-    description: 'Happiness recovers faster, but you might overlook risks.',
+    description: 'Street jobs cost half the happiness (rounded in your favour), but you overlook risks: they succeed 5% less often.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Optimist_final.webp'),
   },
   {
     id: 'perfectionist',
     name: 'Perfectionist',
-    description: 'Better work quality and reputation gain, but higher stress.',
+    description: 'Careful work: street jobs succeed 10% more often, but each one costs 1 extra health from stress.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Perfectionist_final.webp'),
   },
   {
     id: 'adventurous',
     name: 'Adventurous',
-    description: 'Travel costs less and gives more happiness, but you get restless staying home.',
+    description: 'You live for the thrill: illegal street jobs pay 15% more, but legal ones bore you and cost 1 extra happiness.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Adventurous_final.webp'),
   },
 ];
 
-// Financial-focused mindsets (affect money and investments)
+// Financial-focused mindsets
 export const FINANCIAL_TRAITS: MindsetTrait[] = [
   {
     id: 'gambler',
     name: 'Gambler',
-    description: 'Higher risk, higher reward on risky actions.',
+    description: 'Higher risk, higher reward: illegal street jobs pay 25% more, but carry +5% arrest risk.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Gambler_final.webp'),
   },
   {
     id: 'riskAverse',
     name: 'Risk Averse',
-    description: 'You avoid big losses, but also cap your upside a bit.',
+    description: 'Illegal street jobs carry 25% less arrest risk, but every street job pays 5% less.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Risk Averse_final.webp'),
   },
   {
     id: 'investor',
     name: 'Investor',
-    description: 'Better returns on stocks and real estate, but higher initial costs.',
+    description: 'Street jobs rank up after 2 successful runs instead of 3, but pay 5% less while you build up.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Investor_final.webp'),
   },
   {
     id: 'spender',
     name: 'Big Spender',
-    description: 'Shopping gives more happiness, but you tend to overspend.',
+    description: 'Payday feels great: street jobs cost 2 less happiness. But you spend as you go: they pay 10% less.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Big Spender_final.webp'),
   },
   {
     id: 'hustler',
     name: 'Hustler',
-    description: 'Extra income from side jobs, but can strain relationships.',
+    description: 'Side income is your thing: street jobs pay 15% more, but each one costs 1 extra happiness.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Hustler_final.webp'),
   },
@@ -105,176 +109,10 @@ export const FINANCIAL_TRAITS: MindsetTrait[] = [
 // All traits combined (for backwards compatibility)
 export const MINDSET_TRAITS: MindsetTrait[] = [...PERSONALITY_TRAITS, ...FINANCIAL_TRAITS];
 
-interface StatChange {
-  moneyDelta?: number;
-  healthDelta?: number;
-  happinessDelta?: number;
-}
-
-export interface MindsetFeedback {
-  message?: string;
-  type?: 'bonus' | 'penalty' | 'info';
-}
-
-export function applyMindsetEffects(
-  state: GameState,
-  change: StatChange,
-): StatChange & { feedback?: MindsetFeedback } {
-  const traits = state.mindset?.traits as MindsetId[] | undefined;
-  if (!traits || traits.length === 0) return change;
-
-  let { moneyDelta = 0, healthDelta = 0, happinessDelta = 0 } = change;
-  const feedbacks: MindsetFeedback[] = [];
-
-  // Apply effects for all active traits
-  for (const active of traits) {
-  switch (active) {
-    case 'frugal': {
-      if (moneyDelta > 0) {
-        const original = moneyDelta;
-        moneyDelta *= 1.1;
-        const bonus = Math.round(moneyDelta - original);
-        if (bonus > 0) {
-            feedbacks.push({
-              message: `Frugal: You saved a bit extra (+${bonus.toLocaleString('en-US')})`,
-            type: 'bonus',
-            });
-        }
-      }
-      if (moneyDelta < 0 && Math.abs(moneyDelta) > state.stats.money * 0.3) {
-        happinessDelta -= 1;
-          feedbacks.push({
-          message: 'Frugal: Big spending hurts your happiness (-1)',
-          type: 'penalty',
-          });
-      }
-      break;
-    }
-    case 'gambler': {
-      const original = moneyDelta;
-      moneyDelta *= 1 + (Math.random() - 0.5) * 0.4; // ±20%
-        const diff = Math.round(moneyDelta - original);
-        if (Math.abs(diff) > 0) {
-          feedbacks.push({
-            message: `Gambler: ${diff > 0 ? 'Lucky!' : 'Unlucky!'} (${diff > 0 ? '+' : ''}${diff.toLocaleString('en-US')})`,
-            type: diff > 0 ? 'bonus' : 'penalty',
-          });
-      }
-      break;
-    }
-    case 'workaholic': {
-      if (moneyDelta > 0) {
-        const original = moneyDelta;
-        moneyDelta *= 1.1;
-        const bonus = Math.round(moneyDelta - original);
-          healthDelta -= 1;
-          happinessDelta -= 1;
-        if (bonus > 0) {
-            feedbacks.push({
-              message: `Workaholic: +${bonus.toLocaleString('en-US')} income, -1 health, -1 happiness`,
-            type: 'bonus',
-            });
-        }
-      }
-      break;
-    }
-    case 'socialite': {
-      if (moneyDelta < 0) {
-        const original = moneyDelta;
-        moneyDelta *= 1.1;
-        const extra = Math.round(Math.abs(moneyDelta - original));
-        if (extra > 0) {
-            feedbacks.push({
-              message: `Socialite: Spent more on social activities (+${extra.toLocaleString('en-US')} extra)`,
-            type: 'info',
-            });
-          }
-        }
-      break;
-    }
-    case 'riskAverse': {
-      if (moneyDelta < 0) {
-        const original = moneyDelta;
-        moneyDelta *= 0.85;
-        const saved = Math.round(Math.abs(moneyDelta - original));
-        if (saved > 0) {
-            feedbacks.push({
-              message: `Risk Averse: Avoided bigger loss (saved ${saved.toLocaleString('en-US')})`,
-            type: 'bonus',
-            });
-        }
-      } else if (moneyDelta > 0) {
-        const original = moneyDelta;
-        moneyDelta *= 0.95;
-        const reduced = Math.round(original - moneyDelta);
-        if (reduced > 0) {
-            feedbacks.push({
-            message: `Risk Averse: Capped upside (${reduced.toLocaleString('en-US')} less)`,
-            type: 'info',
-            });
-        }
-        }
-        break;
-      }
-      case 'optimist': {
-        if (happinessDelta < 0) {
-          happinessDelta = Math.ceil(happinessDelta * 0.7); // 30% less happiness loss
-          feedbacks.push({
-            message: 'Optimist: You stayed positive despite setbacks',
-            type: 'bonus',
-          });
-        }
-        break;
-      }
-      case 'perfectionist': {
-        if (moneyDelta > 0) {
-          const bonus = Math.round(moneyDelta * 0.05);
-          moneyDelta += bonus;
-          healthDelta -= 1; // Stress
-          if (bonus > 0) {
-            feedbacks.push({
-              message: `Perfectionist: Quality work (+${bonus.toLocaleString('en-US')}, -1 health from stress)`,
-              type: 'bonus',
-            });
-          }
-        }
-        break;
-      }
-      case 'adventurous': {
-        // Effects handled elsewhere (travel system)
-        break;
-      }
-      case 'investor': {
-        // Effects handled in investment systems
-        break;
-      }
-      case 'spender': {
-        if (moneyDelta < 0) {
-          happinessDelta += 2; // Shopping makes you happy
-          feedbacks.push({
-            message: 'Big Spender: Shopping therapy! (+2 happiness)',
-            type: 'bonus',
-          });
-        }
-        break;
-      }
-      case 'hustler': {
-        if (moneyDelta > 0) {
-          const bonus = Math.round(moneyDelta * 0.15);
-          moneyDelta += bonus;
-          feedbacks.push({
-            message: `Hustler: Side income boost (+${bonus.toLocaleString('en-US')})`,
-            type: 'bonus',
-          });
-      }
-      break;
-      }
-    }
-  }
-
-  // Return first feedback (or combine if multiple)
-  const feedback = feedbacks.length > 0 ? feedbacks[0] : undefined;
-  return { moneyDelta, healthDelta, happinessDelta, feedback };
-}
+// The deprecated `applyMindsetEffects` engine (the OLD rules, five dead
+// branches and an unseeded Gambler roll) is deleted. The rules the game
+// applies - and that each `description` above quotes - are
+// `MINDSET_STREET_EFFECTS` in `./streetWork.ts`, applied inside
+// `performStreetJob`'s updater.
 
 

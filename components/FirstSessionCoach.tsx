@@ -254,7 +254,7 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
       Icon: Briefcase,
       tone: accent.info,
       title: 'Application under review',
-      body: 'Advance a week to hear back. A reply can take up to two weeks.',
+      body: 'Advance a week to hear back. If they say no, you can apply again right away.',
       cta: 'View application',
     },
     advance: {

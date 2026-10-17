@@ -72,7 +72,8 @@ describe('R3-F5 - parenting Bond actually moves', () => {
       'src/features/onboarding/gameStateBuilder.ts',
     ]) {
       const source = read(rel);
-      expect(source).toMatch(/relationshipScore: NEWBORN_BOND/);
+      // The scenario start adds the Caring trait's bonus on top, capped at 100.
+      expect(source).toMatch(/relationshipScore: (Math\.min\(100, )?NEWBORN_BOND/);
       expect(source).not.toMatch(/relationshipScore: 100,/);
     }
   });

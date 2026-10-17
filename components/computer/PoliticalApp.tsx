@@ -92,7 +92,7 @@ import {
   isEndorsed,
   readPartySupport,
 } from '@/lib/politics/parties';
-import { findAppointment } from '@/lib/politics/appointments';
+import { appointmentPriceSummary, findAppointment } from '@/lib/politics/appointments';
 import {
   maxWeeklySkim,
   readEmbezzlement,
@@ -791,6 +791,11 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             {offers.map((offer) => {
               const held = politics.appointment?.id === offer.id;
               if (held) return null;
+              // The price beside the pay - the private posts pay well BECAUSE
+              // they cost reputation, which the card never used to say.
+              const price = appointmentPriceSummary(findAppointment(offer.id), {
+                partyMachine: hasPartyMachine(party),
+              });
               return (
                 <TouchableOpacity
                   key={offer.id}
@@ -808,7 +813,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                   accessibilityLabel={
                     offer.blocker
                       ? `${offer.title}, unavailable: ${offer.blocker}`
-                      : `Accept the position of ${offer.title}, ${formatMoney(offer.weeklySalary)} per week`
+                      : `Accept the position of ${offer.title}, ${formatMoney(offer.weeklySalary)} per week${price ? `. ${price}` : ''}`
                   }
                 >
                   <View style={styles.lifeCardHeader}>
@@ -816,6 +821,9 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                     <Text style={[styles.lifeCardPay, { color: accent.success }]}>{formatMoney(offer.weeklySalary)}/wk</Text>
                   </View>
                   <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>{offer.blurb}</Text>
+                  {price ? (
+                    <Text style={[styles.helperText, { color: theme.textMuted }]}>{price}</Text>
+                  ) : null}
                   {offer.blocker ? (
                     <Text style={[styles.helperText, { color: accent.warning }]}>{offer.blocker}</Text>
                   ) : null}

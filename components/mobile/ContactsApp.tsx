@@ -58,7 +58,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
-import { netMoneyPosition, openFavors, FavorLedger, Favor, addFavor } from '@/lib/contacts/favors';
+import {
+  netMoneyPosition,
+  openFavors,
+  FavorLedger,
+  Favor,
+  isCashOwedByPlayer,
+  isCashOwedToPlayer,
+  cashDebtDueWeek,
+  cashLoanRepayableWeek,
+} from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
 import {
   currentIntroduction,
@@ -73,6 +82,9 @@ import {
   repayFavor,
   recordInteraction,
   lendMoney,
+  borrowMoney,
+  borrowBlockedReason,
+  lendBlockedReason,
   recordFavor,
   askNetworkFavor,
   meetSomeone,
@@ -82,7 +94,6 @@ import {
   FAVOR_KIND_BY_CONTACT,
   NETWORK_FAVOR_MIN_STRENGTH,
 } from '@/contexts/game/actions/ContactsActions';
-import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { childParentSources } from '@/lib/avatar/family';
 import { getMoodLabel } from '@/lib/social/npcDepth';
@@ -442,94 +453,23 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
 
-  // "Ask $" - the button previously cost 5 relationship points and granted
-  // NOTHING (the money leg was never wired; the pity-system fields on
-  // Relationship existed but were unused). Success scales with relationship
-  // score, with a guaranteed grant after 5 straight refusals. Gate re-check +
-  // relationship update + money grant happen in ONE updater; the roll is
-  // pre-rolled so the updater stays StrictMode-pure.
-  const askOutcome = useCallback((rel: Relationship, roll: number) => {
-    const score = rel.relationshipScore ?? 0;
-    const attempts = rel.moneyRequestAttempts ?? 0;
-    const granted = attempts >= 5 || roll < Math.min(0.85, score / 150);
-    const amount = granted ? Math.round(25 + score * 1.5) : 0;
-    return { granted, amount };
-  }, []);
-
+  // "Ask to borrow" - routed through ContactsActions.borrowMoney, which books
+  // the loan as a debt due BORROWED_CASH_TERM_WEEKS later and collects it (with
+  // a bond hit) once it is past due. The roll is drawn here and passed in so the
+  // action stays a pure preview/commit pair.
   const handleAskMoney = useCallback(
     (contactId: string) => {
-      const rel = gameState.relationships?.find((r) => r.id === contactId);
-      if (!rel) return;
-      const ws = gameState.weeksLived ?? 0;
-      if (rel.actions?.['askmoney'] === ws) {
-        flash('Already asked this week.', contactId);
-        return;
-      }
-      const roll = Math.random();
-      setGameState((prev) => {
-        const rels = prev.relationships ?? [];
-        const idx = rels.findIndex((r) => r.id === contactId);
-        if (idx === -1) return prev;
-        const target = rels[idx];
-        const prevWs = prev.weeksLived ?? 0;
-        if (target.actions?.['askmoney'] === prevWs) return prev;
-        const { granted, amount } = askOutcome(target, roll);
-        // Asking counts as a contact - stamp recency so the dot warms and the
-        // Attention tab clears (weeklyInteractions resets in a fresh week).
-        const weeklyInteractions =
-          target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
-        const updatedRel: Relationship = {
-          ...target,
-          relationshipScore: Math.max(0, (target.relationshipScore ?? 0) + (granted ? -3 : -5)),
-          actions: { ...(target.actions ?? {}), askmoney: prevWs },
-          moneyRequestAttempts: granted ? 0 : (target.moneyRequestAttempts ?? 0) + 1,
-          lastMoneyRequest: prevWs,
-          lastInteractionWeek: prevWs,
-          weeklyInteractions,
-        };
-        const newRels = [...rels];
-        newRels[idx] = updatedRel;
-        if (!granted) return { ...prev, relationships: newRels };
-        const grant = applyMoneyDelta(prev, amount, `Borrowed from ${target.name}`);
-        if (!grant) return { ...prev, relationships: newRels };
-        // A granted loan becomes a real owed-by-player IOU in the Favors ledger,
-        // so borrowing has a consequence (repay it later - a pure money sink).
-        // No expiresWeek: the debt persists until repaid rather than lapsing into
-        // free money. Stable id (once-per-week askmoney gate) keeps a same-batch
-        // double-tap from ever minting two IOUs.
-        const iouId = `iou-${contactId}-${prevWs}`;
-        const ledger = prev.favorLedger ?? { favors: [] };
-        const nextLedger = ledger.favors.some((f) => f.id === iouId)
-          ? ledger
-          : addFavor(ledger, {
-              id: iouId,
-              contactId,
-              direction: 'owed-by-player',
-              kind: 'money',
-              value: amount,
-              createdWeek: prevWs,
-              note: `Borrowed $${amount.toLocaleString('en-US')} from ${target.name}`,
-            });
-        return { ...prev, ...grant, relationships: newRels, favorLedger: nextLedger };
-      });
-      // Message from the snapshot + the same pre-rolled RNG (updater is
-      // authoritative for state; this only phrases the feedback).
-      const { granted, amount } = askOutcome(rel, roll);
-      flash(
-        granted
-          ? `${rel.name} lent you $${amount.toLocaleString('en-US')}. (-3)`
-          : `${rel.name} said no this time. (-5)`,
-        contactId
-      );
-      saveGame();
+      const r = borrowMoney(gameState, setGameState, contactId, Math.random());
+      if (r.success) saveGame();
+      flash(r.message, contactId);
     },
-    [gameState, setGameState, saveGame, flash, askOutcome]
+    [gameState, setGameState, saveGame, flash]
   );
 
   // "Lend $" - the producer for owed-to-player money favors. Debits the player
   // now and books an IOU the contact repays via the Redeem button (which credits
-  // the cash back). Routed through the ContactsActions.lendMoney helper so the UI
-  // never mutates state inline.
+  // the cash back) once LENT_CASH_TERM_WEEKS have passed. Routed through the
+  // ContactsActions.lendMoney helper so the UI never mutates state inline.
   const handleLendMoney = useCallback(
     (contactId: string, amount: number) => {
       const r = lendMoney(gameState, setGameState, contactId, amount);
@@ -745,6 +685,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             <PersonalContactActions
               relationship={r} money={gameState.stats?.money ?? 0}
               week={gameState.weeksLived ?? 0} darkMode={darkMode}
+              blocked={{
+                askmoney: borrowBlockedReason(gameState, c.id),
+                lendmoney: lendBlockedReason(gameState, c.id),
+              }}
               onAction={(action) => {
                 if (action === 'call' || action === 'hangout') {
                   const { cost, bonus } = CONTACT_INTERACTIONS[action];
@@ -1098,6 +1042,21 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   // ---- Favors: signed ledger row --------------------------------------------
   const renderFavorRow = (f: Favor, isSettled: boolean) => {
     const amt = favorAmount(f);
+    const nowWeek = gameState.weeksLived ?? 0;
+    // Cash IOUs carry a TERM derived from `createdWeek` (lib/contacts/favors):
+    // lent cash comes back after LENT_CASH_TERM_WEEKS, borrowed cash falls due
+    // after BORROWED_CASH_TERM_WEEKS. Shown on the row so the dates the actions
+    // enforce are the dates the player reads.
+    const repayableWeek = isCashOwedToPlayer(f) ? cashLoanRepayableWeek(f) : null;
+    const loanLocked = !isSettled && repayableWeek !== null && nowWeek < repayableWeek;
+    const dueWeek = isCashOwedByPlayer(f) ? cashDebtDueWeek(f) : null;
+    const termLabel = isSettled
+      ? ''
+      : repayableWeek !== null
+        ? loanLocked ? ` · repayable ${formatLifeWeek(repayableWeek, gameState.lifeStartWeek)}` : ' · repayable now'
+        : dueWeek !== null
+          ? nowWeek >= dueWeek ? ' · OVERDUE' : ` · due ${formatLifeWeek(dueWeek, gameState.lifeStartWeek)}`
+          : '';
     return (
       <View style={styles.ledgerRow}>
         <IconBubble color={favorColor(f.kind)} style={styles.bubble36}>
@@ -1108,7 +1067,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {favorPhrase(f.kind)}
           </Text>
           <Text style={[styles.cardSub, { color: theme.textMuted }]} numberOfLines={1}>
-            {nameForContactId(f.contactId)} · {formatLifeWeek(f.createdWeek, gameState.lifeStartWeek)}{f.expiresWeek ? ` · expires ${formatLifeWeek(f.expiresWeek, gameState.lifeStartWeek)}` : ''}
+            {nameForContactId(f.contactId)} · {formatLifeWeek(f.createdWeek, gameState.lifeStartWeek)}{f.expiresWeek ? ` · expires ${formatLifeWeek(f.expiresWeek, gameState.lifeStartWeek)}` : ''}{termLabel}
           </Text>
           {f.note ? (
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>{f.note}</Text>
@@ -1118,6 +1077,8 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           <Text style={[styles.ledgerAmount, { color: isSettled ? theme.textMuted : amt.color }]}>{amt.text}</Text>
           {isSettled ? (
             <Chip label={f.status} />
+          ) : loanLocked ? (
+            <Chip label="Not yet" />
           ) : f.direction === 'owed-to-player' ? (
             <TouchableOpacity
               style={[styles.redeemBtn, { backgroundColor: withAlpha(accent.success, 0.16) }]}

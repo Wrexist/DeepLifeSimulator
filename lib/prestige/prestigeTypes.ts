@@ -34,7 +34,7 @@ export interface PrestigeRecord {
  */
 export interface PrestigeData {
   prestigeLevel: number; // Current prestige level (0 = no prestige)
-  prestigePoints: number; // Total points earned across all prestiges
+  prestigePoints: number; // SPENDABLE balance: earned by prestiging, reduced by shop purchases (lifetime earned = sum of prestigeHistory[].prestigePointsEarned)
   totalPrestiges: number; // Count of prestige resets
   lifetimeStats: LifetimeStats; // Track lifetime achievements
   unlockedBonuses: string[]; // IDs of purchased bonuses

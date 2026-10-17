@@ -88,3 +88,49 @@ export function inertBonusReason(bonusId: string): string | null {
 export function isInertBonus(bonusId: string): boolean {
   return inertBonusReason(bonusId) !== null;
 }
+
+/**
+ * A bonus that works, but would do nothing for THIS player because something
+ * they already own grants exactly the same effect. Returns the shop note, or
+ * `null` when the purchase would change something.
+ *
+ * Two found by the 2026-10-17 prestige-value audit, each a full duplicate:
+ *
+ *   - `immortality` (50,000 points, the shop's most expensive item) and the
+ *     Gem Shop's Immortality are read by the SAME check - the old-age roll in
+ *     the week loop skips on `goldUpgrades.immortality || hasImmortality(...)`.
+ *     Owning one makes the other a no-op.
+ *   - `legacy_education` (15,000) and `early_education_access` (3,000) both
+ *     run `completeAllPrograms` at the start of every new life (both prestige
+ *     paths pass the previous life, which is the legacy one's only gate). The
+ *     second one bought adds nothing.
+ *
+ * The income cap's "No effect" note is the precedent: the silence was the bug,
+ * not the overlap.
+ */
+export function redundantBonusReason(
+  bonusId: string,
+  owned: {
+    unlockedBonuses?: readonly string[] | null;
+    goldUpgrades?: Record<string, boolean> | null;
+  },
+): string | null {
+  const bonuses = Array.isArray(owned.unlockedBonuses) ? owned.unlockedBonuses : [];
+  if (bonuses.includes(bonusId)) return null;
+  switch (bonusId) {
+    case 'immortality':
+      return owned.goldUpgrades?.immortality
+        ? 'you already own Immortality from the Gem Shop'
+        : null;
+    case 'legacy_education':
+      return bonuses.includes('early_education_access')
+        ? 'Educated Start already completes every education each life'
+        : null;
+    case 'early_education_access':
+      return bonuses.includes('legacy_education')
+        ? 'Educational Legacy already completes every education each life'
+        : null;
+    default:
+      return null;
+  }
+}

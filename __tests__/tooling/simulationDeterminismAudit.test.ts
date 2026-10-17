@@ -193,7 +193,9 @@ describe('the simulation does not read the wall clock or an unseeded die', () =>
     // wobble, a fake social feed) where a seeded draw would buy nothing, so the
     // goal is not zero - the goal is that the number never grows unnoticed.
     // Lower it in the commit that earns it; never raise it to get unstuck.
-    const CEILING = 55;
+    // Measured at 37 on 2026-10-17 (it had sat at a stale 55), after the pet
+    // show and street-work mindsets moved their draws onto seeded rolls.
+    const CEILING = 37;
     const dirs = ['lib', 'contexts', 'utils', 'components', 'services', 'hooks', 'src'];
     const hits: string[] = [];
     const walk = (dir: string) => {

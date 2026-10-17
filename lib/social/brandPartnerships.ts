@@ -216,6 +216,106 @@ function pickBrand(seed: number) {
   return PULSE_BRAND_CATALOG[Math.abs(seed) % PULSE_BRAND_CATALOG.length];
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// What a brand pays, and for what (2026-10-17 economy pass)
+// ─────────────────────────────────────────────────────────────────────
+//
+// A Pulse contract pays PER DELIVERED POST, at a per-follower rate, and nothing
+// for posts that were never made.
+//
+// Measured on the real tick + actions before this change (accept every offer,
+// followers held fixed, weeks 13-60 of a 60-week run):
+//
+//                 post nothing      4 posts/wk     concurrent deals
+//     50K         $82,524/wk        $105,024/wk          5
+//     100K       $618,226/wk        $663,226/wk         13
+//     1M      $15,556,744/wk     $16,006,744/wk         25
+//
+// against a best-ladder career top of $6,000/wk. Three defects compounded:
+//   1. The rates were $2 / $5 / $10 per follower per CONTRACT - $0.67-$0.83
+//      per follower per post, ~80x a real sponsorship and ~15x the game's own
+//      `brand_deal_offer` event ($0.05/follower for one promotion).
+//   2. 25% was paid on accept and the other 75% STREAMED weekly by the tick
+//      whether or not a single post was delivered. An undelivered contract
+//      kept 81-94% of its value for a -5 reputation hit, so "post nothing"
+//      earned 79-97% of "do the work".
+//   3. Every tier re-offered weekly with no limit on concurrent contracts, and
+//      the weekly stream entered income beside salary - outside the $50K/wk
+//      social per-source cap in `calcWeeklyPassiveIncome` and multiplied by
+//      every income multiplier.
+//
+// Paying per post fixes 2 and 3 at the root: money only moves when a post is
+// delivered, posting is limited to one post per content type per week (five a
+// week at most), and each post can sponsor exactly one deal - so stacking
+// contracts no longer stacks income, and accepting/declining/double-tapping an
+// offer moves no money at all. The rates below fix 1.
+//
+// Rate: $0.01 per follower per post (the industry rule of thumb of ~$100 per
+// 10K followers per post), with a small premium for the longer commitments,
+// and never more than BRAND_PAY_PER_POST_CAP. Five posts a week at the cap is
+// $50,000/wk - the same ceiling the passive path puts on social income - and
+// the cap is reached around 0.5-1M followers, i.e. at the celebrity tier.
+
+/** Dollars per follower a brand pays for ONE delivered post, by contract tier. */
+export const BRAND_RATE_PER_FOLLOWER_PER_POST: Readonly<Record<PulseBrandOffer['type'], number>> = {
+  sponsored_post: 0.010,
+  brand_deal: 0.012,
+  long_campaign: 0.015,
+  ambassador: 0.020,
+};
+
+/**
+ * The most any single delivered post pays. Five content types can each post
+ * once a week, so this bounds brand pay at 5 x $10,000 = $50,000/wk - the
+ * `socialMedia` per-source cap in `calcWeeklyPassiveIncome`.
+ */
+export const BRAND_PAY_PER_POST_CAP = 10_000;
+
+/** What one delivered post on a `type` contract pays an audience of `followers`. */
+export function brandPayPerPost(type: PulseBrandOffer['type'], followers: number): number {
+  const safeFollowers = Number.isFinite(followers) && followers > 0 ? followers : 0;
+  return Math.min(
+    BRAND_PAY_PER_POST_CAP,
+    Math.floor(safeFollowers * BRAND_RATE_PER_FOLLOWER_PER_POST[type]),
+  );
+}
+
+/**
+ * A contract signed under the PRE-2026-10-17 terms: 25% on accept plus a
+ * weekly stream. Those terms are honoured to the end for deals already
+ * ACCEPTED (they run out within 12 weeks); pending OFFERS minted on the old
+ * rate card are withdrawn rather than paid per post at the old price.
+ *
+ * `weeklyPayment` is the discriminator: the old generator set it on every
+ * tier, and nothing writes it any more. No new field was needed.
+ */
+export function isStreamedBrandDeal(deal: { weeklyPayment?: number } | null | undefined): boolean {
+  return typeof deal?.weeklyPayment === 'number' && deal.weeklyPayment > 0;
+}
+
+/**
+ * Cash paid for delivering post number `deliveredAfter` of `postsRequired`.
+ *
+ * Telescoping floors, so the shares of a whole contract sum to exactly
+ * `payment` whatever the rounding (and a deal priced by `brandPayPerPost`
+ * pays exactly that per post).
+ */
+export function brandPostShare(payment: number, postsRequired: number, deliveredAfter: number): number {
+  const total = Number.isFinite(payment) && payment > 0 ? payment : 0;
+  const required = Math.max(1, Math.floor(postsRequired || 1));
+  const after = Math.min(required, Math.max(0, Math.floor(deliveredAfter)));
+  if (after === 0) return 0;
+  return Math.floor((total * after) / required) - Math.floor((total * (after - 1)) / required);
+}
+
+/** What a per-post contract has paid out once `delivered` posts are in. */
+export function brandPaidForDelivered(payment: number, postsRequired: number, delivered: number): number {
+  const total = Number.isFinite(payment) && payment > 0 ? payment : 0;
+  const required = Math.max(1, Math.floor(postsRequired || 1));
+  const done = Math.min(required, Math.max(0, Math.floor(delivered || 0)));
+  return Math.floor((total * done) / required);
+}
+
 function seedFrom(handle: string, week: number, slot: number): number {
   const s = `${handle}|${week}|${slot}`;
   let h = 0;
@@ -233,6 +333,11 @@ function seedFrom(handle: string, week: number, slot: number): number {
  * and engagement. Each offer carries deliverable count, duration, category,
  * and brand-specific colors so the UI can render a real-looking inbox.
  *
+ * `payment` is the whole contract: `postsRequired` x `brandPayPerPost`, paid
+ * one post at a time as posts are delivered (see the rate notes above). No
+ * offer carries `weeklyPayment` any more - that field now marks a contract
+ * signed under the old streamed terms (`isStreamedBrandDeal`).
+ *
  * Deterministic seed per (handle, weeksLived, tierSlot) - re-running the same
  * tick yields the same offers, which keeps things stable across StrictMode
  * double-renders.
@@ -249,25 +354,23 @@ export function generateBrandOffersExtended(
   const reputation = state.stats?.reputation ?? 0;
   const handle = state.userProfile?.handle || 'player';
   const offers: PulseBrandOffer[] = [];
+  const money = (n: number) => `$${n.toLocaleString('en-US')}`;
 
   // Tier 1 - Sponsored post (10K+ followers, modest engagement)
   if (followers >= 10_000 && engagement >= 10) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 1));
-    const payment = Math.floor(followers * 0.10);
+    const perPost = brandPayPerPost('sponsored_post', followers);
+    const postsRequired = 1;
     offers.push({
       id: `pulse_offer_sp_${weeksLived}_${brand.name}`,
       brandName: brand.name,
       type: 'sponsored_post',
-      payment,
-      // P0-1: 25% is paid as a signing bonus on accept; the remaining 75% is
-      // streamed. Total payout = 100% of `payment` (was 125% - bonus on top of
-      // a full 100% stream).
-      weeklyPayment: Math.floor(payment * 0.75),
-      postsRequired: 1,
+      payment: perPost * postsRequired,
+      postsRequired,
       duration: 1,
       category: brand.category,
       requirements: { minFollowers: 10_000, minEngagementRate: 10 },
-      description: `One sponsored post about ${brand.name}.`,
+      description: `One sponsored post about ${brand.name}, paid ${money(perPost)} on delivery.`,
       expiresInWeeks: 1,
       offeredWeek: weeksLived,
       logoColor1: brand.color1,
@@ -278,19 +381,19 @@ export function generateBrandOffersExtended(
   // Tier 2 - Brand deal (50K+ followers, healthy engagement)
   if (followers >= 50_000 && engagement >= 15) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 2));
-    const payment = Math.floor(followers * 2.0);
+    const perPost = brandPayPerPost('brand_deal', followers);
+    const postsRequired = 3;
     const duration = 4;
     offers.push({
       id: `pulse_offer_bd_${weeksLived}_${brand.name}`,
       brandName: brand.name,
       type: 'brand_deal',
-      payment,
-      weeklyPayment: Math.floor((payment * 0.75) / duration),
-      postsRequired: 3,
+      payment: perPost * postsRequired,
+      postsRequired,
       duration,
       category: brand.category,
       requirements: { minFollowers: 50_000, minEngagementRate: 15 },
-      description: `Three-post campaign over ${duration} weeks.`,
+      description: `Three posts within ${duration} weeks, ${money(perPost)} per post delivered.`,
       expiresInWeeks: 2,
       offeredWeek: weeksLived,
       logoColor1: brand.color1,
@@ -301,19 +404,19 @@ export function generateBrandOffersExtended(
   // Tier 3 - Premium long campaign (100K+ followers, strong engagement)
   if (followers >= 100_000 && engagement >= 20) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 3));
-    const payment = Math.floor(followers * 5.0);
+    const perPost = brandPayPerPost('long_campaign', followers);
+    const postsRequired = 6;
     const duration = 8;
     offers.push({
       id: `pulse_offer_lc_${weeksLived}_${brand.name}`,
       brandName: brand.name,
       type: 'long_campaign',
-      payment,
-      weeklyPayment: Math.floor((payment * 0.75) / duration),
-      postsRequired: 6,
+      payment: perPost * postsRequired,
+      postsRequired,
       duration,
       category: brand.category,
       requirements: { minFollowers: 100_000, minEngagementRate: 20 },
-      description: `Long-form campaign: 6 posts over ${duration} weeks.`,
+      description: `Long-form campaign: 6 posts within ${duration} weeks, ${money(perPost)} per post delivered.`,
       expiresInWeeks: 3,
       offeredWeek: weeksLived,
       prestigeImpact: 2,
@@ -322,22 +425,23 @@ export function generateBrandOffersExtended(
     });
   }
 
-  // Tier 4 - Ambassador exclusive (1M+ followers, reputable)
+  // Tier 4 - Ambassadorship (1M+ followers, reputable). Not exclusive: the
+  // old copy said "one brand only" and nothing ever enforced it.
   if (followers >= 1_000_000 && engagement >= 18 && reputation >= 30) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 4));
-    const payment = Math.floor(followers * 10.0);
+    const perPost = brandPayPerPost('ambassador', followers);
+    const postsRequired = 12;
     const duration = 12;
     offers.push({
       id: `pulse_offer_amb_${weeksLived}_${brand.name}`,
       brandName: brand.name,
       type: 'ambassador',
-      payment,
-      weeklyPayment: Math.floor((payment * 0.75) / duration),
-      postsRequired: 12,
+      payment: perPost * postsRequired,
+      postsRequired,
       duration,
       category: brand.category,
       requirements: { minFollowers: 1_000_000, minEngagementRate: 18, minReputation: 30 },
-      description: `Exclusive ${duration}-week ambassadorship - one brand only.`,
+      description: `${duration}-week ambassadorship: 12 posts, ${money(perPost)} per post delivered.`,
       expiresInWeeks: 4,
       offeredWeek: weeksLived,
       prestigeImpact: 8,

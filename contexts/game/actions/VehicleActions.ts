@@ -47,6 +47,72 @@ import type { Loan } from '../types';
 
 const log = logger.scope('VehicleActions');
 
+// ---------------------------------------------------------------------------
+// Reputation a car carries - what buying grants and what selling takes back
+// ---------------------------------------------------------------------------
+//
+// A purchase granted the full `reputationBonus` and a sale took back HALF of it
+// (`-Math.floor(bonus / 2)`), so every round trip netted +bonus/2. A probe took
+// reputation 0 -> 95 in 19 round trips for $57k, which clears political office
+// gates. Both directions now move the SAME amount: the bonus, clamped to the
+// 0..100 scale.
+//
+// Why the sale removes the full bonus rather than "exactly what the purchase
+// granted": nothing in the save records what a purchase granted (the bonus is
+// stamped on the vehicle, the clamped grant is not), and without that record
+// removing the full bonus is the ONLY rule under which a buy-then-sell can never
+// net positive. Proof sketch: every purchase within `bonus` of 100 lands on 100,
+// so a sale at 100 cannot tell a purchase made at 100 - bonus (granted the
+// whole bonus, must remove it) from one made at 100 (granted nothing). Any sale
+// rule that removes less at 100 lets the first case farm.
+//
+// What that costs, stated plainly:
+//   - At the TOP: a car bought within `bonus` of 100 was granted less than its
+//     bonus, and selling still removes the whole bonus. A loss, never a gain.
+//   - At the BOTTOM: the sale floors at 0, so if reputation fell below the
+//     bonus while you owned the car, selling and rebuying returns you to the
+//     bonus. That is exactly what a first-time buyer at the same reputation
+//     gets, and below what owning the car already reaches through the weekly
+//     nudge (`applyVehicles`: +1/wk up to 3x the bonus) - so it can restore the
+//     car's own floor but never lift reputation above anything ownership does
+//     not already grant.
+// Making the top exact needs a per-vehicle record of the grant (a new field on
+// `Vehicle`), which this change deliberately does not add.
+
+const clampReputation = (n: unknown): number =>
+  typeof n === 'number' && isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+
+const positiveBonus = (n: unknown): number =>
+  typeof n === 'number' && isFinite(n) && n > 0 ? n : 0;
+
+/** Reputation after buying a car that carries `bonus`: the bonus, capped at 100. */
+export function reputationAfterVehiclePurchase(reputation: unknown, bonus: unknown): number {
+  return Math.min(100, clampReputation(reputation) + positiveBonus(bonus));
+}
+
+/** How much reputation buying a car that carries `bonus` grants right now - for the dealer card. */
+export function vehiclePurchaseReputationGain(reputation: unknown, bonus: unknown): number {
+  return reputationAfterVehiclePurchase(reputation, bonus) - clampReputation(reputation);
+}
+
+/** Reputation after selling a car that carries `bonus`: the whole bonus comes off, floored at 0. */
+export function reputationAfterVehicleSale(reputation: unknown, bonus: unknown): number {
+  return Math.max(0, clampReputation(reputation) - positiveBonus(bonus));
+}
+
+/**
+ * The reputation a garage vehicle carries: the bonus stamped on it at purchase
+ * (`createVehicleFromTemplate` copies the template's), else its template's.
+ * Read from the vehicle first so a later template rebalance cannot change what
+ * selling an already-owned car takes back, and so a vehicle that never carried
+ * any (a rental, the prestige starter car) takes back nothing.
+ */
+export function vehicleReputationBonus(vehicle: Pick<Vehicle, 'id' | 'reputationBonus'>): number {
+  const own = vehicle.reputationBonus;
+  if (typeof own === 'number' && isFinite(own) && own >= 0) return own;
+  return positiveBonus(VEHICLE_TEMPLATES.find((t) => t.id === vehicle.id)?.reputationBonus);
+}
+
 /**
  * Get driver's license
  */
@@ -202,9 +268,7 @@ const resolvePurchaseVehicle = (
       stats: {
         ...state.stats,
         money: newMoney,
-        reputation: template.reputationBonus > 0
-          ? Math.min(100, (state.stats.reputation || 0) + template.reputationBonus)
-          : (state.stats.reputation || 0),
+        reputation: reputationAfterVehiclePurchase(state.stats.reputation, newVehicle.reputationBonus),
       },
       vehicles,
       activeVehicleId,
@@ -252,18 +316,14 @@ export const sellVehicle = (
   const sellPrice = calculateVehicleSellPrice(vehicle);
 
   // Atomic: merge money gain + vehicle removal + reputation loss into single update
-  const template = VEHICLE_TEMPLATES.find(t => t.id === vehicleId);
-  const repLoss = (template && template.reputationBonus > 0)
-    ? -Math.floor(template.reputationBonus / 2)
-    : 0;
-
   setGameState(prev => {
     // H-9: re-check ownership against `prev`. Without this, two rapid taps both
     // read the vehicle from the stale `gameState`, and each updater adds
     // `sellPrice` again (the second `.filter` is a harmless no-op) - duplicating
     // the sale proceeds per extra tap. If the vehicle is already gone this batch,
     // the sale already happened: return prev unchanged.
-    if (!(prev.vehicles || []).some(v => v.id === vehicleId)) return prev;
+    const sold = (prev.vehicles || []).find(v => v.id === vehicleId);
+    if (!sold) return prev;
 
     const vehicles = (prev.vehicles || []).filter(v => v.id !== vehicleId);
     const activeVehicleId = prev.activeVehicleId === vehicleId
@@ -306,7 +366,9 @@ export const sellVehicle = (
           (typeof prev.stats.money === 'number' && isFinite(prev.stats.money) ? prev.stats.money : 0) +
             cashDelta
         ),
-        reputation: Math.max(0, (prev.stats.reputation || 0) + repLoss),
+        // The whole bonus the car carries, so a buy + sell can never net
+        // positive. See `reputationAfterVehicleSale`.
+        reputation: reputationAfterVehicleSale(prev.stats.reputation, vehicleReputationBonus(sold)),
       },
       vehicles,
       activeVehicleId,
@@ -982,12 +1044,31 @@ function resolveBuyVehicle(
   spec: BuyVehicleSpec
 ): { result: { success: boolean; message: string }; next: GameState | null } {
   {
-    if (!state.hasDriversLicense) {
-      return { result: { success: false, message: "You need a driver's license to purchase a vehicle!" }, next: null };
+    const refuse = (message: string) => ({ result: { success: false, message }, next: null });
+    /**
+     * Licence gate - the SAME rule `resolvePurchaseVehicle` applies: aircraft
+     * need a pilot's licence, everything else a driver's licence.
+     *
+     * This path only checked the driver's licence, and it is the one the UI
+     * actually buys through (BuyVehicleModal → purchaseVehicleWithAutoLoan), so
+     * the $45k pilot's licence gated nothing: any licensed driver could buy a
+     * helicopter or a jet. The reputation floor below had the same gap - the
+     * dealership greys locked cards out, but the action trusted the screen.
+     */
+    if (isAircraftVehicleId(spec.templateId)) {
+      if (!state.hasPilotLicense) {
+        return refuse(`You need a pilot's license to buy an aircraft. Flight training costs $${PILOT_LICENSE.cost.toLocaleString('en-US')}.`);
+      }
+    } else if (!state.hasDriversLicense) {
+      return refuse("You need a driver's license to purchase a vehicle!");
     }
     const template = VEHICLE_TEMPLATES.find((v) => v.id === spec.templateId);
     if (!template) {
-      return { result: { success: false, message: 'Vehicle template not found' }, next: null };
+      return refuse('Vehicle template not found');
+    }
+    const requiredReputation = positiveBonus(template.requiredReputation);
+    if (requiredReputation > 0 && clampReputation(state.stats?.reputation) < requiredReputation) {
+      return refuse(`You need ${requiredReputation} reputation to purchase this vehicle.`);
     }
     if ((state.vehicles ?? []).some((v) => v.id === spec.templateId)) {
       return { result: { success: false, message: 'You already own this vehicle!' }, next: null };
@@ -1051,14 +1132,10 @@ function resolveBuyVehicle(
     // Grant the dealer-card / spec-grid "+X rep" once at purchase. The UI buys
     // exclusively through THIS path (BuyVehicleModal → purchaseVehicleWithAutoLoan),
     // so without this the advertised reputationBonus was never applied - only the
-    // legacy, UI-unused purchaseVehicle granted it. Capped at 100 (Math.min); the
-    // weekly tick's separate +1/wk nudge (capped at reputationBonus*3) is unchanged.
-    const snapshotReputation = typeof state.stats?.reputation === 'number' && isFinite(state.stats.reputation)
-      ? state.stats.reputation
-      : 0;
-    const grantedReputation = template.reputationBonus > 0
-      ? Math.min(100, snapshotReputation + template.reputationBonus)
-      : snapshotReputation;
+    // legacy, UI-unused purchaseVehicle granted it. Capped at 100; selling takes
+    // the same bonus back (see `reputationAfterVehicleSale`). The weekly tick's
+    // separate +1/wk nudge (capped at reputationBonus*3) is unchanged.
+    const grantedReputation = reputationAfterVehiclePurchase(state.stats?.reputation, newVehicle.reputationBonus);
 
     return {
       result: {

@@ -2,18 +2,50 @@ import AmountSlider from '@/components/ui/AmountSlider';
 import React, { useState, useEffect } from 'react';
 import { askRentOverage } from '@/lib/realEstate/askRentGuidance';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
+import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle, Home } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
-import { maintenanceCost } from '@/lib/realEstate/operations';
+import { maintenanceCost, quotePropertySale, SALE_CLOSING_COST_RATE, SaleQuote } from '@/lib/realEstate/operations';
+import { PROPERTY_GAINS_TAX_RATE } from '@/lib/economy/taxLedger';
 import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier, getUpgradeTierCost } from '@/lib/realEstate/housing';
 import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
+import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
+import { canMoveIn, moveInConsequence, movesBackInOnStopRenting } from '@/lib/realEstate/residence';
+import { makePropertyHome } from '@/contexts/game/actions/RealEstateActions';
+import { shallowEqual, useGameSelector, useGameStateGetter, useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
+
+/** Whole dollars - the sale dialog states exact figures, not `formatMoney`'s "$162.35K". */
+const dollars = (n: number): string => `$${Math.round(n).toLocaleString('en-US')}`;
+const percent = (rate: number): string => `${Math.round(rate * 100)}%`;
+
+/**
+ * The sale confirmation, itemised from `quotePropertySale` - the function
+ * `sellProperty` commits - so the "Net to you" line is the cash the sale pays.
+ * It used to read value - mortgage, skipping the closing costs and the gains
+ * tax: a $216k quote paid $162k.
+ */
+function saleConfirmMessage(name: string, q: SaleQuote): string {
+  const lines = [
+    `${name} sells for ${dollars(q.salePrice)}.`,
+    `Closing costs (${percent(SALE_CLOSING_COST_RATE)}): -${dollars(q.closingCost)}`,
+  ];
+  if (q.capitalGainsTax > 0) {
+    lines.push(`Tax on your ${dollars(q.capitalGain)} gain (${percent(PROPERTY_GAINS_TAX_RATE)}): -${dollars(q.capitalGainsTax)}`);
+  }
+  if (q.mortgageRemaining > 0) lines.push(`Mortgage payoff: -${dollars(q.mortgagePayoff)}`);
+  lines.push(`Net to you: ${dollars(q.proceeds)}`);
+  if (q.residualDebt > 0) {
+    lines.push(`The sale does not cover the mortgage - ${dollars(q.residualDebt)} stays owed on the loan.`);
+  }
+  return lines.join('\n');
+}
 
 interface Props {
   visible: boolean;
@@ -64,6 +96,17 @@ export default function ManagePropertyModal({
   const [chosenMode, setChosenMode] = useState<RentMode>('longTerm');
   const [rentText, setRentText] = useState('');
 
+  // "Make this my home" is wired here rather than through a parent prop: the
+  // verdict needs the live tenancy and every other property, which this sheet
+  // was never given. The button, its hint and the action all read `canMoveIn`,
+  // so the sheet cannot offer a move the action refuses.
+  const propertyId = property?.id;
+  const moveIn = useGameSelector((s) => canMoveIn(s, propertyId), shallowEqual);
+  const movesBackIn = useGameSelector((s) => movesBackInOnStopRenting(s, propertyId));
+  const setGameState = useSetGameState();
+  const getGameState = useGameStateGetter();
+  const { saveGame } = useGameActions();
+
   useEffect(() => {
     if (visible && property) {
       setChosenMode(property.rentMode ?? 'longTerm');
@@ -79,6 +122,14 @@ export default function ManagePropertyModal({
   const value = property.currentValue ?? property.price;
   const equity = Math.max(0, value - (mortgageRemaining ?? 0));
   const maintCost = maintenanceCost(property);
+  const commercial = isCommercialCatalogId(property.id);
+  const sale = quotePropertySale(property, mortgageRemaining ?? 0);
+
+  const handleMakeHome = () => {
+    const r = makePropertyHome(getGameState(), setGameState, property.id);
+    gameAlert(r.success ? 'Moved in' : 'Cannot move in', r.message);
+    if (r.success) saveGame().catch(() => {});
+  };
 
   // Improve flow (Wave A): what's still available to install/add/upgrade.
   const showImprove = !!(onInstallDecor || onAddRoom || onUpgrade);
@@ -114,6 +165,34 @@ export default function ManagePropertyModal({
           </View>
 
           <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
+            {/* Commercial listings are never a home (0 comfort, 0 energy), so
+                the section is not offered for them at all. */}
+            {!commercial && (
+              <View style={[styles.section, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                <View style={styles.sectionHeader}>
+                  <Home size={scale(14)} color={theme.text} />
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Home</Text>
+                </View>
+                {property.currentResidence ? (
+                  <Text style={[styles.helpText, { color: theme.textMuted }]}>You live here.</Text>
+                ) : (
+                  <>
+                    <Text style={[styles.helpText, { color: theme.textMuted }]}>{moveInConsequence(moveIn)}</Text>
+                    <TouchableOpacity
+                      disabled={!moveIn.allowed}
+                      onPress={handleMakeHome}
+                      style={[styles.btn, { backgroundColor: moveIn.allowed ? accent.info : theme.border }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Make this my home"
+                      accessibilityState={{ disabled: !moveIn.allowed }}
+                    >
+                      <Text style={styles.btnText}>Make this my home</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+
             <View style={[styles.section, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
               <View style={styles.sectionHeader}>
                 <Users size={scale(14)} color={theme.text} />
@@ -159,6 +238,13 @@ export default function ManagePropertyModal({
                 );
               })()}
 
+              {/* `setRentMode` clears the residence flag - say so before the tap. */}
+              {property.currentResidence && (
+                <Text style={[styles.capNote, { color: accent.warning }]}>
+                  This is your home - renting it out moves you out of it.
+                </Text>
+              )}
+
               <View style={styles.btnRow}>
                 <TouchableOpacity
                   disabled={rent <= 0}
@@ -176,6 +262,13 @@ export default function ManagePropertyModal({
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* The same predicate `resolveStopRenting` commits by. */}
+              {property.status === 'rented' && movesBackIn && (
+                <Text style={[styles.helpText, { color: theme.textMuted }]}>
+                  You have nowhere else to live, so stopping the rental moves you back in.
+                </Text>
+              )}
 
               {property.tenant && (
                 <View style={styles.tenantRow}>
@@ -340,13 +433,14 @@ export default function ManagePropertyModal({
                 <Text style={[styles.sectionTitle, { color: accent.danger }]}>Sell</Text>
               </View>
               <Text style={[styles.helpText, { color: theme.textMuted }]}>
-                Sell at market value. Any outstanding mortgage is paid off from the proceeds.
+                Sells at market value. {percent(SALE_CLOSING_COST_RATE)} closing costs and {percent(PROPERTY_GAINS_TAX_RATE)} tax
+                on any gain come out first, then any mortgage is paid off. You would receive {dollars(sale.proceeds)}.
               </Text>
               <TouchableOpacity
                 onPress={() => {
                   gameAlert(
                     'Sell property?',
-                    `${property.name} for ${formatMoney(value)}. Mortgage payoff ${formatMoney(mortgageRemaining ?? 0)}. Net to you: ${formatMoney(equity)}.`,
+                    saleConfirmMessage(property.name, sale),
                     [
                       { text: 'Cancel', style: 'cancel' },
                       { text: 'Sell', style: 'destructive', onPress: onSell },

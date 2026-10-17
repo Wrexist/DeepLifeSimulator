@@ -15,7 +15,7 @@ import {
   calculateFollowerDecay,
   getEngagementMultiplierFromVerifiedPro,
 } from '@/lib/social/socialMedia';
-import { generateBrandOffersExtended } from '@/lib/social/brandPartnerships';
+import { brandPayPerPost, generateBrandOffersExtended } from '@/lib/social/brandPartnerships';
 import { generateNpcPostsForFeed } from '@/lib/social/npcPosts';
 import { generateScandalPileOnComments } from '@/lib/social/randomProfiles';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
@@ -130,17 +130,18 @@ describe('generateBrandOffersExtended', () => {
     expect(a.map((o) => o.brandName)).toEqual(b.map((o) => o.brandName));
   });
 
-  it('weeklyPayment = floor(payment / duration)', () => {
+  it('prices every contract per delivered post, with no weekly stream (2026-10-17)', () => {
     const state = createTestGameState();
     state.socialMedia!.followers = 100_000;
     state.socialMedia!.engagementRate = 25;
     const offers = generateBrandOffersExtended(state, 5);
+    expect(offers.length).toBeGreaterThan(0);
     for (const o of offers) {
-      if (o.weeklyPayment !== undefined && o.duration > 1) {
-        // P0-1: 25% is a signing-bonus advance, so only 75% is streamed weekly
-        // (total payout = 100% of `payment`, was 125%).
-        expect(o.weeklyPayment).toBe(Math.floor((o.payment * 0.75) / o.duration));
-      }
+      // This assertion used to sit behind `if (o.weeklyPayment !== undefined)`,
+      // so it would have passed vacuously the moment the field went away.
+      // `weeklyPayment` now marks a contract on the OLD streamed terms.
+      expect(o.weeklyPayment).toBeUndefined();
+      expect(o.payment).toBe(brandPayPerPost(o.type, 100_000) * o.postsRequired);
     }
   });
 

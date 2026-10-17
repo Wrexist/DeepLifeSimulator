@@ -128,14 +128,14 @@ describe('C-11 - buying is a pure, idempotent reducer', () => {
 });
 
 describe('C-11 - the upgrades are head starts, not multipliers', () => {
-  it('every upgrade grants money, a stat, reputation, or a TIMED buff - nothing compounding', () => {
+  it('every upgrade grants money, a stat, reputation, a completed programme, or a TIMED buff - nothing compounding', () => {
     // A timed buff is a head start, not a permanent multiplier: it expires on
     // a weeksLived deadline, so generation N+1 is not strictly stronger than
     // generation N forever. The anti-compounding rule stays for anything that
     // does not expire.
     for (const u of LEGACY_UPGRADES) {
       expect(`${u.id}: ${u.effect.kind}`)
-        .toMatch(/: (money|stat|reputation|buff)$/);
+        .toMatch(/: (money|stat|reputation|buff|education)$/);
       if (u.effect.kind === 'buff') {
         expect(u.effect.weeks).toBeGreaterThan(0);
         expect(u.effect.weeks).toBeLessThanOrEqual(260); // ≤5 years - a head start, not a life
@@ -387,38 +387,8 @@ describe('C-11 - the save format', () => {
   });
 });
 
-describe('C-11 - the heir actually starts with what was bought', () => {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
-  const SRC = fs.readFileSync(
-    path.join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'), 'utf8',
-  );
-
-  it('the child path carries the points AND the purchases', () => {
-    expect(SRC).toMatch(/newState\.legacyPoints = oldState\.legacyPoints \|\| 0;/);
-    expect(SRC).toMatch(/newState\.legacyUpgrades = \[\.\.\.\(oldState\.legacyUpgrades \|\| \[\]\)\];/);
-  });
-
-  it('and applies the starting bonuses', () => {
-    expect(SRC).toMatch(/const heirBonuses = heirStartingBonuses\(newState\.legacyUpgrades\);/);
-  });
-
-  it('the RESET path carries them but does NOT apply the bonuses (the control)', () => {
-    // Every upgrade is worded "Your heir starts with…". A prestige reset is
-    // the same character starting over, not a new generation - but the
-    // purchase must not be destroyed either, which is the MON-1/2/3 class.
-    const reset = SRC.slice(
-      SRC.indexOf('function createResetGameState'),
-      SRC.indexOf('function createChildGameState'),
-    );
-
-    expect(reset).toMatch(/newState\.legacyUpgrades = \[\.\.\.\(oldState\.legacyUpgrades \|\| \[\]\)\];/);
-    expect(reset).not.toMatch(/heirStartingBonuses/);
-  });
-
-  it('stat bonuses are clamped to 100 (the control)', () => {
-    // A heir cannot start above the cap no matter how much was bought.
-    expect(SRC).toMatch(/Math\.min\(100, current \+ amount\)/);
-    expect(SRC).toMatch(/Math\.min\(100, \(newState\.stats\.reputation \|\| 0\) \+ heirBonuses\.reputation\)/);
-  });
-});
+// The heir-application tests used to live here as regexes over
+// prestigeExecution.ts - they matched the line that applied the bonuses, and
+// so passed for the whole time a later line threw the result away. They are
+// behavioural now, in `legacyShopHeirStart.test.ts`, which runs the real
+// `continueAsChild` / `executePrestige` and measures the heir it builds.

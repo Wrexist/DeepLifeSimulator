@@ -114,18 +114,53 @@ export interface PetCompetition {
   requirement: 'happiness' | 'health' | 'energy' | 'all';
   minValue: number;
   emoji: string;
+  /**
+   * How strong the rest of the field is, as win odds subtracted from the
+   * entrant's (0..1). This is what makes a bigger show HARDER to win: a cared-for
+   * pet clears every `minValue` with room to spare, so without it every show had
+   * the same 90% odds and the only difference between tiers was the prize.
+   */
+  fieldStrength: number;
 }
 
+/**
+ * Pet shows are a weekly side bonus, not an income.
+ *
+ * They used to pay 10x the entry fee at up to 90% odds - the Grand Championship
+ * was +$4,000 expected per entry against a $110/week entry wage - and the cap was
+ * one entry per PET per week with no cap on pets. Measured (2026-10-17): one $2,000
+ * mouse netted +$67,390 over 20 weeks after food and vet bills; twenty mice netted
+ * ~$77,000 a week.
+ *
+ * Now the player gets ONE entry a week across all pets (`enterCompetition`), the
+ * best possible expected value of that entry is $60 (the Grand Championship with
+ * a 5-win veteran: 40% x $300 - $60) - about half the $110 entry wage, before the
+ * pet's own $15/week food bill - and a bigger show pays more because it is harder
+ * to win, not because it is a better deal at the same odds. The expected value of
+ * every show is pinned by `__tests__/actions/petCompetitionEconomy.test.ts`.
+ */
 export const PET_COMPETITIONS: PetCompetition[] = [
-  { id: 'beauty',       name: 'Beauty Contest',     entryFee: 50,  prize: 500,  requirement: 'happiness', minValue: 70, emoji: '😊' },
-  { id: 'agility',      name: 'Agility Race',       entryFee: 75,  prize: 750,  requirement: 'energy',    minValue: 60, emoji: '⚡' },
-  { id: 'obedience',    name: 'Obedience Trial',    entryFee: 100, prize: 1000, requirement: 'happiness', minValue: 80, emoji: '🎯' },
-  { id: 'talent',       name: 'Talent Show',        entryFee: 150, prize: 1500, requirement: 'health',    minValue: 70, emoji: '⭐' },
-  { id: 'championship', name: 'Grand Championship', entryFee: 500, prize: 5000, requirement: 'all',       minValue: 75, emoji: '🏆' },
-  { id: 'costume',      name: 'Costume Parade',     entryFee: 40,  prize: 350,  requirement: 'happiness', minValue: 55, emoji: '🎭' },
-  { id: 'endurance',    name: 'Endurance Trial',    entryFee: 120, prize: 1200, requirement: 'energy',    minValue: 78, emoji: '🏁' },
-  { id: 'wellness',     name: 'Wellness Expo',      entryFee: 90,  prize: 900,  requirement: 'health',    minValue: 65, emoji: '🌿' },
+  { id: 'beauty',       name: 'Beauty Contest',     entryFee: 15, prize: 60,  requirement: 'happiness', minValue: 70, emoji: '😊', fieldStrength: 0.05 },
+  { id: 'agility',      name: 'Agility Race',       entryFee: 20, prize: 80,  requirement: 'energy',    minValue: 60, emoji: '⚡', fieldStrength: 0.10 },
+  { id: 'obedience',    name: 'Obedience Trial',    entryFee: 25, prize: 110, requirement: 'happiness', minValue: 80, emoji: '🎯', fieldStrength: 0.15 },
+  { id: 'talent',       name: 'Talent Show',        entryFee: 40, prize: 180, requirement: 'health',    minValue: 70, emoji: '⭐', fieldStrength: 0.25 },
+  { id: 'championship', name: 'Grand Championship', entryFee: 60, prize: 300, requirement: 'all',       minValue: 75, emoji: '🏆', fieldStrength: 0.35 },
+  { id: 'costume',      name: 'Costume Parade',     entryFee: 10, prize: 40,  requirement: 'happiness', minValue: 55, emoji: '🎭', fieldStrength: 0 },
+  { id: 'endurance',    name: 'Endurance Trial',    entryFee: 30, prize: 140, requirement: 'energy',    minValue: 78, emoji: '🏁', fieldStrength: 0.20 },
+  { id: 'wellness',     name: 'Wellness Expo',      entryFee: 20, prize: 85,  requirement: 'health',    minValue: 65, emoji: '🌿', fieldStrength: 0.10 },
 ];
+
+/**
+ * The most LIVING pets a player can keep at once.
+ *
+ * Five because that is where the companion bonus already stops: a pet at 85+
+ * happiness adds +1 player happiness a week and a healthy one +0.6 health, and the
+ * weekly tick caps the roster's totals at +5 and +3
+ * (`PET_BONDING_HAPPINESS_CAP` / `PET_BONDING_HEALTH_CAP` in `applyPets.ts`) - five
+ * cared-for pets reach both caps, so a sixth added a food bill and nothing else.
+ * Pets that have died stay on the memorial list and do not count.
+ */
+export const MAX_PETS_OWNED = 5;
 
 export interface PetSickness {
   id: string;

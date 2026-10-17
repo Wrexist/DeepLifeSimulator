@@ -31,7 +31,7 @@ import { applyMoneyDelta } from '@/lib/economy/moneyDelta';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { findParty, switchParty, type PartyId } from './parties';
-import { appointmentBlocker, findAppointment } from './appointments';
+import { appointmentBlocker, findAppointment, reputationStepOnTake } from './appointments';
 import { planSkim, readEmbezzlement } from './embezzlement';
 import { buildRetirement, retirementBlocker } from './retirement';
 import { applyOfficeExit } from './operations';
@@ -188,6 +188,9 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
     party: politics.party,
     partySupport: politics.partySupport,
     hasEducation: (id: string) => (state.educations || []).some((e) => e && e.id === id && e.completed),
+    // The blocker refuses a reputation step the player cannot cover, and that
+    // step depends on the post being handed back (see `reputationStepOnTake`).
+    heldAppointmentId: politics.appointment?.id,
   });
   if (blocker) return refuse(state, blocker);
 
@@ -197,8 +200,9 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
   // (below) gives it back too. Without the give-back, alternating two posts
   // was a free +5/+8 reputation per tap with no cooldown - six taps took a
   // Governor from 70 to the 100 clamp, and reputation feeds the election roll
-  // and its up-to-$5M rewards.
-  const repDelta = def.reputationOnTake - (previous?.reputationOnTake ?? 0);
+  // and its up-to-$5M rewards. The blocker above refuses a negative step that
+  // would hit the 0 floor, so what is charged here is what resigning returns.
+  const repDelta = reputationStepOnTake(def, politics.appointment?.id);
   const next: GameState = {
     ...state,
     stats: {

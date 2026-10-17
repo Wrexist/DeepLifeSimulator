@@ -252,7 +252,10 @@ describe('brand deals', () => {
       brandName: 'NebulaCola',
       type: 'brand_deal',
       payment: 4000,
-      weeklyPayment: 1000,
+      // No `weeklyPayment`: the generator stopped minting it on 2026-10-17
+      // (contracts are paid per delivered post). An offer that still carries
+      // one is from the old rate card and is withdrawn - see the
+      // brandDealEconomy suite.
       postsRequired: 2,
       duration: 4,
       category: 'food',
@@ -274,8 +277,11 @@ describe('brand deals', () => {
     const state = freshState({ weeksLived: 5 });
     addOffer(state);
     const { setGameState, getState } = makeStateHarness(state);
+    const moneyBefore = getState().stats.money;
     const r = acceptBrandDeal(getState(), setGameState, 'offer1');
     expect(r.success).toBe(true);
+    // Accepting pays nothing - money moves only when a post is delivered.
+    expect(getState().stats.money).toBe(moneyBefore);
     expect(getState().socialMedia!.activeBrandDeals).toHaveLength(1);
     expect(getState().socialMedia!.activeBrandDeals![0].expiresAt).toBe(5 + 4);
     expect(getState().socialMedia!.brandInbox!.pending).toHaveLength(0);
@@ -318,13 +324,18 @@ describe('brand deals', () => {
         contentType: 'text',
       } as any,
     ];
+    const moneyBefore = getState().stats.money;
     let r = deliverBrandDealPost(getState(), setGameState, 'offer1', 'p1');
     expect(r.success).toBe(true);
     expect(r.message).toMatch(/1\/2/);
+    // Each delivered post pays its share of the $4,000 contract.
+    expect(getState().stats.money).toBe(moneyBefore + 2000);
     // Re-submitting the same post is refused, and does NOT advance the count.
     expect(deliverBrandDealPost(getState(), setGameState, 'offer1', 'p1').success).toBe(false);
+    expect(getState().stats.money).toBe(moneyBefore + 2000);
     r = deliverBrandDealPost(getState(), setGameState, 'offer1', 'p2');
     expect(r.message).toMatch(/completed/i);
+    expect(getState().stats.money).toBe(moneyBefore + 4000);
     expect(getState().socialMedia!.activeBrandDeals).toHaveLength(0);
     expect(getState().socialMedia!.brandInbox!.history).toHaveLength(1);
     expect(getState().socialMedia!.brandInbox!.history[0].result).toBe('success');

@@ -1233,6 +1233,9 @@ export const availableAppointments = (
     party: gameState.politics?.party,
     partySupport: gameState.politics?.partySupport,
     hasEducation,
+    // Same input the take resolver passes: a swap hands the held post's
+    // reputation back first, so the list must price the step the tap applies.
+    heldAppointmentId: gameState.politics?.appointment?.id,
   };
   return POLITICAL_APPOINTMENTS.map(a => ({
     id: a.id,

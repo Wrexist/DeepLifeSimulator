@@ -186,7 +186,7 @@ export function aggregateContacts(
 
   // 5) Company employees - collapsed to one row per company.
   // The cost is the SAME figure the weekly hustle tick charges
-  // (companyWeeklyPayroll): general staff at workerSalary plus each named
+  // (companyWeeklyPayroll): general staff at companyStaffWage plus each named
   // hire's own salary. "$X/wk each" is only claimed when every head really is
   // paid X - a named hire negotiates their own figure.
   for (const c of state.companies ?? []) {
@@ -195,7 +195,7 @@ export function aggregateContacts(
     const namedHires = state.hustleApp?.companies?.[c.id]?.hiringPipeline?.namedHires ?? [];
     const payroll = companyWeeklyPayroll(c, namedHires);
     const costLabel = namedHires.length === 0
-      ? `$${safe(c.workerSalary, 0).toLocaleString('en-US')}/wk each`
+      ? `$${payroll.wagePerHead.toLocaleString('en-US')}/wk each`
       : `$${payroll.total.toLocaleString('en-US')}/wk payroll`;
     out.push({
       id: `company:${c.id}`,

@@ -14,6 +14,9 @@
  * R3-P9 the Legacy Pass PAID capstone granted trait id `legacy_trait_s`, which
  * is in no catalogue — every consumer resolves through `getTraitById` and
  * dropped it, including the inheritance path, despite the "Heritable" label.
+ * (2026-10-17 follow-up: pointing it at a real trait fixed the display and
+ * nothing else - `activeTraits` has no in-life reader and prestige does not
+ * carry it - so the capstone is now Youth Pills, which the player keeps.)
  *
  * R3-P11 two prestige achievements minted ~7,000 points for default behaviour:
  * "Clean Slate" fired for anyone who had never borrowed, and "Educated Legacy"
@@ -23,7 +26,10 @@
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import { getEventFrequencyBoost } from '@/lib/prestige/applyBonuses';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
-import { GENETIC_TRAITS } from '@/lib/legacy/geneticTraits';
+import { jobApplicationOdds } from '@/lib/careers/applicationOdds';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import { getLegacyPassReward, PREMIUM_REWARDS, FREE_REWARDS, MAX_TIER } from '@/lib/legacyPass/legacyPass';
+import { PURCHASED_STATE_KEYS } from '@/lib/prestige/accountEntitlements';
 import { MIN_EDUCATIONS_FOR_EDUCATED_LEGACY } from '@/lib/prestige/prestigeAchievements';
 import fs from 'fs';
 import path from 'path';
@@ -76,37 +82,59 @@ describe('R3-P7 - GPA reaches the hiring roll', () => {
     expect(highestGpa([])).toBe(0);
   });
 
-  it('the acceptance roll scales its base by the GPA multiplier', () => {
-    const source = read('contexts/game/actions/JobActions.ts');
+  // These pinned the inline arithmetic in `JobActions.applyForJob`. That
+  // arithmetic now lives in ONE function both rolls use (the apply-time hire
+  // and the weekly review), so the rules are checked on its RESULT.
+  const withGpa = (value: number, over: Parameters<typeof createTestGameState>[0] = {}) =>
+    createTestGameState({
+      educations: [{ id: 'university', name: 'University', description: '', cost: 0, duration: 0, completed: true, gpa: value }],
+      ...over,
+    });
 
-    expect(source).toMatch(/jobOfferMultiplier\(highestGpa\(gameState\.educations \|\| \[\]\)\)/);
-    expect(source).toMatch(/const gpaAdjustedBase = baseAcceptanceChance \* safeGpaMultiplier/);
-    expect(source).toMatch(/gpaAdjustedBase \+ \(applicationAttempts - 1\) \* 8/);
+  it('the acceptance roll scales its base by the GPA multiplier', () => {
+    expect(read('contexts/game/actions/JobActions.ts')).toMatch(/jobApplicationOdds\(gameState, applicationAttempts, careerId\)/);
+    const strong = jobApplicationOdds(withGpa(4.0), 1, 'teacher');
+    const plain = jobApplicationOdds(withGpa(2.0), 1, 'teacher');
+    expect(strong.gpaMultiplier).toBe(jobOfferMultiplier(4.0));
+    expect(strong.chancePct).toBeCloseTo(strong.baseChancePct * jobOfferMultiplier(4.0), 6);
+    expect(strong.chancePct).toBeGreaterThan(plain.chancePct);
   });
 
   it('keeps the criminal penalty and networking bonus outside the scaling', () => {
-    // Scaling those by GPA would let good grades wash out a criminal record.
-    const source = read('contexts/game/actions/JobActions.ts');
-
-    expect(source).toMatch(/gpaAdjustedBase \+ \(applicationAttempts - 1\) \* 8 - criminalPenalty \+ networkingBonus/);
+    // Scaling those by GPA would let good grades wash out a criminal record:
+    // the record costs the same points at any GPA.
+    const recordAt = (value: number) =>
+      jobApplicationOdds(withGpa(value), 1, 'teacher').chancePct
+      - jobApplicationOdds(withGpa(value, { criminalLevel: 3 }), 1, 'teacher').chancePct;
+    expect(recordAt(2.0)).toBe(10);
+    expect(recordAt(4.0)).toBe(10);
   });
 
   it('stays inside the existing 10-90 clamp', () => {
     // A 4.0 must not buy a guarantee, and a poor GPA must not lock the player
     // out of employment entirely.
-    expect(read('contexts/game/actions/JobActions.ts')).toMatch(
-      /Math\.min\(90, Math\.max\(10, gpaAdjustedBase/,
-    );
+    expect(jobApplicationOdds(withGpa(4.0), 4, 'fast_food').chancePct).toBeLessThanOrEqual(90);
+    expect(jobApplicationOdds(withGpa(0.5, { criminalLevel: 50, wantedLevel: 50 }), 1, 'teacher').chancePct).toBeGreaterThanOrEqual(10);
   });
 });
 
-describe('R3-P9 - the Legacy Pass capstone grants a real trait', () => {
-  it('names an id that exists in the genetic catalogue', () => {
-    const source = read('lib/legacyPass/legacyPass.ts');
-    const match = source.match(/rewards\.push\(\{ kind: 'trait', id: '([^']+)'/);
+describe('R3-P9 - the Legacy Pass capstone grants something real', () => {
+  it('pays youth pills, not a trait that changes nothing', () => {
+    const top = getLegacyPassReward('premium', MAX_TIER);
+    expect(top?.kind).toBe('youthPills');
+    expect(top?.amount).toBeGreaterThan(0);
+    // No tier on either track grants a trait any more.
+    expect([...FREE_REWARDS, ...PREMIUM_REWARDS].some((r) => (r.kind as string) === 'trait')).toBe(false);
+  });
 
-    expect(match).toBeTruthy();
-    expect(GENETIC_TRAITS.some((t) => t.id === match![1])).toBe(true);
+  it('the pass copy promises only what the reward does', () => {
+    // "Kept across every life" is true because youth pills are account
+    // inventory carried by every life builder.
+    expect(PURCHASED_STATE_KEYS).toContain('youthPills');
+    const modal = read('components/LegacyPassModal.tsx');
+    expect(modal).toMatch(/title: 'Youth Pills', desc: 'Kept across every life\.'/);
+    expect(modal).not.toMatch(/title: 'Legacy Trait'/);
+    expect(read('lib/legacyPass/legacyPass.ts')).not.toMatch(/Heritable Legacy Trait'/);
   });
 
   it('does not grant the phantom id any more', () => {
@@ -117,21 +145,6 @@ describe('R3-P9 - the Legacy Pass capstone grants a real trait', () => {
       .replace(/(^|[^:])\/\/.*$/gm, '$1');
 
     expect(code).not.toMatch(/legacy_trait_s/);
-  });
-
-  it('picks a trait whose effect is actually read', () => {
-    // `statModifiers` is the only effects key any consumer reads, and the
-    // chosen trait must be positive on it — `genius` would have delivered its
-    // happiness penalty alone.
-    const source = read('lib/legacyPass/legacyPass.ts');
-    const id = source.match(/rewards\.push\(\{ kind: 'trait', id: '([^']+)'/)![1];
-    const trait = GENETIC_TRAITS.find((t) => t.id === id)!;
-
-    expect(trait.polarity).toBe('positive');
-    expect(trait.effects.statModifiers).toBeTruthy();
-    for (const value of Object.values(trait.effects.statModifiers as Record<string, number>)) {
-      expect(value).toBeGreaterThanOrEqual(1);
-    }
   });
 });
 

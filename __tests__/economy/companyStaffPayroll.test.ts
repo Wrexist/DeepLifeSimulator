@@ -73,7 +73,9 @@ describe('general staff are on a weekly payroll', () => {
     const withNamed: GameState = {
       ...s,
       // Named hires ARE employees (withEmployeeDelta bumps the headcount).
-      companies: [{ ...s.companies[0], employees: 3, weeklyIncome: 2_000 }],
+      // A small company (base $2,000), so the industry wage applies - see
+      // companyStaffWageScale.test.ts for the base-income share.
+      companies: [{ ...s.companies[0], employees: 3, weeklyIncome: 2_000, baseWeeklyIncome: 2_000 }],
       hustleApp: {
         ...s.hustleApp!,
         companies: {
@@ -95,14 +97,25 @@ describe('general staff are on a weekly payroll', () => {
 
   it('charges staff even on a company with no Hustle overlay', () => {
     const s = createTestGameState({
-      companies: [{ ...businessState().companies[0], employees: 2 }],
+      companies: [{ ...businessState().companies[0], employees: 2, baseWeeklyIncome: 2_000 }],
       hustleApp: undefined,
     });
     expect(processHustleWeeklyTick(s, 10).cashDelta).toBe(-1_000);
   });
 
-  it.each([NaN, Infinity, -500])('a malformed workerSalary (%s) costs nothing and never poisons cash', wage => {
+  it.each([NaN, Infinity, -500])('a malformed workerSalary (%s) never poisons cash and never makes staff free', wage => {
+    // The industry side of the wage degrades to 0; the base-income share
+    // (5% of the fixture's $20,000) still applies, so a corrupt field cannot
+    // turn a payroll into free staff.
     const company: Company = { ...businessState().companies[0], employees: 5, workerSalary: wage };
+    expect(companyWeeklyPayroll(company, []).total).toBe(5 * 1_000);
+    const res = processHustleWeeklyTick(createTestGameState({ companies: [company] }), 10);
+    expect(Number.isFinite(res.cashDelta)).toBe(true);
+    expect(res.cashDelta).toBe(-5_000);
+  });
+
+  it('a malformed wage AND base costs nothing and never poisons cash', () => {
+    const company: Company = { ...businessState().companies[0], employees: 5, workerSalary: NaN, baseWeeklyIncome: NaN };
     expect(companyWeeklyPayroll(company, []).total).toBe(0);
     const res = processHustleWeeklyTick(createTestGameState({ companies: [company] }), 10);
     expect(Number.isFinite(res.cashDelta)).toBe(true);
@@ -173,7 +186,7 @@ describe('Contacts quotes the payroll the tick charges', () => {
     const overlay = s.hustleApp!.companies.factory;
     const state: GameState = {
       ...s,
-      companies: [{ ...s.companies[0], employees: 2 }],
+      companies: [{ ...s.companies[0], employees: 2, baseWeeklyIncome: 2_000 }],
       hustleApp: {
         ...s.hustleApp!,
         companies: {

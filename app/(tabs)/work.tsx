@@ -43,9 +43,8 @@ import {
     growthLabel,
 } from '@/lib/careers/jobMarket';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
-import { getStreetJobEnergyCost, MAX_TOTAL_STREET_JOBS_PER_WEEK } from '@/contexts/game/actions/JobActions';
+import { getStreetJobEnergyCost, getStreetJobTerms, MAX_TOTAL_STREET_JOBS_PER_WEEK, STREET_RANK_PAY_MAX_RANK } from '@/contexts/game/actions/JobActions';
 import { useToast } from '@/contexts/ToastContext';
-import { getMindsetAdjustment } from '@/utils/mindsetFeedback';
 import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
 import {
     Briefcase,
@@ -236,7 +235,6 @@ function WorkScreenContent() {
       // screen wedged (stuck toast, no response). Now any unexpected error
       // surfaces a reportable error toast and the game keeps running.
       try {
-        const job = gameState.streetJobs.find(j => j.id === jobId);
         const result = performStreetJob(jobId);
         if (result) {
             // Track street-job usage for the discovery system only. The blue
@@ -265,66 +263,24 @@ function WorkScreenContent() {
                 logger.warn('Failed to update system usage:', error as any);
             }
 
-            // Show toast notification. SMOOTHNESS: fold the optional mindset
-            // feedback into the SAME toast instead of firing a second one right
-            // after - two stacked toasts per job felt spammy.
+            // Show toast notification.
             //
             // The arrest is checked FIRST. A pity-forced success can also be
             // caught, and that attempt reports `success: true` with `inJail:
             // true`; performStreetJob pays it nothing (the take is seized), so
-            // it must not reach the mindset payout below or show as a green
-            // success toast.
+            // it must not show as a green success toast.
+            //
+            // The Mindset is no longer applied here. This handler used to run
+            // a SECOND updater after the action returned, crediting a Mindset
+            // adjustment computed from `job.basePayment` - so a tap the action's
+            // own updater refused (energy, weekly cap) still collected the
+            // bonus, and Gambler's swing was an unseeded roll. Every Mindset
+            // effect is now inside performStreetJob's single updater (via
+            // getStreetJobTerms), and the result message already names it.
             if ('inJail' in result && result.inJail) {
                 showError(result.message || 'You were caught!');
             } else if (result.success) {
-                let message = result.message ?? '';
-                let mindsetPenalty = false;
-                if (job && gameState.mindset?.activeTraitId) {
-                    const mindset = getMindsetAdjustment(
-                        gameState,
-                        job.basePayment,
-                        0,
-                        0
-                    );
-                    // R4-X1: APPLY the adjustment, don't just narrate it. This
-                    // used to call `getMindsetFeedback`, which returns the
-                    // message and discards the deltas - so the toast said
-                    // "Frugal: You saved a bit extra (+120)" and credited
-                    // nothing. This handler is the entire Mindset system's only
-                    // consumer, so the choice made on the onboarding Perks
-                    // screen (and again at heir selection) did nothing at all
-                    // except generate claims about things that had not happened.
-                    //
-                    // One updater, so the money and the happiness land together
-                    // and neither can be lost to a concurrent write. The job's
-                    // own payment has already been credited by
-                    // `performStreetJob`; these are the deltas ON TOP, exactly
-                    // the numbers the message quotes.
-                    if (mindset.moneyAdjustment !== 0 || mindset.happinessAdjustment !== 0) {
-                        setGameState(prev => ({
-                            ...prev,
-                            stats: {
-                                ...prev.stats,
-                                money: Math.max(0, (prev.stats.money ?? 0) + mindset.moneyAdjustment),
-                                happiness: Math.max(
-                                    0,
-                                    Math.min(100, (prev.stats.happiness ?? 0) + mindset.happinessAdjustment),
-                                ),
-                            },
-                        }));
-                    }
-                    if (mindset.feedback?.message) {
-                        message = message
-                            ? `${message} · ${mindset.feedback.message}`
-                            : mindset.feedback.message;
-                        mindsetPenalty = mindset.feedback.type === 'penalty';
-                    }
-                }
-                if (mindsetPenalty) {
-                    showWarning(message);
-                } else {
-                    showSuccess(message);
-                }
+                showSuccess(result.message ?? '');
             } else {
                 showWarning(result.message ?? '');
             }
@@ -346,31 +302,6 @@ function WorkScreenContent() {
         showError('Something went wrong working that job. Tap Report to send us the details.');
         return undefined;
       }
-    };
-
-    const getJailRisk = (job: StreetJob) => {
-        if (!job.illegal) return 0;
-
-        // Calculate risk the same way as in JobActions.ts
-        // Risk = (100 - successChance) / 2
-        const baseSuccess = job.baseSuccessRate || 50;
-        const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
-        const successChance = Math.min(95, baseSuccess + skillBonus);
-        const caughtChance = (100 - successChance) / 2;
-
-        // Round to nearest integer for display
-        return Math.round(caughtChance);
-    };
-
-    const getJobPenalties = (job: StreetJob) => {
-        // Calculate penalties the same way as in JobActions.ts
-        // Illegal jobs: -7 happiness, -3 health
-        // Dangerous jobs (jailWeeks >= 3 or wantedIncrease >= 3): -6 happiness, -4 health
-        // Regular street jobs: -5 happiness, -2 health
-        const isDangerous = (job.jailWeeks && job.jailWeeks >= 3) || (job.wantedIncrease && job.wantedIncrease >= 3);
-        const happinessPenalty = job.illegal ? -7 : (isDangerous ? -6 : -5);
-        const healthPenalty = job.illegal ? -3 : (isDangerous ? -4 : -2);
-        return { happinessPenalty, healthPenalty };
     };
 
     const getCareerPenalties = (careerId: string) => {
@@ -451,19 +382,28 @@ function WorkScreenContent() {
     };
 
     const renderJobCard = (job: StreetJob, isLead = false) => {
-        const lowReward = Math.floor(job.basePayment * 0.7);
-        const highReward = Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3));
-        const reward = `${formatMoney(lowReward)}–${formatMoney(highReward)} per job`;
+        // Pay, odds and costs from the SAME helper performStreetJob pays and
+        // charges from. This used to print `0.7x–1.3x × (1 + 0.3 × (rank − 1))`
+        // of the base - a range the payout never had (it has no variance) and a
+        // rank term it never read - so a rank-5 card promised up to $214 on a
+        // job that paid $94.
+        const terms = getStreetJobTerms(gameState, job);
+        const reward = `${formatMoney(terms.pay)} on success`;
+        const rankBonusPct = Math.round((terms.rankMultiplier - 1) * 100);
+        const rankLabel = rankBonusPct > 0
+            ? `Rank ${job.rank} · +${rankBonusPct}% pay${job.rank >= STREET_RANK_PAY_MAX_RANK ? ' (max)' : ''}`
+            : `Rank ${job.rank}`;
         // Same helper the reducer charges with, so the gate, the label and the
         // charge cannot disagree about a transport-discounted delivery run.
         const jobEnergyCost = getStreetJobEnergyCost(gameState, job);
         const lacksEnergy = (gameState?.stats?.energy ?? 0) < jobEnergyCost;
         const inJail = gameState.jailWeeks > 0;
-        const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+        const happinessPenalty = terms.happinessCost;
+        const healthPenalty = terms.healthCost;
 
         const metadata: JobCardMetadata[] = [
             { icon: <Zap size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${jobEnergyCost} energy` },
-            { icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `Rank ${job.rank}` },
+            { icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: rankLabel },
         ];
         if (job.skill) {
             metadata.push({
@@ -532,7 +472,7 @@ function WorkScreenContent() {
             // rest behind "+N more".
             const crimeMetadata: JobCardMetadata[] = [
                 metadata[0], // energy
-                { icon: <AlertTriangle size={scale(13)} color="rgba(251, 191, 36, 0.92)" />, value: `${getJailRisk(job)}% risk`, tone: 'warn' },
+                { icon: <AlertTriangle size={scale(13)} color="rgba(251, 191, 36, 0.92)" />, value: `${Math.round(terms.caughtChance)}% risk`, tone: 'warn' },
                 ...(timesDoneThisWeek > 0
                     ? [{ icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${timesDoneThisWeek}/${maxPerWeek} this wk` }]
                     : []),
@@ -582,7 +522,10 @@ function WorkScreenContent() {
 
         // Decision-relevant chips lead (energy, weekly usage, risk); the rest
         // fold behind JobCard's "+N more" toggle.
-        const streetMetadata: JobCardMetadata[] = [metadata[0]];
+        const streetMetadata: JobCardMetadata[] = [
+            metadata[0],
+            { icon: <Target size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${Math.round(terms.successChance)}% success` },
+        ];
         if (streetDoneThisWeek > 0) {
             streetMetadata.push({
                 icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,

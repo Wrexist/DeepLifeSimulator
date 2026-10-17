@@ -20,6 +20,7 @@ import EmptyState from '../components/EmptyState';
 import { PULSE_COLORS } from '../styles/pulseTheme';
 import { acceptBrandDeal, brandDealBreachPenalty, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import type { PulseBrandOffer, PulseActiveBrandDeal, PulseDealHistoryEntry, PulseRecentPost } from '@/contexts/game/types';
+import { brandPostShare, isStreamedBrandDeal } from '@/lib/social/brandPartnerships';
 import { gameAlert } from '@/utils/gameAlert';
 
 type BrandTab = 'inbox' | 'active' | 'history';
@@ -49,7 +50,16 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
     setTimeout(() => { void saveGame?.(); }, 0);
   }, [saveGame]);
 
-  const handleAccept = useCallback((id: string) => { acceptBrandDeal(gameState, setGameState, id); persist(); }, [gameState, setGameState, persist]);
+  const handleAccept = useCallback((id: string) => {
+    const r = acceptBrandDeal(gameState, setGameState, id);
+    // A refusal (an offer from the old rate card, withdrawn) used to be
+    // dropped on the floor - the card just sat there.
+    if (!r.success) {
+      gameAlert('Offer unavailable', r.message);
+      return;
+    }
+    persist();
+  }, [gameState, setGameState, persist]);
   const handleDecline = useCallback((id: string) => { declineBrandDeal(setGameState, id); persist(); }, [setGameState, persist]);
 
   // Destructive: confirm before applying the 50% penalty. Tapping the breach
@@ -247,6 +257,11 @@ function ActiveDealCard({
   const delivered = deal.postsDelivered ?? 0;
   const required = deal.postsRequired ?? 1;
   const progress = Math.min(1, delivered / required);
+  // A contract is paid per delivered post; only one signed under the old
+  // streamed terms still pays a weekly installment (it says so).
+  const payLine = isStreamedBrandDeal(deal)
+    ? `$${(deal.weeklyPayment ?? 0).toLocaleString('en-US')}/wk`
+    : `$${brandPostShare(deal.payment, required, Math.min(required, delivered + 1)).toLocaleString('en-US')} per post`;
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.cardHeader}>
@@ -256,7 +271,7 @@ function ActiveDealCard({
         <View style={styles.cardHeaderText}>
           <Text style={[styles.brandName, { color: theme.text }]}>{deal.brandName}</Text>
           <Text style={[styles.brandSub, { color: theme.textSecondary }]}>
-            ${(deal.weeklyPayment ?? 0).toLocaleString('en-US')}/wk · {remaining}w remaining
+            {payLine} · {remaining}w remaining
           </Text>
         </View>
       </View>

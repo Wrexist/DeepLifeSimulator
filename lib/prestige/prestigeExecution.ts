@@ -26,7 +26,7 @@ import { projectScenarioState } from '@/lib/scenarios/progress';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE, computeWeeksLived } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
-import { heirStartingBonuses } from '@/lib/legacy/legacyShop';
+import { applyHeirStartingBonuses } from '@/lib/legacy/legacyShop';
 import { applyDynastyTransition } from '@/lib/dynasty/transition';
 import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBonuses';
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
@@ -329,9 +329,12 @@ function createResetGameState(
    * is worded "Your heir starts with…", and a reset is the same character
    * starting over, not a new generation. The purchase is not wasted - it is
    * permanent and applies to every future heir.
+   *
+   * `Array.isArray`, not `|| []`: spreading a corrupt non-array value (an
+   * object from a hand-edited save) throws, and a throw here aborts the reset.
    */
   newState.legacyPoints = oldState.legacyPoints || 0;
-  newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
+  newState.legacyUpgrades = Array.isArray(oldState.legacyUpgrades) ? [...oldState.legacyUpgrades] : [];
 
   // Family businesses are LINEAGE assets and must survive the reset path too.
   // The heir path has carried them (with a generationsHeld increment) since the
@@ -592,28 +595,14 @@ function createChildGameState(
    * so carrying both means the heir keeps accumulating rather than starting
    * from zero with their parent's purchases already deducted.
    *
-   * Bounded by construction: the upgrades are once-per-id unlocks, six of
-   * them, so no amount of accumulation makes generation N strictly stronger
-   * than generation N-1 forever. Compounding power is prestige's job.
+   * Bounded by construction: the upgrades are once-per-id unlocks from a fixed
+   * catalogue, so no amount of accumulation makes generation N strictly
+   * stronger than generation N-1 forever. Compounding power is prestige's job.
    */
   newState.legacyPoints = oldState.legacyPoints || 0;
-  newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
-
-  // ...and the heir actually starts with what was bought for them.
-  const heirBonuses = heirStartingBonuses(newState.legacyUpgrades);
-  if (heirBonuses.money > 0) {
-    newState.stats.money = (newState.stats.money || 0) + heirBonuses.money;
-  }
-  if (heirBonuses.reputation > 0) {
-    newState.stats.reputation = Math.min(100, (newState.stats.reputation || 0) + heirBonuses.reputation);
-  }
-  for (const [stat, amount] of Object.entries(heirBonuses.stats)) {
-    const current = (newState.stats as unknown as Record<string, number>)[stat];
-    if (typeof current === 'number' && typeof amount === 'number') {
-      (newState.stats as unknown as Record<string, number>)[stat] = Math.min(100, current + amount);
-    }
-  }
-
+  newState.legacyUpgrades = Array.isArray(oldState.legacyUpgrades) ? [...oldState.legacyUpgrades] : [];
+  // What they BOUGHT is applied much further down, after the inheritance and
+  // the heir's rolled stats are merged in - see `applyHeirStartingBonuses`.
 
   // Legacy Pass is SEASONAL (account-level) - carry it to the heir too.
   if (oldState.legacyPass) {
@@ -787,23 +776,6 @@ function createChildGameState(
   // 104 weeks without an event and got a forced pity event on the first tick.
   newState.lastEventWeeksLived = newState.weeksLived;
 
-  // Timed legacy buffs (A Family Mentor / The Heirloom Charm). Stamped HERE,
-  // after `weeksLived` is seeded from the heir's actual starting age - expiry
-  // is `weeksLived`-based (CLAUDE.md §4.2), and stamping before the seed would
-  // date a two-year buff from the wrong baseline and expire it at birth for
-  // any heir who does not start at 18.
-  const buffEntries = Object.entries(heirBonuses.buffs) as ['mentor' | 'luckyCharm', number][];
-  if (buffEntries.length > 0) {
-    newState.legacyBuffs = { ...(newState.legacyBuffs || {}) };
-    for (const [buff, weeks] of buffEntries) {
-      if (weeks > 0) {
-        newState.legacyBuffs[buff] = {
-          expiresWeeksLived: newState.weeksLived + weeks,
-        };
-      }
-    }
-  }
-
   // Calculate inheritance using computeInheritance for proper calculation
   // This includes heirloom bonuses and proper net worth calculation
   const inheritanceSummary = computeInheritance(oldState);
@@ -901,9 +873,22 @@ function createChildGameState(
     money: totalInheritance, // Override money with inheritance
   };
 
+  // C-11: the Dynasty Tree purchases, applied ONCE and only HERE - after the
+  // two writes above that REPLACE money and the rolled stats. They used to be
+  // applied near the top of this function, onto the fresh clone, and both
+  // writes above then threw them away: a measured heir holding all 19 upgrades
+  // ($111M of cash, +75 reputation, +40 health...) started identical to one
+  // holding none (2026-10-17). Also after `weeksLived` is seeded from the
+  // heir's age, which the timed buffs date their expiry from (§4.2).
+  //
+  // Before the prestige-point bonuses and the dynasty transition: a Trial
+  // (Pauper's Vow, Frail Vessel) is a ceiling on the new life and must be
+  // written last, or a bought head start would quietly undo it.
+  const heirState = applyHeirStartingBonuses(newState, newState.legacyUpgrades);
+
   // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state (child path)
   const unlockedBonuses = prestigeData.unlockedBonuses || [];
-  let finalState = applyStartingBonuses(newState, unlockedBonuses);
+  let finalState = applyStartingBonuses(heirState, unlockedBonuses);
   finalState = applyUnlockBonuses(finalState, unlockedBonuses);
   
   // Apply legacy bonuses (from previous generations)

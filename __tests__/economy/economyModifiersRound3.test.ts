@@ -23,6 +23,8 @@
  * public context surface with no warning. 2026-07-31 audit round 3.
  */
 import fs from 'fs';
+import { jobApplicationOdds } from '@/lib/careers/applicationOdds';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import path from 'path';
 import { getGiftPreferences, getGiftMultiplier } from '@/lib/social/npcDepth';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
@@ -53,11 +55,19 @@ describe('R3-M9 - the economy modifiers reach the systems they name', () => {
     );
   });
 
-  it('job availability scales the acceptance base', () => {
-    const source = read('contexts/game/actions/JobActions.ts');
+  // The hiring arithmetic moved from JobActions into `jobApplicationOdds`, the
+  // one function both the apply-time roll and the weekly review use, so these
+  // check its RESULT rather than JobActions' source text.
+  const inEconomy = (jobAvailability: unknown) => createTestGameState({
+    economy: { economyEvents: { currentState: 'normal', stateStartWeek: 0, stateDuration: 10, modifiers: { incomeMultiplier: 1, stockVolatility: 1, jobAvailability } } },
+  } as never);
 
-    expect(source).toMatch(/gameState\.economy\?\.economyEvents\?\.modifiers\?\.jobAvailability/);
-    expect(source).toMatch(/baseAcceptanceChance \* safeGpaMultiplier \* safeJobAvailability/);
+  it('job availability scales the acceptance base', () => {
+    expect(read('contexts/game/actions/JobActions.ts')).toMatch(/jobApplicationOdds\(gameState, applicationAttempts, careerId\)/);
+    const crash = jobApplicationOdds(inEconomy(0.7), 1, 'teacher');
+    const normal = jobApplicationOdds(inEconomy(1), 1, 'teacher');
+    expect(crash.jobAvailability).toBe(0.7);
+    expect(crash.chancePct).toBeCloseTo(normal.chancePct * 0.7, 6);
   });
 
   it('both fall back to 1 rather than to NaN or 0', () => {
@@ -66,9 +76,9 @@ describe('R3-M9 - the economy modifiers reach the systems they name', () => {
     expect(read('contexts/game/GameActionsContext.tsx')).toMatch(
       /Number\.isFinite\(eventVolatility\) && eventVolatility > 0 \? eventVolatility : 1/,
     );
-    expect(read('contexts/game/actions/JobActions.ts')).toMatch(
-      /Number\.isFinite\(jobAvailability\) && jobAvailability > 0 \? jobAvailability : 1/,
-    );
+    for (const corrupt of [undefined, NaN, 0, -1, 'x']) {
+      expect(jobApplicationOdds(inEconomy(corrupt), 1, 'teacher').jobAvailability).toBe(1);
+    }
   });
 });
 

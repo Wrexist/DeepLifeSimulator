@@ -25,6 +25,7 @@ import { getNextCollectionTarget, getCompletedCollections } from '@/lib/luxury/c
 import { EDUCATION_PROGRAMS } from '@/lib/education/programs';
 import { isEntryTierCareer } from '@/lib/careers/jobMarket';
 import { unlockTier } from '@/lib/progress/featureUnlocks';
+import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 
 import type { GoalDefinition } from './types';
 import { playstyleEmphasis, investedValue, strongRelationshipCount } from './playstyle';
@@ -337,7 +338,11 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     // week-3 character is noise, and the repo already holds the preview card
     // back on the same principle.
     isEligible: (s) => netWorth(s) >= 1_000_000,
-    measure: (s) => ({ current: netWorth(s), target: 100_000_000 }),
+    // The REAL gate, from its single source - the same call the prestige
+    // execution, the modal and Chapter 5 make. This was a literal $100M while
+    // prestige opens at $10M (rising 25% per level), so the card told a player
+    // who could already prestige that they were a tenth of the way there.
+    measure: (s) => ({ current: netWorth(s), target: getPrestigeThreshold(s.prestige?.prestigeLevel ?? 0) }),
     priority: () => 80,
     format: moneyPair,
     achievementLevel: (s) => s.prestige?.prestigeLevel ?? 0,

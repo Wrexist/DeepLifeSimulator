@@ -112,6 +112,71 @@ export interface SaleResult {
   residualDebt: number;
 }
 
+/** Realtor + closing costs, as a share of the sale price. */
+export const SALE_CLOSING_COST_RATE = 0.06;
+
+/**
+ * Every figure a sale produces, itemised.
+ *
+ * The ONE place the sale arithmetic lives: `sellProperty` commits it and the
+ * Manage sheet's confirm dialog displays it. The dialog used to compute its own
+ * "Net to you" as value - mortgage, which skipped both deductions below - a
+ * $216k quote paid $162k.
+ */
+export interface SaleQuote {
+  /** What the property sells for (its current market value). */
+  salePrice: number;
+  /** SALE_CLOSING_COST_RATE of the sale price. */
+  closingCost: number;
+  /** Sale price - what was paid. Negative on a loss. */
+  capitalGain: number;
+  /** PROPERTY_GAINS_TAX_RATE of a POSITIVE gain; 0 otherwise. */
+  capitalGainsTax: number;
+  /** Sale price after closing costs and tax, before the mortgage. */
+  netSaleValue: number;
+  /** The mortgage balance going in. */
+  mortgageRemaining: number;
+  /** The part of that balance the sale retires. */
+  mortgagePayoff: number;
+  /** Mortgage still owed after an underwater ("short") sale; 0 otherwise. */
+  residualDebt: number;
+  /** Cash the player receives. */
+  proceeds: number;
+}
+
+export function quotePropertySale(property: RealEstate, mortgageRemaining: number): SaleQuote {
+  const value = safe(property.currentValue ?? property.price);
+  const debt = safe(mortgageRemaining);
+  const gain = value - safe(property.purchasePrice, property.price);
+  // Selling isn't frictionless: a realtor/closing cost on the sale price plus a
+  // capital-gains tax on any positive gain come out of the proceeds. Without these
+  // a buy-then-immediate-sell round trip was nearly free.
+  const closingCost = value * SALE_CLOSING_COST_RATE;
+  // PROPERTY_GAINS_TAX_RATE, not the paper-asset 25%: a sale already pays 6%
+  // closing costs and weeks of illiquidity. Reasoning with the rates in
+  // lib/economy/taxLedger.ts.
+  const capitalGainsTax = gain > 0 ? gain * PROPERTY_GAINS_TAX_RATE : 0;
+  // Net the sale (after costs) BEFORE paying off the mortgage. When it covers the
+  // debt the player pockets the surplus; when it does NOT (underwater / short
+  // sale) the uncovered remainder stays owed via `residualDebt` — the caller
+  // keeps a residual loan rather than discharging the mortgage for $0.
+  const netSaleValue = value - closingCost - capitalGainsTax;
+  const proceeds = Math.max(0, netSaleValue - debt);
+  const residualDebt = Math.max(0, debt - netSaleValue);
+  const mortgagePayoff = debt - residualDebt; // portion of the debt the sale actually retired
+  return {
+    salePrice: value,
+    closingCost,
+    capitalGain: gain,
+    capitalGainsTax,
+    netSaleValue,
+    mortgageRemaining: debt,
+    mortgagePayoff,
+    residualDebt,
+    proceeds,
+  };
+}
+
 /**
  * Sell a property. Pays off any outstanding mortgage from the proceeds, returns
  * the rest as cash. Capital gain = (sale price − purchase price). Caller adds the
@@ -128,25 +193,7 @@ export function sellProperty(
     return { properties, saleProceeds: 0, mortgagePayoff: 0, capitalGain: 0, residualDebt: 0 };
   }
   const p = properties[idx];
-  const value = safe(p.currentValue ?? p.price);
-  const debt = safe(mortgageRemaining);
-  const gain = value - safe(p.purchasePrice, p.price);
-  // Selling isn't frictionless: a realtor/closing cost on the sale price plus a
-  // capital-gains tax on any positive gain come out of the proceeds. Without these
-  // a buy-then-immediate-sell round trip was nearly free.
-  const closingCost = value * 0.06; // 6% realtor + closing
-  // PROPERTY_GAINS_TAX_RATE, not the paper-asset 25%: a sale already pays 6%
-  // closing costs and weeks of illiquidity. Reasoning with the rates in
-  // lib/economy/taxLedger.ts.
-  const capitalGainsTax = gain > 0 ? gain * PROPERTY_GAINS_TAX_RATE : 0;
-  // Net the sale (after costs) BEFORE paying off the mortgage. When it covers the
-  // debt the player pockets the surplus; when it does NOT (underwater / short
-  // sale) the uncovered remainder stays owed via `residualDebt` — the caller
-  // keeps a residual loan rather than discharging the mortgage for $0.
-  const netSaleValue = value - closingCost - capitalGainsTax;
-  const proceeds = Math.max(0, netSaleValue - debt);
-  const residualDebt = Math.max(0, debt - netSaleValue);
-  const mortgagePayoff = debt - residualDebt; // portion of the debt the sale actually retired
+  const { proceeds, mortgagePayoff, capitalGain: gain, residualDebt } = quotePropertySale(p, mortgageRemaining);
   const next = [...properties];
   next[idx] = {
     ...p,

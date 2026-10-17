@@ -17,8 +17,9 @@ import {
   findVetService,
   findSickness,
   vetServicePrice,
+  MAX_PETS_OWNED,
 } from '@/lib/pets/catalog';
-import { resolveCompetition } from '@/lib/pets/competition';
+import { planCompetitionEntry } from '@/lib/pets/competition';
 import { logger } from '@/utils/logger';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 
@@ -28,6 +29,11 @@ const safe = (n: number | undefined, fb = 0): number =>
 const clamp01 = (n: number): number => Math.max(0, Math.min(100, n));
 
 type SetGS = Dispatch<SetStateAction<GameState>>;
+
+/** Living pets in a roster - the count `MAX_PETS_OWNED` limits. */
+export function livingPetCount(pets: Pet[] | undefined | null): number {
+  return (pets ?? []).filter((p) => p && !p.isDead).length;
+}
 
 function updatePet(setGameState: SetGS, petId: string, transform: (p: Pet) => Pet): void {
   setGameState((prev) => ({
@@ -45,6 +51,9 @@ export function buyPet(
 ): { success: boolean; message: string; petId?: string } {
   const breed = findBreed(breedId);
   if (!breed) return { success: false, message: 'Unknown breed' };
+  if (livingPetCount(gameState.pets) >= MAX_PETS_OWNED) {
+    return { success: false, message: `You can keep up to ${MAX_PETS_OWNED} pets at a time.` };
+  }
   if (safe(gameState.stats?.money, 0) < breed.price) {
     return { success: false, message: `Need $${breed.price.toLocaleString('en-US')}.` };
   }
@@ -85,6 +94,10 @@ export function buyPet(
      * without needing the id to be regenerated per invocation.
      */
     if ((prev.pets ?? []).some((p) => p?.id === id)) return prev;
+    // The pet cap, re-checked on fresh state: two adoptions in one batch each
+    // mint their own id, so the duplicate guard above does not stop the second
+    // from landing as pet number six.
+    if (livingPetCount(prev.pets) >= MAX_PETS_OWNED) return prev;
 
     const spend = applyMoneyDelta(prev, -breed.price, `Bought ${breed.name}`);
     if (!spend) return prev; // race guard: an earlier same-batch buy drained the cash
@@ -394,69 +407,62 @@ export function enterCompetition(
   gameState: GameState,
   setGameState: SetGS,
   petId: string,
-  competitionId: string,
-  /**
-   * The competition roll, injected so the outcome is testable.
-   *
-   * A dead `_deps: { updateMoney }` used to sit BETWEEN this and the ids - the
-   * fee charges through applyMoneyDelta inside the updater (§4.4), so it was
-   * never read. It was not harmless: `exploitFixes.test.ts` passed `0` in that
-   * slot, commented "Force a win on the first entry (roll 0 < winProbability)",
-   * and the 0 landed on `_deps` while `roll` arrived undefined - so the test
-   * that claimed to force a win was rolling `undefined` and forcing nothing.
-   */
-  roll: number
+  competitionId: string
 ): { success: boolean; message: string; won?: boolean; payout?: number } {
-  const pet = gameState.pets?.find((p) => p.id === petId);
-  if (!pet) return { success: false, message: 'Pet not found' };
-  if (pet.isDead) return { success: false, message: `${pet.name} has passed on.` };
-  // ANTI-EXPLOIT: gate competitions to once-per-week per pet (mirrors petSleep's
-  // R5-C lastSleepWeek). Each competition pays 10× the entry fee at up to 90% win
-  // odds, and the UI re-rolls `Math.random()` on every tap - without this cap a
-  // player could spam-enter for unbounded money (EV +$400–$4,000 per entry).
-  const currentWeek = gameState.weeksLived ?? 0;
-  if (pet.lastCompetitionWeek === currentWeek) {
-    return {
-      success: false,
-      message: `${pet.name} has already competed this week - come back next week.`,
-    };
-  }
-  const result = resolveCompetition(pet, competitionId, roll);
-  if (!result || !result.competition) return { success: false, message: 'Unknown competition' };
-  const comp = result.competition;
-  if (safe(gameState.stats?.money, 0) < comp.entryFee) {
-    return { success: false, message: `Entry fee $${comp.entryFee.toLocaleString('en-US')}.` };
-  }
-  // M-batch-A (R8): apply the net delta (entry fee always; prize only if won)
-  // AND the pet update in one atomic updater, so the entry fee can't be charged
-  // without the pet result landing, and a double-tap can't re-enter for free.
-  // Every rejection inside is mirrored by an outer guard above (pet missing /
-  // dead, already competed this week, entry fee) - they are the same-batch race
-  // protection for STATE, not the reported outcome.
+  /**
+   * Pet shows: ONE entry per game week across ALL pets, decided by a seeded roll.
+   *
+   * Three things were wrong here, and together they printed money (measured
+   * 2026-10-17: one $2,000 mouse netted +$67,390 over 20 weeks after food and
+   * vet bills; twenty mice netted ~$77,000 a week, against a $110/week entry
+   * wage):
+   *
+   *   1. The weekly gate was per PET, and nothing capped the pet count, so every
+   *      extra pet was another weekly ticket. The gate is now per PLAYER, derived
+   *      from the per-pet `lastCompetitionWeek` marker each entry already writes
+   *      (`petThatCompetedThisWeek`) - no new field - and `buyPet` caps the
+   *      roster at `MAX_PETS_OWNED`.
+   *   2. The roll was the UI's `Math.random()`, passed in as an argument: not
+   *      reproducible from the save, and a different answer on every reload. It
+   *      is now `petShowRoll`, keyed on the life and the week, and it is drawn
+   *      INSIDE the updater from `prev`.
+   *   3. Every show paid 10x its fee at up to 90% odds (+$4,000 expected per
+   *      Grand Championship). The catalogue is repriced in `lib/pets/catalog.ts`.
+   *
+   * `planCompetitionEntry` holds every rule and the outcome. It runs on the
+   * snapshot for the message and on `prev` for the state, so the report and the
+   * state agree whenever nothing else landed in between - and when something did
+   * (a same-batch double tap), the inner run is what decides, and it refuses
+   * because the first entry has already stamped the week (CLAUDE.md §4.4).
+   */
+  const plan = planCompetitionEntry(gameState, petId, competitionId);
+  if (!plan.ok) return { success: false, message: plan.message };
+
   setGameState((prev) => {
-    const target = (prev.pets ?? []).find((p) => p.id === petId);
-    // Authoritative once-per-week re-check on fresh state: the precondition above
-    // reads the stale snapshot, so a rapid double-tap would otherwise enter twice
-    // before `lastCompetitionWeek` was committed.
-    if (!target || target.isDead || target.lastCompetitionWeek === currentWeek) return prev;
-    const net = result.won ? comp.prize - comp.entryFee : -comp.entryFee;
-    const spend = applyMoneyDelta(prev, net, result.won ? `Won ${comp.name}!` : `${comp.name} entry`);
+    const inner = planCompetitionEntry(prev, petId, competitionId);
+    if (!inner.ok) return prev;
+    const spend = applyMoneyDelta(
+      prev,
+      inner.netMoney,
+      inner.won ? `Won ${inner.competition.name}!` : `${inner.competition.name} entry`,
+    );
     if (!spend) return prev; // race guard
     return {
       ...prev,
       ...spend,
-      pets: (prev.pets ?? []).map((p) =>
-        p.id === petId ? { ...result.pet, lastCompetitionWeek: currentWeek } : p
-      ),
+      pets: (prev.pets ?? []).map((p) => (p.id === petId ? inner.updatedPet : p)),
     };
   });
+
+  const { pet, competition: comp } = plan;
+  const fee = `$${comp.entryFee.toLocaleString('en-US')}`;
   return {
     success: true,
-    message: result.won
-      ? `${pet.name} won ${comp.name}! +$${comp.prize.toLocaleString('en-US')}`
-      : `${pet.name} didn't place at ${comp.name}.`,
-    won: result.won,
-    payout: result.payoutDelta,
+    message: plan.won
+      ? `${pet.name} won the ${comp.name}! $${comp.prize.toLocaleString('en-US')} prize, +$${plan.netMoney.toLocaleString('en-US')} after the ${fee} entry fee.`
+      : `${pet.name} didn't place at the ${comp.name}. The ${fee} entry fee is spent.`,
+    won: plan.won,
+    payout: plan.netMoney,
   };
 }
 

@@ -274,7 +274,9 @@ function SicknessModal() {
     }
 
     if ('naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number') {
-      recommendations.push(`Natural recovery possible in ${disease.naturalRecoveryWeeks} week(s) with good health`);
+      // The tick keeps FRACTIONAL recovery progress (good health speeds it), so
+      // the stored value can be 2.5; a week count is shown rounded up.
+      recommendations.push(`Natural recovery possible in ${Math.ceil(disease.naturalRecoveryWeeks)} week(s) with good health`);
     }
 
     if (template && template.preventionTips) {
@@ -496,7 +498,9 @@ function SicknessModal() {
                   const template = getDiseaseInfo(disease);
                   const duration = getDiseaseDuration(disease);
                   const weeksUntilDeath = 'weeksUntilDeath' in disease && typeof disease.weeksUntilDeath === 'number' ? disease.weeksUntilDeath : null;
-                  const naturalRecoveryWeeks = 'naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number' ? disease.naturalRecoveryWeeks : null;
+                  // Whole weeks for display: the tick keeps fractional recovery
+                  // progress, so the stored value can read 2.5.
+                  const naturalRecoveryWeeks = 'naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number' ? Math.ceil(disease.naturalRecoveryWeeks) : null;
                   const contractedWeek = 'contractedWeek' in disease && typeof disease.contractedWeek === 'number' ? disease.contractedWeek : null;
                   const isUrgent = weeksUntilDeath !== null && weeksUntilDeath <= 4;
                   const manageable = isManageableDisease(disease);

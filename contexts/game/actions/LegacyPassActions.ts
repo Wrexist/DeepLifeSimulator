@@ -9,7 +9,11 @@
  *   - gems       → stats.gems
  *   - youthPills → top-level youthPills
  *   - cosmetic   → legacyPass.ownedCosmetics (visual only)
- *   - trait      → activeTraits (heritable; passes to heirs via prestige)
+ *
+ * There is no `trait` kind any more. The premium capstone used to push a trait
+ * into `activeTraits` under the label "Heritable Legacy Trait", but that list
+ * changes nothing in the life holding it and prestige does not carry it to the
+ * next one - see the tier-25 note in `lib/legacyPass/legacyPass.ts`.
  */
 import type { GameState, LegacyPassState } from '@/contexts/game/types';
 import {
@@ -54,9 +58,6 @@ export function applyLegacyPassReward(state: GameState, reward: LegacyPassReward
         legacyPass: { ...pass, ownedCosmetics: pushUnique(pass.ownedCosmetics, reward.id) },
       };
     }
-    case 'trait':
-      if (!reward.id) return state;
-      return { ...state, activeTraits: pushUnique(state.activeTraits, reward.id) };
     default:
       return state;
   }
@@ -64,7 +65,7 @@ export function applyLegacyPassReward(state: GameState, reward: LegacyPassReward
 
 /**
  * Roll the pass over to a new season WITHOUT losing progress: auto-collect every
- * earned-but-unclaimed reward (gems/youth pills/traits granted to the account;
+ * earned-but-unclaimed reward (gems/youth pills granted to the account;
  * cosmetics carried forward into the new pass), then start the new season. Stamps
  * a one-shot `legacyPassSeasonSummary` for the UI. Pure + immutable.
  *
@@ -91,7 +92,7 @@ function rolloverLegacyPass(
       if (reward.id && !carriedCosmetics.includes(reward.id)) carriedCosmetics.push(reward.id);
     } else {
       if (reward.kind === 'gems') collectedGems += reward.amount ?? 0;
-      next = applyLegacyPassReward(next, reward); // gems/youthPills/trait → account-level
+      next = applyLegacyPassReward(next, reward); // gems/youthPills → account-level
     }
   }
 

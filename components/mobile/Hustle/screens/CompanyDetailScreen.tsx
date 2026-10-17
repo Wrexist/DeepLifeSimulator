@@ -40,7 +40,7 @@ import { addWorker, removeWorker, quoteCompanySaleValue, sellCompany } from '@/c
 import { useCompanyActions } from '@/contexts/game/CompanyActionsContext';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
-import { formatMoney } from '@/utils/moneyFormatting';
+import { formatMoney, formatMoneyCompact } from '@/utils/moneyFormatting';
 import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
 import { clearHustleNotifications, markHustleNotificationRead, quoteIPO } from '@/contexts/game/actions/HustleActions';
 import { LAB_TYPES, getLabUpgradeCost, type LabType } from '@/lib/rd/labs';
@@ -51,6 +51,7 @@ import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/ga
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { generateBoardSeats, generateSuppliers , companyIncomeFactors } from '@/lib/business/hustleLogic';
 import { companyWeeklyIncomeFor } from '@/lib/economy/passiveIncome';
+import { companyStaffWage, companyWeeklyPayroll, STAFF_WAGE_MIN_SHARE_OF_BASE } from '@/lib/business/hustleTick';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { gameAlert } from '@/utils/gameAlert';
@@ -270,10 +271,11 @@ export default function CompanyDetailScreen({
   // political business perk and government contracts land there too).
   const weekly = companyWeeklyIncomeFor(gameState, company, 1);
   const ipoQuote = quoteIPO(gameState, companyId);
-  const payroll = (overlay?.hiringPipeline?.namedHires ?? []).reduce(
-    (sum, h) => sum + (typeof h.salary === 'number' && isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
-    0,
-  );
+  // Everything the company's people cost per week - general staff AND named
+  // hires, the SAME figure the weekly tick charges. This used to sum only the
+  // named hires, so once general staff drew a weekly wage the tile under-read
+  // the real payroll (a factory with 10 staff showed "-").
+  const payroll = companyWeeklyPayroll(company, namedHires).total;
   const base = company.baseWeeklyIncome ?? 0;
   const lift = Math.max(0, weekly - base);
   const revTotal = Math.max(weekly, base, 1);
@@ -290,6 +292,11 @@ export default function CompanyDetailScreen({
 
   const STAFF_CAP = 30; // matches addWorker's hard cap
   const canHireWorker = company.employees < STAFF_CAP && money >= company.workerSalary;
+  // The weekly wage the tick charges per general employee - the industry rate,
+  // or a share of base income once the company outgrows it (companyStaffWage).
+  // The up-front hiring cost stays the industry rate (addWorker).
+  const staffWage = companyStaffWage(company);
+  const staffWagePct = Math.round(STAFF_WAGE_MIN_SHARE_OF_BASE * 100);
   const canRemoveWorker = company.employees > namedHires.length;
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
     ? gameState.economy.priceIndex
@@ -395,7 +402,7 @@ export default function CompanyDetailScreen({
             /* Was "Cash", reading `company.money` - a field nothing ever writes,
                so it displayed $0 for every company forever. Payroll is real and
                it is the cost side of the hires that lift the multiplier. */
-            { label: 'Payroll', value: payroll > 0 ? `-$${Math.round(payroll / 1000)}K` : '-' },
+            { label: 'Payroll', value: payroll > 0 ? `${formatMoneyCompact(-payroll)}/wk` : '-' },
           ]}
         />
 
@@ -454,13 +461,13 @@ export default function CompanyDetailScreen({
         {/* Generic staff - canonical addWorker/removeWorker */}
         <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
-            {company.employees} / {STAFF_CAP} employees · ${company.workerSalary.toLocaleString('en-US')} to hire, ${company.workerSalary.toLocaleString('en-US')}/wk wage
+            {company.employees} / {STAFF_CAP} employees · ${company.workerSalary.toLocaleString('en-US')} to hire, ${staffWage.toLocaleString('en-US')}/wk wage
           </Text>
           <View style={styles.staffCapBar}>
             <ProgressBar value={company.employees / STAFF_CAP} color={HUSTLE_COLORS.accent} label="Headcount against the cap" />
           </View>
           <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
-            Hiring costs ${company.workerSalary.toLocaleString('en-US')} up front, and each employee is paid ${company.workerSalary.toLocaleString('en-US')} every week. Each employee compounds weekly income:
+            Hiring costs ${company.workerSalary.toLocaleString('en-US')} up front, and each employee is paid ${staffWage.toLocaleString('en-US')} every week: the ${company.workerSalary.toLocaleString('en-US')} industry wage, or {staffWagePct}% of base income once the company outgrows it. Each employee compounds weekly income:
             +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing general staff is free but lowers income. Release named hires through Hiring pipeline; severance applies.
           </Text>
           <View style={styles.staffBtnRow}>

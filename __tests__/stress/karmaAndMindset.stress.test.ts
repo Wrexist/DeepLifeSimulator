@@ -13,9 +13,6 @@
  *   - Karma tier transitions (saint / virtuous / good / neutral / etc.) at correct boundaries
  *   - getKarmaModifiers returns finite values for every karma combination
  *   - REGRESSION: crimeSuccessBonus order — the 0.25 (extreme) tier reachable
- *   - applyMindsetEffects: every trait clears + applies feedback without NaN
- *   - applyMindsetEffects with empty traits: passthrough
- *   - applyMindsetEffects with all 11 traits stacked: state stays finite
  */
 
 import {
@@ -31,14 +28,7 @@ import {
   PERSONALITY_TRAITS,
   FINANCIAL_TRAITS,
   MINDSET_TRAITS,
-  applyMindsetEffects,
 } from '@/lib/mindset/config';
-import type { GameState } from '@/contexts/game/types';
-import { initialGameState } from '@/contexts/game/initialState';
-
-function makeState(over: Partial<GameState> = {}): GameState {
-  return { ...structuredClone(initialGameState), ...over };
-}
 
 function deepCheck(state: unknown): string[] {
   const issues: string[] = [];
@@ -245,93 +235,6 @@ describe('Mindset audit', () => {
     }
   });
 
-  // ── applyMindsetEffects ────────────────────────────────────────────────
-  it('applyMindsetEffects: no active traits → passthrough', () => {
-    const state = makeState({ mindset: undefined });
-    const result = applyMindsetEffects(state, { moneyDelta: 100, happinessDelta: 5 });
-    expect(result.moneyDelta).toBe(100);
-    expect(result.happinessDelta).toBe(5);
-  });
-
-  it('applyMindsetEffects: empty traits array → passthrough', () => {
-    const state = makeState({ mindset: { traits: [], activeTraitId: undefined } as never });
-    const result = applyMindsetEffects(state, { moneyDelta: 100 });
-    expect(result.moneyDelta).toBe(100);
-  });
-
-  it('applyMindsetEffects: frugal - positive income gets 1.1x', () => {
-    const state = makeState({ mindset: { traits: ['frugal'], activeTraitId: 'frugal' } as never });
-    const result = applyMindsetEffects(state, { moneyDelta: 1000 });
-    expect(result.moneyDelta).toBeCloseTo(1100, 0);
-  });
-
-  it('applyMindsetEffects: workaholic - positive income +10%, but -1 health and -1 happiness', () => {
-    const state = makeState({ mindset: { traits: ['workaholic'], activeTraitId: 'workaholic' } as never });
-    const result = applyMindsetEffects(state, { moneyDelta: 500, healthDelta: 0, happinessDelta: 0 });
-    expect(result.moneyDelta).toBeCloseTo(550, 0);
-    expect(result.healthDelta).toBe(-1);
-    expect(result.happinessDelta).toBe(-1);
-  });
-
-  it('applyMindsetEffects: riskAverse - reduces both gains and losses', () => {
-    const state = makeState({ mindset: { traits: ['riskAverse'], activeTraitId: 'riskAverse' } as never });
-    const gainResult = applyMindsetEffects(state, { moneyDelta: 1000 });
-    expect(gainResult.moneyDelta).toBeCloseTo(950, 0);
-    const lossResult = applyMindsetEffects(state, { moneyDelta: -1000 });
-    expect(Math.abs(lossResult.moneyDelta!)).toBeCloseTo(850, 0);
-  });
-
-  it('applyMindsetEffects: gambler - randomly varies ±20% of moneyDelta', () => {
-    const state = makeState({ mindset: { traits: ['gambler'], activeTraitId: 'gambler' } as never });
-    // Run many trials to bracket the random range.
-    let min = Infinity;
-    let max = -Infinity;
-    for (let i = 0; i < 200; i++) {
-      const r = applyMindsetEffects(state, { moneyDelta: 1000 });
-      if (r.moneyDelta! < min) min = r.moneyDelta!;
-      if (r.moneyDelta! > max) max = r.moneyDelta!;
-    }
-    expect(min).toBeGreaterThan(750);  // > -20% from 1000
-    expect(max).toBeLessThan(1250);    // < +20% from 1000
-    // Both directions sampled.
-    expect(min).toBeLessThan(1000);
-    expect(max).toBeGreaterThan(1000);
-  });
-
-  it('applyMindsetEffects: all 11 traits stacked produce finite output', () => {
-    const allTraits = MINDSET_TRAITS.map(t => t.id);
-    const state = makeState({ mindset: { traits: allTraits, activeTraitId: allTraits[0] } as never });
-    const result = applyMindsetEffects(state, { moneyDelta: 1000, healthDelta: 0, happinessDelta: 0 });
-    expect(Number.isFinite(result.moneyDelta!)).toBe(true);
-    expect(Number.isFinite(result.healthDelta!)).toBe(true);
-    expect(Number.isFinite(result.happinessDelta!)).toBe(true);
-  });
-
-  it('applyMindsetEffects: applies effects to negative moneyDelta correctly', () => {
-    const state = makeState({ mindset: { traits: ['socialite'], activeTraitId: 'socialite' } as never });
-    const result = applyMindsetEffects(state, { moneyDelta: -500 });
-    // Socialite spends 10% more on social activities (more negative).
-    expect(result.moneyDelta).toBeLessThan(-500);
-    expect(Math.abs(result.moneyDelta!)).toBeCloseTo(550, 0);
-  });
-
-  it('applyMindsetEffects: 0 deltas produce 0 deltas (no spurious adjustments)', () => {
-    const state = makeState({ mindset: { traits: ['frugal'], activeTraitId: 'frugal' } as never });
-    const result = applyMindsetEffects(state, { moneyDelta: 0, happinessDelta: 0, healthDelta: 0 });
-    expect(result.moneyDelta).toBe(0);
-  });
-
-  // ── STATE SAFETY ───────────────────────────────────────────────────────
-  it('applyMindsetEffects: 100 random deltas keep result finite', () => {
-    const allTraits = MINDSET_TRAITS.map(t => t.id);
-    const state = makeState({ mindset: { traits: allTraits, activeTraitId: allTraits[0] } as never });
-    for (let i = 0; i < 100; i++) {
-      const moneyDelta = (Math.random() - 0.5) * 100_000;
-      const result = applyMindsetEffects(state, { moneyDelta });
-      const issues = deepCheck(result);
-      expect(issues).toEqual([]);
-    }
-  });
 });
 
 describe('Karma + Mindset cross-system', () => {

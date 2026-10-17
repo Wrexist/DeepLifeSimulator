@@ -42,6 +42,7 @@ import {
   VERIFIED_PRO_WEEKLY_PRICE,
   VERIFIED_PRO_ANNUAL_PRICE,
 } from '@/lib/social/socialMedia';
+import { brandPostShare, isStreamedBrandDeal } from '@/lib/social/brandPartnerships';
 
 const log = logger.scope('PulseActions');
 
@@ -730,22 +731,28 @@ function resolveAcceptBrandDeal(
   const inbox = sm.brandInbox ?? { pending: [], declined: [], history: [] };
   const offer = inbox.pending.find((o) => o.id === dealId);
   if (!offer) return { result: { success: false, message: 'Offer not found.' }, next: null };
+  // Priced on the pre-2026-10-17 rate card (see `isStreamedBrandDeal`); the
+  // tick withdraws these, and accepting one before it does must not pay the
+  // old price per post.
+  if (isStreamedBrandDeal(offer)) {
+    return { result: { success: false, message: 'This offer has been withdrawn.' }, next: null };
+  }
 
   const ws = state.weeksLived ?? 0;
+  const postsRequired = Math.max(1, offer.postsRequired || 1);
   const active: PulseActiveBrandDeal = {
     id: offer.id,
     brandName: offer.brandName,
     payment: offer.payment,
     expiresAt: ws + offer.duration,
     expiresIn: offer.duration,
-    postsRequired: offer.postsRequired,
+    postsRequired,
     postsDelivered: 0,
-    // P0-1: stream 75% of the contract over the duration. The 25% signing
-    // bonus paid below is an advance against the total, so total payout is
-    // 100% of `payment` (previously: 25% bonus + 100% stream = 125%).
-    // Recomputed here (not trusting offer.weeklyPayment) so any in-flight
-    // offer minted before this fix still pays correctly.
-    weeklyPayment: Math.floor((offer.payment * 0.75) / Math.max(1, offer.duration)),
+    // No `weeklyPayment`: the contract is paid per delivered post
+    // (`deliverBrandDealPost`), never streamed. The signing bonus (25% up
+    // front, 75% streamed by the tick) is gone with it - that structure paid
+    // 81-94% of an undelivered contract, which made "accept everything, post
+    // nothing" a money printer. Accepting now moves no money at all.
     category: offer.category,
     riskOfBreach: 0,
     logoColor1: offer.logoColor1,
@@ -756,21 +763,15 @@ function resolveAcceptBrandDeal(
   sm.brandPartnerships = (sm.brandPartnerships ?? 0) + 1;
   sm.brandInbox = { ...inbox, pending: inbox.pending.filter((o) => o.id !== dealId) };
 
-  // Signing bonus = 25% of total payment, paid immediately
-  const bonus = Math.floor(offer.payment * 0.25);
-  sm.totalEarnings = (sm.totalEarnings ?? 0) + bonus;
-
-  pushNotification(sm, 'brand_offer', `Accepted ${offer.brandName} deal - $${bonus} signing bonus paid`, ws, {
+  const perPost = brandPostShare(offer.payment, postsRequired, 1);
+  const terms = `$${perPost.toLocaleString('en-US')} per post, ${postsRequired} post${postsRequired === 1 ? '' : 's'} within ${offer.duration} week${offer.duration === 1 ? '' : 's'}`;
+  pushNotification(sm, 'brand_offer', `Accepted ${offer.brandName} deal - ${terms}`, ws, {
     refDealId: dealId,
   });
 
-  // M-batch-B (R8): credit the signing bonus into stats.money IN THE SAME
-  // transition. The prior code only bumped the `totalEarnings` display counter
-  // and left a `prev => prev` no-op, so the player was never paid.
-  const credit = applyMoneyDelta(state, bonus, 'Brand deal signing bonus');
   return {
-    result: { success: true, message: `Accepted ${offer.brandName} ($${bonus} signing bonus).` },
-    next: { ...state, ...(credit ?? {}), socialMedia: sm },
+    result: { success: true, message: `Accepted ${offer.brandName}: ${terms}.` },
+    next: { ...state, socialMedia: sm },
   };
 }
 
@@ -847,6 +848,18 @@ function resolveDeliverBrandDealPost(
     return { result, next: null };
   }
 
+  const before = (sm.activeBrandDeals ?? []).find((d) => d.id === dealId);
+  if (!before) {
+    result = { success: false, message: 'Deal not found.' };
+    return { result, next: null };
+  }
+  if ((before.postsDelivered ?? 0) >= (before.postsRequired ?? 1)) {
+    // Already fully delivered (completion removes a deal, so this is only a
+    // malformed save) - a further post must not be paid as another share.
+    result = { success: false, message: 'That deal has all its posts already.' };
+    return { result, next: null };
+  }
+
   const deals = (sm.activeBrandDeals ?? []).map((d) => {
     if (d.id !== dealId) return d;
     const delivered = (d.postsDelivered ?? 0) + 1;
@@ -859,6 +872,13 @@ function resolveDeliverBrandDealPost(
     result = { success: false, message: 'Deal not found.' };
     return { result, next: null };
   }
+  const streamed = isStreamedBrandDeal(deal);
+  // Per-post contracts are paid HERE, one share per delivered post, in the
+  // same transition that records the delivery (CLAUDE.md §4.4). The shares
+  // sum to exactly `payment` over the whole contract.
+  const postPay = streamed
+    ? 0
+    : brandPostShare(deal.payment ?? 0, deal.postsRequired ?? 1, deal.postsDelivered ?? 0);
 
   // Tag the post as sponsored if it isn't already
   sm.recentPosts = (sm.recentPosts ?? []).map((p) =>
@@ -876,9 +896,12 @@ function resolveDeliverBrandDealPost(
     // all posts pays out in full (matches the "full payment received" message)
     // instead of shorting the player the weeks they cut short. Total payout is
     // identical to riding the deal to expiry — no double-pay, no exploit.
+    //
+    // That remainder only exists for a contract signed under the OLD streamed
+    // terms (`isStreamedBrandDeal`). A per-post contract has been paid share by
+    // share; its final share is `postPay`, credited below.
     const remainingWeeks = Math.max(0, (deal.expiresAt ?? ws) - ws);
-    const weeklyPay = deal.weeklyPayment ?? Math.floor(((deal.payment ?? 0) * 0.75) / Math.max(1, deal.expiresIn ?? 1));
-    completionPayout = Math.max(0, weeklyPay * remainingWeeks);
+    completionPayout = streamed ? Math.max(0, (deal.weeklyPayment ?? 0) * remainingWeeks) : 0;
     sm.activeBrandDeals = deals.filter((d) => d.id !== dealId);
     sm.brandInbox = {
       ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),
@@ -902,17 +925,30 @@ function resolveDeliverBrandDealPost(
     pushNotification(sm, 'brand_offer', `${deal.brandName} campaign completed - full payment received`, ws, {
       refDealId: dealId,
     });
-    result = { success: true, message: `${deal.brandName} campaign completed!` };
+    result = {
+      success: true,
+      message: postPay > 0
+        ? `${deal.brandName} campaign completed! +$${postPay.toLocaleString('en-US')}.`
+        : `${deal.brandName} campaign completed!`,
+    };
   } else {
-    result = { success: true, message: `Delivered post (${deal.postsDelivered}/${deal.postsRequired}).` };
+    result = {
+      success: true,
+      message: postPay > 0
+        ? `Delivered post (${deal.postsDelivered}/${deal.postsRequired}). +$${postPay.toLocaleString('en-US')}.`
+        : `Delivered post (${deal.postsDelivered}/${deal.postsRequired}).`,
+    };
   }
-  // M-batch-B (R8): credit the remaining brand-deal balance on early completion
-  // IN THE SAME updater. Finishing early removes the deal (above), so the
-  // tick's weekly installments stop - paying the remainder makes the total
-  // identical to riding the deal to expiry. applyMoneyDelta never rejects a
-  // positive credit; folding it in avoids a post-setState read.
+  // M-batch-B (R8): credit IN THE SAME updater - the per-post share, or for a
+  // legacy streamed contract the remaining balance on early completion
+  // (finishing early removes the deal, so the tick's installments stop and
+  // the remainder makes the total identical to riding it to expiry).
+  // applyMoneyDelta never rejects a positive credit; folding it in avoids a
+  // post-setState read.
+  const payout = completionPayout + postPay;
+  if (postPay > 0) sm.totalEarnings = (sm.totalEarnings ?? 0) + postPay;
   const credit =
-    completionPayout > 0 ? applyMoneyDelta(state, completionPayout, 'Brand deal completion payout') : null;
+    payout > 0 ? applyMoneyDelta(state, payout, streamed ? 'Brand deal completion payout' : 'Brand deal post payment') : null;
   return { result, next: { ...state, ...(credit ?? {}), socialMedia: sm } };
 }
 
@@ -924,7 +960,15 @@ export const deliverBrandDealPost = (
 ): { success: boolean; message: string } => {
   const preview = resolveDeliverBrandDealPost(gameState, dealId, postId);
   if (!preview.next) return preview.result;
-  setGameState((prev) => resolveDeliverBrandDealPost(prev, dealId, postId).next ?? prev);
+  setGameState((prev) => {
+    // The post must EXIST at commit time - a delivery is now paid, so an id
+    // that names no post (a compose that the weekly cap refused inside its own
+    // updater, or a stale id) must not count. Checked against `prev` only:
+    // `ComposeModal` delivers straight after composing, so the caller's
+    // snapshot legitimately predates the post it is delivering.
+    if (!(prev.socialMedia?.recentPosts ?? []).some((p) => p.id === postId)) return prev;
+    return resolveDeliverBrandDealPost(prev, dealId, postId).next ?? prev;
+  });
   return preview.result;
 };
 

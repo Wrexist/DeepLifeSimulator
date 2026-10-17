@@ -82,22 +82,32 @@ describe('F1 - the preview quotes the real award', () => {
     const real = calculatePrestigePoints(state, netWorth, prestigeData, 'reset').total;
     const old = oldPreviewFormula(netWorth, 1_500, 0, 2);
 
-    // 950 previewed against 658 awarded — a 44% overstatement, and in the
-    // direction that matters: the player is promised more than they receive.
-    expect(old).toBeGreaterThan(real);
-    expect(old - real).toBeGreaterThan(real * 0.25);
+    // When this was found: 950 previewed against 658 awarded - a 44%
+    // overstatement. Since the 2026-10-17 point-value retune the real award
+    // for this life is ~5,600, so the old line would now UNDERSTATE it by
+    // ~80%. Either direction is the bug: two screens, one decision, two numbers.
+    expect(Math.abs(old - real)).toBeGreaterThan(real * 0.25);
   });
 
-  it('the real formula is the one that pays, and it is not linear in net worth', () => {
-    // The old preview divided net worth by 10,000 continuously; the real one
-    // floors per MILLION, so a $999,999 life previews 99 points and is awarded
-    // 0. That gap lands hardest on the players closest to the decision.
+  it('the real formula is the one that pays, and it is not the old preview line', () => {
+    // The old preview divided net worth by 10,000 - 1,000 points at the $10M
+    // threshold. The award pays 10,000 there (PRESTIGE_POINTS_AT_THRESHOLD),
+    // and bends to a square root above it, so no single straight line can
+    // stand in for it.
     const state = createTestGameState();
-    const justUnder = calculatePrestigePoints(state, 999_999, defaultPrestigeData, 'reset');
-    const justOver = calculatePrestigePoints(state, 1_000_001, defaultPrestigeData, 'reset');
+    const atThreshold = calculatePrestigePoints(state, 10_000_000, defaultPrestigeData, 'reset');
+    const atFourTimes = calculatePrestigePoints(state, 40_000_000, defaultPrestigeData, 'reset');
 
-    expect(justOver.basePoints - justUnder.basePoints).toBe(100);
-    expect(oldPreviewFormula(999_999, 0, 0, 0)).toBeGreaterThan(justUnder.total);
+    expect(atThreshold.basePoints).toBe(10_000);
+    expect(atFourTimes.basePoints).toBe(20_000);
+    expect(oldPreviewFormula(10_000_000, 0, 0, 0)).toBe(1_000);
+  });
+
+  it('only quotes "would have banked" for a life that could have prestiged', () => {
+    // Below the threshold executePrestige is a no-op, so the card's claim is
+    // false there. It is gated on the same threshold the award checks.
+    expect(CODE).toMatch(/couldHavePrestiged\s*=\s*totalNetWorth >= getPrestigeThreshold\(/);
+    expect(CODE).toMatch(/return couldHavePrestiged && earnedPoints > 0 \?/);
   });
 
   it('the preview and PrestigeModal now agree', () => {

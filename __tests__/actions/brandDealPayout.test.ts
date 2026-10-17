@@ -1,20 +1,26 @@
 /**
- * Round 8 correctness regression (M-batch-B): Pulse brand-deal money actually
- * reaches stats.money.
+ * Pulse brand-deal money actually reaches stats.money - and only for work done.
  *
- * Before: acceptBrandDeal computed a 25% signing bonus, added it to a display
- * counter, and left a `prev => prev` no-op where the payment should be — the
- * player was never paid. deliverBrandDealPost completing a deal early removed it
- * (stopping the tick's weekly installments) without paying the remainder.
+ * History, because each round fixed a real defect and the next round's model
+ * has to keep those fixes:
  *
- * Round 9 (P0-1): the payout model was 25% signing bonus ON TOP OF a full 100%
- * weekly stream = 125% of every contract (a money printer). Fixed so the bonus
- * is an advance: 25% on accept + 75% streamed = 100% total. weeklyPayment now
- * represents the 75% stream installment.
+ *   R8 M-batch-B: acceptBrandDeal computed a 25% signing bonus, added it to a
+ *   display counter and left a `prev => prev` no-op - the player was never
+ *   paid. deliverBrandDealPost completing a deal early removed it (stopping the
+ *   tick's weekly installments) without paying the remainder.
+ *
+ *   R9 P0-1: the payout model was 25% signing bonus ON TOP OF a full 100%
+ *   weekly stream = 125% of every contract. Fixed to 25% + 75% streamed.
+ *
+ *   2026-10-17: the 25% + 75%-streamed model paid the stream whether or not a
+ *   post was delivered, so an undelivered contract kept 81-94% of its value.
+ *   Contracts are now paid PER DELIVERED POST, inside the delivery updater; the
+ *   shares sum to exactly 100%. Contracts signed under the old streamed terms
+ *   (they carry `weeklyPayment`) are honoured to the end - the last case below.
  */
 import { acceptBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import { createTestGameState } from '../helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState, PulseRecentPost } from '@/contexts/game/types';
 import { createSetGameStateStub } from '../helpers/setGameStateStub';
 
 /**
@@ -41,8 +47,12 @@ const baseSocial = {
   engagementRate: 0,
 };
 
-describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
-  it('acceptBrandDeal pays the 25% signing bonus into stats.money', () => {
+const post = (id: string): PulseRecentPost => ({
+  id, content: 'sponsored', likes: 0, comments: 0, timestamp: 0, gameWeek: 0, contentType: 'photo',
+});
+
+describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1 / 2026-10-17 per-post)', () => {
+  it('acceptBrandDeal pays nothing up front - the signing advance is gone', () => {
     const snapshot = createTestGameState({
       stats: { money: 0 } as never,
       weeksLived: 0,
@@ -57,7 +67,6 @@ describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
               duration: 10,
               postsRequired: 1,
               category: 'tech',
-              weeklyPayment: 100,
               logoColor1: '#000',
               logoColor2: '#fff',
             },
@@ -71,16 +80,64 @@ describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
 
     const res = acceptBrandDeal(get(), setState, 'd1');
     expect(res.success).toBe(true);
-    expect(get().stats.money).toBe(250); // floor(1000 * 0.25), actually paid
+    expect(res.message).toMatch(/\$1,000 per post/);
+    expect(get().stats.money).toBe(0);
+    // The active deal carries no weekly stream.
+    expect(get().socialMedia?.activeBrandDeals?.[0]?.weeklyPayment).toBeUndefined();
   });
 
-  it('deliverBrandDealPost pays the remaining 75% stream when a deal completes early', () => {
+  it('total payout over a whole contract equals 100% of it, paid post by post', () => {
+    const payment = 1000;
     const snapshot = createTestGameState({
       stats: { money: 0 } as never,
       weeksLived: 0,
       socialMedia: {
         ...baseSocial,
-        recentPosts: [],
+        // Three posts against a $1,000 contract: shares 333 / 333 / 334.
+        recentPosts: [post('p1'), post('p2'), post('p3')],
+        brandInbox: {
+          pending: [
+            {
+              id: 'd3',
+              brandName: 'Gamma',
+              payment,
+              duration: 10,
+              postsRequired: 3,
+              category: 'tech',
+              logoColor1: '#000',
+              logoColor2: '#fff',
+            },
+          ],
+          declined: [],
+          history: [],
+        },
+        activeBrandDeals: [],
+      } as never,
+    });
+    const { setState, get } = makeBatchedSetState(snapshot);
+
+    expect(acceptBrandDeal(get(), setState, 'd3').success).toBe(true);
+    expect(get().stats.money).toBe(0);
+
+    expect(deliverBrandDealPost(get(), setState, 'd3', 'p1').success).toBe(true);
+    expect(get().stats.money).toBe(333);
+    expect(deliverBrandDealPost(get(), setState, 'd3', 'p2').success).toBe(true);
+    expect(get().stats.money).toBe(666);
+    expect(deliverBrandDealPost(get(), setState, 'd3', 'p3').success).toBe(true);
+
+    // Exactly the contract - never the old 125%, never a rounding shortfall.
+    expect(get().stats.money).toBe(payment);
+    expect(get().socialMedia?.activeBrandDeals ?? []).toHaveLength(0);
+    expect((get().socialMedia?.brandInbox?.history ?? []).slice(-1)[0]).toMatchObject({ result: 'success', totalPaid: payment });
+  });
+
+  it('a contract signed under the OLD streamed terms still pays its remaining stream on completion', () => {
+    const snapshot = createTestGameState({
+      stats: { money: 0 } as never,
+      weeksLived: 0,
+      socialMedia: {
+        ...baseSocial,
+        recentPosts: [post('p1')],
         activeBrandDeals: [
           {
             id: 'd2',
@@ -106,50 +163,5 @@ describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
     expect(get().stats.money).toBe(750);
     // Deal removed from active on completion.
     expect((get().socialMedia?.activeBrandDeals ?? []).length).toBe(0);
-  });
-
-  it('P0-1: total payout (signing bonus + completion) equals 100% of the contract, not 125%', () => {
-    const payment = 1000;
-    const duration = 10;
-    const snapshot = createTestGameState({
-      stats: { money: 0 } as never,
-      weeksLived: 0,
-      socialMedia: {
-        ...baseSocial,
-        recentPosts: [],
-        brandInbox: {
-          pending: [
-            {
-              id: 'd3',
-              brandName: 'Gamma',
-              payment,
-              duration,
-              postsRequired: 1,
-              category: 'tech',
-              logoColor1: '#000',
-              logoColor2: '#fff',
-            },
-          ],
-          declined: [],
-          history: [],
-        },
-        activeBrandDeals: [],
-      } as never,
-    });
-    const { setState, get } = makeBatchedSetState(snapshot);
-
-    // Accept → 25% signing bonus, deal becomes active with a 75% stream.
-    expect(acceptBrandDeal(get(), setState, 'd3').success).toBe(true);
-    const afterAccept = get().stats.money;
-    expect(afterAccept).toBe(Math.floor(payment * 0.25)); // 250
-
-    // Deliver the single required post → pays the remaining streamed balance.
-    expect(deliverBrandDealPost(get(), setState, 'd3', 'p1').success).toBe(true);
-    const total = get().stats.money;
-
-    // Total must be 100% of the contract (allow a few $ of floor rounding), and
-    // must NOT exceed `payment` (the old 125% bug paid 1250 here).
-    expect(total).toBeLessThanOrEqual(payment);
-    expect(total).toBeGreaterThanOrEqual(payment - duration); // rounding tolerance
   });
 });

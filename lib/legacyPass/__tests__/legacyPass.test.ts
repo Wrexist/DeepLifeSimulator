@@ -140,9 +140,11 @@ describe('Legacy Pass engine', () => {
       expect(PREMIUM_REWARDS).toHaveLength(MAX_TIER);
     });
 
-    it('cap the premium track with a heritable trait', () => {
+    it('cap the premium track with youth pills - a reward the player keeps', () => {
+      // It was a "Heritable Legacy Trait" that changed nothing and was not
+      // inherited (see the tier-25 note in legacyPass.ts).
       const top = getLegacyPassReward('premium', MAX_TIER);
-      expect(top?.kind).toBe('trait');
+      expect(top).toEqual({ kind: 'youthPills', amount: 3, label: '3 Youth Pills' });
     });
 
     it('return null out of range', () => {
@@ -153,7 +155,7 @@ describe('Legacy Pass engine', () => {
     it('never grant raw money/stats (no pay-to-win)', () => {
       const allKinds = [...FREE_REWARDS, ...PREMIUM_REWARDS].map(r => r.kind);
       for (const k of allKinds) {
-        expect(['gems', 'youthPills', 'cosmetic', 'trait']).toContain(k);
+        expect(['gems', 'youthPills', 'cosmetic']).toContain(k);
       }
     });
   });

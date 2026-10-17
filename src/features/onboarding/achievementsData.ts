@@ -59,6 +59,21 @@ const weeksTowardGoal = (gs: GameState, achievementId: string, goal: number): nu
   return weeksInThisLife(gs);
 };
 
+/**
+ * Prestige points PAID BY PRESTIGES, summed over the recorded history (see
+ * `prestige_points_master`). Malformed records count 0, never NaN.
+ */
+const prestigePointsEarnedByPrestiging = (gs: GameState): number => {
+  const history = gs?.prestige?.prestigeHistory;
+  if (!Array.isArray(history)) return 0;
+  let total = 0;
+  for (const record of history) {
+    const earned = Number(record?.prestigePointsEarned);
+    if (Number.isFinite(earned) && earned > 0) total += earned;
+  }
+  return total;
+};
+
 export const achievements: Achievement[] = [
   // ── Beginner Achievements ─────────────────────────────────────────────
   // Designed to fire in the first 10 weeks so new players get early dopamine hits.
@@ -779,10 +794,19 @@ export const achievements: Achievement[] = [
     group: 'prestige',
   },
   {
+    // Retargeted 2026-10-17. It read `prestige.prestigePoints` - the UNSPENT
+    // balance (buying a bonus deducts from it) - against 10,000, which the
+    // threshold-anchored payout (`netWorthPrestigePoints`, 10,000 at the $10M
+    // first-prestige threshold) now pays in ONE prestige, so a long-haul goal
+    // completed on the first reset. It also punished spending: a player who
+    // used the shop fell back below the line. It now counts points EARNED BY
+    // PRESTIGING, summed over `prestigeHistory`, so spending never sets it
+    // back. That record is capped at the last 50 prestiges, which can only
+    // UNDER-count, never award early. Id kept: claims and art are keyed on it.
     id: 'prestige_points_master',
     title: 'Prestige Points Master',
-    description: 'Accumulate 10,000 prestige points',
-    progressSpec: { kind: 'counter', current: gs => gs.prestige?.prestigePoints ?? 0, goal: 10000 },
+    description: 'Earn 100,000 prestige points from prestiging, across all your lives',
+    progressSpec: { kind: 'counter', current: gs => prestigePointsEarnedByPrestiging(gs), goal: 100_000 },
     goldReward: 1500,
     group: 'prestige',
   },
