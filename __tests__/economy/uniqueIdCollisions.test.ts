@@ -92,11 +92,16 @@ describe('buyPet keeps both properties', () => {
   it('and 50 back-to-back purchases produce 50 distinct pets', () => {
     // The volume that makes a same-millisecond collision likely. Under the old
     // 1-of-1000 suffix this loses a pet roughly once every few runs.
+    //
+    // The roster is capped at MAX_PETS_OWNED LIVING pets (2026-10-17), so each
+    // pet is retired to the memorial list after it lands. Dead pets keep their
+    // ids in `pets`, so every new id is still minted against all 50 before it.
     let state = rich();
     for (let i = 0; i < 50; i++) {
       const h = harness(state);
       buyPet(state, h.setGameState, 'dog', `Dog ${i}`, { updateMoney });
       state = h.commit();
+      state = { ...state, pets: (state.pets ?? []).map((p) => ({ ...p, isDead: true })) };
     }
     const pets = state.pets ?? [];
     expect(pets).toHaveLength(50);

@@ -56,8 +56,18 @@ describe('the arithmetic matches what the rules always did', () => {
   });
 
   it('hiring penalty combines both levels and caps at 30', () => {
-    expect(hiringPenalty(2, 3)).toBe(2 * 5 + 3 * 2);
+    // Criminal levels count ABOVE the clean baseline of 1.
+    expect(hiringPenalty(2, 3)).toBe(1 * 5 + 3 * 2);
     expect(hiringPenalty(100, 100)).toBe(MAX_HIRING_PENALTY);
+  });
+
+  it('the level every life starts at is a clean record, not a 5-point penalty', () => {
+    // Every life starts at criminal level 1 and the Work tab shows no record
+    // there, yet it used to cost 5 points on every application - and made the
+    // attempt-5 guarantee (which needs a 0 penalty) unreachable for anyone.
+    expect(hiringPenalty(1, 0)).toBe(0);
+    expect(summarizeCriminalRecord(0, 1).hiringPenaltyPct).toBe(0);
+    expect(hiringPenalty(2, 0)).toBe(5);
   });
 
   it('a clean record costs nothing at all (the control)', () => {
@@ -93,7 +103,10 @@ describe('the rules and the screen read the SAME helper', () => {
     const src = code('contexts/game/actions/JobActions.ts');
 
     expect(src).toMatch(/wantedArrestBonus\(wantedLevel, !!job\.illegal\)/);
-    expect(src).toMatch(/hiringPenalty\(criminalLevel, wantedLevel\)/);
+    // The hiring odds go through the ONE odds function the weekly review also
+    // rolls, which reads `hiringPenalty` (lib/careers/applicationOdds.ts).
+    expect(src).toMatch(/jobApplicationOdds\(gameState, applicationAttempts, careerId\)/);
+    expect(code('lib/careers/applicationOdds.ts')).toMatch(/hiringPenalty\(state\?\.criminalLevel, state\?\.wantedLevel\)/);
     expect(src).not.toMatch(/Math\.min\(25, wantedLevel \* 3\)/);
     expect(src).not.toMatch(/Math\.min\(30, criminalLevel \* 5 \+ wantedLevel \* 2\)/);
   });

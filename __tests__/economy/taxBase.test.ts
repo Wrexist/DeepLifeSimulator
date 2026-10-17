@@ -13,6 +13,10 @@
  * computes the taxable figure early (it is a pure function of the owned ids)
  * without moving where the cash lands. These tests pin that shape, and the
  * progressivity property that makes the fix worth having.
+ *
+ * Channel memberships (2026-10-17) had the same escape and take a slightly
+ * different shape: the payout is computed before the tax AND its cash moves
+ * into the same settlement line, so a broke creator's payout covers its own tax.
  */
 
 import fs from 'fs';
@@ -25,10 +29,29 @@ const TICK = fs.readFileSync(
 );
 
 describe('the tick taxes the right base', () => {
-  it('builds a taxable figure that includes rent and luxury yield', () => {
+  it('builds a taxable figure that includes rent, luxury yield and channel memberships', () => {
+    // Memberships joined the base on 2026-10-17 (see membershipIncomeTaxed.test.ts
+    // for the real-tick measurement): they were credited after the tax ran.
+    // Company payroll comes off it the same day (companyPayrollTaxDeduction,
+    // capped at the week's company income - see companyPayrollTaxDeduction.test.ts),
+    // and the base is floored at 0.
     expect(TICK).toMatch(
-      /const taxableIncome = totalIncome \+ housingRentalIncome \+ taxableLuxuryYield;/
+      /totalIncome \+ housingRentalIncome \+ taxableLuxuryYield \+ membershipIncome - companyPayrollDeduction,/
     );
+    expect(TICK).toMatch(/const taxableIncome = Math\.max\(\s*0,/);
+  });
+
+  it('computes the membership payout BEFORE the tax, from prevState', () => {
+    const payout = TICK.indexOf("guardTick('contentMemberships', () => applyContentMemberships(");
+    const tax = TICK.indexOf('const incomeTax = Math.round(calculateIncomeTax(taxableIncome)');
+    expect(payout).toBeGreaterThan(-1);
+    expect(tax).toBeGreaterThan(payout);
+    expect(TICK).toMatch(/const membershipIncome = membershipsResult\.cashDelta;/);
+    // Soft-capped by the same net-worth efficiency as the ad revenue beside it.
+    expect(TICK).toMatch(/softCapEfficiency: membershipSoftCapEfficiency\(prevState\)/);
+    // And credited exactly ONCE: no late cash write survives.
+    expect(TICK).not.toMatch(/applyCashAndRecord\(membershipsResult\.cashDelta\)/);
+    expect(TICK.match(/applyContentMemberships\(\{/g) ?? []).toHaveLength(1);
   });
 
   it('taxes that figure, not the bare totalIncome', () => {
@@ -53,8 +76,10 @@ describe('the tick taxes the right base', () => {
     // keep using the real credited streams. The sum is bound to a named const
     // because `guardTick('arrears', …)` needs the same figure for its fallback,
     // so pin the binding and the hand-off separately rather than one literal.
+    // Memberships ARE in it: unlike luxury yield, their cash is credited here,
+    // so the payout can settle its own tax instead of booking it as arrears.
     expect(TICK).toMatch(
-      /const arrearsAvailableCash = currentMoney \+ totalIncome \+ housingRentalIncome;/
+      /const arrearsAvailableCash = currentMoney \+ totalIncome \+ housingRentalIncome \+ membershipIncome;/
     );
     expect(TICK).toMatch(/availableCash: arrearsAvailableCash/);
     // The failure this guards against is the taxable figure leaking into the

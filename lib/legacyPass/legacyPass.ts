@@ -4,8 +4,8 @@
  * A dual-track (free + premium) reward pass themed around the game's prestige /
  * "Legacy" loop. XP is earned from EXISTING engagement signals (daily/weekly
  * challenges, milestones, prestige) — see `LEGACY_PASS_XP`. Rewards are cosmetics,
- * youth pills, gems, and heritable traits only — **never** raw power, so the
- * economy's 2.0× income soft-cap is never threatened (no pay-to-win).
+ * youth pills and gems only — **never** raw power, so the economy's 2.0× income
+ * soft-cap is never threatened (no pay-to-win).
  *
  * Everything here is pure and deterministic so it is trivially unit-testable and
  * safe to call from the weekly tick or UI. State mutation (granting the reward to
@@ -67,13 +67,13 @@ export const LEGACY_PASS_XP = {
 } as const;
 
 // ── Rewards ──────────────────────────────────────────────────────────────────
-export type LegacyPassRewardKind = 'gems' | 'youthPills' | 'cosmetic' | 'trait';
+export type LegacyPassRewardKind = 'gems' | 'youthPills' | 'cosmetic';
 
 export interface LegacyPassReward {
   kind: LegacyPassRewardKind;
   /** For gems / youthPills: the quantity granted. */
   amount?: number;
-  /** For cosmetic / trait: the item or trait id granted. */
+  /** For cosmetic: the item id granted. */
   id?: string;
   /** Human-readable label for the UI. */
   label: string;
@@ -85,14 +85,14 @@ export type LegacyPassTrack = 'free' | 'premium';
  * Build the reward tables programmatically so the 25-tier ladders stay balanced
  * and easy to retune. Tier index here is 1-based (tier 1 is the first reward).
  *  - Free track: steady gems, an occasional youth pill, a cosmetic at the finale.
- *  - Premium track: bigger gems, regular youth pills, cosmetics, and the marquee
- *    heritable trait at the top.
+ *  - Premium track: bigger gems, regular youth pills, cosmetics, and a youth-pill
+ *    bundle at the top.
  */
 // Cosmetic reward slots, keyed to specific tiers so the pass hands out a VARIED
 // set of frames/themes across the ladder (each id has a distinct look in
 // lib/cosmetics/cosmetics.ts) rather than the old lone finale frame + two themes.
 // Invariants preserved: free tiers 1–3 stay gems, free %5 stay youth pills, the
-// free finale + premium finale (trait) are unchanged, premium %10 stay themes,
+// free finale + premium finale (youth-pill bundle) are unchanged, premium %10 stay themes,
 // premium %3 stay youth pills - so the reward-table unit tests hold.
 const FREE_COSMETIC_TIERS: Record<number, LegacyPassReward> = {
   8: { kind: 'cosmetic', id: 'legacy_theme_s_8', label: 'Forest Theme' },
@@ -122,24 +122,28 @@ function buildRewardTable(track: LegacyPassTrack): LegacyPassReward[] {
     } else {
       if (tier === MAX_TIER) {
         /**
-         * R3-P9: this was `legacy_trait_s`, an id that exists nowhere.
+         * The capstone of the PAID track. It was a "Heritable Legacy Trait"
+         * twice over, and neither version did what the label said.
          *
-         * `applyLegacyPassReward` pushes it into `state.activeTraits`, and every
-         * consumer resolves ids through `getTraitById`, which searches
-         * `GENETIC_TRAITS`. A whole-repo grep found `legacy_trait_s` only here
-         * and in one test. So the final reward of the PAID seasonal pass was
-         * dropped by every reader: `LegacyOverviewTab` filters it out so it
-         * never displayed, `inheritTraits` bails on `if (!trait) return` so it
-         * never passed to an heir despite the "Heritable" label, and
-         * `applyStatModifiers` skipped it.
+         * R3-P9: first it was `legacy_trait_s`, an id in no catalogue, so every
+         * reader dropped it. It was then pointed at `strong_constitution`, a
+         * real trait - which fixed the display and nothing else. A trait in
+         * `activeTraits` has no effect on the life that holds it (nothing on
+         * the tick reads that list; scenario start traits are display-only for
+         * the same reason), and it is not heritable either: both prestige
+         * builders rebuild the next life from `initialGameState`, whose
+         * `activeTraits` is empty, and neither copies the field across. So the
+         * top reward of a paid pass was a label.
          *
-         * `strong_constitution` is a real catalogue entry, positive polarity,
-         * and - importantly - its effect is `statModifiers`, the ONLY effects
-         * key any consumer reads. Picking `genius` would have looked grander
-         * and delivered its `happiness: 0.9` downside alone, since its
-         * `skillLearningRates` and `careerIncome` have no readers.
+         * Making a trait real needs a decision this file cannot make - an
+         * in-life effect for EVERY trait (scenario ones included) and a carry
+         * in `lib/prestige/prestigeExecution.ts`. Until then the slot pays
+         * something the player keeps: Youth Pills are account inventory,
+         * carried across prestige, heir continuation and fresh starts
+         * (`PURCHASED_STATE_KEYS`) and through a Time Machine rewind - which
+         * is also what "for future lives" can honestly promise.
          */
-        rewards.push({ kind: 'trait', id: 'strong_constitution', label: 'Heritable Legacy Trait' });
+        rewards.push({ kind: 'youthPills', amount: 3, label: '3 Youth Pills' });
       } else if (tier % 10 === 0) {
         rewards.push({ kind: 'cosmetic', id: `legacy_theme_s_${tier}`, label: 'Apartment Theme' });
       } else if (PREMIUM_COSMETIC_TIERS[tier]) {

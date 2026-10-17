@@ -5,7 +5,7 @@
  * function — no React, no side effects on input.
  *
  * Per-company order of operations (all use `nextWeeksLived`):
- *   0. General-staff payroll (employees − named hires) × workerSalary
+ *   0. General-staff payroll (employees − named hires) × companyStaffWage
  *   1. Campaign progression — decrement durations, mark expired
  *   2. Brand health drift toward 50 (no campaigns), lift with active ones
  *   3. Scandal severity decay (10/wk, +15 if 'apology' resolution)
@@ -40,10 +40,53 @@ const NOTIFICATION_CAP = 80;
 const finiteNonNeg = (n: unknown): number =>
   typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : 0;
 
+/**
+ * A general employee is never paid less than this share of the company's
+ * `baseWeeklyIncome` (its income before the headcount multiplier).
+ *
+ * WHY (2026-10-17, owner call "fully upgraded factory nets ~$5k/wk at 10
+ * staff"): the staff lift is a PERCENTAGE of base income (+10%/+5%/+2%/+1% a
+ * head, `companyIncomeMultiplier`), but the wage was a flat industry constant
+ * fixed at founding. Upgrades raise base income 4-15x while the wage stays put,
+ * so how many heads paid off was decided by an arbitrary wage-to-income ratio
+ * rather than by anything the player chose. Measured on fully upgraded
+ * companies at a fresh brand: the restaurant ($400 wage = 3.4% of its $11,597
+ * base) kept hiring to 20 heads, staff added +83% to its net, and its whole
+ * $827k build paid back in 38 weeks - faster than the 40-60 week band any
+ * single level-1 upgrade is held to, and 46% more net than a factory built for
+ * the same money. Every other industry stopped at 5-10 heads.
+ *
+ * 5% is DERIVED, not tuned: heads 11-20 add 1.025 x (m(20) - m(10)) = 0.46 of
+ * base income at a fresh brand, so any per-head wage above 4.6% of base makes
+ * that band an overspend. At 5% no industry's best headcount passes 10 unless
+ * its brand is genuinely strong. It binds only once base income outgrows
+ * 20x the industry wage; at founding the industry wage always wins, so an
+ * early hire is still a loss everywhere (the ratchet in
+ * `__tests__/economy/companyStaffPayroll.test.ts`).
+ */
+export const STAFF_WAGE_MIN_SHARE_OF_BASE = 0.05;
+
+/**
+ * What ONE general employee of `company` is paid per week: the industry wage
+ * (`workerSalary`) or `STAFF_WAGE_MIN_SHARE_OF_BASE` of base income, whichever
+ * is higher. Read live from the stored base, so it applies to every save at
+ * once with no migration. NaN-safe: a malformed field degrades to 0 on its own
+ * side of the max, never into the tick's cash line.
+ */
+export function companyStaffWage(
+  company: { workerSalary?: number; baseWeeklyIncome?: number } | null | undefined,
+): number {
+  const industry = finiteNonNeg(company?.workerSalary);
+  const scaled = Math.round(finiteNonNeg(company?.baseWeeklyIncome) * STAFF_WAGE_MIN_SHARE_OF_BASE);
+  return Math.max(industry, scaled);
+}
+
 export interface CompanyWeeklyPayroll {
-  /** Headcount that is NOT a named hire - paid `workerSalary` each. */
+  /** Headcount that is NOT a named hire - paid `wagePerHead` each. */
   generalStaff: number;
-  /** `generalStaff * workerSalary`. */
+  /** One general employee's weekly wage (`companyStaffWage`). */
+  wagePerHead: number;
+  /** `generalStaff * wagePerHead`. */
   generalPayroll: number;
   /** Sum of the named hires' individual weekly salaries. */
   namedPayroll: number;
@@ -57,8 +100,8 @@ export interface CompanyWeeklyPayroll {
  *
  * Named hires ARE employees (`withEmployeeDelta` bumps `company.employees` when
  * one is accepted) but carry their own negotiated salary, which the tick already
- * charges below. So general staff = headcount minus named hires, each at the
- * company's `workerSalary` - never both, or a named hire would be paid twice.
+ * charges below. So general staff = headcount minus named hires, each at
+ * `companyStaffWage` - never both, or a named hire would be paid twice.
  *
  * Before this, general staff paid `workerSalary` ONCE, at hire, while the
  * headcount multiplier raised `weeklyIncome` forever: a factory's 30 hires cost
@@ -67,15 +110,45 @@ export interface CompanyWeeklyPayroll {
  * malformed field degrades to 0, never into the tick's cash line.
  */
 export function companyWeeklyPayroll(
-  company: { employees?: number; workerSalary?: number } | null | undefined,
+  company: { employees?: number; workerSalary?: number; baseWeeklyIncome?: number } | null | undefined,
   namedHires: readonly { salary?: number }[] | null | undefined,
 ): CompanyWeeklyPayroll {
   const named = Array.isArray(namedHires) ? namedHires : [];
   const headcount = Math.floor(finiteNonNeg(company?.employees));
   const generalStaff = Math.max(0, headcount - named.length);
-  const generalPayroll = generalStaff * finiteNonNeg(company?.workerSalary);
+  const wagePerHead = companyStaffWage(company);
+  const generalPayroll = generalStaff * wagePerHead;
   const namedPayroll = named.reduce((sum, h) => sum + finiteNonNeg(h?.salary), 0);
-  return { generalStaff, generalPayroll, namedPayroll, total: generalPayroll + namedPayroll };
+  return { generalStaff, wagePerHead, generalPayroll, namedPayroll, total: generalPayroll + namedPayroll };
+}
+
+/**
+ * How much of this week's taxable income company payroll shelters.
+ *
+ * Payroll is a business expense, so it comes off the tax base - but only up to
+ * the company income actually paid this week (`companyIncomeThisWeek`, 0 while
+ * the owner is jailed). Without the ceiling, a payroll larger than the week's
+ * company income would shelter salary, rent and every other stream.
+ *
+ * WHY (2026-10-17): company revenue entered the tax base in full while the
+ * hustle tick paid wages out of what was left after tax, so a staffed AI
+ * company or bank at its best headcount lost money once taxed. Reads the same
+ * heads and named-hire salaries `processHustleWeeklyTick` charges, from the
+ * same pre-tick state, so the deduction is exactly the payroll the week pays.
+ */
+export function companyPayrollTaxDeduction(
+  state: Pick<GameState, 'companies' | 'hustleApp'>,
+  companyIncomeThisWeek: number,
+): number {
+  const ceiling = finiteNonNeg(companyIncomeThisWeek);
+  if (ceiling <= 0) return 0;
+  let payroll = 0;
+  for (const company of state.companies ?? []) {
+    if (!company || typeof company.id !== 'string') continue;
+    const namedHires = state.hustleApp?.companies?.[company.id]?.hiringPipeline?.namedHires;
+    payroll += companyWeeklyPayroll(company, namedHires).total;
+  }
+  return Math.min(ceiling, finiteNonNeg(payroll));
 }
 
 function pushNotif(o: HustleCompanyOverlay, text: string, type: any, weeksLived: number): HustleCompanyOverlay {

@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/game/types';
+import type { Company, GameState } from '@/contexts/game/types';
 import { completeAllPrograms } from '@/lib/education/operations';
 import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { getStockInfo } from '@/lib/economy/stockMarket';
@@ -163,9 +163,14 @@ export function applyStartingBonuses(
     if (!newState.companies) {
       newState.companies = [];
     }
-    // Check if player already has a company
-    if (newState.companies.length === 0) {
-      const newCompany: any = {
+    // Skip only when a factory is already held. This used to require NO
+    // company at all - but both prestige paths carry family businesses into
+    // the new life first, so any dynasty holding one (an AI lab, a bank...)
+    // got nothing from this 15,000-point epic, every life, silently. Company
+    // ids are one-per-type (`createCompany` refuses a second of a type), so a
+    // carried factory is the only real collision.
+    if (!newState.companies.some(c => c?.id === 'factory')) {
+      const newCompany: Company = {
         id: 'factory',
         name: 'Family Business',
         type: 'factory',
@@ -179,8 +184,9 @@ export function applyStartingBonuses(
         miners: {},
         warehouseLevel: 0,
       };
-      newState.companies.push(newCompany);
-      newState.company = newCompany;
+      newState.companies = [...newState.companies, newCompany];
+      // Keep a carried family business as the active company if there is one.
+      newState.company = newState.company ?? newCompany;
     }
   }
 
@@ -283,7 +289,7 @@ export function getRawIncomeMultiplier(unlockedBonuses: string[]): number {
 
   // Wealth magnet bonus
   if (unlockedBonuses.includes('wealth_magnet')) {
-    multiplier += 1.0; // +100% passive income
+    multiplier += 1.0; // +100% to the all-income multiplier (not passive-only)
   }
 
   // Synergy: Wealth Master (requires 2+ income bonuses)

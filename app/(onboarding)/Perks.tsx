@@ -69,6 +69,10 @@ const BlurView = BlurViewFallback;
 
 type TabType = 'perks' | 'mindset';
 
+// Picked for a NEW player, whose first income is usually street work: Frugal
+// is a flat +10% with no catch, Optimist halves the happiness street jobs
+// cost, Risk Averse cuts arrest risk. Each is a real effect - see
+// MINDSET_STREET_EFFECTS (lib/mindset/streetWork.ts).
 const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
 
 const log = logger.scope('Perks');
@@ -464,7 +468,7 @@ export default function Perks() {
           onInfo={() =>
             gameAlert(
               'Perks & Mindset',
-              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your run with bonuses and trade-offs. Both are optional: tap "Start Your Life" whenever you are ready.'
+              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that changes your street jobs - their pay, odds or cost - each with its own trade-off. Both are optional: tap "Start Your Life" whenever you are ready.'
             )
           }
         />
@@ -474,7 +478,7 @@ export default function Perks() {
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
             ? 'Optional. Most perks unlock as you earn achievements - new players can just tap "Start Your Life".'
-            : 'Optional. A mindset adds bonuses and trade-offs. Skip it if you’re not sure.'}
+            : 'Optional. A mindset changes how street jobs pay and what they cost. Skip it if you’re not sure.'}
         </Text>
 
         {/* Tab Selector */}

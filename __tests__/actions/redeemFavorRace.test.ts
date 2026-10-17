@@ -15,6 +15,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { recordFavor, redeemFavor } from '@/contexts/game/actions/ContactsActions';
+import { LENT_CASH_TERM_WEEKS } from '@/lib/contacts/favors';
 
 /**
  * Minimal synchronous setGameState that applies functional updaters against the
@@ -32,9 +33,16 @@ function makeStore(initial: GameState) {
   return { get: () => current, setGameState };
 }
 
+/**
+ * Cash lent to a contact is repayable `LENT_CASH_TERM_WEEKS` after it was booked
+ * (week 1 here), so these race fixtures run at a week where it already is -
+ * the term is pinned in `contactsCashTerms.test.ts`, not here.
+ */
+const MATURED = 1 + LENT_CASH_TERM_WEEKS;
+
 describe('redeemFavor - same-batch double-credit guard', () => {
   it('credits a money IOU exactly once even when redeemed twice from stale state', () => {
-    const base = createTestGameState({ stats: { money: 1000 } });
+    const base = createTestGameState({ weeksLived: MATURED, stats: { money: 1000 } });
     const store = makeStore(base);
 
     // Record a $5,000 cash favor owed TO the player.
@@ -67,7 +75,7 @@ describe('redeemFavor - same-batch double-credit guard', () => {
   });
 
   it('a genuine second redeem after the first is a no-op (fresh state)', () => {
-    const store = makeStore(createTestGameState({ stats: { money: 0 } }));
+    const store = makeStore(createTestGameState({ weeksLived: MATURED, stats: { money: 0 } }));
     recordFavor(store.setGameState, {
       id: 'iou2',
       contactId: 'friend',
@@ -88,7 +96,7 @@ describe('redeemFavor - same-batch double-credit guard', () => {
   });
 
   it('keeps an invalid-amount money favor OPEN instead of closing it unpaid', () => {
-    const store = makeStore(createTestGameState({ stats: { money: 100 } }));
+    const store = makeStore(createTestGameState({ weeksLived: MATURED, stats: { money: 100 } }));
     recordFavor(store.setGameState, {
       id: 'bad',
       contactId: 'glitch',

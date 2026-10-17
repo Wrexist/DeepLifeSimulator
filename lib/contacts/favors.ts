@@ -123,3 +123,163 @@ export function netMoneyPosition(ledger: FavorLedger): {
 export function favorsForContact(ledger: FavorLedger, contactId: string): Favor[] {
   return ledger.favors.filter((f) => f.contactId === contactId && f.status === 'open');
 }
+
+// ---------------------------------------------------------------------------
+// Cash IOUs with personal contacts - terms
+// ---------------------------------------------------------------------------
+//
+// Two exploits shared one cause: a cash IOU had no TERM.
+//
+//  - Lending: `lendMoney` booked "Sam owes you $100" with a +2 bond bump, and
+//    Redeem paid it straight back the same week. Lend + redeem every week took a
+//    parent's bond 50 -> 70 in ten weeks for $0.
+//  - Borrowing: "Ask to borrow" paid $25 + 1.5 x bond (guaranteed after five
+//    refusals) and booked a debt with no due date that nothing ever read - free
+//    money from relationships, which CLAUDE.md §4.7 says they must never be.
+//
+// Both terms are DERIVED from `createdWeek`, which every IOU already carries, so
+// no save field is added and every IOU already on disk gets the same terms.
+
+/** Weeks a contact holds cash you lent them before they can pay it back. */
+export const LENT_CASH_TERM_WEEKS = 4;
+
+/** Weeks you have to pay back cash you borrowed from a contact. */
+export const BORROWED_CASH_TERM_WEEKS = 8;
+
+/** Bond a lender loses when they have to collect a debt that went past due. */
+export const OVERDUE_DEBT_BOND_HIT = 15;
+
+/** A cash IOU a contact owes the player (produced by lending). */
+export const isCashOwedToPlayer = (f: Favor): boolean =>
+  f.kind === 'money' && f.direction === 'owed-to-player';
+
+/** A cash IOU the player owes a contact (produced by borrowing). */
+export const isCashOwedByPlayer = (f: Favor): boolean =>
+  f.kind === 'money' && f.direction === 'owed-by-player';
+
+/** First week (`weeksLived`) a contact can pay back cash you lent them. */
+export function cashLoanRepayableWeek(f: Pick<Favor, 'createdWeek'>): number {
+  return safe(f.createdWeek, 0) + LENT_CASH_TERM_WEEKS;
+}
+
+/**
+ * Id prefix of a borrowed-cash IOU booked under the TERMED rules (2026-10-17).
+ *
+ * IOUs borrowed before then (`iou-<contact>-<week>`) were booked with the
+ * promise "no expiresWeek: the debt persists until repaid", and nothing in
+ * them says when they were taken under which rules - the id and note formats
+ * were identical. Applying the new due date to them would have seized every
+ * old debt older than eight weeks on the first week after the update, with a
+ * bond hit and no warning. So the due date belongs to the id: only debts
+ * booked with this prefix carry one, and old ones keep their original terms.
+ */
+export const TERMED_DEBT_ID_PREFIX = 'loan-';
+
+/** The id of a termed borrowed-cash IOU, stable per lender and week. */
+export function termedDebtId(contactId: string, week: number): string {
+  return `${TERMED_DEBT_ID_PREFIX}${contactId}-${week}`;
+}
+
+/** True for a borrowed-cash IOU that carries a due date (see the prefix above). */
+export function hasCashDebtDueDate(f: Favor): boolean {
+  return isCashOwedByPlayer(f) && typeof f.id === 'string' && f.id.startsWith(TERMED_DEBT_ID_PREFIX);
+}
+
+/**
+ * The LAST week (`weeksLived`) borrowed cash can be repaid in - "pay it back by
+ * week N" means week N is still on time.
+ */
+export function cashDebtDueWeek(f: Pick<Favor, 'createdWeek'>): number {
+  return safe(f.createdWeek, 0) + BORROWED_CASH_TERM_WEEKS;
+}
+
+/**
+ * True once an open termed debt is PAST its due week. Strictly after: the
+ * weekly tick settles on the week it is advancing INTO, so `>=` collected a
+ * debt as the player arrived in the week they had been told was the deadline,
+ * and they never got to repay in it.
+ */
+export function isOverdueCashDebt(f: Favor, currentWeek: number): boolean {
+  return f.status === 'open' && hasCashDebtDueDate(f) && safe(currentWeek, 0) > cashDebtDueWeek(f);
+}
+
+/** The open cash debt the player owes `contactId`, if any. One at a time. */
+export function openCashDebtTo(ledger: FavorLedger, contactId: string): Favor | undefined {
+  return (ledger?.favors ?? []).find((f) => f.contactId === contactId && f.status === 'open' && isCashOwedByPlayer(f));
+}
+
+/** The open cash loan `contactId` owes the player, if any. One at a time. */
+export function openCashLoanTo(ledger: FavorLedger, contactId: string): Favor | undefined {
+  return (ledger?.favors ?? []).find((f) => f.contactId === contactId && f.status === 'open' && isCashOwedToPlayer(f));
+}
+
+/** One overdue debt as it was settled. */
+export interface DebtCollection {
+  favorId: string;
+  contactId: string;
+  /** The debt's face value. */
+  owed: number;
+  /** Taken from the player's cash. */
+  paidFromCash: number;
+  /** What cash could not cover - booked as overdue bills (`overdueBalance`). */
+  toArrears: number;
+}
+
+export interface DebtCollectionPlan {
+  /** The ledger with every overdue debt closed. Same reference when nothing was due. */
+  ledger: FavorLedger;
+  collections: DebtCollection[];
+  cashCollected: number;
+  toArrears: number;
+}
+
+/**
+ * Settle every borrowed-cash debt that has reached its due week. PURE.
+ *
+ * The lender takes what `cash` covers; the rest becomes overdue bills, which
+ * the weekly arrears pass collects first out of income and the canonical net
+ * worth already counts as a liability. Nothing is forgiven: a debt that cannot
+ * be paid moves to the bucket built for debts that cannot be paid, it does not
+ * vanish. Each debt is closed, so settling twice collects once.
+ *
+ * Returns money and arrears as NUMBERS and leaves applying them to the caller,
+ * so the same plan can be folded into an action's updater or the weekly tick's
+ * locals without either having to agree on a state shape.
+ */
+export function planOverdueDebtCollection(
+  ledger: FavorLedger | undefined,
+  currentWeek: number,
+  cash: number,
+): DebtCollectionPlan {
+  const empty: DebtCollectionPlan = {
+    ledger: ledger && Array.isArray(ledger.favors) ? ledger : emptyLedger(),
+    collections: [],
+    cashCollected: 0,
+    toArrears: 0,
+  };
+  if (!ledger || !Array.isArray(ledger.favors) || !isFinite(currentWeek)) return empty;
+  if (!ledger.favors.some((f) => isOverdueCashDebt(f, currentWeek))) return empty;
+
+  let cashLeft = Math.max(0, safe(cash, 0));
+  const collections: DebtCollection[] = [];
+  const favors = ledger.favors.map((f) => {
+    if (!isOverdueCashDebt(f, currentWeek)) return f;
+    // A corrupt amount is owed as nothing - close it rather than leave an
+    // unsettleable debt blocking the ledger forever.
+    const owed = Math.max(0, Math.round(safe(f.value, 0)));
+    const paidFromCash = Math.min(cashLeft, owed);
+    cashLeft -= paidFromCash;
+    collections.push({ favorId: f.id, contactId: f.contactId, owed, paidFromCash, toArrears: owed - paidFromCash });
+    return {
+      ...f,
+      status: 'redeemed' as const,
+      note: `${f.note ?? 'Borrowed cash'} - collected after it fell due`,
+    };
+  });
+  return {
+    ledger: { favors },
+    collections,
+    cashCollected: collections.reduce((s, c) => s + c.paidFromCash, 0),
+    toArrears: collections.reduce((s, c) => s + c.toArrears, 0),
+  };
+}

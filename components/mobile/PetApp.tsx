@@ -56,11 +56,16 @@ import {
   findToy,
   findSickness,
   vetServicePrice,
+  MAX_PETS_OWNED,
 } from '@/lib/pets/catalog';
 import { ageInYears, lifeStage, bandFor, isPastLifespan } from '@/lib/pets/lifecycle';
 import { effectiveHungerDecay } from '@/lib/pets/decay';
 import { bondingSummary } from '@/lib/pets/bonding';
-import { evaluatePetForCompetition } from '@/lib/pets/competition';
+import {
+  evaluatePetForCompetition,
+  petThatCompetedThisWeek,
+  requirementLabel,
+} from '@/lib/pets/competition';
 import {
   buyPet,
   feedPet,
@@ -168,6 +173,11 @@ export default function PetApp({ onBack }: PetAppProps) {
   const criticalPet = useMemo(() => pets.find(isCriticalPet), [pets]);
   const week = gameState.weeksLived || 0;
   const money = gameState.stats?.money ?? 0;
+  // One show entry a week between ALL pets, and a cap on living pets - the same
+  // rules `enterCompetition` / `buyPet` enforce, read here so the screen says so
+  // before the tap rather than after it.
+  const enteredThisWeek = petThatCompetedThisWeek(gameState.pets, week);
+  const atPetCap = pets.length >= MAX_PETS_OWNED;
 
   // The hand-rolled `styles.toast` + timer pair is now the app-wide toast.
   const flash = useCallback((message: string) => {
@@ -273,15 +283,11 @@ export default function PetApp({ onBack }: PetAppProps) {
     [gameState, setGameState, saveGame, flash, week]
   );
 
+  // The outcome is a seeded draw made inside the action (same life + same week =
+  // same result), so there is nothing to roll here and nothing a re-tap changes.
   const handleCompete = useCallback(
     (petId: string, compId: string) => {
-      const r = enterCompetition(
-        gameState,
-        setGameState,
-        petId,
-        compId,
-        Math.random()
-      );
+      const r = enterCompetition(gameState, setGameState, petId, compId);
       if (r.success) {
         saveGame();
         gameAlert(r.won ? 'Victory!' : 'Better luck next time', r.message);
@@ -415,7 +421,7 @@ export default function PetApp({ onBack }: PetAppProps) {
 
         {pets.length > 0 ? (
           <View style={styles.section}>
-            <SectionTitle title="Your companions" right={<Chip label={`${pets.length}`} />} />
+            <SectionTitle title="Your companions" right={<Chip label={`${pets.length}/${MAX_PETS_OWNED}`} />} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -743,7 +749,15 @@ export default function PetApp({ onBack }: PetAppProps) {
       ) : null}
 
       <View style={styles.section}>
-        <SectionTitle title="Adopt a pet" />
+        <SectionTitle
+          title="Adopt a pet"
+          right={<Chip label={`${pets.length}/${MAX_PETS_OWNED} pets`} tone={atPetCap ? 'warning' : 'neutral'} />}
+        />
+        {atPetCap ? (
+          <Text style={[styles.cardMeta, { color: accent.warning }]}>
+            You can keep up to {MAX_PETS_OWNED} pets at a time.
+          </Text>
+        ) : null}
         <View style={styles.grid}>
           {PET_BREEDS.map((b) => (
             <View
@@ -763,13 +777,19 @@ export default function PetApp({ onBack }: PetAppProps) {
               </Text>
               <View style={styles.tileBtns}>
                 <TouchableOpacity
-                  style={[styles.tileBtn, styles.goldChip]}
-                  onPress={() => setBuyModal(b.id)}
+                  style={[styles.tileBtn, atPetCap ? { backgroundColor: theme.surfaceElevated } : styles.goldChip]}
+                  // At the cap the tap explains why instead of opening a name
+                  // prompt `buyPet` would refuse.
+                  onPress={() =>
+                    atPetCap ? flash(`You can keep up to ${MAX_PETS_OWNED} pets at a time.`) : setBuyModal(b.id)
+                  }
                   accessibilityRole="button"
+                  accessibilityState={{ disabled: atPetCap }}
                   accessibilityLabel={`Adopt ${b.name}`}
+                  accessibilityHint={atPetCap ? `You can keep up to ${MAX_PETS_OWNED} pets at a time.` : undefined}
                 >
-                  <PawPrint size={scale(13)} color={GOLD} />
-                  <Text style={[styles.chipText, { color: theme.text }]}>Adopt</Text>
+                  <PawPrint size={scale(13)} color={atPetCap ? theme.textMuted : GOLD} />
+                  <Text style={[styles.chipText, { color: atPetCap ? theme.textMuted : theme.text }]}>Adopt</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -904,7 +924,9 @@ export default function PetApp({ onBack }: PetAppProps) {
                   </View>
                   <View style={styles.headerText}>
                     <Text style={[styles.heroTitle, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
-                    <Text style={[styles.heroSub, { color: theme.textSecondary }]}>Enter shows to win prize money.</Text>
+                    <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
+                      Your pets get one show entry a week between them.
+                    </Text>
                   </View>
                 </View>
                 <StatStrip
@@ -915,9 +937,10 @@ export default function PetApp({ onBack }: PetAppProps) {
                     { label: 'Energy', value: p.energy ?? 0, tint: ENERGY_C },
                   ]}
                 />
-                {p.lastCompetitionWeek === week ? (
+                {enteredThisWeek ? (
                   <View style={styles.chipWrap}>
-                    <Chip label="Competed this week" tone="warning" />
+                    <Chip label={`${enteredThisWeek.name} competed this week`} tone="warning" />
+                    <Chip label="Next entry next week" tone="info" />
                   </View>
                 ) : null}
               </>
@@ -941,10 +964,12 @@ export default function PetApp({ onBack }: PetAppProps) {
               const evalResult = evaluatePetForCompetition(p, c.id);
               if (!evalResult) return null;
               const winPct = Math.round(evalResult.winProbability * 100);
-              // One competition per pet per week (enterCompetition rejects
-              // re-entry) - grey the button out instead of letting the tap
-              // fall through to an "already competed" flash.
-              const competedThisWeek = p.lastCompetitionWeek === week;
+              const avg = Math.round(evalResult.expectedValue);
+              // One entry a week across ALL pets. The button stays tappable
+              // when it cannot enter, so the tap reports enterCompetition's own
+              // reason (who already competed, which requirement is short)
+              // instead of doing nothing.
+              const competedThisWeek = !!enteredThisWeek;
               const eligible = evalResult.meetsRequirement && !competedThisWeek;
               return (
                 <View
@@ -971,21 +996,27 @@ export default function PetApp({ onBack }: PetAppProps) {
                     <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
                       Prize {formatMoney(c.prize)} · Entry {formatMoney(c.entryFee)}
                     </Text>
+                    {evalResult.meetsRequirement ? (
+                      <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>
+                        Win {winPct}% · Average {formatMoney(avg)} per entry
+                      </Text>
+                    ) : null}
                     <Text style={[styles.cardMeta, { color: evalResult.meetsRequirement ? accent.success : accent.warning }]}>
                       {evalResult.meetsRequirement
-                        ? `Meets ${c.requirement} ≥ ${c.minValue} (have ${evalResult.gatingValue})`
-                        : `Need ${c.requirement} ≥ ${c.minValue} · have ${evalResult.gatingValue}`}
+                        ? `Needs ${requirementLabel(c)} ${c.minValue}+ (has ${evalResult.gatingValue})`
+                        : `Needs ${requirementLabel(c)} ${c.minValue}+ · has ${evalResult.gatingValue}`}
                     </Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.tileBtn, styles.svcBtn, eligible ? styles.goldChip : { backgroundColor: theme.surfaceElevated }]}
                     onPress={() => handleCompete(p.id, c.id)}
-                    disabled={!eligible}
                     accessibilityRole="button"
                     accessibilityState={{ disabled: !eligible }}
                     accessibilityLabel={`Enter ${c.name}`}
                   >
-                    <Text style={[styles.chipText, { color: eligible ? theme.text : theme.textMuted }]}>{competedThisWeek ? 'Done' : 'Enter'}</Text>
+                    <Text style={[styles.chipText, { color: eligible ? theme.text : theme.textMuted }]}>
+                      {competedThisWeek ? 'Done' : evalResult.meetsRequirement ? 'Enter' : 'Locked'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               );

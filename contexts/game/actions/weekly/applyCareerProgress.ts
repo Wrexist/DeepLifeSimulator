@@ -8,10 +8,18 @@
  * Multiplicative factors (preserved 1:1 from the legacy code):
  *   1. `baseProgressRate = 5` — flat starting point per week.
  *   2. `earlyBoost` — engagement acceleration in the first 40 weeks of
- *      THIS career (since `startedWeeksLived`):
+ *      THIS career, counted from the FIRST time it was started in this life:
  *        - < 20 weeks → 2.5×
  *        - 20-39 weeks → 1.5×
  *        - 40+ weeks → 1.0× (normal)
+ *      `startedWeeksLived` is the start of the CURRENT stint (tenure gates and
+ *      the raise cooldown need that), and every hire path re-stamps it - so a
+ *      boost keyed on it alone re-armed 2.5× on every quit-and-rehire, a free
+ *      reset of the most generous multiplier in the chain (owner call,
+ *      2026-10-17). The first start is the earliest `careerHistory` entry for
+ *      this job, which both hire paths open and nothing rewrites. A re-hire
+ *      keeps its level (progress and tenure already reset on the way out) and
+ *      simply does not get the newcomer's boost again.
  *   3. `mentorBuff` — Legacy points buff. `legacyBuffs.mentor` with an
  *      `expiresWeeksLived` in the future → 1.5×, else 1.0×.
  *   4. `perfModifier` — from `calcPerf(newStats)`:
@@ -37,7 +45,7 @@
  * the helper returns `prevCareers` UNCHANGED (same reference).
  */
 
-import type { Career, GameStats, GameState } from '@/contexts/game/types';
+import type { Career, CareerHistoryEntry, GameStats, GameState } from '@/contexts/game/types';
 import { calculatePerformance as calcPerf } from '@/lib/events/careerEvents';
 import { growthProgressMultiplier } from '@/lib/careers/jobMarket';
 
@@ -75,10 +83,48 @@ export interface CareerProgressInput {
    * existing callers / test fixtures are unaffected.
    */
   lifeSkillCareerProgressMult?: number;
+  /**
+   * `prevState.lifetimeStatistics.careerHistory` — this life's job record.
+   * Anchors the early-career boost on the FIRST time the job was started, so a
+   * quit-and-rehire does not re-arm it. Omitted → the boost counts from
+   * `startedWeeksLived` alone (legacy behaviour).
+   */
+  careerHistory?: readonly Pick<CareerHistoryEntry, 'job' | 'startWeek'>[] | null;
 }
 
 export interface CareerProgressResult {
   updatedCareers: Career[];
+}
+
+/** Early-career multiplier by weeks since the career was first started. */
+export function earlyCareerBoost(weeksInCareer: number): number {
+  return weeksInCareer < 20 ? 2.5 : weeksInCareer < 40 ? 1.5 : 1.0;
+}
+
+/**
+ * The week this career was FIRST started in this life: the earliest
+ * `careerHistory` entry for it, or the current stint's `startedWeeksLived`,
+ * whichever is earlier. Entries dated after `nowWeeksLived` are ignored (they
+ * cannot belong to this life's past). An unknown start reads as week 0, which
+ * is what the boost always did for a career with no `startedWeeksLived`.
+ */
+export function firstCareerStartWeek(
+  career: Pick<Career, 'id' | 'startedWeeksLived'>,
+  careerHistory: CareerProgressInput['careerHistory'],
+  nowWeeksLived: number,
+): number {
+  let first = typeof career.startedWeeksLived === 'number' && Number.isFinite(career.startedWeeksLived)
+    ? career.startedWeeksLived
+    : 0;
+  if (Array.isArray(careerHistory)) {
+    for (const entry of careerHistory) {
+      if (!entry || entry.job !== career.id) continue;
+      const start = entry.startWeek;
+      if (typeof start !== 'number' || !Number.isFinite(start) || start > nowWeeksLived) continue;
+      if (start < first) first = start;
+    }
+  }
+  return first;
 }
 
 export function applyCareerProgress(input: CareerProgressInput): CareerProgressResult {
@@ -111,14 +157,16 @@ export function applyCareerProgress(input: CareerProgressInput): CareerProgressR
   const updatedCareers = careers.map((c) => {
     if (c.id === input.currentJob && c.accepted) {
       // ENGAGEMENT: Early career acceleration — faster promotions in first career.
+      // Counted from the FIRST start of this career in this life, not the
+      // current stint, so quitting and rehiring cannot re-arm it.
       const baseProgressRate = 5;
-      const weeksInCareer = nextWeeksLived - (c.startedWeeksLived || 0);
+      const weeksInCareer = nextWeeksLived - firstCareerStartWeek(c, input.careerHistory, nextWeeksLived);
       // Mentor legacy buff: +50% career progress.
       const mentorBuff = input.legacyBuffs?.mentor
         && input.legacyBuffs.mentor.expiresWeeksLived > nextWeeksLived
         ? 1.5
         : 1.0;
-      const earlyBoost = weeksInCareer < 20 ? 2.5 : weeksInCareer < 40 ? 1.5 : 1.0;
+      const earlyBoost = earlyCareerBoost(weeksInCareer);
       // Performance modifier: high perf boosts progress, low perf slows it.
       const perfModifier = performance >= 80 ? 1.3
         : performance >= 50 ? 1.0

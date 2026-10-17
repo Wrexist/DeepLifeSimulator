@@ -28,7 +28,7 @@ import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { childParentSources } from '@/lib/avatar/family';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
-import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
+import { defaultPrestigeData, getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { computeInheritance } from '@/lib/legacy/inheritance';
 import { RIBBONS } from '@/lib/legacy/ribbonSystem';
 import { netWorth as computeNetWorth } from '@/lib/progress/achievements';
@@ -1233,10 +1233,17 @@ function DeathPopup() {
                         gameState.prestige || defaultPrestigeData,
                         'reset',
                       ).total;
+                      // "What prestiging this life would have banked" is only
+                      // true of a life that could have prestiged. Below the
+                      // threshold `executePrestige` is a no-op, so the honest
+                      // figure is zero - showing the curve's value there
+                      // promised points no path could pay.
+                      const couldHavePrestiged =
+                        totalNetWorth >= getPrestigeThreshold((gameState.prestige || defaultPrestigeData).prestigeLevel);
                       const canBuySmallInheritance = earnedPoints >= 500;
                       const canBuyStatBoost = earnedPoints >= 1000;
                       const canBuyModestInheritance = earnedPoints >= 2000;
-                      return earnedPoints > 0 ? (
+                      return couldHavePrestiged && earnedPoints > 0 ? (
                         <View style={styles.section}>
                           <View style={styles.sectionHeader}>
                             <Crown size={20} color={accent.warning} />
@@ -1272,7 +1279,7 @@ function DeathPopup() {
                                 <View style={styles.prestigeBuyItem}>
                                   <TrendingUp size={14} color={accent.info} />
                                   <Text style={styles.prestigeBuyText}>
-                                    +5 to all starting stats (1,000 pts)
+                                    +5 starting fitness (1,000 pts)
                                   </Text>
                                 </View>
                               )}

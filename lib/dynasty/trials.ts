@@ -43,6 +43,7 @@
  */
 
 import type { DynastyState, GameState } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { isPrestigeFeatureUnlocked, prestigeUnlockRequirement } from '@/lib/progress/featureUnlocks';
 import { hasSeatWing } from './seat';
 import { activeTrialIds, pendingTrialIds, readDynasty, withDynasty } from './state';
@@ -61,7 +62,11 @@ export interface TrialEffects {
   noStartingMoney?: boolean;
   /** Hard ceilings written over the opening stats, after every bonus. */
   statCeilings?: Partial<Record<'health' | 'happiness' | 'fitness', number>>;
-  /** Years added to the opening age (and to the calendar, so they stay in step). */
+  /**
+   * Years added to the opening age - to `date`, to the absolute `weeksLived`
+   * clock every age read derives from, and to the seeded relatives - without
+   * counting them as weeks PLAYED (`weeksInThisLife` still opens at 0).
+   */
   yearsLost?: number;
 }
 
@@ -263,12 +268,87 @@ export function applyTrialEffectsToNewLife(
   }
 
   if (typeof effects.yearsLost === 'number' && effects.yearsLost > 0) {
+    const years = effects.yearsLost;
     // Age AND calendar year move together - advancing one without the other
     // desynchronises every birth-year calculation downstream.
     newState.date = {
       ...newState.date,
-      age: (newState.date?.age ?? 18) + effects.yearsLost,
-      year: (newState.date?.year ?? 2025) + effects.yearsLost,
+      age: (newState.date?.age ?? 18) + years,
+      year: (newState.date?.year ?? 2025) + years,
     };
+    // ...and so does the life's clock. This used to stop at `date.age`, the
+    // stored copy, while the canonical reader `getAge` derives age from
+    // `weeksLived` (`ageFromWeeksLived`, the inverse of the `computeWeeksLived`
+    // seed both builders stamp). So the life ran on two ages: 30 on the HUD and
+    // to the old-age roll (which still reads `date.age`), 18 to everything that
+    // calls `getAge` - the pension and retirement gates, elder activities,
+    // Life Chapter age goals, ribbons and age-conditioned events.
+    advanceNewLifeClock(newState, years * WEEKS_PER_YEAR);
+    // Twelve years pass for the family the life was dealt, too: an 18-year-old's
+    // seeded parents (45, 47) would otherwise be raising a 30-year-old.
+    if (Array.isArray(newState.relationships)) {
+      newState.relationships = newState.relationships.map((r) =>
+        r && typeof r.age === 'number' && Number.isFinite(r.age) ? { ...r, age: r.age + years } : r
+      );
+    }
+  }
+}
+
+/**
+ * Start a freshly-built life `weeks` later on the absolute clock without
+ * counting those weeks as PLAYED.
+ *
+ * `weeksLived` is absolute and seeded from the starting age, and `lifeStartWeek`
+ * (v43) is stamped to that same seed so `weeksInThisLife` reads 0 on frame one.
+ * Moving only `weeksLived` would hand the character twelve years of "weeks
+ * played" - the chapter ladder would open at chapter 5 and the first-session
+ * guides would retire before they rendered (CLAUDE.md §4.2). So every marker the
+ * builders stamp FROM the seed moves with it:
+ *
+ *   - `lifeStartWeek`        the "this life began" baseline
+ *   - `lastEventWeeksLived`  the event-spacing marker; left behind it reads as
+ *                            twelve years without an event and forces a pity
+ *                            event on the first tick
+ *   - `legacyBuffs.*.expiresWeeksLived`  heir buffs dated from the seed; left
+ *                            behind they would expire before the first tick
+ *   - `realEstate[].purchasedWeek`       a starting-bonus home bought "today"
+ *
+ * Markers BELOW the seed (the zeros `initialGameState` carries, or a parent's
+ * timeline on carried-over records) are already in the past and stay there.
+ * Mutates `newState`; only called on a life nobody can see yet.
+ */
+function advanceNewLifeClock(newState: GameState, weeks: number): void {
+  const seed =
+    typeof newState.weeksLived === 'number' && Number.isFinite(newState.weeksLived) ? newState.weeksLived : 0;
+  const shift = (value: unknown): unknown =>
+    typeof value === 'number' && Number.isFinite(value) && value >= seed ? value + weeks : value;
+
+  newState.weeksLived = seed + weeks;
+  // Stamped even if absent: this IS a life start, and without a baseline
+  // `weeksInThisLife` would fall back to the absolute counter and read the
+  // twelve years as played.
+  newState.lifeStartWeek =
+    (typeof newState.lifeStartWeek === 'number' && Number.isFinite(newState.lifeStartWeek)
+      ? newState.lifeStartWeek
+      : seed) + weeks;
+  if (typeof newState.lastEventWeeksLived === 'number') {
+    newState.lastEventWeeksLived = shift(newState.lastEventWeeksLived) as number;
+  }
+  if (newState.legacyBuffs && typeof newState.legacyBuffs === 'object') {
+    const buffs = { ...newState.legacyBuffs };
+    for (const key of Object.keys(buffs) as (keyof typeof buffs)[]) {
+      const buff = buffs[key];
+      if (buff && typeof buff === 'object') {
+        buffs[key] = { ...buff, expiresWeeksLived: shift(buff.expiresWeeksLived) as number };
+      }
+    }
+    newState.legacyBuffs = buffs;
+  }
+  if (Array.isArray(newState.realEstate)) {
+    newState.realEstate = newState.realEstate.map((p) =>
+      p && typeof p.purchasedWeek === 'number' && p.purchasedWeek >= seed
+        ? { ...p, purchasedWeek: p.purchasedWeek + weeks }
+        : p
+    );
   }
 }

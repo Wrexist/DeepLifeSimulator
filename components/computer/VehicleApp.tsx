@@ -53,8 +53,10 @@ import {
   purchaseInsurance,
   cancelInsurance,
   purchaseVehicleWithAutoLoan,
+  vehiclePurchaseReputationGain,
+  vehicleReputationBonus,
 } from '@/contexts/game/actions/VehicleActions';
-import { PILOT_LICENSE } from '@/lib/vehicles/aircraft';
+import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import {
@@ -243,9 +245,13 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     queueSave();
   };
   const handleSell = (v: Vehicle) => {
+    // Selling takes back the whole reputation bonus the car carries (floored at
+    // 0) - the same amount buying it granted - so say so before the tap.
+    const repBack = vehicleReputationBonus(v);
     gameAlert(
       'Sell vehicle?',
-      `${v.name} - sells for about ${formatMoney(calculateVehicleSellPrice(v))} based on age + condition.`,
+      `${v.name} - sells for about ${formatMoney(calculateVehicleSellPrice(v))} based on age + condition.` +
+        (repBack > 0 ? ` Selling also takes back up to ${repBack} reputation.` : ''),
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -821,7 +827,12 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         ) : (
           filtered.map((t) => {
             const locked = lockedByReputation(t);
-            const buyable = hasLicense && !locked;
+            // Aircraft need the pilot's licence; the purchase action refuses
+            // without it, so the card must not offer a Buy it cannot honour.
+            const needsPilot = isAircraftVehicleId(t.id) && !gameState.hasPilotLicense;
+            const buyable = hasLicense && !locked && !needsPilot;
+            // What buying grants THIS player: the bonus, capped at 100.
+            const repGain = Math.round(vehiclePurchaseReputationGain(reputation, t.reputationBonus));
             return (
               <TouchableOpacity
                 key={t.id}
@@ -848,7 +859,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                   <Text style={[styles.dealerSub, { color: theme.textMuted }]} numberOfLines={2}>{t.description}</Text>
 
                   <View style={styles.chipWrap}>
-                    <Chip icon={<Star size={scale(11)} color={accent.amber} />} label={`+${t.reputationBonus} rep`} tint={accent.amber} />
+                    <Chip icon={<Star size={scale(11)} color={accent.amber} />} label={`+${repGain} rep`} tint={accent.amber} />
                     <Chip icon={<Zap size={scale(11)} color={theme.textSecondary} />} label={`+${t.speedBonus}% speed`} />
                     <Chip icon={<Wrench size={scale(11)} color={theme.textSecondary} />} label={`${formatMoney(t.weeklyMaintenanceCost)}/wk`} />
                   </View>
@@ -863,7 +874,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                     <View style={[styles.buyBtn, { backgroundColor: buyable ? withAlpha(accent.amber, 0.14) : theme.surfaceElevated, borderColor: buyable ? withAlpha(accent.amber, 0.3) : theme.border }]}>
                       <ShoppingBag size={scale(13)} color={buyable ? accent.amber : theme.textMuted} />
                       <Text style={[styles.buyBtnText, { color: buyable ? accent.amber : theme.textMuted }]}>
-                        {!hasLicense ? 'License needed' : locked ? 'Locked' : 'Buy'}
+                        {!hasLicense ? 'License needed' : needsPilot ? 'Pilot license needed' : locked ? 'Locked' : 'Buy'}
                       </Text>
                     </View>
                   </View>

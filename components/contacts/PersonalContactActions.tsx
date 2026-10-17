@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Phone, Coffee, DollarSign, Handshake, Heart } from 'lucide-react-native';
 import type { Relationship } from '@/contexts/game/types';
-import { isFamilyRelationship, relationshipBondCost } from '@/contexts/game/actions/ContactsActions';
+import { isFamilyRelationship, relationshipBondCost, BORROW_PITY_REFUSALS } from '@/contexts/game/actions/ContactsActions';
+import { BORROWED_CASH_TERM_WEEKS, LENT_CASH_TERM_WEEKS, OVERDUE_DEBT_BOND_HIT } from '@/lib/contacts/favors';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { responsiveSpacing as sp, responsiveBorderRadius as br, responsiveFontSize as fs, scale } from '@/utils/scaling';
@@ -18,11 +19,17 @@ interface Props {
   money: number;
   week: number;
   darkMode: boolean;
+  /**
+   * Ledger-derived refusals the row cannot see from the relationship alone
+   * (`borrowBlockedReason` / `lendBlockedReason`), so a button the action would
+   * refuse is shown disabled with the action's own reason.
+   */
+  blocked?: Partial<Record<PersonalContactAction, string | null>>;
   onAction: (action: PersonalContactAction) => void;
 }
 
 /** Decision copy only; the existing actions recheck all gates against latest state. */
-export default function PersonalContactActions({ relationship: r, money, week, darkMode, onAction }: Props) {
+export default function PersonalContactActions({ relationship: r, money, week, darkMode, blocked, onAction }: Props) {
   const theme = getThemeColors(darkMode);
   const bondCost = relationshipBondCost(r.relationshipScore ?? 0);
   const actions = [
@@ -31,11 +38,11 @@ export default function PersonalContactActions({ relationship: r, money, week, d
     { key: 'hangout' as const, label: 'Hang out', Icon: Coffee, cost: CONTACT_INTERACTIONS.hangout.cost,
       detail: `${formatMoney(CONTACT_INTERACTIONS.hangout.cost)} now. Bond gain varies with mood and memories.` },
     { key: 'askmoney' as const, label: 'Ask to borrow', Icon: DollarSign, cost: 0,
-      detail: (r.moneyRequestAttempts ?? 0) >= 5
-        ? 'Guaranteed after repeated refusals. Lose up to 3 bond; repay the loan in Favors.'
-        : 'They may refuse. Lose up to 3 bond if accepted, 5 if refused. Repay accepted loans in Favors.' },
+      detail: `${(r.moneyRequestAttempts ?? 0) >= BORROW_PITY_REFUSALS
+        ? 'Guaranteed after repeated refusals. Costs 3 bond.'
+        : 'They may refuse. Costs 3 bond if accepted, 5 if refused.'} Repay in Favors within ${BORROWED_CASH_TERM_WEEKS} weeks; once it falls due they take it back (cash first, the rest as overdue bills) and it costs ${OVERDUE_DEBT_BOND_HIT} bond.` },
     { key: 'lendmoney' as const, label: `Lend ${formatMoney(100)}`, Icon: Handshake, cost: 100,
-      detail: 'Pay now; up to +2 bond. Collect the money from Favors.' },
+      detail: `Pay now; up to +2 bond. They can pay you back from Favors after ${LENT_CASH_TERM_WEEKS} weeks. One loan at a time.` },
     ...(!isFamilyRelationship(r) ? [{ key: 'bond' as const, label: 'Build bond', Icon: Heart, cost: bondCost,
       detail: `${formatMoney(bondCost)} now. Gain decreases as your bond approaches 100.` }] : []),
   ];
@@ -45,7 +52,7 @@ export default function PersonalContactActions({ relationship: r, money, week, d
       {actions.map(({ key, label, Icon, cost, detail }) => {
         const reason = r.actions?.[key] === week ? 'Used this week. Available next week.'
           : key === 'bond' && (r.relationshipScore ?? 0) >= 100 ? 'Bond is already at 100.'
-          : cost > 0 && money < cost ? `Need ${formatMoney(cost)} cash.` : undefined;
+          : blocked?.[key] || (cost > 0 && money < cost ? `Need ${formatMoney(cost)} cash.` : undefined);
         return (
           <TouchableOpacity key={key} accessibilityRole="button"
             accessibilityLabel={`${label} with ${r.name}`}

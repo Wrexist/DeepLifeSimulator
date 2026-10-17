@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, AlertCircle, Home, CheckCircle2 } from 'lucide-react-native';
 import { GameState, RealEstate } from '@/contexts/game/types';
 import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
+import { currentHome } from '@/lib/realEstate/residence';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -51,13 +52,38 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
   const [term, setTerm] = useState<MortgageTerm>('30y');
   const [asResidence, setAsResidence] = useState<boolean>(false);
 
+  // Where the player lives now - the same reading the weekly tick charges the
+  // homeless penalty by. The toggle used to default OFF for everyone, so a
+  // player with nowhere to live who bought a house without spotting it kept
+  // sleeping rough (-2 health, -4 happiness, -5 energy a week) in front of the
+  // house they had just paid for. With no home it now defaults ON; anyone who
+  // already lives somewhere keeps the opt-in, because moving is their call.
+  const home = currentHome(gameState);
+  const defaultAsResidence = home.homeless && !commercial;
+
+  // Read at OPEN time only. With the default in the dependency list, any state
+  // change that flipped "homeless" while the sheet was open re-ran the reset and
+  // silently wiped the tier, term and toggle the player had already chosen.
+  const defaultAsResidenceRef = useRef(defaultAsResidence);
+  defaultAsResidenceRef.current = defaultAsResidence;
   useEffect(() => {
     if (visible) {
       setTier('standard');
       setTerm('30y');
-      setAsResidence(false);
+      setAsResidence(defaultAsResidenceRef.current);
     }
   }, [visible]);
+
+  // What the toggle actually does, stated next to it.
+  const residenceNote = asResidence
+    ? home.ownedHomeName
+      ? `You move out of ${home.ownedHomeName}.`
+      : home.leaseName
+      ? `Your lease on the ${home.leaseName} ends this week - no more rent.`
+      : ''
+    : home.homeless
+    ? 'You have nowhere to live - leave this off and you keep sleeping rough. You can move in later from Manage.'
+    : '';
 
   const cash = gameState.stats?.money ?? 0;
   const quote = useMemo(
@@ -141,15 +167,23 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
               <TouchableOpacity
                 onPress={() => setAsResidence(!asResidence)}
                 style={[styles.residenceRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+                accessibilityRole="checkbox"
+                accessibilityLabel="Make this my primary residence"
+                accessibilityState={{ checked: asResidence }}
               >
                 {asResidence ? (
                   <CheckCircle2 size={scale(18)} color={accent.info} />
                 ) : (
                   <Home size={scale(18)} color={theme.textMuted} />
                 )}
-                <Text style={[styles.residenceLabel, { color: theme.text }]}>
-                  Make this my primary residence
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.residenceLabel, { color: theme.text }]}>
+                    Make this my primary residence
+                  </Text>
+                  {residenceNote ? (
+                    <Text style={[styles.residenceNote, { color: theme.textMuted }]}>{residenceNote}</Text>
+                  ) : null}
+                </View>
               </TouchableOpacity>
             )}
 
@@ -251,7 +285,8 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
   },
-  residenceLabel: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  residenceLabel: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  residenceNote: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',

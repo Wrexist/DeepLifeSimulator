@@ -2,14 +2,16 @@
  * Job & Career Actions
  */
 import React from 'react';
-import { wantedArrestBonus, hiringPenalty, criminalXpForNextLevel, CRIMINAL_XP_PER_ILLEGAL_JOB } from '@/lib/crime/criminalRecord';
-import { GameState, CrimeSkillId, PromotionDetails } from '../types';
+import { wantedArrestBonus, criminalXpForNextLevel, CRIMINAL_XP_PER_ILLEGAL_JOB } from '@/lib/crime/criminalRecord';
+import { GameState, CrimeSkillId, PromotionDetails, StreetJob } from '../types';
 import { logger } from '@/utils/logger';
 import { showLevelUpToast } from '@/utils/achievementToast';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
-import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA, getKarmaModifiers } from '@/lib/karma/karmaSystem';
+import { activeMindsetIds, mindsetStreetTerms, type MindsetStreetTerms } from '@/lib/mindset/streetWork';
+import { CRIME_SKILL_SUCCESS_PER_LEVEL, scenarioTraitStreetTerms } from '@/lib/mindset/characterTraits';
 import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
@@ -20,9 +22,8 @@ import {
   nextRaisePremium,
   RAISE_MIN_PERFORMANCE,
 } from '@/lib/careers/raisePremium';
-import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
-import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
+import { jobApplicationOdds } from '@/lib/careers/applicationOdds';
 import { politicalPromotionBlocker } from '@/lib/careers/political';
 /**
  * Re-exported so existing importers of `RAISE_MIN_PERFORMANCE` keep working.
@@ -122,6 +123,181 @@ const TALENT_SUCCESS_BONUS_PCT = 5;
 const TALENT_PAY_BONUS_PCT = 0.10;
 /** A fully-invested tree pays 1.5x, not unbounded. */
 const TALENT_PAY_MULTIPLIER_MAX = 1.5;
+
+/**
+ * Street-job RANK pays. +5% per rank above 1, capped at rank 4 (+15%).
+ *
+ * Rank was cosmetic: every three successful runs bumped `rank`, the Work card
+ * advertised `basePayment × 1.3 × (1 + 0.3 × (rank − 1))` as the top of a
+ * 0.7x–1.3x range, and the payout never read rank at all - a rank-1 and a
+ * rank-5 job paid the same $94 while the cards said $52–$97 and $52–$214.
+ * The range itself was fiction too: the payout has no variance.
+ *
+ * The cap is sized against the career ladder: the best street week a brand-new
+ * character can buy with a week's energy (`incomeScale.test.ts`'s model) is
+ * ~$95, and the bottom career rung pays $110. At the cap that week is ~$109,
+ * still under the rung, so ranking up rewards sticking with street work
+ * without making it the better long-term play (`streetJobRankPay.test.ts`).
+ */
+export const STREET_RANK_PAY_STEP = 0.05;
+export const STREET_RANK_PAY_MAX_RANK = 4;
+
+export function streetJobRankMultiplier(rank: unknown): number {
+  const r = typeof rank === 'number' && Number.isFinite(rank) ? Math.floor(rank) : 1;
+  const counted = Math.max(1, Math.min(STREET_RANK_PAY_MAX_RANK, r));
+  return 1 + (counted - 1) * STREET_RANK_PAY_STEP;
+}
+
+/** Everything a street job will do to THIS player, from one snapshot. */
+export interface StreetJobTerms {
+  /** Cash credited when the job succeeds and the player is not caught. */
+  pay: number;
+  /** Success chance, percentage points (0-95). */
+  successChance: number;
+  /** Arrest chance, percentage points (0-80; always 0 for legal work). */
+  caughtChance: number;
+  /** Happiness the attempt costs (always <= 0). */
+  happinessCost: number;
+  /** Health the attempt costs (always <= 0). */
+  healthCost: number;
+  /** Successful runs that rank the job up. */
+  runsPerRank: number;
+  /** Failures in a row after which the next attempt is guaranteed to succeed. */
+  pityThreshold: number;
+  /** The pay multiplier this job's rank earns (1 at rank 1). */
+  rankMultiplier: number;
+  /** The Mindset's contribution, for the toast and the card. */
+  mindset: MindsetStreetTerms;
+}
+
+/**
+ * The ONE computation of a street job's pay, odds and toll.
+ *
+ * `performStreetJob` charges and credits from it and the Work card labels
+ * from it, so the card cannot advertise a number the job does not pay - which
+ * is what the card's `0.7x–1.3x × rank` range did, and what its separate
+ * arrest-risk and penalty copies (missing talents, karma, the wanted level and
+ * every Mindset) did too.
+ *
+ * Pure: reads `gameState`, writes nothing, draws nothing.
+ */
+export function getStreetJobTerms(gameState: GameState, job: StreetJob): StreetJobTerms {
+  const mindset = mindsetStreetTerms(activeMindsetIds(gameState), !!job.illegal);
+  const traitTerms = scenarioTraitStreetTerms(gameState.activeTraits);
+
+  // ── Odds ──
+  const baseSuccess = job.baseSuccessRate;
+  const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * CRIME_SKILL_SUCCESS_PER_LEVEL : 0;
+
+  /**
+   * R3-C2: the 15 crime talent-tree nodes finally do something.
+   *
+   * `unlockCrimeSkillUpgrade` charges `pointsCost * 100` dollars AND a
+   * permanently-limited skill point (`availablePoints = skillLevel - 1`, max 8
+   * across 5 nodes), then appends the node id to `crimeSkills[skill].upgrades`.
+   * Every read of that array in shipping code was display or point-budget:
+   * `SkillTalentTree`'s `spentPoints` and `isNodeUnlocked`, and the Work tab's
+   * counter. The job math used `level` alone, so a player could spend money and
+   * an unrecoverable point on a node promising "+50% stealth success rate" and
+   * receive nothing.
+   *
+   * The per-node `effect` strings ("+10%" … "+50%") are DISPLAY text and
+   * disagree with the tree's own rule - `TALENT_TREES[*].description` says
+   * "Each unlocked talent adds +5% success rate and +10% payment". The rule is
+   * what is implemented here: parsing the display strings would be fragile and
+   * would also stack to +150% on a single tree.
+   */
+  const unlockedTalents = job.skill
+    ? (gameState.crimeSkills?.[job.skill]?.upgrades || []).length
+    : 0;
+  const talentSuccessBonus = unlockedTalents * TALENT_SUCCESS_BONUS_PCT;
+  // Karma affects crime success for experienced criminals.
+  const karmaBonus = gameState.karma
+    ? Math.round(getKarmaModifiers(gameState.karma).crimeSuccessBonus * 100)
+    : 0;
+  const successChance = Math.max(
+    0,
+    Math.min(95, baseSuccess + skillBonus + talentSuccessBonus + karmaBonus + mindset.successBonus),
+  );
+
+  // Risk calculation - wanted level increases arrest chance
+  const wantedLevel = gameState.wantedLevel || 0;
+  const baseCaughtChance = job.illegal ? (100 - successChance) / 2 : 0;
+  // Shared with the UI (lib/crime/criminalRecord) so the Street Jobs screen can
+  // state this number instead of the player inferring it from arrest streaks.
+  const wantedBonus = wantedArrestBonus(wantedLevel, !!job.illegal);
+  // Cap at 80%. A Mindset's arrest MULTIPLIER applies after the cap, so "25%
+  // less arrest risk" is 25% less at every wanted level, not only below it.
+  const caughtChance = job.illegal
+    ? Math.max(0, Math.min(80, baseCaughtChance + wantedBonus + mindset.arrestBonus) * mindset.arrestMultiplier)
+    : 0;
+
+  // ── Pay ──
+  const basePay = job.basePayment;
+  const criminalLevel = typeof gameState.criminalLevel === 'number' && Number.isFinite(gameState.criminalLevel)
+    ? gameState.criminalLevel
+    : 1;
+  const levelBonus = Math.max(0, criminalLevel - 1) * 0.1;
+
+  // STABILITY FIX: modest income boost for unemployed players so street jobs
+  // remain viable as primary income (prevents a poverty trap). BALANCE: trimmed
+  // from 1.5× to 1.25× so that grinding street jobs while jobless is no longer
+  // strictly better than holding a career - the scaled-down career penalties
+  // (applyCareerSalaryAndPenalty) close the rest of the gap.
+  const hasCareerJob = !!gameState.currentJob && gameState.currentJob.length > 0;
+  const unemployedBonus = hasCareerJob ? 1.0 : 1.25;
+
+  // Transport multiplier: a rented scooter pays 0.7x, your own bike 1x, a moped
+  // 1.35x, a car 1.8x. That gradient is the progression - the rental unlocks
+  // the work, and every upgrade you buy out of it pays you more for the
+  // same run.
+  const transportTerms = getTransportTermsForJob(gameState, job, basePay);
+  const effectiveBasePay = transportTerms ? transportTerms.payment : basePay;
+
+  // R3-C2: +10% payment per unlocked talent, the other half of the tree's
+  // documented rule. Bounded so a fully-invested tree pays 1.5x, not unbounded.
+  const talentPayMultiplier = Math.min(
+    TALENT_PAY_MULTIPLIER_MAX,
+    1 + unlockedTalents * TALENT_PAY_BONUS_PCT,
+  );
+  // Crime Boss onboarding perk: "+10% earnings from street jobs" - paid HERE,
+  // at the source the card names. It used to sit in the weekly tick's global
+  // income product (boosting salary and dividends, and touching street pay
+  // not at all, since street jobs pay at action time and never enter that
+  // aggregate). SOURCE_SCOPED_PERK_IDS in applyIncome.ts excludes it there,
+  // so it cannot apply twice.
+  const crimeBossMult = gameState.perks?.crime_boss ? 1.1 : 1;
+  const rankMultiplier = streetJobRankMultiplier(job.rank);
+  const rawPay = effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier * crimeBossMult
+    * rankMultiplier * mindset.payMultiplier;
+  const pay = Number.isFinite(rawPay) && rawPay > 0 ? Math.round(rawPay) : 0;
+
+  // ── Toll ──
+  // Illegal jobs: -7 happiness, -3 health
+  // Dangerous jobs (jailWeeks >= 3 or wantedIncrease >= 3): -6 happiness, -4 health
+  // Regular street jobs: -5 happiness, -2 health
+  // then the Mindset and scenario traits. A cost can shrink to 0 but never turn
+  // into a gain.
+  const isDangerous = (job.jailWeeks && job.jailWeeks >= 3) || (job.wantedIncrease && job.wantedIncrease >= 3);
+  let happinessCost = job.illegal ? -7 : (isDangerous ? -6 : -5);
+  // Halved toward zero: "rounded in your favour" (-5 -> -2, -7 -> -3).
+  if (mindset.halveHappinessCost) happinessCost = Math.trunc(happinessCost / 2) || 0;
+  happinessCost = Math.min(0, happinessCost + mindset.happinessDelta + traitTerms.happinessRelief);
+  const baseHealthCost = job.illegal ? -3 : (isDangerous ? -4 : -2);
+  const healthCost = Math.min(0, baseHealthCost + mindset.healthDelta + traitTerms.healthRelief);
+
+  return {
+    pay,
+    successChance,
+    caughtChance,
+    happinessCost,
+    healthCost,
+    runsPerRank: mindset.runsPerRank,
+    pityThreshold: traitTerms.pityThreshold,
+    rankMultiplier,
+    mindset,
+  };
+}
 
 /**
  * C5: criminal + crime-skill XP for a completed street job, computed as a PURE delta so it
@@ -288,46 +464,18 @@ export const performStreetJob = (
     };
   }
 
-  // Calculate success chance (karma affects crime success for experienced criminals)
-  const baseSuccess = job.baseSuccessRate;
-  const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
-
-  /**
-   * R3-C2: the 15 crime talent-tree nodes finally do something.
-   *
-   * `unlockCrimeSkillUpgrade` charges `pointsCost * 100` dollars AND a
-   * permanently-limited skill point (`availablePoints = skillLevel - 1`, max 8
-   * across 5 nodes), then appends the node id to `crimeSkills[skill].upgrades`.
-   * Every read of that array in shipping code was display or point-budget:
-   * `SkillTalentTree`'s `spentPoints` and `isNodeUnlocked`, and the Work tab's
-   * counter. The job math used `level` alone, so a player could spend money and
-   * an unrecoverable point on a node promising "+50% stealth success rate" and
-   * receive nothing.
-   *
-   * The per-node `effect` strings ("+10%" … "+50%") are DISPLAY text and
-   * disagree with the tree's own rule - `TALENT_TREES[*].description` says
-   * "Each unlocked talent adds +5% success rate and +10% payment". The rule is
-   * what is implemented here: parsing the display strings would be fragile and
-   * would also stack to +150% on a single tree.
-   */
-  const unlockedTalents = job.skill
-    ? (gameState.crimeSkills?.[job.skill]?.upgrades || []).length
-    : 0;
-  const talentSuccessBonus = unlockedTalents * TALENT_SUCCESS_BONUS_PCT;
-  let karmaBonus = 0;
-  if (gameState.karma) {
-    const { getKarmaModifiers } = require('@/lib/karma/karmaSystem');
-    const modifiers = getKarmaModifiers(gameState.karma);
-    karmaBonus = Math.round(modifiers.crimeSuccessBonus * 100);
-  }
-  const successChance = Math.min(95, baseSuccess + skillBonus + talentSuccessBonus + karmaBonus);
+  // Pay, odds and toll come from ONE helper the Work card also labels from, so
+  // the card cannot advertise a number this does not pay. It folds in the
+  // job's rank, the crime talents, karma, the wanted level, the transport
+  // tier, the Crime Boss perk, the Mindset and the scenario traits.
+  const terms = getStreetJobTerms(gameState, job);
+  const successChance = terms.successChance;
   const attemptNumber = timesDoneThisWeek + 1;
   const rngCommitKeys: string[] = [];
-  // RANDOMNESS FIX: Pity system for street jobs - guaranteed success after 5 failures
+  // RANDOMNESS FIX: Pity system for street jobs - guaranteed success after 5
+  // failures (PITY_THRESHOLD_STREET_JOB; 3 with the Determined scenario trait).
   // Track consecutive failures per job (persists across weeks, resets on success)
-  // PRIORITY 2 FIX: Use constant from randomnessConstants
-  const { PITY_THRESHOLD_STREET_JOB } = require('@/lib/randomness/randomnessConstants');
-  const pityThreshold = PITY_THRESHOLD_STREET_JOB; // Guaranteed success after 5 failures
+  const pityThreshold = terms.pityThreshold;
   // P1-10 note: the failure count is read from the outer (snapshot) state and
   // can be momentarily stale during rapid same-batch taps - but the failure
   // counter itself is incremented inside `setGameState(prev => …)` below, so
@@ -372,48 +520,9 @@ export const performStreetJob = (
 
   // Calculate money - store original money BEFORE any changes
   const moneyBeforeJob = gameState.stats.money;
-  const basePay = job.basePayment;
-  const levelBonus = (gameState.criminalLevel - 1) * 0.1;
+  const moneyGained = success ? terms.pay : 0;
 
-  // STABILITY FIX: modest income boost for unemployed players so street jobs
-  // remain viable as primary income (prevents a poverty trap). BALANCE: trimmed
-  // from 1.5× to 1.25× so that grinding street jobs while jobless is no longer
-  // strictly better than holding a career - the scaled-down career penalties
-  // (applyCareerSalaryAndPenalty) close the rest of the gap.
-  const hasCareerJob = !!gameState.currentJob && gameState.currentJob.length > 0;
-  const unemployedBonus = hasCareerJob ? 1.0 : 1.25;
-
-  // Transport multiplier: a rented scooter pays 0.7x, your own bike 1x, a moped
-  // 1.35x, a car 1.8x. That gradient is the progression - the rental unlocks
-  // the work, and every upgrade you buy out of it pays you more for the
-  // same run.
-  const transportTerms = getTransportTermsForJob(gameState, job, basePay);
-  const effectiveBasePay = transportTerms ? transportTerms.payment : basePay;
-
-  // R3-C2: +10% payment per unlocked talent, the other half of the tree's
-  // documented rule. Bounded so a fully-invested tree pays 1.5x, not unbounded.
-  const talentPayMultiplier = Math.min(
-    TALENT_PAY_MULTIPLIER_MAX,
-    1 + unlockedTalents * TALENT_PAY_BONUS_PCT,
-  );
-  // Crime Boss onboarding perk: "+10% earnings from street jobs" - paid HERE,
-  // at the source the card names. It used to sit in the weekly tick's global
-  // income product (boosting salary and dividends, and touching street pay
-  // not at all, since street jobs pay at action time and never enter that
-  // aggregate). SOURCE_SCOPED_PERK_IDS in applyIncome.ts excludes it there,
-  // so it cannot apply twice.
-  const crimeBossMult = gameState.perks?.crime_boss ? 1.1 : 1;
-  const moneyGained = success
-    ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier * crimeBossMult)
-    : 0;
-
-  // Risk calculation - wanted level increases arrest chance
-  const wantedLevel = gameState.wantedLevel || 0;
-  const baseCaughtChance = job.illegal ? (100 - successChance) / 2 : 0;
-  // Shared with the UI (lib/crime/criminalRecord) so the Street Jobs screen can
-  // state this number instead of the player inferring it from arrest streaks.
-  const wantedBonus = wantedArrestBonus(wantedLevel, !!job.illegal);
-  const caughtChance = Math.min(80, baseCaughtChance + wantedBonus); // Cap at 80%
+  const caughtChance = terms.caughtChance;
   const caughtRollKey = `street_job_caught:${gameState.weeksLived || 0}:${jobId}:attempt:${attemptNumber}`;
   const caughtRoll = caughtChance > 0 ? getDeterministicRoll(gameState, caughtRollKey) : null;
   if (caughtChance > 0) {
@@ -430,13 +539,10 @@ export const performStreetJob = (
   // If caught, apply money changes in the correct order: first gain (if any), then loss
   const netMoneyChange = moneyGained - moneyLost;
 
-  // Calculate stat penalties based on job type
-  // Illegal jobs: -7 happiness, -3 health
-  // Dangerous jobs (jailWeeks >= 3 or wantedIncrease >= 3): -6 happiness, -4 health
-  // Regular street jobs: -5 happiness, -2 health
-  const isDangerous = (job.jailWeeks && job.jailWeeks >= 3) || (job.wantedIncrease && job.wantedIncrease >= 3);
-  const happinessPenalty = job.illegal ? -7 : (isDangerous ? -6 : -5);
-  const healthPenalty = job.illegal ? -3 : (isDangerous ? -4 : -2);
+  // Stat costs (never positive - see getStreetJobTerms).
+  const happinessPenalty = terms.happinessCost;
+  const healthPenalty = terms.healthCost;
+  const runsPerRank = terms.runsPerRank;
 
   // Debug logging
   log.info('Street job execution:', {
@@ -561,7 +667,7 @@ export const performStreetJob = (
       const currentJob = (gameState.streetJobs || []).find(j => j.id === jobId);
       if (currentJob) {
         const newProgress = currentJob.progress + 1;
-        const progressNeededForRankUp = 3; // Complete job 3 times to rank up
+        const progressNeededForRankUp = runsPerRank; // 3 successful runs (2 for Investor)
         rankIncreased = newProgress >= progressNeededForRankUp;
       }
     }
@@ -600,7 +706,7 @@ export const performStreetJob = (
         // Only increase progress on successful completion
         if (success) {
           const newProgress = j.progress + 1;
-          const progressNeededForRankUp = 3; // Complete job 3 times to rank up
+          const progressNeededForRankUp = runsPerRank; // 3 successful runs (2 for Investor)
 
           if (newProgress >= progressNeededForRankUp) {
             // Rank up and reset progress
@@ -712,9 +818,12 @@ export const performStreetJob = (
 
     if (success) {
       const rankUpText = rankIncreased ? ` Rank ${job.rank + 1}.` : '';
+      // Name the Mindset when it moved the pay ("Earned $63 (Frugal +10%).")
+      // - the figure already includes it; this says why.
+      const mindsetText = terms.mindset.payNote ? ` (${terms.mindset.payNote})` : '';
       message = job.illegal
-        ? `Crime paid off: +$${moneyGained}.${rankUpText}${penaltyText}`
-        : `Earned $${moneyGained}.${rankUpText}${penaltyText}`;
+        ? `Crime paid off: +$${moneyGained}${mindsetText}.${rankUpText}${penaltyText}`
+        : `Earned $${moneyGained}${mindsetText}.${rankUpText}${penaltyText}`;
     } else {
       message = job.illegal
         ? `Crime failed. Wanted level up.${penaltyText}`
@@ -894,68 +1003,18 @@ export const applyForJob = (
   // All requirements met - apply for the job
   const applicationAttempts = (career.applicationAttempts || 0) + 1;
 
-  // ANTI-EXPLOIT: Pity system - guaranteed acceptance after 5 attempts (was 3 - too generous)
-  // Prevents bypassing all skill requirements by just applying 3 times
-  const guaranteedAcceptance = applicationAttempts >= 5;
-
-  // Criminal record penalty: high wanted level or criminal level reduces hiring chance
-  // Represents employers doing background checks
-  const criminalLevel = gameState.criminalLevel || 0;
-  const wantedLevel = gameState.wantedLevel || 0;
-  // Same shared helper. This one is the least guessable of the record's
-  // effects - it makes LEGITIMATE career applications fail more often, with the
-  // cause sitting in a street-crime stat on a different screen.
-  const criminalPenalty = hiringPenalty(criminalLevel, wantedLevel);
-
-  // Base acceptance chance (50% for first attempt, increases with attempts)
-  const baseAcceptanceChance = 50;
-  // ANTI-EXPLOIT: the pity guarantee must NOT erase the criminal-background
-  // penalty. Previously `guaranteedAcceptance` forced 100% regardless of
-  // criminalLevel/wantedLevel, so a maxed-wanted player was auto-hired on the
-  // 5th attempt. When there's a criminal penalty, the pity branch still helps
-  // (caps the attempt at the best available chance) but employers can still
-  // reject - it's a roll capped at `100 - criminalPenalty`, never a guarantee.
-  const cleanGuarantee = guaranteedAcceptance && criminalPenalty <= 0;
-  // Life Skills: Networking (+5% job application success). Additive percentage
-  // points, folded in before the Math.min(90, …) ceiling so it stays bounded.
-  const networkingBonus = getLifeSkillModifiers(gameState).jobApplicationBonus;
-  /**
-   * R3-P7: GPA finally counts toward getting hired.
-   *
-   * `jobOfferMultiplier` returns 0.85x-1.30x and documents itself as the
-   * "hiring boost (better grades -> higher chance to land first job)". Its only
-   * non-test caller was `EducationApp`, which renders "Hiring boost x1.30 on job
-   * offers" on the hero card - while this roll, the one that decides, had no GPA
-   * term at all and no file under `lib/careers/**` even mentioned `gpa`. So exam
-   * grinding (energy, study actions, exam-failure risk) was advertised on the
-   * Education screen as worth up to +30% and delivered 0%. GPA did still work
-   * for scholarships, so this was specifically the hiring half.
-   *
-   * Applied to the BASE chance rather than the final total, so it scales the
-   * part grades plausibly influence and leaves the criminal penalty and the
-   * networking bonus intact. Still inside the existing 10-90 clamp, so a 4.0
-   * cannot buy a guarantee and a poor GPA cannot lock the player out.
-   */
-  /**
-   * R3-M9: the economy's `jobAvailability` finally reaches hiring.
-   *
-   * `economyEvents.modifiers.jobAvailability` (0.7 on a crash, 1.3 in a boom)
-   * was rendered in the weekly event modal as "Jobs: -20%" and read by nothing.
-   * A player told during a crash that jobs were scarce faced exactly the same
-   * acceptance odds as in a boom.
-   */
-  const jobAvailability = Number(gameState.economy?.economyEvents?.modifiers?.jobAvailability);
-  const safeJobAvailability =
-    Number.isFinite(jobAvailability) && jobAvailability > 0 ? jobAvailability : 1;
-
-  const gpaMultiplier = jobOfferMultiplier(highestGpa(gameState.educations || []));
-  const safeGpaMultiplier = Number.isFinite(gpaMultiplier) && gpaMultiplier > 0 ? gpaMultiplier : 1;
-  const gpaAdjustedBase = baseAcceptanceChance * safeGpaMultiplier * safeJobAvailability;
-  const acceptanceChance = cleanGuarantee
-    ? 100
-    : guaranteedAcceptance
-      ? Math.min(90, Math.max(10, 100 - criminalPenalty + networkingBonus))
-      : Math.min(90, Math.max(10, gpaAdjustedBase + (applicationAttempts - 1) * 8 - criminalPenalty + networkingBonus));
+  // The odds come from the ONE formula the weekly review also rolls
+  // (`jobApplicationOdds`, lib/careers/applicationOdds.ts): base chance (80 for
+  // the entry tier, 50 otherwise) x GPA x the economy's job availability, +8 a
+  // repeat attempt, minus the background check (`hiringPenalty`, levels above
+  // the clean baseline), plus Networking, clamped 10-90. From the 5th attempt
+  // the pity floor applies - a guarantee only with a clean record, otherwise a
+  // roll capped at 100 - penalty, so a maxed-wanted player is never auto-hired.
+  // It used to be computed inline here; two copies of one rule is how the
+  // review and this roll would drift.
+  const odds = jobApplicationOdds(gameState, applicationAttempts, careerId);
+  const cleanGuarantee = odds.guaranteed;
+  const acceptanceChance = odds.chancePct;
   const applicationRollKey = `job_application:${gameState.weeksLived || 0}:${careerId}:attempt:${applicationAttempts}`;
   const applicationRoll = cleanGuarantee ? null : getDeterministicRoll(gameState, applicationRollKey);
   const rngCommitKeys: string[] = cleanGuarantee ? [] : [applicationRollKey];

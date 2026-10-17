@@ -260,7 +260,7 @@ export function getTotalLuxuryMarketValue(
  * net worth must both use it. They used to disagree: `sellLuxuryItem` paid a
  * flat 60% of the CATALOG price while net worth counted the same item at
  * condition-adjusted `currentValue`, so selling a damaged or depreciated trophy
- * RAISED net worth - one tap, and prestige points with it (100 per $1M). The
+ * RAISED net worth - one tap, and prestige points with it (`netWorthPrestigePoints`). The
  * total above is now a reduce over this function, so the two definitions
  * physically cannot drift apart again. 2026-07-28 audit econ-1.
  */

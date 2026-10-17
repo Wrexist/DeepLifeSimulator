@@ -80,6 +80,13 @@ export function calcWeeklyExpenses(
      * economic callers are byte-identical to before.
      */
     includeArrears?: boolean;
+    /**
+     * Comes off the INCOME-TAX base only - company payroll, which the tick
+     * deducts (`companyPayrollTaxDeduction`) before computing the tax. It does
+     * not shrink the cash the arrears settlement may draw on, because the tick
+     * settles arrears out of gross income too.
+     */
+    taxDeduction?: number;
   },
 ): { total: number; breakdown: ExpenseBreakdown } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
@@ -213,10 +220,14 @@ export function calcWeeklyExpenses(
     // scaled by the same Tax Strategy life-skill multiplier. A projection, so
     // it moves with next week's income rather than reporting last week's bill.
     let incomeTaxCost = 0;
-    if (typeof taxableIncome === 'number' && isFinite(taxableIncome) && taxableIncome > 0) {
+    const taxDeduction =
+      typeof opts?.taxDeduction === 'number' && isFinite(opts.taxDeduction) && opts.taxDeduction > 0
+        ? opts.taxDeduction
+        : 0;
+    if (typeof taxableIncome === 'number' && isFinite(taxableIncome) && taxableIncome - taxDeduction > 0) {
       const taxMult = getLifeSkillModifiers(state)?.taxMult;
       const mult = typeof taxMult === 'number' && isFinite(taxMult) && taxMult >= 0 ? taxMult : 1;
-      const owed = Math.round(calculateIncomeTax(taxableIncome) * mult);
+      const owed = Math.round(calculateIncomeTax(taxableIncome - taxDeduction) * mult);
       if (isFinite(owed) && owed > 0) incomeTaxCost = owed;
     }
 

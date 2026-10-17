@@ -10,6 +10,7 @@ import { View,
   ScrollView } from 'react-native';
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
+import { traitPanelEntries } from '@/lib/mindset/characterTraits';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import { scale, fontScale } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
@@ -19,7 +20,9 @@ import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
-import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive } from '@/lib/economy/passiveIncome';
+import { companyPayrollTaxDeduction } from '@/lib/business/hustleTick';
+import { applyContentMemberships, membershipSoftCapEfficiency } from '@/contexts/game/actions/weekly/applyContentMemberships';
 import { householdPartnerIncome, computeWeeklyIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { getRetirementIncomeWeekly } from '@/lib/retirement/pension';
@@ -154,6 +157,8 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
       equippedCosmetics: s?.equippedCosmetics,
       loginStreak: s?.loginStreak,
       mindset: s?.mindset,
+      // The Traits panel lists the scenario traits THIS life holds.
+      activeTraits: s?.activeTraits,
       previousLives: s?.previousLives,
       prestige: s?.prestige,
       // Needed by calcWeeklyPassiveIncome (read via gameState below):
@@ -303,7 +308,18 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
   const luxuryYield = getTotalLuxuryYield(
     Array.isArray(gameState.luxuryItems) ? gameState.luxuryItems : [],
   );
-  const passive = Math.max(0, passiveInfo.total - officePay) + luxuryYield;
+  // Channel memberships (YouVideo + Streamly) are credited in the tick's taxed
+  // cash line, so they belong in the projection and its tax base. The same pure
+  // call the tick makes for next week; 0 once this week's payout is stamped.
+  const membershipIncome = useMemo(
+    () => applyContentMemberships({
+      gamingStreaming: gameState.gamingStreaming,
+      currentWeek: (gameState.weeksLived || 0) + 1,
+      softCapEfficiency: membershipSoftCapEfficiency(gameState),
+    }).cashDelta,
+    [gameState],
+  );
+  const passive = Math.max(0, passiveInfo.total - officePay) + luxuryYield + membershipIncome;
 
   // Partner / spouse weekly income (counts even after marriage) - 25% of the
   // HIGHEST-earning qualifying partner. Reads the SAME `householdPartnerIncome`
@@ -348,8 +364,20 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
       unlockedBonuses: gameState.prestige?.unlockedBonuses || [],
       economyIncomeMultiplier: gameState.economy?.economyEvents?.modifiers?.incomeMultiplier,
     }).totalIncome;
-    return projected + luxuryYield;
-  }, [gameState, jobPay, passiveInfo, luxuryYield, retirementIncome]);
+    return projected + luxuryYield + membershipIncome;
+  }, [gameState, jobPay, passiveInfo, luxuryYield, retirementIncome, membershipIncome]);
+
+  // Company payroll comes off the income-tax base, up to the company income
+  // the week pays (0 while jailed) - the tick's `companyPayrollTaxDeduction`.
+  // Without it this card billed a staffed company owner tax on wages the tick
+  // does not tax.
+  const payrollTaxDeduction = useMemo(() => {
+    if ((gameState.jailWeeks ?? 0) > 0) return 0;
+    // The same ceiling the tick uses: the company slice of the SOFT-CAPPED
+    // passive total, real estate excluded as the tick excludes it.
+    const companyIncome = companyIncomeShareOfPassive(calcWeeklyPassiveIncome(gameState, { excludeRealEstate: true }));
+    return companyPayrollTaxDeduction(gameState, companyIncome);
+  }, [gameState]);
 
   // MP08: warehouse mining power is deducted from mined crypto by the tick
   // (`applyMiningCryptos`), so it never leaves `stats.money`. It is an economic
@@ -364,8 +392,9 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
       calcWeeklyExpenses(gameState, projectedIncome, {
         excludeMiningPower: true,
         includeArrears: true,
+        taxDeduction: payrollTaxDeduction,
       }),
-    [gameState, projectedIncome]
+    [gameState, projectedIncome, payrollTaxDeduction]
   );
 
   const expenses = expenseInfo.total;
@@ -392,67 +421,25 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
 
   const activePerks = useMemo(() => allPerks.filter(p => perks?.[p.id as keyof typeof perks]), [perks]);
   
-  const derivedTraits = useMemo(() => {
-    const dt: string[] = [];
-    // Optional-chain stats: it comes from a nullable selector and is guarded as
-    // `stats?.health` elsewhere in this file. IdentityCard renders unconditionally
-    // on the home tab, so a degraded/migrating save with missing stats would
-    // otherwise white-screen the whole dashboard.
-    const happiness = stats?.happiness ?? 0;
-    const health = stats?.health ?? 0;
-    const energy = stats?.energy ?? 0;
-    if (happiness >= 70) dt.push('happy');
-    else if (happiness <= 30) dt.push('sad');
-    if (health >= 70) dt.push('healthy');
-    else if (health <= 30) dt.push('sick');
-    if (energy >= 70) dt.push('energetic');
-    else if (energy <= 30) dt.push('tired');
-    return dt;
-  }, [stats?.happiness, stats?.health, stats?.energy]);
-
-  const traits = useMemo(() => [...(scenario?.start.traits || []), ...derivedTraits], [scenario, derivedTraits]);
-
-  // Function to get trait bonuses
-  const getTraitBonuses = (trait: string) => {
-    const traitBonuses: Record<string, string[]> = {
-      'happy': ['+10% salary bonus', '+5 energy per week', '+2 reputation gain'],
-      'sad': ['-5% salary penalty', '-3 energy per week', '-1 reputation loss'],
-      'healthy': ['+15% salary bonus', '+8 energy per week', '+3 reputation gain', 'Immunity to sickness'],
-      'sick': ['-10% salary penalty', '-8 energy per week', '-2 reputation loss', 'Higher sickness risk'],
-      'energetic': ['+20% energy efficiency', '+5% faster promotions', '+1 bonus action per week'],
-      'tired': ['-15% energy efficiency', '-3% slower promotions', '-1 action penalty per week'],
-      'fit': ['+10 fitness starting bonus', '+5% faster fitness gains', '+2 health per week'],
-      'tough': ['+15 health starting bonus', '+10% reduced damage from dangerous activities', '+5% better street job success rate'],
-      'smart': ['+25% faster education progress', '+10% higher starting salary', '+3 reputation gain'],
-      'charismatic': ['+15% relationship success rate', '+10% faster career advancement', '+5 reputation gain'],
-      'lucky': ['+20% chance for positive events', '+10% bonus income from random events', '+5% better deals'],
-      'ambitious': ['+15% faster career progression', '+10% higher salary negotiations', '+2 bonus energy for work'],
-      'creative': ['+20% faster skill learning', '+15% bonus from creative activities', '+3 happiness gain'],
-      'analytical': ['+25% better investment returns', '+10% faster problem-solving', '+2 bonus energy for education'],
-      'social': ['+20% faster relationship building', '+15% bonus from social activities', '+5 reputation gain'],
-      'introverted': ['+10% energy efficiency when alone', '+5% bonus from solo activities', '-5% social penalty'],
-      'extroverted': ['+15% bonus from group activities', '+10% faster team projects', '+3 energy from socializing'],
-      'risk_taker': ['+20% higher rewards from risky activities', '+15% chance for big wins', '-10% penalty for failures'],
-      'conservative': ['+15% reduced risk penalties', '+10% safer investment returns', '+5% energy savings'],
-      'optimistic': ['+10% happiness gain', '+5% faster recovery from setbacks', '+2 bonus energy'],
-      'pessimistic': ['+10% preparation for failures', '+5% reduced surprise penalties', '-3 happiness penalty'],
-      'patient': ['+20% bonus from long-term activities', '+10% better compound effects', '+5 energy efficiency'],
-      'impatient': ['+15% faster short-term gains', '+10% immediate rewards', '-5% penalty for waiting'],
-      'generous': ['+15% reputation gain', '+10% relationship bonuses', '+5% karma rewards'],
-      'selfish': ['+10% personal gain bonus', '+5% resource efficiency', '-5% reputation penalty'],
-      'honest': ['+20% reputation gain', '+15% trust bonuses', '+10% long-term relationship benefits'],
-      'deceptive': ['+15% short-term gains', '+10% immediate advantages', '-10% long-term penalties'],
-      'organized': ['+15% efficiency bonus', '+10% energy savings', '+5% better planning results'],
-      'disorganized': ['+10% creative bonuses', '+5% spontaneous rewards', '-5% efficiency penalty'],
-      'confident': ['+15% success rate bonus', '+10% faster advancement', '+3 energy gain'],
-      'anxious': ['+10% preparation bonus', '+5% risk awareness', '-8% energy penalty'],
-      'brave': ['+20% bonus from dangerous activities', '+15% courage rewards', '+5% respect gain'],
-      'cautious': ['+15% safety bonuses', '+10% reduced penalties', '+5% energy savings'],
-      'leader': ['+20% team bonuses', '+15% management rewards', '+10% respect gain'],
-      'follower': ['+15% team efficiency', '+10% support bonuses', '+5% energy savings'],
-    };
-    return traitBonuses[trait] || ['No specific bonuses defined'];
-  };
+  /**
+   * The Traits panel. Every line is DERIVED from what the game does, through
+   * `lib/mindset/characterTraits.ts`.
+   *
+   * It used to be a hand-written table of bonuses nothing applied: "healthy"
+   * promised "+15% salary bonus, +8 energy per week, Immunity to sickness"
+   * (payroll has no stat term, there is no weekly energy grant, and illness
+   * rolls at any health), and the scenario traits it listed - read from
+   * `scenario.start.traits`, so an heir inherited the founder's - were written
+   * to `activeTraits` and read by nothing. Stat traits now describe job
+   * performance, illness risk and recovery, the happiness curve and the
+   * zero-stat rule as the tick applies them; scenario traits describe the real
+   * start and street-job effects they now have, and only for the life that
+   * holds them.
+   */
+  const traitEntries = useMemo(
+    () => traitPanelEntries({ activeTraits: gameState.activeTraits, stats }),
+    [gameState.activeTraits, stats],
+  );
 
   const weeklyModifiers = useMemo(() => {
     const modifiers: { label: string; changes: Record<string, number> }[] = [];
@@ -514,7 +501,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
   // interruptive week-advance popups (sickness modal + zero-stat warning):
   // every active problem is listed here alongside how to fix it.
   const perksCount = activePerks.length;
-  const traitsCount = traits.length;
+  const traitsCount = traitEntries.length;
 
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -935,6 +922,14 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
               <Gamepad2 size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
+              </Text>
+            </View>
+          )}
+          {membershipIncome > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Gamepad2 size={14} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Channel memberships: {formatMoney(membershipIncome)}
               </Text>
             </View>
           )}
@@ -1447,29 +1442,24 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
         darkMode={isDarkMode}
         t={t}
       >
-        {traits.length > 0 ? (
+        {traitEntries.length > 0 ? (
           <View style={styles.modalSection}>
             <Text style={[styles.modalSectionTitle, isDarkMode && styles.modalSectionTitleDark]}>
-              Character Traits ({traits.length})
+              Character Traits ({traitEntries.length})
             </Text>
-            {traits.map(t => (
-              <View key={t} style={[styles.traitContainer, isDarkMode && styles.traitContainerDark]}>
+            {traitEntries.map(entry => (
+              <View key={entry.id} style={[styles.traitContainer, isDarkMode && styles.traitContainerDark]}>
                 <View style={styles.traitHeader}>
                   <Heart size={scale(18)} color="#EF4444" />
                   <Text style={[styles.traitName, isDarkMode && styles.traitNameDark]}>
-                    {capitalize(t)}
+                    {entry.name}
                   </Text>
                 </View>
                 <View style={styles.traitBonuses}>
-                  {getTraitBonuses(t).map((bonus, index) => (
+                  {entry.lines.map((line, index) => (
                     <View key={index} style={styles.bonusItem}>
-                      <Text style={[
-                        styles.bonusText, 
-                        isDarkMode && styles.bonusTextDark,
-                        bonus.startsWith('+') && styles.positiveBonus,
-                        bonus.startsWith('-') && styles.negativeBonus
-                      ]}>
-                        {bonus}
+                      <Text style={[styles.bonusText, isDarkMode && styles.bonusTextDark]}>
+                        {line}
                       </Text>
                     </View>
                   ))}
@@ -1533,7 +1523,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
             </Text>
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                No mindset trait is currently active. You can select one during character creation or when continuing your legacy.
+                No mindset is active. You can pick one on the Perks step when you start a new life; an heir keeps their parent's mindset.
               </Text>
             </View>
           </View>

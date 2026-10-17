@@ -10,6 +10,7 @@ import { mintId } from '@/utils/uniqueId';
 import type { MindsetId } from '@/lib/mindset/config';
 import { perks as perksCatalog } from './perksData';
 import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
+import { scenarioStartEffects } from '@/lib/mindset/characterTraits';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -122,8 +123,13 @@ function clampBoundedStat(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-/** Create a random child for the single-parent scenario. */
-export function buildChildForSingleParent(childAge: number): any {
+/**
+ * Create a random child for the single-parent scenario.
+ *
+ * `bondBonus` is the Caring scenario trait's head start on the child's bond
+ * (`SCENARIO_TRAIT_EFFECTS`), added to `NEWBORN_BOND` and capped at 100.
+ */
+export function buildChildForSingleParent(childAge: number, bondBonus = 0): any {
   const childNames = ['Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Avery', 'Quinn', 'Sage', 'River'];
   const childGenders: ('male' | 'female')[] = ['male', 'female'];
   const personalities = ['Playful', 'Curious', 'Energetic', 'Sweet', 'Adventurous'];
@@ -133,7 +139,7 @@ export function buildChildForSingleParent(childAge: number): any {
     name: childNames[Math.floor(Math.random() * childNames.length)],
     type: 'child' as const,
     // R3-F5: headroom, so parenting actions are not clamped away on arrival.
-    relationshipScore: NEWBORN_BOND,
+    relationshipScore: Math.min(100, NEWBORN_BOND + Math.max(0, bondBonus)),
     personality: personalities[Math.floor(Math.random() * personalities.length)],
     gender: childGenders[Math.floor(Math.random() * childGenders.length)],
     age: childAge,
@@ -195,10 +201,19 @@ export function buildNewGameState(params: BuildGameStateParams): any {
   const mappedItemIds = mapScenarioItemIds(scenarioItems);
   const weeksLived = computeWeeksLived(scenario.start.age);
 
+  // Scenario traits (fit, smart, criminal_record, caring, ...) used to be
+  // written to `activeTraits` and read by nothing, while the Home Traits panel
+  // described bonuses for them. Their START effects are applied here, through
+  // fields the game already reads (fitness, the criminal record, a crime skill,
+  // the child's bond); their ongoing street-job effects are read from
+  // `activeTraits` by getStreetJobTerms. One table: SCENARIO_TRAIT_EFFECTS.
+  const traitStart = scenarioStartEffects(scenario.start.traits);
+
   // Build family + relationships (handles single-parent and noChildren scenarios)
   const { family, relationships } = buildFamilyAndRelationships(
     initialGameState,
-    scenario.start
+    scenario.start,
+    traitStart.childBond,
   );
 
   // Aggregate every selected perk's statBoosts from the catalog. Previously
@@ -226,8 +241,25 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       energy: clampBoundedStat(baseStats.energy + (perkStatBoosts.energy || 0)),
       health: clampBoundedStat(baseStats.health + (perkStatBoosts.health || 0)),
       happiness: clampBoundedStat(baseStats.happiness + (perkStatBoosts.happiness || 0)),
-      fitness: clampBoundedStat(baseStats.fitness + (perkStatBoosts.fitness || 0)),
+      fitness: clampBoundedStat(baseStats.fitness + (perkStatBoosts.fitness || 0) + traitStart.fitness),
     },
+    // Criminal Record: the record system (hiring penalty, crime-job gates)
+    // reads `criminalLevel`, so the record is a starting level, never lower
+    // than the template's.
+    ...(traitStart.criminalLevel !== null
+      ? { criminalLevel: Math.max(initialGameState.criminalLevel ?? 1, traitStart.criminalLevel) }
+      : {}),
+    // Smart: a head start in a crime skill (its job odds and talent points).
+    ...(Object.keys(traitStart.crimeSkillLevels).length > 0
+      ? {
+          crimeSkills: Object.fromEntries(
+            Object.entries(initialGameState.crimeSkills ?? {}).map(([id, skill]: [string, any]) => {
+              const level = (traitStart.crimeSkillLevels as Record<string, number | undefined>)[id];
+              return [id, typeof level === 'number' ? { ...skill, level: Math.max(skill?.level ?? 1, level) } : skill];
+            }),
+          ),
+        }
+      : {}),
     weeksLived,
     // The baseline for "weeks into THIS life" (v43). Stamped here because this
     // is the one place that knows the life is starting; deriving it later is
@@ -346,7 +378,8 @@ export function buildNewGameState(params: BuildGameStateParams): any {
 
 function buildFamilyAndRelationships(
   initialGameState: any,
-  scenarioStart: ScenarioStart
+  scenarioStart: ScenarioStart,
+  childBondBonus = 0,
 ): { family: any; relationships: any[] } {
   const baseFamily = { ...initialGameState.family };
   const baseRelationships = [...(initialGameState.relationships || [])];
@@ -359,7 +392,7 @@ function buildFamilyAndRelationships(
   }
 
   if (scenarioStart.hasChild) {
-    const child = buildChildForSingleParent(scenarioStart.childAge || 3);
+    const child = buildChildForSingleParent(scenarioStart.childAge || 3, childBondBonus);
     return {
       family: { ...baseFamily, children: [child] },
       relationships: [...baseRelationships, child],

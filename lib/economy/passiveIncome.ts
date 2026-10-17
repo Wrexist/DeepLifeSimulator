@@ -75,6 +75,27 @@ export interface PassiveIncomeResult {
 }
 
 /**
+ * The company stream's slice of a passive-income result AFTER the soft cap and
+ * skill bonus scaled the total - i.e. the company income the week actually
+ * credits. Pass the result of `calcWeeklyPassiveIncome(state, { excludeRealEstate: true })`,
+ * which is what the tick uses (real estate is paid by the tenancy tick).
+ *
+ * One function because two readers need the same number: the tick removes it
+ * while the owner is jailed and caps the payroll tax deduction at it, and the
+ * Cash Flow card projects that deduction. Computed apart, the card capped at
+ * the PRE-soft-cap company income and under-projected the tax a wealthy staffed
+ * owner pays.
+ */
+export function companyIncomeShareOfPassive(result: Pick<PassiveIncomeResult, 'total' | 'breakdown'>): number {
+  const pb = result.breakdown;
+  const activePassiveSum = pb.stocks + pb.socialMedia + pb.patents + pb.businessOpportunities
+    + pb.political + pb.cryptoMining + pb.companies + pb.gamingStreaming;
+  if (!(activePassiveSum > 0)) return 0;
+  const share = Math.round(pb.companies * ((result.total || 0) / activePassiveSum));
+  return Number.isFinite(share) && share > 0 ? share : 0;
+}
+
+/**
  * Per-company weekly-income ceiling (PLAYER REPORT BBQ, 2026-08-21 — see the
  * call site in `calcWeeklyPassiveIncome` for the full story). The old GLOBAL
  * $200k/week pool across ALL companies became a per-company ceiling that grows

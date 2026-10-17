@@ -32,7 +32,11 @@ function base() { return createTestGameState({ weeksLived: 104, lifeStartWeek: 1
 
 it('a two-week offer records the retained role, then its first paycheck exactly once', async () => {
   const initial = base();
-  initial.careers = initial.careers.map(c => c.id === 'fast_food' ? { ...c, level: 2, applied: true, accepted: false, applicationWeeksPending: 0, startedWeeksLived: 12 } : c);
+  // A guaranteed application (5th attempt, no background-check penalty), so the
+  // first-week hiring review (`reviewJobApplication`) cannot turn it down: this
+  // test is about the offer -> start -> first paycheck bookkeeping.
+  initial.criminalLevel = 0;
+  initial.careers = initial.careers.map(c => c.id === 'fast_food' ? { ...c, level: 2, applied: true, accepted: false, applicationWeeksPending: 0, applicationAttempts: 5, startedWeeksLived: 12 } : c);
   mount(initial);
   const worked = state.lifetimeStatistics!.totalWeeksWorked;
   await tick();
@@ -66,6 +70,10 @@ it('immediate hire, promotion, quit, reapply and retirement preserve salary owne
   expect(state.lifetimeStatistics!.careerHistory.at(-1)?.endWeek).toBe(state.weeksLived);
   act(() => { jobs.applyForJob('fast_food'); });
   expect(state.currentJob).toBe('fast_food');
+  // A re-hire comes back at the level it left (progress was zeroed on the way
+  // out); the early-career boost is what it does NOT get back - see
+  // __tests__/careers/rehireEarlyBoost.test.ts.
+  expect(state.careers.find(c => c.id === 'fast_food')).toMatchObject({ level: 1, progress: 0 });
   expect(state.lifetimeStatistics!.careerHistory).toHaveLength(2);
   act(() => setState(prev => ({ ...prev, weeksLived: (66 - 18) * 52, date: { ...prev.date, age: 66 } })));
   act(() => setState(prev => retirePlayer(prev).state));

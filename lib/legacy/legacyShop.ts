@@ -27,6 +27,9 @@
  * position bounded no matter how long the parent lived.
  */
 
+import type { Education, GameState } from '@/contexts/game/types';
+import { EDUCATION_PROGRAMS } from '@/lib/education/programs';
+
 /**
  * ── The Dynasty Tree (2026-08-05) ─────────────────────────────────────────
  *
@@ -53,7 +56,33 @@
  * head start against a week-500 net worth of $20–30M). Depth goes where it can
  * actually be felt.
  */
+
+/**
+ * ── 2026-10-17: the heir finally receives the tree ────────────────────────
+ *
+ * Until this date NOTHING bought here except the two timed buffs reached an
+ * heir. `createChildGameState` applied the bonuses onto the fresh
+ * `initialGameState` clone and then, further down, overwrote `stats.money`
+ * with the inheritance and spread the heir's rolled stats over health,
+ * happiness, fitness and reputation — so a measured heir holding all 19
+ * upgrades (including "$100,000,000" and +75 reputation) started identical to
+ * one holding none. The whole application now lives in
+ * `applyHeirStartingBonuses` below, called ONCE, after the inheritance merge.
+ *
+ * The Craft branch's three "intelligence" nodes were dead on top of that:
+ * `GameStats` has no intelligence stat, so the write landed on nothing even
+ * when the rest worked. They now grant completed education programmes — the
+ * one thing "what the family knows" can buy that money cannot, because a
+ * degree costs WEEKS, and `educations` is what every career gate reads.
+ */
 export type LegacyBranch = 'wealth' | 'blood' | 'name' | 'craft';
+
+/**
+ * The `GameStats` keys a stat node may target. Deliberately a subset of the
+ * real stat names: the old union included `'intelligence'`, which `GameStats`
+ * has never had, and that is how three nodes shipped granting nothing.
+ */
+export type HeirStat = 'health' | 'happiness' | 'fitness';
 
 export const LEGACY_BRANCHES: { id: LegacyBranch; name: string; blurb: string }[] = [
   { id: 'wealth', name: 'Wealth', blurb: 'What the family owns.' },
@@ -74,11 +103,21 @@ export interface LegacyUpgrade {
    * a DAG would need cycle detection and buys nothing the player can feel.
    */
   requires?: string;
-  /** Applied to the heir's starting state at `createChildGameState`. */
+  /**
+   * Applied to the heir's starting state by `applyHeirStartingBonuses`, which
+   * `createChildGameState` calls after the inheritance is merged in.
+   */
   effect:
     | { kind: 'money'; amount: number }
-    | { kind: 'stat'; stat: 'health' | 'happiness' | 'intelligence' | 'fitness'; amount: number }
+    | { kind: 'stat'; stat: HeirStat; amount: number }
     | { kind: 'reputation'; amount: number }
+    /**
+     * A programme from `EDUCATION_PROGRAMS`, granted already COMPLETED. Real
+     * state (`educations`), read by every career requirement, the life-skill
+     * point count and the education goals — not a number on a stat that does
+     * not exist.
+     */
+    | { kind: 'education'; programId: string }
     /**
      * A timed buff stamped onto the heir's `legacyBuffs` at birth, expiring
      * `weeks` after their life starts. This is the WRITER the buff system was
@@ -216,31 +255,35 @@ export const LEGACY_UPGRADES: LegacyUpgrade[] = [
   },
 
   // ── Craft ───────────────────────────────────────────────────────────────
+  // The degree ladder (foundation -> undergrad -> graduate). These were
+  // "+N intelligence" until 2026-10-17 and granted nothing: see the header.
+  // Ids are unchanged, so a save that bought them keeps its purchase and the
+  // next heir receives the new effect.
   {
     id: 'legacy_education',
     name: 'A Good Upbringing',
-    description: 'Your heir starts with +15 intelligence.',
+    description: 'Your heir starts with a High School Diploma already completed.',
     cost: 40,
     branch: 'craft',
-    effect: { kind: 'stat', stat: 'intelligence', amount: 15 },
+    effect: { kind: 'education', programId: 'high_school' },
   },
   {
     id: 'legacy_tutors',
     name: 'Private Tutors',
-    description: 'Your heir starts with a further +20 intelligence.',
+    description: 'Your heir starts with a Business Degree already completed.',
     cost: 200,
     branch: 'craft',
     requires: 'legacy_education',
-    effect: { kind: 'stat', stat: 'intelligence', amount: 20 },
+    effect: { kind: 'education', programId: 'business_degree' },
   },
   {
     id: 'legacy_family_library',
     name: 'The Family Library',
-    description: 'Three generations of books. Your heir starts with a further +25 intelligence.',
+    description: "Three generations of books. Your heir starts with a Master's Degree already completed.",
     cost: 650,
     branch: 'craft',
     requires: 'legacy_tutors',
-    effect: { kind: 'stat', stat: 'intelligence', amount: 25 },
+    effect: { kind: 'education', programId: 'masters_degree' },
   },
   {
     id: 'legacy_mentor',
@@ -383,23 +426,137 @@ export function purchaseLegacyUpgrade(
 export interface HeirStartingBonuses {
   money: number;
   reputation: number;
-  stats: Partial<Record<'health' | 'happiness' | 'intelligence' | 'fitness', number>>;
+  stats: Partial<Record<HeirStat, number>>;
   /** Timed buffs, as duration in weeks from the heir's life start. */
   buffs: Partial<Record<'mentor' | 'luckyCharm', number>>;
+  /** `EDUCATION_PROGRAMS` ids the heir starts with already completed. */
+  educations: string[];
 }
 
-export function heirStartingBonuses(owned: readonly string[] | undefined): HeirStartingBonuses {
-  const out: HeirStartingBonuses = { money: 0, reputation: 0, stats: {}, buffs: {} };
+/**
+ * Sum what an owned list grants. Each id counts ONCE however often it appears,
+ * and anything that is not a known id (a stale id, `null`, a number, an object
+ * from a hand-edited save) is skipped rather than trusted — this feeds money.
+ */
+export function heirStartingBonuses(owned: readonly unknown[] | undefined | null): HeirStartingBonuses {
+  const out: HeirStartingBonuses = { money: 0, reputation: 0, stats: {}, buffs: {}, educations: [] };
   if (!Array.isArray(owned)) return out;
 
   for (const id of new Set(owned)) {
+    if (typeof id !== 'string') continue;
     const upgrade = getLegacyUpgrade(id);
     if (!upgrade) continue;
     const e = upgrade.effect;
     if (e.kind === 'money') out.money += e.amount;
     else if (e.kind === 'reputation') out.reputation += e.amount;
     else if (e.kind === 'buff') out.buffs[e.buff] = Math.max(out.buffs[e.buff] ?? 0, e.weeks);
-    else out.stats[e.stat] = (out.stats[e.stat] ?? 0) + e.amount;
+    else if (e.kind === 'education') {
+      if (!out.educations.includes(e.programId)) out.educations.push(e.programId);
+    } else out.stats[e.stat] = (out.stats[e.stat] ?? 0) + e.amount;
   }
   return out;
+}
+
+const finiteOr = (n: unknown, fallback: number): number =>
+  typeof n === 'number' && Number.isFinite(n) ? n : fallback;
+
+/** Stats and reputation live on 0-100; the bought bonus never lifts past it. */
+const clampStat = (n: number): number => Math.max(0, Math.min(100, n));
+
+/**
+ * The bought education as a COMPLETED record, shaped the way
+ * `completeAllPrograms` (lib/education/operations.ts) builds one, so the
+ * Education app and every `e.completed` reader treat it like a finished
+ * enrolment.
+ */
+function completedProgramme(programId: string): Education | undefined {
+  const program = EDUCATION_PROGRAMS.find((p) => p.id === programId);
+  if (!program) return undefined;
+  return {
+    id: program.id,
+    name: program.name,
+    description: program.description,
+    cost: program.cost,
+    duration: program.duration,
+    completed: true,
+    weeksRemaining: undefined,
+    paused: false,
+    enrolledClasses: [],
+    examsPassed: 0,
+    examsFailed: 0,
+    gpa: 3.0,
+    studyGroupActive: false,
+    semesterNumber: 1,
+  };
+}
+
+/**
+ * Apply the owned Dynasty Tree upgrades to a freshly built HEIR.
+ *
+ * Pure: returns a new state and never mutates `state`. The caller
+ * (`createChildGameState`) runs it exactly ONCE, after the heir's inheritance
+ * and rolled stats are merged in — the 2026-10-17 defect was applying it
+ * BEFORE that merge, which overwrote every money, stat and reputation bonus.
+ * Because the heir is rebuilt from the ended life on every call, running the
+ * whole heir builder twice (a double-invoked React updater) produces the same
+ * heir rather than paying twice.
+ *
+ *   - money: ADDED to whatever cash the heir already holds (the inheritance).
+ *   - reputation / health / happiness / fitness: added, clamped to 0-100.
+ *   - education: the programme is completed — an existing record with the same
+ *     id is marked completed rather than duplicated.
+ *   - buffs: stamped to expire `weeks` after the heir's `weeksLived`, so the
+ *     caller must have seeded `weeksLived` from the heir's age first (§4.2).
+ *
+ * A corrupt number on the heir (NaN, Infinity, missing) is read as 0 for the
+ * addition, so a bought bonus can only ever produce a finite value.
+ */
+export function applyHeirStartingBonuses(
+  state: GameState,
+  owned: readonly unknown[] | undefined | null,
+): GameState {
+  const bonuses = heirStartingBonuses(owned);
+  const stats = { ...state.stats };
+
+  if (bonuses.money > 0) {
+    stats.money = finiteOr(stats.money, 0) + bonuses.money;
+  }
+  if (bonuses.reputation > 0) {
+    stats.reputation = clampStat(finiteOr(stats.reputation, 0) + bonuses.reputation);
+  }
+  for (const stat of Object.keys(bonuses.stats) as HeirStat[]) {
+    const amount = bonuses.stats[stat] ?? 0;
+    if (amount > 0) stats[stat] = clampStat(finiteOr(stats[stat], 0) + amount);
+  }
+
+  const next: GameState = { ...state, stats };
+
+  if (bonuses.educations.length > 0) {
+    const educations: Education[] = (Array.isArray(state.educations) ? state.educations : [])
+      .filter((e): e is Education => !!e && typeof e === 'object' && typeof e.id === 'string');
+    for (const programId of bonuses.educations) {
+      const at = educations.findIndex((e) => e.id === programId);
+      if (at >= 0) {
+        educations[at] = { ...educations[at], completed: true, weeksRemaining: undefined, paused: false };
+        continue;
+      }
+      const record = completedProgramme(programId);
+      if (record) educations.push(record);
+    }
+    next.educations = educations;
+  }
+
+  const buffEntries = Object.entries(bonuses.buffs) as ['mentor' | 'luckyCharm', number][];
+  if (buffEntries.length > 0) {
+    const start = Math.max(0, finiteOr(state.weeksLived, 0));
+    const legacyBuffs = { ...(state.legacyBuffs || {}) };
+    for (const [buff, weeks] of buffEntries) {
+      if (!(weeks > 0)) continue;
+      const existing = finiteOr(legacyBuffs[buff]?.expiresWeeksLived, 0);
+      legacyBuffs[buff] = { expiresWeeksLived: Math.max(existing, start + weeks) };
+    }
+    next.legacyBuffs = legacyBuffs;
+  }
+
+  return next;
 }

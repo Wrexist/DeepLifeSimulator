@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/game/types';
-import { PrestigeData } from './prestigeTypes';
+import { BASE_PRESTIGE_THRESHOLD, PrestigeData } from './prestigeTypes';
 import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getAchievementProgressMultiplier } from './applyBonuses';
@@ -24,6 +24,60 @@ export interface PrestigePointsBreakdown {
 }
 
 /**
+ * Net-worth points paid by a prestige at exactly the first-prestige threshold.
+ *
+ * WHY THIS IS ANCHORED TO THE THRESHOLD (2026-10-17 owner call).
+ *
+ * The earn rate used to be a flat 100 points per $1M. That rate was set when
+ * the first prestige needed $100M, so a threshold prestige paid 10,000 base
+ * points - the scale the whole shop was priced on (45 bonuses, median 6,000,
+ * legendaries 25,000-50,000). On 2026-03-09 (6e9bdc71) the threshold was cut
+ * 10x to $10M "so first-time players can experience prestige" and the rate was
+ * not touched, so every threshold prestige quietly started paying a TENTH of
+ * what the shop was built around. Measured on the old formula: a realistic
+ * first life at $10M earned 1,657 points (+1,000 for "First Prestige"); five
+ * prestiges at the threshold banked 18,144 - not one legendary, 3.6% of the
+ * shop's first levels - and the median bonus took three lives.
+ *
+ * Defining the payout RELATIVE to `BASE_PRESTIGE_THRESHOLD` is the root-cause
+ * fix: a future threshold retune moves the points with it instead of silently
+ * devaluing every bonus again.
+ */
+export const PRESTIGE_POINTS_AT_THRESHOLD = 10_000;
+
+/**
+ * The old flat rate, kept as a FLOOR: no net worth pays fewer points than it
+ * did before the 2026-10-17 retune. It only binds above $1B, where the square
+ * root below crosses back under it.
+ */
+export const MIN_PRESTIGE_POINTS_PER_MILLION = 100;
+
+/**
+ * Base prestige points for a net worth - the one place this curve lives.
+ *
+ *   - up to the threshold: linear, 1,000 per $1M ($5M = 5,000, $10M = 10,000)
+ *   - past it: 10,000 x sqrt(net worth / $10M) ($40M = 20,000, $1B = 100,000)
+ *   - never below 100 per whole $1M (the pre-retune formula)
+ *
+ * Concave past the threshold on purpose. Above $10M the economy already pays
+ * passive income at diminishing efficiency (lib/economy/passiveIncome.ts), and
+ * a linear 1,000/$1M would turn one long $100M life into 100,000 points - two
+ * legendaries and most of the epics from a single reset. The square root keeps
+ * playing on worth something (4x the threshold still doubles the payout) while
+ * starting a new life stays the better way to earn, which is what a prestige
+ * loop is for.
+ */
+export function netWorthPrestigePoints(netWorth: number): number {
+  if (!(typeof netWorth === 'number' && isFinite(netWorth)) || netWorth <= 0) return 0;
+  const ratio = netWorth / BASE_PRESTIGE_THRESHOLD;
+  const curve = ratio <= 1
+    ? ratio * PRESTIGE_POINTS_AT_THRESHOLD
+    : Math.sqrt(ratio) * PRESTIGE_POINTS_AT_THRESHOLD;
+  const floor = Math.floor(netWorth / 1_000_000) * MIN_PRESTIGE_POINTS_PER_MILLION;
+  return Math.floor(Math.max(curve, floor));
+}
+
+/**
  * Calculate prestige points earned from current game state
  * @param gameState Current game state
  * @param netWorth Current net worth
@@ -37,10 +91,10 @@ export function calculatePrestigePoints(
   prestigeData: PrestigeData,
   chosenPath: 'reset' | 'child' = 'reset'
 ): PrestigePointsBreakdown {
-  // Base points: 100 points per $1M net worth.
-  // R2-G: clamp at 0 so negative net worth (debt-only player) doesn't produce
-  // negative prestige points that poison the save.
-  const basePoints = Math.max(0, Math.floor(netWorth / 1_000_000) * 100);
+  // Base points: the threshold-anchored curve above (10,000 at $10M).
+  // R2-G: clamped at 0 inside it, so a negative net worth (debt-only player)
+  // cannot produce negative prestige points that poison the save.
+  const basePoints = netWorthPrestigePoints(netWorth);
 
   // Achievement bonus: +10 points per achievement unlocked, but only for ones
   // NOT already credited on a prior prestige. Achievements persist across resets,

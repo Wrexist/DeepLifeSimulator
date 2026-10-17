@@ -36,7 +36,11 @@ import {
   calculateFollowerDecay,
   calculateWeeklyImpressionEarnings,
 } from './socialMedia';
-import { generateBrandOffersExtended } from './brandPartnerships';
+import {
+  brandPaidForDelivered,
+  generateBrandOffersExtended,
+  isStreamedBrandDeal,
+} from './brandPartnerships';
 import { generateScandalPileOnComments } from './randomProfiles';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -403,7 +407,12 @@ export function processPulseWeeklyTick(
 
   // ── 5. Generate brand offers (followers >= 10K) ─────────────────────────
   const brandInbox = sm.brandInbox ?? { pending: [], declined: [], history: [] };
-  let pending: PulseBrandOffer[] = brandInbox.pending
+  // An offer still carrying `weeklyPayment` was priced on the pre-2026-10-17
+  // rate card ($2-$10 per follower per contract). Paying it per post at that
+  // price would reopen the hole, so it is withdrawn - `acceptBrandDeal`
+  // refuses it too. Offers live 1-4 weeks, so nothing of value is lost.
+  const pending: PulseBrandOffer[] = brandInbox.pending
+    .filter(o => !isStreamedBrandDeal(o))
     .map(o => ({ ...o, expiresInWeeks: o.expiresInWeeks - 1 }))
     .filter(o => o.expiresInWeeks > 0);
 
@@ -436,6 +445,7 @@ export function processPulseWeeklyTick(
     const isExpired = deal.expiresAt <= nextWeeksLived;
     const postsDone = deal.postsDelivered || 0;
     const postsNeeded = deal.postsRequired || 1;
+    const streamed = isStreamedBrandDeal(deal);
     // riskOfBreach is only ever written as 0, so the old `> 50` guard made this
     // branch dead. Gate on an active scandal alone: sponsors drop you when a
     // scandal breaks.
@@ -461,10 +471,14 @@ export function processPulseWeeklyTick(
     }
     if (isExpired) {
       const succeeded = postsDone >= postsNeeded;
+      // A per-post contract keeps exactly what its delivered posts earned -
+      // the history row says so instead of $0. (A streamed legacy contract
+      // keeps its old $0 row; those run out within 12 weeks.)
+      const paidSoFar = streamed ? 0 : brandPaidForDelivered(deal.payment || 0, postsNeeded, postsDone);
       history.push({
         id: deal.id,
         brandName: deal.brandName,
-        totalPaid: succeeded ? deal.payment : 0,
+        totalPaid: succeeded ? deal.payment : paidSoFar,
         completedWeek: nextWeeksLived,
         result: succeeded ? 'success' : 'failed',
       });
@@ -481,15 +495,20 @@ export function processPulseWeeklyTick(
         notifications = pushNotification(
           notifications,
           'brand_offer',
-          `${deal.brandName} deal expired without delivery. -5 reputation.`,
+          postsDone > 0
+            ? `${deal.brandName} deal expired with ${postsDone}/${postsNeeded} posts delivered. -5 reputation.`
+            : `${deal.brandName} deal expired without delivery. -5 reputation.`,
           nextWeeksLived,
         );
       }
       continue;
     }
-    // Still active - pay weekly installment.
-    const weekly = deal.weeklyPayment ?? Math.floor((deal.payment || 0) / Math.max(1, deal.expiresIn || 1));
-    pulseEarnings += weekly;
+    // Still active. Only a contract signed under the OLD terms streams a
+    // weekly installment; a per-post contract is paid by `deliverBrandDealPost`
+    // as each post lands, so nothing is owed here. The old fallback
+    // (`payment / expiresIn` when `weeklyPayment` was absent) is gone - it
+    // would have streamed a per-post contract's whole value for no posts.
+    if (streamed) pulseEarnings += deal.weeklyPayment ?? 0;
     activeDeals.push({ ...deal, expiresIn: Math.max(0, deal.expiresIn - 1) });
   }
 

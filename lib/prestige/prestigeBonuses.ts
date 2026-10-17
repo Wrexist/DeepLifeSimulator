@@ -53,7 +53,11 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'starting_stats_1',
     name: 'Minor Boost',
-    description: '+5 to all starting stats',
+    // A fresh life already starts at 100 health, happiness and energy, so on
+    // the reset path the +5 lands on fitness alone (the cap eats the rest);
+    // heirs start below 100 and get all four. Say so - "+5 to all starting
+    // stats" sold a reset-path player three stats they already had maxed.
+    description: '+5 starting fitness; heirs also get +5 health, happiness and energy',
     category: 'starting',
     cost: 1000,
     maxLevel: 3,
@@ -62,7 +66,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'starting_stats_2',
     name: 'Moderate Boost',
-    description: '+10 to all starting stats',
+    description: '+10 starting fitness; heirs also get +10 health, happiness and energy',
     category: 'starting',
     cost: 3000,
     maxLevel: 3,
@@ -71,7 +75,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'starting_stats_3',
     name: 'Major Boost',
-    description: '+20 to all starting stats',
+    description: '+20 starting fitness; heirs also get +20 health, happiness and energy',
     category: 'starting',
     cost: 10000,
     maxLevel: 3,
@@ -132,7 +136,11 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'experience_multiplier_1',
     name: 'Quick Learner',
-    description: '+10% experience gain',
+    // These feed getExperienceMultiplier, whose only consumer is the weekly
+    // education tick (applyEducationProgression) - courses finish faster.
+    // Careers have their own "experience" (levels[].experienceRequired), which
+    // this never touches, so "+10% experience gain" promised the wrong thing.
+    description: '+10% study speed (courses finish faster)',
     category: 'multiplier',
     cost: 1500,
     maxLevel: 3,
@@ -141,7 +149,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'experience_multiplier_2',
     name: 'Fast Learner',
-    description: '+25% experience gain',
+    description: '+25% study speed (courses finish faster)',
     category: 'multiplier',
     cost: 5000,
     maxLevel: 3,
@@ -150,7 +158,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'experience_multiplier_3',
     name: 'Genius Learner',
-    description: '+50% experience gain',
+    description: '+50% study speed (courses finish faster)',
     category: 'multiplier',
     cost: 20000,
     maxLevel: 3,
@@ -298,7 +306,9 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'perfect_start',
     name: 'Perfect Start',
-    description: 'Start with 100 in all stats',
+    // Sets these four; reputation is untouched (the "Perfect Life" prestige
+    // achievement counts reputation as a stat, so "all stats" over-promised).
+    description: 'Start every life at 100 health, happiness, energy and fitness',
     category: 'special',
     cost: 30000,
     rarity: 'legendary',
@@ -307,7 +317,12 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'wealth_magnet',
     name: 'Wealth Magnet',
-    description: '+100% passive income',
+    // It adds +1.0 to the SAME multiplier the income boosts feed
+    // (getRawIncomeMultiplier), which the week loop applies to salary, passive,
+    // partner and Pulse income alike - never to passive alone. It is also
+    // softened by the income cap; the shop card's "Actually grants" line states
+    // the real figure under this headline.
+    description: '+100% to all income sources',
     category: 'special',
     cost: 40000,
     rarity: 'legendary',
@@ -316,7 +331,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'genius',
     name: 'Genius',
-    description: '+100% learning speed',
+    description: '+100% study speed (courses finish faster)',
     category: 'special',
     cost: 35000,
     rarity: 'legendary',
@@ -510,7 +525,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'synergy_learning_master',
     name: 'Learning Master Synergy',
-    description: 'Combines with experience multipliers for +20% bonus (requires 2+ experience bonuses)',
+    description: '+20% study speed (requires 2+ levels of the Learner bonuses)',
     category: 'special',
     cost: 16000,
     rarity: 'epic',
@@ -519,7 +534,10 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'synergy_life_master',
     name: 'Life Master Synergy',
-    description: 'Combines starting bonuses for +25% effectiveness (requires 3+ starting bonuses)',
+    // applyStartingBonuses multiplies ONLY the Minor/Moderate/Major Boost stat
+    // amount by 1.25; the Inheritance money is counted toward the 3 but never
+    // boosted. The old "+25% effectiveness" read as both.
+    description: 'Boost bonuses give +25% more stats (requires 3+ Inheritance/Boost levels)',
     category: 'special',
     cost: 20000,
     rarity: 'epic',

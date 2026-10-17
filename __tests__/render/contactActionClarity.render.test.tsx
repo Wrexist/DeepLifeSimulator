@@ -15,8 +15,8 @@ it.each(['parent', 'friend', 'partner'] as const)('explains costs and obligation
   const s = render({ ...base, type });
   expect(s.text()).toContain('No energy cost');
   expect(s.text()).toContain('$30 now');
-  expect(s.text()).toContain('Repay accepted loans in Favors');
-  expect(s.text()).toContain('Collect the money from Favors');
+  expect(s.text()).toContain('Repay in Favors within 8 weeks');
+  expect(s.text()).toContain('They can pay you back from Favors after 4 weeks');
   expect(s.text().includes('Build bond')).toBe(type !== 'parent');
   act(() => s.button('Call').props.onPress());
   expect(s.onAction).toHaveBeenCalledWith('call');

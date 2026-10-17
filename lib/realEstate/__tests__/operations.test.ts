@@ -8,6 +8,7 @@ import {
   maintenanceCost,
   markOwned,
   performMaintenance,
+  quotePropertySale,
   sellProperty,
   setRentMode,
   tickProperty,
@@ -113,6 +114,41 @@ describe('sellProperty', () => {
     expect(r.mortgagePayoff).toBe(94_000);
     expect(r.residualDebt).toBe(106_000);
     expect(r.releasedMortgageId).toBe('m1');
+  });
+});
+
+describe('quotePropertySale - the figures the sale commits, itemised', () => {
+  it('itemises the $216k-equity case that paid $162k', () => {
+    // value 300k, paid 60k, mortgage 84k: value - mortgage = 216k (what the
+    // dialog used to call "Net to you"), but closing (18k) and gains tax
+    // (15% of the 240k gain = 36k) come out first.
+    const q = quotePropertySale(owned({ currentValue: 300_000, purchasePrice: 60_000 }), 84_000);
+    expect(q).toEqual({
+      salePrice: 300_000,
+      closingCost: 18_000,
+      capitalGain: 240_000,
+      capitalGainsTax: 36_000,
+      netSaleValue: 246_000,
+      mortgageRemaining: 84_000,
+      mortgagePayoff: 84_000,
+      residualDebt: 0,
+      proceeds: 162_000,
+    });
+  });
+
+  it.each([
+    [300_000, 200_000, 100_000],
+    [300_000, 60_000, 84_000],
+    [100_000, 200_000, 200_000], // underwater
+    [250_000, 250_000, 0],
+  ])('sellProperty pays exactly the quote (value %d, paid %d, mortgage %d)', (value, paid, mortgage) => {
+    const p = owned({ currentValue: value, purchasePrice: paid, mortgageId: 'm1' });
+    const q = quotePropertySale(p, mortgage);
+    const r = sellProperty([p], 'p1', mortgage);
+    expect(r.saleProceeds).toBe(q.proceeds);
+    expect(r.mortgagePayoff).toBe(q.mortgagePayoff);
+    expect(r.residualDebt).toBe(q.residualDebt);
+    expect(r.capitalGain).toBe(q.capitalGain);
   });
 });
 

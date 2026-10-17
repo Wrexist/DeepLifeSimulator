@@ -10,6 +10,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { GameState, Relationship } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { lendMoney, redeemFavor, recordFavor } from '@/contexts/game/actions/ContactsActions';
+import { LENT_CASH_TERM_WEEKS } from '@/lib/contacts/favors';
 
 function makeStore(initial: GameState) {
   let current = initial;
@@ -30,7 +31,7 @@ function withContact(money: number, rel: Partial<Relationship> = {}) {
 }
 
 describe('lendMoney → redeemFavor round-trip', () => {
-  it('debits the loan, books an owed-to-player money IOU, and redeem credits it back once', () => {
+  it('debits the loan, books an owed-to-player money IOU, and redeem credits it back once - after the term', () => {
     const store = withContact(1000);
 
     const r = lendMoney(store.get(), store.setGameState, 'c1', 200);
@@ -43,7 +44,14 @@ describe('lendMoney → redeemFavor round-trip', () => {
     expect(favor!.value).toBe(200);
     expect(favor!.status).toBe('open');
 
-    // Redeem → cash back exactly once (the contact repays).
+    // Same week: the cash has only just left - it cannot come straight back.
+    // (Same-week redemption made lending a free, repeatable +2 bond.)
+    const early = redeemFavor(store.get(), store.setGameState, favor!.id);
+    expect(early.success).toBe(false);
+    expect(store.get().stats.money).toBe(800);
+
+    // Once the term has passed: cash back exactly once (the contact repays).
+    store.setGameState((p) => ({ ...p, weeksLived: (p.weeksLived ?? 0) + LENT_CASH_TERM_WEEKS }));
     const rr = redeemFavor(store.get(), store.setGameState, favor!.id);
     expect(rr.success).toBe(true);
     expect(store.get().stats.money).toBe(1000);

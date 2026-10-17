@@ -38,10 +38,10 @@ describe('LegacyPassActions', () => {
       expect(twice.legacyPass?.ownedCosmetics).toEqual(['theme_x']);
     });
 
-    it('adds a trait to activeTraits (heritable, deduped)', () => {
+    it('grants nothing for the retired trait kind (it did nothing and was not inherited)', () => {
       const s = createTestGameState({ activeTraits: ['existing'] });
-      const next = applyLegacyPassReward(s, { kind: 'trait', id: 'legacy_trait_s', label: 'Trait' });
-      expect(next.activeTraits).toEqual(['existing', 'legacy_trait_s']);
+      const next = applyLegacyPassReward(s, { kind: 'trait', id: 'strong_constitution', label: 'Trait' } as never);
+      expect(next).toBe(s);
     });
 
     it('ignores invalid amounts (no negative grants)', () => {
@@ -102,15 +102,17 @@ describe('LegacyPassActions', () => {
       expect(granted.result.ok).toBe(true);
     });
 
-    it('grants the marquee heritable trait at the premium finale', () => {
-      let s = createTestGameState();
+    it('grants the premium finale as youth pills on the account', () => {
+      let s = createTestGameState({ youthPills: 1 });
       s = reconcileLegacyPassSeason(s, /*premiumActiveNow*/ true, NOW);
       s = awardLegacyPassXp(s, XP_PER_TIER * MAX_TIER, NOW);
       const { state, result } = claimLegacyPassReward(s, 'premium', MAX_TIER, NOW);
       expect(result.ok).toBe(true);
-      const trait = getLegacyPassReward('premium', MAX_TIER)!;
-      expect(trait.kind).toBe('trait');
-      expect(state.activeTraits).toContain(trait.id);
+      const finale = getLegacyPassReward('premium', MAX_TIER)!;
+      expect(finale.kind).toBe('youthPills');
+      expect(state.youthPills).toBe(1 + (finale.amount ?? 0));
+      // Nothing is pushed into the display-only trait list any more.
+      expect(state.activeTraits).toEqual(s.activeTraits);
     });
   });
 

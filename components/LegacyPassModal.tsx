@@ -8,7 +8,7 @@ import { uiPalette , accent, colors } from '@/lib/config/theme';
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, Easing, ImageBackground } from 'react-native';
-import { X, Lock, Check, Crown, Gift, Sparkles, ArrowRight, CheckCircle2, Gem, Heart, Infinity as InfinityIcon } from 'lucide-react-native';
+import { X, Lock, Check, Crown, Gift, Sparkles, ArrowRight, CheckCircle2, Gem, Heart, Pill, Infinity as InfinityIcon } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -439,7 +439,10 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
               {[
                 { Icon: Gem, title: 'More Rewards', desc: 'Way more gems & items.' },
                 { Icon: Crown, title: 'Exclusive Items', desc: 'Premium-only rewards.' },
-                { Icon: Heart, title: 'Legacy Trait', desc: 'Pass it to future lives.' },
+                // Was "Legacy Trait - Pass it to future lives." The capstone trait
+                // did nothing and was not inherited; it is now Youth Pills, which
+                // genuinely stay with the player from one life to the next.
+                { Icon: Pill, title: 'Youth Pills', desc: 'Kept across every life.' },
                 { Icon: InfinityIcon, title: 'Yours Forever', desc: 'One-time. Always yours.' },
               ].map(({ Icon, title, desc }) => (
                 <View key={title} style={styles.featureItem}>

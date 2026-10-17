@@ -38,6 +38,12 @@ export const MAX_HIRING_PENALTY = 30;
 /** Hiring penalty per criminal level / per wanted level, in percentage points. */
 export const HIRING_PENALTY_PER_CRIMINAL_LEVEL = 5;
 export const HIRING_PENALTY_PER_WANTED_LEVEL = 2;
+/**
+ * The criminal level every life starts at (`initialGameState.criminalLevel`).
+ * It is a CLEAN record: the Work tab shows no record at this level, so only
+ * levels above it count against a background check.
+ */
+export const CLEAN_CRIMINAL_LEVEL = 1;
 
 const safe = (n: unknown): number =>
   typeof n === 'number' && isFinite(n) && n > 0 ? n : 0;
@@ -56,9 +62,14 @@ export function wantedArrestBonus(wantedLevel: unknown, illegal: boolean): numbe
  * percentage points off the acceptance chance.
  */
 export function hiringPenalty(criminalLevel: unknown, wantedLevel: unknown): number {
+  // Levels ABOVE the clean baseline. Counting the baseline itself charged every
+  // life 5 points on every application for a record the game never showed - and
+  // it made the attempt-5 hiring guarantee (which needs a 0 penalty) unreachable
+  // for anyone (2026-10-17).
+  const recordLevels = Math.max(0, safe(criminalLevel) - CLEAN_CRIMINAL_LEVEL);
   return Math.min(
     MAX_HIRING_PENALTY,
-    safe(criminalLevel) * HIRING_PENALTY_PER_CRIMINAL_LEVEL
+    recordLevels * HIRING_PENALTY_PER_CRIMINAL_LEVEL
       + safe(wantedLevel) * HIRING_PENALTY_PER_WANTED_LEVEL,
   );
 }

@@ -187,9 +187,11 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     const threshold = getPrestigeThreshold(prestigeLevel);
     
     if (currentNetWorth < threshold) {
+      // Exact dollars: thresholds past the first are not whole millions
+      // ($12,500,000 at level 1), and `toFixed(0)` printed "$13M".
       gameAlert(
         'Cannot Prestige',
-        `You need at least $${(threshold / 1_000_000).toFixed(0)}M net worth to prestige.\n\nCurrent: $${(currentNetWorth / 1_000_000).toFixed(2)}M\nRequired: $${(threshold / 1_000_000).toFixed(0)}M`
+        `You need at least $${threshold.toLocaleString('en-US')} net worth to prestige.\n\nCurrent: $${Math.floor(currentNetWorth).toLocaleString('en-US')}\nRequired: $${threshold.toLocaleString('en-US')}`
       );
       return;
     }

@@ -148,9 +148,11 @@ export interface Pet {
   // R5-C: weeklyLived of the most recent `petSleep` call. Sleep is gated to
   // once-per-week per pet to prevent infinite free recovery exploits.
   lastSleepWeek?: number;
-  // weeksLived of the most recent `enterCompetition` call. Competitions are
-  // gated to once-per-week per pet: each pays 10× the entry fee at up to 90%
-  // win odds, so without this gate a player could re-tap for unbounded money.
+  // weeksLived of the most recent `enterCompetition` call. Read across ALL
+  // pets: any pet stamped with this week blocks every other entry, so the
+  // household gets one show a week (`planCompetitionEntry`,
+  // lib/pets/competition.ts). Per-pet gating let a 20-mouse stable farm
+  // ~$77k/week (2026-10-17).
   lastCompetitionWeek?: number;
 }
 

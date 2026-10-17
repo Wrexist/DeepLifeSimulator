@@ -70,6 +70,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
+import { membershipSoftCapEfficiency, projectedMembershipPayout } from '@/contexts/game/actions/weekly/applyContentMemberships';
 import { projectVideoOutcome } from '@/lib/content/algorithm';
 import { trendingTopicForWeek, trendBonusForTopic } from '@/lib/content/trending';
 import {
@@ -226,6 +227,17 @@ export default function GamingApp({ onBack }: Props) {
   const monetization = useMemo(
     () => monetizationSummary(quality, channel?.paidMembers ?? 0, channel?.membershipRate),
     [quality, channel?.paidMembers, channel?.membershipRate]
+  );
+  // The weekly membership figure the tick actually adds to taxable income -
+  // the SAME formula (rate band, $75K cap, net-worth soft cap). Gross: it is
+  // taxed with the rest of the week's income, so the row says "pre-tax".
+  // Billed on CURRENT subscribers, as the tick does - not the stored
+  // `paidMembers`, which is last week's count. The efficiency reads net worth,
+  // which is identity-memoised, so this is cheap per render.
+  const membershipEfficiency = membershipSoftCapEfficiency(gameState);
+  const membershipWeekly = useMemo(
+    () => projectedMembershipPayout(channel, membershipEfficiency),
+    [channel, membershipEfficiency]
   );
 
   const week = gameState.weeksLived || 0;
@@ -489,7 +501,7 @@ export default function GamingApp({ onBack }: Props) {
       >
         <KeyValueRow label="Members" value={paidMembers.toLocaleString('en-US')} />
         <KeyValueRow label="$ / viewer" value={`$${monetization.viewerPay}`} />
-        <KeyValueRow label="Members / wk" value={formatMoney(monetization.membershipWeekly)} />
+        <KeyValueRow label="Members / wk (pre-tax)" value={formatMoney(membershipWeekly)} />
         <KeyValueRow label="Donations" value={formatMoney(totalDonations)} />
         <KeyValueRow label="Sub earnings" value={formatMoney(totalSubEarnings)} />
         <KeyValueRow label="Total views" value={totalViews.toLocaleString('en-US')} />

@@ -10,6 +10,7 @@ import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { PRESTIGE_BONUSES, canPurchaseBonus } from '@/lib/prestige/prestigeBonuses';
 import { heirStartingBonuses, LEGACY_UPGRADES } from '@/lib/legacy/legacyShop';
+import { continueAsChild } from '@/lib/prestige/prestigeExecution';
 import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { EDUCATION_PROGRAMS } from '@/lib/education/programs';
 import { POLITICAL_APPOINTMENTS } from '@/lib/politics/appointments';
@@ -139,12 +140,28 @@ describe('legacy buffs finally have a writer', () => {
     expect(heirStartingBonuses([]).buffs).toEqual({});
   });
 
-  it('the heir path stamps expiry AFTER the weeksLived seed (source pin)', () => {
-    const src = code('lib/prestige/prestigeExecution.ts');
-    const seedIdx = src.indexOf('newState.weeksLived = computeWeeksLived(childAge);');
-    const stampIdx = src.indexOf('expiresWeeksLived: newState.weeksLived + weeks');
-    expect(seedIdx).toBeGreaterThan(-1);
-    expect(stampIdx).toBeGreaterThan(seedIdx);
+  it('the heir path dates expiry from the HEIR\'s weeksLived, not week 0', () => {
+    // Was a source pin (seed line before stamp line). It is behavioural now:
+    // the 2026-10-17 heir-bonus defect showed a pin on line ORDER passes while
+    // a later line discards the result. A 30-year-old heir starts at
+    // weeksLived 624 (§4.2), so a buff stamped before the seed would read 104.
+    const base = createTestGameState();
+    const parent: GameState = {
+      ...base,
+      weeksLived: 2_600,
+      legacyUpgrades: ['legacy_education', 'legacy_tutors', 'legacy_mentor'],
+      family: {
+        ...base.family,
+        children: [{
+          id: 'kid', name: 'Kid Tester', type: 'child', relationshipScore: 80,
+          personality: 'calm', gender: 'male', age: 30,
+        }],
+      },
+    };
+    const heir = continueAsChild(parent, 'kid');
+
+    expect(heir.weeksLived).toBe(624);
+    expect(heir.legacyBuffs?.mentor?.expiresWeeksLived).toBe(624 + 104);
   });
 });
 

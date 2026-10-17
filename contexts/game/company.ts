@@ -239,8 +239,9 @@ export function addWorker(
     // Allow up to MAX_COMPANY_EMPLOYEES to match diminishing returns logic (21+ uses 1.01x multiplier)
     //
     // `workerSalary` is charged here ONCE as the up-front hiring cost (the
-    // figure the Hustle staff card quotes as "hiring cost ... /hire"), AND every
-    // week thereafter as wages by the hustle tick (`companyWeeklyPayroll`,
+    // figure the Hustle staff card quotes as "... to hire"). Every week
+    // thereafter the hustle tick pays a wage of at least `workerSalary` - more
+    // once base income outgrows it (`companyStaffWage` / `companyWeeklyPayroll`,
     // lib/business/hustleTick.ts). The weekly half is the one that was missing:
     // without it the headcount multiplier raised `weeklyIncome` forever for a
     // one-off fee, a ~6-week payback that made staff the best investment in the

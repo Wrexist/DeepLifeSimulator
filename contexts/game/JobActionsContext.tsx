@@ -243,7 +243,18 @@ function applyCriminalXp(
     if (!state?.currentJob) return;
 
     setGameState(prevState => {
-      // Reset the career's accepted/applied status so they can reapply later
+      // Reset the career's accepted/applied status so they can reapply later.
+      //
+      // What a re-hire comes back to (owner call, 2026-10-17): the SAME level,
+      // with promotion progress zeroed here and tenure restarted by the hire
+      // (`startedWeeksLived` is re-stamped, so tenure-gated rungs must be
+      // earned again). What it does NOT get back is the newcomer's 2.5x/1.5x
+      // early-career boost: `applyCareerProgress` counts that from the first
+      // `careerHistory` entry for the job, which the block below closes rather
+      // than deletes. Dropping a level as well would stack a third cost on a
+      // player who already lost their progress and tenure; keeping the boost
+      // made quitting a free reset of the most generous multiplier in the
+      // chain. Warnings, the raise premium and the raise cooldown are kept.
       const updatedCareers = (prevState.careers || []).map(c => {
         if (c.id === prevState.currentJob) {
           return { ...c, accepted: false, applied: false, progress: 0 };

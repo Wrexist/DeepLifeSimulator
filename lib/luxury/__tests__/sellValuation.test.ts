@@ -7,7 +7,7 @@
  * `getHoldingValue × 0.6 × conditionValueMultiplier`, i.e. appreciation- and
  * condition-aware. So whenever an item had depreciated or taken damage, the cash
  * paid on sale exceeded the value it was carrying, and NET WORTH ROSE on the
- * sale. That figure is what prestige points are computed from (100 per $1M), so
+ * sale. That figure is what prestige points are computed from (`netWorthPrestigePoints`), so
  * "sell everything, then prestige" was strictly profitable — and it made the
  * whole Phase-5 risk system consequence-free in cash terms.
  * 2026-07-28 audit econ-1.

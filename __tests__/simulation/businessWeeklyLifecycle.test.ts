@@ -22,6 +22,14 @@ it('the canonical weekly transition charges named salary exactly once', async ()
   } });
   const normal = await run(2000.75); const higher = await run(2100.75);
   expect(normal.finalState.weeksLived).toBe(higher.finalState.weeksLived);
-  expect(normal.finalState.stats.money - higher.finalState.stats.money).toBeCloseTo(100, 6);
+  // Payroll is tax-deductible against company income (companyPayrollTaxDeduction),
+  // so the extra $100 of salary is charged once AND lowers the week's tax. The
+  // cash gap plus the tax saved is the $100 - charged exactly once, never twice.
+  const cashGap = normal.finalState.stats.money - higher.finalState.stats.money;
+  const taxSaved = (normal.finalState.banking?.taxDueThisYear ?? 0) - (higher.finalState.banking?.taxDueThisYear ?? 0);
+  expect(taxSaved).toBeGreaterThan(0);
+  expect(cashGap).toBeLessThan(100);
+  // Within a few dollars: the weekly lucky bonus is taxed at the margin of the same base.
+  expect(Math.abs(cashGap + taxSaved - 100)).toBeLessThan(5);
   expect(normal.finalState.hustleApp!.companies.factory.hiringPipeline.namedHires).toHaveLength(1);
 }, 120000);

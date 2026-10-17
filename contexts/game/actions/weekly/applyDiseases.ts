@@ -336,7 +336,18 @@ export function applyDiseasesForWeek(
       if (typeof recoveryMult === 'number' && isFinite(recoveryMult) && recoveryMult > 1) {
         recoveryDecrement *= recoveryMult;
       }
-      const recoveryWeeks = disease.naturalRecoveryWeeks - recoveryDecrement;
+      // FRACTIONAL progress is kept in the field itself. This used to store
+      // `Math.ceil(remaining)`, which rounded every fractional decrement back
+      // up to a whole week: from a whole-week value, 1.5 (health OR fitness
+      // alone), 1.25 (Resilience alone) and 2.5 (all three) each recovered
+      // exactly like 1, 1, and 2 - so the single-stat bonus and Resilience's
+      // advertised +25% never shortened an illness by a day. Carrying the
+      // remainder makes each bonus worth what it says over the illness
+      // (12 weeks at 1.25/week is 10 ticks, not 12). Rounded to 1/1000 so
+      // float noise can never leave a phantom 0.0000001 week of illness;
+      // every decrement today's bonuses can produce is a multiple of 1/8, so
+      // this changes no value. Readers that show it round UP for display.
+      const recoveryWeeks = Math.round((disease.naturalRecoveryWeeks - recoveryDecrement) * 1000) / 1000;
 
       if (recoveryWeeks <= 0) {
         // Disease naturally recovered.
@@ -364,7 +375,7 @@ export function applyDiseasesForWeek(
         const base = updatedDiseases[index] ?? disease;
         updatedDiseases[index] = {
           ...base,
-          naturalRecoveryWeeks: Math.max(0, Math.ceil(recoveryWeeks)),
+          naturalRecoveryWeeks: recoveryWeeks,
         };
       }
     }

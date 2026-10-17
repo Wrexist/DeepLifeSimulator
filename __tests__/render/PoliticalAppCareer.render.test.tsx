@@ -83,6 +83,11 @@ describe('render - PoliticalApp Career tab', () => {
     // itself rather than greying a row out with no reason.
     expect(opened).toContain('Ambassador');
     expect(opened).toContain('You need to have served as');
+    // The price beside the pay: the private posts pay well BECAUSE they cost
+    // reputation, and the card used to show only the pay. A citizen with no
+    // party sees no party-standing term (the tick moves nobody else's).
+    expect(opened).toContain('Reputation -15 while you hold it');
+    expect(opened).not.toContain('party standing -2/wk');
     unmount();
   });
 });
