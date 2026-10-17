@@ -1,6 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
+import { deriveLineageId } from '@/utils/saveMigrations';
 import {
   resolveSaveSigningRuntimeConfig,
   resolveActiveSaveHmacKey,
@@ -711,6 +712,17 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // v54 mirror: `lineageId` is the per-life salt every seeded roll folds in. A
+  // save MISSING it (partial cloud merge, hand edit) gets one minted the same
+  // deterministic way the migration mints it - never the template literal,
+  // which would put this life back on the one salt every pre-Program-8 save
+  // shared. The literal itself is the migration's one-time job, not repair's.
+  if (typeof s.lineageId !== 'string' || s.lineageId.length === 0) {
+    s.lineageId = deriveLineageId(s);
+    repairs.push('Minted missing lineageId');
+    repaired = true;
+  }
+
   // `crimeSkills` is a concrete-default object that repair never backfilled, and
   // the Work tab reads it BARE in render - `gameState.crimeSkills[job.skill].level`
   // (app/(tabs)/work.tsx) - so a save missing it (CloudSync merge / hand-edit)
@@ -1163,12 +1175,15 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // CRASH FIX (B-6): Deep NaN/Infinity scanner for nested numeric fields
   // Scan and repair NaN/Infinity in arrays of objects (stocks, loans, companies, etc.)
+  // `null` counts as corrupt too: JSON writes NaN/Infinity as `null`, so a NaN
+  // that reached disk comes back as null and slipped past a `typeof` check
+  // that only looked for numbers. None of these fields is nullable in the types.
   const scanAndRepairArray = (arr: any[], fieldName: string, numericFields: string[]) => {
     if (!Array.isArray(arr)) return;
     arr.forEach((item, idx) => {
       if (!item || typeof item !== 'object') return;
       for (const field of numericFields) {
-        if (typeof item[field] === 'number' && (!isFinite(item[field]) || isNaN(item[field]))) {
+        if (item[field] === null || (typeof item[field] === 'number' && (!isFinite(item[field]) || isNaN(item[field])))) {
           const oldVal = item[field];
           item[field] = 0;
           repairs.push(`${fieldName}[${idx}].${field} was ${oldVal}, reset to 0`);
@@ -1199,7 +1214,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     scanAndRepairArray(s.cryptos, 'cryptos', ['price', 'owned', 'totalInvested']);
   }
   // Scan bankSavings
-  if (typeof s.bankSavings === 'number' && (!isFinite(s.bankSavings) || isNaN(s.bankSavings))) {
+  if (s.bankSavings === null || (typeof s.bankSavings === 'number' && (!isFinite(s.bankSavings) || isNaN(s.bankSavings)))) {
     repairs.push(`bankSavings was ${s.bankSavings}, reset to 0`);
     s.bankSavings = 0;
     repaired = true;

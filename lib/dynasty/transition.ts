@@ -13,7 +13,9 @@
  * carried, so `initialGameState`'s empty board was restored on every single
  * prestige and the entire contract ladder became re-claimable — a Legacy Point
  * printer worth the full board every cycle. It is carried below, with the
- * dynasty state, because both paths call this one function.
+ * dynasty state, because both paths call this one function. `dynastyStats`
+ * (heirlooms) was the second instance: only the heir path wrote it, so a reset
+ * restored the empty default.
  */
 
 import type { GameState } from '@/contexts/game/types';
@@ -52,6 +54,23 @@ export function applyDynastyTransition(oldState: GameState, newState: GameState)
   const claimedIds = oldState.legacyContracts?.claimedIds;
   if (Array.isArray(claimedIds) && claimedIds.length > 0) {
     newState.legacyContracts = { claimedIds: [...claimedIds] };
+  }
+
+  // ── Dynasty stats (heirlooms, family records) ───────────────────────────
+  // Lineage data, and it must never go BACKWARD across a life boundary. The
+  // heir path folds the ended life in before calling here (`computeInheritance`:
+  // +1 generation, heirlooms aged), so its record is ahead of the old one and
+  // stands. A prestige RESET is the same generation starting over and folds
+  // nothing in - it arrived holding `initialGameState`'s empty record, which
+  // wiped every heirloom on "start fresh". Anything not ahead of the old record
+  // is replaced by a copy of it.
+  const oldDynastyStats = oldState.dynastyStats;
+  if (oldDynastyStats && typeof oldDynastyStats === 'object') {
+    const oldGenerations = Number(oldDynastyStats.totalGenerations) || 0;
+    const newGenerations = Number(newState.dynastyStats?.totalGenerations) || 0;
+    if (!newState.dynastyStats || newGenerations <= oldGenerations) {
+      newState.dynastyStats = JSON.parse(JSON.stringify(oldDynastyStats));
+    }
   }
 
   const vault = vaultItemIds(oldState);

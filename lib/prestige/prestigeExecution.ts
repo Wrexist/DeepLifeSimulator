@@ -251,6 +251,32 @@ function freshInitialState(): GameState {
 }
 
 /**
+ * ANTI-EXPLOIT: loans tied to a carried family business cross the life
+ * boundary with it. Without this, prestige is debt-shedding: borrow the maximum
+ * against the company, prestige, keep the company and lose the debt - free
+ * money every cycle. Both builders carry family businesses, so both call this;
+ * the reset path used to carry the companies and start with empty `loans`,
+ * which is exactly that move. Mutates `newState`.
+ */
+function carryFamilyBusinessLoans(
+  oldState: GameState,
+  newState: GameState,
+  familyBusinessCompanyIds: readonly string[],
+): void {
+  if (!Array.isArray(oldState.loans) || oldState.loans.length === 0) return;
+  // Business-type loans AND any loan tied to a carried family business.
+  const transferredLoans = oldState.loans.filter(loan =>
+    loan && loan.remaining > 0 && (
+      loan.type === 'business' ||
+      familyBusinessCompanyIds.some(id => loan.id?.includes(id) || loan.name?.includes('Business'))
+    )
+  );
+  if (transferredLoans.length > 0) {
+    newState.loans = [...(newState.loans || []), ...transferredLoans.map(loan => ({ ...loan }))];
+  }
+}
+
+/**
  * Create new game state for reset path (age 18, fresh start)
  */
 function createResetGameState(
@@ -325,6 +351,8 @@ function createResetGameState(
         ...carriedCompanies.map(c => ({ ...c })),
       ];
     }
+    // The debt goes with the business - same rule, same helper as the heir path.
+    carryFamilyBusinessLoans(oldState, newState, carriedIds);
   }
 
   // Legacy Pass is SEASONAL (account-level), not per-life - preserve it across
@@ -859,21 +887,7 @@ function createChildGameState(
       newState.companies = [...(newState.companies || []), ...newCompanies];
     }
 
-    // ANTI-EXPLOIT: Transfer loans associated with family business companies
-    // Prevents prestige debt-shedding: take max loans against company assets, prestige as child,
-    // keep companies but shed all debt = free money each prestige cycle
-    if (Array.isArray(oldState.loans) && oldState.loans.length > 0) {
-      // Transfer business-type loans AND any loans taken while owning family businesses
-      const transferredLoans = oldState.loans.filter(loan =>
-        loan && loan.remaining > 0 && (
-          loan.type === 'business' ||
-          familyBusinessCompanyIds.some(id => loan.id?.includes(id) || loan.name?.includes('Business'))
-        )
-      );
-      if (transferredLoans.length > 0) {
-        newState.loans = [...(newState.loans || []), ...transferredLoans];
-      }
-    }
+    carryFamilyBusinessLoans(oldState, newState, familyBusinessCompanyIds);
   }
 
   // BUG FIX: Use calculateChildStats for proper stat calculation with percentages

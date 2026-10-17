@@ -80,6 +80,23 @@ export const PURCHASED_SETTINGS_KEYS = [
 ] as const;
 
 /**
+ * `settings` keys that are the PLAYER's device preferences, not the character's.
+ * A new life is still the same person holding the same phone: resetting these
+ * meant every prestige, heir continuation and fresh start switched sound,
+ * haptics and notifications back on (and the theme back to dark) for a player
+ * who had turned them off. Kept SHORT and explicit for the reason the purchase
+ * list is a whitelist - and it must never hold a `weeksLived` marker (see the
+ * note at the end of `PURCHASED_SETTINGS_KEYS`).
+ */
+export const USER_PREFERENCE_SETTINGS_KEYS = [
+  'soundEnabled',
+  'musicEnabled',
+  'hapticFeedback',
+  'notificationsEnabled',
+  'darkMode',
+] as const;
+
+/**
  * Top-level GameState keys that are account-level rather than per-character.
  * `goldUpgrades` holds the nine gem-bought permanent upgrades; `perks` holds
  * purchased perk unlocks; `youthPills` is consumable inventory the player paid
@@ -105,7 +122,8 @@ export const PURCHASED_STATE_KEYS = [
 ] as const;
 
 /**
- * Copy every account-level entitlement from the outgoing life onto a freshly
+ * Copy every account-level entitlement (and the player's device preferences,
+ * `USER_PREFERENCE_SETTINGS_KEYS`) from the outgoing life onto a freshly
  * built state. Call from EVERY state builder that starts from
  * `initialGameState` — there are two (prestige reset and heir continuation) and
  * both were losing purchases.
@@ -124,7 +142,7 @@ export function carryAccountLevelEntitlements(oldState: GameState, newState: Gam
   // make impossible; expensive to debug if it ever happened.
   const newSettings = { ...(newState.settings ?? {}) } as unknown as Record<string, unknown>;
 
-  for (const key of PURCHASED_SETTINGS_KEYS) {
+  for (const key of [...PURCHASED_SETTINGS_KEYS, ...USER_PREFERENCE_SETTINGS_KEYS]) {
     const value = oldSettings[key];
     // Only carry keys the old save actually had, so an absent flag stays absent
     // rather than becoming `undefined` and tripping a `key in settings` check.

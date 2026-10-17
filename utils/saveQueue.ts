@@ -478,7 +478,7 @@ class SaveQueue {
       // filter and the first-save-of-session rewrite both handle. No-op unless
       // the checkpoints actually changed.
       const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
-      await persistCheckpointSidecar(operation.slot, liveCheckpoints);
+      await persistCheckpointSidecar(operation.slot, liveCheckpoints, (cps) => this.pruneCheckpoints(cps));
 
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
@@ -522,7 +522,7 @@ class SaveQueue {
               // bookkeeping as the happy path - it used to skip it entirely.
               await this.advanceProtectedState(operation.slot, operation.data);
               const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
-              await persistCheckpointSidecar(operation.slot, liveCheckpoints);
+              await persistCheckpointSidecar(operation.slot, liveCheckpoints, (cps) => this.pruneCheckpoints(cps));
               const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
               await this.recordSaveTimestamp();
@@ -683,7 +683,7 @@ class SaveQueue {
       // Checkpoint sidecar for the stripped payload — same ordering rationale
       // as `performSave`.
       const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
-      await persistCheckpointSidecar(slot, liveCheckpoints);
+      await persistCheckpointSidecar(slot, liveCheckpoints, (cps) => this.pruneCheckpoints(cps));
 
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
@@ -718,7 +718,7 @@ class SaveQueue {
               // success owes the same post-success bookkeeping.
               await this.advanceProtectedState(slot, data);
               const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
-              await persistCheckpointSidecar(slot, liveCheckpoints);
+              await persistCheckpointSidecar(slot, liveCheckpoints, (cps) => this.pruneCheckpoints(cps));
               const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
               await this.recordSaveTimestamp();
@@ -1262,15 +1262,7 @@ class SaveQueue {
       // before recursing - a snapshot should never contain snapshots, and that
       // also bounds the recursion at one level.
       if (Array.isArray(pruned.checkpoints) && pruned.checkpoints.length > 0) {
-        // Dropping checkpoints entirely is reserved for the aggressive retry:
-        // they are visible rewind targets in the Time Machine, so the normal
-        // pass must only slim them, never remove them.
-        const checkpoints = aggressive ? tail(pruned.checkpoints, 2) : pruned.checkpoints;
-        pruned.checkpoints = checkpoints.map((cp: any) => {
-          if (!cp || typeof cp !== 'object' || !cp.snapshot || typeof cp.snapshot !== 'object') return cp;
-          const { checkpoints: _nested, ...snapshot } = cp.snapshot;
-          return { ...cp, snapshot: this.pruneSaveData(snapshot, aggressive) };
-        });
+        pruned.checkpoints = this.pruneCheckpoints(pruned.checkpoints, aggressive);
       }
 
       return pruned;
@@ -1278,6 +1270,24 @@ class SaveQueue {
       this.log.error('Error pruning save data:', error);
       return data; // Return original if pruning fails
     }
+  }
+
+  /**
+   * Slim each checkpoint snapshot with the same caps as the top level. Shared by
+   * `pruneSaveData` (inline checkpoints) and the checkpoint SIDECAR write: since
+   * the save path strips `checkpoints` before pruning, the sidecar is the only
+   * place they are persisted, so it must get this pass too.
+   */
+  private pruneCheckpoints(checkpoints: any[], aggressive: boolean = false): any[] {
+    // Dropping checkpoints entirely is reserved for the aggressive retry:
+    // they are visible rewind targets in the Time Machine, so the normal
+    // pass must only slim them, never remove them.
+    const kept = aggressive && checkpoints.length > 2 ? checkpoints.slice(-2) : checkpoints;
+    return kept.map((cp: any) => {
+      if (!cp || typeof cp !== 'object' || !cp.snapshot || typeof cp.snapshot !== 'object') return cp;
+      const { checkpoints: _nested, ...snapshot } = cp.snapshot;
+      return { ...cp, snapshot: this.pruneSaveData(snapshot, aggressive) };
+    });
   }
 
   /**

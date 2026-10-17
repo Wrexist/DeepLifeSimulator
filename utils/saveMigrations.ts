@@ -9,8 +9,12 @@
  * to `CURRENT_STATE_VERSION` in order, then run `repairGameState()` for remaining defaults.
  */
 import { logger } from '@/utils/logger';
-import { STATE_VERSION } from '@/contexts/game/initialState';
+import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { defaultStockFor } from '@/lib/economy/stockMarket';
+import { INITIAL_CAREERS } from '@/lib/careers/careerData';
+import { ADVANCED_CAREERS } from '@/lib/careers/advancedCareers';
+import { POLITICAL_CAREER } from '@/lib/careers/political';
+import { fnv1a32 } from '@/utils/seededRoll';
 
 // Import from initialState.ts to prevent manual sync drift
 /**
@@ -1362,7 +1366,104 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 53;
     return state;
   },
+  /**
+   * v54 - two stale values every pre-rescale save still carries. NOT a new
+   * field; the v53 precedent, applied to the other catalogues saved by value.
+   *
+   * (1) Catalogue repricing. `careers[].levels[].salary`,
+   * `streetJobs[].basePayment` and `items[].price` are stored IN the save, and
+   * payroll, street work and the shop all read the saved copy. Repair only adopts
+   * a career ladder when the code has MORE levels, so the 2026-08 income
+   * rescales (afd8524d: entry wage 50 -> 110, street pay x0.40; 0244eca3:
+   * teacher/nurse/police ladders) and the 900 -> 600 phone never reached a save
+   * started before them. For KNOWN ids only, adopt the code's per-level
+   * `name`/`salary`, `basePayment` and `price`; player progress (`level`,
+   * `progress`, `accepted`, `applied`, `rank`, `raiseMultiplier`, `owned`, …)
+   * and unknown ids are untouched. No `repairGameState` mirror: repair already
+   * restores a MISSING catalogue from the (current) defaults.
+   *
+   * (2) `lineageId`. Program 8 mints one per new life, but every save created
+   * before it still holds the literal `'initial-lineage'` from `initialState`,
+   * so those lives all share one per-life salt (CLAUDE.md §4.3). Minted here
+   * when missing or still the literal. DETERMINISTIC on purpose
+   * (`deriveLineageId` hashes the save): loading the same un-resaved v53 file
+   * twice yields the same lineage, so the life replays identically (Program 14)
+   * instead of re-rolling on every load until the first save persists it.
+   * Mirrored in `repairGameState` for a save MISSING the key (a concrete
+   * default), which mints the same way.
+   */
+  54: (state) => {
+    adoptStoredCatalogueValues(state);
+    if (needsLineageMint(state.lineageId)) {
+      state.lineageId = deriveLineageId(state);
+    }
+    state.version = 54;
+    return state;
+  },
 };
+
+/** The template id every pre-Program-8 save carries. */
+const LEGACY_LINEAGE_LITERAL = 'initial-lineage';
+
+/** True when `id` cannot serve as a per-life salt (absent, empty, or the template literal). */
+export function needsLineageMint(id: unknown): boolean {
+  return typeof id !== 'string' || id.length === 0 || id === LEGACY_LINEAGE_LITERAL;
+}
+
+/**
+ * A lineage id derived from the save itself: two FNV-1a passes over its JSON.
+ * The same save always yields the same id (no `Math.random`, no clock), and two
+ * different saves - which differ in at least their timestamps - do not collide.
+ * Runs once per affected save, at load.
+ */
+export function deriveLineageId(state: unknown): string {
+  let body = '';
+  try {
+    body = JSON.stringify(state) ?? '';
+  } catch {
+    body = '';
+  }
+  const a = fnv1a32(body);
+  const b = fnv1a32(body, (a ^ 0x9e3779b9) >>> 0);
+  return `life_v54_${a.toString(36)}${b.toString(36)}`;
+}
+
+/** v54 (1): adopt the code catalogue's prices/pay for known ids, in place. */
+function adoptStoredCatalogueValues(state: any): void {
+  const levelsById = new Map<string, readonly { name: string; salary: number }[]>();
+  for (const c of [...INITIAL_CAREERS, ...ADVANCED_CAREERS, POLITICAL_CAREER]) {
+    if (c && typeof c.id === 'string' && Array.isArray(c.levels)) levelsById.set(c.id, c.levels);
+  }
+  if (Array.isArray(state.careers)) {
+    for (const career of state.careers) {
+      if (!isLegacyRecord(career) || typeof career.id !== 'string' || !Array.isArray(career.levels)) continue;
+      const catalogue = levelsById.get(career.id);
+      if (!catalogue) continue;
+      career.levels = (career.levels as unknown[]).map((lvl, i) => {
+        const def = catalogue[i];
+        return def && isLegacyRecord(lvl) ? { ...lvl, name: def.name, salary: def.salary } : lvl;
+      });
+    }
+  }
+
+  const payById = new Map(initialGameState.streetJobs.map((j) => [j.id, j.basePayment]));
+  if (Array.isArray(state.streetJobs)) {
+    for (const job of state.streetJobs) {
+      if (!isLegacyRecord(job) || typeof job.id !== 'string') continue;
+      const pay = payById.get(job.id);
+      if (pay !== undefined) job.basePayment = pay;
+    }
+  }
+
+  const priceById = new Map(initialGameState.items.map((i) => [i.id, i.price]));
+  if (Array.isArray(state.items)) {
+    for (const item of state.items) {
+      if (!isLegacyRecord(item) || typeof item.id !== 'string') continue;
+      const price = priceById.get(item.id);
+      if (price !== undefined) item.price = price;
+    }
+  }
+}
 
 /**
  * Run all applicable migrations on a loaded save state.

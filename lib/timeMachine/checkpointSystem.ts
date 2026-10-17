@@ -251,6 +251,69 @@ export function getRewindCost(
 }
 
 /**
+ * A `weeksLived` claim marker carried onto a rewound life: the live value,
+ * clamped to the restored `weeksLived`. Carrying it verbatim would sit in the
+ * restored life's future and refuse every claim for the replayed weeks; the
+ * snapshot's own value re-arms a claim already paid. Clamped, the restored life
+ * must play one week before the next claim - the same cadence as never having
+ * rewound.
+ */
+function clampedWeekMarker(live: unknown, restoredWeeksLived: unknown): number | undefined {
+  if (typeof live !== 'number' || !Number.isFinite(live)) return undefined;
+  const cap = typeof restoredWeeksLived === 'number' && Number.isFinite(restoredWeeksLived) ? restoredWeeksLived : live;
+  return Math.min(live, cap);
+}
+
+/**
+ * Claim ledgers are one-way, like the Live Ops ledger: a rewind must never
+ * re-open a reward the player was already paid. The snapshot holds the day key,
+ * epoch mark, week marker and streak of the claim BEFORE the ones made since,
+ * so restoring them re-armed the daily login gems (and the DeepLife+ daily
+ * drop's week gate, and every milestone / Legacy Pass tier claimed since) while
+ * the gems they paid carried forward. Mutates `restored`.
+ */
+function carryClaimLedgers(live: GameState, restored: GameState): void {
+  // Daily login gems (home.tsx): calendar-day key, epoch mark, streak - verbatim.
+  if (live.lastLoginRewardDate !== undefined) restored.lastLoginRewardDate = live.lastLoginRewardDate;
+  if (live.lastLoginRewardAt !== undefined) restored.lastLoginRewardAt = live.lastLoginRewardAt;
+  if (live.lastLoginDate !== undefined) restored.lastLoginDate = live.lastLoginDate;
+  if (live.loginStreak !== undefined) restored.loginStreak = live.loginStreak;
+  const loginWeek = clampedWeekMarker(live.lastLoginRewardWeek, restored.weeksLived);
+  if (loginWeek !== undefined) restored.lastLoginRewardWeek = loginWeek;
+
+  // DeepLife+ / free daily drop: its day key and epoch mark already carry via
+  // `carryAccountLevelEntitlements`; its week markers are deliberately not on
+  // that list (they must not cross a PRESTIGE), so they are clamped here.
+  const settings = { ...(restored.settings ?? {}) } as GameState['settings'];
+  const gemWeek = clampedWeekMarker(live.settings?.deepLifePlusLastGemClaimWeek, restored.weeksLived);
+  if (gemWeek !== undefined) settings.deepLifePlusLastGemClaimWeek = gemWeek;
+  const graceWeek = clampedWeekMarker(live.settings?.deepLifePlusLastMemberClaimWeek, restored.weeksLived);
+  if (graceWeek !== undefined) settings.deepLifePlusLastMemberClaimWeek = graceWeek;
+  restored.settings = settings;
+
+  // Additive claim sets: the live set is a superset of the snapshot's.
+  if (Array.isArray(live.claimedMilestoneRewards)) {
+    restored.claimedMilestoneRewards = [...live.claimedMilestoneRewards];
+  }
+  // Legacy Pass is seasonal and account-level (prestige carries it whole too).
+  if (live.legacyPass) {
+    restored.legacyPass = {
+      ...live.legacyPass,
+      claimedFreeTiers: [...(live.legacyPass.claimedFreeTiers || [])],
+      claimedPremiumTiers: [...(live.legacyPass.claimedPremiumTiers || [])],
+      ownedCosmetics: [...(live.legacyPass.ownedCosmetics || [])],
+    };
+  }
+
+  // Same life, same salt. A pre-v54 snapshot still holds 'initial-lineage' and
+  // the migration above would mint it a lineage of its own, so a rewind would
+  // silently move the life onto a different seeded stream.
+  if (typeof live.lineageId === 'string' && live.lineageId.length > 0) {
+    restored.lineageId = live.lineageId;
+  }
+}
+
+/**
  * Rewind to a checkpoint. Returns the restored GameState or null if failed.
  * Preserves cross-life data (ribbons, secrets, checkpoints array).
  */
@@ -333,6 +396,7 @@ export function rewindToCheckpoint(
     // carry as `currentState.gems - cost` below; this covers the boolean
     // unlocks, gold upgrades, perks and unspent youth pills.
     carryAccountLevelEntitlements(currentState, restored);
+    carryClaimLedgers(currentState, restored);
 
     // Deduct gem cost from CURRENT state's gems, carry into restored state
     // This prevents negative gems when the checkpoint was saved with fewer gems than the cost

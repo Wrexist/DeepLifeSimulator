@@ -58,6 +58,7 @@ import {
   carryAccountLevelEntitlements,
   PURCHASED_SETTINGS_KEYS,
   PURCHASED_STATE_KEYS,
+  USER_PREFERENCE_SETTINGS_KEYS,
 } from '@/lib/prestige/accountEntitlements';
 import { logger } from '@/utils/logger';
 
@@ -93,7 +94,10 @@ export function extractNewLifeCarryOver(state: GameState): NewLifeCarryOver {
   const settingsIn = (anyState.settings ?? {}) as Record<string, unknown>;
 
   const settings: Record<string, unknown> = {};
-  for (const key of PURCHASED_SETTINGS_KEYS) {
+  // Purchases AND the player's sound/haptics/notification/theme choices: a
+  // fresh start from the death screen used to reset those to defaults while
+  // every other new-life path kept them.
+  for (const key of [...PURCHASED_SETTINGS_KEYS, ...USER_PREFERENCE_SETTINGS_KEYS]) {
     const value = settingsIn[key];
     // Absent stays absent - writing `undefined` would turn a `key in settings`
     // check into a false positive on the other side.
