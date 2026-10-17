@@ -8,7 +8,7 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { maintenanceCost } from '@/lib/realEstate/operations';
-import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier } from '@/lib/realEstate/housing';
+import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier, getUpgradeTierCost } from '@/lib/realEstate/housing';
 import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
 
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -87,6 +87,8 @@ export default function ManagePropertyModal({
   const availableDecor = DECOR_ITEMS.filter((d) => !installedDecor.includes(d.id));
   const availableRooms = ROOM_ADDITIONS.filter((r) => !installedRooms.includes(r.id));
   const nextTier = getUpgradeTier((property.upgradeLevel ?? 0) + 1);
+  // The same price the charge uses - never `nextTier.cost`, which is only the floor.
+  const nextTierCost = nextTier ? getUpgradeTierCost(nextTier, property) : Infinity;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -232,11 +234,11 @@ export default function ManagePropertyModal({
                 {/* Upgrade tier */}
                 {onUpgrade && (
                   <TouchableOpacity
-                    disabled={!nextTier || availableCash < (nextTier?.cost ?? Infinity)}
+                    disabled={!nextTier || availableCash < nextTierCost}
                     onPress={onUpgrade}
                     style={[
                       styles.improveRow,
-                      { borderColor: theme.border, opacity: nextTier && availableCash >= nextTier.cost ? 1 : 0.5 },
+                      { borderColor: theme.border, opacity: nextTier && availableCash >= nextTierCost ? 1 : 0.5 },
                     ]}
                   >
                     <ArrowUpCircle size={scale(15)} color={accent.success} />
@@ -250,7 +252,7 @@ export default function ManagePropertyModal({
                         </Text>
                       )}
                     </View>
-                    {nextTier && <Text style={[styles.improveCost, { color: accent.success }]}>{formatMoney(nextTier.cost)}</Text>}
+                    {nextTier && <Text style={[styles.improveCost, { color: accent.success }]}>{formatMoney(nextTierCost)}</Text>}
                   </TouchableOpacity>
                 )}
 

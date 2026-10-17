@@ -17,20 +17,58 @@ import { RENT_INCOME_RATE } from '@/lib/config/gameConstants';
 
 export interface UpgradeTier {
   level: number;
+  /** Price FLOOR. What a tier actually costs is `getUpgradeTierCost`. */
   cost: number;
+  /** Share of the property's value the tier costs once that exceeds `cost`. */
+  valueRate: number;
   rentBonus: number;
   upkeepBonus: number;
 }
 
+/**
+ * Tier price = max(flat floor, value × valueRate) - read it through
+ * `getUpgradeTierCost`, never `tier.cost`.
+ *
+ * WHY value-scaled (2026-10-17 economy audit). The benefit of a tier scales
+ * with the property - each level adds `level × 0.0002`/wk appreciation on the
+ * FULL value (`appreciatePropertyValue`) - but the price was a flat
+ * $10k/$25k/$50k. So the return grew linearly with value: on an $8M penthouse
+ * tier 1 added $1,600/wk of value for $10k, ~830%/yr, and the full ladder
+ * ($85k) added $4,800/wk plus the +$500/wk tier-3 rent, ~325%/yr.
+ *
+ * The floors and the rates meet at a $1M property for all three tiers
+ * (10k/1%, 25k/2.5%, 50k/5%), so anything at or under $1M - every starter
+ * home and most of the residential ladder - costs exactly what it did. Above
+ * that the price tracks the value, which pins the appreciation return of each
+ * step at what a $1M property already earned (per step +1.04% of value/yr:
+ * ~104%/yr on tier 1, ~42% on tier 2, ~21% on tier 3; ~37%/yr for the whole
+ * ladder) instead of letting it climb with the price tag. $8M penthouse,
+ * whole ladder: $85k -> $680k.
+ */
 export const UPGRADE_TIERS: UpgradeTier[] = [
-  { level: 0, cost: 0, rentBonus: 0, upkeepBonus: 0 },
-  { level: 1, cost: 10000, rentBonus: 100, upkeepBonus: 20 },
-  { level: 2, cost: 25000, rentBonus: 250, upkeepBonus: 50 },
-  { level: 3, cost: 50000, rentBonus: 500, upkeepBonus: 100 },
+  { level: 0, cost: 0, valueRate: 0, rentBonus: 0, upkeepBonus: 0 },
+  { level: 1, cost: 10000, valueRate: 0.01, rentBonus: 100, upkeepBonus: 20 },
+  { level: 2, cost: 25000, valueRate: 0.025, rentBonus: 250, upkeepBonus: 50 },
+  { level: 3, cost: 50000, valueRate: 0.05, rentBonus: 500, upkeepBonus: 100 },
 ];
 
 export function getUpgradeTier(level: number): UpgradeTier | undefined {
   return UPGRADE_TIERS.find(t => t.level === level);
+}
+
+/**
+ * What reaching `tier` costs on this property: the flat floor, or the tier's
+ * share of the property's CURRENT value (falling back to the purchase price),
+ * whichever is higher. The one price the charge, the affordability gate and
+ * the Manage sheet all read.
+ */
+export function getUpgradeTierCost(
+  tier: UpgradeTier,
+  property: Pick<RealEstate, 'currentValue' | 'price'>,
+): number {
+  const raw = property.currentValue || property.price;
+  const value = typeof raw === 'number' && isFinite(raw) && raw > 0 ? raw : 0;
+  return Math.max(tier.cost, Math.round(value * tier.valueRate));
 }
 
 // ─── Room Additions ──────────────────────────────────────────────────────

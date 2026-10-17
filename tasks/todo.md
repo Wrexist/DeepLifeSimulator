@@ -9,7 +9,7 @@ Branch `claude/audit-polish-ads-2026-10-17` from `main` 094e4119 (2.15.6). Basel
 - [x] "Report an Ad" row in Settings (App Review 2.5.18) - editable email draft, nothing sent automatically.
 - [x] Daily reward doubler: opt-in "Watch ad: +N more gems" (cap 50/day), only when a real ad can show, never for payers; inherits the daily claim's game-week gate. 8 tests.
 - [x] Year-end break: opt-out rewarded interstitial (+15 gems) at the in-game year boundary, with the 5 s intro + No thanks AdMob requires. Pacing: 2 years into a life, never in the first 2 min of a session, 3 min between fullscreen ads, 5 min after a chosen rewarded ad, 4 per session, never for payers or over a blocking modal; preloads 6 weeks ahead. iOS uses the committed "Ad-win" unit. 32 tests.
-- [ ] OWNER: set `EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_ANDROID` (the Android "Ad-win" unit currently sits in `EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID`, where the standard interstitial class cannot serve it). Until then the year-end break runs on iOS only.
+- [x] `EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_ANDROID` / `_IOS` set in EAS production and GitHub secrets (2026-10-17); preflight fails a rewarded-interstitial unit left in the standard interstitial variable.
 
 **Exploits / wrong state (P0-P1)**
 - [x] Savings-goal reward farm (create/fund/withdraw repeat): one rewarded completion per week. 4 tests.
@@ -25,7 +25,9 @@ Branch `claude/audit-polish-ads-2026-10-17` from `main` 094e4119 (2.15.6). Basel
 - [x] Bitcoin halving fired on week 1 for every start age 22+ (absolute-week trap): first halving now lands 208 weeks into the life. 6 tests.
 - [x] Company scandal: free apology was repeatable and a double tap charged Restructure twice: one response per scandal. 6 tests.
 - [x] YouVideo subscribers compounded with no ceiling ($42k/wk at 208 weeks): conversion saturates (now $10.7k/wk). 9 tests.
-- [ ] OWNER calls: memberships are still paid after tax and outside the soft cap (needs a tick restructure); a fully upgraded factory still nets ~$5k/wk at 10 staff; caught crimes keep the loot; property upgrade tiers, the Lobbyist post, prestige point value and Pulse brand deals (economy audit items 4, 8-10).
+- [x] Caught crimes kept the loot (a caught-but-successful attempt netted the take minus 10%): an arrest now pays nothing; the toast says the take was seized. 2 tests.
+- [x] Property upgrade tiers were a flat $10k/$25k/$50k for appreciation on the FULL value (~830%/yr on an $8M penthouse): price is max(floor, value x 1%/2.5%/5%), unchanged at or under $1M. Charge, gate and Manage sheet read `getUpgradeTierCost`. 4 tests.
+- [ ] OWNER calls: memberships are still paid after tax and outside the soft cap (needs a tick restructure); a fully upgraded factory still nets ~$5k/wk at 10 staff; the Lobbyist post, prestige point value and Pulse brand deals (economy audit items 4, 8-10).
 - [x] Discord reward finalized when the save failed (saveGame RESOLVES false): all three sites check the result. 4 tests.
 - [x] v54 migration: career salaries, street pay and item prices stored by value now take the 2026-08 rescales; pre-Program-8 saves get a deterministic `lineageId`. STATE_VERSION 54, docs synced.
 - [x] Zero-stat death counter counted weeks that ended above zero (pets etc. add health after it was decided), so a life could die with no HUD warning. Verified the new test fails without the fix.

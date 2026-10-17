@@ -32,6 +32,7 @@ import {
   DECOR_ITEMS,
   ROOM_ADDITIONS,
   getUpgradeTier,
+  getUpgradeTierCost,
 } from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
@@ -608,18 +609,21 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
   if (!nextTier) {
     return { result: { success: false, message: 'This property is already at the top upgrade tier.' }, next: null };
   }
+  // Value-scaled: the price a $1M+ property pays tracks its value (see
+  // getUpgradeTierCost). The gate, the debit and the budget line read ONE number.
+  const cost = getUpgradeTierCost(nextTier, property);
   const cash = state.stats?.money ?? 0;
-  if (cash < nextTier.cost) {
+  if (cash < cost) {
     return {
-      result: { success: false, message: `You need $${nextTier.cost.toLocaleString('en-US')} to reach tier ${nextTier.level}.` },
+      result: { success: false, message: `You need $${cost.toLocaleString('en-US')} to reach tier ${nextTier.level}.` },
       next: null,
     };
   }
   // Canonical guard only - see resolveMaintenance for the NaN-fallback hazard.
-  const spend = applyMoneyDelta(state, -nextTier.cost, 'Property tier upgrade');
+  const spend = applyMoneyDelta(state, -cost, 'Property tier upgrade');
   if (!spend) {
     return {
-      result: { success: false, message: `You need $${nextTier.cost.toLocaleString('en-US')} to reach tier ${nextTier.level}.` },
+      result: { success: false, message: `You need $${cost.toLocaleString('en-US')} to reach tier ${nextTier.level}.` },
       next: null,
     };
   }
@@ -631,7 +635,7 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
     next: {
       ...state,
       banking: state.banking?.budgetSpend
-        ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', nextTier.cost)
+        ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', cost)
         : state.banking,
       ...spend,
       realEstate: upgradePropertyPure(state.realEstate ?? [], propertyId, nextTier.level),

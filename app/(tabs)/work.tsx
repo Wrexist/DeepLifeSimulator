@@ -268,7 +268,15 @@ function WorkScreenContent() {
             // Show toast notification. SMOOTHNESS: fold the optional mindset
             // feedback into the SAME toast instead of firing a second one right
             // after - two stacked toasts per job felt spammy.
-            if (result.success) {
+            //
+            // The arrest is checked FIRST. A pity-forced success can also be
+            // caught, and that attempt reports `success: true` with `inJail:
+            // true`; performStreetJob pays it nothing (the take is seized), so
+            // it must not reach the mindset payout below or show as a green
+            // success toast.
+            if ('inJail' in result && result.inJail) {
+                showError(result.message || 'You were caught!');
+            } else if (result.success) {
                 let message = result.message ?? '';
                 let mindsetPenalty = false;
                 if (job && gameState.mindset?.activeTraitId) {
@@ -317,8 +325,6 @@ function WorkScreenContent() {
                 } else {
                     showSuccess(message);
                 }
-            } else if ('inJail' in result && result.inJail) {
-                showError(result.message || 'You were caught!');
             } else {
                 showWarning(result.message ?? '');
             }

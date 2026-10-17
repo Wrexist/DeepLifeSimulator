@@ -120,6 +120,18 @@ describe('the only consumer applies the adjustment instead of narrating it', () 
     expect(CODE).toMatch(/mindsetPenalty = mindset\.feedback\.type === 'penalty'/);
   });
 
+  it('an arrest is handled before the success branch, so it pays no mindset bonus', () => {
+    // A pity-forced success can also be caught: `success: true, inJail: true`.
+    // performStreetJob seizes the take, so the mindset payout (which reads
+    // job.basePayment) must never run for it.
+    const arrest = CODE.search(/if \('inJail' in result && result\.inJail\) \{/);
+    const success = CODE.search(/\} else if \(result\.success\) \{/);
+    const payout = CODE.search(/getMindsetAdjustment\(/);
+    expect(arrest).toBeGreaterThan(-1);
+    expect(success).toBeGreaterThan(arrest);
+    expect(payout).toBeGreaterThan(success);
+  });
+
   it('skips the write entirely when there is nothing to apply', () => {
     // A no-op setGameState on every street job would re-render the whole tree
     // for nothing.
