@@ -61,9 +61,41 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: ['Watch one ad to double that day’s gems.'],
       },
       {
+        category: 'new',
+        title: 'Move into a home you own',
+        bullets: ['Make any home you own your residence from its Manage sheet.'],
+      },
+      {
         category: 'improved',
         title: 'Choices you can afford',
         bullets: ['Events show "Need $X" instead of quietly taking your money.'],
+      },
+      {
+        category: 'improved',
+        title: 'Bigger prestige rewards',
+        bullets: [
+          'Prestiging pays about ten times more points, so the shop is finally within reach.',
+          'Legacy Shop upgrades now really carry over to your heir.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Choices that matter',
+        bullets: [
+          'Every Mindset now has a real effect, and its description says exactly what.',
+          'Street job rank now raises your pay.',
+          'Employers can turn you down. Entry-level jobs are still easy to land.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Fairer money',
+        bullets: [
+          'Brand deals pay for each sponsored post you deliver.',
+          'Channel memberships are taxed like the rest of your income.',
+          'Company wages now count against your income tax.',
+          'Lobbyist pays $4,000 a week, and pet shows are a once-a-week bonus.',
+        ],
       },
       {
         category: 'fixed',
@@ -73,6 +105,8 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Votes, investments and treatments do what the button says.',
           'Achievements that could never unlock can now be earned.',
           'Older starts no longer lose half their Bitcoin mining in week one.',
+          'Borrowed money from contacts has to be paid back; flipping cars no longer buys reputation.',
+          'Rewinding time no longer pays achievements and chapters a second time.',
         ],
       },
     ],

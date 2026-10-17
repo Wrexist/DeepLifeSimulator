@@ -13,6 +13,14 @@ their own life seed).
 - **Fixed:** vehicle theft, failed votes, previewed gambles, the treatment
   choice, 11 unreachable achievements, Bitcoin halving on week 1, Journal week
   labels, savings-goal and company-staff exploits, and more (PR #237).
+- **New:** "Make this my home" on a property's Manage sheet.
+- **Balance:** prestige pays ~10x the points (anchored to the $10M threshold);
+  Legacy Shop upgrades apply to the heir; every Mindset has a real effect;
+  street rank raises pay; job applications can be rejected (entry tier stays
+  easy); brand deals pay per delivered post; memberships are taxed; company
+  payroll is tax-deductible; Lobbyist $9k -> $4k; pet shows once a week;
+  contact loans fall due; car flips no longer farm reputation; rewind no
+  longer re-pays claimed rewards (PR #239).
 
 ---
 
