@@ -1203,7 +1203,9 @@ Skills live in `.agents/skills/`:
 | `eas-build [platform]` | Explicit user request only — triggers a cloud build (side effects) |
 | `weekly-audit [domain]` | The standing weekly health check — Economy, Crash/Stability, Save/State, Game Logic, Week-Loop Performance. Automated layer `npm run audit:weekly` (static analyzers in `scripts/audit/`); deep layer is a guided qualitative pass. Run as a Claude Routine |
 
-`.claude/settings.json` holds only `customInstructions` — there are currently **no
+`.claude/settings.json` holds `customInstructions` and `permissions.defaultMode:
+"bypassPermissions"` (the owner's choice, 2026-08-17; the file was two JSON objects
+back to back and so invalid until 2026-10-17) — there are currently **no
 hooks, no `.claude/agents/`, and no `.claude/prompts/`** in this repo. Older
 revisions of `DEV.md` / `WORKFLOW.md` described all three; those sections have been
 replaced with review checklists.
