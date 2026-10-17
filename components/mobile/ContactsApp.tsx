@@ -67,6 +67,7 @@ import {
   isCashOwedToPlayer,
   cashDebtDueWeek,
   cashLoanRepayableWeek,
+  hasCashDebtDueDate,
 } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
 import {
@@ -1049,14 +1050,20 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
     // enforce are the dates the player reads.
     const repayableWeek = isCashOwedToPlayer(f) ? cashLoanRepayableWeek(f) : null;
     const loanLocked = !isSettled && repayableWeek !== null && nowWeek < repayableWeek;
-    const dueWeek = isCashOwedByPlayer(f) ? cashDebtDueWeek(f) : null;
+    // Only termed debts have a due date; one booked before terms existed is
+    // repaid whenever the player chooses (`hasCashDebtDueDate`).
+    const dueWeek = hasCashDebtDueDate(f) ? cashDebtDueWeek(f) : null;
     const termLabel = isSettled
       ? ''
       : repayableWeek !== null
         ? loanLocked ? ` · repayable ${formatLifeWeek(repayableWeek, gameState.lifeStartWeek)}` : ' · repayable now'
         : dueWeek !== null
-          ? nowWeek >= dueWeek ? ' · OVERDUE' : ` · due ${formatLifeWeek(dueWeek, gameState.lifeStartWeek)}`
-          : '';
+          ? nowWeek > dueWeek
+            ? ' · OVERDUE'
+            : nowWeek === dueWeek
+              ? ' · due this week'
+              : ` · due ${formatLifeWeek(dueWeek, gameState.lifeStartWeek)}`
+          : isCashOwedByPlayer(f) ? ' · repay any time' : '';
     return (
       <View style={styles.ledgerRow}>
         <IconBubble color={favorColor(f.kind)} style={styles.bubble36}>

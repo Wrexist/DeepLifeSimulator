@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, AlertCircle, Home, CheckCircle2 } from 'lucide-react-native';
 import { GameState, RealEstate } from '@/contexts/game/types';
@@ -61,13 +61,18 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
   const home = currentHome(gameState);
   const defaultAsResidence = home.homeless && !commercial;
 
+  // Read at OPEN time only. With the default in the dependency list, any state
+  // change that flipped "homeless" while the sheet was open re-ran the reset and
+  // silently wiped the tier, term and toggle the player had already chosen.
+  const defaultAsResidenceRef = useRef(defaultAsResidence);
+  defaultAsResidenceRef.current = defaultAsResidence;
   useEffect(() => {
     if (visible) {
       setTier('standard');
       setTerm('30y');
-      setAsResidence(defaultAsResidence);
+      setAsResidence(defaultAsResidenceRef.current);
     }
-  }, [visible, defaultAsResidence]);
+  }, [visible]);
 
   // What the toggle actually does, stated next to it.
   const residenceNote = asResidence

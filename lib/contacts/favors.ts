@@ -162,14 +162,45 @@ export function cashLoanRepayableWeek(f: Pick<Favor, 'createdWeek'>): number {
   return safe(f.createdWeek, 0) + LENT_CASH_TERM_WEEKS;
 }
 
-/** Week (`weeksLived`) borrowed cash falls due. Overdue from this week on. */
+/**
+ * Id prefix of a borrowed-cash IOU booked under the TERMED rules (2026-10-17).
+ *
+ * IOUs borrowed before then (`iou-<contact>-<week>`) were booked with the
+ * promise "no expiresWeek: the debt persists until repaid", and nothing in
+ * them says when they were taken under which rules - the id and note formats
+ * were identical. Applying the new due date to them would have seized every
+ * old debt older than eight weeks on the first week after the update, with a
+ * bond hit and no warning. So the due date belongs to the id: only debts
+ * booked with this prefix carry one, and old ones keep their original terms.
+ */
+export const TERMED_DEBT_ID_PREFIX = 'loan-';
+
+/** The id of a termed borrowed-cash IOU, stable per lender and week. */
+export function termedDebtId(contactId: string, week: number): string {
+  return `${TERMED_DEBT_ID_PREFIX}${contactId}-${week}`;
+}
+
+/** True for a borrowed-cash IOU that carries a due date (see the prefix above). */
+export function hasCashDebtDueDate(f: Favor): boolean {
+  return isCashOwedByPlayer(f) && typeof f.id === 'string' && f.id.startsWith(TERMED_DEBT_ID_PREFIX);
+}
+
+/**
+ * The LAST week (`weeksLived`) borrowed cash can be repaid in - "pay it back by
+ * week N" means week N is still on time.
+ */
 export function cashDebtDueWeek(f: Pick<Favor, 'createdWeek'>): number {
   return safe(f.createdWeek, 0) + BORROWED_CASH_TERM_WEEKS;
 }
 
-/** True once an open borrowed-cash debt has reached its due week. */
+/**
+ * True once an open termed debt is PAST its due week. Strictly after: the
+ * weekly tick settles on the week it is advancing INTO, so `>=` collected a
+ * debt as the player arrived in the week they had been told was the deadline,
+ * and they never got to repay in it.
+ */
 export function isOverdueCashDebt(f: Favor, currentWeek: number): boolean {
-  return f.status === 'open' && isCashOwedByPlayer(f) && safe(currentWeek, 0) >= cashDebtDueWeek(f);
+  return f.status === 'open' && hasCashDebtDueDate(f) && safe(currentWeek, 0) > cashDebtDueWeek(f);
 }
 
 /** The open cash debt the player owes `contactId`, if any. One at a time. */

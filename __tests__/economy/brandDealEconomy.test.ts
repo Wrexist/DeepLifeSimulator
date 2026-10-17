@@ -191,6 +191,32 @@ describe('brand deals: no farmable edges', () => {
     expect(stub.current().socialMedia!.activeBrandDeals![0].postsDelivered).toBe(0);
   });
 
+  it('a backlog of old posts cannot be cashed in - only posts from this week deliver', () => {
+    // Any unsponsored post used to count, so up to 50 old posts could be paid
+    // against new deals in one sitting, past the one-post-per-content-type
+    // weekly limit that bounds sponsored pay.
+    const s = influencer(1_000_000);
+    s.socialMedia!.recentPosts = Array.from({ length: 40 }, (_, i) => fakePost(`old-${i}`, START_WEEK - 1 - i));
+    s.socialMedia!.activeBrandDeals = [
+      { id: 'd', brandName: 'Acme', payment: 120_000, expiresAt: START_WEEK + 12, expiresIn: 12, postsRequired: 12, postsDelivered: 0 },
+    ];
+    const stub = createSetGameStateStub(s);
+    for (let i = 0; i < 40; i++) {
+      const r = deliverBrandDealPost(stub.current(), stub.setGameState, 'd', `old-${i}`);
+      expect(r.success).toBe(false);
+    }
+    expect(stub.current().stats.money).toBe(0);
+    expect(stub.current().socialMedia!.activeBrandDeals![0].postsDelivered).toBe(0);
+
+    // A post from this week still delivers.
+    stub.setGameState((p) => ({
+      ...p,
+      socialMedia: { ...p.socialMedia!, recentPosts: [fakePost('fresh', START_WEEK), ...(p.socialMedia!.recentPosts ?? [])] },
+    }));
+    expect(deliverBrandDealPost(stub.current(), stub.setGameState, 'd', 'fresh').success).toBe(true);
+    expect(stub.current().stats.money).toBe(10_000);
+  });
+
   it('the same post delivered twice from one stale snapshot is paid once', () => {
     const s = influencer(100_000);
     s.socialMedia!.recentPosts = [fakePost('p1', START_WEEK)];

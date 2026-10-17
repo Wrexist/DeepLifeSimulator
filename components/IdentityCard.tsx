@@ -20,7 +20,7 @@ import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
-import { calcWeeklyPassiveIncome, companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive } from '@/lib/economy/passiveIncome';
 import { companyPayrollTaxDeduction } from '@/lib/business/hustleTick';
 import { applyContentMemberships, membershipSoftCapEfficiency } from '@/contexts/game/actions/weekly/applyContentMemberships';
 import { householdPartnerIncome, computeWeeklyIncome } from '@/contexts/game/actions/weekly/applyIncome';
@@ -372,7 +372,10 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
   // Without it this card billed a staffed company owner tax on wages the tick
   // does not tax.
   const payrollTaxDeduction = useMemo(() => {
-    const companyIncome = (gameState.jailWeeks ?? 0) > 0 ? 0 : companyIncomePaidWeekly(gameState);
+    if ((gameState.jailWeeks ?? 0) > 0) return 0;
+    // The same ceiling the tick uses: the company slice of the SOFT-CAPPED
+    // passive total, real estate excluded as the tick excludes it.
+    const companyIncome = companyIncomeShareOfPassive(calcWeeklyPassiveIncome(gameState, { excludeRealEstate: true }));
     return companyPayrollTaxDeduction(gameState, companyIncome);
   }, [gameState]);
 

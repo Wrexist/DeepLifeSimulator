@@ -38,7 +38,7 @@ import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
-import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
@@ -165,8 +165,8 @@ import { applyMail } from './actions/weekly/applyMail';
 import { applyMailLapse } from './actions/weekly/applyMailLapse';
 import { routeEvents } from '@/lib/events/routing';
 import { creatorLevelFromExperience, creatorPerkTier } from '@/lib/content/creatorLevel';
-import { expireFavors } from '@/lib/contacts/favors';
-import { settleOverdueContactDebts } from './actions/ContactsActions';
+import { expireFavors, OVERDUE_DEBT_BOND_HIT, planOverdueDebtCollection } from '@/lib/contacts/favors';
+import { overdueDebtNotice } from './actions/ContactsActions';
 import { summarizeWeeklyFinance } from './actions/weekly/summarizeWeeklyFinance';
 import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 import { applyDietPlanForWeek } from './actions/weekly/applyDietPlan';
@@ -1229,15 +1229,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //
  // The same proportional slice is what the week's company income really is,
  // so it is also the ceiling on the payroll deduction below.
- const passiveBreakdown = passiveIncomeResult.breakdown;
- // Streams that actually feed the weekly cash total (realEstate is excluded
- // above - it is paid separately by the tenancy tick), i.e. the pre-cap raw sum.
- const activePassiveSum = passiveBreakdown.stocks + passiveBreakdown.socialMedia + passiveBreakdown.patents
-   + passiveBreakdown.businessOpportunities + passiveBreakdown.political + passiveBreakdown.cryptoMining
-   + passiveBreakdown.companies + passiveBreakdown.gamingStreaming;
- const companyShare = activePassiveSum > 0
-   ? Math.max(0, Math.round(passiveBreakdown.companies * (passiveIncome / activePassiveSum)))
-   : 0;
+ // `companyIncomeShareOfPassive` (lib/economy/passiveIncome.ts): the
+ // company stream's slice of the soft-capped total - realEstate is excluded
+ // above, it is paid separately by the tenancy tick.
+ const companyShare = companyIncomeShareOfPassive({ total: passiveIncome, breakdown: passiveIncomeResult.breakdown });
  if (isJailed) {
    passiveIncome = Math.max(0, passiveIncome - companyShare);
  }
@@ -2969,6 +2964,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[FAVORS TICK] failed:', favorErr);
  }
 
+ // (3b) Borrowed cash from contacts is collected HERE once it is past its due
+ //     week, not only at the player's next contact action - a player who never
+ //     opens Contacts again must still be chased, or "never take another
+ //     action" was a way to keep the money. Through `applyCashAndRecord` so the
+ //     week recap's netChange still matches the money that moved (TICK-A4);
+ //     what cash cannot cover joins this week's arrears; each lender loses
+ //     bond once. Each settled debt is closed in the ledger, so a double-invoked
+ //     updater collects once. Pure plan, guarded like its neighbours.
+ let contactDebtArrears = 0;
+ try {
+   const debtPlan = planOverdueDebtCollection(nextFavorLedger, nextWeeksLived, newStats.money);
+   if (debtPlan.collections.length > 0) {
+     nextFavorLedger = debtPlan.ledger;
+     if (debtPlan.cashCollected > 0) applyCashAndRecord(-debtPlan.cashCollected);
+     contactDebtArrears = debtPlan.toArrears;
+     const lenders = new Set(debtPlan.collections.map((c) => c.contactId));
+     processedRelationships = processedRelationships.map((r) =>
+       r && lenders.has(r.id)
+         ? { ...r, relationshipScore: Math.max(0, (r.relationshipScore ?? 0) - OVERDUE_DEBT_BOND_HIT) }
+         : r,
+     );
+     pendingNotifications.push({
+       id: `contact-debts-${nextWeeksLived}`,
+       title: 'Debts collected',
+       message: overdueDebtNotice(debtPlan.collections, prevState.relationships ?? [], debtPlan.toArrears),
+     });
+   }
+ } catch (debtErr) {
+   logger.error('[CONTACT DEBTS TICK] failed:', debtErr);
+ }
+
  // Dark Web tick (STATE_VERSION 18, OnionApp remake).
  // Decays heat, refreshes marketplace listings, settles laundering, expires
  // overdue jobs, and rolls police events at high heat. Police outcomes are
@@ -3453,8 +3479,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  wantedLevel: newWantedLevel,
  // v31: unpaid bills carried into next week. Written unconditionally so a
  // cleared debt actually clears - a `&&` guard here would leave the last
- // non-zero value stuck on the save forever.
- overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0),
+ // non-zero value stuck on the save forever. Contact debts the week collected
+ // but cash could not cover join it (see (3b) above).
+ overdueBalance: arrears.overdueBalance + Math.max(0, weeklyCtx.deferredCharges ?? 0) + contactDebtArrears,
  // The journal finally gets a writer. `journal` shipped with a full reader,
  // a pruner and a life-story consumer, and NOTHING wrote to it - so the one
  // surface that answers "what just happened to me?" always rendered its empty
@@ -3802,20 +3829,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Research belongs to this played week, not to a provider's observed week
  // change (which also occurs when loading a different save).
  nextState = guardTick('research', () => applyResearchWeek(nextState), nextState);
-
- // Borrowed cash from contacts is collected on its due week HERE, not only at
- // the player's next contact action - a player who never opens Contacts again
- // must still be chased, or "never take another action" was a way to keep the
- // money. Uses the post-tick weeksLived; each settled debt is closed, so a
- // double-invoked updater collects once. Arrears it adds are settled by next
- // week's arrears pass, like any other unpaid bill.
- nextState = guardTick('contactDebts', () => {
-   const settled = settleOverdueContactDebts(nextState);
-   if (settled.notice) {
-     pendingNotifications.push({ id: `contact-debts-${nextWeeksLived}`, title: 'Debts collected', message: settled.notice });
-   }
-   return settled.state;
- }, nextState);
 
  // PERF (freeze fix): expose the computed state to the post-update code below.
  postTickState = nextState;

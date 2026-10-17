@@ -28,6 +28,7 @@ import {
   BORROWED_CASH_TERM_WEEKS,
   LENT_CASH_TERM_WEEKS,
   OVERDUE_DEBT_BOND_HIT,
+  termedDebtId,
 } from '@/lib/contacts/favors';
 
 function makeStore(initial: GameState) {
@@ -136,13 +137,13 @@ describe('borrowing - a debt with a due date', () => {
     expect(store.get().stats.money).toBe(owed);
     const momAfterAsk = bond(store, 'mom');
 
-    // Not yet due: a call changes nothing about the debt.
-    advance(store, BORROWED_CASH_TERM_WEEKS - 1);
+    // ON the due week ("pay it back by week N"): still on time, nothing taken.
+    advance(store, BORROWED_CASH_TERM_WEEKS);
     store.setGameState((p) => ({ ...p, stats: { ...p.stats, money: 1_000 } }));
     recordInteraction(store.get(), store.setGameState, 'sam', 'call', 0, 3);
     expect(store.get().stats.money).toBe(1_000);
 
-    // Due: calling SOMEONE ELSE is enough - Mom takes her money back first.
+    // Past it: calling SOMEONE ELSE is enough - Mom takes her money back first.
     advance(store, 1);
     const call = recordInteraction(store.get(), store.setGameState, 'sam', 'call', 0, 3);
     expect(call.success).toBe(true);
@@ -159,31 +160,36 @@ describe('borrowing - a debt with a due date', () => {
   it('what cash cannot cover becomes overdue bills - never forgiven', () => {
     const store = world(0);
     borrowMoney(store.get(), store.setGameState, 'mom', 0); // $100
-    advance(store, BORROWED_CASH_TERM_WEEKS);
+    advance(store, BORROWED_CASH_TERM_WEEKS + 1);
     store.setGameState((p) => ({ ...p, stats: { ...p.stats, money: 30 }, overdueBalance: 50 }));
     recordInteraction(store.get(), store.setGameState, 'sam', 'call', 0, 3);
     expect(store.get().stats.money).toBe(0);
     expect(store.get().overdueBalance).toBe(50 + 70);
   });
 
-  it('a debt borrowed BEFORE this change (no due date anywhere) is collected the same way', () => {
+  it('a debt borrowed BEFORE terms existed keeps its "repay any time" promise', () => {
     // The shape the old inline ContactsApp handler booked: an owed-by-player
-    // money IOU with no expiry that nothing ever read.
+    // money IOU, promised "the debt persists until repaid". Its id format was
+    // identical to a new one's, so a due date applied to it would have seized
+    // every old debt on the first week after the update. Only `loan-` ids are
+    // termed; this one is still owed, and still repayable, but never seized.
     const store = world(500, 300);
     recordFavor(store.setGameState, {
       id: 'iou-mom-40', contactId: 'mom', direction: 'owed-by-player', kind: 'money', value: 160, createdWeek: 40,
       note: 'Borrowed $160 from Mom',
     });
     recordInteraction(store.get(), store.setGameState, 'sam', 'call', 0, 3);
+    expect(store.get().stats.money).toBe(500);
+    expect(store.get().favorLedger!.favors[0].status).toBe('open');
+    expect(repayFavor(store.get(), store.setGameState, 'iou-mom-40').success).toBe(true);
     expect(store.get().stats.money).toBe(340);
-    expect(store.get().favorLedger!.favors[0].status).toBe('redeemed');
   });
 
-  it('several legacy IOUs to one lender cost the bond hit once, not per IOU', () => {
+  it('several overdue IOUs to one lender cost the bond hit once, not per IOU', () => {
     const store = world(1_000, 300);
     for (const w of [40, 41, 42]) {
       recordFavor(store.setGameState, {
-        id: `iou-mom-${w}`, contactId: 'mom', direction: 'owed-by-player', kind: 'money', value: 100, createdWeek: w,
+        id: termedDebtId('mom', w), contactId: 'mom', direction: 'owed-by-player', kind: 'money', value: 100, createdWeek: w,
       });
     }
     const settled = settleOverdueContactDebts(store.get());
@@ -197,7 +203,7 @@ describe('borrowing - a debt with a due date', () => {
     const onTime = world(0);
     borrowMoney(onTime.get(), onTime.setGameState, 'mom', 0);
     const asked = bond(onTime, 'mom');
-    advance(onTime, BORROWED_CASH_TERM_WEEKS - 1);
+    advance(onTime, BORROWED_CASH_TERM_WEEKS); // the due week itself is on time
     const debt = onTime.get().favorLedger!.favors[0];
     expect(repayFavor(onTime.get(), onTime.setGameState, debt.id).success).toBe(true);
     expect(bond(onTime, 'mom')).toBe(asked);
@@ -205,7 +211,7 @@ describe('borrowing - a debt with a due date', () => {
 
     const late = world(0);
     borrowMoney(late.get(), late.setGameState, 'mom', 0);
-    advance(late, BORROWED_CASH_TERM_WEEKS);
+    advance(late, BORROWED_CASH_TERM_WEEKS + 1);
     const lateDebt = late.get().favorLedger!.favors[0];
     const r = repayFavor(late.get(), late.setGameState, lateDebt.id);
     expect(r.success).toBe(true);
@@ -223,7 +229,7 @@ describe('borrowing - a debt with a due date', () => {
     expect(store.get().favorLedger!.favors).toHaveLength(1);
     expect(store.get().stats.money).toBe(100);
 
-    advance(store, BORROWED_CASH_TERM_WEEKS);
+    advance(store, BORROWED_CASH_TERM_WEEKS + 1);
     const due = store.get();
     recordInteraction(due, store.setGameState, 'sam', 'call', 0, 3);
     recordInteraction(due, store.setGameState, 'sam', 'hangout', 0, 3);

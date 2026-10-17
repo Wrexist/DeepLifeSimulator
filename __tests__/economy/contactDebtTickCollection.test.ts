@@ -7,7 +7,8 @@
  * post-tick week, so the due date is enforced whatever the player does.
  *
  * Measured as an A/B on the real `nextWeek`: two weeks identical except for
- * one overdue $500 IOU to Mom.
+ * one overdue $500 IOU to Mom. Collected on the first week PAST its due week:
+ * the due week itself is still on time.
  */
 
 /* eslint-disable import/first -- jest.mock goes above the imports, matching the stress suites. */
@@ -32,7 +33,7 @@ import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState, Relationship } from '@/contexts/game/types';
-import { BORROWED_CASH_TERM_WEEKS, OVERDUE_DEBT_BOND_HIT, type Favor } from '@/lib/contacts/favors';
+import { BORROWED_CASH_TERM_WEEKS, OVERDUE_DEBT_BOND_HIT, termedDebtId, type Favor } from '@/lib/contacts/favors';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -52,6 +53,7 @@ function ProbeComponent() {
 
 const START_WEEK = 200;
 const DEBT = 500;
+const IOU_ID = termedDebtId('mom', START_WEEK - BORROWED_CASH_TERM_WEEKS);
 
 const mom = {
   id: 'mom', name: 'Mom', type: 'parent', relationshipScore: 50,
@@ -60,19 +62,20 @@ const mom = {
 
 function overdueIou(): Favor {
   return {
-    id: 'iou-mom-test',
+    id: IOU_ID,
     contactId: 'mom',
     direction: 'owed-by-player',
     kind: 'money',
     value: DEBT,
-    // Falls due on START_WEEK + 1, the week the tick computes.
-    createdWeek: START_WEEK + 1 - BORROWED_CASH_TERM_WEEKS,
+    // Its due week is START_WEEK, so the week the tick advances INTO
+    // (START_WEEK + 1) is the first one past it.
+    createdWeek: START_WEEK - BORROWED_CASH_TERM_WEEKS,
     note: `Borrowed $${DEBT} from Mom`,
     status: 'open',
   };
 }
 
-interface Week { money: number; momBond: number; iouStatus: string | undefined; overdue: number }
+interface Week { money: number; momBond: number; iouStatus: string | undefined; overdue: number; recapNet: number }
 
 function oneWeek(cash: number, withDebt: boolean): Week {
   captured = null;
@@ -107,8 +110,9 @@ function oneWeek(cash: number, withDebt: boolean): Week {
     return {
       money: state.stats.money,
       momBond: state.relationships?.find((r) => r.id === 'mom')?.relationshipScore ?? NaN,
-      iouStatus: state.favorLedger?.favors.find((f) => f.id === 'iou-mom-test')?.status,
+      iouStatus: state.favorLedger?.favors.find((f) => f.id === IOU_ID)?.status,
       overdue: state.overdueBalance ?? 0,
+      recapNet: state.weekResult?.netChange ?? NaN,
     };
   } finally {
     act(() => root?.unmount());
@@ -125,6 +129,9 @@ describe('the weekly tick collects contact debts on their due week', () => {
     expect(control.money - owing.money).toBe(DEBT);
     expect(control.momBond - owing.momBond).toBe(OVERDUE_DEBT_BOND_HIT);
     expect(owing.overdue).toBe(control.overdue);
+    // The week recap reports the collection: its netChange moves with the cash
+    // (TICK-A4 - a late cash movement outside the recorder broke this).
+    expect(control.recapNet - owing.recapNet).toBe(DEBT);
   });
 
   it('puts what cash cannot cover on the overdue bills instead of forgiving it', () => {

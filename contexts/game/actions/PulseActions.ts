@@ -848,6 +848,19 @@ function resolveDeliverBrandDealPost(
     return { result, next: null };
   }
 
+  // A delivery must be FRESH: a post from this week. A delivery is paid now,
+  // and any unsponsored post used to count - so a backlog of up to 50 old
+  // posts could be cashed in against new deals in one sitting (~$220k in a
+  // week at the per-post cap), past the one-post-per-content-type weekly limit
+  // that is supposed to bound sponsored pay. A post this snapshot cannot see
+  // (ComposeModal delivers the post it has just composed) is this week's by
+  // construction; the commit re-checks against `prev`, where it must exist.
+  const post = (sm.recentPosts ?? []).find((p) => p.id === postId);
+  if (post && post.gameWeek !== (state.weeksLived ?? 0)) {
+    result = { success: false, message: 'Only a post from this week can be delivered. Post something new for this deal.' };
+    return { result, next: null };
+  }
+
   const before = (sm.activeBrandDeals ?? []).find((d) => d.id === dealId);
   if (!before) {
     result = { success: false, message: 'Deal not found.' };

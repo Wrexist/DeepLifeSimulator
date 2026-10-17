@@ -313,6 +313,7 @@ describe('brand deals', () => {
         likes: 0,
         comments: 0,
         timestamp: 0,
+        gameWeek: 5, // this week's: only fresh posts can be delivered
         contentType: 'text',
       } as any,
       {
@@ -321,6 +322,7 @@ describe('brand deals', () => {
         likes: 0,
         comments: 0,
         timestamp: 0,
+        gameWeek: 5,
         contentType: 'text',
       } as any,
     ];

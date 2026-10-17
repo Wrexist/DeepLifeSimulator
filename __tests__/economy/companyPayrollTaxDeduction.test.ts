@@ -42,6 +42,7 @@ import type { Company, GameState } from '@/contexts/game/types';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { companyPayrollTaxDeduction, companyWeeklyPayroll } from '@/lib/business/hustleTick';
+import { companyIncomeShareOfPassive } from '@/lib/economy/passiveIncome';
 import { createTestGameState } from '../helpers/createTestGameState';
 
 function runAction(state: GameState, act: (set: Dispatch<SetStateAction<GameState>>) => void): GameState {
@@ -97,6 +98,23 @@ describe('companyPayrollTaxDeduction', () => {
   it.each([NaN, Infinity, -1_000])('a malformed company income (%s) deducts nothing', (income) => {
     const company = foundedFactory({ employees: 4, workerSalary: 1_000, baseWeeklyIncome: 2_000 });
     expect(companyPayrollTaxDeduction({ companies: [company] }, income)).toBe(0);
+  });
+});
+
+describe('companyIncomeShareOfPassive - the ceiling the tick AND the Cash Flow card use', () => {
+  const breakdown = {
+    stocks: 1_000, realEstate: 999_999, socialMedia: 0, patents: 0, businessOpportunities: 0,
+    political: 0, cryptoMining: 0, companies: 3_000, gamingStreaming: 0,
+  };
+
+  it('is the company slice of the SOFT-CAPPED total, real estate excluded', () => {
+    // $4,000 of active passive streams scaled to $2,400: companies keep 3/4 of it.
+    expect(companyIncomeShareOfPassive({ total: 2_400, breakdown })).toBe(1_800);
+  });
+
+  it('is 0 with no active passive streams or a corrupt total', () => {
+    expect(companyIncomeShareOfPassive({ total: 500, breakdown: { ...breakdown, stocks: 0, companies: 0 } })).toBe(0);
+    expect(companyIncomeShareOfPassive({ total: NaN, breakdown })).toBe(0);
   });
 });
 

@@ -105,6 +105,27 @@ export function membershipPayout(
   return efficiency < 1 ? Math.round(capped * efficiency) : capped;
 }
 
+/**
+ * Paid members the tick will bill for `subscribers`: 5% of them, capped. The
+ * tick recomputes this every week, so a readout must use it rather than the
+ * stored `paidMembers`, which is last week's figure.
+ */
+export function paidMembersFor(subscribers: number | undefined): number {
+  return Math.min(
+    Math.floor(Math.max(0, safe(subscribers)) * MEMBERSHIP_SUB_FRACTION),
+    MEMBERSHIP_MEMBER_CEILING,
+  );
+}
+
+/** Next week's gross membership payout for a channel - what the tick will pay. */
+export function projectedMembershipPayout(
+  gs: Pick<GamingStreamingState, 'subscribers' | 'membershipRate'> | undefined,
+  softCapEfficiency: number = 1,
+): number {
+  if (!gs) return 0;
+  return membershipPayout(paidMembersFor(gs.subscribers), gs.membershipRate, softCapEfficiency);
+}
+
 export function applyContentMemberships(input: ContentMembershipsInput): ContentMembershipsResult {
   const gs = input.gamingStreaming;
   if (!gs) return noMembershipPayout(gs);
@@ -112,12 +133,8 @@ export function applyContentMemberships(input: ContentMembershipsInput): Content
   // Idempotence: already paid this week → no-op.
   if (safe(gs.lastMemberWeek, -1) === input.currentWeek) return noMembershipPayout(gs);
 
-  const subscribers = Math.max(0, safe(gs.subscribers));
   // ≤ 5% of subscribers, and ≤ the absolute ceiling.
-  const paidMembers = Math.min(
-    Math.floor(subscribers * MEMBERSHIP_SUB_FRACTION),
-    MEMBERSHIP_MEMBER_CEILING,
-  );
+  const paidMembers = paidMembersFor(gs.subscribers);
 
   const revenue = membershipPayout(paidMembers, gs.membershipRate, input.softCapEfficiency);
 

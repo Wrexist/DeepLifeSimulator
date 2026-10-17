@@ -22,6 +22,7 @@ import {
   openCashDebtTo,
   openCashLoanTo,
   planOverdueDebtCollection,
+  termedDebtId,
 } from '@/lib/contacts/favors';
 import { logger } from '@/utils/logger';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
@@ -103,13 +104,23 @@ export function settleOverdueContactDebts(state: GameState): { state: GameState;
     };
   }
 
-  const nameOf = (id: string) => rels.find((r) => r?.id === id)?.name ?? 'A former contact';
-  const who = plan.collections.map((c) => `${nameOf(c.contactId)} took back the ${usd(c.owed)} you owed`).join('; ');
+  return { state: next, notice: overdueDebtNotice(plan.collections, rels, toArrears) };
+}
+
+/**
+ * What the player is told when contacts collect overdue debts - shared by the
+ * action path above and the weekly tick, so both say the same thing.
+ */
+export function overdueDebtNotice(
+  collections: readonly { contactId: string; owed: number }[],
+  relationships: readonly (Relationship | null | undefined)[],
+  toArrears: number,
+): string {
+  const nameOf = (id: string) => relationships.find((r) => r?.id === id)?.name ?? 'A former contact';
+  const anyLenderKnown = collections.some((c) => relationships.some((r) => r?.id === c.contactId));
+  const who = collections.map((c) => `${nameOf(c.contactId)} took back the ${usd(c.owed)} you owed`).join('; ');
   const arrearsNote = toArrears > 0 ? ` ${usd(toArrears)} you could not cover went on your overdue bills.` : '';
-  return {
-    state: next,
-    notice: `Past due: ${who}${anyLenderKnown ? ` (bond -${OVERDUE_DEBT_BOND_HIT})` : ''}.${arrearsNote}`,
-  };
+  return `Past due: ${who}${anyLenderKnown ? ` (bond -${OVERDUE_DEBT_BOND_HIT})` : ''}.${arrearsNote}`;
 }
 
 /**
@@ -462,7 +473,8 @@ function resolveBorrow(
   // A real owed-by-player IOU. Its due date is `createdWeek + BORROWED_CASH_TERM_WEEKS`
   // (derived, not stored); past it, `settleOverdueContactDebts` collects it.
   // Stable per-week id (once-per-week gate), so a double tap cannot mint two.
-  const iouId = `iou-${contactId}-${ws}`;
+  // A TERMED id: only these carry a due date (see `TERMED_DEBT_ID_PREFIX`).
+  const iouId = termedDebtId(contactId, ws);
   const ledger = ledgerOf(state);
   const nextLedger = ledger.favors.some((f) => f.id === iouId)
     ? ledger

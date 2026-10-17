@@ -105,11 +105,13 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
   const handleDeliver = useCallback(
     (dealId: string) => {
       const recent: PulseRecentPost[] = sm?.recentPosts ?? [];
-      const candidate = recent.find((p) => !p.sponsoredByDealId);
+      // Only THIS week's posts can be delivered (`deliverBrandDealPost`).
+      const thisWeek = gameState.weeksLived ?? 0;
+      const candidate = recent.find((p) => !p.sponsoredByDealId && p.gameWeek === thisWeek);
       if (!candidate) {
         gameAlert(
           'No post to deliver',
-          'Compose a post first, then return here to tag it as the sponsored delivery.',
+          'Post something this week, then return here to tag it as the sponsored delivery.',
         );
         return;
       }

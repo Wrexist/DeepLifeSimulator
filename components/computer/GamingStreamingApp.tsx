@@ -62,7 +62,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
-import { membershipPayout, membershipSoftCapEfficiency } from '@/contexts/game/actions/weekly/applyContentMemberships';
+import { membershipSoftCapEfficiency, projectedMembershipPayout } from '@/contexts/game/actions/weekly/applyContentMemberships';
 import { nextHypeStreak, hypeChanceForStreak, HYPE_MAX_CHANCE } from '@/lib/content/streamMeta';
 import {
   startLiveStream,
@@ -210,9 +210,13 @@ export default function GamingStreamingApp({ onBack }: Props) {
   // The weekly membership figure the tick actually adds to taxable income -
   // the SAME formula (rate band, $75K cap, net-worth soft cap). Gross: it is
   // taxed with the rest of the week's income, so the tile says "before tax".
+  // Billed on CURRENT subscribers, as the tick does - not the stored
+  // `paidMembers`, which is last week's count. The efficiency reads net worth,
+  // which is identity-memoised, so this is cheap per render.
+  const membershipEfficiency = membershipSoftCapEfficiency(gameState);
   const membershipWeekly = useMemo(
-    () => membershipPayout(channel?.paidMembers ?? 0, channel?.membershipRate, membershipSoftCapEfficiency(gameState)),
-    [channel?.paidMembers, channel?.membershipRate, gameState]
+    () => projectedMembershipPayout(channel, membershipEfficiency),
+    [channel, membershipEfficiency]
   );
 
   const week = gameState.weeksLived || 0;
