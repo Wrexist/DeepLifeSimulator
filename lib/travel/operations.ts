@@ -62,6 +62,21 @@ export function tripHappiness(
   return Math.round(base * mult);
 }
 
+/**
+ * The fare this player pays for a trip with `baseCost`: transport/policy
+ * modifiers x the Mindset (an Adventurer's 0.85). `quoteTrip` charges it and
+ * every screen that shows a fare reads it, so the advertised price is the
+ * charged price. `policyFare` is the same without the Mindset, for a fare
+ * breakdown that names each saving.
+ */
+export function tripFare(baseCost: number, state: GameState): { fare: number; policyFare: number } {
+  const base = safe(baseCost, 0);
+  const mods = transportationMods(state);
+  const policyFare = Math.max(0, Math.floor(base * mods.costMultiplier));
+  const fare = Math.max(0, Math.floor(base * mods.costMultiplier * mindsetEffects(state).travelCost));
+  return { fare, policyFare };
+}
+
 export interface TripQuoteFailure {
   ok: false;
   reason:
@@ -122,8 +137,9 @@ export function quoteTrip(
 
   const mods = transportationMods(state);
   const baseCost = safe(destination.cost, 0);
-  // An Adventurer travels cheaper (lib/mindset/effects.ts).
-  const adjustedCost = Math.max(0, Math.floor(baseCost * mods.costMultiplier * mindsetEffects(state).travelCost));
+  // An Adventurer travels cheaper (lib/mindset/effects.ts) - via `tripFare`,
+  // the one fare every screen shows.
+  const adjustedCost = tripFare(baseCost, state).fare;
   const baseDuration = Math.max(1, safe(destination.duration, 1));
   const adjustedDuration = Math.max(1, Math.ceil(baseDuration * mods.durationMultiplier));
 

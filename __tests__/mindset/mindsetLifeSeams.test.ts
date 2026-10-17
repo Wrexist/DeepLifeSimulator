@@ -47,7 +47,7 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { processWeeklyNPCDepth, WANT_ROTATION_WEEKS } from '@/lib/social/npcDepth';
 import { applyNPCDepthTick } from '@/contexts/game/actions/weekly/applyNPCDepthTick';
-import { quoteTrip, tripHappiness } from '@/lib/travel/operations';
+import { quoteTrip, tripFare, tripHappiness } from '@/lib/travel/operations';
 import { DESTINATIONS } from '@/lib/travel/destinations';
 import { buyItem } from '@/contexts/game/actions/ItemActions';
 import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
@@ -255,6 +255,17 @@ describe('Adventurous: trips cost 15% less and give 25% more happiness', () => {
     const b = quoteTrip(dest.id, life('adventurous'), WEEK);
     expect(a.ok && b.ok).toBe(true);
     if (a.ok && b.ok) expect(b.adjustedCost).toBe(Math.floor(a.baseCost * a.mods.costMultiplier * 0.85));
+  });
+
+  it('every screen reads the fare the booking charges (tripFare), with the saving named apart', () => {
+    for (const id of [null, 'adventurous'] as const) {
+      const s = life(id);
+      const q = quoteTrip(dest.id, s, WEEK);
+      const { fare, policyFare } = tripFare(dest.cost, s);
+      expect(q.ok).toBe(true);
+      if (q.ok) expect(fare).toBe(q.adjustedCost);
+      expect(policyFare - fare).toBe(id ? policyFare - Math.floor(dest.cost * (q.ok ? q.mods.costMultiplier : 1) * 0.85) : 0);
+    }
   });
 
   it("the trip's own happiness is 25% bigger (random events are not scaled)", () => {

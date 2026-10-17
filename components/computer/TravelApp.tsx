@@ -63,7 +63,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { transportationMods } from '@/lib/travel/transportation';
-import { quoteTrip, deriveExperienceStats, tripHappiness } from '@/lib/travel/operations';
+import { quoteTrip, deriveExperienceStats, tripFare, tripHappiness } from '@/lib/travel/operations';
 import { mindsetEffects } from '@/lib/mindset/effects';
 import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
 import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
@@ -593,7 +593,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           const quote = quoteTrip(dest.id, gameState, week);
           const meta = metaFor(dest.id);
           const visited = travel.visitedDestinations?.includes(dest.id);
-          const adjusted = quote.ok ? quote.adjustedCost : Math.max(0, Math.floor(dest.cost * mods.costMultiplier));
+          const adjusted = quote.ok ? quote.adjustedCost : tripFare(dest.cost, gameState).fare;
           const adjustedDuration = quote.ok ? quote.adjustedDuration : Math.max(1, Math.ceil(dest.duration * mods.durationMultiplier));
           const hasDiscount = adjusted < dest.cost;
           const passportRequired = dest.requirements?.items?.includes('passport');
@@ -666,10 +666,14 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const meta = metaFor(dest.id);
     const quote = quoteTrip(dest.id, gameState, week);
     const baseCost = dest.cost;
-    const adjustedCost = Math.max(0, Math.floor(baseCost * mods.costMultiplier));
+    // The fare `quoteTrip` charges (transport/policy x the Mindset), split so
+    // the breakdown can name each saving.
+    const { fare: adjustedCost, policyFare } = tripFare(baseCost, gameState);
     const baseDuration = Math.max(1, dest.duration);
     const adjustedDuration = Math.max(1, Math.ceil(baseDuration * mods.durationMultiplier));
     const savings = baseCost - adjustedCost;
+    const policySavings = baseCost - policyFare;
+    const mindsetSavings = policyFare - adjustedCost;
     const visited = travel.visitedDestinations?.includes(dest.id);
     const visits = (travel.travelHistory || []).filter((h) => h.destinationId === dest.id);
     const lastVisit = visits[visits.length - 1];
@@ -742,10 +746,16 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               {formatMoney(baseCost)}
             </Text>
           </View>
-          {savings > 0 && (
+          {policySavings > 0 && (
             <View style={styles.fareRow}>
               <Text style={[styles.fareLabel, { color: accent.success }]}>Policy savings</Text>
-              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(savings)}</Text>
+              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(policySavings)}</Text>
+            </View>
+          )}
+          {mindsetSavings > 0 && (
+            <View style={styles.fareRow}>
+              <Text style={[styles.fareLabel, { color: accent.success }]}>Adventurous mindset</Text>
+              <Text style={[styles.fareValue, { color: accent.success }]}>−{formatMoney(mindsetSavings)}</Text>
             </View>
           )}
           <View style={styles.fareRow}>
@@ -879,7 +889,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const totalWeeks = Math.max(1, effectiveReturn - startWeek);
     const elapsed = clamp(week - startWeek, 0, totalWeeks);
     const progressPct = clamp((elapsed / totalWeeks) * 100, 0, 100);
-    const fare = Math.max(0, Math.floor(dest.cost * mods.costMultiplier));
+    const fare = tripFare(dest.cost, gameState).fare;
 
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
