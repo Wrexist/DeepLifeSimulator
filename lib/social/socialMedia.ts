@@ -795,6 +795,11 @@ export function calculateWeeklyImpressionEarnings(
   followers: number,
   influenceLevel: InfluenceLevel,
   totalPosts: number,
+  /**
+   * Viral posts made THIS week - never the lifetime `socialMedia.viralPosts`
+   * counter, which made the bonus below grow by $50/wk per viral post ever
+   * made. The tick passes `countViralPostsThisWeek` (lib/social/pulseTick.ts).
+   */
   recentViralPosts: number,
   /**
    * Optional seeded [0,1) roll for the ±20% variation. Threaded from the
@@ -819,7 +824,7 @@ export function calculateWeeklyImpressionEarnings(
   let revenue = baseWeeklyRevenue[influenceLevel];
 
   // Bonus for viral posts this week
-  revenue += recentViralPosts * 50;
+  revenue += (Number.isFinite(recentViralPosts) ? Math.max(0, recentViralPosts) : 0) * 50;
 
   // Random variation (±20%). Seeded when a roll is threaded from the tick.
   const roll = typeof variationRoll === 'number' ? variationRoll : Math.random();

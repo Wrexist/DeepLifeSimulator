@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.15.6",
+  "version": "2.16.0",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -16,7 +16,6 @@
     "test:performance": "jest __tests__/performance/",
     "test:ci": "jest --ci --coverage --watchAll=false && node scripts/check-coverage.js",
     "coverage:ratchet": "node scripts/check-coverage.js",
-    "test:comprehensive": "ts-node scripts/run-tests.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "lint:errors": "eslint . --ext .ts,.tsx --quiet",

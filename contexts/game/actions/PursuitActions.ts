@@ -22,6 +22,7 @@ import {
 } from '@/lib/pursuits/pursuitMastery';
 import { getSkillGainMultiplier } from '@/lib/prestige/applyBonuses';
 import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 const log = logger.scope('PursuitActions');
 
@@ -32,6 +33,13 @@ function applyReward(stats: GameState['stats'], rewards: PursuitReward[]): GameS
   for (const rw of rewards) {
     if (rw.stat === 'money') {
       next.money = Math.min(MONEY_CEILING, Math.max(0, (next.money ?? 0) + rw.amount));
+    } else if (rw.stat === 'happiness') {
+      // Program 14: the same diminishing-returns curve as every other happiness
+      // gain (a loss is never scaled). The dynamic `next[rw.stat]` write below
+      // escaped the curve AND happinessGainAudit, which matches the literal
+      // field name, so guitar practice pinned a life at 100 happiness.
+      const h = next.happiness ?? 0;
+      next.happiness = clamp100(h + scaledHappinessGain(h, rw.amount));
     } else {
       next[rw.stat] = clamp100((next[rw.stat] ?? 0) + rw.amount);
     }

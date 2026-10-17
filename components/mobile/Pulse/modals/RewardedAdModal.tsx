@@ -117,7 +117,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
         () => {
           result = watchAdForFollowerBoost(setGameState, gameState);
         },
-        { adsRemoved },
+        { adsRemoved, placement: 'pulse_boost' },
       );
       // Reward earned AND the weekly cooldown allowed the grant.
       if (isGranted(outcome) && result.success) {

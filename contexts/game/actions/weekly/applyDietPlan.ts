@@ -15,6 +15,10 @@
  * no active diet plan exists. Caller decides whether to log — keeps the
  * helper testable without mocking `logger`.
  *
+ * This is the ONE owner of the diet charge. Selecting a plan
+ * (`toggleDietPlan`) only checks the first week is affordable; it used to
+ * deduct a week too, so week one was paid twice for one week of benefits.
+ *
  * Only the FIRST active diet plan is consumed. The legacy code used
  * `.find()`, so multi-active edge cases (which shouldn't happen — the UI
  * enforces one-at-a-time) preserve "first wins" behavior.

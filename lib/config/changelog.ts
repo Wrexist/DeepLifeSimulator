@@ -45,6 +45,39 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.16.0',
+    date: 'October 2026',
+    headline: 'Fairer choices, bigger rewards',
+    summary: 'Events tell you when you cannot afford a choice, new ways to earn gems, and a long list of fixes.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Year-end bonus',
+        bullets: ['At the end of each year, watch a short optional ad for bonus gems, or skip it.'],
+      },
+      {
+        category: 'new',
+        title: 'Double your daily reward',
+        bullets: ['Watch one ad to double that day’s gems.'],
+      },
+      {
+        category: 'improved',
+        title: 'Choices you can afford',
+        bullets: ['Events show "Need $X" instead of quietly taking your money.'],
+      },
+      {
+        category: 'fixed',
+        title: 'Things now work the way they say',
+        bullets: [
+          'A stolen car that is gone for good really is gone.',
+          'Votes, investments and treatments do what the button says.',
+          'Achievements that could never unlock can now be earned.',
+          'Older starts no longer lose half their Bitcoin mining in week one.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.15.6',
     date: 'October 2026',
     headline: 'Your dream car, in full view',

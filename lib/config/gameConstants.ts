@@ -253,18 +253,37 @@ export function discordJoinRewardMoney(netWorth: number): number {
 }
 
 // ── Crime & Jail ──────────────────────────────────────────
+/** Bail per week of sentence for the shortest (1-2 week) sentences. */
+export const BAIL_PER_SENTENCE_WEEK = 500;
+export const BAIL_FLOOR = 500;
+export const BAIL_CEILING = 250_000;
+
 /**
- * Bail scales with BOTH time served and wealth so it keeps punishing the rich
- * instead of being a rounding error. = clamp( max(jailWeeks * $500, netWorth *
- * 0.5%), $500 floor, $250k ceiling ), rounded. Shared by JailScreen (display)
- * and JobActionsContext.payBail (charge) so the shown price and the amount
- * actually deducted can never drift apart.
+ * Bail scales with the SEVERITY of the crime and with wealth, so it keeps
+ * punishing the rich instead of being a rounding error:
+ *
+ *   clamp( max( $500 * w * max(1, w - 1), netWorth * 0.5% ), $500, $250k )
+ *
+ * where w = remaining sentence in weeks. Shared by JailScreen (display) and
+ * JobActionsContext.payBail (charge) so the shown price and the amount actually
+ * deducted can never drift apart.
+ *
+ * The sentence is the only measure of the crime both callers hold, and it is a
+ * good one: street-crime sentences rise with the take (1 week for pickpocketing
+ * $15, 4 for a $6,000 heist, 6 for an $8,000 contract). Bail used to be LINEAR
+ * in it ($500/week), so the arrest that ends a 4-week heist cost $2,000 against
+ * a ~$9,000 success - getting caught was a cheap toll on the big score. The
+ * per-week rate now rises with the sentence: 1-2 week sentences are unchanged
+ * ($500 / $1,000, so low-tier crime stays affordable), 3 weeks $3,000, 4 weeks
+ * $6,000, 6 weeks $15,000. Bail falls as the sentence is served, and "Serve a
+ * Week" stays the free way out.
  */
 export function computeBailCost(jailWeeks: number, netWorth: number): number {
   const weeks = Number.isFinite(jailWeeks) ? Math.max(0, jailWeeks) : 0;
   const worth = Number.isFinite(netWorth) ? netWorth : 0;
-  const base = Math.max(weeks * 500, worth * 0.005);
-  return Math.round(Math.min(Math.max(base, 500), 250_000));
+  const severity = BAIL_PER_SENTENCE_WEEK * weeks * Math.max(1, weeks - 1);
+  const base = Math.max(severity, worth * 0.005);
+  return Math.round(Math.min(Math.max(base, BAIL_FLOOR), BAIL_CEILING));
 }
 
 // ── Legacy ────────────────────────────────────────────────

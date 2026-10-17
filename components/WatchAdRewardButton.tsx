@@ -56,6 +56,8 @@ interface WatchAdRewardButtonProps {
   disabled?: boolean;
   /** Label to show while disabled, e.g. "Come back next week". */
   disabledLabel?: string;
+  /** Names this surface in ad analytics (`ad_shown.placement`). */
+  placement?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -68,6 +70,7 @@ export default function WatchAdRewardButton({
   icon: Icon = Play,
   disabled = false,
   disabledLabel,
+  placement = 'reward_button',
   style,
 }: WatchAdRewardButtonProps) {
   const { gameState } = useGame();
@@ -80,7 +83,7 @@ export default function WatchAdRewardButton({
     setBusy(true);
     haptic.medium();
     try {
-      const outcome = await runRewardedAd(onReward, { adsRemoved });
+      const outcome = await runRewardedAd(onReward, { adsRemoved, placement });
       if (isGranted(outcome)) {
         haptic.success();
         onGranted?.();
@@ -90,7 +93,7 @@ export default function WatchAdRewardButton({
     } finally {
       setBusy(false);
     }
-  }, [busy, disabled, adsRemoved, onReward, onGranted]);
+  }, [busy, disabled, adsRemoved, onReward, onGranted, placement]);
 
   // A paid ad-free player never sees a "watch ad" affordance.
   if (adsRemoved) return null;

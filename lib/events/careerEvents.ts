@@ -416,6 +416,9 @@ const companyLayoffs: EventTemplate = {
         {
           id: 'stay_calm',
           text: 'Stay calm and keep working',
+          // Whether you survive the cut is rolled above; previewed, the
+          // "You lose your job" badge would answer the question this asks.
+          outcomeHidden: true,
           effects: survivedLayoffs
             ? { stats: { happiness: -10, reputation: 5 } }
             : { stats: { happiness: -25 } },

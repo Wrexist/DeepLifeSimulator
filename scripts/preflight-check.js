@@ -952,10 +952,29 @@ try {
       'EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS',
       'EXPO_PUBLIC_ADMOB_REWARDED_IOS',
     ];
+    // The standard interstitial is NOT required on Android either: neither
+    // platform has a real Interstitial unit. Both "interstitial" units in the
+    // AdMob account are rewarded interstitials, which the InterstitialAd class
+    // cannot serve; they now power the year-end break through the
+    // REWARDED_INTERSTITIAL slot below.
     const androidRequired = [
       'EXPO_PUBLIC_ADMOB_BANNER_ANDROID',
-      'EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID',
       'EXPO_PUBLIC_ADMOB_REWARDED_ANDROID',
+    ];
+    // The year-end rewarded interstitial (lib/ads/yearEndBreak.ts). Optional on
+    // both platforms: iOS ships a committed default, and with no Android unit
+    // the break is simply never offered there. A configured value must still
+    // be well-formed and must not be a Google TEST unit.
+    const optionalVars = [
+      'EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID',
+      'EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_IOS',
+      'EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_ANDROID',
+    ];
+    // Known rewarded-interstitial units ("Ad-win" iOS, "Interstitial" Android -
+    // both rewarded interstitials in AdMob, whatever their names say).
+    const KNOWN_REWARDED_INTERSTITIAL_UNITS = [
+      'ca-app-pub-2286247955186424/2329850711',
+      'ca-app-pub-2286247955186424/9488404327',
     ];
 
     // Google's sample publisher id. A real-looking value that serves TEST ads —
@@ -971,7 +990,7 @@ try {
 
     // Any configured value must be well-formed — catches secret typos on either
     // platform, regardless of whether the var is required.
-    for (const name of [...iosVars, ...androidRequired]) {
+    for (const name of [...iosVars, ...androidRequired, ...optionalVars]) {
       const v = (buildEnv[name] || '').trim();
       if (v && !adUnitPattern.test(v)) {
         malformed.push(`${name}=${v}`);
@@ -1038,14 +1057,35 @@ try {
     // revenue slot stays visible without blocking the launch.
     if (platform === 'ios' || platform === 'all') {
       if (!(buildEnv.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS || '').trim()) {
-        log('[WARN] iOS interstitial ad unit not configured — no interstitial revenue', YELLOW);
-        log('   Banner + rewarded serve real ads via committed defaults; create a', YELLOW);
-        log('   standard Interstitial unit in AdMob and set', YELLOW);
-        log('   EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS to enable interstitials.', YELLOW);
+        log('[WARN] iOS standard interstitial not configured (the year-end break uses the rewarded interstitial)', YELLOW);
+        log('   Banner, rewarded and rewarded interstitial serve real ads via committed', YELLOW);
+        log('   defaults. A standard Interstitial unit is only a fallback for players the', YELLOW);
+        log('   break is not offered to; set EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS if you create one.', YELLOW);
       }
     }
 
-    if (missing.length === 0 && malformed.length === 0 && testUnits.length === 0) {
+    // A rewarded-interstitial unit in a STANDARD interstitial slot can never
+    // fill: InterstitialAd cannot serve that format. Both interstitial vars
+    // held one for months, so the year-end interstitial never showed and every
+    // session spent failed requests on it. Present and wrong is exactly what
+    // this gate is for.
+    const wrongFormat = [];
+    for (const os of ['IOS', 'ANDROID']) {
+      const slot = (buildEnv[`EXPO_PUBLIC_ADMOB_INTERSTITIAL_${os}`] || '').trim();
+      const ri = (buildEnv[`EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_${os}`] || '').trim();
+      if (slot && (slot === ri || KNOWN_REWARDED_INTERSTITIAL_UNITS.includes(slot))) {
+        wrongFormat.push(`EXPO_PUBLIC_ADMOB_INTERSTITIAL_${os}=${slot}`);
+      }
+    }
+    if (wrongFormat.length > 0) {
+      log('[FAIL] A standard interstitial slot holds a rewarded-interstitial unit:', RED);
+      wrongFormat.forEach((v) => log(`   - ${v}`, RED));
+      log('   It can never fill. Move it to EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_*', RED);
+      log('   (the year-end break) and unset the interstitial var.', RED);
+      hasErrors = true;
+    }
+
+    if (missing.length === 0 && malformed.length === 0 && testUnits.length === 0 && wrongFormat.length === 0) {
       log('[PASS] AdMob ad unit IDs configured for production', GREEN);
     }
   }

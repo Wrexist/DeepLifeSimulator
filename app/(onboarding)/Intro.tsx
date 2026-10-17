@@ -8,6 +8,8 @@ import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useTranslation } from '@/hooks/useTranslation';
 import { uiPalette } from '@/lib/config/theme';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { isValidSlotNumber } from '@/src/features/onboarding/slotSafety';
 
 const directions = ['career', 'business', 'people'] as const;
 const icons = [Briefcase, Store, Heart];
@@ -20,6 +22,7 @@ export default function Intro() {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const { t } = useTranslation();
+  const { state: onboarding } = useOnboarding();
   const [chapter, setChapter] = useState(0);
   const [direction, setDirection] = useState<typeof directions[number]>('career');
   const [moment, setMoment] = useState(0);
@@ -33,6 +36,14 @@ export default function Intro() {
   const finish = () => {
     if (leaving.current) return;
     leaving.current = true;
+    // The menu picks the slot before pushing here. Any other route that lands
+    // on this screen without one goes to the picker instead of walking on to a
+    // write with no slot to go on (weekly audit V10b). Checked on tap, not on
+    // mount, so it cannot race the assignment made just before navigating.
+    if (!isValidSlotNumber(onboarding.slot)) {
+      router.replace('/(onboarding)/SaveSlots');
+      return;
+    }
     router.replace('/(onboarding)/Scenarios');
   };
   const back = () => {

@@ -180,7 +180,9 @@ const MAX_ERRORS = 0;
 // Lock in the measured reduction while adding the Program 18 recovery path.
 // 701 on 2026-09-25: the art pipeline's resolver errors were scoped off (it is
 // its own npm package) and the tree measured 701. Lowered per the ratchet rule.
-const MAX_WARNINGS = 698;
+// 679 on 2026-10-17: the audit pass deleted dead modules and tightened the
+// files it touched; the tree measured 679. Lowered per the ratchet rule.
+const MAX_WARNINGS = 679;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

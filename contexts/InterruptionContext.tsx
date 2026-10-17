@@ -93,6 +93,8 @@ export const INTERRUPTION_PRIORITY = {
   // LastWeekRecap on Home is the non-blocking week summary now.
   /** Optional offers. Must never cover a dialog that requires an answer. */
   PROMO: 20,
+  /** The year-end rewarded break (components/YearEndBreak.tsx): optional, skippable. */
+  AD_BREAK: 15,
   AD_ORB: 10,
 } as const;
 

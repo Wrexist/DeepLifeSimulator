@@ -545,7 +545,13 @@ function HomeScreenContent() {
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         if (cancelled) return;
         try {
-          await saveGame();
+          // saveGame reports most failures by RESOLVING false (pristine state,
+          // autosave suspended, slot changed) rather than throwing, so a bare
+          // await finalized a claim whose grant never reached disk.
+          if ((await saveGame()) !== true) {
+            logger.warn('Discord reward reconcile save did not persist; will retry next launch');
+            return;
+          }
         } catch (err) {
           // Save failed - leave the pending marker; the next launch's reconciler
           // completes it. DO NOT finalize (the designed recovery).
@@ -592,8 +598,13 @@ function HomeScreenContent() {
     // otherwise the PRE-grant state would hit disk.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     try {
-      await saveGame();
-      await finalizeDiscordClaim();
+      // Finalize only a grant that reached disk: saveGame RESOLVES false for
+      // most failures, which the old bare await treated as success.
+      if ((await saveGame()) === true) {
+        await finalizeDiscordClaim();
+      } else {
+        logger.warn('Discord reward claim save did not persist; will reconcile next launch');
+      }
     } catch (err) {
       // saveGame rejected - DO NOT finalize. The pending marker + the home
       // reconciler complete the grant on next launch (the designed recovery).
@@ -771,7 +782,7 @@ function HomeScreenContent() {
         </FadeInUp>
 
         {/* Retirement / Elder chapter - retire, pension, elder activities, legacy.
-            Renders only when eligible to retire, elderly, or retired. */}
+            Before retirement opens it says when it will, rather than nothing. */}
         <FadeInUp delay={57}>
           <ElderCard />
         </FadeInUp>

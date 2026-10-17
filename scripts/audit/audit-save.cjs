@@ -99,7 +99,7 @@ const LEGACY_PRE_MIGRATION_FIELDS = new Set([
   'escapedFromJail', 'generationNumber', 'happinessZeroWeeks', 'hasDriversLicense',
   'hasPhone', 'hasSeenJobTutorial', 'healthWeeks', 'healthZeroWeeks', 'journal',
   'karma', 'lastDiseaseWeek', 'lastLogin', 'legacyBonuses', 'lifeMilestones',
-  'lifeMoments', 'lifeStage', 'lifetimeStatistics', 'lineageId', 'memories',
+  'lifeMoments', 'lifeStage', 'lifetimeStatistics', 'memories',
   'mindset', 'pendingChainedEvents', 'pendingEvents', 'petFood', 'politics',
   'prestigeAvailable', 'previousLives', 'revealedDMClues', 'seasonalEvents',
   'showCureSuccessModal', 'showDeathPopup', 'showSicknessModal', 'showWeddingPopup',

@@ -30,7 +30,7 @@
 export const RC_MEDIATOR_ADMOB = 'AdMob';
 
 /** RevenueCat's `AdFormat` string constants (the subset this app serves). */
-export type RcAdFormat = 'banner' | 'interstitial' | 'rewarded';
+export type RcAdFormat = 'banner' | 'interstitial' | 'rewarded' | 'rewarded_interstitial';
 
 /** RevenueCat's `AdRevenuePrecision` string constants. */
 export type RcAdRevenuePrecision = 'exact' | 'publisher_defined' | 'estimated' | 'unknown';

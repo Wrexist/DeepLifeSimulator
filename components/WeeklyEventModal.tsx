@@ -8,6 +8,7 @@ import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { modalEvents } from '@/lib/events/routing';
 import { getCurrentEconomicState } from '@/lib/events/economyEvents';
 import { resolveEventMoney } from '@/lib/events/moneyScaling';
+import { choiceAvailability } from '@/lib/events/choiceAffordability';
 import { netWorth } from '@/lib/progress/achievements';
 import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
@@ -29,6 +30,7 @@ const SPECIAL_EFFECT_LABELS: Record<EventSpecial | '', { text: string; positive:
  add_disease: { text: 'You fall ill', positive: false },
  fire_from_job: { text: 'You lose your job', positive: false },
  add_career_warning: { text: 'Formal warning at work', positive: false },
+ lose_vehicle: { text: 'The vehicle is gone', positive: false },
 };
 
 /** Net worth for the money-preview scaling; a throw must not blank the modal. */
@@ -132,7 +134,7 @@ export default function WeeklyEventModal() {
  // Note: investment_opportunity / job_offer are classified 'good' in
  // getEventType() below, so they don't belong here (avoids dead overlap).
  const personalCrisisEventIds = [
- 'medical_emergency', 'identity_theft',
+ 'medical_emergency', 'identity_theft', 'card_fraud',
  'relationship_crisis', 'legal_issue'
  ];
  const isPersonalCrisisEvent = personalCrisisEventIds.includes(event.id);
@@ -157,7 +159,7 @@ export default function WeeklyEventModal() {
  if (event.id === 'economic_recession' || event.id === 'market_crash' || event.id === 'inflation_spike') {
  return 'bad';
  }
- if (event.id === 'medical_emergency' || event.id === 'identity_theft' || event.id === 'legal_issue' ||
+ if (event.id === 'medical_emergency' || event.id === 'identity_theft' || event.id === 'card_fraud' || event.id === 'legal_issue' ||
  event.id === 'burglary' || event.id === 'police_raid' || event.id === 'court_trial') {
  return 'bad';
  }
@@ -167,8 +169,11 @@ export default function WeeklyEventModal() {
  // templates out of hundreds, so before this a windfall fell through to the
  // amber "Heads Up" warning header (tester pass, 2026-10-10). Read from the
  // same effects the "Choice Effects" preview shows, so header and preview
- // can never disagree.
+ // can never disagree. A rolled (`outcomeHidden`) choice is never "known
+ // upside": reading its effects here would turn the header into the answer
+ // the preview hides ("Good News" only when the gamble had already won).
  if (event.choices.length > 0 && event.choices.every((choice) => {
+ if (choice.outcomeHidden) return false;
  const effects = choice.effects || {};
  const special = SPECIAL_EFFECT_LABELS[choice.special ?? ''];
  return resolveEventMoney(effects, safeNetWorth(gameState)) >= 0
@@ -185,6 +190,13 @@ export default function WeeklyEventModal() {
  };
 
  const eventType = getEventType();
+
+ // Which choices the wallet can cover - the same helper `resolveEvent`
+ // re-checks with, so a button is enabled exactly when the resolver would
+ // accept it. At least one choice is always selectable (see the helper).
+ const availabilityById = new Map(
+ choiceAvailability(event.choices, gameState.stats?.money ?? 0, safeNetWorth(gameState)).map((row) => [row.id, row]),
+ );
 
  const getSeasonalTheme = () => {
  if (!seasonData) return null;
@@ -416,10 +428,10 @@ export default function WeeklyEventModal() {
  !!effects.karma ||
  !!specialLabel;
 
- if (!hasEffects) return null;
-
  // A rolled outcome must not be previewed - the badges would be the
- // answer (see `EventChoice.outcomeHidden`).
+ // answer (see `EventChoice.outcomeHidden`). Checked BEFORE the empty
+ // test: a gamble that rolled "nothing happens" used to drop out of the
+ // panel while its sibling read "Outcome uncertain", which is an answer.
  if (choice.outcomeHidden) {
  return (
  <View key={choice.id} style={styles.choiceEffect}>
@@ -434,6 +446,8 @@ export default function WeeklyEventModal() {
  </View>
  );
  }
+
+ if (!hasEffects) return null;
 
  return (
  <View key={choice.id} style={styles.choiceEffect}>
@@ -485,16 +499,25 @@ export default function WeeklyEventModal() {
  <View style={styles.choicesContainer}>
  {event.choices.map((choice, index) => {
  const enhancedChoice = choice as EnhancedEventChoice;
- const isPrimary = index === 0;
+ const availability = availabilityById.get(choice.id);
+ const disabled = availability ? !availability.selectable : false;
+ // Disabled: what it would take. Selectable but not affordable: the
+ // nothing-else-is-affordable fallback, which takes what you have.
+ const note = availability && !availability.affordable
+ ? (disabled ? `Need ${formatMoney(availability.cost)}` : 'Takes what you have')
+ : undefined;
+ const isPrimary = index === 0 && !disabled;
 
  return (
  <TouchableOpacity
  key={choice.id || `choice-${index}`}
- style={styles.choiceButton}
+ style={[styles.choiceButton, disabled && styles.choiceButtonDisabled]}
  onPress={() => handleResolveEvent(event.id, choice.id)}
+ disabled={disabled}
  activeOpacity={0.85}
  accessibilityRole="button"
- accessibilityLabel={choice.text || 'Continue'}
+ accessibilityLabel={note ? `${choice.text || 'Continue'}. ${note}` : (choice.text || 'Continue')}
+ accessibilityState={{ disabled }}
  >
  {isPrimary ? (
  <LinearGradient
@@ -503,11 +526,11 @@ export default function WeeklyEventModal() {
  end={{ x: 1, y: 1 }}
  style={styles.choiceButtonContent}
  >
- {renderChoiceInner(choice, enhancedChoice, true)}
+ {renderChoiceInner(choice, enhancedChoice, true, note)}
  </LinearGradient>
  ): (
  <View style={[styles.choiceButtonContent, styles.secondaryChoiceContent]}>
- {renderChoiceInner(choice, enhancedChoice, false)}
+ {renderChoiceInner(choice, enhancedChoice, false, note)}
  </View>
  )}
  </TouchableOpacity>
@@ -530,6 +553,7 @@ function renderChoiceInner(
  choice: { text?: string },
  enhancedChoice: EnhancedEventChoice,
  isPrimary: boolean,
+ note?: string,
 ) {
  return (
  <>
@@ -548,6 +572,11 @@ function renderChoiceInner(
  {choice.text || 'Continue'}
  </Text>
  </View>
+ {note ? (
+ <Text style={[styles.choiceNote, isPrimary ? styles.primaryChoiceText: styles.secondaryChoiceText]}>
+ {note}
+ </Text>
+ ): null}
 
  {/* Tradeoff Display - shows gains and losses */}
  {enhancedChoice.tradeoffs && (
@@ -804,6 +833,14 @@ const styles = StyleSheet.create({
  overflow: 'hidden',
 ...getPlatformShadows(6, 0.2, 3, 8),
  elevation: 3,
+ },
+ choiceButtonDisabled: {
+ opacity: 0.5,
+ },
+ choiceNote: {
+ fontSize: fontScale(12),
+ fontWeight: '600',
+ textAlign: 'center',
  },
  choiceButtonContent: {
  paddingVertical: verticalScale(15),

@@ -72,7 +72,6 @@ assets/images/backupMain_Menu.png
 scripts/build-and-submit-testflight.*
 scripts/eas-build-on-success.sh
 scripts/polyfill-toReversed.js
-scripts/run-tests.ts
 scripts/testScenarioFix.ts
 scripts/verify-podspec-patches.js
 scripts/verifyIAPConfig.ts

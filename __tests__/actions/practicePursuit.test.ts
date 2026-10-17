@@ -16,6 +16,21 @@ function harness(initial: GameState) {
 }
 
 describe('practicePursuit (hobby mastery)', () => {
+  it('a happiness reward goes through the diminishing-returns curve', () => {
+    // Guitar pays +4 happiness at level 0. Below 55 that is full value; at 90 it
+    // must be worth less, or practice pins a life at 100 (2026-10-17 audit).
+    const base = createTestGameState();
+    const low = harness(createTestGameState({ stats: { ...base.stats, energy: 100, happiness: 40 } }));
+    practicePursuit(low.ref.state, low.setGameState, 'guitar');
+    expect(low.ref.state.stats.happiness).toBe(44);
+
+    const high = harness(createTestGameState({ stats: { ...base.stats, energy: 100, happiness: 90 } }));
+    practicePursuit(high.ref.state, high.setGameState, 'guitar');
+    const gain = high.ref.state.stats.happiness - 90;
+    expect(gain).toBeGreaterThan(0);
+    expect(gain).toBeLessThan(4);
+  });
+
   it('practicing grants XP, spends energy, and applies the reward', () => {
     const running = getPursuitDef('running')!;
     const state = createTestGameState({ stats: { ...createTestGameState().stats, energy: 100, fitness: 10, health: 50 } });

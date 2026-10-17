@@ -63,7 +63,7 @@ const UPGRADE_RIBBON: Partial<Record<GemUpgradeId, string>> = {
 
 const LinearGradient = Gradient;
 
-// Entrance motion mirrors the shared house tokens (src/utils/animated MOTION):
+// Entrance motion follows the house motion feel:
 // a short slide-up + fade on an ease-out curve, kept under the 300ms UI budget.
 // Easing is resolved defensively so the render-test RN mock (no native Easing)
 // can't crash at load - same pattern as components/ConfirmDialog.tsx.

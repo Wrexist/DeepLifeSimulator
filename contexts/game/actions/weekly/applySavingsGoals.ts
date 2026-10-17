@@ -75,6 +75,12 @@ export function applySavingsGoals(input: SavingsGoalsInput): SavingsGoalsResult 
   const accounts = (banking.accounts || []).map((a) => ({ ...a }));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
 
+  // One rewarded completion per week, shared with the manual contribute path
+  // (lib/banking/operations.ts): several auto-swept goals completing together
+  // must not multiply the reward either.
+  let rewardedThisWeek = banking.savingsGoals.some(
+    (g) => !!g && typeof g === 'object' && g.completedWeek === input.currentWeek,
+  );
   const nextGoals: SavingsGoal[] = banking.savingsGoals.map((goal) => {
     if (!goal || typeof goal !== 'object') return goal;
 
@@ -120,10 +126,13 @@ export function applySavingsGoals(input: SavingsGoalsInput): SavingsGoalsResult 
     if (!alreadyComplete && target > 0 && current >= target) {
       completedWeek = input.currentWeek;
       completedGoalIds.push(goal.id);
-      happinessDelta += GOAL_COMPLETION_HAPPINESS;
-      const reward = Math.min(GOAL_COMPLETION_REWARD_CAP, Math.floor(target * 0.01));
-      if (reward > 0) {
-        rewardCash += reward;
+      if (!rewardedThisWeek) {
+        rewardedThisWeek = true;
+        happinessDelta += GOAL_COMPLETION_HAPPINESS;
+        const reward = Math.min(GOAL_COMPLETION_REWARD_CAP, Math.floor(target * 0.01));
+        if (reward > 0) {
+          rewardCash += reward;
+        }
       }
     }
 

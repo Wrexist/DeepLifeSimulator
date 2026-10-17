@@ -831,8 +831,18 @@ export function contributeToGoal(
   if (target > 0 && nextCurrent >= target) {
     completed = true;
     completedWeek = currentWeek;
-    happinessDelta = GOAL_COMPLETION_HAPPINESS;
-    rewardCash = Math.min(GOAL_COMPLETION_REWARD_CAP, Math.floor(target * 0.01));
+    // One rewarded completion per week. `completedWeek` already stops a goal
+    // paying twice, but nothing limited how many goals a player could open, and
+    // a funded goal can be withdrawn: create, fund, withdraw, repeat paid $500
+    // and +4 happiness per tap with no week passing. Goals are never deleted,
+    // so another goal stamped with this week is a reliable record.
+    const rewardedThisWeek = banking.savingsGoals.some(
+      (g, i) => i !== idx && g?.completedWeek === currentWeek,
+    );
+    if (!rewardedThisWeek) {
+      happinessDelta = GOAL_COMPLETION_HAPPINESS;
+      rewardCash = Math.min(GOAL_COMPLETION_REWARD_CAP, Math.floor(target * 0.01));
+    }
   }
 
   nextGoals[idx] = { ...goal, currentAmount: nextCurrent, completedWeek };

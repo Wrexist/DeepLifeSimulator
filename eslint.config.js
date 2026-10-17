@@ -147,6 +147,10 @@ module.exports = [
     files: [
       "lib/ads/**/*.{ts,tsx}", "lib/ambitions/**/*.{ts,tsx}", "lib/analytics/**/*.{ts,tsx}",
       "lib/liveops/**/*.{ts,tsx}",
+      // Born clean and unlisted until the 2026-10-17 recount (CLAUDE.md §5:
+      // the list drifts behind lib/ whenever a directory is added).
+      "lib/anticipation/**/*.{ts,tsx}", "lib/goals/**/*.{ts,tsx}", "lib/home/**/*.{ts,tsx}",
+      "lib/offers/**/*.{ts,tsx}", "lib/review/**/*.{ts,tsx}",
       "lib/avatar/**/*.{ts,tsx}", "lib/banking/**/*.{ts,tsx}", "lib/business/**/*.{ts,tsx}",
       "lib/careers/**/*.{ts,tsx}", "lib/challenges/**/*.{ts,tsx}", "lib/commitments/**/*.{ts,tsx}",
       "lib/config/**/*.{ts,tsx}", "lib/contacts/**/*.{ts,tsx}", "lib/content/**/*.{ts,tsx}",

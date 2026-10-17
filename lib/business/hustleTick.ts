@@ -5,6 +5,7 @@
  * function — no React, no side effects on input.
  *
  * Per-company order of operations (all use `nextWeeksLived`):
+ *   0. General-staff payroll (employees − named hires) × workerSalary
  *   1. Campaign progression — decrement durations, mark expired
  *   2. Brand health drift toward 50 (no campaigns), lift with active ones
  *   3. Scandal severity decay (10/wk, +15 if 'apology' resolution)
@@ -35,6 +36,47 @@ import {
 } from './hustleLogic';
 
 const NOTIFICATION_CAP = 80;
+
+const finiteNonNeg = (n: unknown): number =>
+  typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : 0;
+
+export interface CompanyWeeklyPayroll {
+  /** Headcount that is NOT a named hire - paid `workerSalary` each. */
+  generalStaff: number;
+  /** `generalStaff * workerSalary`. */
+  generalPayroll: number;
+  /** Sum of the named hires' individual weekly salaries. */
+  namedPayroll: number;
+  /** Everything the company's people cost per week. */
+  total: number;
+}
+
+/**
+ * What a company's people cost per week - the ONE definition, read by the tick
+ * that charges it and by every surface that quotes it (Contacts' team row).
+ *
+ * Named hires ARE employees (`withEmployeeDelta` bumps `company.employees` when
+ * one is accepted) but carry their own negotiated salary, which the tick already
+ * charges below. So general staff = headcount minus named hires, each at the
+ * company's `workerSalary` - never both, or a named hire would be paid twice.
+ *
+ * Before this, general staff paid `workerSalary` ONCE, at hire, while the
+ * headcount multiplier raised `weeklyIncome` forever: a factory's 30 hires cost
+ * a one-off $15,000 and lifted $1,500/wk to $4,152/wk, a ~6-week payback in a
+ * catalogue whose upgrades are pinned to 40-60 weeks. NaN-safe throughout: a
+ * malformed field degrades to 0, never into the tick's cash line.
+ */
+export function companyWeeklyPayroll(
+  company: { employees?: number; workerSalary?: number } | null | undefined,
+  namedHires: readonly { salary?: number }[] | null | undefined,
+): CompanyWeeklyPayroll {
+  const named = Array.isArray(namedHires) ? namedHires : [];
+  const headcount = Math.floor(finiteNonNeg(company?.employees));
+  const generalStaff = Math.max(0, headcount - named.length);
+  const generalPayroll = generalStaff * finiteNonNeg(company?.workerSalary);
+  const namedPayroll = named.reduce((sum, h) => sum + finiteNonNeg(h?.salary), 0);
+  return { generalStaff, generalPayroll, namedPayroll, total: generalPayroll + namedPayroll };
+}
 
 function pushNotif(o: HustleCompanyOverlay, text: string, type: any, weeksLived: number): HustleCompanyOverlay {
   return {
@@ -99,6 +141,19 @@ export function processHustleWeeklyTick(
   for (const company of playerCompanies) {
     if (!company || typeof company.id !== 'string') continue;
     const prevOverlay = out.companies[company.id];
+
+    // 0. General-staff payroll - charged BEFORE the overlay check, because the
+    // staff and their income multiplier live on the canonical Company record,
+    // not the overlay: a company with no overlay still has employees to pay.
+    // Named hires are excluded here (see companyWeeklyPayroll) and charged with
+    // their own salaries in step 4.
+    const { generalPayroll } = companyWeeklyPayroll(company, prevOverlay?.hiringPipeline?.namedHires);
+    if (generalPayroll > 0) {
+      cashDelta -= generalPayroll;
+      availableCash -= generalPayroll;
+      cashReasons.push(`${company.name} staff payroll`);
+    }
+
     if (!prevOverlay) continue; // migration creates these; if missing, skip
 
     let o: HustleCompanyOverlay = { ...prevOverlay };
@@ -265,10 +320,7 @@ export function processHustleWeeklyTick(
       // deducted, so every hire was free money. Deduct it through the same
       // cash-delta path other company costs use (mirrors scandal drag / campaign
       // spend) so hires are an INVESTMENT (income multiplier vs salary cost).
-      const totalSalary = updatedHires.reduce(
-        (sum, h) => sum + (isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
-        0,
-      );
+      const totalSalary = companyWeeklyPayroll(company, updatedHires).namedPayroll;
       if (totalSalary > 0) {
         cashDelta -= totalSalary;
         availableCash -= totalSalary;

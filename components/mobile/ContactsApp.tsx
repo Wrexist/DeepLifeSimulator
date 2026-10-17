@@ -1060,10 +1060,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             <SectionTitle title="Call in a favour" />
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
               {owedFavor
-                ? `${c.name} already owes you a ${owedFavor.kind}. Redeem it from the Favors tab.`
+                ? `${c.name} already owes you ${favorPhrase(owedFavor.kind)}. Redeem it from the Favors tab.`
                 : tooDistant
                   ? `Needs ${NETWORK_FAVOR_MIN_STRENGTH} standing - you are at ${Math.round(c.strength)}.`
-                  : `${c.name} can owe you a ${favorKind}. One at a time.`}
+                  : `${c.name} can owe you ${favorPhrase(favorKind)}. One at a time.`}
             </Text>
             <TouchableOpacity
               style={[styles.triageBtn, getGlassButton(darkMode), askDisabled && { opacity: 0.5 }]}
@@ -1071,12 +1071,12 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               disabled={askDisabled}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`Ask ${c.name} for a ${favorKind}`}
+              accessibilityLabel={`Ask ${c.name} for ${favorPhrase(favorKind)}`}
               accessibilityState={{ disabled: askDisabled }}
             >
               <Handshake size={scale(15)} color={theme.text} />
               <Text style={[styles.triageBtnText, { color: theme.text }]}>
-                {owedFavor ? 'Favour outstanding' : `Ask for a ${favorKind}`}
+                {owedFavor ? 'Favour outstanding' : `Ask for ${favorPhrase(favorKind)}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1105,7 +1105,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         </IconBubble>
         <View style={{ flex: 1 }}>
           <Text style={[styles.ledgerTitle, { color: isSettled ? theme.textSecondary : theme.text }]}>
-            {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {f.kind}
+            {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {favorPhrase(f.kind)}
           </Text>
           <Text style={[styles.cardSub, { color: theme.textMuted }]} numberOfLines={1}>
             {nameForContactId(f.contactId)} · {formatLifeWeek(f.createdWeek, gameState.lifeStartWeek)}{f.expiresWeek ? ` · expires ${formatLifeWeek(f.expiresWeek, gameState.lifeStartWeek)}` : ''}
@@ -1774,6 +1774,21 @@ function recencyMeta(
   if (weeks <= 3) return { color: accent.success, label: `Contacted ${weeks}w ago` };
   if (weeks <= 8) return { color: accent.warning, label: `${weeks}w since contact` };
   return { color: accent.danger, label: `${weeks}w - going cold` };
+}
+
+/**
+ * A favour kind as a phrase with its article. The copy used to splice the raw
+ * kind id into "can owe you a intro".
+ */
+function favorPhrase(kind: string): string {
+  switch (kind) {
+    case 'money': return 'a cash favour';
+    case 'influence': return 'a political favour';
+    case 'discount': return 'a discount';
+    case 'safety': return 'a cover-up';
+    case 'intro': return 'an introduction';
+    default: return 'a favour';
+  }
 }
 
 function favorColor(kind: string): string {

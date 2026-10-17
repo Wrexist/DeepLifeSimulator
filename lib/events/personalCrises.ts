@@ -120,9 +120,10 @@ export const medicalEmergency: EventTemplate = {
               happiness: -10,
             },
           },
-          // Disease will be added to state in event resolution handler
-          special: eventDisease ? 'add_disease' : undefined,
-          diseaseId: eventDisease ? eventDisease.id : undefined,
+          // No `add_disease`: paying for treatment is what stops the illness
+          // taking hold. It used to add the disease 100% of the time - the same
+          // as delaying, and worse than home remedies' coin flip - so the
+          // $2,000-$5,000 option was the worst medical choice on the screen.
         },
         {
           id: 'delay',
@@ -233,35 +234,38 @@ export const investmentOpportunity: EventTemplate = {
   },
   generate: (state: GameState) => {
     const money = state.stats.money || 0;
-    const investmentAmount = Math.min(money * 0.3, 2000); // 30% or max $2000
-    
-    // Use deterministic random for outcome
-    const seededRandom = (seed: number) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
-    const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
-    const outcomeRoll = seededRandom(weekSeed + 10000);
-    
+    // Whole dollars: the copy used to print "$1,234.5" off a raw 30%.
+    const investmentAmount = Math.floor(Math.min(money * 0.3, 2000)); // 30% or max $2000
+    const smallAmount = Math.floor(investmentAmount * 0.5);
+
+    // SEEDED per life (`payloadRoll`). This was a private `Math.sin` hash of
+    // the week and year, so every life drew the same outcome in the same week -
+    // the week-only roll CLAUDE.md §4.3 forbids for a life-affecting draw.
+    const outcomeRoll = payloadRoll(state, 'investment_opportunity')('outcome');
+
     // 60% chance of success, 30% break even, 10% loss
     const isSuccess = outcomeRoll < 0.6;
     const isLoss = outcomeRoll >= 0.9;
-    
+
     return {
       id: 'investment_opportunity',
-      description: 'A friend offers you an investment opportunity. It could be profitable, but there\'s risk involved.',
+      description: "A friend offers you an investment opportunity. It could be profitable, but there's risk involved.",
       choices: [
         {
           id: 'invest',
           text: `Invest $${investmentAmount.toLocaleString('en-US')}`,
+          // Rolled at generation, so the preview must not show which way it
+          // went; gated on the stake the text names.
+          outcomeHidden: true,
+          stake: investmentAmount,
           effects: {
             // Net-outcome model (the principal is never separately withdrawn):
             // success = +50% net, loss = -50% net, break-even = 0. The old
             // success value (+150%) handed back the principal you never paid.
             money: isSuccess
-              ? investmentAmount * 0.5 // net +50%
+              ? Math.round(investmentAmount * 0.5) // net +50%
               : isLoss
-                ? -investmentAmount * 0.5 // 50% loss
+                ? -Math.round(investmentAmount * 0.5) // 50% loss
                 : 0, // Break even
             stats: {
               happiness: isSuccess ? 15 : isLoss ? -10 : 0,
@@ -280,12 +284,16 @@ export const investmentOpportunity: EventTemplate = {
         },
         {
           id: 'small',
-          text: `Invest $${Math.floor(investmentAmount * 0.5).toLocaleString('en-US')} (smaller amount)`,
+          text: `Invest $${smallAmount.toLocaleString('en-US')} (smaller amount)`,
+          outcomeHidden: true,
+          stake: smallAmount,
           effects: {
-            money: isSuccess 
-              ? investmentAmount * 0.75 // 50% return on smaller amount
-              : isLoss 
-                ? -investmentAmount * 0.25 // 50% loss on smaller amount
+            // The same +/-50% on the SMALL stake. This read 0.75x / 0.25x of the
+            // BIG stake, so a success on the small bet paid 1.5x the big one.
+            money: isSuccess
+              ? Math.round(smallAmount * 0.5)
+              : isLoss
+                ? -Math.round(smallAmount * 0.5)
                 : 0,
             stats: {
               happiness: isSuccess ? 8 : isLoss ? -5 : 0,
@@ -299,7 +307,9 @@ export const investmentOpportunity: EventTemplate = {
 
 /**
  * Job Offer Event
- * An opportunity for a better job
+ * A one-off paid side contract (or, for the unemployed, a one-off project).
+ * Kept under the `job_offer` id, which saves and the resolver's category list
+ * already carry.
  */
 export const jobOffer: EventTemplate = {
   id: 'job_offer',
@@ -315,21 +325,26 @@ export const jobOffer: EventTemplate = {
     const currentSalary = jobCareer?.levels?.[jobCareer.level]?.salary || 0;
     const reputation = state.stats.reputation || 0;
     
-    // New job offers 20-50% more salary based on reputation
+    // The fee is 120-150% of a week's pay, scaled by reputation
     const salaryMultiplier = 1.2 + (reputation / 100) * 0.3;
     const newSalary = Math.floor(currentSalary * salaryMultiplier) || 500;
     
+    const employed = Boolean(jobCareer);
+
     return {
       id: 'job_offer',
-      // Honest copy + a real reward: there is no generic "switch to this exact
-      // job" hook, so accepting pays a one-time signing bonus (≈ its first
-      // paycheck) instead of silently promising an ongoing salary that never
-      // applied. The happiness/reputation still land.
-      description: `You receive a strong job offer - accepting comes with a $${newSalary.toLocaleString('en-US')} signing bonus${currentSalary > 0 ? ' and a real step up from your current pay' : ''}.`,
+      // The effect is a ONE-OFF payment and the job does not change - there is
+      // no generic "switch to this job" hook - so the copy now says exactly
+      // that. It used to promise "a real step up from your current pay" that
+      // never arrived, and offered an unemployed player "Decline and stay at
+      // current job".
+      description: employed
+        ? `A rival firm wants your expertise for a short side contract: $${newSalary.toLocaleString('en-US')} up front, and you keep your current job.`
+        : `A local business needs an extra pair of hands for a one-off project and offers $${newSalary.toLocaleString('en-US')} for it.`,
       choices: [
         {
           id: 'accept',
-          text: 'Accept the offer',
+          text: employed ? 'Take the contract' : 'Take the project',
           effects: {
             money: newSalary,
             stats: {
@@ -340,7 +355,7 @@ export const jobOffer: EventTemplate = {
         },
         {
           id: 'decline',
-          text: 'Decline and stay at current job',
+          text: employed ? 'Decline and stay focused on your job' : 'Turn it down',
           effects: {
             stats: {
               happiness: -3,
@@ -349,7 +364,9 @@ export const jobOffer: EventTemplate = {
         },
         {
           id: 'negotiate',
-          text: 'Negotiate for even better terms',
+          // Pays nothing, so it is not "negotiate for better terms" - it is the
+          // networking play the reputation reward actually describes.
+          text: 'Pass for now, but keep in touch',
           effects: {
             stats: {
               happiness: 5,

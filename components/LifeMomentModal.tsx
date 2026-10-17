@@ -1,10 +1,16 @@
 import { uiPalette } from '@/lib/config/theme';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import { Platform, View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
-import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import {
+  resolveLifeMomentChoice,
+  dismissLifeMoment,
+  canAffordLifeMomentChoice,
+  lifeMomentChoiceCost,
+} from '@/lib/events/lifeMomentResolution';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 import { statIdentity, DIRECTION_COLOR, withAlpha } from '@/lib/config/statIdentity';
 import { scale, fontScale } from '@/utils/scaling';
@@ -14,113 +20,49 @@ const LinearGradient = Gradient;
 
 export default function LifeMomentModal() {
   const { gameState, setGameState } = useGameState();
-  const { updateStats, updateMoney, saveGame } = useGameActions();
+  const { saveGame } = useGameActions();
   
   const moment = gameState.lifeMoments?.pendingMoment;
   // R2-A: this fires whenever a life moment triggers and would otherwise crash
   // on a save that's mid-migration.
   const settings = safeSettings(gameState);
 
-  // Anti-double-tap latch. `handleChoice`/`handleDismiss` read `pendingMoment`
-  // from the stale render closure and apply money/stats/karma via separate
-  // dispatches BEFORE React clears the moment, so two same-frame taps would each
-  // pass the `if (!pending)` gate and double-grant (e.g. "Bank the windfall" pays
-  // +$5,000 twice → +$10,000; karma choices double their delta). Latching on the
-  // unique moment id makes the effects apply exactly once per moment. Moment ids
-  // are unique per generation, so a fresh moment always clears the latch.
-  const resolvedMomentRef = useRef<string | null>(null);
-
+  // ONE updater per tap, via the pure `resolveLifeMomentChoice`. This used to
+  // apply money, each stat, karma and consequences as separate dispatches with
+  // only the money leg able to refuse, so a refused "Go all in" (-$5,000) still
+  // granted its happiness and unlocked its payout event. The resolver re-checks
+  // the cost against `prev` and clears the moment in the same transition, which
+  // also makes a same-frame double tap pay once (the second updater finds no
+  // pending moment) - the job the old `resolvedMomentRef` latch did by hand.
   const handleChoice = useCallback(
     (choiceId: string) => {
       const pending = gameState.lifeMoments?.pendingMoment;
       if (!pending) return;
-      if (resolvedMomentRef.current === pending.id) return; // already resolving this moment
-      const choice = pending.choices.find(c => c.id === choiceId);
-      if (!choice) return;
-      resolvedMomentRef.current = pending.id;
-
-      choice.quickEffect.forEach(effect => {
-        if (effect.stat === 'money') {
-          updateMoney(effect.amount, `Life moment: ${pending.situation.substring(0, 30)}...`);
-        } else {
-          updateStats({ [effect.stat]: effect.amount }, false);
-        }
-      });
-
-      // Moral choices move the karma fingerprint (honesty/generosity/loyalty…).
-      if (choice.karma) {
-        const k = choice.karma;
-        setGameState(prev => ({
-          ...prev,
-          karma: applyKarmaChange(prev.karma ?? INITIAL_KARMA, k.dimension, k.amount, k.reason, prev.weeksLived ?? 0),
-        }));
-      }
-
-      if (choice.hiddenConsequences && choice.hiddenConsequences.length > 0) {
-        const { applyChoiceConsequences } = require('@/lib/lifeMoments/consequenceTracker');
-        const consequenceResult = applyChoiceConsequences(
-          gameState,
-          pending.id,
-          choiceId,
-          choice.hiddenConsequences
-        );
-
-        setGameState(prev => {
-          const { initializeConsequenceState } = require('@/lib/lifeMoments/consequenceTracker');
-          const currentState = initializeConsequenceState(prev);
-          return {
-            ...prev,
-            consequenceState: {
-              ...currentState,
-              ...consequenceResult.updatedState,
-              consequences: consequenceResult.newConsequences,
-            },
-          };
-        });
-      }
-
-      // The moment was already counted when it was GENERATED
-      // (applyLifeMoment.ts). Resolving it must NOT re-increment the counters -
-      // just clear the pending moment. (Previously double-counted every moment.)
-      setGameState(prev => ({
-        ...prev,
-        lifeMoments: {
-          ...(prev.lifeMoments || {}),
-          lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
-          momentsThisWeek: prev.lifeMoments?.momentsThisWeek ?? 0,
-          totalMoments: prev.lifeMoments?.totalMoments ?? 0,
-          pendingMoment: undefined,
-        },
-      }));
-
+      setGameState(prev => resolveLifeMomentChoice(prev, pending.id, choiceId));
       saveGame();
     },
-    [gameState, setGameState, updateStats, updateMoney, saveGame]
+    [gameState, setGameState, saveGame]
   );
 
   // Dismiss without applying a choice. Clears pendingMoment the same way the
   // choice handler does so an empty/malformed moment can't soft-lock the UI
-  // and Android back works.
+  // and Android back works. Keyed on the moment id, so a dismiss racing a
+  // choice in the same batch cannot clear the NEXT moment.
   const handleDismiss = useCallback(() => {
     const pending = gameState.lifeMoments?.pendingMoment;
     if (!pending) return;
-    if (resolvedMomentRef.current === pending.id) return; // a choice already resolved this moment
-    resolvedMomentRef.current = pending.id;
-    setGameState(prev => ({
-      ...prev,
-      lifeMoments: {
-        lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
-        momentsThisWeek: prev.lifeMoments?.momentsThisWeek ?? 0,
-        totalMoments: prev.lifeMoments?.totalMoments ?? 0,
-        pendingMoment: undefined,
-      },
-    }));
+    setGameState(prev => dismissLifeMoment(prev, pending.id));
     saveGame();
   }, [gameState, setGameState, saveGame]);
 
   if (!moment) return null;
 
   const hasChoices = Array.isArray(moment.choices) && moment.choices.length > 0;
+  const cash = gameState.stats?.money ?? 0;
+  // The choices are the only way out of this modal on iOS (no X, no backdrop
+  // tap), so if the wallet covers none of them a plain "Not now" is offered
+  // rather than a screen of disabled buttons.
+  const noneAffordable = hasChoices && moment.choices.every(c => !canAffordLifeMomentChoice(c, cash));
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
@@ -155,7 +97,7 @@ export default function LifeMomentModal() {
             </Text>
           
             <View style={styles.choicesContainer}>
-              {!hasChoices && (
+              {(!hasChoices || noneAffordable) && (
                 <TouchableOpacity
                   style={[
                     styles.choiceButton,
@@ -165,23 +107,35 @@ export default function LifeMomentModal() {
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
-                    Dismiss
+                    {hasChoices ? 'Not now' : 'Dismiss'}
                   </Text>
                 </TouchableOpacity>
               )}
-              {hasChoices && moment.choices.map((choice, index) => (
+              {hasChoices && moment.choices.map((choice) => {
+                // Disabled with what it takes, exactly when the resolver would refuse it.
+                const affordable = canAffordLifeMomentChoice(choice, cash);
+                return (
                 <TouchableOpacity
                   key={choice.id}
                   style={[
                     styles.choiceButton,
-                    settings.darkMode && styles.choiceButtonDark
+                    settings.darkMode && styles.choiceButtonDark,
+                    !affordable && styles.choiceButtonDisabled,
                   ]}
                   onPress={() => handleChoice(choice.id)}
+                  disabled={!affordable}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !affordable }}
                 >
                   <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
                     {choice.text}
                   </Text>
+                  {!affordable && (
+                    <Text style={[styles.needText, settings.darkMode && styles.choiceTextDark]}>
+                      Need {formatMoney(lifeMomentChoiceCost(choice))}
+                    </Text>
+                  )}
                   {choice.quickEffect.length > 0 && (
                     <View style={styles.effectsContainer}>
                       {/* One chip per effect. TWO readings, kept apart on
@@ -226,7 +180,8 @@ export default function LifeMomentModal() {
                     </View>
                   )}
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           </ScrollView>
         </LinearGradient>
@@ -303,6 +258,14 @@ const styles = StyleSheet.create({
   choiceButtonDark: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  choiceButtonDisabled: {
+    opacity: 0.5,
+  },
+  needText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: uiPalette.slate,
   },
   choiceText: {
     fontSize: fontScale(16),

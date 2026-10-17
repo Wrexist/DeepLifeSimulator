@@ -266,3 +266,17 @@ describe('the carry survives the save -> load round trip', () => {
     expect(state.perks.lucky_charm).toBe(true);
   });
 });
+
+describe('player preferences survive a fresh start from the death screen', () => {
+  it('carries sound, haptics, notifications and theme with the purchases', () => {
+    const s: any = createTestGameState();
+    s.settings = { ...s.settings, soundEnabled: false, hapticFeedback: false, darkMode: true, notificationsEnabled: false };
+    const carry = extractNewLifeCarryOver(s);
+    expect(carry.settings).toMatchObject({
+      soundEnabled: false,
+      hapticFeedback: false,
+      darkMode: true,
+      notificationsEnabled: false,
+    });
+  });
+});

@@ -39,9 +39,14 @@ describe('runCryptoWeeklyTick - halving', () => {
     expect(r.notifications.find((n) => n.id === 'crypto-halving')).toBeUndefined();
   });
 
+  // These two used to pass a market with NO `lastHalvingWeek` and rely on the
+  // tick reading the absent marker as week 0 - the bug that halved mining on the
+  // first tick of every life starting at 22+ (weeksLived is seeded from age).
+  // An absent marker now stamps the epoch instead (halvingEpoch.test.ts), so
+  // they state the epoch explicitly: an age-18 life whose market began at 0.
   it('fires exactly at week 208 and bumps halvingCount to 1', () => {
     const r = runCryptoWeeklyTick({
-      market: emptyMarket(),
+      market: { ...emptyMarket(), lastHalvingWeek: 0 },
       cryptos: [btc],
       cashIn: 0,
       currentWeek: 208,
@@ -54,7 +59,7 @@ describe('runCryptoWeeklyTick - halving', () => {
 
   it('forces BTC into a bull regime with 24-week duration', () => {
     const r = runCryptoWeeklyTick({
-      market: emptyMarket(),
+      market: { ...emptyMarket(), lastHalvingWeek: 0 },
       cryptos: [btc],
       cashIn: 0,
       currentWeek: 208,

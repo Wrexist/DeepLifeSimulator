@@ -35,6 +35,8 @@ import {
   ChevronUp,
 } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { safeSettings } from "@/utils/safeGameState";
 import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
@@ -100,6 +102,10 @@ interface JournalProps {
 export default function Journal({ compact = false }: JournalProps) {
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const entries = useGameSelector((s) => s.journal) || [];
+  // `atWeek` is the ABSOLUTE weeksLived, seeded from the starting age, so an
+  // age-25 start showed its first entry as "Week 365" / "Year 8" while the HUD
+  // said week 1 (CLAUDE.md §4.2). Labels count from the start of this life.
+  const lifeStartWeek = useGameSelector((s) => s.lifeStartWeek);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<JournalCategory>('all');
@@ -161,10 +167,11 @@ export default function Journal({ compact = false }: JournalProps) {
   }, []);
 
   const formatWeek = useCallback((week: number) => {
-    const year = Math.floor(week / WEEKS_PER_YEAR) + 1;
-    const weekInYear = (week % WEEKS_PER_YEAR) + 1;
+    const rel = weeksSinceLifeStart(week, lifeStartWeek);
+    const year = Math.floor(rel / WEEKS_PER_YEAR) + 1;
+    const weekInYear = (rel % WEEKS_PER_YEAR) + 1;
     return `Year ${year}, Week ${weekInYear}`;
-  }, []);
+  }, [lifeStartWeek]);
 
   // Compact view for embedding
   if (compact) {
@@ -202,7 +209,7 @@ export default function Journal({ compact = false }: JournalProps) {
                       {entry.title}
                     </Text>
                     <Text style={[styles.compactEntryMeta, settings.darkMode && styles.textMuted]}>
-                      Week {entry.atWeek}
+                      {formatLifeWeek(entry.atWeek, lifeStartWeek)}
                     </Text>
                   </View>
                   <ChevronRight size={16} color={settings.darkMode ? uiPalette.muted : uiPalette.muted} />
@@ -443,7 +450,7 @@ export default function Journal({ compact = false }: JournalProps) {
                           {entry.title}
                         </Text>
                         <Text style={[styles.entryMeta, settings.darkMode && styles.textMuted]}>
-                          Week {entry.atWeek}
+                          {formatLifeWeek(entry.atWeek, lifeStartWeek)}
                         </Text>
                       </View>
                     </View>

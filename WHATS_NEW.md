@@ -1,5 +1,21 @@
 # What's New - DeepLife Simulator
 
+## v2.16.0 - Fairer choices, bigger rewards
+
+**Compatibility:** every save loads; save format v54 (by-value career pay,
+street pay and item prices take the 2026-08 rescales; pre-Program-8 saves get
+their own life seed).
+
+- **New:** the year-end break (optional rewarded ad, +15 gems, skippable) and a
+  daily reward doubler. Ads now retry failed loads, so "Watch ad" finds an ad.
+- **Improved:** unaffordable event choices show "Need $X" instead of silently
+  taking the money; events can never get stuck.
+- **Fixed:** vehicle theft, failed votes, previewed gambles, the treatment
+  choice, 11 unreachable achievements, Bitcoin halving on week 1, Journal week
+  labels, savings-goal and company-staff exploits, and more (PR #237).
+
+---
+
 ## v2.15.6 - Garage hero (store version 1.6.0)
 
 **Compatibility:** every save loads; save format unchanged (v53).

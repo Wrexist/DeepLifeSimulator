@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 53`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 54`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -414,7 +414,7 @@ Two rules that came out of measuring it (Program 11,
   the router resolves through a lookup map at module top.
 - **Logging:** `utils/logger.ts`, not `console.*`.
 - **Lint guardrails** (`eslint.config.js`), which encode the hard rules:
-  - `as any` → warn app-wide, **error in 58 of `lib/`'s 59 directories** — every
+  - `as any` → warn app-wide, **error in 64 of `lib/`'s 65 directories** — every
     one that is fully clean of `as any` and internal `require()`, i.e. all but
     `lib/simulation`. `lib/travel`
     was the first and sat alone for months; a count on 2026-08-14 found 48 more
@@ -522,7 +522,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 53`** — single source of truth in
+- **Canonical `STATE_VERSION = 54`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -931,6 +931,23 @@ including the crash screen.
   entries untouched. No repair mirror: repair restores a missing catalogue from
   the repriced defaults. The rule it records: a catalogue stored by value needs
   a migration for a PRICE change, not just for a new field.
+- **v54 applies the v53 rule to the other by-value catalogues, and mints
+  `lineageId`** - not a new field. `careers[].levels[].salary`,
+  `streetJobs[].basePayment` and `items[].price` are saved by value and read
+  from the save by payroll, street work and the shop; repair only adopts a
+  ladder when the code has MORE levels, so the 2026-08 rescales (entry wage
+  $50 -> $110, street pay x0.40, the teacher/nurse/police ladders, the $900 ->
+  $600 phone) never reached older saves. For KNOWN ids the migration adopts the
+  code's per-level `name`/`salary`, `basePayment` and `price`; progress fields
+  and unknown ids are untouched. No repair mirror for that half (repair restores
+  a missing catalogue from current defaults). It also mints `lineageId` when it
+  is missing or still the template `'initial-lineage'` that every
+  pre-Program-8 life shared - DETERMINISTICALLY, by hashing the save
+  (`deriveLineageId`), so the same un-resaved file always loads as the same
+  life (Program 14). `lineageId` has a concrete default, so it takes a
+  `repairGameState` mirror (mint when missing, never the literal), and it left
+  the audit's `LEGACY_PRE_MIGRATION_FIELDS`. Rewind carries the live lineage, so
+  a pre-v54 snapshot cannot move a life onto a different seeded stream.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
@@ -981,7 +998,7 @@ including the crash screen.
 - **The inverse rule is now machine-checked.** `scripts/audit/audit-save.cjs`
   V11 walks `initialGameState`'s top-level fields and fails on any CONCRETE
   default with neither a migration nor a `repairGameState` mirror — the drift
-  Hard Rule #3 describes, previously caught only by eye. The 57 legacy fields
+  Hard Rule #3 describes, previously caught only by eye. The 56 legacy fields
   that predate this discipline are grandfathered in `LEGACY_PRE_MIGRATION_FIELDS`
   (they are not live bugs: the primary load path spreads `initialGameState`
   first). That set is a ratchet like the coverage floors — it may only shrink.
@@ -1186,7 +1203,9 @@ Skills live in `.agents/skills/`:
 | `eas-build [platform]` | Explicit user request only — triggers a cloud build (side effects) |
 | `weekly-audit [domain]` | The standing weekly health check — Economy, Crash/Stability, Save/State, Game Logic, Week-Loop Performance. Automated layer `npm run audit:weekly` (static analyzers in `scripts/audit/`); deep layer is a guided qualitative pass. Run as a Claude Routine |
 
-`.claude/settings.json` holds only `customInstructions` — there are currently **no
+`.claude/settings.json` holds `customInstructions` and `permissions.defaultMode:
+"bypassPermissions"` (the owner's choice, 2026-08-17; the file was two JSON objects
+back to back and so invalid until 2026-10-17) — there are currently **no
 hooks, no `.claude/agents/`, and no `.claude/prompts/`** in this repo. Older
 revisions of `DEV.md` / `WORKFLOW.md` described all three; those sections have been
 replaced with review checklists.

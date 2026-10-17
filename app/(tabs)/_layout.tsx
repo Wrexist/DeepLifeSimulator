@@ -25,6 +25,7 @@ import { StatChangeOverlay } from '@/contexts/StatChangeContext';
 import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
 import AdRewardOrb from '@/components/AdRewardOrb';
+import YearEndBreak from '@/components/YearEndBreak';
 import RemoveAdsOrb from '@/components/RemoveAdsOrb';
 import InAppReviewPrompt from '@/components/InAppReviewPrompt';
 import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
@@ -414,6 +415,7 @@ export default function TabLayout() {
         hides itself during blocking moments (death/wedding/jail) + when ads are
         removed. */}
     <AdRewardOrb />
+    <YearEndBreak />
     {/* The Remove Ads OFFER, as a matching circular orb on the same left edge
         (offset below the reward orb). Self-gating: hidden once ads are removed
         or when IAP is disabled, and paced slower than the reward orb. */}

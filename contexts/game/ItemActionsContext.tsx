@@ -821,6 +821,21 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     const state = getGameState();
     if (!state) return;
 
+    // Feedback on a refused activation. The authoritative check is the one
+    // inside the updater; this read only decides whether to say why.
+    const snapshotPlan = (state.dietPlans || []).find(plan => plan.id === planId);
+    if (snapshotPlan && !snapshotPlan.active) {
+      const snapshotMoney = typeof state.stats?.money === 'number' && !isNaN(state.stats.money) ? state.stats.money : 0;
+      const snapshotWeekly = snapshotPlan.dailyCost * 7;
+      if (snapshotMoney < snapshotWeekly) {
+        showError(
+          'Not Enough Money',
+          `${snapshotPlan.name} costs $${snapshotWeekly.toLocaleString('en-US')} a week - you have $${Math.floor(snapshotMoney).toLocaleString('en-US')}.`,
+        );
+        return;
+      }
+    }
+
     setGameState(prevState => {
       // Find the plan to toggle
       const planToToggle = (prevState.dietPlans || []).find(plan => plan.id === planId);
@@ -829,12 +844,15 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         return prevState;
       }
 
-      // If activating, check if player can afford the weekly cost
       const isCurrentlyActive = planToToggle.active;
       const weeklyCost = planToToggle.dailyCost * 7;
       
       if (!isCurrentlyActive) {
-        // Activating: check if player can afford it
+        // Activating: the player must be able to cover the first week, but is
+        // NOT charged here. The weekly tick (`applyDietPlanForWeek`) is the one
+        // owner of the charge, and it charges for the week whose benefits it
+        // applies. Selecting used to deduct a week as well, so the first week
+        // of every plan was paid twice for one week of benefits.
         const currentMoney = typeof prevState.stats.money === 'number' && !isNaN(prevState.stats.money)
           ? prevState.stats.money
           : 0;
@@ -844,42 +862,20 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           return prevState;
         }
 
-        // Deduct weekly cost when activating
-        const newMoney = Math.max(0, currentMoney - weeklyCost);
-        const moneyChange = newMoney - currentMoney;
-
-        // Update daily summary
-        let dailySummary = prevState.dailySummary;
-        if (dailySummary) {
-          dailySummary = {
-            ...dailySummary,
-            moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
-            totalMoneySpent: (dailySummary.totalMoneySpent || 0) + Math.max(0, -moneyChange),
-            statsChange: { ...(dailySummary.statsChange || {}) },
-            // R2-B: cap events at 50 between weekly resets.
-            events: (dailySummary.events || []).slice(-50),
-          };
-        }
-
         // Update diet plans: activate this one, deactivate all others
         const updatedDietPlans = (prevState.dietPlans || []).map(plan => ({
           ...plan,
           active: plan.id === planId,
         }));
 
-        logger.info(`Activated diet plan: ${planToToggle.name} (Weekly cost: $${weeklyCost})`);
+        logger.info(`Activated diet plan: ${planToToggle.name} (Weekly cost: $${weeklyCost}, charged by the weekly tick)`);
 
         return {
           ...prevState,
-          stats: {
-            ...prevState.stats,
-            money: newMoney,
-          },
           dietPlans: updatedDietPlans,
-          dailySummary,
         };
       } else {
-        // Deactivating: just toggle off (no refund)
+        // Deactivating: just toggle off (nothing was prepaid, so nothing to refund)
         const updatedDietPlans = (prevState.dietPlans || []).map(plan => ({
           ...plan,
           active: plan.id === planId ? false : plan.active,
@@ -893,7 +889,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         };
       }
     });
-  }, [setGameState]);
+  }, [setGameState, getGameState, showError]);
 
   // Hobbies removed - no longer available
 

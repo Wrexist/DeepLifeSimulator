@@ -5,6 +5,28 @@ import {
   ECONOMY_EVENT_MIN_CALM_WEEKS,
 } from '@/lib/config/gameConstants';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { payloadRoll } from './seededPayload';
+
+/**
+ * A market bet offered by a macro event: `stake` at risk, `win` (net) on
+ * success. Every "invest" branch below used to be a flat loss - "Invest
+ * during the downturn (risky but potentially rewarding)" was -$200 every
+ * time, "Buy the dip (high risk, high reward)" -$500 - so the copy promised an
+ * upside the effect could never deliver. Now each is a real gamble with a
+ * positive expectation, rolled per LIFE and week (`payloadRoll`, never
+ * `Math.random`), and hidden from the preview because the roll is the answer.
+ * The loss is the whole stake, never more, so the stake is what gates it.
+ */
+function marketBet(
+  state: GameState,
+  eventId: string,
+  bet: { stake: number; win: number; winChance: number; winHappiness: number; loseHappiness: number },
+): { money: number; stats: { happiness: number } } {
+  const won = payloadRoll(state, eventId)('market-bet') < bet.winChance;
+  return won
+    ? { money: bet.win, stats: { happiness: bet.winHappiness } }
+    : { money: -bet.stake, stats: { happiness: bet.loseHappiness } };
+}
 
 /**
  * Economic event states that affect all players globally
@@ -186,11 +208,11 @@ export const economicRecession: EventTemplate = {
         },
         {
           id: 'invest',
-          text: 'Invest during the downturn (risky but potentially rewarding)',
-          effects: {
-            money: -200,
-            stats: { happiness: -10 },
-          },
+          text: 'Invest $200 during the downturn (risky but potentially rewarding)',
+          outcomeHidden: true,
+          stake: 200,
+          // 45% to net +$300 buying low; otherwise the $200 is gone. EV +$25.
+          effects: marketBet(state, 'economic_recession', { stake: 200, win: 300, winChance: 0.45, winHappiness: 5, loseHappiness: -10 }),
         },
         {
           id: 'continue',
@@ -227,11 +249,11 @@ export const economicBoom: EventTemplate = {
       choices: [
         {
           id: 'invest',
-          text: 'Invest in the booming economy',
-          effects: {
-            money: -300,
-            stats: { happiness: 10, reputation: 5 },
-          },
+          text: 'Invest $300 in the booming economy',
+          outcomeHidden: true,
+          stake: 300,
+          // Was a flat -$300 for +10 happiness. 65% to net +$200; EV +$25.
+          effects: marketBet(state, 'economic_boom', { stake: 300, win: 200, winChance: 0.65, winHappiness: 10, loseHappiness: -5 }),
         },
         {
           id: 'job',
@@ -279,15 +301,17 @@ export const marketCrash: EventTemplate = {
       choices: [
         {
           id: 'buy_dip',
-          text: 'Buy the dip (high risk, high reward)',
-          effects: {
-            money: -500,
-            stats: { happiness: -15 },
-          },
+          text: 'Buy the dip with $500 (high risk, high reward)',
+          outcomeHidden: true,
+          stake: 500,
+          // 40% to net +$1,000; otherwise the $500 is gone. EV +$100.
+          effects: marketBet(state, 'market_crash', { stake: 500, win: 1000, winChance: 0.4, winHappiness: 10, loseHappiness: -15 }),
         },
         {
           id: 'sell',
-          text: hasStocks ? 'Sell stocks to minimize losses' : 'Stay out of the market',
+          // This choice sells nothing - it is the stress of watching it happen.
+          // "Sell stocks to minimize losses" promised a sale that never ran.
+          text: hasStocks ? 'Watch your portfolio and hold your nerve' : 'Stay out of the market',
           effects: {
             stats: { happiness: -10 },
           },
@@ -330,11 +354,11 @@ export const inflationSpike: EventTemplate = {
       choices: [
         {
           id: 'invest',
-          text: 'Invest to beat inflation',
-          effects: {
-            money: -250,
-            stats: { happiness: -5 },
-          },
+          text: 'Invest $250 to beat inflation',
+          outcomeHidden: true,
+          stake: 250,
+          // Was a flat -$250. 70% to net +$150; EV +$30.
+          effects: marketBet(state, 'inflation_spike', { stake: 250, win: 150, winChance: 0.7, winHappiness: 3, loseHappiness: -5 }),
         },
         {
           id: 'save',

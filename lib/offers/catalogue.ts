@@ -108,7 +108,7 @@ export const OFFER_ROTATION: OfferDefinition[] = [
     id: 'offer_remove_ads',
     productId: IAP_PRODUCTS.REMOVE_ADS,
     name: 'No Ads',
-    blurb: 'Removes every ad. The reward orb keeps working.',
+    blurb: 'Removes every ad: no banner, no year-end break, no ad prompts.',
     regularPriceUSD: 2.99,
     audience: 'everyone',
   },

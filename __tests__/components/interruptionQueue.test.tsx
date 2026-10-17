@@ -175,12 +175,16 @@ describe('InterruptionContext', () => {
 
   it('ranks monetization below everything the player must act on', () => {
     // Guards the ordering itself, which is the whole editorial point.
-    const { PROMO, AD_ORB, ...mustAct } = INTERRUPTION_PRIORITY;
+    // AD_BREAK is the year-end rewarded break - optional and skippable, so it
+    // is monetization too.
+    const { PROMO, AD_BREAK, AD_ORB, ...mustAct } = INTERRUPTION_PRIORITY;
     for (const [name, priority] of Object.entries(mustAct)) {
       expect(`${name}:${priority > PROMO}`).toBe(`${name}:true`);
+      expect(`${name}:${priority > AD_BREAK}`).toBe(`${name}:true`);
       expect(`${name}:${priority > AD_ORB}`).toBe(`${name}:true`);
     }
-    expect(AD_ORB).toBeLessThan(PROMO);
+    expect(AD_BREAK).toBeLessThan(PROMO);
+    expect(AD_ORB).toBeLessThan(AD_BREAK);
   });
 
   it('defers budgeted surfaces past MAX_INTERRUPTIONS_PER_WEEK', () => {

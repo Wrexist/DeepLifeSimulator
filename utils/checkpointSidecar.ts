@@ -103,7 +103,16 @@ export async function persistCheckpointSidecar(
   slot: number,
   // `unknown` because the save queue's state payloads are untyped (`any` data
   // through `embedProtectedState`); everything below narrows via Array.isArray.
-  checkpointsInput: unknown
+  checkpointsInput: unknown,
+  /**
+   * Slims each snapshot before it is written - the save queue passes its own
+   * `pruneSaveData` caps. Before the sidecar existed the snapshots were pruned
+   * as part of the slot payload; moving them out skipped that pass, so the
+   * sidecar stored them raw and uncapped. Applied only when a write actually
+   * happens (after the fingerprint check), and a pruner that throws falls back
+   * to the raw list rather than losing the write.
+   */
+  prune?: (checkpoints: Checkpoints) => Checkpoints,
 ): Promise<void> {
   try {
     const checkpoints = Array.isArray(checkpointsInput)
@@ -112,10 +121,19 @@ export async function persistCheckpointSidecar(
     const fp = fingerprint(checkpoints);
     if (sessionWritten.get(slot) === fp) return;
 
+    let toWrite: Checkpoints = Array.isArray(checkpoints) ? checkpoints : [];
+    if (prune && toWrite.length > 0) {
+      try {
+        toWrite = prune(toWrite);
+      } catch (error) {
+        log.warn(`Sidecar prune failed for slot ${slot} - writing unpruned`, { error });
+      }
+    }
+
     // Same envelope as a save: CRC32 + HMAC. An unsigned sidecar would be a
     // state-injection vector through rewind (the F-11 persisted-queue lesson).
     const { createSaveEnvelope } = await import('@/utils/saveValidation');
-    const payload = JSON.stringify(Array.isArray(checkpoints) ? checkpoints : []);
+    const payload = JSON.stringify(toWrite);
     const ok = await safeSetItem(checkpointSidecarKey(slot), createSaveEnvelope(payload));
     if (ok) {
       sessionWritten.set(slot, fp);

@@ -1,13 +1,17 @@
 import { uiPalette } from '@/lib/config/theme';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import {
  Gift,
  Gem,
  Calendar,
  Zap,
+ Play,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game';
+import { useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
+import { adsAvailable, areAdsRemoved, isGranted, runRewardedAd } from '@/lib/ads/rewardedAd';
+import { applyDailyAdBonus, dailyAdBonusFor } from '@/lib/ads/dailyAdBonus';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 // Static import (2026-08-16 audit L2). This was a `require()` INSIDE the render
@@ -38,6 +42,19 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const loginStreak = gameState?.loginStreak || 1;
  const safeRewardAmount = typeof rewardAmount === 'number' && isFinite(rewardAmount) && rewardAmount >= 0 ? rewardAmount: 0;
  const nextDayReward = DAILY_LOGIN_REWARDS[loginStreak % DAILY_LOGIN_REWARDS.length] || 50;
+ const setGameState = useSetGameState();
+ const getGameState = useGameStateGetter();
+ // Optional doubler (lib/ads/dailyAdBonus.ts). Offered only when a real ad can
+ // be shown: never to a player who paid to remove ads, and never in a build
+ // with no ad SDK, where it would be free gems.
+ const adBonus = dailyAdBonusFor(safeRewardAmount);
+ const offerAdBonus = adBonus > 0 && adsAvailable(areAdsRemoved(gameState));
+ // The Modal is hidden (not unmounted - home keeps the interruption slot) while
+ // a fullscreen ad is up: an ad presented over an open RN Modal strands an
+ // invisible touch-swallowing window on iOS (lib/ads/rewardedAd.ts).
+ const [hiddenForAd, setHiddenForAd] = useState(false);
+ const [adNote, setAdNote] = useState<string | null>(null);
+ const dismissResolver = useRef<(() => void) | null>(null);
 
  const isMountedRef = useRef(true);
  const claimInProgressRef = useRef(false);
@@ -50,6 +67,40 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  useEffect(() => {
  if (visible) claimInProgressRef.current = false;
  }, [visible]);
+
+ // Resolves once the Modal has finished its native dismissal (iOS fires
+ // onDismiss; Android does not), with a fallback so the flow never strands.
+ const waitForDismissal = useCallback(() => new Promise<void>((resolve) => {
+ let settled = false;
+ const finish = () => {
+ if (settled) return;
+ settled = true;
+ dismissResolver.current = null;
+ resolve();
+ };
+ dismissResolver.current = finish;
+ setTimeout(finish, 600);
+ }), []);
+
+ const handleWatchAd = async () => {
+ if (claimInProgressRef.current) return;
+ claimInProgressRef.current = true;
+ setAdNote(null);
+ setHiddenForAd(true);
+ await waitForDismissal();
+ const outcome = await runRewardedAd(() => setGameState(applyDailyAdBonus), {
+ adsRemoved: areAdsRemoved(getGameState()),
+ placement: 'daily_bonus',
+ });
+ if (!isMountedRef.current) return;
+ // Granted: the same updater closed the popup, so home unmounts it.
+ if (isGranted(outcome)) return;
+ // No ad to show. The day's gems were credited before this popup opened, so
+ // nothing is lost - bring the popup back with the plain Claim.
+ claimInProgressRef.current = false;
+ setAdNote('No ad is available right now. Your daily gems are already in your wallet.');
+ setHiddenForAd(false);
+ };
 
  const scaleAnim = useRef(new Animated.Value(0.96)).current;
  const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -106,7 +157,13 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  };
 
  return (
- <Modal visible={visible} transparent animationType="none" onRequestClose={handleClaim}>
+ <Modal
+ visible={visible && !hiddenForAd}
+ transparent
+ animationType="none"
+ onRequestClose={handleClaim}
+ onDismiss={() => dismissResolver.current?.()}
+ >
  <View style={[styles.overlay, { backgroundColor: palette.backdrop }]}>
  <Animated.View
  style={[
@@ -154,6 +211,22 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  </Text>
  </View>
  </View>
+
+ {offerAdBonus && (
+ <TouchableOpacity
+ style={styles.adButton}
+ onPress={() => { void handleWatchAd(); }}
+ activeOpacity={0.88}
+ accessibilityRole="button"
+ accessibilityLabel={`Watch an ad for ${adBonus} more gems`}
+ >
+ <Play size={scale(16)} color="#8B5CF6" strokeWidth={2.6} />
+ <Text style={styles.adButtonText}>Watch ad: +{adBonus.toLocaleString('en-US')} more gems</Text>
+ </TouchableOpacity>
+ )}
+ {adNote && (
+ <Text style={[styles.adNote, { color: palette.subtitle }]}>{adNote}</Text>
+ )}
 
  <TouchableOpacity
  style={styles.claimButton}
@@ -257,6 +330,28 @@ const styles = StyleSheet.create({
  flex: 1,
  fontSize: responsiveFontSize.xs,
  fontWeight: '500',
+ },
+ adButton: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ justifyContent: 'center',
+ gap: responsiveSpacing.xs,
+ borderWidth: 1,
+ borderColor: '#8B5CF6',
+ borderRadius: responsiveBorderRadius.lg,
+ paddingVertical: responsiveSpacing.md,
+ marginBottom: responsiveSpacing.sm,
+ minHeight: scale(44),
+ },
+ adButtonText: {
+ color: '#8B5CF6',
+ fontSize: responsiveFontSize.base,
+ fontWeight: '600',
+ },
+ adNote: {
+ fontSize: responsiveFontSize.xs,
+ textAlign: 'center',
+ marginBottom: responsiveSpacing.sm,
  },
  claimButton: {
  backgroundColor: '#8B5CF6',

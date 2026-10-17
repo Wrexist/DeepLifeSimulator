@@ -6,6 +6,7 @@ import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
+import { getBonusById } from '@/lib/prestige/prestigeBonuses';
 import { netWorth } from '@/lib/progress/achievements';
 import { childParentSources } from '@/lib/avatar/family';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
@@ -618,23 +619,34 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 </TouchableOpacity>
 
                 {/* Active Bonuses */}
-                {prestigeData && prestigeData.unlockedBonuses.length > 0 && (
+                {prestigeData && prestigeData.unlockedBonuses.length > 0 && (() => {
+                  // The catalogue NAME, once per bonus with its level. This
+                  // printed the raw id with underscores swapped for spaces
+                  // ("starting money 1"), once per stacked level.
+                  const levels = new Map<string, number>();
+                  for (const id of prestigeData.unlockedBonuses) levels.set(id, (levels.get(id) ?? 0) + 1);
+                  const badges = [...levels.entries()].map(([id, level]) => {
+                    const name = getBonusById(id)?.name ?? id.replace(/_/g, ' ');
+                    return { id, label: level > 1 ? `${name} x${level}` : name };
+                  });
+                  return (
                   <View style={styles.bonusesCard}>
                     <Text style={styles.sectionTitle}>Active Bonuses</Text>
                     <View style={styles.bonusesList}>
-                      {prestigeData.unlockedBonuses.slice(0, 5).map((bonusId, index) => (
-                        <View key={`${bonusId}-${index}`} style={styles.bonusBadge}>
-                          <Text style={styles.bonusBadgeText}>{bonusId.replace(/_/g, ' ')}</Text>
+                      {badges.slice(0, 5).map((badge) => (
+                        <View key={badge.id} style={styles.bonusBadge}>
+                          <Text style={styles.bonusBadgeText}>{badge.label}</Text>
                         </View>
                       ))}
-                      {prestigeData.unlockedBonuses.length > 5 && (
+                      {badges.length > 5 && (
                         <Text style={styles.moreBonuses}>
-                          +{prestigeData.unlockedBonuses.length - 5} more
+                          +{badges.length - 5} more
                         </Text>
                       )}
                     </View>
                   </View>
-                )}
+                  );
+                })()}
               </>
             ) : (
               // Confirmation View

@@ -361,35 +361,39 @@ export const achievements: Achievement[] = [
     goldReward: 250,
     group: 'workforce',
   },
+  // Reputation is a 0-100 stat (`clampStatByKey`), so the old 500 / 1,000 /
+  // 5,000 rungs could never be reached. The ladder now spans the real scale,
+  // ids kept (they are save state: claims are stored by id), the hardest rung
+  // still paying the most.
   {
     id: 'reputation_star',
     title: 'Reputation Star',
-    description: 'Reach 100 reputation.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 100 },
+    description: 'Reach 60 reputation.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 60 },
     goldReward: 25,
     group: 'reputation',
   },
   {
     id: 'reputation_icon',
     title: 'Reputation Icon',
-    description: 'Reach 500 reputation.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 500 },
+    description: 'Reach 75 reputation.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 75 },
     goldReward: 75,
     group: 'reputation',
   },
   {
     id: 'reputation_legend',
     title: 'Reputation Legend',
-    description: 'Reach 1,000 reputation.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 1_000 },
+    description: 'Reach 90 reputation.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 90 },
     goldReward: 150,
     group: 'reputation',
   },
   {
     id: 'reputation_mythic',
     title: 'Reputation Mythic',
-    description: 'Reach 5,000 reputation.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 5_000 },
+    description: 'Reach 100 reputation - the top of the scale.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.reputation ?? 0, goal: 100 },
     goldReward: 300,
     group: 'reputation',
   },
@@ -586,11 +590,13 @@ export const achievements: Achievement[] = [
   {
     id: 'professor',
     title: 'Professor',
-    description: 'Complete 20 educations.',
+    // 11 programmes exist (`EDUCATION_PROGRAMS`); the old goal of 20 could
+    // never be met. Every programme is the top of what exists.
+    description: 'Complete every education programme (11).',
     progressSpec: {
       kind: 'counter',
       current: gs => gs.educations?.filter((e: any) => e.completed).length ?? 0,
-      goal: 20,
+      goal: 11,
     },
     goldReward: 200,
     group: 'education',
@@ -598,11 +604,12 @@ export const achievements: Achievement[] = [
   {
     id: 'collector_supreme',
     title: 'Collector Supreme',
-    description: 'Own 50 items.',
+    // The shop sells 8 items, so 50 and 100 were unreachable. 6 and all 8.
+    description: 'Own 6 items.',
     progressSpec: {
       kind: 'counter',
       current: gs => gs.items?.filter((i: any) => i.owned).length ?? 0,
-      goal: 50,
+      goal: 6,
     },
     goldReward: 100,
     group: 'collector',
@@ -610,11 +617,11 @@ export const achievements: Achievement[] = [
   {
     id: 'collector_legend',
     title: 'Collector Legend',
-    description: 'Own 100 items.',
+    description: 'Own every item in the shop (8).',
     progressSpec: {
       kind: 'counter',
       current: gs => gs.items?.filter((i: any) => i.owned).length ?? 0,
-      goal: 100,
+      goal: 8,
     },
     goldReward: 250,
     group: 'collector',
@@ -929,11 +936,12 @@ export const achievements: Achievement[] = [
   {
     id: 'travel_globetrotter',
     title: 'Globetrotter',
-    description: 'Visit 25 unique destinations.',
+    // 17 destinations exist (`DESTINATIONS`); 25 could never be visited.
+    description: 'Visit every destination (17).',
     progressSpec: {
       kind: 'counter',
       current: gs => gs.travel?.visitedDestinations?.length ?? 0,
-      goal: 25,
+      goal: 17,
     },
     goldReward: 200,
     group: 'travel',
@@ -1191,10 +1199,12 @@ export const achievements: Achievement[] = [
   {
     id: 'career_top_performer',
     title: 'Top Performer',
-    description: 'Achieve 100% job performance.',
+    // `calculatePerformance` tops out at 80 (every stat at 100), so 100% was
+    // unreachable by construction.
+    description: 'Reach peak job performance (80%).',
     progressSpec: {
       kind: 'boolean',
-      met: gs => gs.careers?.some((c: any) => c.accepted && (c.performance ?? 0) >= 100) ?? false,
+      met: gs => gs.careers?.some((c: any) => c.accepted && (c.performance ?? 0) >= 80) ?? false,
     },
     goldReward: 50,
     group: 'career',
@@ -1284,7 +1294,11 @@ export const achievements: Achievement[] = [
     progressSpec: { 
       kind: 'boolean', 
       met: (gs: GameState) => {
-        return (gs.politics?.careerLevel || 0) >= 1;
+        // `politics.careerLevel` is the 1-based office RANK (0 Citizen,
+        // 1 Council Member, 2 Mayor, 4 Governor, 6 President). These read
+        // 1/3/5 - Council Member, State Representative, Senator - so each
+        // unlocked one rung early.
+        return (gs.politics?.careerLevel || 0) >= 2;
       }
     },
     goldReward: 75,
@@ -1297,7 +1311,7 @@ export const achievements: Achievement[] = [
     progressSpec: { 
       kind: 'boolean', 
       met: (gs: GameState) => {
-        return (gs.politics?.careerLevel || 0) >= 3;
+        return (gs.politics?.careerLevel || 0) >= 4;
       }
     },
     goldReward: 150,
@@ -1310,7 +1324,7 @@ export const achievements: Achievement[] = [
     progressSpec: { 
       kind: 'boolean', 
       met: (gs: GameState) => {
-        return (gs.politics?.careerLevel || 0) >= 5;
+        return (gs.politics?.careerLevel || 0) >= 6;
       }
     },
     goldReward: 500,
