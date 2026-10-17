@@ -12,9 +12,16 @@ import { uiPalette } from '@/lib/config/theme';
  *   • a legacy-planning summary (net worth, estate to heirs, achievements, family)
  *     that previews the same numbers the death/legacy flow shows.
  *
+ * Before any of that is available it shows a one-line "what is next and
+ * when": the age retirement opens at, how far away it is, and the
+ * financial-independence route. It used to render nothing until the player
+ * could retire, so the whole late-game arc was invisible until the day it
+ * opened (lessons.md 2026-10-11: a gate between two states must not render
+ * as nothing).
+ *
  * Reuse-not-rebuild: money moves only through the canonical helpers inside the
  * pure reducers; nothing here mints money or touches a mirrored bank account.
- * Renders nothing for a normal working-age life - safe on every save.
+ * Safe on every save.
  */
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -29,6 +36,7 @@ import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 import {
   RETIREMENT_AGE,
+  EARLY_RETIRE_MIN_AGE,
   getAge,
   isElder,
   isRetired as isRetiredFn,
@@ -87,7 +95,48 @@ function ElderCard() {
     };
   }, [state]);
 
-  if (!view) return null;
+  // Not yet retirable: what opens, and when.
+  const upcoming = useMemo(() => {
+    if (!state || view) return null;
+    const eligibility = getRetirementEligibility(state);
+    if (eligibility.reason === 'already-retired') return null;
+    const age = Math.floor(getAge(state));
+    return {
+      age,
+      yearsToRetirement: Math.max(1, RETIREMENT_AGE - age),
+      fireNumber: eligibility.fireNumber,
+      netWorth: eligibility.netWorth,
+    };
+  }, [state, view]);
+
+  if (!view) {
+    if (!upcoming) return null;
+    const fireLine = upcoming.fireNumber > 0
+      ? upcoming.age < EARLY_RETIRE_MIN_AGE
+        ? `Or from ${EARLY_RETIRE_MIN_AGE}, once your net worth reaches ${formatMoney(upcoming.fireNumber)}.`
+        : `Or now, once your net worth reaches ${formatMoney(upcoming.fireNumber)} - you are at ${formatMoney(upcoming.netWorth)}.`
+      : `Or from ${EARLY_RETIRE_MIN_AGE}, once you are financially independent.`;
+    return (
+      <Card>
+        <View style={styles.header}>
+          <View style={styles.iconBubble}>
+            <Armchair size={scale(18)} color="#FACC15" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.titleRow}>
+              <Clock size={scale(12)} color="#FACC15" />
+              <Text style={styles.kicker}>ELDER CHAPTER</Text>
+            </View>
+            <Text style={styles.title}>Retirement</Text>
+            <Text style={styles.sub}>
+              {`Opens at ${RETIREMENT_AGE} - in ${upcoming.yearsToRetirement} year${upcoming.yearsToRetirement === 1 ? '' : 's'}.`}
+            </Text>
+            <Text style={styles.sub}>{fireLine}</Text>
+          </View>
+        </View>
+      </Card>
+    );
+  }
 
   const doRetire = () => {
     haptic.success();

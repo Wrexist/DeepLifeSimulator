@@ -1,3 +1,45 @@
+# Full audit + ad revenue pass - 17 October 2026
+
+Branch `claude/audit-polish-ads-2026-10-17` from `main` 094e4119 (2.15.6). Baseline: 879 suites / 10,321 tests pass; type-check, test types, lint, routes and content pass; weekly audit had one high (fixed below). Six audits ran (economy, tick stability, save, cleanliness, content, ad research); every item below was re-read in source before it was listed.
+
+**Ads (owner request: what popular games do to maximise ad revenue, policy-safe only)**
+- [x] Load reliability: retry 2-64 s backoff, no-fill never trips a breaker, one breaker per format (the failing interstitial slot no longer silences rewarded + banner), 55-min freshness, foreground refresh, load-on-tap with a 4 s wait, `placement` on `ad_shown` / `ad_rewarded`. `lib/ads/loadPolicy.ts`, `services/AdMobService.ts`, 12 tests.
+- [x] Reward orb: no longer goes silent for the session after a courtesy grant - waits for a loaded ad and re-checks every 30 s. 2 tests.
+- [x] Remove Ads blurb claimed "The reward orb keeps working" (the orb is hidden for payers); copy now matches.
+- [x] "Report an Ad" row in Settings (App Review 2.5.18) - editable email draft, nothing sent automatically.
+- [x] Daily reward doubler: opt-in "Watch ad: +N more gems" (cap 50/day), only when a real ad can show, never for payers; inherits the daily claim's game-week gate. 8 tests.
+- [x] Year-end break: opt-out rewarded interstitial (+15 gems) at the in-game year boundary, with the 5 s intro + No thanks AdMob requires. Pacing: 2 years into a life, never in the first 2 min of a session, 3 min between fullscreen ads, 5 min after a chosen rewarded ad, 4 per session, never for payers or over a blocking modal; preloads 6 weeks ahead. iOS uses the committed "Ad-win" unit. 32 tests.
+- [ ] OWNER: set `EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_ANDROID` (the Android "Ad-win" unit currently sits in `EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID`, where the standard interstitial class cannot serve it). Until then the year-end break runs on iOS only.
+
+**Exploits / wrong state (P0-P1)**
+- [x] Savings-goal reward farm (create/fund/withdraw repeat): one rewarded completion per week. 4 tests.
+- [x] `vehicle_theft` "gone for good" kept the car and paid insurance: new `lose_vehicle` special. 2 tests.
+- [x] Intro screen entered onboarding without a slot guard (weekly audit high).
+- [x] Life moment: a refused cost still paid the reward - now one pure resolver in one updater (`lib/events/lifeMomentResolution.ts`).
+- [x] Prestige reset shed family-business loans and wiped `dynastyStats`; rewind re-armed the daily login gems; checkpoint sidecar was never pruned; NaN saved as null loaded silently; prestige/new life reset sound/haptics/theme. All fixed, 35 save tests.
+- [x] Street crime: caught attempts skipped the caps and a double tap could jail twice; one shared re-check now runs in both branches; bail scales with the sentence. 11 tests.
+
+**Economy faucets (P1, measured by the economy audit)**
+- [x] Company staff were a one-time $500 fee for a permanent income multiplier (30 hires paid back in 5.7 weeks): staff now draw the weekly wage the Contacts copy always claimed. 16 tests.
+- [x] Pulse "viral this week" counted every viral post of the life (+$50/wk each, forever): this week's only. 4 tests.
+- [x] Bitcoin halving fired on week 1 for every start age 22+ (absolute-week trap): first halving now lands 208 weeks into the life. 6 tests.
+- [x] Company scandal: free apology was repeatable and a double tap charged Restructure twice: one response per scandal. 6 tests.
+- [x] YouVideo subscribers compounded with no ceiling ($42k/wk at 208 weeks): conversion saturates (now $10.7k/wk). 9 tests.
+- [ ] OWNER calls: memberships are still paid after tax and outside the soft cap (needs a tick restructure); a fully upgraded factory still nets ~$5k/wk at 10 staff; caught crimes keep the loot; property upgrade tiers, the Lobbyist post, prestige point value and Pulse brand deals (economy audit items 4, 8-10).
+- [x] Discord reward finalized when the save failed (saveGame RESOLVES false): all three sites check the result. 4 tests.
+- [x] v54 migration: career salaries, street pay and item prices stored by value now take the 2026-08 rescales; pre-Program-8 saves get a deterministic `lineageId`. STATE_VERSION 54, docs synced.
+- [x] Zero-stat death counter counted weeks that ended above zero (pets etc. add health after it was decided), so a life could die with no HUD warning. Verified the new test fails without the fix.
+- [x] Mail: an event-backed letter was stamped "answered" for a choice the event then refused. 2 tests.
+
+**Content that contradicts its copy (P1)**
+- [x] Failed vote enacted the bill; gambles previewed their result; treatment was the worst choice; unaffordable choices failed silently (now "Need $X", never a soft-lock); job offer promised a raise; "invest" choices only lost; duplicate event ids; diet plan charged week 1 twice; raw ids and "/month" copy.
+- [x] Impossible achievements retargeted to what exists (ids kept); political achievements unlock at the right office.
+
+**Cleanliness / display (P2)**
+- [x] Deleted 4 zero-importer modules and the broken `test:comprehensive` (ts-node not installed) with its 2 files; `as any` now enforced in 64 of 65 `lib/` dirs; AGENTS.md save version.
+- [x] Journal / welcome-back showed the absolute week ("Week 365" on an age-25 start); now life-relative. 3 tests.
+- [x] Hobby happiness skipped the diminishing-returns curve (and the audit). 1 test.
+
 # DeepLife Glossy asset style frame - 5 October 2026
 
 ## Internal TestFlight candidate - 10 October 2026

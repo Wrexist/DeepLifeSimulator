@@ -454,13 +454,13 @@ export default function CompanyDetailScreen({
         {/* Generic staff - canonical addWorker/removeWorker */}
         <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
-            {company.employees} / {STAFF_CAP} employees · hiring cost ${company.workerSalary.toLocaleString('en-US')}/hire
+            {company.employees} / {STAFF_CAP} employees · ${company.workerSalary.toLocaleString('en-US')} to hire, ${company.workerSalary.toLocaleString('en-US')}/wk wage
           </Text>
           <View style={styles.staffCapBar}>
             <ProgressBar value={company.employees / STAFF_CAP} color={HUSTLE_COLORS.accent} label="Headcount against the cap" />
           </View>
           <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
-            Hiring costs ${company.workerSalary.toLocaleString('en-US')} up front. Each employee compounds weekly income:
+            Hiring costs ${company.workerSalary.toLocaleString('en-US')} up front, and each employee is paid ${company.workerSalary.toLocaleString('en-US')} every week. Each employee compounds weekly income:
             +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing general staff is free but lowers income. Release named hires through Hiring pipeline; severance applies.
           </Text>
           <View style={styles.staffBtnRow}>

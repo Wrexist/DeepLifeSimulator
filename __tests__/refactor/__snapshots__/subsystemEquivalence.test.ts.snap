@@ -5842,6 +5842,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick earlyCareer 1`] = `
     },
     "costBasis": {},
     "dcaRules": [],
+    "lastHalvingWeek": 31,
     "openOrders": [],
     "orderHistory": [],
     "realizedGainsThisYear": 0,
@@ -6109,6 +6110,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick freshGame 1`] = `
     },
     "costBasis": {},
     "dcaRules": [],
+    "lastHalvingWeek": 1,
     "openOrders": [],
     "orderHistory": [],
     "realizedGainsThisYear": 0,
@@ -6376,6 +6378,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
     },
     "costBasis": {},
     "dcaRules": [],
+    "lastHalvingWeek": 181,
     "openOrders": [],
     "orderHistory": [],
     "realizedGainsThisYear": 0,
@@ -6529,7 +6532,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick midGame 1`] = `
         "regimeWeeksRemaining": 15,
       },
       "btc": {
-        "bidAskSpread": 0.004,
+        "bidAskSpread": 0.002,
         "cryptoId": "btc",
         "priceHistory": [
           {
@@ -6541,8 +6544,8 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick midGame 1`] = `
             "weeksLived": 251,
           },
         ],
-        "regime": "bull",
-        "regimeWeeksRemaining": 24,
+        "regime": "stable",
+        "regimeWeeksRemaining": 15,
       },
       "dot": {
         "bidAskSpread": 0.002,
@@ -6643,20 +6646,13 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick midGame 1`] = `
     },
     "costBasis": {},
     "dcaRules": [],
-    "halvingCount": 1,
     "lastHalvingWeek": 251,
     "openOrders": [],
     "orderHistory": [],
     "realizedGainsThisYear": 0,
     "totalRealizedGains": 0,
   },
-  "notifications": [
-    {
-      "id": "crypto-halving",
-      "message": "Mining rewards halved (now 50.00% of original). BTC enters a bull regime.",
-      "title": "⛏️ Bitcoin Halving",
-    },
-  ],
+  "notifications": [],
 }
 `;
 
@@ -6804,7 +6800,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
         "regimeWeeksRemaining": 15,
       },
       "btc": {
-        "bidAskSpread": 0.004,
+        "bidAskSpread": 0.002,
         "cryptoId": "btc",
         "priceHistory": [
           {
@@ -6816,8 +6812,8 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
             "weeksLived": 801,
           },
         ],
-        "regime": "bull",
-        "regimeWeeksRemaining": 24,
+        "regime": "stable",
+        "regimeWeeksRemaining": 15,
       },
       "dot": {
         "bidAskSpread": 0.002,
@@ -6918,20 +6914,13 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
     },
     "costBasis": {},
     "dcaRules": [],
-    "halvingCount": 1,
     "lastHalvingWeek": 801,
     "openOrders": [],
     "orderHistory": [],
     "realizedGainsThisYear": 0,
     "totalRealizedGains": 0,
   },
-  "notifications": [
-    {
-      "id": "crypto-halving",
-      "message": "Mining rewards halved (now 50.00% of original). BTC enters a bull regime.",
-      "title": "⛏️ Bitcoin Halving",
-    },
-  ],
+  "notifications": [],
 }
 `;
 
@@ -7079,7 +7068,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
         "regimeWeeksRemaining": 15,
       },
       "btc": {
-        "bidAskSpread": 0.004,
+        "bidAskSpread": 0.002,
         "cryptoId": "btc",
         "priceHistory": [
           {
@@ -7091,8 +7080,8 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
             "weeksLived": 1501,
           },
         ],
-        "regime": "bull",
-        "regimeWeeksRemaining": 24,
+        "regime": "stable",
+        "regimeWeeksRemaining": 15,
       },
       "dot": {
         "bidAskSpread": 0.002,
@@ -7193,20 +7182,13 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
     },
     "costBasis": {},
     "dcaRules": [],
-    "halvingCount": 1,
     "lastHalvingWeek": 1501,
     "openOrders": [],
     "orderHistory": [],
     "realizedGainsThisYear": 0,
     "totalRealizedGains": 0,
   },
-  "notifications": [
-    {
-      "id": "crypto-halving",
-      "message": "Mining rewards halved (now 50.00% of original). BTC enters a bull regime.",
-      "title": "⛏️ Bitcoin Halving",
-    },
-  ],
+  "notifications": [],
 }
 `;
 

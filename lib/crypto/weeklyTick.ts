@@ -179,9 +179,27 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
 
   // --- 1b) BTC halving every 208 weeks (~4 game years). Halves mining reward
   //         and forces a bull regime on BTC for 24 weeks as the supply-shock catalyst.
+  //
+  //         `currentWeek` is ABSOLUTE `weeksLived`, which is seeded from the
+  //         starting age ((age - 18) * 52), and `lastHalvingWeek` is never
+  //         seeded. So reading an absent marker as 0 halved mining on the very
+  //         FIRST tick of every life that starts at 22 or older (an age-25 life
+  //         begins at 364). An absent, non-finite or future marker (a stale
+  //         value from a previous life's higher counter) is therefore "no
+  //         halving on record yet": stamp this week as the epoch and do NOT
+  //         halve - the first one lands 208 weeks into the market's life. No
+  //         new save field: the stamp is the existing `lastHalvingWeek`.
   const HALVING_INTERVAL = 208;
-  const lastHalving = safe(market.lastHalvingWeek, 0);
-  if (input.currentWeek > 0 && input.currentWeek - lastHalving >= HALVING_INTERVAL) {
+  const recordedHalving = market.lastHalvingWeek;
+  const hasHalvingEpoch =
+    typeof recordedHalving === 'number' &&
+    Number.isFinite(recordedHalving) &&
+    recordedHalving <= input.currentWeek;
+  if (!hasHalvingEpoch && Number.isFinite(input.currentWeek)) {
+    market = { ...market, lastHalvingWeek: input.currentWeek };
+  }
+  const lastHalving = safe(market.lastHalvingWeek, input.currentWeek);
+  if (hasHalvingEpoch && input.currentWeek > 0 && input.currentWeek - lastHalving >= HALVING_INTERVAL) {
     const newHalvingCount = safe(market.halvingCount, 0) + 1;
     market = {
       ...market,

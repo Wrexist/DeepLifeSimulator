@@ -260,13 +260,10 @@ const REACHABILITY_ALLOWLIST = [
   // Dev-only simulation harnesses, run by hand rather than imported by the app.
   // Their siblings in the same directory ARE referenced, so the directory is
   // live tooling rather than dead weight.
-  'lib/simulation/BugHunterSimulator.ts',
-  'lib/simulation/MultiWeekSimulator.ts',
   'lib/simulation/AppSimulator.ts',
   'lib/simulation/RealActionSimulator.ts',
   'lib/simulation/ComprehensiveGameSimulator.ts',
   'lib/simulation/LongTermSimulator.ts',
-  'lib/simulation/runComprehensiveTests.ts',
 ];
 
 /**

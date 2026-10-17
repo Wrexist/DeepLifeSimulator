@@ -1,11 +1,15 @@
 import type { EventTemplate } from './engine';
 
+// `market_dip`, not `market_crash`: that id belongs to the economy-state crash
+// in `economyEvents.ts`, registered in the same pool. Sharing it made this
+// small weekly dip render as the crash (the "Economic Event" header and the
+// macro effects panel key on the id) and share its cooldown and log identity.
 export const marketCrash: EventTemplate = {
-  id: 'market_crash',
+  id: 'market_dip',
   category: 'economy',
   weight: 0.2,
   generate: () => ({
-    id: 'market_crash',
+    id: 'market_dip',
     description: 'The stock market dips, tempting you to invest.',
     choices: [
       { id: 'buy', text: 'Buy the dip', effects: { money: -100, stats: { happiness: 5 } } },

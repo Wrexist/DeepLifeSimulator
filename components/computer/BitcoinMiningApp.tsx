@@ -1215,7 +1215,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     // (lib/crypto/weeklyTick.ts) and applyMiningCryptos scales the mined reward by
     // 0.5^halvingCount - this UI lights up the countdown to that event.
     const HALVING_INTERVAL_WEEKS = 208;
-    const lastHalving = market.lastHalvingWeek ?? 0;
+    // An absent marker means "no halving yet this life": the tick stamps the
+    // current week rather than halving (lib/crypto/weeklyTick.ts). Reading it
+    // as 0 showed "0 weeks to halving" on every start older than 22.
+    const recorded = market.lastHalvingWeek;
+    const lastHalving = typeof recorded === 'number' && Number.isFinite(recorded) && recorded <= gameState.weeksLived
+      ? recorded
+      : gameState.weeksLived;
     const nextHalvingWeek = lastHalving + HALVING_INTERVAL_WEEKS;
     const weeksToHalving = Math.max(0, nextHalvingWeek - gameState.weeksLived);
 

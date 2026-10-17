@@ -306,3 +306,44 @@ describe('choosing is one-shot', () => {
     expect(getMailState(h.get()).messages[0].decision!.chosenId).toBe('serve');
   });
 });
+
+describe('an event-backed letter refuses what the event would refuse', () => {
+  // resolveEvent keeps an unaffordable choice's event pending; the letter used
+  // to be stamped "answered" anyway, hiding a decision that never happened.
+  const pricey = (): WeeklyEvent => ({
+    id: 'jury_duty',
+    description: 'You receive a jury duty summons in the mail.',
+    choices: [
+      { id: 'serve', text: 'Serve', effects: {} },
+      { id: 'excuse', text: 'Hire a lawyer to get excused ($5,000)', effects: { money: -5_000 } },
+    ],
+  });
+
+  function withLetter(money: number) {
+    const event = routeEvents([pricey()], 100)[0];
+    const letter = letterFromEvent(event, 100)!;
+    return createTestGameState({
+      stats: { money },
+      pendingEvents: [event],
+      mail: { messages: [letter], lastGeneratedWeek: 100 } as never,
+    });
+  }
+
+  it('does not stamp the letter or delegate an unaffordable choice', () => {
+    const h = harness(withLetter(100));
+    const id = getMailState(h.get()).messages[0].id;
+    let result: { outcome: string; delegateToEvent?: unknown } | null = null;
+    chooseMailDecision(h.get(), h.setGameState, id, 'excuse', (r) => { result = r; });
+    expect(result!.delegateToEvent).toBeUndefined();
+    expect(getMailState(h.get()).messages[0].decision!.chosenId).toBeUndefined();
+  });
+
+  it('still answers an affordable choice', () => {
+    const h = harness(withLetter(10_000));
+    const id = getMailState(h.get()).messages[0].id;
+    let result: { outcome: string; delegateToEvent?: unknown } | null = null;
+    chooseMailDecision(h.get(), h.setGameState, id, 'excuse', (r) => { result = r; });
+    expect(result!.delegateToEvent).toEqual({ eventId: 'jury_duty', choiceId: 'excuse' });
+    expect(getMailState(h.get()).messages[0].decision!.chosenId).toBe('excuse');
+  });
+});

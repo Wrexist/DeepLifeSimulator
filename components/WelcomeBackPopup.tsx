@@ -25,6 +25,7 @@ import {
   CalendarClock,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/GameContext';
+import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -364,7 +365,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                       Life Progress
                     </Text>
                     <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                      Week {gameState.weeksLived || 0} | Age {Math.floor(gameState.date?.age ?? 0)}
+                      {formatLifeWeek(gameState.weeksLived || 0, gameState.lifeStartWeek)} | Age {Math.floor(gameState.date?.age ?? 0)}
                     </Text>
                   </View>
                 </View>

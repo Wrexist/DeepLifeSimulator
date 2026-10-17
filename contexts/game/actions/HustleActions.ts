@@ -597,6 +597,20 @@ export const resolveScandal = (
   if (!overlay || !scandal) {
     return { success: false, message: 'No active scandal', reputationDelta: 0, costPaid: 0 };
   }
+  // ONE response per scandal. The free apology (-25 severity, +2 rep, $0) used
+  // to be repeatable - three taps cleared a scandal for nothing and banked +6
+  // reputation, which made every paid fix (up to $200k) pointless. A partial
+  // response stamps `resolutionMethod`; from then on the scandal runs its
+  // course (an apology keeps its faster weekly decay in the hustle tick).
+  if (scandal.resolutionMethod) {
+    return {
+      success: false,
+      message: 'You already responded to this scandal - it has to run its course now.',
+      reputationDelta: 0,
+      costPaid: 0,
+    };
+  }
+  const scandalId = scandal.id;
 
   const COSTS_AND_EFFECTS: Record<HustleScandalResolution, { cost: number; rep: number; severityDrop: number; msg: string }> = {
     apology:    { cost: 0,      rep: 2,  severityDrop: 25, msg: 'You issued a public apology. Severity drops faster.' },
@@ -614,6 +628,14 @@ export const resolveScandal = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
+    // §4.4: re-check the gate against `prev`. The scandal must still be the one
+    // the player is answering, and still unanswered. Without this, the first tap
+    // of a same-batch double tap resolved it and the second - finding no
+    // scandal - left the overlay alone but STILL charged the cost and granted
+    // the reputation below: Restructure billed $400,000 and paid +16 rep.
+    const live = prev.hustleApp?.companies?.[companyId]?.activeScandal;
+    if (!live || live.id !== scandalId || live.resolutionMethod) return prev;
+
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       if (!o.activeScandal) return o;
       const newSeverity = Math.max(0, o.activeScandal.severity - severityDrop);

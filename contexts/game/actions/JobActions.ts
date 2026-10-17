@@ -10,7 +10,7 @@ import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
-import { rejectIfBlocked } from './_guards';
+import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
@@ -56,6 +56,32 @@ const TRANSPORT_GOVERNED_JOB_IDS = new Set(['delivery', 'food_delivery']);
  * enforced only here, so it was invisible until it fired. 2026-07-28 audit UX-4.
  */
 export const MAX_TOTAL_STREET_JOBS_PER_WEEK = 8;
+
+/** Per-job weekly cap (each street job at most 3 times a week). */
+const MAX_STREET_JOB_RUNS_PER_WEEK = 3;
+
+/**
+ * True when this attempt must NOT commit against `state`: the player is in a
+ * cell, or the per-job / global weekly cap is already spent. The outer guard
+ * checks the same three conditions against the snapshot (with player-facing
+ * messages); BOTH outcome updaters (caught and got-away) re-run this against
+ * `prev` (CLAUDE.md §4.4).
+ *
+ * The caught branch used to re-check energy only, and only the got-away branch
+ * counted toward `weeklyStreetJobs`. So an arrest was a free retry - it never
+ * spent a run - and a same-batch double tap that landed on "caught" committed
+ * twice: two sentences, two 10% seizures, and the loot of both.
+ */
+function streetJobAttemptRefused(state: GameState, jobId: string): boolean {
+  if (isPlayerJailed(state)) return true;
+  const weekly = state.weeklyStreetJobs || {};
+  if ((weekly[jobId] || 0) >= MAX_STREET_JOB_RUNS_PER_WEEK) return true;
+  const total = Object.values(weekly).reduce(
+    (sum: number, count) => sum + (typeof count === 'number' ? count : 0),
+    0,
+  );
+  return total >= MAX_TOTAL_STREET_JOBS_PER_WEEK;
+}
 
 /**
  * Energy a street job costs THIS player — the transport tier's figure for a
@@ -161,10 +187,17 @@ export const performStreetJob = (
     return { success: false, message: 'Job not found' };
   }
 
+  // No street work from a cell. This used to hold only because the Work tab is
+  // swapped for JailScreen while `jailWeeks > 0` - a UI invariant. It is now
+  // the action's own rule, re-checked against `prev` in both updaters below.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't work the streets from a jail cell." };
+  }
+
   // Check weekly limit - prevent spamming jobs
   const weeklyJobs = gameState.weeklyStreetJobs || {};
   const timesDoneThisWeek = weeklyJobs[jobId] || 0;
-  const maxPerWeek = 3; // Allow each job to be done max 3 times per week
+  const maxPerWeek = MAX_STREET_JOB_RUNS_PER_WEEK; // Each job at most 3 times per week - caught attempts included
 
   if (timesDoneThisWeek >= maxPerWeek) {
     return {
@@ -431,6 +464,10 @@ export const performStreetJob = (
       // re-check and the deduction below must read the same snapshot.
       const freshEnergyCost = getStreetJobEnergyCost(prev, job);
       if (prev.stats.energy < freshEnergyCost) return prev;
+      // Same gate the got-away branch applies: already jailed (the first tap of
+      // a same-batch double tap has just sentenced this player) or the weekly
+      // cap is spent → this attempt never happened.
+      if (streetJobAttemptRefused(prev, jobId)) return prev;
       // Recalculate money lost from fresh prev state to avoid stale-closure race
       const prevMoney = prev.stats.money;
       const freshMoneyLost = caught ? Math.min(prevMoney, Math.round(prevMoney * 0.1)) : 0;
@@ -466,6 +503,13 @@ export const performStreetJob = (
         // "get arrested" into a jailbreak.
         jailWeeks: Math.min(52, (prev.jailWeeks || 0) + (job.jailWeeks || 1)),
         wantedLevel: prev.wantedLevel + (job.wantedIncrease || 1),
+        // An arrest SPENDS a run, exactly like getting away does. It used to
+        // leave the counter untouched, so being caught was a free retry
+        // outside both weekly caps.
+        weeklyStreetJobs: {
+          ...(prev.weeklyStreetJobs || {}),
+          [jobId]: ((prev.weeklyStreetJobs || {})[jobId] || 0) + 1,
+        },
         streetJobFailureCount: newFailureCount,
         streetJobsCompleted: prev.streetJobsCompleted || 0, // Don't count caught jobs as completed
         rngCommitLog: nextRngCommitLog,
@@ -521,17 +565,10 @@ export const performStreetJob = (
       // re-check and the deduction below must read the same snapshot.
       const freshEnergyCost = getStreetJobEnergyCost(prev, job);
       if (prev.stats.energy < freshEnergyCost) return prev;
-      // ANTI-EXPLOIT: Re-check the per-job and global weekly caps INSIDE the
-      // prev callback so two rapid same-batch street-job clicks don't both
-      // pass the outer cap gate above and bypass the cap.
-      const prevWeeklyJobs = prev.weeklyStreetJobs || {};
-      const prevCountForJob = prevWeeklyJobs[jobId] || 0;
-      if (prevCountForJob >= maxPerWeek) return prev;
-      const prevTotal = Object.values(prevWeeklyJobs).reduce(
-        (sum: number, count) => sum + (typeof count === 'number' ? count : 0),
-        0,
-      );
-      if (prevTotal >= MAX_TOTAL_STREET_JOBS_PER_WEEK) return prev;
+      // ANTI-EXPLOIT: Re-check jail and the per-job and global weekly caps
+      // INSIDE the prev callback so two rapid same-batch street-job clicks
+      // don't both pass the outer gate above and bypass the cap.
+      if (streetJobAttemptRefused(prev, jobId)) return prev;
 
       // Use prev.stats.money (fresh from updater) to avoid stale-closure race
       const newMoney = Math.max(0, prev.stats.money + moneyGained);

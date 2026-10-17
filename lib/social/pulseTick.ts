@@ -172,6 +172,31 @@ const isVerifiedProActive = (vp: PulseVerifiedPro | undefined): boolean => {
   return vp?.active === true;
 };
 
+/**
+ * Viral posts made in the week this tick is closing - the "viral this week"
+ * input to `calculateWeeklyImpressionEarnings`.
+ *
+ * The tick used to pass `sm.viralPosts`, the LIFETIME counter (`PulseActions`
+ * only ever increments it), into a `recentViralPosts * 50` bonus. So every
+ * viral post a life had ever made paid $50 again every week, for ever,
+ * uncapped. Posts are stamped `gameWeek: weeksLived` at creation, i.e. the
+ * week BEFORE this tick's `nextWeeksLived`; counting exactly that week
+ * credits each post to one tick only. The per-content-type weekly posting cap
+ * bounds the result, and `recentPosts` (newest 50) always holds the whole week.
+ */
+export function countViralPostsThisWeek(
+  recentPosts: readonly { gameWeek?: number; isViral?: boolean }[] | null | undefined,
+  nextWeeksLived: number,
+): number {
+  if (!Array.isArray(recentPosts) || !Number.isFinite(nextWeeksLived)) return 0;
+  const closingWeek = nextWeeksLived - 1;
+  let count = 0;
+  for (const p of recentPosts) {
+    if (p?.isViral === true && p.gameWeek === closingWeek) count++;
+  }
+  return count;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Main tick
 // ──────────────────────────────────────────────────────────────────────────
@@ -474,7 +499,8 @@ export function processPulseWeeklyTick(
       followers,
       sm.influenceLevel || influenceLevelForFollowers(followers),
       sm.totalPosts || 0,
-      sm.viralPosts || 0,
+      // THIS week's viral posts, not the lifetime `sm.viralPosts` counter.
+      countViralPostsThisWeek(sm.recentPosts, nextWeeksLived),
       // Seeded ±20% variation - deterministic from week + follower count.
       hashRoll('impressionVariation', nextWeeksLived, followers),
     ) * proMultiplier,

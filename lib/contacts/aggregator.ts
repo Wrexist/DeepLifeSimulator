@@ -15,6 +15,7 @@
  */
 
 import { GameState } from '@/contexts/game/types';
+import { companyWeeklyPayroll } from '@/lib/business/hustleTick';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -184,16 +185,25 @@ export function aggregateContacts(
   }
 
   // 5) Company employees - collapsed to one row per company.
+  // The cost is the SAME figure the weekly hustle tick charges
+  // (companyWeeklyPayroll): general staff at workerSalary plus each named
+  // hire's own salary. "$X/wk each" is only claimed when every head really is
+  // paid X - a named hire negotiates their own figure.
   for (const c of state.companies ?? []) {
     const headcount = safe(c.employees, 0);
     if (headcount <= 0) continue;
+    const namedHires = state.hustleApp?.companies?.[c.id]?.hiringPipeline?.namedHires ?? [];
+    const payroll = companyWeeklyPayroll(c, namedHires);
+    const costLabel = namedHires.length === 0
+      ? `$${safe(c.workerSalary, 0).toLocaleString('en-US')}/wk each`
+      : `$${payroll.total.toLocaleString('en-US')}/wk payroll`;
     out.push({
       id: `company:${c.id}`,
       kind: 'employee',
       name: `${c.name} team`,
-      subtitle: `${headcount} ${headcount === 1 ? 'employee' : 'employees'} · $${safe(c.workerSalary, 0).toLocaleString('en-US')}/wk each`,
+      subtitle: `${headcount} ${headcount === 1 ? 'employee' : 'employees'} · ${costLabel}`,
       strength: Math.max(0, Math.min(100, 50 + Math.round(safe(c.workerMultiplier, 1) * 10))),
-      costPerWeek: safe(c.workerSalary, 0) * headcount,
+      costPerWeek: payroll.total,
       tags: ['company'],
       sourceApp: 'company',
       raw: c,

@@ -46,6 +46,30 @@ export function organicMultiplier(roll: number): number {
 const resolveOrganic = (roll: number | undefined): number =>
   roll == null ? 1 : organicMultiplier(roll);
 
+/**
+ * Audience size at which audience conversion runs at HALF its small-channel
+ * rate. Below a few thousand it is ~1.0 (early growth unchanged).
+ */
+export const AUDIENCE_SATURATION_SCALE = 25_000;
+
+/**
+ * Conversion saturation: `1 / (1 + audience / AUDIENCE_SATURATION_SCALE)`.
+ *
+ * Reach is LINEAR in audience (videos reach 5% of subscribers, streams draw
+ * 1.5% of followers) and the gained audience was a FIXED share of reach, so
+ * each upload grew the channel by a fixed PERCENTAGE of itself - compounding
+ * with no ceiling. At elite gear and 5 uploads a week that was ~2%/wk, and
+ * channel memberships (5% of subscribers, paid weekly) rode it to ~$56k/wk
+ * about four years after unlock. Saturating the conversion turns large-channel
+ * growth from exponential into roughly linear (it tends to a constant number
+ * of new fans per upload), while a small channel converts almost exactly as
+ * before. Pure; NaN/negative audience reads as 0.
+ */
+export function audienceSaturation(audience: number): number {
+  const a = Math.max(0, safe(audience, 0));
+  return 1 / (1 + a / AUDIENCE_SATURATION_SCALE);
+}
+
 export interface VideoOutcomeInput {
   quality: QualityBreakdown | number;
   subscribers: number;
@@ -85,8 +109,9 @@ export function projectVideoOutcome(input: VideoOutcomeInput): VideoOutcome {
   const organic = resolveOrganic(input.rollOrganic);
 
   const views = Math.max(0, Math.round(baseReach * qMult * trend * organic * viralMult));
-  // Subscriber conversion: 0.5% baseline, scaled by quality.
-  const conversionRate = 0.005 * qMult;
+  // Subscriber conversion: 0.5% baseline, scaled by quality, saturating with
+  // channel size (see audienceSaturation) so growth cannot compound for ever.
+  const conversionRate = 0.005 * qMult * audienceSaturation(subs);
   const subscribersGained = Math.max(0, Math.round(views * conversionRate));
 
   return { views, subscribersGained, viral };
@@ -155,8 +180,13 @@ export function projectStreamOutcome(input: StreamOutcomeInput): StreamOutcome {
   const hypeTrain = input.rollHype < hypeChance;
   const hypeMult = hypeTrain ? 2.5 : 1;
 
-  // Follower / sub conversion.
-  const newFollowers = Math.max(0, Math.round(viewers * 0.02 * qMult));
+  // Follower / sub conversion. Follower conversion saturates with audience size
+  // for the same reason as video subscribers: viewers are linear in followers,
+  // so a fixed follower share of viewers compounds (~1%/wk at elite gear) - and
+  // `newSubs` below scales off viewers, so that compounding reached the
+  // membership payout too. Subs need no second factor: once followers grow
+  // linearly, so do viewers, and so do the subs drawn from them.
+  const newFollowers = Math.max(0, Math.round(viewers * 0.02 * qMult * audienceSaturation(followers)));
   const newSubs = Math.max(0, Math.round(viewers * 0.004 * qMult * hypeMult));
 
   // Donations: per-viewer * tier * hype.

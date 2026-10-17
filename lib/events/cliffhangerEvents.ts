@@ -303,7 +303,9 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         },
         {
           id: 'upgrade',
-          text: 'Upgrade to premium security ($50/mo)',
+          // One payment, so the copy names one: it read "($50/mo)" over a
+          // single -$200 with no subscription behind it.
+          text: 'Upgrade to premium security ($200)',
           effects: { money: -200, stats: { happiness: 2 } },
         },
       ],

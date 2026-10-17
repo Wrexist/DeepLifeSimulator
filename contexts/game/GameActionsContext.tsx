@@ -30,6 +30,7 @@ import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements, netWorth, netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
+import { isChoiceSelectable } from '@/lib/events/choiceAffordability';
 import { applyEventStatDeltas } from '@/lib/events/statEffects';
 import { rollWeeklyLuckSeed, netEngagementBonus, ENGAGEMENT_BONUS_BASE_CAP } from '@/lib/economy/luckyBonus';
 import { longevityPivot } from '@/lib/statistics/lifeExpectancy';
@@ -3314,9 +3315,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    : (isFinite(prevState.stats?.money) ? Math.min(MONEY_CEILING, Math.max(0, prevState.stats.money)): 0),
  reputation: isFinite(pulseRepAdjusted) ? pulseRepAdjusted: (isFinite(newStats.reputation) ? newStats.reputation: 50),
  },
- // Death warning system tracking
- healthZeroWeeks: newHealthZeroWeeks,
- happinessZeroWeeks: newHappinessZeroWeeks,
+ // Death warning system tracking. The counters are decided mid-tick (before
+ // the longevity roll), and pets, housing, relationships and savings goals
+ // still add health/happiness after that point - so a week that ENDED above
+ // zero counted toward a zero-stat death while the HUD (which warns only at
+ // <= 0) showed nothing. A week only counts if it ended at zero.
+ healthZeroWeeks: !deathTriggered && newStats.health > 0 ? 0 : newHealthZeroWeeks,
+ happinessZeroWeeks: !deathTriggered && newStats.happiness > 0 ? 0 : newHappinessZeroWeeks,
  // Achievement-counter accumulators that the achievement system
  // reads via gs.healthWeeks (consecutive weeks at 90+ health,
  // reset when health dips below) and gs.totalHappiness (running
@@ -3988,14 +3993,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Apply effects - CRITICAL: Preserve all state properties
  const effects = choice.effects || {};
 
+ // A choice the wallet cannot cover is REFUSED, and the event stays pending.
+ // It used to clamp cash to $0, skip the stats and apply everything else, so
+ // an unaffordable tap took the player's money and consumed the event for
+ // nothing. `WeeklyEventModal` disables the same choices through the same
+ // helper; this is the authoritative re-check against `prevState` (§4.4). The
+ // helper keeps the cheapest choice selectable when none is affordable, so an
+ // event can never become impossible to answer.
+ if (!isChoiceSelectable(event.choices, choiceId, prevState.stats?.money ?? 0, netWorth(prevState))) {
+ logger.warn('Event choice refused - cannot afford it:', { eventId, choiceId, money: prevState.stats?.money });
+ resolvingEventsRef.current.delete(resolutionKey);
+ return prevState;
+ }
+
  // Start with a deep copy of the state to preserve everything
  const updatedStats = {...prevState.stats };
 
  // Apply money change
  // P2-4: if a negative money cost can't be fully covered, the player shouldn't
  // get the choice's beneficial stat effects for free (the cost just clamped to
- // 0). Track affordability and skip the beneficial stat block below when broke.
- // (Event choices should also be gated to affordable-only in the UI.)
+ // 0). Since the gate above refuses unaffordable choices, this only happens on
+ // the "nothing is affordable, the cheapest still resolves" fallback: it takes
+ // what the player has and its stat block is skipped.
  let effectsAffordable = true;
  // Wealth scaling: a choice may declare `moneyPct` (a fraction of net worth),
  // in which case the resolved amount is the LARGER of the authored flat figure
@@ -4230,10 +4249,35 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.info('Career warning added:', { job: prevState.currentJob });
  }
 
+ // A vehicle the event took away (theft "gone for good"). Mirrors sellVehicle:
+ // the active car moves to another one, and an auto loan survives as an
+ // unsecured debt - the collateral is gone, the debt is not, and keeping the
+ // vehicleId link would let a future purchase of the same model pay it down.
+ let updatedVehicles = prevState.vehicles;
+ let updatedActiveVehicleId = prevState.activeVehicleId;
+ let updatedLoansFromEvent = prevState.loans;
+ if (choice.special === 'lose_vehicle' && 'vehicleId' in choice && typeof choice.vehicleId === 'string') {
+   const lostId = choice.vehicleId;
+   const garage = prevState.vehicles || [];
+   if (garage.some(v => v.id === lostId)) {
+     updatedVehicles = garage.filter(v => v.id !== lostId);
+     if (prevState.activeVehicleId === lostId) {
+       updatedActiveVehicleId = updatedVehicles.length > 0 ? updatedVehicles[0].id : undefined;
+     }
+     if ((prevState.loans || []).some(l => l.vehicleId === lostId)) {
+       updatedLoansFromEvent = (prevState.loans || []).map(l =>
+         l.vehicleId === lostId ? { ...l, vehicleId: undefined } : l);
+     }
+     logger.info('Vehicle lost to an event:', { vehicleId: lostId });
+   }
+ }
+
  // Determine event category (needed for consequence tracking)
  const seasonalEventIds = ['spring_festival', 'garden_event', 'beach_party', 'summer_sale', 'harvest_festival', 'career_fair', 'winter_holidays', 'new_year', 'valentines_day', 'halloween', 'christmas', 'easter_egg_hunt', 'spring_cleaning', 'summer_music_festival', 'national_holiday', 'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'];
  const economicEventIds = ['economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift', 'economic_event_end'];
- const personalCrisisEventIds = ['medical_emergency', 'identity_theft', 'investment_opportunity', 'job_offer', 'relationship_crisis', 'legal_issue'];
+ // `card_fraud` was the engine's second `identity_theft` until the duplicate
+ // id was split; it keeps the classification it always had.
+ const personalCrisisEventIds = ['medical_emergency', 'identity_theft', 'card_fraud', 'investment_opportunity', 'job_offer', 'relationship_crisis', 'legal_issue'];
 
  let eventCategory: 'regular' | 'seasonal' | 'economic' | 'personal_crisis' = 'regular';
  if (seasonalEventIds.includes(eventId)) {
@@ -4429,13 +4473,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const enacted = [...(politicsBase.policiesEnacted || []), effects.policy];
  // Party standing moves here exactly as in `enactPolicy` - a bill passed
  // by vote and a bill enacted from the Politics app must stay
- // indistinguishable downstream, standing included.
+ // indistinguishable downstream, standing included. Except for a bill
+ // that passed over the player's No vote or abstention: the law is the
+ // same, but the party does not credit (or blame) a member who did not
+ // back it.
  const votedPolicyType = getPolicyById(effects.policy)?.type;
  updatedPolitics = {
 ...politicsBase,
  policiesEnacted: enacted,
  activePolicyEffects: calculateActivePolicyEffects(enacted),
-...(hasPartyMachine(politicsBase.party)
+...(hasPartyMachine(politicsBase.party) && !effects.policyPassedWithoutPlayer
  ? {
  partySupport: Math.max(0, Math.min(100,
  readPartySupport(politicsBase.party, politicsBase.partySupport)
@@ -4483,6 +4530,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  lifetimeStatistics: updatedCareerStatistics,
 ...(updatedCurrentJob!== prevState.currentJob && { currentJob: updatedCurrentJob }),
 ...(updatedCareersFromEvent!== prevState.careers && { careers: updatedCareersFromEvent }),
+...(updatedVehicles !== prevState.vehicles && { vehicles: updatedVehicles, activeVehicleId: updatedActiveVehicleId }),
+...(updatedLoansFromEvent !== prevState.loans && { loans: updatedLoansFromEvent }),
  };
 
  // Clear the resolving flag after a delay

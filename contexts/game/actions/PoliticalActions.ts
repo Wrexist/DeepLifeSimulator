@@ -377,7 +377,7 @@ export const runForOffice = (
   if (gameState.stats.money < campaignCost) {
     return {
       success: false,
-      message: `Need ${formatMoney(campaignCost)} to run for ${office} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(campaignCost - gameState.stats.money)} short).`,
+      message: `Need ${formatMoney(campaignCost)} to run for ${OFFICE_DISPLAY_NAME[office] ?? 'office'} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(campaignCost - gameState.stats.money)} short).`,
     };
   }
 
@@ -832,6 +832,19 @@ export const formAlliance = (
     log.info(`Formed alliance with ${characterName}`);
   }
   return { success: preview.ok, message: preview.message };
+};
+
+/**
+ * Player-facing office names. Messages used to print the raw key ("run for
+ * state_representative").
+ */
+const OFFICE_DISPLAY_NAME: Record<string, string> = {
+  council_member: 'Council Member',
+  mayor: 'Mayor',
+  state_representative: 'State Representative',
+  governor: 'Governor',
+  senator: 'Senator',
+  president: 'President',
 };
 
 /**

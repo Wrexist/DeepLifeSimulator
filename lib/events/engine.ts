@@ -59,6 +59,11 @@ export interface EventChoiceEffects {
   relationship?: number; // change to specific relation if relationId provided
   pet?: { hunger?: number; happiness?: number; health?: number };
   policy?: string; // Policy ID that gets enacted
+  /**
+   * `policy` passed over the player's No vote or abstention. The law still
+   * enacts; the party gives them no standing for a bill they did not back.
+   */
+  policyPassedWithoutPlayer?: boolean;
   approvalRating?: number; // Change to political approval rating
   policyInfluence?: number; // Change to policy influence
   /** Karma change applied when this choice is selected */
@@ -82,7 +87,8 @@ export type EventSpecial =
   | 'grant_free_education'
   | 'add_disease'
   | 'fire_from_job'
-  | 'add_career_warning';
+  | 'add_career_warning'
+  | 'lose_vehicle';
 
 export interface EventChoice {
   id: string;
@@ -110,6 +116,7 @@ export interface EventChoice {
   // 2026-08-24 rather than left as a silent no-op contract; chains key off the
   // EVENT-level `chainId`/`chainStage` pair.
   diseaseId?: string; // Disease ID to add when special === 'add_disease'
+  vehicleId?: string; // Vehicle removed from the garage when special === 'lose_vehicle'
   /**
    * The effects are a ROLLED outcome, decided when the event was generated.
    * The event screen previews every choice's effects, so a gamble showed its
@@ -119,6 +126,13 @@ export interface EventChoice {
    * from a roll; the screen then says "Outcome uncertain" instead.
    */
   outcomeHidden?: boolean;
+  /**
+   * Cash an `outcomeHidden` gamble puts at risk — the figure its own text
+   * names ("Invest $2,000"). The rolled money cannot gate the choice without
+   * revealing it, so affordability reads this instead
+   * (`lib/events/choiceAffordability.ts`). A rolled loss must not exceed it.
+   */
+  stake?: number;
 }
 
 /**
@@ -1280,6 +1294,12 @@ const policyVotingEvent: EventTemplate = {
 
     const policyEffects = policy.effects;
     const approvalChange = policy.approvalImpact;
+    // The vote's OUTCOME is decided by `willPass`, not by the player's button.
+    // `policy` used to ride on Vote Yes unconditionally, so "Vote Yes (Will
+    // Fail)" enacted the bill anyway, and "Vote No (Will Pass Anyway)" left a
+    // bill the copy said passed off the books. The law follows the result;
+    // the player's vote only decides their own standing.
+    const passedOverPlayer = willPass ? { policy: policy.id, policyPassedWithoutPlayer: true } : {};
 
     return {
       id: 'policy_voting',
@@ -1289,7 +1309,7 @@ const policyVotingEvent: EventTemplate = {
           id: 'vote_yes',
           text: `Vote Yes ${willPass ? '(Will Pass)' : '(Will Fail)'}`,
           effects: {
-            policy: policy.id,
+            ...(willPass ? { policy: policy.id } : {}),
             approvalRating: willPass ? approvalChange : approvalChange - 10,
             // The policy's money effect is a CURRENCY and must ride the money
             // path. It used to sit inside `stats`, where the 0-100 stat clamp
@@ -1310,6 +1330,7 @@ const policyVotingEvent: EventTemplate = {
           id: 'vote_no',
           text: `Vote No ${willPass ? '(Will Pass Anyway)' : '(Will Fail)'}`,
           effects: {
+            ...passedOverPlayer,
             approvalRating: willPass ? -approvalChange : -approvalChange + 10,
             stats: {
               reputation: willPass ? -10 : 5,
@@ -1318,8 +1339,9 @@ const policyVotingEvent: EventTemplate = {
         },
         {
           id: 'abstain',
-          text: 'Abstain from Voting',
+          text: `Abstain from Voting ${willPass ? '(Will Pass Anyway)' : '(Will Fail)'}`,
           effects: {
+            ...passedOverPlayer,
             approvalRating: -5,
             stats: { reputation: -2 },
           }
@@ -1824,7 +1846,9 @@ const lifeInsuranceOffer: EventTemplate = {
     id: 'life_insurance_offer',
     description: 'An insurance agent approaches you with a life insurance offer. The premiums are reasonable.',
     choices: [
-      { id: 'accept', text: 'Buy the insurance ($200/month)', effects: { money: -200, stats: { happiness: 5 } } },
+      // One payment, so the copy says one payment: it read "($200/month)" over a
+      // single -$200 with no recurring premium behind it.
+      { id: 'accept', text: 'Buy the insurance ($200 one-off premium)', effects: { money: -200, stats: { happiness: 5 } } },
       { id: 'decline', text: 'Decline politely', effects: {} },
     ],
   }),
@@ -1921,8 +1945,11 @@ const investmentTip: EventTemplate = {
       // it (50/50, EV ≈ 0). Description updated to match the real stakes.
       description: 'A successful investor shares a tip about an undervalued stock. You could double your money - or lose your whole stake.',
       choices: [
-        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString('en-US')}`, outcomeHidden: true, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
-        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString('en-US')}`, outcomeHidden: true, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
+        // `stake`: the hidden roll cannot gate affordability, so the named
+        // stake does - otherwise a player whose wealth sits in property could
+        // "invest" $50,000 of cash they do not have and keep the win.
+        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString('en-US')}`, outcomeHidden: true, stake: bigAmount, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
+        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString('en-US')}`, outcomeHidden: true, stake: smallAmount, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
         { id: 'pass', text: 'Pass on the opportunity', effects: {} },
       ],
     };
@@ -2004,15 +2031,19 @@ const freelanceOpportunity: EventTemplate = {
 // CHALLENGE EVENTS
 // ============================================
 
+// `card_fraud`, not `identity_theft`: `personalCrises.ts` registers its own
+// `identity_theft` in the same pool, and two templates under one id share a
+// cooldown, an event-log identity and a category - whichever was picked, the
+// other was what the log and the resolver's category lists believed it was.
 const identityTheft: EventTemplate = {
-  id: 'identity_theft',
+  id: 'card_fraud',
   category: 'economy',
   weight: 0.2,
   condition: state => state.stats.money >= 1000,
   generate: (state) => {
     const stolenAmount = Math.min(Math.floor(state.stats.money * 0.1), 500);
     return {
-      id: 'identity_theft',
+      id: 'card_fraud',
       description: `Your identity was stolen! Someone made unauthorized purchases of $${stolenAmount}.`,
       choices: [
         { id: 'report', text: 'Report to bank (recover 50%)', effects: { money: Math.floor(-stolenAmount * 0.5), stats: { happiness: -10 } } },
@@ -2691,7 +2722,10 @@ const antiqueFinding: EventTemplate = {
     id: 'antique_finding',
     description: 'You find an old item at a garage sale that might be valuable!',
     choices: [
-      { id: 'buy_appraise', text: 'Buy it ($50) and get it appraised', effects: { money: payloadRoll(state, 'antique_finding')('appraisal') > 0.5 ? 400 : -100, stats: { happiness: 10 } } },
+      // Net outcome against the $50 the copy names: a find sells for $450
+      // (+$400), junk loses the $50 - it used to lose $100 for a $50 purchase.
+      // Rolled, so hidden; gated on the $50 it puts at risk.
+      { id: 'buy_appraise', text: 'Buy it ($50) and get it appraised', outcomeHidden: true, stake: 50, effects: { money: payloadRoll(state, 'antique_finding')('appraisal') > 0.5 ? 400 : -50, stats: { happiness: 10 } } },
       { id: 'skip', text: 'Probably junk', effects: {} },
     ],
   }),
@@ -2775,7 +2809,11 @@ const vehicleTheft: EventTemplate = {
           {
             id: 'accept',
             text: hasInsurance ? 'File insurance claim (get partial reimbursement)' : 'Accept the loss',
-            effects: { money: hasInsurance ? Math.floor(vehicle.price * 0.5) : 0, stats: { happiness: -20, reputation: -5 } }
+            effects: { money: hasInsurance ? Math.floor(vehicle.price * 0.5) : 0, stats: { happiness: -20, reputation: -5 } },
+            // "Gone for good" has to mean it: the car used to stay in the garage
+            // while insurance paid out half its price on top.
+            special: 'lose_vehicle',
+            vehicleId: vehicle.id,
           },
         ],
     };
@@ -3033,7 +3071,9 @@ const examSuccess: EventTemplate = {
     description: 'The results are posted. You are near the top of the list - the night you stayed in is sitting right there in the number.',
     choices: [
       { id: 'celebrate', text: 'Let yourself enjoy it', effects: { stats: { happiness: 14, reputation: 3 } } },
-      { id: 'push_on', text: 'Bank the confidence and keep going', effects: { stats: { happiness: 6, energy: -4, intelligence: 2 } } },
+      // Reputation, not `intelligence`: there is no such stat, so the +2 was
+      // previewed as "Intelligence +2" and then silently dropped.
+      { id: 'push_on', text: 'Bank the confidence and keep going', effects: { stats: { happiness: 6, energy: -4, reputation: 4 } } },
     ],
   }),
 };

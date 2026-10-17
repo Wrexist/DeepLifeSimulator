@@ -21,7 +21,7 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 
 const LinearGradient = Gradient;
 
-// Entrance motion mirrors the shared house tokens (src/utils/animated MOTION):
+// Entrance motion follows the house motion feel:
 // a gentle 0.94→1 scale reveal on an ease-out curve, kept under the 300ms UI
 // budget. Easing is resolved defensively so environments without the native
 // Easing module (e.g. the render-test RN mock) can't crash at load.

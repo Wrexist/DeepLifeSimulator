@@ -25,6 +25,8 @@ import {
   applySecurityShield,
 } from '@/lib/mail/resolve';
 import { logger } from '@/utils/logger';
+import { isChoiceSelectable } from '@/lib/events/choiceAffordability';
+import { netWorth } from '@/lib/progress/achievements';
 
 type SetGameState = (updater: (prev: GameState) => GameState) => void;
 
@@ -365,6 +367,14 @@ function resolveMailDecision(
   const baseCopy = 'Answered.';
 
   if (resolver.kind === 'event') {
+    // `resolveEvent` refuses a choice the wallet cannot cover and keeps the
+    // event pending. Stamping the letter "answered" first would hide a decision
+    // that never happened, until the event resurfaced at its deadline. Refuse
+    // here with the same helper so the letter and the event agree.
+    const pending = (state.pendingEvents ?? []).find((e) => e.id === resolver.eventId);
+    if (pending && !isChoiceSelectable(pending.choices, choiceId, state.stats?.money ?? 0, netWorth(state))) {
+      return { result: { outcome: 'You cannot afford that right now.' }, next: null };
+    }
     return {
       result: { outcome: baseCopy, delegateToEvent: { eventId: resolver.eventId, choiceId } },
       next: resolveDecisionOn(state, id, choiceId, baseCopy),

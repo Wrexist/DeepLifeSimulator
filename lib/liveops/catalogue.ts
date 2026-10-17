@@ -101,6 +101,58 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     priority: 20,
   },
 
+  // ── Late October to February: the on-ramp continues ──
+  //
+  // `first_rungs` closes on 26 October, and with it the only compiled event a
+  // `new` or `early` player can enter: from then the compiled calendar (the
+  // offline fallback when liveops.json cannot be fetched) showed a new player
+  // nothing, which `check:liveops` caught with nine days of runway left. Two
+  // back-to-back windows of the same shape (a non-evergreen window is capped
+  // at 60 days), each opening the day the previous one closes so a player
+  // never holds two on-ramp events at once.
+  {
+    id: 'steady_ground',
+    schemaVersion: V,
+    kind: 'opportunity',
+    title: 'Steady Ground',
+    summary: 'A few weeks lived, a little put by, and your health in hand.',
+    brief:
+      'The first months of a life are about not falling over. Live a few weeks, keep some money aside and keep your health up, and take this for getting your feet under you.',
+    emoji: '\u{1F331}',
+    startsAt: '2026-10-26T00:00:00Z',
+    endsAt: '2026-12-21T00:00:00Z',
+    claimGraceDays: 7,
+    objectives: [
+      { objectiveId: 'weeks_this_life', target: 8 },
+      { objectiveId: 'cash_on_hand', target: 3_000 },
+      { objectiveId: 'health', target: 50 },
+    ],
+    rewards: [{ kind: 'gems', amount: 150 }],
+    eligibility: { stages: ['new', 'early'] },
+    priority: 20,
+  },
+  {
+    id: 'new_year_footing',
+    schemaVersion: V,
+    kind: 'opportunity',
+    title: 'A Fresh Footing',
+    summary: 'Start the year with some standing and something saved.',
+    brief:
+      'A new year is as good a reason as any. Get your name known a little, keep some money aside and keep this life going a few more weeks.',
+    emoji: '\u{1F305}',
+    startsAt: '2026-12-21T00:00:00Z',
+    endsAt: '2027-02-15T00:00:00Z',
+    claimGraceDays: 7,
+    objectives: [
+      { objectiveId: 'weeks_this_life', target: 10 },
+      { objectiveId: 'cash_on_hand', target: 4_000 },
+      { objectiveId: 'reputation', target: 20 },
+    ],
+    rewards: [{ kind: 'gems', amount: 150 }],
+    eligibility: { stages: ['new', 'early'] },
+    priority: 20,
+  },
+
   // ── September: the discipline event ──
   //
   // Holding cash is the only objective in the whole catalogue the player can go

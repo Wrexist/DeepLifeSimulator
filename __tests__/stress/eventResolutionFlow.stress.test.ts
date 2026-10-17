@@ -104,7 +104,7 @@ function injectEvent(event: {
   description?: string;
   category?: string;
   relationId?: string;
-  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string }[];
+  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string; vehicleId?: string }[];
 }) {
   act(() => captured!.setGameState(prev => ({
     ...prev,
@@ -179,16 +179,47 @@ describe('Random event resolution audit', () => {
     expect((captured!.state.pendingEvents || []).find(e => e.id === 'choice_test_event')).toBeDefined();
   });
 
-  // ── MONEY CLAMPING ─────────────────────────────────────────────────────
-  it('resolveEvent: negative money effect exceeding balance clamps to 0', () => {
+  // ── AFFORDABILITY ──────────────────────────────────────────────────────
+  // An unaffordable choice used to clamp cash to 0, skip its stats, apply
+  // everything else and consume the event. It is refused now (2026-10-17);
+  // see lib/events/choiceAffordability.ts.
+  it('resolveEvent: an unaffordable choice is refused - money untouched, event still pending', () => {
+    mounted = mountGame();
+    injectEvent({
+      id: 'lawyer_event',
+      choices: [
+        { id: 'lawyer', effects: { money: -50_000, stats: { happiness: 10 } } },
+        { id: 'defend', effects: { stats: { happiness: -5 } } },
+      ],
+    });
+    const before = captured!.state.stats;
+    act(() => captured!.game.resolveEvent('lawyer_event', 'lawyer'));
+    expect(captured!.state.stats.money).toBe(before.money);
+    expect(captured!.state.stats.happiness).toBe(before.happiness);
+    expect((captured!.state.pendingEvents || []).find(e => e.id === 'lawyer_event')).toBeDefined();
+    // ...and the affordable sibling still resolves it.
+    act(() => captured!.game.resolveEvent('lawyer_event', 'defend'));
+    expect((captured!.state.pendingEvents || []).find(e => e.id === 'lawyer_event')).toBeUndefined();
+  });
+
+  it('resolveEvent: when NO choice is affordable the cheapest still resolves, taking what you have', () => {
     mounted = mountGame();
     injectEvent({
       id: 'overdraw_event',
-      choices: [{ id: 'cost', effects: { money: -999_999_999 } }],
+      choices: [
+        // Both above the fixture's $10,000 - and below MAX_EVENT_MONEY, which
+        // would clamp them to the same figure and make them tie.
+        { id: 'cost', effects: { money: -40_000 } },
+        { id: 'pricier', effects: { money: -90_000 } },
+      ],
     });
+    // The pricier one is refused: it is not the cheapest.
+    act(() => captured!.game.resolveEvent('overdraw_event', 'pricier'));
+    expect((captured!.state.pendingEvents || []).find(e => e.id === 'overdraw_event')).toBeDefined();
     act(() => captured!.game.resolveEvent('overdraw_event', 'cost'));
     expect(captured!.state.stats.money).toBe(0);
     expect(Number.isFinite(captured!.state.stats.money)).toBe(true);
+    expect((captured!.state.pendingEvents || []).find(e => e.id === 'overdraw_event')).toBeUndefined();
   });
 
   // ── STAT CLAMPING ──────────────────────────────────────────────────────
@@ -345,6 +376,30 @@ describe('Random event resolution audit', () => {
     });
     act(() => captured!.game.resolveEvent('warning_event', 'sorry'));
     expect(captured!.state.careers?.find(c => c.id === 'engineer')?.warningsReceived).toBe(1);
+  });
+
+  it('resolveEvent: lose_vehicle takes the car away and keeps its loan as unsecured debt', () => {
+    mounted = mountGame();
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      vehicles: [
+        { id: 'sports_car', name: 'Sports Car', price: 80_000, owned: true } as never,
+        { id: 'sedan', name: 'Sedan', price: 20_000, owned: true } as never,
+      ],
+      activeVehicleId: 'sports_car',
+      loans: [{ id: 'auto-1', vehicleId: 'sports_car', remaining: 30_000 } as never],
+    })));
+    injectEvent({
+      id: 'vehicle_theft',
+      choices: [{ id: 'accept', effects: { money: 40_000 }, special: 'lose_vehicle', vehicleId: 'sports_car' }],
+    });
+    const moneyBefore = captured!.state.stats.money;
+    act(() => captured!.game.resolveEvent('vehicle_theft', 'accept'));
+    const s = captured!.state;
+    expect((s.vehicles || []).map(v => v.id)).toEqual(['sedan']);
+    expect(s.activeVehicleId).toBe('sedan');
+    expect(s.loans?.find(l => l.id === 'auto-1')).toMatchObject({ remaining: 30_000, vehicleId: undefined });
+    expect(s.stats.money).toBe(moneyBefore + 40_000);
   });
 
   it('resolveEvent: grant_free_education adds reputation', () => {

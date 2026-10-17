@@ -220,7 +220,7 @@ const perkList: Perk[] = [
     id: 'collector_spirit',
     title: 'Collector Spirit',
     description: '+5 happiness and +5 reputation.',
-    requirement: 'Own 50 unique items.',
+    requirement: 'Own 6 shop items.',
     effects: { statBoosts: { happiness: 5, reputation: 5 } },
     unlock: { type: 'achievement', achievementId: 'collector_supreme' },
     rarity: 'Uncommon',
