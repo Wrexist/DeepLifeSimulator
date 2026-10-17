@@ -471,7 +471,13 @@ export const performStreetJob = (
       // Recalculate money lost from fresh prev state to avoid stale-closure race
       const prevMoney = prev.stats.money;
       const freshMoneyLost = caught ? Math.min(prevMoney, Math.round(prevMoney * 0.1)) : 0;
-      const freshNetChange = moneyGained - freshMoneyLost;
+      // An arrest pays NOTHING, even when the success roll also landed: the
+      // take is evidence and is seized with you. This used to be
+      // `moneyGained - freshMoneyLost`, so a caught-but-successful attempt kept
+      // the full loot and only paid the 10% seizure out of it - at the 80%
+      // arrest cap a heist still netted most of its payout, and the jail stand
+      // was the only real cost of getting caught (2026-10-17 economy audit).
+      const freshNetChange = -freshMoneyLost;
       const finalMoney = Math.max(0, prevMoney + freshNetChange);
 
       log.info('Updating state (caught):', {
@@ -540,10 +546,14 @@ export const performStreetJob = (
     // true under every ordering. Same lesson as the Legacy Pass claim toast
     // (lessons.md, 2026-06-24) - report what happened, not what you predicted.
     const penaltyText = ` (${happinessPenalty} happiness, ${healthPenalty} health)`;
+    // `success` is decided before the updater runs and the updater never
+    // credits it on this branch, so naming the seized take is true under
+    // every ordering.
+    const takeText = success && moneyGained > 0 ? ' The take was seized.' : '';
     if (moneyBeforeJob > 0) {
-      message = `Caught. Jailed ${job.jailWeeks} weeks, 10% of your cash seized.${penaltyText}`;
+      message = `Caught. Jailed ${job.jailWeeks} weeks, 10% of your cash seized.${takeText}${penaltyText}`;
     } else {
-      message = `Caught. Jailed ${job.jailWeeks} weeks.${penaltyText}`;
+      message = `Caught. Jailed ${job.jailWeeks} weeks.${takeText}${penaltyText}`;
     }
   } else {
     // Check if rank will increase (before state update)

@@ -102,6 +102,28 @@ describe('a caught street-crime attempt', () => {
     expect(c.updaters[0](prevAtCap)).toBe(prevAtCap);
   });
 
+  it('pays NO loot when the success roll also landed - only the 10% seizure moves cash', () => {
+    // Pity (5 straight failures) forces the success roll, so this finds an
+    // attempt that both SUCCEEDED and was CAUGHT. That branch used to credit
+    // the full take and only subtract the seizure from it.
+    const s = caughtState({ streetJobFailureCount: { [JOB]: 5 } });
+    const c = capture();
+    const r = performStreetJob(s, c.set, JOB, deps);
+    expect(r.success).toBe(true);
+    expect(r.inJail).toBe(true);
+    expect(r.message).toMatch(/take was seized/i);
+    const next = c.updaters[0](s);
+    expect(next.stats.money).toBe(s.stats.money - Math.round(s.stats.money * 0.1));
+  });
+
+  it('a broke arrest stays at $0 rather than being paid the take', () => {
+    const s = caughtState({ streetJobFailureCount: { [JOB]: 5 } });
+    const broke = { ...s, stats: { ...s.stats, money: 0 } };
+    const c = capture();
+    performStreetJob(broke, c.set, JOB, deps);
+    expect(c.updaters[0](broke).stats.money).toBe(0);
+  });
+
   it('three arrests exhaust the per-job cap - the fourth attempt is refused', () => {
     const s = criminal(150, { weeklyStreetJobs: { [JOB]: 3 } });
     const c = capture();

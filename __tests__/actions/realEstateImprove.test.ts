@@ -17,7 +17,7 @@ import {
   quotePropertyPurchase,
 } from '@/contexts/game/actions/RealEstateActions';
 import { COMMERCIAL_CATALOG } from '@/lib/realEstate/catalog';
-import { UPGRADE_TIERS, DECOR_ITEMS, ROOM_ADDITIONS } from '@/lib/realEstate/housing';
+import { UPGRADE_TIERS, DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTierCost } from '@/lib/realEstate/housing';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState, RealEstate } from '@/contexts/game/types';
 
@@ -144,6 +144,39 @@ describe('upgradePropertyTier', () => {
     expect(res.success).toBe(true);
     expect(get().realEstate![0].upgradeLevel).toBe(1);
     expect(get().stats.money).toBe(100_000 - tier1.cost);
+  });
+
+  it('prices a tier on the property value above $1M - the floor is not the price', () => {
+    // $8M penthouse: tier 1 is 1% of value ($80k), not the $10k floor. The
+    // flat price used to buy ~830%/yr of appreciation on a property this size.
+    const snap = stateWith(200_000, [ownedProp({ currentValue: 8_000_000, price: 8_000_000 })]);
+    const { setState, get } = makeBatchedSetState(snap);
+    expect(getUpgradeTierCost(tier1, snap.realEstate![0])).toBe(80_000);
+    const res = upgradePropertyTier(snap, setState, 'p1');
+    expect(res.success).toBe(true);
+    expect(get().stats.money).toBe(200_000 - 80_000);
+  });
+
+  it('refuses a value-priced tier the floor alone would have allowed', () => {
+    const snap = stateWith(50_000, [ownedProp({ currentValue: 8_000_000, price: 8_000_000 })]);
+    const { setState, get } = makeBatchedSetState(snap);
+    const res = upgradePropertyTier(snap, setState, 'p1');
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('$80,000');
+    expect(get().stats.money).toBe(50_000);
+    expect(get().realEstate![0].upgradeLevel).toBe(0);
+  });
+
+  it('keeps every tier at its flat floor at or under $1M', () => {
+    for (const tier of UPGRADE_TIERS) {
+      expect(getUpgradeTierCost(tier, { currentValue: 1_000_000, price: 1_000_000 })).toBe(tier.cost);
+      expect(getUpgradeTierCost(tier, { currentValue: 250_000, price: 250_000 })).toBe(tier.cost);
+    }
+  });
+
+  it('falls back to the purchase price, and to the floor when neither is a usable number', () => {
+    expect(getUpgradeTierCost(tier1, { currentValue: 0, price: 3_000_000 })).toBe(30_000);
+    expect(getUpgradeTierCost(tier1, { currentValue: NaN, price: NaN })).toBe(tier1.cost);
   });
 
   it('rejects once at the top tier', () => {
