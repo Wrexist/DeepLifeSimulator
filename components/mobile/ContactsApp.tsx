@@ -95,6 +95,7 @@ import {
   FAVOR_KIND_BY_CONTACT,
   NETWORK_FAVOR_MIN_STRENGTH,
 } from '@/contexts/game/actions/ContactsActions';
+import { mindsetEffects, mindsetPrice } from '@/lib/mindset/effects';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { childParentSources } from '@/lib/avatar/family';
 import { getMoodLabel } from '@/lib/social/npcDepth';
@@ -686,6 +687,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             <PersonalContactActions
               relationship={r} money={gameState.stats?.money ?? 0}
               week={gameState.weeksLived ?? 0} darkMode={darkMode}
+              socialCostMult={mindsetEffects(gameState).socialCost}
               blocked={{
                 askmoney: borrowBlockedReason(gameState, c.id),
                 lendmoney: lendBlockedReason(gameState, c.id),
@@ -818,7 +820,8 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               <CollapsibleSection id={`contact-dates-${c.id}`} title="Plan a date" defaultCollapsed compact>
                 <View style={styles.dateList}>
                   {DATE_TIER_META.map((t) => {
-                    const cost = DATE_CONFIGS[t.type].cost;
+                    // The price `goOnDate` charges (a Socialite pays more).
+                    const cost = mindsetPrice(DATE_CONFIGS[t.type].cost, mindsetEffects(gameState).socialCost);
                     const canAfford = (gameState.stats?.money ?? 0) >= cost;
                     const DIcon = t.Icon;
                     return (

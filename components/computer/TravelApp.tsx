@@ -63,7 +63,8 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { transportationMods } from '@/lib/travel/transportation';
-import { quoteTrip, deriveExperienceStats } from '@/lib/travel/operations';
+import { quoteTrip, deriveExperienceStats, tripHappiness } from '@/lib/travel/operations';
+import { mindsetEffects } from '@/lib/mindset/effects';
 import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
 import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
 import {
@@ -181,13 +182,15 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 // `core` limits to the four headline stats for compact grid tiles.
 function benefitDescriptors(
   b: TravelDestination['benefits'],
-  core = false
+  core = false,
+  /** The Mindset's trip-happiness multiplier, so the card shows what the trip pays. */
+  joyMult = 1,
 ): { Icon: React.ComponentType<{ size: number; color: string }>; color: string; value: string; key: string }[] {
   const out = [] as { Icon: React.ComponentType<{ size: number; color: string }>; color: string; value: string; key: string }[];
   // Fold stress-relief + intelligence enrichment into the concrete happiness/
   // energy deltas the game actually models (matches deriveExperienceStats).
   const experience = deriveExperienceStats(b);
-  const happiness = (b?.happiness ?? 0) + experience.happiness;
+  const happiness = tripHappiness(b, joyMult);
   const energy = (b?.energy ?? 0) + experience.energy;
   if (happiness) out.push({ Icon: Heart, color: accent.danger, value: `${happiness > 0 ? '+' : ''}${happiness}`, key: 'hap' });
   if (b.health) out.push({ Icon: Battery, color: accent.success, value: `${b.health > 0 ? '+' : ''}${b.health}`, key: 'hp' });
@@ -763,7 +766,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SectionTitle title="Stat effects" />
           <View style={styles.benefitRow}>
-            {benefitDescriptors(dest.benefits).map((d) => (
+            {benefitDescriptors(dest.benefits, false, mindsetEffects(gameState).travelHappiness).map((d) => (
               <BenefitChip key={d.key} Icon={d.Icon} color={d.color} value={d.value} />
             ))}
           </View>

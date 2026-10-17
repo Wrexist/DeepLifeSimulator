@@ -1,3 +1,29 @@
+# Mindsets that shape a whole life - 17 October 2026
+
+Branch `claude/mindset-design-2026-10-17`. Owner: "do the bigger design job, make it perfected, clean and professional". Mindsets were street-work-only after PR #239; each now keeps its ORIGINAL promise, in the system its name names. One active Mindset per life.
+
+Design rules: one table (`lib/mindset/effects.ts`) is the only place a number lives; every consumer reads it through one resolver; the copy every screen shows is GENERATED from the table, so it cannot drift; each Mindset has exactly one upside and one downside, modest (10-25%); no new GameState fields; deterministic; tick and UI read the same seam.
+
+| Mindset | Upside | Downside | Seams |
+|---|---|---|---|
+| Frugal | Market prices -10% | Luxury items give -25% happiness | `getItemPurchasePrice`, luxury happiness |
+| Workaholic | Career pay +10% | Health wears down 20% faster | `careerPayMultiplier`, decay (tick + vitalDrift) |
+| Socialite | Bond from calls/hangouts +25% | Social activities cost +25% | `resolveInteraction`, hangout/date/gift costs |
+| Optimist | Weekly happiness gains +15% | Street jobs succeed 5% less | tick net happiness scaling, street table |
+| Perfectionist | Promotion progress +15% | Happiness wears down 20% faster | `applyCareerProgress`, decay |
+| Adventurous | Trips -15% cost, +25% happiness | Restless: happiness wears down 25% faster after 26 weeks without a trip | `quoteTrip`, trip benefit, decay |
+| Gambler | Illegal street pay +25% | +5% arrest risk | street table |
+| Risk Averse | Arrest risk -25% | Street pay -5% | street table |
+| Investor | Dividends and rent +15% | Property costs +5% to buy | dividends tick, rent multiplier, `quotePropertyPurchase` |
+| Big Spender | Luxury items give +25% happiness | Market prices +10% | luxury happiness, `getItemPurchasePrice` |
+| Hustler | Street pay +15% | Relationships fade 25% faster | street table, relationship decay ctx |
+
+- [x] 1. `lib/mindset/effects.ts`: table, `mindsetEffects(state)` resolver (restless resolved there, heir trip history capped to this life), `describeMindsetEffects` / `mindsetEffectLines` generator (upsides first); `config.ts` cards generated, taglines state no numbers.
+- [x] 2. Seams wired (tick and screen read the same function each): `careerPayMultiplier`, `applyCareerProgress` (player bonuses now their own rounded step - a 6.5-point week rounded a +15% Mindset AND the +10/15% Leadership life skill away), decay in tick + `vitalDrift`, `scaledHappinessGain` gainMult, `resolveInteraction` bond mult (calls/hangouts/dates), hangout/date/gift prices, neglect loss via `processWeeklyNPCDepth`, `quoteTrip` + `tripHappiness`, `getItemPurchasePrice` / new `getFoodPurchasePrice`, `luxuryItemHappiness`, dividends via new `dividendYieldModifiers` (the Stocks estimate ignored policy + Investing skill before), rent multiplier, `quotePropertyPurchase`. Street table: Optimist, Gambler, Risk Averse, Hustler only.
+- [x] 3. UI: Perks cards (tagline + green/amber effect lines, hint copy, recommendations), IdentityCard Active Mindset (canonical reader, live restless line), heir screen says the Mindset is inherited; contact/date/luxury/travel/market/stocks screens show the adjusted numbers.
+- [x] 4. Tests: `mindsetEffects.test.ts` (55: table, generated copy, street, resolver), `mindset/mindsetLifeSeams.test.ts` (26: every seam with vs without, 4 on the real tick). Soak `RUN_MINDSET_SIM=1 npx jest mindsetPersonas` (72 lives x 100 weeks): no Mindset dominates - each within ~10% net worth / ~3 happiness of none, trade-offs visible (Workaholic min health 46 -> 41).
+- [x] 5. Full suite 930 suites / 11,034 pass (33 RUN_* skipped), both type-checks 0, lint 0 errors / 673 warnings, ui/content/routes OK.
+
 # Full audit + ad revenue pass - 17 October 2026
 
 Branch `claude/audit-polish-ads-2026-10-17` from `main` 094e4119 (2.15.6). Baseline: 879 suites / 10,321 tests pass; type-check, test types, lint, routes and content pass; weekly audit had one high (fixed below). Six audits ran (economy, tick stability, save, cleanliness, content, ad research); every item below was re-read in source before it was listed.

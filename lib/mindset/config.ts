@@ -1,6 +1,7 @@
 import { ImageSourcePropType } from 'react-native';
+import { describeMindsetEffects, mindsetEffectSentence } from './effects';
 
-export type MindsetId = 
+export type MindsetId =
   // Personality traits
   | 'frugal' | 'workaholic' | 'socialite' | 'optimist' | 'perfectionist' | 'adventurous'
   // Financial traits
@@ -11,108 +12,120 @@ export type MindsetCategory = 'personality' | 'financial';
 export interface MindsetTrait {
   id: MindsetId;
   name: string;
+  /** One line of flavour. Promises nothing - the numbers are in `effects`. */
+  tagline: string;
+  /**
+   * Every effect, one line each, upsides first - GENERATED from the table in
+   * ./effects.ts, so it is exactly what the game applies.
+   */
+  effects: string[];
+  /** `effects` as one sentence, for places that show a single string. */
   description: string;
   category: MindsetCategory;
   icon: ImageSourcePropType;
 }
 
-// Every `description` below states exactly what the Mindset does, number for
-// number, as applied by `MINDSET_STREET_EFFECTS` (./streetWork.ts) - street
-// jobs are the one system that reads a Mindset. Change a number there and the
-// copy here together; mindsetEffects.test.ts checks they agree.
+// A Mindset's numbers live in ONE table, `MINDSET_EFFECTS` (./effects.ts).
+// `effects` and `description` are generated from it by `trait()`, so the copy
+// cannot promise a number the game does not apply - the eleven hand-written
+// descriptions this replaces promised savings, travel, stocks and friendships
+// while the only code that read a Mindset was one street-job toast. Only the
+// `tagline` is written by hand, and it states no numbers.
+
+type TraitSeed = Omit<MindsetTrait, 'effects' | 'description'>;
+
+function trait(seed: TraitSeed): MindsetTrait {
+  return {
+    ...seed,
+    effects: describeMindsetEffects(seed.id),
+    description: mindsetEffectSentence(seed.id),
+  };
+}
 
 // Personality-focused mindsets
 export const PERSONALITY_TRAITS: MindsetTrait[] = [
-  {
+  trait({
     id: 'frugal',
     name: 'Frugal',
-    description: 'Street jobs pay 10% more - you make every job count.',
+    tagline: 'You make every dollar count, and splurging leaves you cold.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Frugal_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'workaholic',
     name: 'Workaholic',
-    description: 'Street jobs pay 20% more, but each one costs 1 extra health and 1 extra happiness.',
+    tagline: 'Work comes first, and your body keeps the score.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Workaholic_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'socialite',
     name: 'Socialite',
-    description: "People tip you: legal street jobs pay 10% more. But you're memorable: illegal ones carry +5% arrest risk.",
+    tagline: 'People are your thing, and people are expensive.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Socialite_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'optimist',
     name: 'Optimist',
-    description: 'Street jobs cost half the happiness (rounded in your favour), but you overlook risks: they succeed 5% less often.',
+    tagline: 'Good weeks lift you higher. Bad odds barely register.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Optimist_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'perfectionist',
     name: 'Perfectionist',
-    description: 'Careful work: street jobs succeed 10% more often, but each one costs 1 extra health from stress.',
+    tagline: 'You climb fast and carry the stress of it.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Perfectionist_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'adventurous',
     name: 'Adventurous',
-    description: 'You live for the thrill: illegal street jobs pay 15% more, but legal ones bore you and cost 1 extra happiness.',
+    tagline: 'The world is cheaper for you, and home gets old fast.',
     category: 'personality',
     icon: require('@/assets/images/Mindsets/Adventurous_final.webp'),
-  },
+  }),
 ];
 
 // Financial-focused mindsets
 export const FINANCIAL_TRAITS: MindsetTrait[] = [
-  {
+  trait({
     id: 'gambler',
     name: 'Gambler',
-    description: 'Higher risk, higher reward: illegal street jobs pay 25% more, but carry +5% arrest risk.',
+    tagline: 'Higher risk, higher reward.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Gambler_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'riskAverse',
     name: 'Risk Averse',
-    description: 'Illegal street jobs carry 25% less arrest risk, but every street job pays 5% less.',
+    tagline: 'You play it safe, and safe pays a little less.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Risk Averse_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'investor',
     name: 'Investor',
-    description: 'Street jobs rank up after 2 successful runs instead of 3, but pay 5% less while you build up.',
+    tagline: 'Assets pay you more, and they cost more to buy.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Investor_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'spender',
     name: 'Big Spender',
-    description: 'Payday feels great: street jobs cost 2 less happiness. But you spend as you go: they pay 10% less.',
+    tagline: 'Nice things make you happy. They also cost you more.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Big Spender_final.webp'),
-  },
-  {
+  }),
+  trait({
     id: 'hustler',
     name: 'Hustler',
-    description: 'Side income is your thing: street jobs pay 15% more, but each one costs 1 extra happiness.',
+    tagline: 'Side income is your thing, and the people you neglect notice.',
     category: 'financial',
     icon: require('@/assets/images/Mindsets/Hustler_final.webp'),
-  },
+  }),
 ];
 
 // All traits combined (for backwards compatibility)
 export const MINDSET_TRAITS: MindsetTrait[] = [...PERSONALITY_TRAITS, ...FINANCIAL_TRAITS];
-
-// The deprecated `applyMindsetEffects` engine (the OLD rules, five dead
-// branches and an unseeded Gambler roll) is deleted. The rules the game
-// applies - and that each `description` above quotes - are
-// `MINDSET_STREET_EFFECTS` in `./streetWork.ts`, applied inside
-// `performStreetJob`'s updater.
-
-

@@ -12,8 +12,9 @@
  */
 import type { GameState } from '@/contexts/game/types';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
-import { getInflatedPrice } from '@/lib/economy/inflation';
 import { scaledFoodRestore } from '@/lib/economy/foodSatiety';
+import { getFoodPurchasePrice } from '@/lib/economy/itemPricing';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 export interface FoodPurchaseResolution {
   ok: boolean;
@@ -44,7 +45,8 @@ export function resolveFoodPurchase(state: GameState, foodId: string): FoodPurch
 
   // F5: food is charged at the same inflated price the label shows and the
   // affordability gate checks — see the note in ItemActionsContext.
-  const price = getInflatedPrice(food.price, state.economy?.priceIndex ?? 1);
+  // ...and times the Mindset market multiplier (a Frugal life pays less).
+  const price = getFoodPurchasePrice(food.price, state.economy?.priceIndex ?? 1, mindsetEffects(state).marketPrice);
   if ((state.stats.money ?? 0) < price) return refuse('unaffordable');
 
   const eatenBefore = state.weeklyFoodPurchases || 0;

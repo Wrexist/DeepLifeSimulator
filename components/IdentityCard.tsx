@@ -1,6 +1,6 @@
 import LifeLine from '@/components/ui/LifeLine';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
-import { colors, uiPalette } from '@/lib/config/theme';
+import { accent, colors, uiPalette } from '@/lib/config/theme';
 import React, { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { View,
   Text,
@@ -39,6 +39,7 @@ import { getReputationStanding } from '@/lib/reputation/reputationTier';
 import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
 import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import { activeMindsetIds, mindsetEffectLines, mindsetEffects, weeksWithoutTrip } from '@/lib/mindset/effects';
 // Rarely-opened modals - lazy-loaded and only mounted when open, so their
 // code + element tree isn't built on every home-tab render.
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
@@ -1488,15 +1489,19 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
         darkMode={isDarkMode}
         t={t}
       >
-        {gameState.mindset?.activeTraitId ? (
+        {activeMindsetIds(gameState).length > 0 ? (
           <View style={styles.modalSection}>
             <Text style={[styles.modalSectionTitle, isDarkMode && styles.modalSectionTitleDark]}>
               Active Mindset
             </Text>
             {(() => {
-              const activeMindset = MINDSET_TRAITS.find(t => t.id === gameState.mindset?.activeTraitId);
+              // The canonical reader (the same one every system applies), so the
+              // Mindset shown here is the Mindset in force.
+              const activeId = activeMindsetIds(gameState)[0];
+              const activeMindset = MINDSET_TRAITS.find(t => t.id === activeId);
               if (!activeMindset) return null;
-              
+              const live = mindsetEffects(gameState);
+
               return (
                 <View style={[styles.traitContainer, isDarkMode && styles.traitContainerDark]}>
                   <View style={styles.traitHeader}>
@@ -1505,12 +1510,25 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
                       {activeMindset.name}
                     </Text>
                   </View>
+                  <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                    {activeMindset.tagline}
+                  </Text>
                   <View style={styles.traitBonuses}>
-                    <View style={styles.bonusItem}>
-                      <Text style={[styles.bonusText, isDarkMode && styles.bonusTextDark]}>
-                        {activeMindset.description}
-                      </Text>
-                    </View>
+                    {/* Generated from the Mindset table: exactly what the game applies. */}
+                    {mindsetEffectLines(activeMindset.id).map((line) => (
+                      <View key={line.text} style={styles.bonusItem}>
+                        <Text style={[styles.bonusText, { color: line.upside ? accent.success : accent.warning }]}>
+                          {line.upside ? '+ ' : '− '}{line.text}
+                        </Text>
+                      </View>
+                    ))}
+                    {live.restless && (
+                      <View style={styles.bonusItem}>
+                        <Text style={[styles.bonusText, { color: accent.warning }]}>
+                          Restless right now: {weeksWithoutTrip(gameState)} weeks since your last trip.
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               );

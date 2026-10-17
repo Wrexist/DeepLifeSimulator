@@ -13,6 +13,7 @@
 import type { Relationship, NPCGoal, NPCOpinion, NPCMemory, NPCWant, NPCWantId } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { NEGLECT_BOND_LOSS } from '@/lib/mindset/effects';
 
 // ─── Personality → Gift Preferences Mapping ──────────────────────────────
 
@@ -584,6 +585,12 @@ export function rotateWantIfDue(
  weeksLived: number,
  /** Deterministic memory-id factory threaded from the seeded weekly tick. */
  makeMemoryId?: () => string,
+ /**
+  * Bond lost to a want ignored for the whole cycle. The base is
+  * `NEGLECT_BOND_LOSS` (2); a Hustler's Mindset raises it
+  * (`neglectBondLossFor`, lib/mindset/effects.ts).
+  */
+ neglectBondLoss: number = NEGLECT_BOND_LOSS,
 ): { rel: Relationship; notification?: string } {
  const want = rel.npcWant;
  // First encounter - assign a want, no cost.
@@ -613,7 +620,7 @@ export function rotateWantIfDue(
  } else if (want.satisfiedCount <= 0 && !interactedDuringCycle) {
  // A needy want, left entirely unmet AND ignored → a small, remembered slight.
  next.npcMood = sourMood(next.npcMood);
- next.relationshipScore = clamp((next.relationshipScore ?? 0) - 2);
+ next.relationshipScore = clamp((next.relationshipScore ?? 0) - neglectBondLoss);
  next.npcMemories = addMemory(next.npcMemories ?? [], {
  type: 'conflict',
  description: `You never made time when ${rel.name} wanted ${WANT_SHORT[want.id]}`,
@@ -736,6 +743,12 @@ export function resolveInteraction(
  action: string,
  baseBonus: number,
  weeksLived: number,
+ /**
+  * The player's bond multiplier (a Socialite's 1.25, lib/mindset/effects.ts),
+  * applied BEFORE the closeness falloff so a near-maxed bond still diminishes.
+  * Neutral when omitted.
+  */
+ gainMult = 1,
 ): InteractionOutcome {
  const roll = makeWeeklyRoll(weeksLived)(`interact:${rel.id}:${action}`);
  const mood = rel.npcMood ?? 'neutral';
@@ -823,7 +836,8 @@ export function resolveInteraction(
  }
  }
 
- delta = Math.max(1, Math.round(delta)) * closenessFalloff(rel.relationshipScore);
+ const safeGainMult = Number.isFinite(gainMult) && gainMult > 0 ? Math.min(1.6, Math.max(0.5, gainMult)) : 1;
+ delta = Math.max(1, Math.round(delta * safeGainMult)) * closenessFalloff(rel.relationshipScore);
  // Floor of 1 AFTER the falloff, but only while there is somewhere to go: a
  // bond already at 100 gains nothing, or "call once a week forever" would still
  // ratchet, just more slowly.
@@ -858,6 +872,8 @@ export function processWeeklyNPCDepth(
   * bare array) still works; the tick always passes it.
   */
  lifeSalt = '',
+ /** Bond lost per ignored want this week (see `rotateWantIfDue`). */
+ neglectBondLoss: number = NEGLECT_BOND_LOSS,
 ): { relationships: Relationship[]; notifications: string[] } {
  const notifications: string[] = [];
 
@@ -938,7 +954,7 @@ export function processWeeklyNPCDepth(
  // Rotate the current WANT (init on first encounter; every WANT_ROTATION_WEEKS
  // after). A needy want left unmet AND ignored costs a little bond + a memory;
  // honouring a "space" want is quietly rewarded.
- const wantResult = rotateWantIfDue(r, weeksLived, () => `mem_${weeksLived}_${r.id}_want`);
+ const wantResult = rotateWantIfDue(r, weeksLived, () => `mem_${weeksLived}_${r.id}_want`, neglectBondLoss);
  r = wantResult.rel;
  if (wantResult.notification) notifications.push(wantResult.notification);
 

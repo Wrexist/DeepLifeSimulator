@@ -3520,7 +3520,9 @@ describe('pre-tick equivalence - applyNPCDepthTick', () => {
     // (`parent1`, `parent2`, the meeting door's `met-w2`) are literals shared
     // across lives, so two players' NPCs drifted through identical moods in
     // identical weeks.
-    expect(npcDepth.processWeeklyNPCDepth).toHaveBeenCalledWith([], 1234, 'equiv-fixture');
+    // The fourth is the bond lost per ignored want (2; a Hustler's 3) - the
+    // neutral figure when the week context carries no Mindset.
+    expect(npcDepth.processWeeklyNPCDepth).toHaveBeenCalledWith([], 1234, 'equiv-fixture', 2);
   });
 
   it('does NOT touch ctx.newStats on any successful path', () => {

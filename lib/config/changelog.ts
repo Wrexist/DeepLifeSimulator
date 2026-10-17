@@ -72,6 +72,15 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         category: 'improved',
+        title: 'Mindsets shape your whole life',
+        bullets: [
+          'Each Mindset now changes the part of life its name promises, with one upside and one downside.',
+          'Workaholics earn more and wear down faster; Socialites bond faster and spend more doing it.',
+          'Every number on a Mindset card is exactly what the game applies.',
+        ],
+      },
+      {
+        category: 'improved',
         title: 'Bigger prestige rewards',
         bullets: [
           'Prestiging pays about ten times more points, so the shop is finally within reach.',
@@ -82,7 +91,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         category: 'improved',
         title: 'Choices that matter',
         bullets: [
-          'Every Mindset now has a real effect, and its description says exactly what.',
           'Street job rank now raises your pay.',
           'Employers can turn you down. Entry-level jobs are still easy to land.',
         ],

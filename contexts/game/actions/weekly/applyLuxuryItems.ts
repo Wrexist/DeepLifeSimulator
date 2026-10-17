@@ -89,7 +89,8 @@ export function applyLuxuryItemsForWeek(
   }
 
   // (b) Happiness — small sustained weekly bonus, self-clamped to 100.
-  const happiness = getTotalLuxuryHappiness(ids);
+  // Scaled by the life's Mindset (a Frugal life enjoys it less, a Big Spender more).
+  const happiness = getTotalLuxuryHappiness(ids, ctx.mindset?.luxuryHappiness ?? 1);
   if (happiness > 0) {
     const h = typeof ctx.newStats.happiness === 'number' && isFinite(ctx.newStats.happiness) ? ctx.newStats.happiness : 0;
     ctx.newStats.happiness = Math.min(100, h + happiness);

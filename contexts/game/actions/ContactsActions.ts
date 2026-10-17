@@ -36,6 +36,7 @@ import {
   MEET_ENERGY_COST,
 } from '@/lib/social/meetPeople';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { mindsetEffects, mindsetPrice } from '@/lib/mindset/effects';
 
 const log = logger.scope('ContactsActions');
 
@@ -200,8 +201,12 @@ function recordInteractionNow(
   if (rel.actions?.[action] === ws) {
     return { success: false, message: 'Already used this week.' };
   }
-  if (cost > 0 && (gameState.stats?.money ?? 0) < cost) {
-    return { success: false, message: `Need $${cost.toLocaleString('en-US')}.` };
+  // A Socialite pays more for a hangout (lib/mindset/effects.ts). Priced HERE,
+  // from the base the screen passes, so the charge never depends on the screen
+  // having applied it; the button reads the same multiplier to show the price.
+  const price = mindsetPrice(cost, mindsetEffects(gameState).socialCost);
+  if (price > 0 && (gameState.stats?.money ?? 0) < price) {
+    return { success: false, message: `Need $${price.toLocaleString('en-US')}.` };
   }
 
   // VARIED OUTCOME: the same action lands differently depending on the NPC's
@@ -210,7 +215,9 @@ function recordInteractionNow(
   // the result. With no depth fields present the delta collapses to `bonus`
   // (legacy flat behaviour) - the previewed message here matches what the
   // updater applies in the common (no concurrent change) case.
-  const preview = resolveInteraction(rel, action, bonus, ws);
+  // A Socialite bonds faster (lib/mindset/effects.ts) - the same multiplier in
+  // the preview message and the commit.
+  const preview = resolveInteraction(rel, action, bonus, ws, mindsetEffects(gameState).bondGain);
 
   // Every rejection inside mirrors an outer guard above, so the updater's
   // `return prev` paths are same-batch RACE protection for state, not the
@@ -222,13 +229,14 @@ function recordInteractionNow(
     const target = rels[idx];
     const prevWs = prev.weeksLived ?? 0;
     if (target.actions?.[action] === prevWs) return prev; // already used this week
-    if (cost > 0 && (prev.stats?.money ?? 0) < cost) return prev; // can't afford
+    const prevPrice = mindsetPrice(cost, mindsetEffects(prev).socialCost);
+    if (prevPrice > 0 && (prev.stats?.money ?? 0) < prevPrice) return prev; // can't afford
 
     // Reset the weekly counter when the last interaction was in an earlier week.
     const weeklyInteractions =
       target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
 
-    const outcome = resolveInteraction(target, action, bonus, prevWs);
+    const outcome = resolveInteraction(target, action, bonus, prevWs, mindsetEffects(prev).bondGain);
     const updatedRel: Relationship = {
       ...target,
       relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + outcome.scoreDelta)),
@@ -244,8 +252,8 @@ function recordInteractionNow(
     const newRels = [...rels];
     newRels[idx] = updatedRel;
     let next: GameState = { ...prev, relationships: newRels };
-    if (cost > 0) {
-      const paid = applyMoneyDelta(next, -cost, `${action} with ${target.name}`);
+    if (prevPrice > 0) {
+      const paid = applyMoneyDelta(next, -prevPrice, `${action} with ${target.name}`);
       if (!paid) return prev; // affordability failed inside the delta - abort
       next = { ...next, ...paid };
     }

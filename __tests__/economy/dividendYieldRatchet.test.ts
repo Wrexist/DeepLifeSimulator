@@ -134,14 +134,20 @@ describe('the week loop reads the bonus from prev state', () => {
     'utf8',
   );
 
+  // The player-side yield modifiers (policy bonus, Investing skill, Mindset)
+  // moved into `dividendYieldModifiers` / `playerDividendYield`
+  // (lib/stocks/dividends.ts, 2026-10-17) so the Stocks screen's estimate
+  // reads the same numbers the tick pays.
   it('applies policyAdjustedYield when building the yields map', () => {
-    expect(source).toMatch(/yields\[sym\] = policyAdjustedYield\(info\.dividendYield, safeDividendBonus\)/);
+    expect(source).toMatch(/yields\[sym\] = playerDividendYield\(info\.dividendYield, dividendMods\)/);
+    const dividends = fs.readFileSync(path.join(__dirname, '..', '..', 'lib/stocks/dividends.ts'), 'utf8');
+    expect(dividends).toMatch(/return policyAdjustedYield\(baseYield, mods\.policyBonus\) \* mods\.returnMult/);
   });
 
   it('reads the policy off prevState, not the stale closure', () => {
     // Inside a setGameState updater, `gameState` is the render-time snapshot.
-    expect(source).toMatch(
-      /const policyDividendBonus = Number\(prevState\.politics\?\.activePolicyEffects\?\.stocks\?\.dividendBonus\)/,
-    );
+    expect(source).toMatch(/const dividendMods = dividendYieldModifiers\(prevState\)/);
+    const dividends = fs.readFileSync(path.join(__dirname, '..', '..', 'lib/stocks/dividends.ts'), 'utf8');
+    expect(dividends).toMatch(/Number\(state\?\.politics\?\.activePolicyEffects\?\.stocks\?\.dividendBonus\)/);
   });
 });

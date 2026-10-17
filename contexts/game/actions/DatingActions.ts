@@ -43,6 +43,7 @@ import {
 } from '@/lib/dating/sparkPulseBridge';
 import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 import { composePost } from './PulseActions';
+import { mindsetEffects, mindsetPrice } from '@/lib/mindset/effects';
 
 const log = logger.scope('DatingActions');
 
@@ -183,8 +184,11 @@ export const goOnDate = (
   }
 
   // Check if can afford
-  if (gameState.stats.money < config.cost) {
-    return { success: false, message: `You need $${config.cost} for this date.` };
+  // A Socialite pays more for a date (lib/mindset/effects.ts); `datePrice` is
+  // the one figure the gate, the charge and the Contacts card quote.
+  const datePrice = mindsetPrice(config.cost, mindsetEffects(gameState).socialCost);
+  if (gameState.stats.money < datePrice) {
+    return { success: false, message: `You need $${datePrice} for this date.` };
   }
 
   // Check energy
@@ -199,7 +203,7 @@ export const goOnDate = (
   setGameState(prev => {
     const prevPartner = (prev.relationships || []).find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
     if (!prevPartner || rejectIfBlocked(prev) || isPlayerJailed(prev)
-      || !Number.isFinite(prev.stats.money) || prev.stats.money < config.cost
+      || !Number.isFinite(prev.stats.money) || prev.stats.money < mindsetPrice(config.cost, mindsetEffects(prev).socialCost)
       || !Number.isFinite(prev.stats.energy) || prev.stats.energy < config.energy) return prev;
     if (prevPartner) {
       const prevWeeksLived = prev.weeksLived || 0;
@@ -209,7 +213,7 @@ export const goOnDate = (
       }
     }
     // Charge the full quoted price only while all requirements still hold.
-    const moneyPatch = applyMoneyDelta(prev, -config.cost, 'Date');
+    const moneyPatch = applyMoneyDelta(prev, -mindsetPrice(config.cost, mindsetEffects(prev).socialCost), 'Date');
     if (!moneyPatch) return prev;
     return ({
     ...prev,
@@ -260,7 +264,9 @@ export const goOnDate = (
         * dateMods.relationshipGainMult
         * dateMods.datingSuccessMult
         * relCommitment.progressMultiplier
-        * (Number.isFinite(datePrestigeMult) && datePrestigeMult > 1 ? datePrestigeMult : 1),
+        * (Number.isFinite(datePrestigeMult) && datePrestigeMult > 1 ? datePrestigeMult : 1)
+        // A Socialite bonds faster on a date too (lib/mindset/effects.ts).
+        * mindsetEffects(prev).bondGain,
       );
       return {
             ...r,
@@ -353,8 +359,10 @@ export const giveGift = (
     return { success: false, message: `You've already given ${partner.name} ${MAX_GIFTS_PER_WEEK} gifts this week. Give them some space!` };
   }
 
-  if (gameState.stats.money < config.cost) {
-    return { success: false, message: `You need $${config.cost} for this gift.` };
+  // A Socialite pays more for a gift (lib/mindset/effects.ts).
+  const giftPrice = mindsetPrice(config.cost, mindsetEffects(gameState).socialCost);
+  if (gameState.stats.money < giftPrice) {
+    return { success: false, message: `You need $${giftPrice} for this gift.` };
   }
 
   // Atomic update: deduct cost + update relationship in single setGameState.
@@ -368,11 +376,12 @@ export const giveGift = (
     const prevGiftsThisWeek = prevPartner.lastGiftWeek === prevWeek ? (prevPartner.giftsThisWeek || 0) : 0;
     if (prevGiftsThisWeek >= MAX_GIFTS_PER_WEEK) return prev;
     const prevMoney = prev.stats.money || 0;
-    if (!Number.isFinite(prevMoney) || prevMoney < config.cost) return prev;
+    const prevGiftPrice = mindsetPrice(config.cost, mindsetEffects(prev).socialCost);
+    if (!Number.isFinite(prevMoney) || prevMoney < prevGiftPrice) return prev;
 
     // Canonical money path (affordability was rejected above, so this only
     // adds the dailySummary tracking the direct write skipped).
-    const giftPatch = applyMoneyDelta(prev, -config.cost, 'Gift');
+    const giftPatch = applyMoneyDelta(prev, -prevGiftPrice, 'Gift');
     if (!giftPatch) return prev;
     return {
       ...prev,

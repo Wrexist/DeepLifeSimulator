@@ -1,23 +1,12 @@
 /**
- * What a Mindset actually does - one table, read by the street-job payout and
- * by the Work-tab card, so the number on the card is the number paid.
+ * How a Mindset changes a street job - the street half of the Mindset table.
  *
- * ── Why street work, and only street work ────────────────────────────────
- *
- * Eleven Mindsets were offered at onboarding (and inherited at heir
- * selection), each with a sentence promising an effect somewhere in the game:
- * savings, travel, stocks, relationships, shopping. Nothing read any of them
- * except one toast in the street-job handler, and that handler only ever
- * passed a positive payout - so five Mindsets (socialite, optimist,
- * adventurous, investor, spender) returned exactly zero change, and the other
- * six changed street-job pay alone while their copy described something else.
- *
- * The street-job payout is the one place a Mindset is consulted, so it is
- * where every Mindset now does something real, and every description in
- * `config.ts` says exactly what is in this table. Wiring the original broader
- * promises (career salary, the happiness curve, travel prices, stock returns)
- * would mean editing those systems' own modules; until that is done the copy
- * names street jobs, because that is the truth.
+ * Every Mindset's numbers live in `MINDSET_EFFECTS` (./effects.ts). Most act on
+ * the rest of a life (career, health, relationships, travel, money); the risk
+ * Mindsets - Gambler, Risk Averse, Hustler, and the Optimist's blind spot - act
+ * here, on street work. This module folds that half into one set of terms read
+ * by the street-job payout and by the Work-tab card, so the number on the card
+ * is the number paid.
  *
  * The effects are applied inside `performStreetJob`'s single updater through
  * `getStreetJobTerms` (contexts/game/actions/JobActions.ts), never as a second
@@ -29,86 +18,19 @@
  * Nothing here is random and nothing here writes state: it is a pure function
  * of the active Mindset(s) and whether the job is illegal.
  */
-import type { GameState } from '@/contexts/game/types';
 import { MINDSET_TRAITS, type MindsetId } from './config';
+import {
+  DEFAULT_RUNS_PER_RANK,
+  MINDSET_STREET_EFFECTS,
+  activeMindsetIds,
+  type MindsetStreetEffect,
+} from './effects';
 
-/** One Mindset's effect on a street job. Absent keys are neutral. */
-export interface MindsetStreetEffect {
-  /** Pay multiplier on every street job. */
-  pay?: number;
-  /** Pay multiplier on LEGAL street jobs only. */
-  legalPay?: number;
-  /** Pay multiplier on ILLEGAL street jobs only. */
-  illegalPay?: number;
-  /** Success chance, in percentage points (before the 95% cap). */
-  success?: number;
-  /** Arrest chance on illegal jobs, in percentage points (before the 80% cap). */
-  arrestPoints?: number;
-  /** Arrest chance multiplier on illegal jobs (applied after the cap). */
-  arrestMultiplier?: number;
-  /** Halve every street job's happiness cost, rounded in the player's favour. */
-  halveHappinessCost?: boolean;
-  /**
-   * Added to every street job's happiness COST (a cost is negative): -1 makes
-   * a job cost 1 more happiness, +2 makes it cost 2 less. A cost can never
-   * turn into a gain.
-   */
-  happiness?: number;
-  /** Same as `happiness`, LEGAL street jobs only. */
-  legalHappiness?: number;
-  /** Added to every street job's health cost: -1 = costs 1 more health. */
-  health?: number;
-  /** Successful runs needed to rank a street job up (the default is 3). */
-  runsPerRank?: number;
-}
-
-/** The default number of successful runs per street-job rank. */
-export const DEFAULT_RUNS_PER_RANK = 3;
-
-/**
- * THE table. Each row is quoted, number for number, by the Mindset's
- * `description` in `config.ts` - `__tests__/actions/mindsetEffects.test.ts`
- * checks every number appears in the copy.
- *
- * Kept modest: no single Mindset moves pay by more than 25%, success by more
- * than 10 points, or arrest risk by more than a quarter. Street work stays an
- * early-game income (see `__tests__/economy/streetJobPay.test.ts`).
- */
-export const MINDSET_STREET_EFFECTS: Readonly<Record<MindsetId, MindsetStreetEffect>> = {
-  frugal: { pay: 1.10 },
-  workaholic: { pay: 1.20, health: -1, happiness: -1 },
-  socialite: { legalPay: 1.10, arrestPoints: 5 },
-  optimist: { halveHappinessCost: true, success: -5 },
-  perfectionist: { success: 10, health: -1 },
-  adventurous: { illegalPay: 1.15, legalHappiness: -1 },
-  gambler: { illegalPay: 1.25, arrestPoints: 5 },
-  riskAverse: { arrestMultiplier: 0.75, pay: 0.95 },
-  investor: { runsPerRank: 2, pay: 0.95 },
-  spender: { happiness: 2, pay: 0.90 },
-  hustler: { pay: 1.15, happiness: -1 },
-};
-
-const KNOWN_MINDSETS = new Set<string>(Object.keys(MINDSET_STREET_EFFECTS));
-
-function isMindsetId(id: unknown): id is MindsetId {
-  return typeof id === 'string' && KNOWN_MINDSETS.has(id);
-}
-
-/**
- * The Mindset ids active on this save.
- *
- * `mindset.traits` is the list both writers set (onboarding and heir
- * selection write `{ activeTraitId, traits: [activeTraitId] }`). A save whose
- * list is missing or empty falls back to `activeTraitId`, which is the id the
- * Home card DISPLAYS - so a Mindset the player can see is a Mindset that
- * applies. Unknown ids are dropped.
- */
-export function activeMindsetIds(state: Pick<GameState, 'mindset'> | null | undefined): MindsetId[] {
-  const mindset = state?.mindset;
-  const listed: unknown[] = Array.isArray(mindset?.traits) ? (mindset?.traits as unknown[]) : [];
-  const source = listed.length > 0 ? listed : [mindset?.activeTraitId];
-  return [...new Set(source.filter(isMindsetId))];
-}
+// The table, the types and the active-Mindset reader live in ./effects.ts
+// with the rest of a Mindset's effects; re-exported so street-work callers
+// keep one import.
+export { DEFAULT_RUNS_PER_RANK, MINDSET_STREET_EFFECTS, activeMindsetIds };
+export type { MindsetStreetEffect };
 
 /** The folded effect of every active Mindset on ONE street job. */
 export interface MindsetStreetTerms {

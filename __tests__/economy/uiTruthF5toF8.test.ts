@@ -56,7 +56,10 @@ describe('F5 - food is priced like everything else', () => {
     // unchanged: the deducted amount is the inflated `price`, never the raw
     // catalogue figure, and the action charges through that one resolver.
     const resolver = read('lib/economy/foodPurchase.ts');
-    expect(resolver).toMatch(/const price = getInflatedPrice\(food\.price, state\.economy\?\.priceIndex \?\? 1\)/);
+    // Through `getFoodPurchasePrice` (inflation x the life's Mindset market
+    // multiplier, 2026-10-17), which is itself the inflated price.
+    expect(resolver).toMatch(/const price = getFoodPurchasePrice\(food\.price, state\.economy\?\.priceIndex \?\? 1, mindsetEffects\(state\)\.marketPrice\)/);
+    expect(read('lib/economy/itemPricing.ts')).toMatch(/return getInflatedPrice\(basePrice, priceIndex\) \* safeMindsetMult\(mindsetMult\)/);
     expect(resolver).toMatch(/money: \(state\.stats\.money \?\? 0\) - price/);
     expect(resolver).not.toMatch(/- food\.price\b/);
 
@@ -73,7 +76,7 @@ describe('F5 - food is priced like everything else', () => {
     // unchanged and still asserted: the number the label shows is the INFLATED
     // one, the same value `canAfford` gates on and `buyFood` charges.
     expect(src).toMatch(
-      /formatMoney\(getInflatedPrice\(food\.price, gameState\.economy\?\.priceIndex \?\? 1\)\)/,
+      /formatMoney\(getFoodPurchasePrice\(food\.price, gameState\.economy\?\.priceIndex \?\? 1, marketMindsetMult\)\)/,
     );
     expect(src).not.toMatch(/\$\{food\.price\}/);
   });
@@ -83,7 +86,7 @@ describe('F5 - food is priced like everything else', () => {
     // already inflated; it is the one that was right.
     const market = read('app/(tabs)/market.tsx');
 
-    expect(market).toMatch(/const canAfford = useCallback\(\(price: number\) => gameState\.stats\.money >= getInflatedPrice/);
+    expect(market).toMatch(/const canAfford = useCallback\(\(price: number\) => gameState\.stats\.money >= getFoodPurchasePrice/);
     expect(market).toMatch(/canAfford\(food\.price\)/);
   });
 

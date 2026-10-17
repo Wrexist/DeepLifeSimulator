@@ -30,6 +30,7 @@
 import * as npcDepth from '@/lib/social/npcDepth';
 import type { GameState } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+import { neglectBondLossFor } from '@/lib/mindset/effects';
 
 type Relationship = NonNullable<GameState['relationships']>[number];
 
@@ -59,7 +60,13 @@ const MAX_NPC_NOTIFICATIONS_PER_WEEK = 1;
 
 export function applyNPCDepthTick(input: NPCDepthTickInput, ctx: WeekContext): NPCDepthTickResult {
   try {
-    const npcResult = npcDepth.processWeeklyNPCDepth(input.relationships, input.weeksLived, input.lifeSalt);
+    // A Hustler's neglected contacts lose more bond (lib/mindset/effects.ts).
+    const npcResult = npcDepth.processWeeklyNPCDepth(
+      input.relationships,
+      input.weeksLived,
+      input.lifeSalt,
+      neglectBondLossFor(ctx.mindset?.neglectBondLoss),
+    );
     const npcToastsAllowedThisWeek = input.weeksLived % 2 === 0;
     if (npcResult.notifications.length > 0 && npcToastsAllowedThisWeek) {
       const toShow = npcResult.notifications.slice(0, MAX_NPC_NOTIFICATIONS_PER_WEEK);

@@ -6,7 +6,8 @@ import { responsiveSpacing as layoutSpace ,
   responsiveSpacing,
   scale,
 } from '@/utils/scaling';
-import { uiPalette } from '@/lib/config/theme';
+import { accent, uiPalette } from '@/lib/config/theme';
+import { mindsetEffectLines } from '@/lib/mindset/effects';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -69,11 +70,11 @@ const BlurView = BlurViewFallback;
 
 type TabType = 'perks' | 'mindset';
 
-// Picked for a NEW player, whose first income is usually street work: Frugal
-// is a flat +10% with no catch, Optimist halves the happiness street jobs
-// cost, Risk Averse cuts arrest risk. Each is a real effect - see
-// MINDSET_STREET_EFFECTS (lib/mindset/streetWork.ts).
-const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
+// Picked for a NEW player, whose early weeks are about getting by: Optimist's
+// good weeks count for more, Frugal makes food and the market cheaper, and
+// Workaholic lifts the first paycheck. Their effects are in MINDSET_EFFECTS
+// (lib/mindset/effects.ts); the card lists them.
+const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'workaholic'];
 
 const log = logger.scope('Perks');
 
@@ -334,8 +335,20 @@ const MindsetCard = React.memo(function MindsetCard({
 
           <View style={styles.perkBody}>
             <Text style={[styles.perkDescription, isSelected && styles.mindsetDescSelected]}>
-              {trait.description}
+              {trait.tagline}
             </Text>
+            {/* Every effect, generated from the Mindset table - the numbers the
+                game applies, upsides first. Colour and sign carry the meaning. */}
+            <View style={styles.mindsetEffects}>
+              {mindsetEffectLines(trait.id).map((line) => (
+                <Text
+                  key={line.text}
+                  style={[styles.mindsetEffect, { color: line.upside ? accent.success : accent.warning }]}
+                >
+                  {line.upside ? '+ ' : '− '}{line.text}
+                </Text>
+              ))}
+            </View>
           </View>
         </LinearGradient>
       </BlurView>
@@ -468,7 +481,7 @@ export default function Perks() {
           onInfo={() =>
             gameAlert(
               'Perks & Mindset',
-              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that changes your street jobs - their pay, odds or cost - each with its own trade-off. Both are optional: tap "Start Your Life" whenever you are ready.'
+              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your whole life - your pay, your relationships, your money - with one upside and one downside. Both are optional: tap "Start Your Life" whenever you are ready.'
             )
           }
         />
@@ -478,7 +491,7 @@ export default function Perks() {
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
             ? 'Optional. Most perks unlock as you earn achievements - new players can just tap "Start Your Life".'
-            : 'Optional. A mindset changes how street jobs pay and what they cost. Skip it if you’re not sure.'}
+            : 'Optional. A mindset shapes your whole life with one upside and one downside. Skip it if you’re not sure.'}
         </Text>
 
         {/* Tab Selector */}
@@ -949,6 +962,15 @@ const styles = StyleSheet.create({
   },
   mindsetDescSelected: {
     color: '#C4B5FD',
+  },
+  mindsetEffects: {
+    marginTop: scale(6),
+    gap: scale(2),
+  },
+  mindsetEffect: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    lineHeight: fontScale(15),
   },
   clearButton: {
     alignSelf: 'center',

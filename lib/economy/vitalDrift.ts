@@ -47,6 +47,7 @@ import { getEnergyRegenMultiplier, getStatDecayMultiplier } from '@/lib/prestige
 import { netWorth } from '@/lib/progress/achievements';
 import { STAT_DECAY_BASE_RATE, graceRampFactor, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
+import { mindsetEffects } from '@/lib/mindset/effects';
 
 export type DriftCauseId = 'decay' | 'home' | 'job' | 'items' | 'rest';
 
@@ -131,11 +132,13 @@ export function projectWeeklyVitalDrift(state: GameState | null | undefined): Vi
 
   const rate = projectedDecayRate(state);
   const happinessMul = state.goldUpgrades?.happiness_boost ? 0.5 : 1;
+  // The Mindset's decay factors - the same `mindsetEffects` the tick applies.
+  const mindset = mindsetEffects(state);
   causes.push({
     id: 'decay',
-    label: 'Natural decay',
-    health: -Math.round(rate * 0.6),
-    happiness: -Math.round(rate * 0.8 * happinessMul),
+    label: mindset.restless ? 'Natural decay (restless)' : 'Natural decay',
+    health: -Math.round(rate * 0.6 * mindset.healthDecay),
+    happiness: -Math.round(rate * 0.8 * happinessMul * mindset.happinessDecay),
     energy: 0,
   });
 
