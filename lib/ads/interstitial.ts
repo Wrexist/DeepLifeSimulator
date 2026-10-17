@@ -63,7 +63,7 @@ export async function maybeShowInterstitialForWeek(
 
   try {
     const { adMobService } = await import('@/services/AdMobService');
-    const shown = await adMobService.showInterstitialAd();
+    const shown = await adMobService.showInterstitialAd('year_end');
     if (shown) lastInterstitialAtMs = now;
     return shown;
   } catch (err) {

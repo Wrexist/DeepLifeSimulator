@@ -22,6 +22,7 @@ import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
+import { maybeOfferYearEndBreak } from '@/lib/ads/yearEndTrigger';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { modalEventCount } from '@/lib/events/routing';
 import { useError } from '@/contexts/UIUXContext';
@@ -996,13 +997,20 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // Canonical nextWeek also resolves on a rejected/no-op tick. Only a real
  // committed week may open an annual ad, and never over a pending decision.
  if (committed.weeksLived === weeksBefore + 1) {
+ const blocked = committed.showDeathPopup === true || committed.showWeddingPopup === true ||
+   (committed.jailWeeks ?? 0) > 0 || !!committed.lifeMoments?.pendingMoment ||
+   modalEventCount(committed) > 0;
+ const weeksThisLife = weeksSinceLifeStart(committed.weeksLived, committed.lifeStartWeek);
+ // The year-end rewarded break first (lib/ads/yearEndBreak.ts); the plain
+ // interstitial only when no break was offered for this boundary.
+ const offeredBreak = await maybeOfferYearEndBreak(committed, { blocked, weeksThisLife });
+ if (!offeredBreak && mountedRef.current) {
  await maybeShowInterstitialForWeek(committed.weeksLived, {
  adsRemoved: areAdsRemoved(committed),
- blocked: committed.showDeathPopup === true || committed.showWeddingPopup === true ||
-   (committed.jailWeeks ?? 0) > 0 || !!committed.lifeMoments?.pendingMoment ||
-   modalEventCount(committed) > 0,
- weeksThisLife: weeksSinceLifeStart(committed.weeksLived, committed.lifeStartWeek),
+ blocked,
+ weeksThisLife,
  });
+ }
  }
  } catch (error) {
  logger.error('Weekly interaction failed:', error);

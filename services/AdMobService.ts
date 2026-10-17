@@ -13,7 +13,7 @@
  *    overridable via EXPO_PUBLIC_ADMOB_{IOS,ANDROID}_APP_ID.
  */
 
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isTrackingAllowed } from '@/utils/trackingTransparency';
 import { track } from '@/lib/analytics';
@@ -25,6 +25,14 @@ import {
   type AdMobPaidEvent,
   type RcAdFormat,
 } from '@/lib/ads/adRevenueTracking';
+import { noteFullscreenShown } from '@/lib/ads/adSession';
+import {
+  AD_SHOW_WAIT_MS,
+  isAdFresh,
+  isNoFillError,
+  nextRetryDelayMs,
+  type FullscreenAdFormat,
+} from '@/lib/ads/loadPolicy';
 
 const log = logger.scope('AdMob');
 
@@ -51,6 +59,7 @@ interface PaidCapableAd {
 let mobileAds: any = null;
 let NativeInterstitialAd: any = null;
 let NativeRewardedAd: any = null;
+let NativeRewardedInterstitialAd: any = null;
 let NativeAdEventType: any = null;
 let NativeRewardedAdEventType: any = null;
 let NativeBannerAd: any = null;
@@ -77,6 +86,7 @@ function loadModule(): boolean {
     mobileAds = mod.default;
     NativeInterstitialAd = mod.InterstitialAd;
     NativeRewardedAd = mod.RewardedAd;
+    NativeRewardedInterstitialAd = mod.RewardedInterstitialAd ?? null;
     NativeAdEventType = mod.AdEventType;
     NativeRewardedAdEventType = mod.RewardedAdEventType;
     NativeBannerAd = mod.BannerAd;
@@ -93,41 +103,27 @@ function loadModule(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Circuit breaker — disables ads after repeated failures
+// Circuit breakers - one per concern, so one bad slot cannot silence the rest
 // ---------------------------------------------------------------------------
+// There used to be ONE breaker for everything. The interstitial slot is
+// configured with a unit of the wrong format (a rewarded interstitial), so its
+// loads fail every time, and three of those in a row switched off the rewarded
+// ad and the banner too. A no-fill also counted, though it is the network
+// saying "nothing to serve", not a fault. Each concern now has its own breaker,
+// and only real errors (see `isNoFillError`) trip it.
 const MAX_CONSECUTIVE_FAILURES = 3;
-let failureCount = 0;
-let circuitOpen = false;
-
-// D-1: Auto-recovery timer resets circuit after 5 minutes
+// D-1: Auto-recovery resets a breaker after 5 minutes
 const CIRCUIT_RECOVERY_MS = 5 * 60 * 1000;
-let circuitRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
 
-function recordFailure() {
-  failureCount++;
-  if (failureCount >= MAX_CONSECUTIVE_FAILURES) {
-    circuitOpen = true;
-    log.warn('Circuit breaker tripped - ads disabled temporarily');
-    // D-1: Schedule auto-recovery instead of permanent disable
-    if (!circuitRecoveryTimer) {
-      circuitRecoveryTimer = setTimeout(() => {
-        circuitOpen = false;
-        failureCount = 0;
-        circuitRecoveryTimer = null;
-        log.info('Circuit breaker auto-recovered - ads re-enabled');
-      }, CIRCUIT_RECOVERY_MS);
-    }
-  }
+type BreakerKey = 'init' | FullscreenAdFormat;
+
+interface Breaker {
+  failures: number;
+  open: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
 }
 
-function recordSuccess() {
-  failureCount = 0;
-  // Cancel recovery timer on success
-  if (circuitRecoveryTimer) {
-    clearTimeout(circuitRecoveryTimer);
-    circuitRecoveryTimer = null;
-  }
-}
+const newBreaker = (): Breaker => ({ failures: 0, open: false, timer: null });
 
 // ---------------------------------------------------------------------------
 // Ad unit IDs — resolved with a three-tier priority (see resolveAdUnitId):
@@ -151,6 +147,8 @@ const TEST_INTERSTITIAL_IOS = 'ca-app-pub-3940256099942544/4411468910';
 const TEST_INTERSTITIAL_ANDROID = 'ca-app-pub-3940256099942544/1033173712';
 const TEST_REWARDED_IOS = 'ca-app-pub-3940256099942544/1712485313';
 const TEST_REWARDED_ANDROID = 'ca-app-pub-3940256099942544/5224354917';
+const TEST_REWARDED_INTERSTITIAL_IOS = 'ca-app-pub-3940256099942544/6978759866';
+const TEST_REWARDED_INTERSTITIAL_ANDROID = 'ca-app-pub-3940256099942544/5354046379';
 
 // Real production ad unit IDs for the iOS AdMob app (pub-2286247955186424).
 // Committed as defaults so a release build monetizes without depending on
@@ -163,6 +161,9 @@ const PROD_REWARDED_IOS = 'ca-app-pub-2286247955186424/7390605700'; // "Awarded"
 // is left unconfigured (safe no-op) until a real standard Interstitial unit
 // exists; set EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS to enable it.
 const PROD_INTERSTITIAL_IOS = '';
+// That same "Ad-win" unit IS the right format for the year-end break
+// (lib/ads/yearEndBreak.ts), which is a rewarded interstitial.
+const PROD_REWARDED_INTERSTITIAL_IOS = 'ca-app-pub-2286247955186424/2329850711';
 
 /**
  * Resolve an ad unit ID with three-tier priority:
@@ -198,6 +199,19 @@ const AD_UNITS = {
     ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS, TEST_REWARDED_IOS, __DEV__, PROD_REWARDED_IOS),
     android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID, TEST_REWARDED_ANDROID, __DEV__),
   }) || '',
+  REWARDED_INTERSTITIAL: Platform.select({
+    ios: resolveAdUnitId(
+      process.env.EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_IOS,
+      TEST_REWARDED_INTERSTITIAL_IOS,
+      __DEV__,
+      PROD_REWARDED_INTERSTITIAL_IOS,
+    ),
+    android: resolveAdUnitId(
+      process.env.EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_ANDROID,
+      TEST_REWARDED_INTERSTITIAL_ANDROID,
+      __DEV__,
+    ),
+  }) || '',
 };
 
 // ---------------------------------------------------------------------------
@@ -208,6 +222,7 @@ export interface AdMobState {
   isInitialized: boolean;
   isInterstitialLoaded: boolean;
   isRewardedLoaded: boolean;
+  isRewardedInterstitialLoaded: boolean;
   error: string | null;
 }
 
@@ -219,17 +234,48 @@ class AdMobServiceImpl {
   private changingPrivacy = false;
   private cancelInterstitialLoad: (() => void) | null = null;
   private cancelRewardedLoad: (() => void) | null = null;
+  private cancelRewardedInterstitialLoad: (() => void) | null = null;
   private state: AdMobState = {
     isLoading: false,
     isInitialized: false,
     isInterstitialLoaded: false,
     isRewardedLoaded: false,
+    isRewardedInterstitialLoaded: false,
     error: null,
   };
 
   private listeners: ((state: AdMobState) => void)[] = [];
+  private breakers: Record<BreakerKey, Breaker> = {
+    init: newBreaker(),
+    interstitial: newBreaker(),
+    rewarded: newBreaker(),
+    rewardedInterstitial: newBreaker(),
+  };
+  // Load scheduling per fullscreen format (lib/ads/loadPolicy.ts).
+  private loadedAt: Record<FullscreenAdFormat, number> = { interstitial: 0, rewarded: 0, rewardedInterstitial: 0 };
+  private retryAttempt: Record<FullscreenAdFormat, number> = { interstitial: 0, rewarded: 0, rewardedInterstitial: 0 };
+  private retryTimer: Record<FullscreenAdFormat, ReturnType<typeof setTimeout> | null> = {
+    interstitial: null,
+    rewarded: null,
+    rewardedInterstitial: null,
+  };
+  private inFlight: Record<FullscreenAdFormat, Promise<void> | null> = {
+    interstitial: null,
+    rewarded: null,
+    rewardedInterstitial: null,
+  };
+  // Formats something has asked for. The rewarded interstitial is only wanted
+  // near a year-end boundary, so it is not preloaded at boot or on every
+  // foreground - an unused request is a wasted impression opportunity.
+  private wanted: Record<FullscreenAdFormat, boolean> = {
+    interstitial: true,
+    rewarded: true,
+    rewardedInterstitial: false,
+  };
+  private appStateSub: { remove: () => void } | null = null;
   private interstitial: any = null;
   private rewarded: any = null;
+  private rewardedInterstitial: any = null;
   // ATT separately limits personalization. Regional request permission comes
   // from UMP before SDK initialization; non-personalized ads still need it.
   private trackingAllowed = false;
@@ -239,14 +285,17 @@ class AdMobServiceImpl {
   // paid lifecycle. Banners are the exception (see trackBannerRevenue).
   private interstitialImpressionId = '';
   private rewardedImpressionId = '';
+  private rewardedInterstitialImpressionId = '';
   // The unit the currently-loaded ad was requested against — `AD_UNITS` alone
   // isn't enough, since __DEV__ swaps in Google's TEST ids at request time.
   private interstitialAdUnitId = '';
   private rewardedAdUnitId = '';
+  private rewardedInterstitialAdUnitId = '';
   // Detach handles for the PAID listeners. Each load builds a fresh ad object,
   // so without these the previous object's native listener outlives it.
   private detachInterstitialRevenue: (() => void) | null = null;
   private detachRewardedRevenue: (() => void) | null = null;
+  private detachRewardedInterstitialRevenue: (() => void) | null = null;
 
   /** Drop a previously attached PAID listener. Never throws. */
   private detach(unsub: (() => void) | null): null {
@@ -256,6 +305,128 @@ class AdMobServiceImpl {
       // A detach that fails must not block the next ad load.
     }
     return null;
+  }
+
+  private breakerOpen(key: BreakerKey): boolean {
+    return this.breakers[key].open;
+  }
+
+  private recordFailure(key: BreakerKey): void {
+    const b = this.breakers[key];
+    b.failures++;
+    if (b.failures < MAX_CONSECUTIVE_FAILURES || b.open) return;
+    b.open = true;
+    log.warn('Circuit breaker tripped - temporarily disabled', { key });
+    if (b.timer) return;
+    b.timer = setTimeout(() => {
+      b.open = false;
+      b.failures = 0;
+      b.timer = null;
+      log.info('Circuit breaker auto-recovered', { key });
+      if (key !== 'init') void this.ensureLoaded(key);
+    }, CIRCUIT_RECOVERY_MS);
+  }
+
+  private recordSuccess(key: BreakerKey): void {
+    const b = this.breakers[key];
+    b.failures = 0;
+    if (b.timer) {
+      clearTimeout(b.timer);
+      b.timer = null;
+    }
+    b.open = false;
+  }
+
+  private clearRetry(format: FullscreenAdFormat): void {
+    const t = this.retryTimer[format];
+    if (t) clearTimeout(t);
+    this.retryTimer[format] = null;
+  }
+
+  /** A load succeeded: the ad is fresh from now, and the retry schedule resets. */
+  private onLoaded(format: FullscreenAdFormat): void {
+    this.loadedAt[format] = Date.now();
+    this.retryAttempt[format] = 0;
+    this.clearRetry(format);
+    this.recordSuccess(format);
+  }
+
+  /**
+   * A load failed. A real error counts toward the breaker; a no-fill does not.
+   * Either way the next attempt is scheduled on the backoff until the schedule
+   * runs out - then the next trigger (foreground, a show request) restarts it.
+   */
+  private onLoadFailed(format: FullscreenAdFormat, error: unknown): void {
+    this.loadedAt[format] = 0;
+    if (!isNoFillError(error)) this.recordFailure(format);
+    if (this.breakerOpen(format) || this.changingPrivacy || !this.state.isInitialized) return;
+    const delay = nextRetryDelayMs(this.retryAttempt[format]);
+    if (delay === null) return;
+    this.retryAttempt[format]++;
+    this.clearRetry(format);
+    this.retryTimer[format] = setTimeout(() => {
+      this.retryTimer[format] = null;
+      void this.load(format);
+    }, delay);
+  }
+
+  private load(format: FullscreenAdFormat): Promise<void> {
+    if (format === 'rewarded') return this.loadRewardedAd();
+    if (format === 'rewardedInterstitial') return this.loadRewardedInterstitialAd();
+    return this.loadInterstitialAd();
+  }
+
+  /** True when a fullscreen ad of this format is loaded and not yet stale. */
+  isReady(format: FullscreenAdFormat): boolean {
+    const loaded = format === 'rewarded'
+      ? this.state.isRewardedLoaded
+      : format === 'rewardedInterstitial'
+        ? this.state.isRewardedInterstitialLoaded
+        : this.state.isInterstitialLoaded;
+    const ad = format === 'rewarded'
+      ? this.rewarded
+      : format === 'rewardedInterstitial'
+        ? this.rewardedInterstitial
+        : this.interstitial;
+    return loaded && !!ad && isAdFresh(this.loadedAt[format], Date.now());
+  }
+
+  /**
+   * Make sure an ad of this format is loaded or loading. Resolves when the
+   * in-flight load settles (immediately when one is already fresh). A call is a
+   * TRIGGER: it restarts a retry schedule that had run out. Never throws.
+   */
+  ensureLoaded(format: FullscreenAdFormat): Promise<void> {
+    this.wanted[format] = true;
+    if (!this.state.isInitialized || this.changingPrivacy || this.breakerOpen(format)) {
+      return Promise.resolve();
+    }
+    if (this.isReady(format)) return Promise.resolve();
+    const pending = this.inFlight[format];
+    if (pending) return pending;
+    this.clearRetry(format);
+    this.retryAttempt[format] = 0;
+    return this.load(format);
+  }
+
+  /**
+   * Reload whatever is missing or stale whenever the app comes back to the
+   * foreground. Players background a game for hours; an ad loaded before that
+   * has expired, and a schedule that ran out offline should try again now.
+   */
+  private attachForegroundRefresh(): void {
+    if (this.appStateSub) return;
+    try {
+      const sub = AppState?.addEventListener?.('change', (next: string) => {
+        if (next !== 'active') return;
+        (['rewarded', 'interstitial', 'rewardedInterstitial'] as const).forEach((format) => {
+          if (this.wanted[format]) void this.ensureLoaded(format);
+        });
+      });
+      this.appStateSub = sub && typeof sub.remove === 'function' ? sub : null;
+    } catch (error) {
+      log.warn('Foreground refresh unavailable', { error: errMessage(error) });
+    }
   }
 
   /** ATT is an additional restriction; UMP manages regional consent signals. */
@@ -421,7 +592,7 @@ class AdMobServiceImpl {
   }
 
   private async initializeAfterConsent(): Promise<void> {
-    if (circuitOpen || this.state.isInitialized) return;
+    if (this.breakerOpen('init') || this.state.isInitialized) return;
 
     if (!loadModule() || !mobileAds) {
       this.setState({ error: 'Ad module not available' });
@@ -446,14 +617,15 @@ class AdMobServiceImpl {
       this.trackingAllowed = await isTrackingAllowed().catch(() => false);
       await mobileAds().initialize();
       this.setState({ isInitialized: true, isLoading: false, error: null });
-      recordSuccess();
+      this.recordSuccess('init');
       log.info('Initialized successfully');
 
-      // Pre-load ads in background
-      void this.loadInterstitialAd();
-      void this.loadRewardedAd();
+      // Pre-load ads in background, and keep them loaded from here on.
+      void this.ensureLoaded('interstitial');
+      void this.ensureLoaded('rewarded');
+      this.attachForegroundRefresh();
     } catch (error: any) {
-      recordFailure();
+      this.recordFailure('init');
       log.error('Initialization failed:', error?.message);
       this.setState({ isLoading: false, error: error?.message || 'Init failed' });
     }
@@ -485,8 +657,18 @@ class AdMobServiceImpl {
 
   // --- Interstitial ---
 
-  async loadInterstitialAd(): Promise<void> {
-    if (circuitOpen || !this.state.isInitialized || !NativeInterstitialAd || !NativeAdEventType) return;
+  loadInterstitialAd(): Promise<void> {
+    const pending = this.inFlight.interstitial;
+    if (pending) return pending;
+    const run = this.loadInterstitialAdOnce().finally(() => {
+      this.inFlight.interstitial = null;
+    });
+    this.inFlight.interstitial = run;
+    return run;
+  }
+
+  private async loadInterstitialAdOnce(): Promise<void> {
+    if (this.breakerOpen('interstitial') || !this.state.isInitialized || !NativeInterstitialAd || !NativeAdEventType) return;
 
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.INTERSTITIAL : AD_UNITS.INTERSTITIAL;
@@ -497,6 +679,9 @@ class AdMobServiceImpl {
         return;
       }
       this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId, this.adRequestOptions());
+      // The previous ad object (if any) is replaced, so its loaded state is gone.
+      this.loadedAt.interstitial = 0;
+      if (this.state.isInterstitialLoaded) this.setState({ isInterstitialLoaded: false });
       // One impression id per request, carried through loaded → displayed → paid.
       const impressionId = newImpressionId();
       this.interstitialImpressionId = impressionId;
@@ -545,8 +730,8 @@ class AdMobServiceImpl {
 
         unsubLoaded = this.interstitial.addAdEventListener(NativeAdEventType.LOADED, () =>
           settle(() => {
+            this.onLoaded('interstitial');
             this.setState({ isInterstitialLoaded: true });
-            recordSuccess();
             this.reportLifecycle('loaded', 'interstitial', adUnitId, impressionId);
             resolve();
           }),
@@ -562,18 +747,25 @@ class AdMobServiceImpl {
         this.interstitial.load();
       });
     } catch (error: any) {
-      recordFailure();
       log.warn('Interstitial load failed:', error?.message);
       this.setState({ isInterstitialLoaded: false });
+      this.onLoadFailed('interstitial', error);
     }
   }
 
-  async showInterstitialAd(): Promise<boolean> {
-    if (!this.isAvailable() || !this.state.isInterstitialLoaded || !this.interstitial) return false;
+  async showInterstitialAd(placement = 'interstitial'): Promise<boolean> {
+    if (!this.isAvailable()) return false;
+    if (!this.isReady('interstitial')) {
+      // Not worth holding a natural break open for a load: start one for the
+      // next break and skip this one.
+      void this.ensureLoaded('interstitial');
+      return false;
+    }
 
     try {
       await this.interstitial.show();
-      track('ad_shown', { kind: 'interstitial' });
+      track('ad_shown', { kind: 'interstitial', placement });
+      noteFullscreenShown('interstitial');
       this.reportLifecycle(
         'displayed',
         'interstitial',
@@ -581,22 +773,35 @@ class AdMobServiceImpl {
         this.interstitialImpressionId,
       );
       this.setState({ isInterstitialLoaded: false });
-      recordSuccess();
+      this.loadedAt.interstitial = 0;
+      this.recordSuccess('interstitial');
       // Pre-load next one
-      void this.loadInterstitialAd();
+      void this.ensureLoaded('interstitial');
       return true;
     } catch (error: any) {
-      recordFailure();
+      this.recordFailure('interstitial');
       log.warn('Interstitial show failed:', error?.message);
       this.setState({ isInterstitialLoaded: false });
+      this.loadedAt.interstitial = 0;
+      void this.ensureLoaded('interstitial');
       return false;
     }
   }
 
   // --- Rewarded ---
 
-  async loadRewardedAd(): Promise<void> {
-    if (circuitOpen || !this.state.isInitialized || !NativeRewardedAd) return;
+  loadRewardedAd(): Promise<void> {
+    const pending = this.inFlight.rewarded;
+    if (pending) return pending;
+    const run = this.loadRewardedAdOnce().finally(() => {
+      this.inFlight.rewarded = null;
+    });
+    this.inFlight.rewarded = run;
+    return run;
+  }
+
+  private async loadRewardedAdOnce(): Promise<void> {
+    if (this.breakerOpen('rewarded') || !this.state.isInitialized || !NativeRewardedAd) return;
 
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.REWARDED : AD_UNITS.REWARDED;
@@ -605,6 +810,9 @@ class AdMobServiceImpl {
         return;
       }
       this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId, this.adRequestOptions());
+      // The previous ad object (if any) is replaced, so its loaded state is gone.
+      this.loadedAt.rewarded = 0;
+      if (this.state.isRewardedLoaded) this.setState({ isRewardedLoaded: false });
       // One impression id per request, carried through loaded → displayed → paid.
       const impressionId = newImpressionId();
       this.rewardedImpressionId = impressionId;
@@ -656,8 +864,8 @@ class AdMobServiceImpl {
 
         unsubLoaded = this.rewarded.addAdEventListener(loadedEvent, () =>
           settle(() => {
+            this.onLoaded('rewarded');
             this.setState({ isRewardedLoaded: true });
-            recordSuccess();
             this.reportLifecycle('loaded', 'rewarded', adUnitId, impressionId);
             resolve();
           }),
@@ -673,14 +881,38 @@ class AdMobServiceImpl {
         this.rewarded.load();
       });
     } catch (error: any) {
-      recordFailure();
       log.warn('Rewarded ad load failed:', error?.message);
       this.setState({ isRewardedLoaded: false });
+      this.onLoadFailed('rewarded', error);
     }
   }
 
-  async showRewardedAd(onReward: () => void): Promise<boolean> {
-    if (!this.isAvailable() || !this.state.isRewardedLoaded || !this.rewarded) return false;
+  /**
+   * Show a rewarded ad. When none is ready, a load is started and the call
+   * waits up to `waitMs` for it - the player has just asked for this ad, so a
+   * short wait beats a no-fill. `placement` names the surface in analytics.
+   */
+  async showRewardedAd(
+    onReward: () => void,
+    opts: { placement?: string; waitMs?: number } = {},
+  ): Promise<boolean> {
+    if (!this.isAvailable()) return false;
+    const placement = opts.placement ?? 'rewarded';
+    if (!this.isReady('rewarded')) {
+      const pending = this.ensureLoaded('rewarded');
+      const waitMs = opts.waitMs ?? AD_SHOW_WAIT_MS;
+      if (waitMs > 0) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          pending,
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, waitMs);
+          }),
+        ]);
+        if (timer) clearTimeout(timer);
+      }
+      if (!this.isReady('rewarded') || !this.isAvailable()) return false;
+    }
 
     const ad = this.rewarded;
     let rewarded = false;
@@ -695,7 +927,7 @@ class AdMobServiceImpl {
       if (rewardEvent) {
         unsubReward = ad.addAdEventListener(rewardEvent, () => {
           rewarded = true;
-          track('ad_rewarded', { kind: 'rewarded' });
+          track('ad_rewarded', { kind: 'rewarded', placement });
         });
       }
 
@@ -711,24 +943,188 @@ class AdMobServiceImpl {
       });
 
       await ad.show();
-      track('ad_shown', { kind: 'rewarded' });
+      track('ad_shown', { kind: 'rewarded', placement });
+      noteFullscreenShown('rewarded');
       this.reportLifecycle('displayed', 'rewarded', this.rewardedAdUnitId, this.rewardedImpressionId);
       await closed;
 
       this.setState({ isRewardedLoaded: false });
-      recordSuccess();
+      this.loadedAt.rewarded = 0;
+      this.recordSuccess('rewarded');
 
       if (rewarded) {
         try { onReward(); } catch (_) { /* never crash on reward callback error */ }
       }
 
       // Pre-load next one
-      void this.loadRewardedAd();
+      void this.ensureLoaded('rewarded');
       return rewarded;
     } catch (error: any) {
-      recordFailure();
+      this.recordFailure('rewarded');
       log.warn('Rewarded show failed:', error?.message);
       this.setState({ isRewardedLoaded: false });
+      this.loadedAt.rewarded = 0;
+      void this.ensureLoaded('rewarded');
+      return false;
+    } finally {
+      if (closeFallback) clearTimeout(closeFallback);
+      unsubReward?.();
+      unsubClosed?.();
+    }
+  }
+
+  // --- Rewarded interstitial (the year-end break) ---
+  //
+  // Same event surface as the rewarded ad (RewardedAdEventType LOADED /
+  // EARNED_REWARD), served by its own class. Kept as its own slot rather than
+  // folded into the rewarded one so a year-end request never spends the ad a
+  // player is about to ask the orb for.
+
+  loadRewardedInterstitialAd(): Promise<void> {
+    const pending = this.inFlight.rewardedInterstitial;
+    if (pending) return pending;
+    const run = this.loadRewardedInterstitialAdOnce().finally(() => {
+      this.inFlight.rewardedInterstitial = null;
+    });
+    this.inFlight.rewardedInterstitial = run;
+    return run;
+  }
+
+  private async loadRewardedInterstitialAdOnce(): Promise<void> {
+    if (
+      this.breakerOpen('rewardedInterstitial') ||
+      !this.state.isInitialized ||
+      !NativeRewardedInterstitialAd
+    ) return;
+
+    try {
+      const adUnitId = __DEV__ && NativeTestIds?.REWARDED_INTERSTITIAL
+        ? NativeTestIds.REWARDED_INTERSTITIAL
+        : AD_UNITS.REWARDED_INTERSTITIAL;
+      if (!adUnitId) {
+        log.warn('No rewarded interstitial ad unit ID configured - skipping load');
+        return;
+      }
+      const loadedEvent = NativeRewardedAdEventType?.LOADED || NativeAdEventType?.LOADED;
+      const errorEvent = NativeAdEventType?.ERROR;
+      if (!loadedEvent || !errorEvent) return;
+
+      this.rewardedInterstitial = NativeRewardedInterstitialAd.createForAdRequest(adUnitId, this.adRequestOptions());
+      this.loadedAt.rewardedInterstitial = 0;
+      if (this.state.isRewardedInterstitialLoaded) this.setState({ isRewardedInterstitialLoaded: false });
+      const impressionId = newImpressionId();
+      this.rewardedInterstitialImpressionId = impressionId;
+      this.rewardedInterstitialAdUnitId = adUnitId;
+      this.detachRewardedInterstitialRevenue = this.detach(this.detachRewardedInterstitialRevenue);
+      this.detachRewardedInterstitialRevenue = this.attachRevenueListener(
+        this.rewardedInterstitial,
+        'rewarded_interstitial',
+        adUnitId,
+        impressionId,
+      );
+
+      await new Promise<void>((resolve, reject) => {
+        // Same single-settle contract as the other fullscreen loads.
+        let settled = false;
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        let unsubLoaded: (() => void) | undefined;
+        let unsubError: (() => void) | undefined;
+        const settle = (outcome: () => void): void => {
+          if (settled) return;
+          settled = true;
+          if (timeout) clearTimeout(timeout);
+          unsubLoaded?.();
+          unsubError?.();
+          outcome();
+        };
+        this.cancelRewardedInterstitialLoad = () => settle(resolve);
+        timeout = setTimeout(
+          () =>
+            settle(() => {
+              const err = new Error('Load timeout');
+              this.reportFailedToLoad('rewarded_interstitial', adUnitId, err);
+              reject(err);
+            }),
+          15000,
+        );
+        unsubLoaded = this.rewardedInterstitial.addAdEventListener(loadedEvent, () =>
+          settle(() => {
+            this.onLoaded('rewardedInterstitial');
+            this.setState({ isRewardedInterstitialLoaded: true });
+            this.reportLifecycle('loaded', 'rewarded_interstitial', adUnitId, impressionId);
+            resolve();
+          }),
+        );
+        unsubError = this.rewardedInterstitial.addAdEventListener(errorEvent, (err: any) =>
+          settle(() => {
+            this.reportFailedToLoad('rewarded_interstitial', adUnitId, err);
+            reject(err);
+          }),
+        );
+        this.rewardedInterstitial.load();
+      });
+    } catch (error: any) {
+      log.warn('Rewarded interstitial load failed:', error?.message);
+      this.setState({ isRewardedInterstitialLoaded: false });
+      this.onLoadFailed('rewardedInterstitial', error);
+    }
+  }
+
+  /**
+   * Show the loaded rewarded interstitial. Never waits for a load: the intro
+   * card is only offered once one is ready (lib/ads/yearEndBreak.ts). Resolves
+   * true only when the reward was earned; `onReward` runs at most once.
+   */
+  async showRewardedInterstitialAd(
+    onReward: () => void,
+    opts: { placement?: string } = {},
+  ): Promise<boolean> {
+    if (!this.isAvailable() || !this.isReady('rewardedInterstitial')) return false;
+    const placement = opts.placement ?? 'rewarded_interstitial';
+    const ad = this.rewardedInterstitial;
+    let rewarded = false;
+    let unsubReward: (() => void) | undefined;
+    let unsubClosed: (() => void) | undefined;
+    let closeFallback: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const rewardEvent = NativeRewardedAdEventType?.EARNED_REWARD;
+      const closedEvent = NativeAdEventType?.CLOSED;
+      if (rewardEvent) {
+        unsubReward = ad.addAdEventListener(rewardEvent, () => {
+          rewarded = true;
+          track('ad_rewarded', { kind: 'rewarded_interstitial', placement });
+        });
+      }
+      const closed = new Promise<void>((resolve) => {
+        if (closedEvent) {
+          unsubClosed = ad.addAdEventListener(closedEvent, () => resolve());
+        }
+        closeFallback = setTimeout(resolve, 60000);
+      });
+
+      await ad.show();
+      track('ad_shown', { kind: 'rewarded_interstitial', placement });
+      noteFullscreenShown('rewardedInterstitial');
+      this.reportLifecycle(
+        'displayed',
+        'rewarded_interstitial',
+        this.rewardedInterstitialAdUnitId,
+        this.rewardedInterstitialImpressionId,
+      );
+      await closed;
+
+      this.setState({ isRewardedInterstitialLoaded: false });
+      this.loadedAt.rewardedInterstitial = 0;
+      this.recordSuccess('rewardedInterstitial');
+      if (rewarded) {
+        try { onReward(); } catch (_) { /* never crash on reward callback error */ }
+      }
+      return rewarded;
+    } catch (error: any) {
+      this.recordFailure('rewardedInterstitial');
+      log.warn('Rewarded interstitial show failed:', error?.message);
+      this.setState({ isRewardedInterstitialLoaded: false });
+      this.loadedAt.rewardedInterstitial = 0;
       return false;
     } finally {
       if (closeFallback) clearTimeout(closeFallback);
@@ -746,19 +1142,23 @@ class AdMobServiceImpl {
 
   /** Returns the BannerAdSize constants, or null if unavailable */
   getBannerAdSize(): any {
-    return circuitOpen ? null : NativeBannerAdSize;
+    return this.isAvailable() ? NativeBannerAdSize : null;
   }
 
   /** Returns the banner ad unit ID for the current platform */
   getBannerAdUnitId(): string {
-    if (circuitOpen) return '';
+    if (!this.isAvailable()) return '';
     if (__DEV__ && NativeTestIds) return NativeTestIds.BANNER;
     return AD_UNITS.BANNER;
   }
 
-  /** Returns true if ads are available and not circuit-broken */
+  /**
+   * True when the SDK is loaded and initialized and initialization is not
+   * circuit-broken. A fullscreen format's own breaker does not affect this:
+   * a failing interstitial slot must not take the banner down with it.
+   */
   isAvailable(): boolean {
-    return !circuitOpen && moduleLoaded && this.state.isInitialized;
+    return !this.breakerOpen('init') && moduleLoaded && this.state.isInitialized;
   }
 
   // --- Cleanup ---
@@ -769,6 +1169,19 @@ class AdMobServiceImpl {
       this.cancelRewardedLoad?.();
       this.cancelInterstitialLoad = null;
       this.cancelRewardedLoad = null;
+      this.cancelRewardedInterstitialLoad?.();
+      this.cancelRewardedInterstitialLoad = null;
+      this.clearRetry('interstitial');
+      this.clearRetry('rewarded');
+      this.clearRetry('rewardedInterstitial');
+      this.retryAttempt = { interstitial: 0, rewarded: 0, rewardedInterstitial: 0 };
+      this.loadedAt = { interstitial: 0, rewarded: 0, rewardedInterstitial: 0 };
+      this.detachRewardedInterstitialRevenue = this.detach(this.detachRewardedInterstitialRevenue);
+      this.rewardedInterstitial = null;
+      this.rewardedInterstitialImpressionId = '';
+      this.rewardedInterstitialAdUnitId = '';
+      this.appStateSub?.remove();
+      this.appStateSub = null;
       this.detachInterstitialRevenue = this.detach(this.detachInterstitialRevenue);
       this.detachRewardedRevenue = this.detach(this.detachRewardedRevenue);
       this.interstitial = null;
@@ -779,7 +1192,7 @@ class AdMobServiceImpl {
       this.rewardedImpressionId = '';
       this.interstitialAdUnitId = '';
       this.rewardedAdUnitId = '';
-      this.setState({ isInterstitialLoaded: false, isRewardedLoaded: false });
+      this.setState({ isInterstitialLoaded: false, isRewardedLoaded: false, isRewardedInterstitialLoaded: false });
     } catch (_) {
       // Never crash on cleanup
     }

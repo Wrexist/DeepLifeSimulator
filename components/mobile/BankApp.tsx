@@ -744,6 +744,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           icon={Gift}
           disabled={!adBonusReady}
           disabledLabel="Available next week"
+          placement="bank_bonus"
           // No modal on success: the pill flips to its claimed state, the button
           // fires its own success haptic, and the wallet updates in place - a
           // confirmation dialog for a small bonus is interruption, not feedback.

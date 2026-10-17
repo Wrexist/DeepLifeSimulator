@@ -84,7 +84,7 @@ runtime, and the only symptom is a funnel step that is permanently empty.
 | Entitlement | `premium_activated` `first_premium_value` |
 | Subscription | `subscription_state` `subscription_cancel_detected` `subscription_renewed` `subscription_recovered` `subscription_lapsed` |
 | Trial / dunning | `trial_started` `trial_converted` `subscription_billing_issue` |
-| Ads | `ad_shown` `ad_rewarded` |
+| Ads | `ad_shown` `ad_rewarded` - both carry `kind` (`interstitial` / `rewarded` / `rewarded_interstitial`) and `placement` (`reward_orb`, `bank_bonus`, `pulse_boost`, `daily_bonus`, `year_end`, `reward_button`) |
 | Technical health | `save_failed` `save_repaired` `app_startup` |
 | Navigation | `screen_view` |
 

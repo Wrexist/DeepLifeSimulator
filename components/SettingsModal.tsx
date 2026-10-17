@@ -35,6 +35,7 @@ import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
 import { DISCORD_URL, PRIVACY_POLICY_URL, SUPPORT_EMAIL } from '@/lib/config/appConfig';
+import { reportAdMailUrl } from '@/lib/ads/reportAd';
 import { buildPrivacyRequest, privacyRequestMailUrl } from '@/utils/privacyRequest';
 import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
@@ -567,8 +568,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       // otherwise the PRE-grant state would hit disk.
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       try {
-        await saveGame();
-        await finalizeDiscordClaim();
+        // Finalize only a grant that reached disk. saveGame RESOLVES false when
+        // it skips (e.g. Settings opened from the Main Menu suspends autosave),
+        // and finalizing then lost the reward once a life was loaded.
+        if ((await saveGame()) === true) {
+          await finalizeDiscordClaim();
+        } else {
+          logger.warn('Discord reward claim save did not persist; will reconcile next launch');
+        }
       } catch (err) {
         // saveGame rejected - DO NOT finalize. The pending marker + the home
         // reconciler (single owner; Settings is transient) complete the grant on
@@ -857,6 +864,20 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     accent={uiPalette.muted}
                     onPress={handleAdPrivacy}
                     disabled={isOpeningAdPrivacy}
+                  />
+                )}
+                {/* App Review 2.5.18: an app that shows ads must let the player
+                    report one. Opens an editable draft; nothing is sent. */}
+                {Platform.OS !== 'web' && isFeatureEnabled('adMob') && (
+                  <SettingsActionButton
+                    icon={MessageCircle}
+                    label="Report an Ad"
+                    accent={uiPalette.muted}
+                    onPress={() => {
+                      Linking.openURL(reportAdMailUrl(Platform.OS)).catch(() => {
+                        gameAlert('Email unavailable', `Email ${SUPPORT_EMAIL} and describe the ad: what it showed, where it appeared and roughly when.`);
+                      });
+                    }}
                   />
                 )}
                 <SettingsActionButton

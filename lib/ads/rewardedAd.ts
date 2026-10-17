@@ -69,6 +69,25 @@ export interface RunRewardedAdOptions {
   adsRemoved?: boolean;
   /** On no-fill / error, grant the reward anyway rather than returning ungranted. */
   grantOnNoFill?: boolean;
+  /** Which surface asked, reported on `ad_shown` / `ad_rewarded`. */
+  placement?: string;
+}
+
+/**
+ * True when a rewarded ad is loaded and fresh right now. When it is not, a load
+ * is started so the next look finds one. Always false in a build with no ad
+ * SDK; never throws. Spawners use it to avoid offering an ad they cannot show.
+ */
+export async function rewardedAdReady(): Promise<boolean> {
+  if (!adsAvailable(false)) return false;
+  try {
+    const { adMobService } = await import('@/services/AdMobService');
+    if (adMobService.isReady('rewarded')) return true;
+    void adMobService.ensureLoaded('rewarded');
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -107,7 +126,7 @@ export async function runRewardedAd(
   }
   try {
     const { adMobService } = await import('@/services/AdMobService');
-    const shown = await adMobService.showRewardedAd(grant);
+    const shown = await adMobService.showRewardedAd(grant, { placement: opts.placement });
     if (shown) return 'granted-ad';
     // No ad was available to serve (no-fill — very common in TestFlight and on
     // brand-new ad units). `grantOnNoFill` callers (e.g. the rate-limited reward

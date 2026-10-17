@@ -957,6 +957,14 @@ try {
       'EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID',
       'EXPO_PUBLIC_ADMOB_REWARDED_ANDROID',
     ];
+    // The year-end rewarded interstitial (lib/ads/yearEndBreak.ts). Optional on
+    // both platforms: iOS ships a committed default, and with no Android unit
+    // the break is simply never offered there. A configured value must still
+    // be well-formed and must not be a Google TEST unit.
+    const optionalVars = [
+      'EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_IOS',
+      'EXPO_PUBLIC_ADMOB_REWARDED_INTERSTITIAL_ANDROID',
+    ];
 
     // Google's sample publisher id. A real-looking value that serves TEST ads —
     // i.e. a shipped release with zero ad revenue and nothing in preflight
@@ -971,7 +979,7 @@ try {
 
     // Any configured value must be well-formed — catches secret typos on either
     // platform, regardless of whether the var is required.
-    for (const name of [...iosVars, ...androidRequired]) {
+    for (const name of [...iosVars, ...androidRequired, ...optionalVars]) {
       const v = (buildEnv[name] || '').trim();
       if (v && !adUnitPattern.test(v)) {
         malformed.push(`${name}=${v}`);

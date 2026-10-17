@@ -26,7 +26,7 @@ import { useGameActions } from '@/contexts/game';
 import { useTheme } from '@/hooks/useTheme';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
-import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant } from '@/lib/ads/rewardedAd';
+import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant, rewardedAdReady } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -65,6 +65,8 @@ const REWARD_MAX = 500_000;
 const FIRST_DELAY: [number, number] = [45000, 75000];
 const REPEAT_DELAY: [number, number] = [360000, 600000];
 const VISIBLE_MS = 22000; // orb auto-hides if ignored
+// While only a real ad may pay the orb, how often to look for a loaded one.
+const AD_NOT_READY_RECHECK_MS = 30000;
 
 function rand([lo, hi]: [number, number]) {
   return lo + Math.random() * (hi - lo);
@@ -220,7 +222,11 @@ function AdRewardOrb() {
     s?.lifeMoments?.pendingMoment
   ));
 
+  // Bumped by every clearTimers, so an async readiness check that resolves
+  // after the orb was cancelled (unmount, Remove Ads, a reschedule) is dropped.
+  const scheduleGen = useRef(0);
   const clearTimers = () => {
+    scheduleGen.current++;
     timers.current.forEach(clearTimeout);
     timers.current = [];
   };
@@ -242,16 +248,8 @@ function AdRewardOrb() {
   // Picks a fresh reward kind each time so cash and vitality alternate randomly.
   const scheduleNext = useCallback((delay: number) => {
     clearTimers();
-    addTimer(() => {
-      // Courtesy no-fill limit: once an ads-on player has taken their one no-ad
-      // courtesy grant this session, stop spawning orbs until a real ad fills
-      // again (which clears the flag) - otherwise the capped reward could be
-      // farmed with no ad ever shown. Ads-removed players are exempt: their
-      // direct grant is a paid perk, not a no-fill fallback.
+    const offer = () => {
       const snapshot = getGameState();
-      if (noFillOnCooldown(snapshot) && adsAvailable(areAdsRemoved(snapshot))) {
-        return;
-      }
       // Never OFFER a cash orb the player cannot redeem. The cash reward is
       // gated to one per game week, and the spawner used to ignore that: orbs
       // respawn every 6-10 minutes, so the second cash orb of a week showed
@@ -264,7 +262,30 @@ function AdRewardOrb() {
       setGranted(false);
       setClaimBlocked(false);
       setPhase('orb');
-    }, delay);
+    };
+    const spawn = () => {
+      // Courtesy no-fill limit: once an ads-on player has taken their no-ad
+      // courtesy grant, only a REAL ad may pay an orb - otherwise the capped
+      // reward could be farmed with no ad ever shown. Ads-removed players are
+      // exempt: their direct grant is a paid perk, not a no-fill fallback.
+      //
+      // This used to `return` without rescheduling. With no orb on screen
+      // nothing could fill an ad and clear the cooldown, so the orb went quiet
+      // for the rest of the session - and on every launch until the 52-week
+      // cooldown ran out. Now it waits for a loaded ad and looks again.
+      const snapshot = getGameState();
+      if (noFillOnCooldown(snapshot) && adsAvailable(areAdsRemoved(snapshot))) {
+        const gen = scheduleGen.current;
+        void rewardedAdReady().then((ready) => {
+          if (gen !== scheduleGen.current) return;
+          if (ready) offer();
+          else addTimer(spawn, AD_NOT_READY_RECHECK_MS);
+        });
+        return;
+      }
+      offer();
+    };
+    addTimer(spawn, delay);
   }, [getGameState]);
 
   // First appearance after mount - but never once the player has removed ads.
@@ -438,7 +459,14 @@ function AdRewardOrb() {
       // minutes), so if there's no ad inventory to serve we still honour the
       // promised reward instead of leaving the player with nothing after tapping
       // "Watch ad". Real ads still play + earn when they fill.
-      const outcome = await runRewardedAd(grant, { adsRemoved: adsRemovedNow, grantOnNoFill: true });
+      // The courtesy is once per NO_FILL_COOLDOWN_WEEKS: on cooldown this orb
+      // was offered only because an ad was loaded, and if that ad is gone by
+      // now the reward is not paid.
+      const outcome = await runRewardedAd(grant, {
+        adsRemoved: adsRemovedNow,
+        grantOnNoFill: !noFillOnCooldown(getGameState()),
+        placement: 'reward_orb',
+      });
       // Courtesy no-fill limit: remember a no-ad courtesy grant so the spawn
       // scheduler stops offering more this session; a real-ad grant means
       // inventory returned, so lift the limit again.

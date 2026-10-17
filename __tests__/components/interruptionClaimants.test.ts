@@ -37,6 +37,7 @@ const CLAIMANT_FILES = [
   'app/(tabs)/_layout.tsx',
   'components/AdRewardOrb.tsx',
   'components/PremiumPassPromo.tsx',
+  'components/YearEndBreak.tsx',
 ];
 
 /**
