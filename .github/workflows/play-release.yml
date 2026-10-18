@@ -1,0 +1,110 @@
+name: Google Play — release
+
+# Moves an Android build Google Play already holds to another track (internal
+# -> production by default) as a staged rollout or a full release, or raises a
+# staged rollout. No rebuild: the bundle the Android build workflow uploaded is
+# the one that ships. See scripts/play-release.mjs.
+#
+# Manual trigger only, like asc-release.yml: nothing about a push or a merge
+# should be able to change what players get.
+#
+# Secret: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (the same one the Android build
+# workflow submits with). Production needs the service account to hold the
+# "Release to production" permission in the Play Console, not only testing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'What to do'
+        required: true
+        default: status
+        type: choice
+        options:
+          - status        # read-only: what every track holds
+          - plan          # validate a promotion at Google, then discard it
+          - promote       # commit the promotion (sent for Google's review)
+          - set-rollout   # raise a staged rollout on the target track
+      version_code:
+        description: 'versionCode to promote (blank = the newest on the source track)'
+        required: false
+        type: string
+      rollout:
+        description: 'Fraction of users: 0.2 = 20%, 1 = everyone'
+        required: false
+        default: '0.2'
+        type: string
+      from_track:
+        description: 'Source track'
+        required: false
+        default: internal
+        type: string
+      to_track:
+        description: 'Target track'
+        required: false
+        default: production
+        type: string
+      confirm:
+        description: 'Type RELEASE for promote or set-rollout'
+        required: false
+        type: string
+
+concurrency:
+  group: play-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Require the Play service-account key
+        if: ${{ env.HAS_KEY != 'true' }}
+        run: |
+          echo "::error title=Missing credentials::Set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON under Settings ▸ Secrets ▸ Actions."
+          exit 1
+
+      # Changing what players get takes a typed word, not just a dropdown.
+      - name: Confirm release
+        if: ${{ (inputs.mode == 'promote' || inputs.mode == 'set-rollout') && inputs.confirm != 'RELEASE' }}
+        run: |
+          echo "::error title=Confirmation required::mode=${{ inputs.mode }} needs confirm to be exactly RELEASE."
+          exit 1
+
+      - name: Run
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          MODE: ${{ inputs.mode }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          ROLLOUT: ${{ inputs.rollout }}
+          FROM_TRACK: ${{ inputs.from_track }}
+          TO_TRACK: ${{ inputs.to_track }}
+        run: |
+          set -o pipefail
+          ARGS="--from $FROM_TRACK --to $TO_TRACK"
+          case "$MODE" in
+            plan)        ARGS="$ARGS --promote --rollout $ROLLOUT" ;;
+            promote)     ARGS="$ARGS --promote --rollout $ROLLOUT --apply" ;;
+            set-rollout) ARGS="$ARGS --set-rollout $ROLLOUT --apply" ;;
+          esac
+          [ -n "$VERSION_CODE" ] && ARGS="$ARGS --version-code $VERSION_CODE"
+          echo "Running: node scripts/play-release.mjs $ARGS"
+          node scripts/play-release.mjs $ARGS 2>&1 | tee /tmp/play-output.txt
+
+      - name: Report
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## Google Play — \`${{ inputs.mode }}\`"
+            echo
+            echo '```'
+            cat /tmp/play-output.txt 2>/dev/null || echo '(no output — the run failed before the script started)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

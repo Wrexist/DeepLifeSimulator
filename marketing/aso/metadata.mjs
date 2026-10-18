@@ -471,6 +471,45 @@ export const PLAY = {
   shortDescription: 'Career, crime, stocks and property. Build a fortune, then pass it on.',
 
   /**
+   * "What's new in this release", 500 chars per language. Sent by
+   * scripts/play-release.mjs when it promotes a build, only for languages the
+   * Play listing carries (the rest fall back to the listing default). The same
+   * release as APPLE.whatsNew, cut to Play's limit.
+   */
+  releaseNotes: {
+    'en-US': `Mindsets now shape your whole life: one upside, one downside, and every number on the card is what the game applies.
+• Prestige pays about 10x more points, and Legacy Shop upgrades carry over to your heir.
+• Events show "Need $X" instead of quietly taking your money.
+• Make any home you own your residence.
+• Optional ads for bonus gems at year end, or to double your daily reward.
+• Fairer pay and many fixes. Every save carries over.`,
+    'es-419': `Los Mindsets ahora moldean toda tu vida: una ventaja, una desventaja, y cada número de la tarjeta es lo que aplica el juego.
+• El prestigio da unas 10 veces más puntos, y las mejoras de la Legacy Shop pasan a tu heredero.
+• Los eventos muestran "Need $X" en lugar de quitarte el dinero sin avisar.
+• Haz de cualquier casa tuya tu residencia.
+• Anuncios opcionales para gemas extra al final del año o para duplicar tu recompensa diaria.
+• Pagas más justas y muchas correcciones.`,
+    'pt-BR': `Os Mindsets agora moldam a vida inteira: uma vantagem, uma desvantagem, e cada número no card é o que o jogo aplica.
+• O prestígio rende cerca de 10 vezes mais pontos, e as melhorias da Legacy Shop passam para o seu herdeiro.
+• Os eventos mostram "Need $X" em vez de tirar seu dinheiro sem avisar.
+• Transforme qualquer imóvel seu na sua residência.
+• Anúncios opcionais para gemas extras no fim do ano ou para dobrar a recompensa diária.
+• Pagamentos mais justos e muitas correções.`,
+    'fr-FR': `Les Mindsets façonnent désormais toute votre vie : un avantage, un inconvénient, et chaque chiffre de la carte est ce que le jeu applique.
+• Le prestige rapporte environ 10 fois plus de points, et la Legacy Shop passe à votre héritier.
+• Les événements affichent « Need $X » au lieu de prendre votre argent sans prévenir.
+• Habitez un logement à vous.
+• Pubs facultatives pour des gemmes bonus en fin d'année ou pour doubler la récompense du jour.
+• Paies plus justes, nombreux correctifs.`,
+    'de-DE': `Mindsets prägen jetzt dein ganzes Leben: ein Vorteil, ein Nachteil, und jede Zahl auf der Karte ist das, was das Spiel anwendet.
+• Prestige bringt etwa 10-mal so viele Punkte, und Legacy-Shop-Upgrades gehen auf deinen Erben über.
+• Events zeigen „Need $X“, statt dir still das Geld abzunehmen.
+• Mach jede eigene Immobilie zu deinem Wohnsitz.
+• Freiwillige Werbung für Bonus-Edelsteine am Jahresende oder für die doppelte Tagesbelohnung.
+• Fairere Löhne und viele Fehlerbehebungen.`,
+  },
+
+  /**
    * 4000 chars. UNLIKE Apple, Google Play DOES index this, so it repeats the
    * target terms naturally rather than being pure conversion copy.
    */
