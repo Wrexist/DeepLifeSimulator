@@ -816,6 +816,30 @@ export function tickFavors(
 /** How long an unredeemed network favor stays callable. */
 export const NETWORK_FAVOR_EXPIRY_WEEKS = 12;
 
+/**
+ * Weeks between two favours from the same network contact, counted from the
+ * last ASK (exploit sweep, 2026-10-19).
+ *
+ * "One open favour per contact" was the only limit, and a favour can be
+ * redeemed the week it is asked, so ask -> redeem re-armed every week: a
+ * dark-web vendor's discount paid up to $25,000 cash weekly and a lobbyist +6
+ * reputation weekly, forever. Counted from `createdWeek` of the newest
+ * network favour for that contact, which the ledger already keeps after
+ * redemption - no new save field.
+ */
+export const NETWORK_FAVOR_COOLDOWN_WEEKS = 12;
+
+/** Weeks until `contactId` can be asked for another network favour (0 = now). */
+export function networkFavorCooldownLeft(ledger: FavorLedger, contactId: string, week: number): number {
+  let last = Number.NEGATIVE_INFINITY;
+  for (const f of ledger.favors ?? []) {
+    if (f.contactId !== contactId || !f.id.startsWith('network-favor-')) continue;
+    if (typeof f.createdWeek === 'number' && isFinite(f.createdWeek)) last = Math.max(last, f.createdWeek);
+  }
+  if (!isFinite(last) || !isFinite(week)) return 0;
+  return Math.max(0, Math.ceil(last + NETWORK_FAVOR_COOLDOWN_WEEKS - week));
+}
+
 /** Standing a network contact needs before they will owe you anything. */
 export const NETWORK_FAVOR_MIN_STRENGTH = 40;
 
@@ -966,6 +990,13 @@ function resolveAskNetworkFavor(
     }
     if (prevLedger.favors.some((f) => f.contactId === contact.id && f.status === 'open')) {
       return { result: { success: false, message: `${contact.name} already owes you one.` }, next: null };
+    }
+    const wait = networkFavorCooldownLeft(prevLedger, contact.id, prevWeek);
+    if (wait > 0) {
+      return {
+        result: { success: false, message: `${contact.name} will owe you again in ${wait} week${wait === 1 ? '' : 's'}.` },
+        next: null,
+      };
     }
     const favor: Omit<Favor, 'status'> = {
       id,
