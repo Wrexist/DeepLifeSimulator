@@ -1455,6 +1455,11 @@ const migrations: Record<number, (state: any) => any> = {
    * for half a year. `ipoListedCompanyIds` absent = nothing floated yet, the
    * truth for every earlier save that cannot be reconstructed: a company sold
    * after floating left no record, and guessing one would refuse a real IPO.
+   *
+   * Same bump, third carve-out: `VehicleInsurance.conditionAtPurchase`, so a
+   * policy covers only damage done after it started (buy a policy on a wreck,
+   * repair at 20%, cancel for a near-full refund). Absent = a policy bought
+   * before v56, which keeps covering all damage as it was sold to do.
    */
   56: (state) => {
     state.version = 56;

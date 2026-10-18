@@ -13,6 +13,7 @@ import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
 import { applyMoneyDelta, MONEY_CEILING } from './MoneyActions';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
+import { cashNetOfDebt } from '@/lib/ads/cashNetOfDebt';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
   depositToAccount,
@@ -752,9 +753,8 @@ export const AD_CASH_BONUS_MAX = 500_000;
  * which the percentage takes over.
  */
 export const getAdCashBonusAmount = (state: GameState): number => {
-  const cash = typeof state.stats?.money === 'number' && isFinite(state.stats.money)
-    ? Math.max(0, state.stats.money)
-    : 0;
+  // Cash LESS debt: borrowed cash must not count (lib/ads/cashNetOfDebt.ts).
+  const cash = cashNetOfDebt(state);
   let worth = 0;
   try {
     worth = calculateNetWorth(state);

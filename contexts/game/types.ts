@@ -2536,6 +2536,14 @@ export interface VehicleInsurance {
   expiresWeek: number;
   monthlyCost: number;
   premiumCost?: number; // Deprecated, use monthlyCost instead
+  /**
+   * The vehicle's condition when this policy started (v56), reset to 100 by a
+   * repair. Coverage applies only to damage done since: buying a policy on a
+   * wrecked car, repairing at 20% and cancelling for a near-full refund was a
+   * claim on damage the policy never insured (exploit sweep, 2026-10-19).
+   * Carve-out: absent on policies bought before v56, which cover all damage.
+   */
+  conditionAtPurchase?: number;
 }
 
 export interface Vehicle {

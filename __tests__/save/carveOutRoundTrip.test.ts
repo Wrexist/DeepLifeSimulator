@@ -428,6 +428,49 @@ const CARVE_OUTS: CarveOut[] = [
     value: ['factory'],
     build: () => ({ ...base(), ipoListedCompanyIds: ['factory'] }),
   },
+  {
+    version: 56,
+    path: 'vehicles.0.insurance.conditionAtPurchase',
+    // The car's condition when its policy started. Erased on load, the policy
+    // would read as pre-v56 and cover the damage it was bought on top of.
+    value: 40,
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        vehicles: [
+          {
+            id: 'basic_sedan',
+            name: 'Basic Sedan',
+            type: 'car' as const,
+            brand: 'Basic',
+            model: 'Basic Sedan',
+            year: 2025,
+            price: 15_000,
+            condition: 40,
+            fuelLevel: 100,
+            fuelCapacity: 50,
+            fuelEfficiency: 30,
+            mileage: 0,
+            weeklyMaintenanceCost: 50,
+            weeklyFuelCost: 40,
+            maxSpeed: 120,
+            owned: true,
+            reputationBonus: 10,
+            speedBonus: 0,
+            insurance: {
+              type: 'premium' as const,
+              active: true,
+              coveragePercent: 80,
+              expiresWeek: 4_000,
+              monthlyCost: 300,
+              conditionAtPurchase: 40,
+            },
+          },
+        ],
+      };
+    },
+  },
 ];
 
 /** A factory founded at `week` - the v56 rows' company. */
@@ -515,9 +558,9 @@ describe('the §7 carve-out fields survive the load merge', () => {
     // 26 as of the v50/v51 merge: `shownNotificationIds` and `metAt` were both
     // authored as v50 on separate branches, so the merged history carries two
     // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`,
-    // 28 with v55 `Vehicle.reputationGranted`, 30 with v56 `Company.foundedWeek`
-    // and `ipoListedCompanyIds`.
-    expect(CARVE_OUTS).toHaveLength(30);
+    // 28 with v55 `Vehicle.reputationGranted`, 31 with v56 `Company.foundedWeek`,
+    // `ipoListedCompanyIds` and `VehicleInsurance.conditionAtPurchase`.
+    expect(CARVE_OUTS).toHaveLength(31);
     // Bumps that add NO field, so they have no row here: v53 reprices the
     // stored diet catalogue; v54 reprices careers/street jobs/items and mints
     // `lineageId`. Declared, so an undeclared new field still fails.

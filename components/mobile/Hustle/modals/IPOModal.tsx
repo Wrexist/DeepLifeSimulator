@@ -76,7 +76,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
       subtitle={
         isPublic && overlay
           ? `Share price $${overlay.ipo.sharePrice.toFixed(2)} · ${overlay.ipo.ownershipPercent}% ownership`
-          : 'An IPO raises cash but dilutes your ownership.'
+          : 'An IPO raises cash, and you earn only the share you keep. One IPO per company, after 26 weeks.'
       }
     >
       <View>

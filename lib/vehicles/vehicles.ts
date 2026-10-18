@@ -411,9 +411,23 @@ export function calculateRepairCostAfterInsurance(vehicle: Vehicle): number {
   const gross = calculateRepairCost(vehicle);
   if (vehicle.insurance?.active) {
     const coverage = vehicle.insurance.coveragePercent / 100;
-    return Math.floor(gross * (1 - coverage));
+    return Math.floor(gross * (1 - coverage * insuredDamageShare(vehicle)));
   }
   return gross;
+}
+
+/**
+ * The share of the vehicle's current damage that its policy insures: the
+ * damage done since `conditionAtPurchase`. 1 for a policy that predates the
+ * field (v56), 0 when all the damage was already there when it was bought.
+ */
+export function insuredDamageShare(vehicle: Pick<Vehicle, 'condition' | 'insurance'>): number {
+  const atPurchase = vehicle.insurance?.conditionAtPurchase;
+  if (typeof atPurchase !== 'number' || !isFinite(atPurchase)) return 1;
+  const condition = typeof vehicle.condition === 'number' && isFinite(vehicle.condition) ? vehicle.condition : 100;
+  const damage = 100 - condition;
+  if (damage <= 0) return 0;
+  return Math.max(0, Math.min(damage, atPurchase - condition)) / damage;
 }
 
 export function calculateFuelCost(vehicle: Vehicle): number {
