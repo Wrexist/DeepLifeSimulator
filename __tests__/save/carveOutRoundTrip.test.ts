@@ -373,6 +373,44 @@ const CARVE_OUTS: CarveOut[] = [
       };
     },
   },
+  {
+    version: 55,
+    path: 'vehicles.0.reputationGranted',
+    // What a car's purchase actually granted (clipped at the 100 ceiling).
+    // Erasing it on load would not lose a number the player sees; it would
+    // quietly put the car back on the take-back-the-whole-bonus rule, so the
+    // next sale of a car bought near 100 costs the difference again.
+    value: 4,
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        vehicles: [
+          {
+            id: 'basic_sedan',
+            name: 'Basic Sedan',
+            type: 'car' as const,
+            brand: 'Basic',
+            model: 'Basic Sedan',
+            year: 2025,
+            price: 15_000,
+            condition: 100,
+            fuelLevel: 100,
+            fuelCapacity: 50,
+            fuelEfficiency: 30,
+            mileage: 0,
+            weeklyMaintenanceCost: 50,
+            weeklyFuelCost: 40,
+            maxSpeed: 120,
+            owned: true,
+            reputationBonus: 10,
+            speedBonus: 0,
+            reputationGranted: 4,
+          },
+        ],
+      };
+    },
+  },
 ];
 
 /**
@@ -440,8 +478,9 @@ describe('the §7 carve-out fields survive the load merge', () => {
     //
     // 26 as of the v50/v51 merge: `shownNotificationIds` and `metAt` were both
     // authored as v50 on separate branches, so the merged history carries two
-    // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`.
-    expect(CARVE_OUTS).toHaveLength(27);
+    // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`,
+    // 28 with v55 `Vehicle.reputationGranted`.
+    expect(CARVE_OUTS).toHaveLength(28);
     // Bumps that add NO field, so they have no row here: v53 reprices the
     // stored diet catalogue; v54 reprices careers/street jobs/items and mints
     // `lineageId`. Declared, so an undeclared new field still fails.

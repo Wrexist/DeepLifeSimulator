@@ -401,12 +401,12 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'achievement_progress_multiplier',
     name: 'Achievement Hunter',
-    // Re-wired 2026-08-23. "+20% achievement progress rate" had NO consumer —
-    // achievements complete on thresholds, so a progress rate was never a
-    // thing this game computes. The effect is now +20%/level on the prestige
-    // points achievements pay at prestige (lib/prestige/prestigePoints.ts),
-    // which is what an achievement hunter actually wants from this shop.
-    description: '+20% prestige points from achievements',
+    // Re-wired 2026-08-23 ("+20% achievement progress rate" had NO consumer),
+    // then re-priced 2026-10-18: +20% of 10 points per new PEAK achievement
+    // returned at most 320 points over every life, for 4,000. It now pays
+    // ACHIEVEMENT_HUNTER_POINTS_PER_LEVEL (25) per level for every achievement
+    // claimed in the life being prestiged (lib/prestige/prestigePoints.ts).
+    description: '+25 prestige points for every achievement you claim in a life',
     category: 'multiplier',
     cost: 4000,
     rarity: 'rare',

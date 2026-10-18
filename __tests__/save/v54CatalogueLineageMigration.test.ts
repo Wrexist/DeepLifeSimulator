@@ -55,7 +55,8 @@ describe('v54 catalogue repricing', () => {
 
   it('adopts the code salary / basePayment / price for known ids', () => {
     const out = migrate(v53Save());
-    expect(out.version).toBe(54);
+    // Runs on to the current version; v54 is the step under test.
+    expect(out.version).toBeGreaterThanOrEqual(54);
 
     const fastFood = out.careers.find((c: AnyState) => c.id === 'fast_food');
     const catalogue = INITIAL_CAREERS.find((c) => c.id === 'fast_food')!;

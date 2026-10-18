@@ -21,6 +21,7 @@ import {
   reputationAfterVehicleSale,
   vehiclePurchaseReputationGain,
   vehicleReputationBonus,
+  vehicleReputationTakeBack,
 } from '@/contexts/game/actions/VehicleActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
@@ -83,10 +84,9 @@ describe('vehicle reputation - buy + sell never nets positive', () => {
         if ((template.requiredReputation ?? 0) > start) continue;
         expect(buyCash(store, id).success).toBe(true);
         sellVehicle(store.get(), store.setGameState, id, deps);
-        const end = store.get().stats.reputation;
-        expect(end).toBeLessThanOrEqual(start);
-        // Exact when the grant was not clipped by the 100 cap.
-        if (start + template.reputationBonus <= 100) expect(end).toBe(start);
+        // Exact from EVERY start since v55, including within `bonus` of 100:
+        // the sale takes back what the purchase granted, not the whole bonus.
+        expect(store.get().stats.reputation).toBe(start);
       }
     },
   );
@@ -169,5 +169,60 @@ describe('purchaseVehicleWithAutoLoan - the gates the legacy path already had', 
     expect(r.success).toBe(false);
     expect(r.message).toMatch(/reputation/i);
     expect(store.get().stats.money).toBe(1_000_000);
+  });
+});
+
+describe('v55: a sale takes back exactly what the purchase granted', () => {
+  it('a car bought near 100 no longer loses the clipped difference', () => {
+    const store = driver(95, 1_000_000);
+    expect(buyCash(store, 'sport_motorcycle').success).toBe(true); // +10, clipped to +5
+    expect(store.get().stats.reputation).toBe(100);
+    expect(store.get().vehicles?.find((v) => v.id === 'sport_motorcycle')?.reputationGranted).toBe(5);
+    sellVehicle(store.get(), store.setGameState, 'sport_motorcycle', deps);
+    // Before v55: 90 (the whole +10 came off a +5 grant).
+    expect(store.get().stats.reputation).toBe(95);
+  });
+
+  it('a car bought AT 100 was granted nothing and takes nothing back', () => {
+    const store = driver(100, 1_000_000);
+    buyCash(store, 'sport_motorcycle');
+    expect(store.get().vehicles?.[0]?.reputationGranted).toBe(0);
+    sellVehicle(store.get(), store.setGameState, 'sport_motorcycle', deps);
+    expect(store.get().stats.reputation).toBe(100);
+  });
+
+  it('still cannot be farmed: 20 round trips near the ceiling stay where they started', () => {
+    const store = driver(93, 10_000_000);
+    for (let trip = 0; trip < 20; trip++) {
+      buyCash(store, 'sport_motorcycle');
+      expect(store.get().stats.reputation).toBe(100);
+      sellVehicle(store.get(), store.setGameState, 'sport_motorcycle', deps);
+      expect(store.get().stats.reputation).toBe(93);
+    }
+  });
+
+  it('both purchase paths stamp the grant', () => {
+    const store = driver(97, 1_000_000);
+    expect(purchaseVehicle(store.get(), store.setGameState, 'sport_motorcycle').success).toBe(true);
+    expect(store.get().vehicles?.[0]?.reputationGranted).toBe(3);
+  });
+
+  it('a car bought before v55 (no record) keeps the full-bonus rule', () => {
+    const legacy = createVehicleFromTemplate(getVehicleTemplate('sport_motorcycle')!, 0);
+    expect(legacy.reputationGranted).toBeUndefined();
+    expect(vehicleReputationTakeBack(legacy)).toBe(10);
+    const store = driver(100, 0, { vehicles: [legacy], activeVehicleId: legacy.id });
+    sellVehicle(store.get(), store.setGameState, legacy.id, deps);
+    expect(store.get().stats.reputation).toBe(90);
+  });
+
+  it.each([Number.NaN, -3, Infinity])('a malformed grant (%s) falls back to the bonus, never poisons reputation', (granted) => {
+    expect(vehicleReputationTakeBack({ id: 'sport_motorcycle', reputationBonus: 10, reputationGranted: granted })).toBe(10);
+  });
+
+  it('the sale dialog quotes the same take-back the sale applies (source pin)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../components/computer/VehicleApp.tsx'), 'utf8') as string;
+    expect(src).toMatch(/const repBack = vehicleReputationTakeBack\(v\);/);
   });
 });

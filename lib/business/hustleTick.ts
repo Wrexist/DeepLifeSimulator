@@ -6,6 +6,7 @@
  *
  * Per-company order of operations (all use `nextWeeksLived`):
  *   0. General-staff payroll (employees − named hires) × companyStaffWage
+ *      (furloughed while the owner is jailed - see `payrollFurloughed`)
  *   1. Campaign progression — decrement durations, mark expired
  *   2. Brand health drift toward 50 (no campaigns), lift with active ones
  *   3. Scandal severity decay (10/wk, +15 if 'apology' resolution)
@@ -151,6 +152,25 @@ export function companyPayrollTaxDeduction(
   return Math.min(ceiling, finiteNonNeg(payroll));
 }
 
+/**
+ * Whether this week's payroll is furloughed: true while the owner is jailed.
+ *
+ * The tick withholds ALL company income while the owner is jailed - companies
+ * carry no managed mode, so a jailed owner's business earns nothing
+ * (GameActionsContext, `companyIncomeThisWeek`). Until 2026-10-18 the staff
+ * were still paid for those weeks, so a jail sentence charged a full payroll
+ * against zero revenue: a closed business with its wage bill running. The
+ * staff of a closed business are furloughed for the same weeks instead.
+ *
+ * Not a farm: jail costs the week's company income, and the payroll ratchet
+ * (`__tests__/economy/companyStaffPayroll.test.ts`) keeps income above payroll
+ * at every headcount worth hiring, so a jailed week is always a net loss.
+ * Reads the same pre-tick `jailWeeks` the income gate reads.
+ */
+export function payrollFurloughed(state: Pick<GameState, 'jailWeeks'>): boolean {
+  return (state.jailWeeks ?? 0) > 0;
+}
+
 function pushNotif(o: HustleCompanyOverlay, text: string, type: any, weeksLived: number): HustleCompanyOverlay {
   return {
     ...o,
@@ -210,6 +230,7 @@ export function processHustleWeeklyTick(
   let availableCash = state.stats?.money ?? 0;
 
   const playerCompanies = state.companies ?? [];
+  const furloughed = payrollFurloughed(state);
 
   for (const company of playerCompanies) {
     if (!company || typeof company.id !== 'string') continue;
@@ -221,7 +242,7 @@ export function processHustleWeeklyTick(
     // Named hires are excluded here (see companyWeeklyPayroll) and charged with
     // their own salaries in step 4.
     const { generalPayroll } = companyWeeklyPayroll(company, prevOverlay?.hiringPipeline?.namedHires);
-    if (generalPayroll > 0) {
+    if (generalPayroll > 0 && !furloughed) {
       cashDelta -= generalPayroll;
       availableCash -= generalPayroll;
       cashReasons.push(`${company.name} staff payroll`);
@@ -394,7 +415,7 @@ export function processHustleWeeklyTick(
       // cash-delta path other company costs use (mirrors scandal drag / campaign
       // spend) so hires are an INVESTMENT (income multiplier vs salary cost).
       const totalSalary = companyWeeklyPayroll(company, updatedHires).namedPayroll;
-      if (totalSalary > 0) {
+      if (totalSalary > 0 && !furloughed) {
         cashDelta -= totalSalary;
         availableCash -= totalSalary;
         cashReasons.push(`${company.name} named-hire payroll`);

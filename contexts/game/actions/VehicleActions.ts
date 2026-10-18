@@ -57,18 +57,17 @@ const log = logger.scope('VehicleActions');
 // gates. Both directions now move the SAME amount: the bonus, clamped to the
 // 0..100 scale.
 //
-// Why the sale removes the full bonus rather than "exactly what the purchase
-// granted": nothing in the save records what a purchase granted (the bonus is
-// stamped on the vehicle, the clamped grant is not), and without that record
-// removing the full bonus is the ONLY rule under which a buy-then-sell can never
-// net positive. Proof sketch: every purchase within `bonus` of 100 lands on 100,
-// so a sale at 100 cannot tell a purchase made at 100 - bonus (granted the
-// whole bonus, must remove it) from one made at 100 (granted nothing). Any sale
-// rule that removes less at 100 lets the first case farm.
+// Since v55 the purchase stamps what it ACTUALLY granted on the vehicle
+// (`reputationGranted`: the bonus, clipped at 100) and the sale takes back
+// exactly that (`vehicleReputationTakeBack`). Before it, nothing recorded the
+// clipped grant, and removing the full bonus was the ONLY rule under which a
+// buy-then-sell could never net positive: every purchase within `bonus` of 100
+// lands on 100, so a sale at 100 could not tell a purchase made at 100 - bonus
+// (granted the whole bonus) from one made at 100 (granted nothing). That cost a
+// car bought near 100 the difference on every sale. Vehicles bought before v55
+// carry no record and keep the full-bonus rule.
 //
-// What that costs, stated plainly:
-//   - At the TOP: a car bought within `bonus` of 100 was granted less than its
-//     bonus, and selling still removes the whole bonus. A loss, never a gain.
+// What remains, stated plainly:
 //   - At the BOTTOM: the sale floors at 0, so if reputation fell below the
 //     bonus while you owned the car, selling and rebuying returns you to the
 //     bonus. That is exactly what a first-time buyer at the same reputation
@@ -76,8 +75,6 @@ const log = logger.scope('VehicleActions');
 //     nudge (`applyVehicles`: +1/wk up to 3x the bonus) - so it can restore the
 //     car's own floor but never lift reputation above anything ownership does
 //     not already grant.
-// Making the top exact needs a per-vehicle record of the grant (a new field on
-// `Vehicle`), which this change deliberately does not add.
 
 const clampReputation = (n: unknown): number =>
   typeof n === 'number' && isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
@@ -111,6 +108,19 @@ export function vehicleReputationBonus(vehicle: Pick<Vehicle, 'id' | 'reputation
   const own = vehicle.reputationBonus;
   if (typeof own === 'number' && isFinite(own) && own >= 0) return own;
   return positiveBonus(VEHICLE_TEMPLATES.find((t) => t.id === vehicle.id)?.reputationBonus);
+}
+
+/**
+ * The reputation selling `vehicle` takes back: what its purchase actually
+ * granted (`reputationGranted`, v55), else - for a vehicle bought before the
+ * record existed - the whole bonus it carries (`vehicleReputationBonus`).
+ */
+export function vehicleReputationTakeBack(
+  vehicle: Pick<Vehicle, 'id' | 'reputationBonus' | 'reputationGranted'>,
+): number {
+  const granted = vehicle.reputationGranted;
+  if (typeof granted === 'number' && isFinite(granted) && granted >= 0) return granted;
+  return vehicleReputationBonus(vehicle);
 }
 
 /**
@@ -235,7 +245,10 @@ const resolvePurchaseVehicle = (
     return reject(`You need $${vehiclePrice.toLocaleString('en-US')} to purchase this vehicle.`);
   }
 
-  const newVehicle = createVehicleFromTemplate(template, state.weeksLived || 0);
+  const newVehicle: Vehicle = {
+    ...createVehicleFromTemplate(template, state.weeksLived || 0),
+    reputationGranted: vehiclePurchaseReputationGain(state.stats.reputation, template.reputationBonus),
+  };
   const newMoney = currentMoney - vehiclePrice;
   const moneyChange = newMoney - currentMoney;
 
@@ -366,9 +379,9 @@ export const sellVehicle = (
           (typeof prev.stats.money === 'number' && isFinite(prev.stats.money) ? prev.stats.money : 0) +
             cashDelta
         ),
-        // The whole bonus the car carries, so a buy + sell can never net
-        // positive. See `reputationAfterVehicleSale`.
-        reputation: reputationAfterVehicleSale(prev.stats.reputation, vehicleReputationBonus(sold)),
+        // Exactly what the purchase granted (the whole bonus for a car bought
+        // before v55), so a buy + sell can never net positive.
+        reputation: reputationAfterVehicleSale(prev.stats.reputation, vehicleReputationTakeBack(sold)),
       },
       vehicles,
       activeVehicleId,
@@ -1118,7 +1131,10 @@ function resolveBuyVehicle(
       );
     }
 
-    const newVehicle = createVehicleFromTemplate(template, state.weeksLived || 0);
+    const newVehicle: Vehicle = {
+      ...createVehicleFromTemplate(template, state.weeksLived || 0),
+      reputationGranted: vehiclePurchaseReputationGain(state.stats?.reputation, template.reputationBonus),
+    };
     const vehicles = [...(state.vehicles ?? []), newVehicle];
     const activeVehicleId = state.activeVehicleId ?? newVehicle.id;
 
@@ -1133,7 +1149,7 @@ function resolveBuyVehicle(
     // exclusively through THIS path (BuyVehicleModal → purchaseVehicleWithAutoLoan),
     // so without this the advertised reputationBonus was never applied - only the
     // legacy, UI-unused purchaseVehicle granted it. Capped at 100; selling takes
-    // the same bonus back (see `reputationAfterVehicleSale`). The weekly tick's
+    // back exactly what this granted (`reputationGranted`). The weekly tick's
     // separate +1/wk nudge (capped at reputationBonus*3) is unchanged.
     const grantedReputation = reputationAfterVehiclePurchase(state.stats?.reputation, newVehicle.reputationBonus);
 

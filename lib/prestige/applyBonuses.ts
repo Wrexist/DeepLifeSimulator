@@ -443,17 +443,16 @@ export function getEventFrequencyBoost(unlockedBonuses: string[]): number {
   return 1.0;
 }
 
+/** Prestige points Achievement Hunter pays per achievement claimed this life, per level. */
+export const ACHIEVEMENT_HUNTER_POINTS_PER_LEVEL = 25;
+
 /**
- * Get achievement progress multiplier
- * @param unlockedBonuses Array of unlocked bonus IDs
- * @returns Achievement progress multiplier (1.0 = normal, 1.2 = +20% progress)
+ * Prestige points per achievement claimed this life from Achievement Hunter
+ * (`achievement_progress_multiplier`): 25 per level, 0 without it. Read by
+ * `calculatePrestigePoints`; see the reasoning there.
  */
-export function getAchievementProgressMultiplier(unlockedBonuses: string[]): number {
-  const achievementLevel = getBonusLevel('achievement_progress_multiplier', unlockedBonuses);
-  if (achievementLevel > 0) {
-    return 1.0 + (0.20 * achievementLevel); // +20% per level
-  }
-  return 1.0;
+export function getAchievementHunterPointsPerAchievement(unlockedBonuses: string[]): number {
+  return getBonusLevel('achievement_progress_multiplier', unlockedBonuses) * ACHIEVEMENT_HUNTER_POINTS_PER_LEVEL;
 }
 
 /**
