@@ -1,3 +1,14 @@
+# Ship 2.16.0 - 18 October 2026
+
+Owner: "do everything for me". Branch `claude/store-1.7.0` (PR #243).
+
+- [x] 1. Build 196 is `VALID` on App Store Connect (read through the asc-release plan run, no login needed).
+- [x] 2. Store 1.7.0: What's New in all 5 languages from the 2.16.0 changelog, `releaseType: MANUAL`, record created, build 196 attached, screenshots carried over, submitted: `WAITING_FOR_REVIEW`. [Evidence](release/evidence/store-1.7.0-2026-10-18.md).
+- [ ] 3. Android 2.16.0 to the Play internal track (run 39149501425).
+- [ ] 4. Web smoke of the Mindset cards and the Achievement Hunter line (a stand-in, not the iPhone check).
+- [ ] 5. Owner: iPhone checks on TestFlight 196 (ads, Mindset cards, Achievement Hunter, a 2.15.x save), then press Release on 1.7.0 once Apple approves.
+- [ ] 6. Owner: Play holiday event. The draft is saved; between Oct 19 and Dec 4 open it, pick the AI declaration, press Submit ([guide](../marketing/play-store/promo-events/2026-12-holidays-SV.md)). The browser here is not signed in to Play Console, so it cannot be done from this machine.
+
 # Open owner calls, round 3 - 18 October 2026
 
 Branch `claude/owner-calls-round3-2026-10-18`. Owner: "continue work on the open [items] and todos". The open calls from PR #239, each decided here with the reasoning stated:
@@ -10,7 +21,7 @@ Branch `claude/owner-calls-round3-2026-10-18`. Owner: "continue work on the open
 - [x] 4. Tests (jail furlough 9, Achievement Hunter 4, vehicle exact refund 9 + the round-trip sweep now exact from every start, v55 migration/carve-out/repair 15), docs (CLAUDE.md §7 v55, DEV/WORKFLOW/AGENTS), changelog + WHATS_NEW. `youthPills` left the audit's grandfather list (the migration writes it) and gained a repair mirror. Full suite 932 suites / 11,067 pass (33 RUN_* skipped), both type-checks 0, lint 0 errors / 673 warnings, ui/content/routes/save gates OK.
 - [x] 5. PR #241 merged (cae503bc) after CI passed; the one Codex finding (a v54 save that already got the new pills would be paid again) fixed: the make-good also requires the inert trait as proof.
 - [x] 6. 2.16.0 (196) built from `main` 6faafc33 and uploaded to TestFlight on the owner's "build it" ([evidence](release/evidence/testflight-2.16.0-2026-10-18.md)).
-- [ ] 7. Owner: confirm 196 is `VALID` in App Store Connect, then verify ads, Mindset cards and the v54 -> v55 load on an iPhone.
+- [x] 7. 196 confirmed `VALID`; the iPhone checks moved to "Ship 2.16.0" item 5 above.
 - Closed without change: the old "drop the pre-save yields" follow-up. The 200 ms waits are already gone; what remains are 0 ms macrotask yields (home, work, DeathPopup, the provider), invisible to a player, so touching save ordering buys nothing.
 
 # Mindsets that shape a whole life - 17 October 2026
