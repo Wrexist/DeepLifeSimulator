@@ -52,7 +52,7 @@ import { queueSave, forceSave } from '@/utils/saveQueue';
 import { isWritableSlot } from '@/utils/slotNumber';
 import { isSaveFromFutureError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
-import { lifeSalt, makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
+import { lifeSalt, makeLifeRoll, makeWeeklyRoll, marketSalt } from '@/utils/seededRoll';
 // Diminishing returns on happiness GAINS (Program 14). Every positive happiness
 // delta in this file goes through it; decay below is untouched.
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
@@ -678,14 +678,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  volatilityModifier: (policyEffects?.volatilityModifier ?? 1) * safeEventVolatility,
  };
  const currentWeeksLived = typeof gameState.weeksLived === 'number' ? gameState.weeksLived: 0;
- // Per-life salt (lineageId:generationNumber - the lucky-bonus precedent):
- // without it every life replayed one universal price tape, so a repeat
- // player had perfect market foresight in every new life. See hashSeed in
- // lib/economy/stockMarket.ts.
+ // Market salt: the life (without it every life replayed one universal
+ // price tape, so a repeat player had perfect market foresight in every new
+ // life) plus the Time Machine rewind count (without it a rewind replayed the
+ // weeks the player had just watched). See marketSalt in utils/seededRoll.ts.
  simulateWeek(
  combinedEffects,
  currentWeeksLived,
- `${gameState.lineageId || ''}:${gameState.generationNumber || 1}`
+ marketSalt(gameState)
  );
  } catch (simError) {
  logger.error('[WEEK PROGRESSION] Stock market simulation failed:', simError);
@@ -2755,8 +2755,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // React 19 runs this updater twice (StrictMode / speculative renders), and a
  // live Math.random() made the two invocations disagree - React keeps whichever
  // it commits, so the outcome was effectively random per render. Seeding also
- // makes outcomes reproducible from the save (no save-scum drift).
- rollFor: weeklyRoll,
+ // makes outcomes reproducible from the save (no save-scum drift). The keys
+ // fold in the market salt, like the stock tape: the crypto tape used to be
+ // the week alone, so every life and every Time Machine rewind replayed the
+ // same price moves.
+ rollFor: (key: string) => weeklyRoll(`${marketSalt(prevState)}|${key}`),
  });
  finalCryptos = cryptoTick.cryptos;
  finalCryptoMarket = cryptoTick.market;
