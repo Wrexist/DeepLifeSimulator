@@ -1414,13 +1414,19 @@ const migrations: Record<number, (state: any) => any> = {
    *
    * (2) Legacy Pass make-good. The PAID track's tier-25 capstone granted an
    * inert trait (nothing reads `activeTraits`, and no prestige carries it); it
-   * pays 3 Youth Pills now. A save whose current season shows that tier
-   * claimed on a premium pass gets the 3 pills once. The version step is the
-   * once: a migration runs one time per save, and a Time Machine rewind to an
-   * older snapshot carries the LIVE pill count (`PURCHASED_STATE_KEYS`), so it
-   * cannot mint twice. No shipped build ever paid the new capstone (OTA is off,
-   * app.config.js), so nobody is paid twice. A claim from an earlier season is
-   * gone from the save (claims reset each season) and cannot be made good.
+   * pays 3 Youth Pills now. A save gets the 3 pills when it shows BOTH the
+   * tier-25 claim on a premium pass AND the inert trait that claim delivered.
+   * The claim alone is not proof: a v54 save written after the reward changed
+   * (a dev build of `main`) holds the same claim with the pills already paid.
+   * The trait is: only that old reward ever wrote `strong_constitution` (or
+   * `legacy_trait_s`, its earlier id) into `activeTraits` - scenario traits
+   * use other ids and heir traits never reach the field. The version step is
+   * the once: a migration runs one time per save, and a Time Machine rewind to
+   * an older snapshot carries the LIVE pill count (`PURCHASED_STATE_KEYS`).
+   * Not reachable, by design: a claim from an earlier season (claims reset
+   * each season) or a claim followed by a new life in the same season (the new
+   * life starts with empty `activeTraits`). Neither leaves proof in the save,
+   * and paying without proof is what (2) must never do.
    */
   55: (state) => {
     const pass = state.legacyPass;
@@ -1428,7 +1434,9 @@ const migrations: Record<number, (state: any) => any> = {
       pass &&
       pass.premiumOwned === true &&
       Array.isArray(pass.claimedPremiumTiers) &&
-      pass.claimedPremiumTiers.includes(LEGACY_PASS_CAPSTONE_TIER_V55)
+      pass.claimedPremiumTiers.includes(LEGACY_PASS_CAPSTONE_TIER_V55) &&
+      Array.isArray(state.activeTraits) &&
+      state.activeTraits.some((id: unknown) => typeof id === 'string' && LEGACY_PASS_INERT_CAPSTONE_TRAITS.includes(id))
     ) {
       const pills = typeof state.youthPills === 'number' && isFinite(state.youthPills) && state.youthPills > 0 ? state.youthPills : 0;
       state.youthPills = pills + LEGACY_PASS_CAPSTONE_MAKE_GOOD_PILLS;
@@ -1446,6 +1454,8 @@ const migrations: Record<number, (state: any) => any> = {
  */
 const LEGACY_PASS_CAPSTONE_TIER_V55 = 25;
 const LEGACY_PASS_CAPSTONE_MAKE_GOOD_PILLS = 3;
+/** The trait ids the inert capstone wrote into `activeTraits` (R3-P9, then 2.15.x). */
+const LEGACY_PASS_INERT_CAPSTONE_TRAITS: readonly string[] = ['strong_constitution', 'legacy_trait_s'];
 
 /** The template id every pre-Program-8 save carries. */
 const LEGACY_LINEAGE_LITERAL = 'initial-lineage';

@@ -86,7 +86,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Prestiging pays about ten times more points, so the shop is finally within reach.',
           'Legacy Shop upgrades now really carry over to your heir.',
           'Achievement Hunter pays 25 points for every achievement you claim in a life.',
-          'Claimed the Legacy Pass top reward? You get the 3 Youth Pills it pays now.',
+          'Claimed the old Legacy Pass top reward in this life? You get the 3 Youth Pills it pays now.',
         ],
       },
       {

@@ -5,7 +5,9 @@
  *     and a car bought before v55 keeps the take-back-the-whole-bonus rule.
  * (2) Legacy Pass make-good: the PAID track's tier-25 capstone granted an inert
  *     trait; it pays 3 Youth Pills now. A save that shows the capstone claimed
- *     on a premium pass gets the 3 pills, once.
+ *     on a premium pass AND the inert trait that claim delivered gets the 3
+ *     pills, once. The claim alone is not proof (Codex review, PR #241): a v54
+ *     save written after the reward changed has the claim with pills paid.
  */
 import { runMigrations } from '@/utils/saveMigrations';
 import { repairGameState } from '@/utils/saveValidation';
@@ -40,14 +42,16 @@ describe('v55 Legacy Pass make-good', () => {
     expect(reward).toEqual(expect.objectContaining({ kind: 'youthPills', amount: 3 }));
   });
 
-  it('a premium save that claimed the capstone gets 3 Youth Pills', () => {
-    const out = migrate(v54Save({ youthPills: 2, legacyPass: pass([1, 2, 3, 24, 25]) }));
+  const OLD = { activeTraits: ['strong_constitution'] };
+
+  it('a premium save that claimed the old inert capstone gets 3 Youth Pills', () => {
+    const out = migrate(v54Save({ ...OLD, youthPills: 2, legacyPass: pass([1, 2, 3, 24, 25]) }));
     expect(out.version).toBe(STATE_VERSION);
     expect(out.youthPills).toBe(5);
   });
 
   it('runs once: a save already at v55 is not paid again', () => {
-    const once = migrate(v54Save({ youthPills: 0, legacyPass: pass([25]) }));
+    const once = migrate(v54Save({ ...OLD, youthPills: 0, legacyPass: pass([25]) }));
     expect(once.youthPills).toBe(3);
     expect(migrate(once).youthPills).toBe(3);
   });
@@ -58,12 +62,29 @@ describe('v55 Legacy Pass make-good', () => {
     ['no pass at all', undefined],
     ['malformed claims', { ...pass([]), claimedPremiumTiers: 'oops' }],
   ])('pays nothing when %s', (_label, legacyPass) => {
-    const out = migrate(v54Save({ youthPills: 4, legacyPass }));
+    const out = migrate(v54Save({ ...OLD, youthPills: 4, legacyPass }));
     expect(out.youthPills).toBe(4);
   });
 
+  it('the earlier inert capstone id (legacy_trait_s) is proof too', () => {
+    const out = migrate(v54Save({ activeTraits: ['fit', 'legacy_trait_s'], youthPills: 0, legacyPass: pass([25]) }));
+    expect(out.youthPills).toBe(3);
+  });
+
+  it('a claim already paid in pills (no inert trait) is not paid again', () => {
+    // A v54 save from a build with the new reward: tier 25 claimed, the 3
+    // pills already in the count, no trait - Codex's case.
+    const out = migrate(v54Save({ activeTraits: [], youthPills: 3, legacyPass: pass([25]) }));
+    expect(out.youthPills).toBe(3);
+  });
+
+  it('scenario traits are not proof', () => {
+    const out = migrate(v54Save({ activeTraits: ['fit', 'smart', 'criminal'], youthPills: 0, legacyPass: pass([25]) }));
+    expect(out.youthPills).toBe(0);
+  });
+
   it('a corrupt pill count is treated as 0, never NaN', () => {
-    const out = migrate(v54Save({ youthPills: Number.NaN, legacyPass: pass([25]) }));
+    const out = migrate(v54Save({ ...OLD, youthPills: Number.NaN, legacyPass: pass([25]) }));
     expect(out.youthPills).toBe(3);
   });
 });

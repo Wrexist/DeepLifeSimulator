@@ -976,12 +976,16 @@ including the crash screen.
   full-bonus rule, and a guessed value is either farmable or today's rule
   anyway. The make-good: the paid track's tier-25 capstone granted an inert
   trait and pays 3 Youth Pills now, so the migration pays those pills to a save
-  whose current season shows that tier claimed on a premium pass. The version
-  step is the "once" (a migration runs one time per save, and a rewind carries
-  the live pill count through `PURCHASED_STATE_KEYS`), and no shipped build
-  ever paid the new capstone (OTA is off), so nobody is paid twice. The tier
-  and pill count are written into the migration, not imported, so it means the
-  same thing if the pass is re-laid out.
+  that shows BOTH the tier-25 claim on a premium pass AND the inert trait the
+  claim delivered (`strong_constitution` / `legacy_trait_s` in `activeTraits`,
+  which nothing else ever writes). The claim alone is not proof: a v54 save
+  written after the reward changed holds the same claim with the pills already
+  paid (Codex review, PR #241). The version step is the "once" (a migration
+  runs one time per save, and a rewind carries the live pill count through
+  `PURCHASED_STATE_KEYS`). A claim followed by a new life in the same season
+  leaves no proof and is deliberately not paid. The tier, pill count and trait
+  ids are written into the migration, not imported, so it means the same thing
+  if the pass is re-laid out.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
