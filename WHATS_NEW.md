@@ -1,5 +1,37 @@
 # What's New - DeepLife Simulator
 
+## v2.16.1 - A fair game for everyone
+
+**Compatibility:** every save loads; save format v56 (three carve-outs: a
+company's founding week, the company ids this life has floated, and a car
+policy's starting condition; absent on older saves, which keep today's rules).
+
+- **Exploit sweep (2026-10-19):** six hunters proved 18 exploits and one loss
+  with passing proof tests, plus the Time Machine market foresight; every one is
+  closed and its proof flipped into a regression test in `__tests__/exploits/`.
+  Report: `tasks/exploit-sweep-2026-10-19.md`.
+- **Rewards pay once:** Restart Game keeps the achievement, Live Ops and
+  daily-login claim records with the gems; contact favours have a 12-week
+  cooldown; a rewind walks a new stock and crypto tape (and the crypto tape
+  is per life now).
+- **Business:** IPO after 26 weeks owned, once per company per life; public
+  companies pay and sell for the share kept; family businesses go with the
+  sale; a cancelled campaign returns its brand lift.
+- **Money:** borrowed cash no longer counts toward the ad cash rewards;
+  insurance covers only damage after purchase; a $0-value property has a $0
+  rent ceiling.
+- **Round 2 (areas round 1 never reached):** one dark-web job start per week;
+  one apology per Pulse scandal, and it costs its energy; campaign pushes from
+  $5,000 with a floored gain; election and lawsuit rolls seeded on life + week;
+  a sold heirloom leaves the Dynasty Vault and only owned ones cross a life; a
+  rewind takes back a re-claimable ambition's gems; Restart Game keeps the
+  Legacy Pass; a sold home's rooms, decor and tier go with it.
+- **Ads:** the interstitial fallback now follows the year-end break pacing
+  (payers, warm-up, floor, session cap). Remove Ads copy lists only what it
+  does.
+
+---
+
 ## v2.16.0 - Fairer choices, bigger rewards (store version 1.7.0)
 
 **Compatibility:** every save loads; save format v55 (v54: by-value career

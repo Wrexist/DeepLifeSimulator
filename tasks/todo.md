@@ -1,17 +1,15 @@
 # Exploit sweep + ad system - 19 October 2026
 
-Owner: "look for exploits, and fix them all; improve the ad system and maximize ads like Block Blast". Branch `claude/exploits-ads-2026-10-18`. Four hunters proved each exploit with a passing test in `__tests__/exploits/*.proof.test.ts`; each fix flips its test into a regression guard.
+Owner: "look for exploits, and fix them all; improve the ad system and maximize ads like Block Blast". Branch `claude/exploits-ads-2026-10-18`, ships as 2.16.1 (v56). [Report](exploit-sweep-2026-10-19.md).
 
-- [x] F0. Time Machine market foresight: a rewind replayed the stock tape, and the crypto tape was week-only (shared by every life). `marketSalt` = life + rewind count for both (35a12d27).
-- [ ] C1-C3 (P0/P0/P2). Restart Game / Start New Life keeps gems but drops the claim ledgers: achievements re-mint gems, Live Ops events pay again, the daily login re-opens. Carry `claimedAchievementIds`, `liveOps` (ledger + budget) and the login day stamps in `utils/newLifeCarryOver.ts`.
-- [ ] S1-S2 (P0/P1). Contact favours re-arm every week: a dark-web vendor's discount pays $20k cash weekly, a lobbyist +6 reputation weekly. Per-contact cooldown from the last redemption.
-- [ ] W1-W2 (P0/P1). Build a company, IPO at 40% (+$1.7M), sell, found again, same week. IPO needs time owned; a public company earns only the owner's share; a sale pays only the owner's share.
-- [ ] M1 (P1). Borrow and repay in the same week to inflate the net-worth-scaled ad bonuses (bank bonus, orb).
-- [ ] W3, W4, M2, M3 (P2). Family business survives a sale; campaign brand gain kept on cancel; insurance bought, claimed and refunded in one week; luxury-minted island ignores the rent cap.
-- [ ] Ads A1. The plain interstitial fallback skips the year-end pacing (payer, warm-up, session cap): route it through the same guard.
-- [ ] Ads A2. Store copy honesty: the CLAIMS line ignores the banner; Remove Ads promises "faster loading / better performance".
-- [ ] Ads A3. Research report: no public Block Blast formula; their documented model + our gaps and the owner steps (interstitial units, mediation, SKAdNetwork ids, remote tuning).
-- [ ] Verify: full suite, type-checks, lint, audits; PR; CI.
+- [x] F0. Time Machine market foresight: `marketSalt` (life + rewind count) for stocks and crypto.
+- [x] Round 1 (4 hunters): C1-C3 Restart Game claim ledgers; S1-S2 favour cooldown; W1-W4 IPO loop, owner share, family business, campaign cancel; M1-M3 borrowed cash, insurance, $0 rent. Each proved, fixed, flipped into `__tests__/exploits/`.
+- [x] Round 2 (2 hunters): DW1 dark-web weekly cap; PU1 one apology; PO1 campaign minimum; seeded election/lawsuit rolls; R2-F1 vault; R2-A1 ambition rewind; R2-P1 Legacy Pass on restart; R2-R1 property improvements.
+- [x] Ads A1: the interstitial fallback obeys the year-end pacing. A2: Remove Ads and the ad claim say only what is true.
+- [x] Ads A3: Block Blast research (no public formula; documented model) and the owner steps, in the report.
+- [x] Docs: CLAUDE.md §7 v56, DEV/WORKFLOW/AGENTS, changelog + WHATS_NEW 2.16.1, lessons.
+- [ ] Verify: full suite, type-checks, lint, gates; PR; CI.
+- [ ] Owner: interstitial ad units (iOS + Android), mediation bidders, SKAdNetwork ids - see the report.
 
 # Ship 2.16.0 - 18 October 2026
 
