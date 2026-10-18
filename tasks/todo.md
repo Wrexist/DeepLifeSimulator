@@ -8,7 +8,9 @@ Branch `claude/owner-calls-round3-2026-10-18`. Owner: "continue work on the open
   - `Vehicle.reputationGranted` - the reputation a purchase actually granted, so a sale takes back exactly that (a car bought near 100 lost the difference). Carve-out: absent -> the full bonus (today's rule).
   - Legacy Pass make-good: a save that claimed the premium tier-25 capstone while it was an inert trait gets the 3 Youth Pills it pays now, once (the migration runs once per save; rewind carries the live pill count).
 - [x] 4. Tests (jail furlough 9, Achievement Hunter 4, vehicle exact refund 9 + the round-trip sweep now exact from every start, v55 migration/carve-out/repair 15), docs (CLAUDE.md §7 v55, DEV/WORKFLOW/AGENTS), changelog + WHATS_NEW. `youthPills` left the audit's grandfather list (the migration writes it) and gained a repair mirror. Full suite 932 suites / 11,067 pass (33 RUN_* skipped), both type-checks 0, lint 0 errors / 673 warnings, ui/content/routes/save gates OK.
-- [ ] 5. PR + CI.
+- [x] 5. PR #241 merged (cae503bc) after CI passed; the one Codex finding (a v54 save that already got the new pills would be paid again) fixed: the make-good also requires the inert trait as proof.
+- [x] 6. 2.16.0 (196) built from `main` 6faafc33 and uploaded to TestFlight on the owner's "build it" ([evidence](release/evidence/testflight-2.16.0-2026-10-18.md)).
+- [ ] 7. Owner: confirm 196 is `VALID` in App Store Connect, then verify ads, Mindset cards and the v54 -> v55 load on an iPhone.
 - Closed without change: the old "drop the pre-save yields" follow-up. The 200 ms waits are already gone; what remains are 0 ms macrotask yields (home, work, DeathPopup, the provider), invisible to a player, so touching save ordering buys nothing.
 
 # Mindsets that shape a whole life - 17 October 2026
