@@ -4,8 +4,9 @@ Owner: "do everything for me". Branch `claude/store-1.7.0` (PR #243).
 
 - [x] 1. Build 196 is `VALID` on App Store Connect (read through the asc-release plan run, no login needed).
 - [x] 2. Store 1.7.0: What's New in all 5 languages from the 2.16.0 changelog, `releaseType: MANUAL`, record created, build 196 attached, screenshots carried over, submitted: `WAITING_FOR_REVIEW`. [Evidence](release/evidence/store-1.7.0-2026-10-18.md).
-- [ ] 3. Android 2.16.0 to the Play internal track (run 39149501425).
-- [ ] 4. Web smoke of the Mindset cards and the Achievement Hunter line (a stand-in, not the iPhone check).
+- [x] 3. Android 2.16.0 (versionCode 1792345007) built and accepted on the Play internal track (run 39149501425, EAS submission 6b3ba3f2).
+- [x] 4. Web smoke (headless Chromium, prod export): all 11 Mindset cards render green upside / amber downside lines; the Prestige breakdown shows "Achievement Hunter +625" (25 x 25) and sums to 11,430; no error screen. Not iOS rendering.
+- [ ] 4b. Owner: "submit everything" -> Play production. New `scripts/play-release.mjs` + `play-release.yml`: promote the internal build to production as a 20% staged rollout (the documented 20% -> 50% -> 100% plan) with release notes from `PLAY.releaseNotes`. Plan run first (Google validates, nothing commits), then promote.
 - [ ] 5. Owner: iPhone checks on TestFlight 196 (ads, Mindset cards, Achievement Hunter, a 2.15.x save), then press Release on 1.7.0 once Apple approves.
 - [ ] 6. Owner: Play holiday event. The draft is saved; between Oct 19 and Dec 4 open it, pick the AI declaration, press Submit ([guide](../marketing/play-store/promo-events/2026-12-holidays-SV.md)). The browser here is not signed in to Play Console, so it cannot be done from this machine.
 

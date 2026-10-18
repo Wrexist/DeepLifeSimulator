@@ -28,6 +28,7 @@ const LIMITS = {
   playLong: 4000,
   iapName: 30,
   appleWhatsNew: 4000,
+  playReleaseNotes: 500,
 };
 
 /**
@@ -60,7 +61,7 @@ const len = (s) => [...s].length;
 
 function checkLimit(label, value, limit) {
   const n = len(value);
-  if (n > limit) fail(`${label} is ${n}/${limit} — OVER by ${n - limit}. Apple truncates silently.`);
+  if (n > limit) fail(`${label} is ${n}/${limit} — OVER by ${n - limit}. ${label.startsWith('Play') ? 'Google rejects the edit.' : 'Apple truncates silently.'}`);
   else note(`${label}: ${n}/${limit}`);
   return n;
 }
@@ -177,6 +178,12 @@ const missingOnPlay = [...nameTerms, ...subTerms, ...kwTerms]
   .filter((t) => !playText.includes(t.slice(0, Math.max(4, t.length - 2))));
 if (missingOnPlay.length) {
   warn(`Play long description never mentions: ${[...new Set(missingOnPlay)].join(', ')}. Unlike Apple, Play indexes this field.`);
+}
+
+// Play's "What's new" is capped per language, and an over-long note fails the
+// whole promotion edit at Google rather than being truncated.
+for (const [language, text] of Object.entries(PLAY.releaseNotes ?? {})) {
+  checkLimit(`Play release notes ${language}`, text, LIMITS.playReleaseNotes);
 }
 
 // ── Claims that are not true of this build ─────────────────────────────────
