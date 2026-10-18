@@ -381,11 +381,13 @@ export const PRODUCT_CONFIGS = {
     price: '$2.99',
     popular: false,
     bestValue: false,
+    // Every line is something the code does (lib/ads/rewardedAd.ts grants an
+    // ad reward directly when ads are removed). "Faster game loading" and
+    // "Better performance" had nothing behind them - a guideline 2.3.1 risk.
     features: [
       'No more banner ads',
-      'No more interstitial ads',
-      'Faster game loading',
-      'Better performance',
+      'No more full-screen ads',
+      'Ad rewards without watching an ad',
     ],
   },
   

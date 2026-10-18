@@ -576,7 +576,7 @@ A life runs for decades and every week is a decision you make. Most people start
  */
 export const CLAIMS = [
   { claim: 'Plays offline', evidence: 'Saves are local AsyncStorage; the week loop needs no network. Ads and IAP need one, gameplay does not.' },
-  { claim: 'Ads only at year-end breaks, none in the first two in-game years, removable', evidence: 'lib/ads/interstitial.ts — year-boundary gate, GRACE_WEEKS = 2 years, 3-minute floor, and the ads-removed IAP gate.' },
+  { claim: 'Full-screen ads only at year-end breaks, none in the first two in-game years, removable', evidence: 'lib/ads/yearEndBreak.ts decideYearEndBreak paces both the rewarded break and the interstitial fallback (lib/ads/interstitial.ts): year boundary only, 2-year grace, session warm-up, 3-minute floor, per-session cap, never for payers or with ads removed. A home-screen banner shows after the first in-game year (components/BannerAd.tsx), also removed by Remove Ads.' },
   { claim: 'No real-time energy bar', evidence: 'Energy is a stat restored through the week loop, not a wall-clock refill timer.' },
   { claim: '20+ career ladders', evidence: 'lib/careers/careerData.ts — 30 career ids.' },
   { claim: 'Children inherit your features', evidence: 'lib/avatar/inherit.ts, wired through CharacterAvatar on every screen that renders a child.' },
