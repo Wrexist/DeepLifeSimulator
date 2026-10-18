@@ -1444,6 +1444,22 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 55;
     return state;
   },
+  /**
+   * v56 - two fields that close the IPO loop (exploit sweep, 2026-10-19):
+   * `Company.foundedWeek` (an IPO needs IPO_MIN_WEEKS_OWNED of ownership) and
+   * the per-life `ipoListedCompanyIds` (a company id floats once a life).
+   * Found, staff, float 40% for ~$1.7M, sell, found again paid the float every
+   * time, in one week. Both CARVE-OUTS: no backfill, no repair mirror.
+   * `foundedWeek` absent = a company from before v56, which counts as old
+   * enough; stamping today's week would block every existing company's IPO
+   * for half a year. `ipoListedCompanyIds` absent = nothing floated yet, the
+   * truth for every earlier save that cannot be reconstructed: a company sold
+   * after floating left no record, and guessing one would refuse a real IPO.
+   */
+  56: (state) => {
+    state.version = 56;
+    return state;
+  },
 };
 
 /**

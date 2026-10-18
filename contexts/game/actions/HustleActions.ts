@@ -37,6 +37,7 @@ import {
   SCANDAL_HEADLINES,
   scandalRevenueDrag,
   computeIPOSharePrice,
+  ipoOwnershipBlocker,
   createDefaultCompanyOverlay,
   estimateScandalRevenueLoss,
 } from '@/lib/business/hustleLogic';
@@ -530,10 +531,19 @@ export const cancelCampaign = (
 ): void => {
   setGameState((prev) => {
     const weeksLived = prev.weeksLived ?? 0;
-    return withOverlay(prev, companyId, weeksLived, (o) => ({
-      ...o,
-      activeCampaigns: o.activeCampaigns.filter((c) => c.id !== campaignId),
-    }));
+    return withOverlay(prev, companyId, weeksLived, (o) => {
+      const campaign = o.activeCampaigns.find((c) => c.id === campaignId);
+      if (!campaign) return o;
+      // The brand lift is paid at launch for the whole run, so a campaign
+      // cancelled before it finishes gives it back (exploit sweep, 2026-10-19):
+      // launch -> cancel a $100 guerrilla campaign ten times took brand from
+      // 50 to 100 for $1,000, which also lifts income and the IPO price.
+      const unfinished = campaign.active && weeksLived - campaign.startedWeek < campaign.durationWeeks;
+      const brand = unfinished
+        ? { ...o.brand, score: Math.max(0, o.brand.score - brandLiftForCampaign(campaign.kind)), lastUpdatedWeek: weeksLived }
+        : o.brand;
+      return { ...o, brand, activeCampaigns: o.activeCampaigns.filter((c) => c.id !== campaignId) };
+    });
   });
 };
 
@@ -732,6 +742,10 @@ export const quoteIPO = (
   if (overlay.activeScandal) {
     return { success: false, message: 'Cannot IPO during an active scandal', cashRaised: 0, ownershipKept: 100, sharePrice: 0 };
   }
+  const ownershipBlock = ipoOwnershipBlocker(company, gameState.weeksLived ?? 0, gameState.ipoListedCompanyIds);
+  if (ownershipBlock) {
+    return { success: false, message: ownershipBlock, cashRaised: 0, ownershipKept: 100, sharePrice: 0 };
+  }
 
   const sharesK = 100;
   const sharePrice = computeIPOSharePrice(company, overlay, sharesK);
@@ -784,7 +798,10 @@ export const launchIPO = (
     // updateMoney/updateStats → a double-tap double-credited the float proceeds).
     const credit = applyMoneyDelta(next, cashRaised, `IPO float (${floatPercent}%) of ${company.name}`);
     if (!credit) return prev;
-    return withReputationDelta({ ...next, ...credit }, 8);
+    // Recorded in the same updater as the payout: selling and refounding the
+    // company reuses its id, and this is what refuses a second float.
+    const ipoListedCompanyIds = Array.from(new Set([...(prev.ipoListedCompanyIds ?? []), companyId]));
+    return withReputationDelta({ ...next, ...credit, ipoListedCompanyIds }, 8);
   });
 
   // Preflight eligibility is not a commit receipt; the UI observes public status.

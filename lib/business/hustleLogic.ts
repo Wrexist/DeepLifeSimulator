@@ -558,6 +558,38 @@ export function recomputeMarketShare(overlay: HustleCompanyOverlay): number {
  * Compute the per-share price at IPO. Valuation = 8× annual revenue × brand
  * multiplier × scandal penalty, divided by shares outstanding.
  */
+/**
+ * Weeks a company must be owned before it can go public (exploit sweep,
+ * 2026-10-19). The float is priced at 8x annual revenue and revenue jumps the
+ * moment staff and upgrades are bought, so a company could be founded, staffed,
+ * floated for ~$1.7M, sold and founded again inside one week.
+ */
+export const IPO_MIN_WEEKS_OWNED = 26;
+
+/**
+ * Why `company` cannot go public yet, or null. A company founded before v56
+ * carries no `foundedWeek` and counts as old enough; so does one whose founding
+ * week is ahead of the counter (inherited from a life that lived longer).
+ */
+export function ipoOwnershipBlocker(
+  company: Pick<Company, 'id' | 'foundedWeek'>,
+  weeksLived: number,
+  listedIds: readonly string[] | undefined,
+): string | null {
+  if (Array.isArray(listedIds) && listedIds.includes(company.id)) {
+    return 'This company has already been taken public in this life';
+  }
+  const founded = company.foundedWeek;
+  if (typeof founded === 'number' && isFinite(founded) && isFinite(weeksLived) && founded <= weeksLived) {
+    const owned = weeksLived - founded;
+    if (owned < IPO_MIN_WEEKS_OWNED) {
+      const wait = IPO_MIN_WEEKS_OWNED - owned;
+      return `Own the company ${wait} more week${wait === 1 ? '' : 's'} before an IPO`;
+    }
+  }
+  return null;
+}
+
 export function computeIPOSharePrice(
   company: Company,
   overlay: HustleCompanyOverlay,

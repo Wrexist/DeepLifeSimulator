@@ -196,10 +196,12 @@ export const createCompany = (
       },
     };
 
+    // The founding week, from `prev` (v56): an IPO needs IPO_MIN_WEEKS_OWNED of it.
+    const founded: Company = { ...newCompany, foundedWeek: weeksLived };
     return {
       ...prev,
-      companies: [...(prev.companies || []), newCompany],
-      company: prev.company ?? newCompany,
+      companies: [...(prev.companies || []), founded],
+      company: prev.company ?? founded,
       hustleApp: nextHustle,
       stats: {
         ...prev.stats,

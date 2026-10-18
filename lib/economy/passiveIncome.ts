@@ -945,8 +945,25 @@ export function companyWeeklyIncomeFor(
   // business still tops out at the old $200k/week.
   weeklyIncome = Math.min(weeklyIncome, companyIncomeCap(company));
 
+  // A public company pays its owner only the owner's share (exploit sweep,
+  // 2026-10-19). `ipo.ownershipPercent` was written at IPO and read by nothing,
+  // so floating 40% paid the float in cash and cost no income at all.
+  weeklyIncome = Math.round(weeklyIncome * companyOwnerShare(state, company.id));
+
   // Final validation
   return isFinite(weeklyIncome) && weeklyIncome > 0 ? weeklyIncome : 0;
+}
+
+/**
+ * The fraction of a company the player still owns: 1 while private, the kept
+ * share after an IPO. Malformed values read as 1, so a corrupt overlay can
+ * never zero a company's income.
+ */
+export function companyOwnerShare(state: Pick<GameState, 'hustleApp'>, companyId: string): number {
+  const ipo = state.hustleApp?.companies?.[companyId]?.ipo;
+  if (!ipo || ipo.status !== 'public') return 1;
+  const pct = ipo.ownershipPercent;
+  return typeof pct === 'number' && isFinite(pct) && pct > 0 && pct <= 100 ? pct / 100 : 1;
 }
 
 export interface CompanyIncomeSummary {

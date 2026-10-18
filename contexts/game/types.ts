@@ -1150,6 +1150,13 @@ export interface Company {
   unlockedTechnologies?: string[];
   patents?: Patent[];
   competitionHistory?: CompetitionEntry[];
+  /**
+   * `weeksLived` when this company was founded (v56). An IPO needs
+   * IPO_MIN_WEEKS_OWNED of it, so a company cannot be built, staffed and
+   * floated in one week (exploit sweep, 2026-10-19). Carve-out: absent on
+   * companies founded before v56, which count as old enough.
+   */
+  foundedWeek?: number;
 }
 
 export interface Crypto {
@@ -2817,6 +2824,14 @@ export interface GameState {
    * child again, and living in the save is what gives that for free.
    */
   shownNotificationIds?: string[];
+  /**
+   * Company ids this LIFE has already taken public (v56). Selling a public
+   * company and founding the same type again reuses the id, so this is what
+   * stops found -> IPO -> sell -> found from paying the float again. Per life:
+   * prestige and the heir path rebuild from `initialGameState`, which has no
+   * entry. Carve-out: absent = nothing listed yet.
+   */
+  ipoListedCompanyIds?: string[];
   liveOps?: {
     /** Claimed event instance ids (`eventId@startsAt`). The idempotency ledger. */
     claimedInstanceIds?: string[];
