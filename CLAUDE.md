@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 54`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 55`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -540,7 +540,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 54`** — single source of truth in
+- **Canonical `STATE_VERSION = 55`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -966,6 +966,26 @@ including the crash screen.
   `repairGameState` mirror (mint when missing, never the literal), and it left
   the audit's `LEGACY_PRE_MIGRATION_FIELDS`. Rewind carries the live lineage, so
   a pre-v54 snapshot cannot move a life onto a different seeded stream.
+- **v55 adds `reputationGranted` on `Vehicle`, and makes good the Legacy Pass
+  capstone** - one bump, two changes. `reputationGranted` is what a car's
+  purchase ACTUALLY granted (the bonus clipped at 100), so a sale takes back
+  exactly that (`vehicleReputationTakeBack`); before it the sale had to take
+  back the whole bonus, the only unfarmable rule without the record, which cost
+  a car bought near 100 the difference. A field on an ELEMENT, so a CARVE-OUT:
+  no backfill and no `repairGameState` mirror - absence resolves to the old
+  full-bonus rule, and a guessed value is either farmable or today's rule
+  anyway. The make-good: the paid track's tier-25 capstone granted an inert
+  trait and pays 3 Youth Pills now, so the migration pays those pills to a save
+  that shows BOTH the tier-25 claim on a premium pass AND the inert trait the
+  claim delivered (`strong_constitution` / `legacy_trait_s` in `activeTraits`,
+  which nothing else ever writes). The claim alone is not proof: a v54 save
+  written after the reward changed holds the same claim with the pills already
+  paid (Codex review, PR #241). The version step is the "once" (a migration
+  runs one time per save, and a rewind carries the live pill count through
+  `PURCHASED_STATE_KEYS`). A claim followed by a new life in the same season
+  leaves no proof and is deliberately not paid. The tier, pill count and trait
+  ids are written into the migration, not imported, so it means the same thing
+  if the pass is re-laid out.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
@@ -1016,7 +1036,7 @@ including the crash screen.
 - **The inverse rule is now machine-checked.** `scripts/audit/audit-save.cjs`
   V11 walks `initialGameState`'s top-level fields and fails on any CONCRETE
   default with neither a migration nor a `repairGameState` mirror — the drift
-  Hard Rule #3 describes, previously caught only by eye. The 56 legacy fields
+  Hard Rule #3 describes, previously caught only by eye. The 55 legacy fields
   that predate this discipline are grandfathered in `LEGACY_PRE_MIGRATION_FIELDS`
   (they are not live bugs: the primary load path spreads `initialGameState`
   first). That set is a ratchet like the coverage floors — it may only shrink.

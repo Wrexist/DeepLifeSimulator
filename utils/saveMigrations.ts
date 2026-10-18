@@ -1400,7 +1400,62 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 54;
     return state;
   },
+  /**
+   * v55 - one bump, two changes.
+   *
+   * (1) `Vehicle.reputationGranted` - the reputation a purchase actually
+   * granted (the bonus clipped at 100), so a sale takes back exactly that. A
+   * CARVE-OUT: no backfill and no `repairGameState` mirror. A vehicle bought
+   * before v55 has no record of what its purchase granted and cannot grow one,
+   * and absence already resolves - `vehicleReputationTakeBack` falls back to
+   * the whole bonus, which is the rule those cars were sold under. Writing a
+   * guess would be wrong in one direction or the other: too low lets a
+   * buy-then-sell net reputation, too high is today's rule anyway.
+   *
+   * (2) Legacy Pass make-good. The PAID track's tier-25 capstone granted an
+   * inert trait (nothing reads `activeTraits`, and no prestige carries it); it
+   * pays 3 Youth Pills now. A save gets the 3 pills when it shows BOTH the
+   * tier-25 claim on a premium pass AND the inert trait that claim delivered.
+   * The claim alone is not proof: a v54 save written after the reward changed
+   * (a dev build of `main`) holds the same claim with the pills already paid.
+   * The trait is: only that old reward ever wrote `strong_constitution` (or
+   * `legacy_trait_s`, its earlier id) into `activeTraits` - scenario traits
+   * use other ids and heir traits never reach the field. The version step is
+   * the once: a migration runs one time per save, and a Time Machine rewind to
+   * an older snapshot carries the LIVE pill count (`PURCHASED_STATE_KEYS`).
+   * Not reachable, by design: a claim from an earlier season (claims reset
+   * each season) or a claim followed by a new life in the same season (the new
+   * life starts with empty `activeTraits`). Neither leaves proof in the save,
+   * and paying without proof is what (2) must never do.
+   */
+  55: (state) => {
+    const pass = state.legacyPass;
+    if (
+      pass &&
+      pass.premiumOwned === true &&
+      Array.isArray(pass.claimedPremiumTiers) &&
+      pass.claimedPremiumTiers.includes(LEGACY_PASS_CAPSTONE_TIER_V55) &&
+      Array.isArray(state.activeTraits) &&
+      state.activeTraits.some((id: unknown) => typeof id === 'string' && LEGACY_PASS_INERT_CAPSTONE_TRAITS.includes(id))
+    ) {
+      const pills = typeof state.youthPills === 'number' && isFinite(state.youthPills) && state.youthPills > 0 ? state.youthPills : 0;
+      state.youthPills = pills + LEGACY_PASS_CAPSTONE_MAKE_GOOD_PILLS;
+    }
+    state.version = 55;
+    return state;
+  },
 };
+
+/**
+ * The Legacy Pass premium capstone tier and its pill count AS OF v55, written
+ * out rather than imported so this migration means the same thing if the pass
+ * is ever re-laid out (`MAX_TIER` and the tier-25 reward in
+ * lib/legacyPass/legacyPass.ts).
+ */
+const LEGACY_PASS_CAPSTONE_TIER_V55 = 25;
+const LEGACY_PASS_CAPSTONE_MAKE_GOOD_PILLS = 3;
+/** The trait ids the inert capstone wrote into `activeTraits` (R3-P9, then 2.15.x). */
+const LEGACY_PASS_INERT_CAPSTONE_TRAITS: readonly string[] = ['strong_constitution', 'legacy_trait_s'];
 
 /** The template id every pre-Program-8 save carries. */
 const LEGACY_LINEAGE_LITERAL = 'initial-lineage';

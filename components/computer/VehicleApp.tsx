@@ -54,7 +54,7 @@ import {
   cancelInsurance,
   purchaseVehicleWithAutoLoan,
   vehiclePurchaseReputationGain,
-  vehicleReputationBonus,
+  vehicleReputationTakeBack,
 } from '@/contexts/game/actions/VehicleActions';
 import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -245,9 +245,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     queueSave();
   };
   const handleSell = (v: Vehicle) => {
-    // Selling takes back the whole reputation bonus the car carries (floored at
-    // 0) - the same amount buying it granted - so say so before the tap.
-    const repBack = vehicleReputationBonus(v);
+    // Selling takes back what buying it granted (floored at 0) - the same
+    // function the sale reads - so say so before the tap.
+    const repBack = vehicleReputationTakeBack(v);
     gameAlert(
       'Sell vehicle?',
       `${v.name} - sells for about ${formatMoney(calculateVehicleSellPrice(v))} based on age + condition.` +

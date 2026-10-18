@@ -316,6 +316,12 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                           <Text style={styles.breakdownValue}>+{pointsBreakdown.achievementBonus.toLocaleString('en-US')}</Text>
                         </View>
                       )}
+                      {pointsBreakdown.achievementHunterBonus > 0 && (
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Achievement Hunter</Text>
+                          <Text style={styles.breakdownValue}>+{pointsBreakdown.achievementHunterBonus.toLocaleString('en-US')}</Text>
+                        </View>
+                      )}
                       {pointsBreakdown.generationBonus > 0 && (
                         <View style={styles.breakdownRow}>
                           <Text style={styles.breakdownLabel}>Generations</Text>

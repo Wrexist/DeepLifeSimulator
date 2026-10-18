@@ -105,7 +105,7 @@ const LEGACY_PRE_MIGRATION_FIELDS = new Set([
   'showCureSuccessModal', 'showDeathPopup', 'showSicknessModal', 'showWeddingPopup',
   'showWelcomePopup', 'showZeroStatPopup', 'socialPosts', 'streetJobsCompleted',
   'totalHappiness', 'unlockedLifeSkills', 'updatedAt', 'vaccinations', 'vehicles',
-  'weeklyJailActivities', 'weeklyStreetJobs', 'weeklyStudySessions', 'youthPills',
+  'weeklyJailActivities', 'weeklyStreetJobs', 'weeklyStudySessions',
 ]);
 
 /**

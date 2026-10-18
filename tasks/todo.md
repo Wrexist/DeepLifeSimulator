@@ -1,3 +1,16 @@
+# Open owner calls, round 3 - 18 October 2026
+
+Branch `claude/owner-calls-round3-2026-10-18`. Owner: "continue work on the open [items] and todos". The open calls from PR #239, each decided here with the reasoning stated:
+
+- [x] 1. Jailed company owners: the tick withholds ALL company income while jailed (no managed mode), yet still paid staff. A business that earns nothing because the owner is away is a closed business, so payroll (general + named hires) is furloughed for the same weeks. Not a farm: jail costs the whole week's company income, which exceeds payroll at every headcount the payroll ratchet allows.
+- [x] 2. Achievement Hunter (4,000 / 10,000 pts): +20% of 10 pts per NEW peak achievement is worth at most 320 pts over every life. Now +25 prestige points per level for every achievement claimed THIS life (re-earning in a new life is the hunt the player bought). Paid on top of the anti-farm base, which is unchanged.
+- [x] 3. STATE_VERSION 55 (one bump, two changes):
+  - `Vehicle.reputationGranted` - the reputation a purchase actually granted, so a sale takes back exactly that (a car bought near 100 lost the difference). Carve-out: absent -> the full bonus (today's rule).
+  - Legacy Pass make-good: a save that claimed the premium tier-25 capstone while it was an inert trait gets the 3 Youth Pills it pays now, once (the migration runs once per save; rewind carries the live pill count).
+- [x] 4. Tests (jail furlough 9, Achievement Hunter 4, vehicle exact refund 9 + the round-trip sweep now exact from every start, v55 migration/carve-out/repair 15), docs (CLAUDE.md §7 v55, DEV/WORKFLOW/AGENTS), changelog + WHATS_NEW. `youthPills` left the audit's grandfather list (the migration writes it) and gained a repair mirror. Full suite 932 suites / 11,067 pass (33 RUN_* skipped), both type-checks 0, lint 0 errors / 673 warnings, ui/content/routes/save gates OK.
+- [ ] 5. PR + CI.
+- Closed without change: the old "drop the pre-save yields" follow-up. The 200 ms waits are already gone; what remains are 0 ms macrotask yields (home, work, DeathPopup, the provider), invisible to a player, so touching save ordering buys nothing.
+
 # Mindsets that shape a whole life - 17 October 2026
 
 Branch `claude/mindset-design-2026-10-17`. Owner: "do the bigger design job, make it perfected, clean and professional". Mindsets were street-work-only after PR #239; each now keeps its ORIGINAL promise, in the system its name names. One active Mindset per life.

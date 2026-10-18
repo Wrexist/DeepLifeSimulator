@@ -2552,6 +2552,14 @@ export interface Vehicle {
   owned: boolean;
   reputationBonus: number; // Required - always present from template
   speedBonus: number; // Required - always present from template
+  /**
+   * v55: the reputation the purchase ACTUALLY granted - the bonus, clipped at
+   * the 100 ceiling - so a sale takes back exactly that. Absent on vehicles
+   * bought before v55: the sale then takes back the whole `reputationBonus`,
+   * the only rule that cannot be farmed without this record. Read through
+   * `vehicleReputationTakeBack` (contexts/game/actions/VehicleActions.ts).
+   */
+  reputationGranted?: number;
 }
 
 /**

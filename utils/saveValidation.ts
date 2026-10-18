@@ -1275,6 +1275,16 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing/invalid overdueBalance to 0');
     repaired = true;
   }
+  // v55 mirror for `youthPills`, which the v55 migration now writes (the
+  // Legacy Pass make-good). A partial save stamped at the current version skips
+  // the migration, and the make-good adds to this count, so it must be a real
+  // number. `0` is the only safe repair: inventing pills would hand out a paid
+  // item, and a count this corrupt has no truth left to recover.
+  if (typeof s.youthPills !== 'number' || !isFinite(s.youthPills) || s.youthPills < 0) {
+    s.youthPills = 0;
+    repairs.push('Set missing/invalid youthPills to 0');
+    repaired = true;
+  }
   if (!Array.isArray(s.completedChapters)) {
     s.completedChapters = [];
     repairs.push('Created missing completedChapters array');

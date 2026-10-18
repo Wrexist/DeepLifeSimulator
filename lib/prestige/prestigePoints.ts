@@ -2,7 +2,7 @@ import { GameState } from '@/contexts/game/types';
 import { BASE_PRESTIGE_THRESHOLD, PrestigeData } from './prestigeTypes';
 import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
-import { getAchievementProgressMultiplier } from './applyBonuses';
+import { getAchievementHunterPointsPerAchievement } from './applyBonuses';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { netWorth } from '@/lib/progress/achievements';
 
@@ -12,6 +12,8 @@ import { netWorth } from '@/lib/progress/achievements';
 export interface PrestigePointsBreakdown {
   basePoints: number; // From net worth
   achievementBonus: number;
+  /** Achievement Hunter: points for every achievement claimed this life. */
+  achievementHunterBonus: number;
   generationBonus: number;
   ageBonus: number;
   careerBonus: number;
@@ -103,17 +105,23 @@ export function calculatePrestigePoints(
   const completedCount = getEarnedAchievementCount(gameState);
   const alreadyCredited = prestigeData.achievementsCreditedForPoints ?? 0;
   const newlyCreditedAchievements = Math.max(0, completedCount - alreadyCredited);
-  // Achievement Hunter (achievement_progress_multiplier): +20% per level on
-  // the points achievements pay here. This is the bonus's REAL wiring as of
-  // 2026-08-23 — its original "+20% achievement progress rate" had no
-  // consumer anywhere (achievements complete on thresholds; nothing computes
-  // a progress rate), so a 4,000-point purchase was consumed for nothing.
-  // Multiplying the payout keeps the anti-farm ledger intact: the count of
-  // credited achievements is unchanged, only the points per new credit move.
-  const hunterMultiplier = getAchievementProgressMultiplier(
-    prestigeData.unlockedBonuses || [],
-  );
-  const achievementBonus = Math.round(newlyCreditedAchievements * 10 * hunterMultiplier);
+  const achievementBonus = newlyCreditedAchievements * 10;
+
+  // Achievement Hunter (achievement_progress_multiplier): a flat payment for
+  // every achievement claimed THIS life, on top of the anti-farm base above.
+  //
+  // WHY (owner call, 2026-10-18). It used to be +20%/level on the base above,
+  // which only pays for pushing the lifetime PEAK count higher, at 10 points
+  // each: the most it could ever return was 20% of 160 achievements x 10 =
+  // 320 points, across every life, for a 4,000-point purchase (and 10,000 for
+  // level 2). It could never pay for itself. Re-earning achievements in a new
+  // life is exactly the hunt this bonus sells, so it pays per claim in this
+  // life - a life that claims 40 earns 1,000 at level 1, so the price comes
+  // back in about four such lives before the prestige multiplier. The base
+  // ledger is untouched, so a player without the bonus still cannot farm.
+  const achievementHunterBonus =
+    getEarnedAchievementCount(gameState) *
+    getAchievementHunterPointsPerAchievement(prestigeData.unlockedBonuses || []);
 
   // Generation bonus: +50 points per *completed* generation.
   // R2-G: previously written as `(gameState.generationNumber || 1 - 1) * 50`,
@@ -172,7 +180,7 @@ export function calculatePrestigePoints(
   const multiplier = Math.pow(1.1, cappedLevel);
 
   // Calculate total before child path bonus
-  const subtotal = basePoints + achievementBonus + generationBonus + ageBonus + 
+  const subtotal = basePoints + achievementBonus + achievementHunterBonus + generationBonus + ageBonus + 
                    careerBonus + propertyBonus + companyBonus + childBonus;
   
   // Apply multiplier
@@ -184,6 +192,7 @@ export function calculatePrestigePoints(
   return {
     basePoints,
     achievementBonus,
+    achievementHunterBonus,
     generationBonus,
     ageBonus,
     careerBonus,

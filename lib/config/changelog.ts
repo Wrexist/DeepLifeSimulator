@@ -85,6 +85,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: [
           'Prestiging pays about ten times more points, so the shop is finally within reach.',
           'Legacy Shop upgrades now really carry over to your heir.',
+          'Achievement Hunter pays 25 points for every achievement you claim in a life.',
+          'Claimed the old Legacy Pass top reward in this life? You get the 3 Youth Pills it pays now.',
         ],
       },
       {
@@ -102,6 +104,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Brand deals pay for each sponsored post you deliver.',
           'Channel memberships are taxed like the rest of your income.',
           'Company wages now count against your income tax.',
+          'Your staff are furloughed while you are in jail, so wages stop when the income does.',
           'Lobbyist pays $4,000 a week, and pet shows are a once-a-week bonus.',
         ],
       },
@@ -114,6 +117,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Achievements that could never unlock can now be earned.',
           'Older starts no longer lose half their Bitcoin mining in week one.',
           'Borrowed money from contacts has to be paid back; flipping cars no longer buys reputation.',
+          'Selling a car takes back only the reputation buying it gave you.',
           'Rewinding time no longer pays achievements and chapters a second time.',
         ],
       },

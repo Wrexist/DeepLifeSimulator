@@ -2,9 +2,10 @@
 
 ## v2.16.0 - Fairer choices, bigger rewards
 
-**Compatibility:** every save loads; save format v54 (by-value career pay,
-street pay and item prices take the 2026-08 rescales; pre-Program-8 saves get
-their own life seed).
+**Compatibility:** every save loads; save format v55 (v54: by-value career
+pay, street pay and item prices take the 2026-08 rescales; pre-Program-8 saves
+get their own life seed. v55: cars record the reputation they granted; a
+claimed Legacy Pass capstone is made good with 3 Youth Pills).
 
 - **New:** the year-end break (optional rewarded ad, +15 gems, skippable) and a
   daily reward doubler. Ads now retry failed loads, so "Watch ad" finds an ad.
@@ -24,6 +25,10 @@ their own life seed).
   payroll is tax-deductible; Lobbyist $9k -> $4k; pet shows once a week;
   contact loans fall due; car flips no longer farm reputation; rewind no
   longer re-pays claimed rewards (PR #239).
+- **Owner calls:** a jailed owner's staff are furloughed (no wages without
+  income); Achievement Hunter pays 25 points per claimed achievement per life
+  (it could never repay its price); a car sale takes back exactly the
+  reputation its purchase granted.
 
 ---
 
