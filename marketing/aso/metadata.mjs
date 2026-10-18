@@ -31,7 +31,16 @@ export const APPLE = {
    *
    * `scripts/asc-release.mjs` reads this as the record to create and fill.
    */
-  storeVersion: '1.6.0',
+  storeVersion: '1.7.0',
+
+  /**
+   * MANUAL: an approved version waits for a person to press Release in App
+   * Store Connect, so App Review can run in parallel with the TestFlight
+   * device checks and nothing reaches players until those pass. Read by
+   * asc-release.mjs only when it CREATES a version record; an existing record
+   * keeps whatever it was created with.
+   */
+  releaseType: 'MANUAL',
 
   /**
    * The "What's New" for `storeVersion`, 4000 chars max.
@@ -44,18 +53,16 @@ export const APPLE = {
    * described for three audiences, and a reader who finds them disagreeing
    * cannot tell which one is the lie.
    */
-  whatsNew: `Go live, level up, and always know what comes next.
+  whatsNew: `Fairer choices, bigger rewards, and Mindsets that shape your whole life.
 
-• Stream recaps. Every broadcast ends with your peak viewers, new followers, subs, donations and earnings, and hype trains, personal bests and level-ups get a real celebration.
-• Video recaps and a title shuffle. Every upload shows how it did, and one tap writes a title for you.
-• Life Skills, rebuilt. The tree fits your screen, skills cost skill points as well as money, and every unlock gets its own moment.
-• Locked apps explain themselves. Tap one to see every way to open it and how close you are.
-• Chapters never vanish. Between chapters you now see when the next one opens.
-• Fairer diets. Basic, Premium and Athlete plans now cost $140, $350 and $595 a week.
-• Live streams run on every save, including older ones.
-• Ad-free stays ad-free. DeepLife+ and Remove Ads now hold in every save, slot and new life.
-• Plus a gem wallet, a Home screen that no longer freezes, smoother saving, and gambles that no longer show the outcome before you choose.
-• Polish everywhere: no cut-off tabs or split numbers, mail dated correctly, and numbers that read the same on every phone.`,
+• Mindsets, rebuilt. Each one now changes the part of life its name promises, with one upside and one downside, and every number on the card is exactly what the game applies.
+• Bigger prestige rewards. Prestiging pays about ten times more points, Legacy Shop upgrades really carry over to your heir, and Achievement Hunter pays 25 points for every achievement you claim in a life.
+• Choices you can afford. Events show "Need $X" instead of quietly taking your money.
+• Live in a home you own. Make any property you own your residence from its Manage sheet.
+• More ways to earn gems. Watch an optional ad at the end of each year for bonus gems, or double your daily reward.
+• Fairer money. Street job rank raises your pay, brand deals pay for every sponsored post, and your staff stop drawing wages while you are in jail.
+• Things work the way they say. A stolen car that is gone stays gone, votes, investments and treatments do what the button says, achievements that could never unlock can now be earned, and rewinding time no longer pays rewards twice.
+• Every save carries over.`,
 
   /**
    * 30 chars. The highest-weighted field there is.
@@ -198,18 +205,16 @@ Privacy Policy: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       // Mirrors APPLE.whatsNew. Kept in the register of the description above
       // — this locale is a real translation, not machine output, and a
       // machine-shaped release note next to hand-written copy reads as one.
-      whatsNew: `Sal en directo, sube de nivel y sabe siempre qué viene después.
+      whatsNew: `Decisiones más justas, mejores recompensas y Mindsets que moldean toda tu vida.
 
-• Resúmenes de directo. Cada emisión termina con tus espectadores máximos, nuevos seguidores, suscriptores, donaciones y ganancias, y los hype trains, récords personales y subidas de nivel se celebran de verdad.
-• Resúmenes de vídeo y títulos al azar. Cada subida muestra cómo le fue, y un toque te escribe el título.
-• Habilidades de vida, renovadas. El árbol cabe en tu pantalla, las habilidades cuestan puntos además de dinero, y cada desbloqueo tiene su momento.
-• Las apps bloqueadas se explican. Toca una para ver todas las formas de abrirla y cuánto te falta.
-• Los capítulos ya no desaparecen. Entre capítulos ves cuándo se abre el siguiente.
-• Dietas más justas. Los planes Básico, Premium y Atleta cuestan ahora $140, $350 y $595 por semana.
-• Los directos funcionan en todas las partidas, también en las antiguas.
-• Sin anuncios es sin anuncios. DeepLife+ y Remove Ads se mantienen en cada partida, ranura y vida nueva.
-• Además: una cartera de gemas, un Inicio que ya no se congela, guardado más fluido y apuestas que ya no muestran el resultado antes de elegir.
-• Pulido en todas partes: pestañas sin cortes, números enteros, correo con la fecha correcta y cifras iguales en cualquier teléfono.`,
+• Mindsets, renovados. Cada uno cambia ahora la parte de la vida que promete su nombre, con una ventaja y una desventaja, y cada número de la tarjeta es exactamente lo que aplica el juego.
+• Más recompensas de prestigio. Hacer prestigio da unas diez veces más puntos, las mejoras de la Legacy Shop pasan de verdad a tu heredero, y Achievement Hunter da 25 puntos por cada logro que reclames en una vida.
+• Decisiones que puedes pagar. Los eventos muestran "Need $X" en lugar de quitarte el dinero sin avisar.
+• Vive en una casa tuya. Haz de cualquier propiedad que tengas tu residencia desde su hoja Manage.
+• Más formas de ganar gemas. Mira un anuncio opcional al final de cada año para ganar gemas extra, o duplica tu recompensa diaria.
+• Dinero más justo. El rango en los trabajos callejeros sube tu paga, los acuerdos con marcas pagan por cada publicación patrocinada, y tus empleados dejan de cobrar mientras estás en la cárcel.
+• Todo funciona como dice. Un auto robado que se perdió no vuelve, los votos, inversiones y tratamientos hacen lo que dice el botón, los logros que nunca se desbloqueaban ya se pueden ganar, y retroceder el tiempo ya no paga las recompensas dos veces.
+• Todas las partidas se conservan.`,
 
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
 Lo que pasa después depende solo de ti.
@@ -263,18 +268,16 @@ Política de privacidad: https://wrexist.github.io/DeepLifeSimulator/privacy.htm
       subtitle: 'Carreira, crime, cripto, luxo',
       promotionalText:
         'Novo: entre ao vivo e fique famoso. Faça lives, ganhe seguidores e evolua suas habilidades; depois faça fortuna, crie uma família e deixe tudo a um herdeiro.',
-      whatsNew: `Entre ao vivo, suba de nível e saiba sempre o que vem depois.
+      whatsNew: `Escolhas mais justas, recompensas maiores e Mindsets que moldam a vida inteira.
 
-• Resumos de live. Cada transmissão termina com o pico de espectadores, novos seguidores, inscritos, doações e ganhos, e hype trains, recordes pessoais e subidas de nível ganham uma comemoração de verdade.
-• Resumos de vídeo e títulos aleatórios. Cada envio mostra como foi, e um toque escreve o título por você.
-• Habilidades de vida, refeitas. A árvore cabe na sua tela, habilidades custam pontos além de dinheiro, e cada desbloqueio tem seu momento.
-• Apps bloqueados se explicam. Toque em um para ver todas as formas de abri-lo e o quanto falta.
-• Os capítulos não somem mais. Entre capítulos você vê quando o próximo começa.
-• Dietas mais justas. Os planos Básico, Premium e Atleta agora custam $140, $350 e $595 por semana.
-• As lives funcionam em todos os saves, inclusive nos antigos.
-• Sem anúncios é sem anúncios. DeepLife+ e Remove Ads valem em todo save, slot e nova vida.
-• E mais: uma carteira de gemas, uma tela inicial que não trava, salvamento mais leve e apostas que não mostram o resultado antes da escolha.
-• Acabamento em tudo: abas sem cortes, números inteiros, e-mails com a data certa e valores iguais em qualquer celular.`,
+• Mindsets, refeitos. Cada um agora muda a parte da vida que o nome promete, com uma vantagem e uma desvantagem, e cada número no card é exatamente o que o jogo aplica.
+• Recompensas de prestígio maiores. Fazer prestígio rende cerca de dez vezes mais pontos, as melhorias da Legacy Shop passam de verdade para o seu herdeiro, e Achievement Hunter rende 25 pontos para cada conquista resgatada em uma vida.
+• Escolhas que cabem no bolso. Os eventos mostram "Need $X" em vez de tirar seu dinheiro sem avisar.
+• More num imóvel seu. Transforme qualquer imóvel que você tem na sua residência pela tela Manage.
+• Mais formas de ganhar gemas. Assista a um anúncio opcional no fim de cada ano para ganhar gemas extras, ou dobre sua recompensa diária.
+• Dinheiro mais justo. O nível nos bicos aumenta seu pagamento, parcerias com marcas pagam por post patrocinado, e seus funcionários deixam de receber enquanto você está preso.
+• Tudo funciona como diz. Um carro roubado que sumiu não volta, votos, investimentos e tratamentos fazem o que o botão diz, conquistas que nunca desbloqueavam agora podem ser ganhas, e voltar no tempo não paga recompensas duas vezes.
+• Todos os saves continuam valendo.`,
 
       description: `Toda vida começa do mesmo jeito: sem dinheiro, sem emprego, sem plano.
 O que acontece depois depende só de você.
@@ -322,18 +325,16 @@ Política de Privacidade: https://wrexist.github.io/DeepLifeSimulator/privacy.ht
       subtitle: 'Carrière, crime, crypto, luxe',
       promotionalText:
         "Nouveau : passez en live et devenez célèbre. Streamez, gagnez des abonnés, améliorez vos compétences, puis bâtissez une fortune et léguez-la.",
-      whatsNew: `Passez en live, montez en niveau et sachez toujours ce qui vient ensuite.
+      whatsNew: `Des choix plus justes, de plus grosses récompenses et des Mindsets qui façonnent toute votre vie.
 
-• Récaps de live. Chaque diffusion se termine avec votre pic de spectateurs, vos nouveaux abonnés, vos subs, vos dons et vos gains, et les hype trains, records personnels et montées de niveau sont vraiment célébrés.
-• Récaps de vidéo et titres aléatoires. Chaque mise en ligne montre son résultat, et un toucher écrit le titre pour vous.
-• Compétences de vie, repensées. L'arbre tient sur votre écran, les compétences coûtent des points en plus de l'argent, et chaque déblocage a son moment.
-• Les apps verrouillées s'expliquent. Touchez-en une pour voir toutes les façons de l'ouvrir et où vous en êtes.
-• Les chapitres ne disparaissent plus. Entre deux chapitres, vous voyez quand le suivant commence.
-• Des régimes plus justes. Les formules Basique, Premium et Athlète coûtent désormais 140 $, 350 $ et 595 $ par semaine.
-• Les lives fonctionnent sur toutes les sauvegardes, même les anciennes.
-• Sans pub, c'est sans pub. DeepLife+ et Remove Ads tiennent dans chaque sauvegarde, emplacement et nouvelle vie.
-• Et aussi : un portefeuille de gemmes, un écran d'accueil qui ne se fige plus, des sauvegardes plus fluides, et des paris qui ne montrent plus le résultat avant votre choix.
-• Des finitions partout : onglets complets, nombres entiers, courrier à la bonne date et chiffres identiques sur tous les téléphones.`,
+• Mindsets, repensés. Chacun change désormais la part de la vie que promet son nom, avec un avantage et un inconvénient, et chaque chiffre de la carte est exactement ce que le jeu applique.
+• Des récompenses de prestige plus grosses. Le prestige rapporte environ dix fois plus de points, les améliorations de la Legacy Shop passent vraiment à votre héritier, et Achievement Hunter rapporte 25 points par succès réclamé dans une vie.
+• Des choix à votre portée. Les événements affichent « Need $X » au lieu de prendre votre argent sans prévenir.
+• Habitez un logement à vous. Faites de n'importe quel bien que vous possédez votre résidence depuis sa fiche Manage.
+• Plus de façons de gagner des gemmes. Regardez une pub facultative à la fin de chaque année pour des gemmes bonus, ou doublez votre récompense quotidienne.
+• Un argent plus juste. Votre rang dans les petits boulots de rue augmente votre paie, les partenariats de marque paient chaque publication sponsorisée, et vos employés ne sont plus payés pendant que vous êtes en prison.
+• Tout marche comme annoncé. Une voiture volée disparue le reste, les votes, investissements et traitements font ce que dit le bouton, les succès impossibles à débloquer peuvent enfin être obtenus, et remonter le temps ne paie plus les récompenses deux fois.
+• Toutes vos parties sont conservées.`,
 
       description: `Toute vie commence de la même façon : sans argent, sans emploi, sans plan.
 La suite ne dépend que de vous.
@@ -382,18 +383,16 @@ Politique de confidentialité : https://wrexist.github.io/DeepLifeSimulator/priv
       subtitle: 'Karriere, Verbrechen, Krypto',
       promotionalText:
         'Neu: Geh live und werde berühmt. Streame, gewinne Follower und verbessere deine Fähigkeiten, dann bau ein Vermögen und eine Familie auf und vererbe alles.',
-      whatsNew: `Geh live, steig auf und wisse immer, was als Nächstes kommt.
+      whatsNew: `Fairere Entscheidungen, größere Belohnungen und Mindsets, die dein ganzes Leben prägen.
 
-• Stream-Rückblicke. Jede Übertragung endet mit deinen Spitzen-Zuschauern, neuen Followern, Abos, Spenden und Einnahmen, und Hype Trains, persönliche Rekorde und Levelaufstiege werden richtig gefeiert.
-• Video-Rückblicke und Zufallstitel. Jeder Upload zeigt, wie er lief, und ein Tipp schreibt dir den Titel.
-• Lebensfähigkeiten, neu gebaut. Der Baum passt auf deinen Bildschirm, Fähigkeiten kosten Punkte und Geld, und jede Freischaltung bekommt ihren Moment.
-• Gesperrte Apps erklären sich. Tippe eine an und sieh alle Wege, sie zu öffnen, und wie nah du dran bist.
-• Kapitel verschwinden nicht mehr. Zwischen zwei Kapiteln siehst du, wann das nächste beginnt.
-• Fairere Ernährungspläne. Basis, Premium und Athlet kosten jetzt 140 $, 350 $ und 595 $ pro Woche.
-• Livestreams laufen in jedem Spielstand, auch in älteren.
-• Werbefrei bleibt werbefrei. DeepLife+ und Remove Ads gelten in jedem Spielstand, Slot und neuen Leben.
-• Außerdem: eine Edelstein-Geldbörse, ein Startbildschirm, der nicht mehr einfriert, flüssigeres Speichern und Wetten, die das Ergebnis nicht mehr vor deiner Wahl verraten.
-• Feinschliff überall: keine abgeschnittenen Tabs oder Zahlen, Post mit richtigem Datum und Zahlen, die auf jedem Handy gleich aussehen.`,
+• Mindsets, neu gebaut. Jedes verändert jetzt den Lebensbereich, den sein Name verspricht, mit einem Vorteil und einem Nachteil, und jede Zahl auf der Karte ist genau das, was das Spiel anwendet.
+• Größere Prestige-Belohnungen. Prestige bringt etwa zehnmal so viele Punkte, Upgrades aus dem Legacy Shop gehen wirklich auf deinen Erben über, und Achievement Hunter bringt 25 Punkte für jeden Erfolg, den du in einem Leben einlöst.
+• Entscheidungen, die du dir leisten kannst. Events zeigen „Need $X“, statt dir still das Geld abzunehmen.
+• Wohne im eigenen Zuhause. Mach jede Immobilie, die dir gehört, über ihr Manage-Menü zu deinem Wohnsitz.
+• Mehr Wege zu Edelsteinen. Schau am Ende jedes Jahres freiwillig eine Werbung für Bonus-Edelsteine oder verdopple deine tägliche Belohnung.
+• Faireres Geld. Dein Rang bei Straßenjobs erhöht deinen Lohn, Markendeals zahlen für jeden gesponserten Post, und deine Angestellten bekommen keinen Lohn, solange du im Gefängnis sitzt.
+• Alles funktioniert, wie es draufsteht. Ein gestohlenes Auto, das weg ist, bleibt weg, Abstimmungen, Investitionen und Behandlungen tun, was der Knopf sagt, Erfolge, die nie freischaltbar waren, lassen sich jetzt verdienen, und Zurückspulen zahlt Belohnungen nicht mehr doppelt aus.
+• Jeder Spielstand bleibt erhalten.`,
 
       description: `Jedes Leben beginnt gleich: kein Geld, kein Job, kein Plan.
 Was danach passiert, liegt ganz bei dir.
