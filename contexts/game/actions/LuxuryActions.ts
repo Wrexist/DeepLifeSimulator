@@ -189,12 +189,22 @@ export const sellLuxuryItem = (
     const luxuryHoldings = { ...(prev.luxuryHoldings || {}) };
     delete luxuryHoldings[itemId];
 
+    // A sold item leaves the Dynasty Vault too: the vault preserves what you
+    // keep, and a listing left behind re-granted the item free in every later
+    // life (exploit sweep, 2026-10-19). The transition also filters by
+    // ownership; this keeps the vault screen honest in the meantime.
+    const vaulted = prev.dynasty?.vaultItemIds;
+    const dynasty = Array.isArray(vaulted) && vaulted.includes(itemId)
+      ? { ...prev.dynasty, vaultItemIds: vaulted.filter((id) => id !== itemId) }
+      : prev.dynasty;
+
     return {
       ...prev,
       ...credit,
       realEstate,
       luxuryItems: (prev.luxuryItems || []).filter((id) => id !== itemId),
       luxuryHoldings,
+      dynasty,
     };
   });
 

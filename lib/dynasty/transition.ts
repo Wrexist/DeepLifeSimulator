@@ -23,6 +23,7 @@ import { applyVaultToNewLife } from './vault';
 import { applyTrialEffectsToNewLife, settleTrials } from './trials';
 import { endowmentIds, pendingTrialIds, seatWingIds, vaultItemIds } from './state';
 import { readLiveOpsState } from '@/lib/liveops/state';
+import { ownsLuxuryItem } from '@/lib/luxury/operations';
 
 /**
  * Carry lineage state onto a freshly-built life, settle the Trials the old life
@@ -73,7 +74,10 @@ export function applyDynastyTransition(oldState: GameState, newState: GameState)
     }
   }
 
-  const vault = vaultItemIds(oldState);
+  // Only heirlooms the old life still OWNS cross over (exploit sweep,
+  // 2026-10-19): a vaulted item that was sold stayed listed and was re-granted
+  // free every life - vault a supercar (25% fee), sell it (60%), prestige, repeat.
+  const vault = vaultItemIds(oldState).filter((id) => ownsLuxuryItem(oldState.luxuryItems, id));
   const endowments = endowmentIds(oldState);
   const wings = seatWingIds(oldState);
   const sworn = pendingTrialIds(oldState);

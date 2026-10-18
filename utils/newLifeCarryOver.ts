@@ -102,6 +102,12 @@ export interface NewLifeCarryOver {
     liveOps?: GameState['liveOps'];
     lastLoginRewardDate?: string;
     lastLoginRewardAt?: number;
+    /**
+     * The season's pass: XP, earned cosmetics and the claimed tiers. Prestige
+     * and heirs carry it; Restart Game dropped it, so the season's cosmetics
+     * were lost and re-earning the XP paid the same tier gems again.
+     */
+    legacyPass?: GameState['legacyPass'];
   };
 }
 
@@ -145,6 +151,7 @@ export function extractNewLifeCarryOver(state: GameState): NewLifeCarryOver {
   if (typeof state?.lastLoginRewardAt === 'number' && Number.isFinite(state.lastLoginRewardAt)) {
     claims.lastLoginRewardAt = state.lastLoginRewardAt;
   }
+  if (state?.legacyPass && typeof state.legacyPass === 'object') claims.legacyPass = state.legacyPass;
   if (Object.keys(claims).length > 0) carry.claims = claims;
   return carry;
 }
@@ -267,6 +274,16 @@ export function applyNewLifeCarryOver<T extends GameState>(
     if (typeof claims.lastLoginRewardDate === 'string') newState.lastLoginRewardDate = claims.lastLoginRewardDate;
     if (typeof claims.lastLoginRewardAt === 'number' && Number.isFinite(claims.lastLoginRewardAt)) {
       newState.lastLoginRewardAt = claims.lastLoginRewardAt;
+    }
+    // Copied the way prestige copies it (lib/prestige/prestigeExecution.ts).
+    const pass = claims.legacyPass;
+    if (pass && typeof pass === 'object') {
+      newState.legacyPass = {
+        ...pass,
+        claimedFreeTiers: [...(pass.claimedFreeTiers || [])],
+        claimedPremiumTiers: [...(pass.claimedPremiumTiers || [])],
+        ownedCosmetics: [...(pass.ownedCosmetics || [])],
+      };
     }
   }
 

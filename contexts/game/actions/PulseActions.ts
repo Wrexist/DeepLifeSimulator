@@ -544,6 +544,28 @@ export interface RecoverScandalResult {
 }
 
 const SCANDAL_GEM_COST = 500;
+/** Energy a public apology costs. */
+const SCANDAL_APOLOGY_ENERGY = 10;
+
+/**
+ * Why `method` cannot be chosen for a scandal already answered with `current`,
+ * or null. Re-choosing the same answer is refused, and so is anything but a
+ * clearing option (PR, lawsuit) once the player has apologised.
+ */
+export function scandalResponseBlocker(
+  current: PulseScandalResolution | null | undefined,
+  method: PulseScandalResolution,
+  energy: number,
+): string | null {
+  if (method === 'apology' || method === 'silence') {
+    if (current === method) return method === 'apology' ? 'You already apologized.' : 'You are already staying silent.';
+    if (current === 'apology') return 'You already apologized publicly; going quiet now changes nothing.';
+  }
+  if (method === 'apology' && !(energy >= SCANDAL_APOLOGY_ENERGY)) {
+    return `A public apology takes ${SCANDAL_APOLOGY_ENERGY} energy.`;
+  }
+  return null;
+}
 const SCANDAL_LAWSUIT_COST = 5000;
 
 export const recoverFromScandal = (
@@ -554,6 +576,12 @@ export const recoverFromScandal = (
 ): RecoverScandalResult => {
   const scandal = gameState.socialMedia?.activeScandal;
   if (!scandal) return { success: false, message: 'No active scandal.', reputationDelta: 0 };
+  // An apology is made once and stands (exploit sweep, 2026-10-19): only a
+  // repeat of the SAME choice was refused, so apology -> silence -> apology
+  // paid +5 reputation every other tap, and at 0 energy, taking reputation
+  // 0 -> 100 in twenty taps. PR or a lawsuit can still clear the scandal.
+  const blocked = scandalResponseBlocker(scandal.resolutionMethod, method, gameState.stats?.energy ?? 0);
+  if (blocked) return { success: false, message: blocked, reputationDelta: 0 };
 
   let reputationDelta = 0;
   let followersDelta = 0;
@@ -589,7 +617,8 @@ export const recoverFromScandal = (
       if ((gameState.stats.money ?? 0) < SCANDAL_LAWSUIT_COST) {
         return { success: false, message: `Need $${SCANDAL_LAWSUIT_COST} to sue.`, reputationDelta: 0 };
       }
-      const won = Math.random() < 0.7;
+      // Seeded on the life, week and scandal: a force-quit cannot retry a lost suit.
+      const won = makeLifeRoll(gameState, gameState.weeksLived ?? 0)(`pulse-lawsuit:${scandal.id}`) < 0.7;
       if (won) {
         reputationDelta = 10;
         message = 'You won the lawsuit. Vindicated.';
@@ -626,8 +655,8 @@ export const recoverFromScandal = (
       return prev;
     }
     // Apology / silence leave the scandal active, so the check above passes on
-    // a second tap too: refuse re-choosing the same resolution.
-    if ((method === 'apology' || method === 'silence') && live.resolutionMethod === method) {
+    // a second tap too: the same predicate as the outer report, against `prev`.
+    if (scandalResponseBlocker(live.resolutionMethod, method, prev.stats?.energy ?? 0)) {
       return prev;
     }
     // Every cost and effect lands in THIS transition (CLAUDE.md §4.4). The
@@ -641,7 +670,7 @@ export const recoverFromScandal = (
       base = { ...base, ...fee };
     }
     const statDelta: { energy?: number; reputation?: number } = {};
-    if (method === 'apology') statDelta.energy = -10;
+    if (method === 'apology') statDelta.energy = -SCANDAL_APOLOGY_ENERGY;
     if (reputationDelta !== 0) statDelta.reputation = reputationDelta;
     if (Object.keys(statDelta).length > 0) {
       base = { ...base, ...applyStatsDelta(base, statDelta) };

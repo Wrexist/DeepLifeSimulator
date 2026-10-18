@@ -204,6 +204,13 @@ export function sellProperty(
     tenant: undefined,
     rentMode: undefined,
     launderingFront: false,
+    // The improvements go with the house (exploit sweep, 2026-10-19). Left on
+    // the unowned record, a re-buy at list price merged them back in for free:
+    // rooms, decor and upgrade tier, every time.
+    interior: [],
+    upgradeLevel: 0,
+    rooms: undefined,
+    totalHappinessBonus: undefined,
   };
   return {
     properties: next,

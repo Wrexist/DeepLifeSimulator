@@ -9,6 +9,15 @@
  * inside the updater, so a duplicate same-week tap no-ops.
  */
 import { runForOffice } from '@/contexts/game/actions/PoliticalActions';
+
+// The election roll is seeded on the life and week (makeLifeRoll), not
+// Math.random, so the forced win/loss is set on the seeded roll.
+let mockElectionRoll = 0;
+const mockElectionQueue: number[] = [];
+jest.mock('@/utils/seededRoll', () => ({
+  ...jest.requireActual('@/utils/seededRoll'),
+  makeLifeRoll: () => () => (mockElectionQueue.length > 0 ? mockElectionQueue.shift()! : mockElectionRoll),
+}));
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { createTestGameState } from '../helpers/createTestGameState';
@@ -43,9 +52,12 @@ function candidateState(money: number): GameState {
 }
 
 describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', () => {
-  let rand: jest.SpyInstance;
-  beforeEach(() => { rand = jest.spyOn(Math, 'random'); });
-  afterEach(() => { rand.mockRestore(); });
+  // Same surface the Math.random spy had: a default roll plus one-shot rolls.
+  const rand = {
+    mockReturnValue(v: number) { mockElectionRoll = v; return rand; },
+    mockReturnValueOnce(v: number) { mockElectionQueue.push(v); return rand; },
+  };
+  beforeEach(() => { mockElectionQueue.length = 0; mockElectionRoll = 0; });
 
   it('two same-batch taps award the election bonus ONCE', () => {
     rand.mockReturnValue(0); // roll 0 → guaranteed win

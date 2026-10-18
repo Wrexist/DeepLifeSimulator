@@ -16,6 +16,7 @@ import { getNextElectionWeek } from '@/lib/politics/elections';
 import { DIRECT_USD_PER_APPROVAL_POINT } from '@/lib/politics/pac';
 import type { Dispatch, SetStateAction } from 'react';
 import { CAMPAIGN_MINIMUM_AMOUNT } from '@/lib/config/gameConstants';
+import { makeLifeRoll } from '@/utils/seededRoll';
 
 // ---------------------------------------------------------------------------
 // PoliticalApp Remake 5: PAC fundraising + scandal management
@@ -390,8 +391,11 @@ export const runForOffice = (
     return { success: false, message: 'You already ran a campaign this week. Try again next week.' };
   }
 
-  // Pre-roll impure values before updater
-  const electionRoll = Math.random() * 100;
+  // The roll is a function of the life, the week and the office (exploit
+  // sweep, 2026-10-19). It was `Math.random()` while the comment above said
+  // "life-and-week seeded", so force-quitting before the save retried a lost
+  // election - a $2M presidential run included. Seeded, a reload reproduces it.
+  const electionRoll = makeLifeRoll(gameState, gameState.weeksLived ?? 0)(`election:${office}`) * 100;
 
   // Calculate election success chance (based on approval rating, reputation and
   // karma — `campaignFunds` is deliberately NOT an input: an earlier revision of
@@ -900,12 +904,13 @@ export const campaign = (
     return { success: false, message: `Minimum campaign amount is $${CAMPAIGN_MINIMUM_AMOUNT}` };
   }
 
-  // Increase approval rating (diminishing returns)
-  // Any real spend must buy at least +1 approval (capped at 10). The old
-  // floor(amount/5000) granted 0 for a $500–$4,999 spend - money gone, no effect.
+  // One approval point per DIRECT_USD_PER_APPROVAL_POINT, capped at 10. The
+  // minimum spend is one point's worth, so no spend is wasted; flooring means
+  // splitting a budget into small pushes can never buy more than one push.
+  // (A floor of +1 on a $500 minimum let ten $500 pushes buy +10 approval.)
   const approvalGain =
     amount > 0
-      ? Math.min(10, Math.max(1, Math.round(amount / DIRECT_USD_PER_APPROVAL_POINT)))
+      ? Math.min(10, Math.floor(amount / DIRECT_USD_PER_APPROVAL_POINT))
       : 0;
 
   // ECON-3: reject rather than floor - see `lobby` above.

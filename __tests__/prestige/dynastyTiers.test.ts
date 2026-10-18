@@ -438,6 +438,9 @@ describe('the transition - what actually crosses a life boundary', () => {
     at(4, {
       legacyPoints: 1_000,
       legacyContracts: { claimedIds: ['contract_prestige_1'] },
+      // The vaulted watch is still OWNED: only kept heirlooms cross (a sold one
+      // is dropped from the vault - exploit sweep 2026-10-19).
+      luxuryItems: [WATCH.id],
       dynasty: {
         vaultItemIds: [WATCH.id],
         endowments: ['endowment_bequest'],
