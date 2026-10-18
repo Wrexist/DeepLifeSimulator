@@ -1,6 +1,6 @@
 # What's New - DeepLife Simulator
 
-## v2.16.0 - Fairer choices, bigger rewards
+## v2.16.0 - Fairer choices, bigger rewards (store version 1.7.0)
 
 **Compatibility:** every save loads; save format v55 (v54: by-value career
 pay, street pay and item prices take the 2026-08 rescales; pre-Program-8 saves
