@@ -116,6 +116,15 @@ describe('maybeShowInterstitialForWeek', () => {
     expect(showInterstitialAd).toHaveBeenCalledTimes(2);
   });
 
+  it('a no-fill does not use up the session cap', async () => {
+    session.yearEndOffered = YEAR_END_BREAK.maxPerSession - 1;
+    showInterstitialAd.mockResolvedValueOnce(false); // no-fill
+    await expect(maybeShowInterstitialForWeek(BOUNDARY, { now: NOW })).resolves.toBe(false);
+    expect(session.yearEndOffered).toBe(YEAR_END_BREAK.maxPerSession - 1);
+    await expect(maybeShowInterstitialForWeek(BOUNDARY + 52, { now: NOW + 1_000 })).resolves.toBe(true);
+    expect(session.yearEndOffered).toBe(YEAR_END_BREAK.maxPerSession);
+  });
+
   it('swallows errors from showInterstitialAd and returns false', async () => {
     showInterstitialAd.mockRejectedValueOnce(new Error('Ad network down'));
     await expect(maybeShowInterstitialForWeek(BOUNDARY, { now: NOW })).resolves.toBe(false);

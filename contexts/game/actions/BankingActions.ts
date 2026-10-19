@@ -13,7 +13,6 @@ import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
 import { applyMoneyDelta, MONEY_CEILING } from './MoneyActions';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
-import { cashNetOfDebt } from '@/lib/ads/cashNetOfDebt';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
   depositToAccount,
@@ -743,18 +742,18 @@ export const AD_CASH_BONUS_MAX = 500_000;
  * stocks, real estate, companies, vehicles and luxury, minus card debt and
  * loans.
  *
- * `Math.max(netWorth, cash)` rather than net worth alone, matching the orb: net
- * worth subtracts debt, so a player who is cash-rich and mortgage-heavy would
- * otherwise be pushed to the floor by a number that says nothing about what
- * they can spend.
+ * Net worth ALONE, matching the orb. It used to be `max(netWorth, cash)`, to
+ * keep a cash-rich, mortgage-heavy player off the floor - but net worth already
+ * counts that cash and nets the mortgage against the home, so the cash term only
+ * ever won for BORROWED cash: take a loan, claim, prepay the loan the same week
+ * (exploit sweep, 2026-10-19). Net worth is cash plus everything owned minus
+ * everything owed, so it is the honest base on its own.
  *
  * The floor is what makes this worth watching an ad for early - 2% of a
  * starting $1,500 is $30 - and it binds until roughly $100k of worth, after
  * which the percentage takes over.
  */
 export const getAdCashBonusAmount = (state: GameState): number => {
-  // Cash LESS debt: borrowed cash must not count (lib/ads/cashNetOfDebt.ts).
-  const cash = cashNetOfDebt(state);
   let worth = 0;
   try {
     worth = calculateNetWorth(state);
@@ -766,7 +765,7 @@ export const getAdCashBonusAmount = (state: GameState): number => {
     log.error('getAdCashBonusAmount: calculateNetWorth failed, using the floor', err);
     worth = 0;
   }
-  const base = Math.max(isFinite(worth) ? worth : 0, cash, 0);
+  const base = Math.max(isFinite(worth) ? worth : 0, 0);
   const raw = base * AD_CASH_BONUS_RATE;
   const clamped = Math.max(AD_CASH_BONUS_MIN, Math.min(AD_CASH_BONUS_MAX, raw));
   // Clean $10 steps, and the floor re-applied after rounding so it can never

@@ -309,6 +309,24 @@ function unionClaimIds(live: unknown, restored: unknown): string[] | undefined {
  * (`prestige.claimedPrestigeAchievements` needs nothing: it is only ever
  * written inside `executePrestige`, never mid-life, so no rewind straddles it.)
  */
+/**
+ * The ambition gems a rewind to `checkpointId` will take back (see
+ * `ambitionGemsClaimedSince`), for the confirm dialog: the rewind costs this
+ * on top of the gem price, and the dialog has to say so. 0 if unknown.
+ */
+export function rewindAmbitionGemTakeBack(state: GameState, checkpointId: string): number {
+  try {
+    const checkpoint = (state.checkpoints ?? []).find((c) => c.id === checkpointId);
+    if (!checkpoint) return 0;
+    const snapshot = (typeof checkpoint.snapshot === 'string'
+      ? JSON.parse(checkpoint.snapshot)
+      : checkpoint.snapshot) as Partial<GameState> | undefined;
+    return ambitionGemsClaimedSince(state, { prestige: snapshot?.prestige } as GameState);
+  } catch {
+    return 0;
+  }
+}
+
 /** Gems paid by Life Ambitions the live save claimed that `restored` has not. */
 function ambitionGemsClaimedSince(live: GameState, restored: GameState): number {
   const before = new Set(restored.prestige?.claimedAmbitions ?? []);

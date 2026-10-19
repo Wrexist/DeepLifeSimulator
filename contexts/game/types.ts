@@ -1750,6 +1750,13 @@ export interface HustleCampaign {
   projectedROI: number;
   /** True if the player has actually paid the spend each week. */
   active: boolean;
+  /**
+   * The brand points this campaign's launch actually added (the lift, clipped
+   * at the 100 ceiling) (v56). Cancelling before the run ends takes back the
+   * unfinished share of exactly this. Carve-out: absent on campaigns launched
+   * before v56, whose cancel takes back nothing, as it always did.
+   */
+  brandLiftGranted?: number;
 }
 
 export interface HustleBrandHealth {

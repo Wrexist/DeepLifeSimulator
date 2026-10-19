@@ -986,17 +986,21 @@ including the crash screen.
   leaves no proof and is deliberately not paid. The tier, pill count and trait
   ids are written into the migration, not imported, so it means the same thing
   if the pass is re-laid out.
-- **v56 adds three CARVE-OUTS that close exploits** (exploit sweep,
+- **v56 adds four CARVE-OUTS that close exploits** (exploit sweep,
   2026-10-19; `tasks/exploit-sweep-2026-10-19.md`). `Company.foundedWeek`: an
   IPO needs `IPO_MIN_WEEKS_OWNED` (26) of ownership. The top-level, per-life
   `ipoListedCompanyIds`: a company id floats once a life, because selling and
   refounding reuses the id - found, staff, float 40% for ~$1.7M, sell, found
   again used to pay every week. `VehicleInsurance.conditionAtPurchase`: a
   policy covers only damage done since it started (reset to 100 by a repair).
-  All three default `undefined`, so no backfill and no `repairGameState`
-  mirror, and absence resolves to the old behaviour on purpose: a pre-v56
-  company counts as old enough, a save with no list has floated nothing, a
-  pre-v56 policy covers all damage. Stamping any of them would block or deny
+  `HustleCampaign.brandLiftGranted`: what a launch actually added, so a cancel
+  takes back the unfinished share of exactly that. All four default
+  `undefined`, so no backfill and no `repairGameState` mirror, and absence
+  resolves to the old behaviour on purpose: a pre-v56 company counts as old
+  enough, a save with no list has floated nothing, a pre-v56 policy covers all
+  damage, a pre-v56 campaign keeps its lift. A company carried into the next
+  life (family business) drops `foundedWeek`: that week belongs to the old
+  life's counter. Stamping any of them would block or deny
   something the player legitimately had. `ipoListedCompanyIds` is per life
   because prestige and heirs rebuild from `initialGameState`; it must not move
   into `hustleApp.lifetimeStats`, which carries across prestige.

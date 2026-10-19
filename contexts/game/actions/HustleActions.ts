@@ -493,12 +493,15 @@ export const launchCampaign = (
         active: true,
       };
       const brandLift = brandLiftForCampaign(kind);
+      const liftedScore = Math.min(100, o.brand.score + brandLift);
+      // Recorded so a cancel takes back what was GIVEN, not the nominal lift.
+      campaign.brandLiftGranted = Math.max(0, liftedScore - o.brand.score);
       return pushNotif(
         {
           ...o,
           activeCampaigns: [...o.activeCampaigns, campaign],
           brand: {
-            score: Math.min(100, o.brand.score + brandLift),
+            score: liftedScore,
             trend: 'rising',
             lastUpdatedWeek: weeksLived,
           },
@@ -524,6 +527,18 @@ export const launchCampaign = (
   return { status: 'queued', message: 'Launching campaign', campaignId, projectedROI };
 };
 
+/** Brand points a cancel takes back: the unfinished share of the lift granted. */
+export function campaignBrandTakeBack(
+  campaign: Pick<HustleCampaign, 'active' | 'startedWeek' | 'durationWeeks' | 'brandLiftGranted'>,
+  weeksLived: number,
+): number {
+  const granted = campaign.brandLiftGranted;
+  if (!campaign.active || typeof granted !== 'number' || !isFinite(granted) || granted <= 0) return 0;
+  const duration = Math.max(1, campaign.durationWeeks);
+  const remaining = Math.max(0, Math.min(duration, duration - (weeksLived - campaign.startedWeek)));
+  return Math.round(granted * (remaining / duration));
+}
+
 export const cancelCampaign = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
@@ -538,9 +553,11 @@ export const cancelCampaign = (
       // cancelled before it finishes gives it back (exploit sweep, 2026-10-19):
       // launch -> cancel a $100 guerrilla campaign ten times took brand from
       // 50 to 100 for $1,000, which also lifts income and the IPO price.
-      const unfinished = campaign.active && weeksLived - campaign.startedWeek < campaign.durationWeeks;
-      const brand = unfinished
-        ? { ...o.brand, score: Math.max(0, o.brand.score - brandLiftForCampaign(campaign.kind)), lastUpdatedWeek: weeksLived }
+      // Only the unfinished share, and only of the lift this launch actually
+      // gave (`brandLiftGranted`; a pre-v56 campaign has none and keeps its lift).
+      const takeBack = campaignBrandTakeBack(campaign, weeksLived);
+      const brand = takeBack > 0
+        ? { ...o.brand, score: Math.max(0, o.brand.score - takeBack), lastUpdatedWeek: weeksLived }
         : o.brand;
       return { ...o, brand, activeCampaigns: o.activeCampaigns.filter((c) => c.id !== campaignId) };
     });

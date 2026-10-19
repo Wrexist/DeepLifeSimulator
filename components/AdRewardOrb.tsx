@@ -28,7 +28,6 @@ import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant, rewardedAdReady } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
-import { cashNetOfDebt } from '@/lib/ads/cashNetOfDebt';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Z_INDEX } from '@/utils/zIndexConstants';
@@ -91,9 +90,9 @@ function computeReward(state: GameState): number {
   } catch {
     base = 0;
   }
-  // Cash LESS debt, so a same-week loan cannot inflate the reward (lib/ads/cashNetOfDebt.ts).
-  const cash = cashNetOfDebt(state);
-  base = Math.max(base || 0, cash, 0);
+  // Net worth alone, like the bank's sponsored bonus (BankingActions
+  // getAdCashBonusAmount): a cash term only ever beat it with borrowed cash.
+  base = Math.max(base || 0, 0);
   const raw = base * REWARD_PCT;
   const clamped = Math.max(REWARD_MIN, Math.min(REWARD_MAX, raw));
   // Round to a clean number ($10 steps).

@@ -1460,6 +1460,11 @@ const migrations: Record<number, (state: any) => any> = {
    * policy covers only damage done after it started (buy a policy on a wreck,
    * repair at 20%, cancel for a near-full refund). Absent = a policy bought
    * before v56, which keeps covering all damage as it was sold to do.
+   *
+   * Fourth: `HustleCampaign.brandLiftGranted`, the brand a launch actually added
+   * (clipped at 100), so a cancel takes back the unfinished share of exactly
+   * that. Absent = a campaign launched before v56, whose cancel takes back
+   * nothing, as it always did.
    */
   56: (state) => {
     state.version = 56;

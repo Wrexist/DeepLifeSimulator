@@ -71,10 +71,13 @@ export async function maybeShowInterstitialForWeek(
       adReady: typeof adMobService.isReady === 'function' ? adMobService.isReady('interstitial') : true,
     });
     if (!decision.offer) return false;
-    // Counts toward the same per-session cap as the rewarded break.
-    noteYearEndOffered();
     const shown = await adMobService.showInterstitialAd('year_end');
-    if (shown) lastInterstitialAtMs = now;
+    if (shown) {
+      lastInterstitialAtMs = now;
+      // Counts toward the same per-session cap as the rewarded break - but only
+      // once it actually showed: a no-fill must not use up the session.
+      noteYearEndOffered();
+    }
     return shown;
   } catch (err) {
     logger.warn('[ads] interstitial failed', {

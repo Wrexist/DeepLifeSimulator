@@ -51,6 +51,7 @@ import {
 } from '@/utils/saveValidation';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-carve-out-round-trip';
 
@@ -471,9 +472,39 @@ const CARVE_OUTS: CarveOut[] = [
       };
     },
   },
+  {
+    version: 56,
+    path: 'hustleApp.companies.factory.activeCampaigns.0.brandLiftGranted',
+    // The brand a launch actually added. Erased on load, a cancel would read the
+    // campaign as pre-v56 and keep its whole lift.
+    value: 3,
+    build: () => campaignState(),
+  },
 ];
 
 /** A factory founded at `week` - the v56 rows' company. */
+function campaignState(): GameState {
+  const b = base();
+  return {
+    ...b,
+    hustleApp: {
+      companies: {
+        factory: {
+          ...createDefaultCompanyOverlay('factory', 3_700),
+          activeCampaigns: [
+            { id: 'camp-1', kind: 'guerrilla', spendPerWeek: 100, startedWeek: 3_700, durationWeeks: 52, projectedROI: 0, active: true, brandLiftGranted: 3 },
+          ],
+        },
+      },
+      lifetimeStats: {
+        totalCompaniesFounded: 1, totalCompaniesSold: 0, totalIPOsLaunched: 0, totalAcquisitionsCompleted: 0,
+        totalScandalsSurvived: 0, totalCampaignsRun: 1, totalNamedHires: 0, totalFires: 0,
+        peakBrandScore: 53, peakMarketShare: 5, peakSharePrice: 0,
+      },
+    },
+  } as GameState;
+}
+
 function foundedFactory(week: number): GameState['companies'][number] {
   return {
     id: 'factory',
@@ -558,9 +589,10 @@ describe('the §7 carve-out fields survive the load merge', () => {
     // 26 as of the v50/v51 merge: `shownNotificationIds` and `metAt` were both
     // authored as v50 on separate branches, so the merged history carries two
     // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`,
-    // 28 with v55 `Vehicle.reputationGranted`, 31 with v56 `Company.foundedWeek`,
-    // `ipoListedCompanyIds` and `VehicleInsurance.conditionAtPurchase`.
-    expect(CARVE_OUTS).toHaveLength(31);
+    // 28 with v55 `Vehicle.reputationGranted`, 32 with v56 `Company.foundedWeek`,
+    // `ipoListedCompanyIds`, `VehicleInsurance.conditionAtPurchase` and
+    // `HustleCampaign.brandLiftGranted`.
+    expect(CARVE_OUTS).toHaveLength(32);
     // Bumps that add NO field, so they have no row here: v53 reprices the
     // stored diet catalogue; v54 reprices careers/street jobs/items and mints
     // `lineageId`. Declared, so an undeclared new field still fails.

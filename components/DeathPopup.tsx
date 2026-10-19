@@ -476,7 +476,7 @@ function DeathPopup() {
 
   const handleRewind = useCallback((checkpointId: string) => {
     try {
-      const { rewindToCheckpoint, getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
+      const { rewindToCheckpoint, getRewindCost, rewindAmbitionGemTakeBack } = require('@/lib/timeMachine/checkpointSystem');
       const cost = getRewindCost(
         gameState.timeMachineUsesThisLife ?? 0,
         !!gameState.goldUpgrades?.time_machine,
@@ -497,9 +497,15 @@ function DeathPopup() {
         );
         return;
       }
+      // A Life Ambition claimed since the checkpoint is undone too, and the gems
+      // it paid go back with it (lib/timeMachine/checkpointSystem.ts). Say so.
+      const ambitionGems: number = rewindAmbitionGemTakeBack(gameState, checkpointId);
+      const ambitionNote = ambitionGems > 0
+        ? ` The Life Ambition you completed since then is undone too, and its ${ambitionGems.toLocaleString('en-US')} gems go with it.`
+        : '';
       gameAlert(
         'Rewind Time',
-        `Spend ${cost.toLocaleString('en-US')} gems to rewind? You'll lose all progress after this checkpoint.`,
+        `Spend ${cost.toLocaleString('en-US')} gems to rewind? You'll lose all progress after this checkpoint.${ambitionNote}`,
         [
           { text: 'Cancel', style: 'cancel' },
           {

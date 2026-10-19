@@ -43,7 +43,7 @@ import {
 } from './marketplace';
 
 const RECENT_EVENT_CAP = 20;
-const JOB_HISTORY_CAP = 30;
+export const JOB_HISTORY_CAP = 30;
 // EXPLOIT FIX (H-4): a failed stage used to only reset progress to 0, so a job
 // could be brute-forced indefinitely (energy-gated only, no cash/jail cost). Cap
 // total failed attempts per job — exceed it and the job is lost ('failed'), so
