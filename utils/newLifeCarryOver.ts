@@ -50,9 +50,19 @@
  * the Dynasty Tree, and the ribbon collection. Those are the DYNASTY, and
  * resetting them is the whole difference between a fresh start and prestige /
  * choosing an heir. The confirm dialog says so.
+ *
+ * WHAT IS DELIBERATELY HERE, BESIDE THE GEMS: the CLAIM LEDGERS that make gems
+ * once-only (exploit sweep, 2026-10-19). Carrying the balance without them
+ * turned Restart Game into a gem printer: claim the beginner achievements (a
+ * fresh life already meets five), restart, claim them again; the same for a
+ * Live Ops event and the daily login. Prestige and the heir path already carry
+ * the first two. A ledger only ever refuses a claim, so carrying it can never
+ * hand anything out. The `weeksLived` markers stay behind for the reason
+ * `PURCHASED_SETTINGS_KEYS` gives: they mean nothing in the next life.
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { readLiveOpsState } from '@/lib/liveops/state';
 import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import {
   carryAccountLevelEntitlements,
@@ -86,6 +96,19 @@ export interface NewLifeCarryOver {
   perks?: Record<string, unknown>;
   youthPills?: unknown;
   revivalPack?: boolean;
+  /** Claim ledgers (see the header). Absent in records written before 2026-10-19. */
+  claims?: {
+    claimedAchievementIds?: string[];
+    liveOps?: GameState['liveOps'];
+    lastLoginRewardDate?: string;
+    lastLoginRewardAt?: number;
+    /**
+     * The season's pass: XP, earned cosmetics and the claimed tiers. Prestige
+     * and heirs carry it; Restart Game dropped it, so the season's cosmetics
+     * were lost and re-earning the XP paid the same tier gems again.
+     */
+    legacyPass?: GameState['legacyPass'];
+  };
 }
 
 /** Pull the account-level slice out of a live state. Pure; never throws. */
@@ -115,6 +138,21 @@ export function extractNewLifeCarryOver(state: GameState): NewLifeCarryOver {
       (carry as unknown as Record<string, unknown>)[key] = value;
     }
   }
+
+  const claims: NonNullable<NewLifeCarryOver['claims']> = {};
+  const achievementIds = state?.prestige?.claimedAchievementIds;
+  if (Array.isArray(achievementIds) && achievementIds.length > 0) {
+    claims.claimedAchievementIds = achievementIds.filter((id): id is string => typeof id === 'string');
+  }
+  // Ledger and rolling budget carry; the per-life cooldown weeks do not - the
+  // same cut `applyDynastyTransition` makes for prestige and heirs.
+  if (state?.liveOps) claims.liveOps = { ...readLiveOpsState(state), lastSeenWeek: {} };
+  if (typeof state?.lastLoginRewardDate === 'string') claims.lastLoginRewardDate = state.lastLoginRewardDate;
+  if (typeof state?.lastLoginRewardAt === 'number' && Number.isFinite(state.lastLoginRewardAt)) {
+    claims.lastLoginRewardAt = state.lastLoginRewardAt;
+  }
+  if (state?.legacyPass && typeof state.legacyPass === 'object') claims.legacyPass = state.legacyPass;
+  if (Object.keys(claims).length > 0) carry.claims = claims;
   return carry;
 }
 
@@ -215,6 +253,39 @@ export function applyNewLifeCarryOver<T extends GameState>(
 
   const gems = Math.max(0, Math.floor(Number(carry.stats?.gems) || 0));
   anyState.stats = { ...((anyState.stats as Record<string, unknown>) ?? {}), gems };
+
+  // Claim ledgers: unions and copies only, so a carried ledger can refuse a
+  // claim and never grant one.
+  const claims = carry.claims;
+  if (claims && typeof claims === 'object') {
+    const carriedIds = Array.isArray(claims.claimedAchievementIds)
+      ? claims.claimedAchievementIds.filter((id): id is string => typeof id === 'string')
+      : [];
+    if (carriedIds.length > 0 && newState.prestige) {
+      const own = Array.isArray(newState.prestige.claimedAchievementIds) ? newState.prestige.claimedAchievementIds : [];
+      newState.prestige = {
+        ...newState.prestige,
+        claimedAchievementIds: Array.from(new Set([...own, ...carriedIds])),
+      };
+    }
+    if (claims.liveOps && typeof claims.liveOps === 'object') {
+      newState.liveOps = { ...readLiveOpsState({ liveOps: claims.liveOps } as GameState), lastSeenWeek: {} };
+    }
+    if (typeof claims.lastLoginRewardDate === 'string') newState.lastLoginRewardDate = claims.lastLoginRewardDate;
+    if (typeof claims.lastLoginRewardAt === 'number' && Number.isFinite(claims.lastLoginRewardAt)) {
+      newState.lastLoginRewardAt = claims.lastLoginRewardAt;
+    }
+    // Copied the way prestige copies it (lib/prestige/prestigeExecution.ts).
+    const pass = claims.legacyPass;
+    if (pass && typeof pass === 'object') {
+      newState.legacyPass = {
+        ...pass,
+        claimedFreeTiers: [...(pass.claimedFreeTiers || [])],
+        claimedPremiumTiers: [...(pass.claimedPremiumTiers || [])],
+        ownedCosmetics: [...(pass.ownedCosmetics || [])],
+      };
+    }
+  }
 
   return newState;
 }

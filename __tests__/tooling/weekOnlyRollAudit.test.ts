@@ -101,10 +101,12 @@ const DECLARED: Record<string, [Kind, string]> = {
   ],
   'contexts/game/GameActionsContext.tsx': [
     'NOT_LIFE_AFFECTING',
-    'the shared weekly roll stream handed to the crypto/darkweb/politics/stock/' +
-      'rent subsystem ticks. Those subsystems key on their own namespaces and ' +
-      'operate on holdings the life chose to acquire; the tape they price ' +
-      'against is deliberately global (see economyEvents above).',
+    'the shared weekly roll stream handed to the darkweb/politics/rent ' +
+      'subsystem ticks. Those subsystems key on their own namespaces and ' +
+      'operate on holdings the life chose to acquire. The crypto tick gets the ' +
+      'same stream with every key prefixed by `marketSalt` (the life plus its ' +
+      'Time Machine rewind count), like the stock tape, so neither a new life ' +
+      'nor a rewind replays prices the player has already seen.',
   ],
 };
 

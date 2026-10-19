@@ -1444,6 +1444,32 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 55;
     return state;
   },
+  /**
+   * v56 - two fields that close the IPO loop (exploit sweep, 2026-10-19):
+   * `Company.foundedWeek` (an IPO needs IPO_MIN_WEEKS_OWNED of ownership) and
+   * the per-life `ipoListedCompanyIds` (a company id floats once a life).
+   * Found, staff, float 40% for ~$1.7M, sell, found again paid the float every
+   * time, in one week. Both CARVE-OUTS: no backfill, no repair mirror.
+   * `foundedWeek` absent = a company from before v56, which counts as old
+   * enough; stamping today's week would block every existing company's IPO
+   * for half a year. `ipoListedCompanyIds` absent = nothing floated yet, the
+   * truth for every earlier save that cannot be reconstructed: a company sold
+   * after floating left no record, and guessing one would refuse a real IPO.
+   *
+   * Same bump, third carve-out: `VehicleInsurance.conditionAtPurchase`, so a
+   * policy covers only damage done after it started (buy a policy on a wreck,
+   * repair at 20%, cancel for a near-full refund). Absent = a policy bought
+   * before v56, which keeps covering all damage as it was sold to do.
+   *
+   * Fourth: `HustleCampaign.brandLiftGranted`, the brand a launch actually added
+   * (clipped at 100), so a cancel takes back the unfinished share of exactly
+   * that. Absent = a campaign launched before v56, whose cancel takes back
+   * nothing, as it always did.
+   */
+  56: (state) => {
+    state.version = 56;
+    return state;
+  },
 };
 
 /**

@@ -23,6 +23,7 @@ import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { maybeOfferYearEndBreak } from '@/lib/ads/yearEndTrigger';
+import { isPayingPlayer } from '@/lib/ads/yearEndBreak';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { modalEventCount } from '@/lib/events/routing';
 import { useError } from '@/contexts/UIUXContext';
@@ -1009,6 +1010,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  adsRemoved: areAdsRemoved(committed),
  blocked,
  weeksThisLife,
+ isPayer: isPayingPlayer(committed.settings),
  });
  }
  }

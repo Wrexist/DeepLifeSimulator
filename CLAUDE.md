@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 55`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 56`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -540,7 +540,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 55`** — single source of truth in
+- **Canonical `STATE_VERSION = 56`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -986,6 +986,24 @@ including the crash screen.
   leaves no proof and is deliberately not paid. The tier, pill count and trait
   ids are written into the migration, not imported, so it means the same thing
   if the pass is re-laid out.
+- **v56 adds four CARVE-OUTS that close exploits** (exploit sweep,
+  2026-10-19; `tasks/exploit-sweep-2026-10-19.md`). `Company.foundedWeek`: an
+  IPO needs `IPO_MIN_WEEKS_OWNED` (26) of ownership. The top-level, per-life
+  `ipoListedCompanyIds`: a company id floats once a life, because selling and
+  refounding reuses the id - found, staff, float 40% for ~$1.7M, sell, found
+  again used to pay every week. `VehicleInsurance.conditionAtPurchase`: a
+  policy covers only damage done since it started (reset to 100 by a repair).
+  `HustleCampaign.brandLiftGranted`: what a launch actually added, so a cancel
+  takes back the unfinished share of exactly that. All four default
+  `undefined`, so no backfill and no `repairGameState` mirror, and absence
+  resolves to the old behaviour on purpose: a pre-v56 company counts as old
+  enough, a save with no list has floated nothing, a pre-v56 policy covers all
+  damage, a pre-v56 campaign keeps its lift. A company carried into the next
+  life (family business) drops `foundedWeek`: that week belongs to the old
+  life's counter. Stamping any of them would block or deny
+  something the player legitimately had. `ipoListedCompanyIds` is per life
+  because prestige and heirs rebuild from `initialGameState`; it must not move
+  into `hustleApp.lifetimeStats`, which carries across prestige.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

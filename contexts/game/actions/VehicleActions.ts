@@ -23,6 +23,7 @@ import {
   createVehicleFromTemplate,
   calculateVehicleSellPrice,
   calculateRepairCost,
+  insuredDamageShare,
   calculateFuelCost,
   getInsurancePlan,
   calculateAccidentDamage,
@@ -482,10 +483,10 @@ export const repairVehicle = (
 
   let repairCost = calculateRepairCost(vehicle);
 
-  // Apply insurance coverage
+  // Apply insurance coverage - to the damage done since the policy started only.
   if (vehicle.insurance?.active) {
     const coverage = vehicle.insurance.coveragePercent / 100;
-    repairCost = Math.floor(repairCost * (1 - coverage));
+    repairCost = Math.floor(repairCost * (1 - coverage * insuredDamageShare(vehicle)));
   }
 
   if (gameState.stats.money < repairCost) {
@@ -512,7 +513,17 @@ export const repairVehicle = (
         money: prev.stats.money - repairCost,
       },
       vehicles: (prev.vehicles || []).map(v =>
-        v.id === vehicleId ? { ...v, condition: 100, lastServiceWeek: prev.weeksLived || 0 } : v
+        v.id === vehicleId
+          ? {
+              ...v,
+              condition: 100,
+              lastServiceWeek: prev.weeksLived || 0,
+              // Repaired to 100: any later damage is damage the policy insures.
+              insurance: v.insurance && typeof v.insurance.conditionAtPurchase === 'number'
+                ? { ...v.insurance, conditionAtPurchase: 100 }
+                : v.insurance,
+            }
+          : v
       ),
     };
   });
@@ -600,6 +611,10 @@ export const purchaseInsurance = (
       coveragePercent: plan.coveragePercent,
       active: true,
       expiresWeek: currentWeeksLived + 26, // 6 months (~26 weeks)
+      // Coverage starts from the car as it is now (v56): damage already there is not insured.
+      conditionAtPurchase: typeof prevVehicle.condition === 'number' && isFinite(prevVehicle.condition)
+        ? Math.max(0, Math.min(100, prevVehicle.condition))
+        : 100,
     };
 
     return {

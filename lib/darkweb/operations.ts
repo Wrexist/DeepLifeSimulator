@@ -43,7 +43,7 @@ import {
 } from './marketplace';
 
 const RECENT_EVENT_CAP = 20;
-const JOB_HISTORY_CAP = 30;
+export const JOB_HISTORY_CAP = 30;
 // EXPLOIT FIX (H-4): a failed stage used to only reset progress to 0, so a job
 // could be brute-forced indefinitely (energy-gated only, no cash/jail cost). Cap
 // total failed attempts per job — exceed it and the job is lost ('failed'), so
@@ -261,6 +261,23 @@ export function listAvailableJobs(dw: DarkWebState): DarkWebJobTemplate[] {
   });
 }
 
+/**
+ * Dark-web jobs a player can start per game week (exploit sweep, 2026-10-19).
+ *
+ * Energy was the only limit, and food buys energy back for a few dollars, so a
+ * job could be finished and started again all week: ten Nation-State jobs in
+ * one week paid 75 BTC (~$3M). Counted from the start week of every job this
+ * life still holds (running, or archived to `jobHistory` when it completed or
+ * failed), so it needs no new save field.
+ */
+export const MAX_DARKWEB_JOBS_PER_WEEK = 1;
+
+/** How many jobs were started in `week`, running or finished. */
+export function darkWebJobsStartedInWeek(dw: Pick<DarkWebState, 'activeJobs' | 'jobHistory'>, week: number): number {
+  const all = [...(dw.activeJobs ?? []), ...(dw.jobHistory ?? [])];
+  return all.filter((j) => j?.startedWeek === week).length;
+}
+
 export function startJob(
   dw: DarkWebState,
   templateId: string,
@@ -268,6 +285,9 @@ export function startJob(
 ): { ok: true; dw: DarkWebState; job: DarkWebActiveJob } | { ok: false; reason: string } {
   const tpl = jobTemplateById(templateId);
   if (!tpl) return { ok: false, reason: 'Unknown job template' };
+  if (darkWebJobsStartedInWeek(dw, currentWeek) >= MAX_DARKWEB_JOBS_PER_WEEK) {
+    return { ok: false, reason: 'You can take on one job a week. Come back next week.' };
+  }
   // Reject a duplicate active job for the same template. The "Start job" button
   // has no in-flight guard, so a rapid double-tap would otherwise append two
   // identical active jobs (each with a fresh random id) from one intent.

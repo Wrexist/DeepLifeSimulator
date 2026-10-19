@@ -1150,6 +1150,13 @@ export interface Company {
   unlockedTechnologies?: string[];
   patents?: Patent[];
   competitionHistory?: CompetitionEntry[];
+  /**
+   * `weeksLived` when this company was founded (v56). An IPO needs
+   * IPO_MIN_WEEKS_OWNED of it, so a company cannot be built, staffed and
+   * floated in one week (exploit sweep, 2026-10-19). Carve-out: absent on
+   * companies founded before v56, which count as old enough.
+   */
+  foundedWeek?: number;
 }
 
 export interface Crypto {
@@ -1743,6 +1750,13 @@ export interface HustleCampaign {
   projectedROI: number;
   /** True if the player has actually paid the spend each week. */
   active: boolean;
+  /**
+   * The brand points this campaign's launch actually added (the lift, clipped
+   * at the 100 ceiling) (v56). Cancelling before the run ends takes back the
+   * unfinished share of exactly this. Carve-out: absent on campaigns launched
+   * before v56, whose cancel takes back nothing, as it always did.
+   */
+  brandLiftGranted?: number;
 }
 
 export interface HustleBrandHealth {
@@ -2529,6 +2543,14 @@ export interface VehicleInsurance {
   expiresWeek: number;
   monthlyCost: number;
   premiumCost?: number; // Deprecated, use monthlyCost instead
+  /**
+   * The vehicle's condition when this policy started (v56), reset to 100 by a
+   * repair. Coverage applies only to damage done since: buying a policy on a
+   * wrecked car, repairing at 20% and cancelling for a near-full refund was a
+   * claim on damage the policy never insured (exploit sweep, 2026-10-19).
+   * Carve-out: absent on policies bought before v56, which cover all damage.
+   */
+  conditionAtPurchase?: number;
 }
 
 export interface Vehicle {
@@ -2817,6 +2839,14 @@ export interface GameState {
    * child again, and living in the save is what gives that for free.
    */
   shownNotificationIds?: string[];
+  /**
+   * Company ids this LIFE has already taken public (v56). Selling a public
+   * company and founding the same type again reuses the id, so this is what
+   * stops found -> IPO -> sell -> found from paying the float again. Per life:
+   * prestige and the heir path rebuild from `initialGameState`, which has no
+   * entry. Carve-out: absent = nothing listed yet.
+   */
+  ipoListedCompanyIds?: string[];
   liveOps?: {
     /** Claimed event instance ids (`eventId@startsAt`). The idempotency ledger. */
     claimedInstanceIds?: string[];

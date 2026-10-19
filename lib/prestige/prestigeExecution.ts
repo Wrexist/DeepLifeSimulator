@@ -36,6 +36,18 @@ import { appendLifeRecord, buildLifeRecord } from '@/lib/legacy/lifeRecord';
 
 
 /**
+ * A company carried into the next life (a family business), minus its
+ * `foundedWeek` (v56). That week belongs to the old life's counter, which the
+ * next life restarts, so carrying it put the 26-week IPO lock in the middle of
+ * the new life on a business held for years. Absent reads as old enough.
+ */
+function inheritedCompany<C extends { foundedWeek?: number }>(company: C): C {
+  const copy = { ...company };
+  delete copy.foundedWeek;
+  return copy;
+}
+
+/**
  * Execute prestige - reset character based on chosen path
  * @param gameState Current game state
  * @param chosenPath 'reset' to age 18 or 'child' to continue as child
@@ -351,7 +363,7 @@ function createResetGameState(
     if (carriedCompanies.length > 0) {
       newState.companies = [
         ...(newState.companies || []),
-        ...carriedCompanies.map(c => ({ ...c })),
+        ...carriedCompanies.map(inheritedCompany),
       ];
     }
     // The debt goes with the business - same rule, same helper as the heir path.
@@ -855,7 +867,7 @@ function createChildGameState(
     if (familyBusinessCompanies.length > 0) {
       // Merge with existing companies (avoid duplicates)
       const existingCompanyIds = new Set((newState.companies || []).map(c => c.id));
-      const newCompanies = familyBusinessCompanies.filter(c => !existingCompanyIds.has(c.id));
+      const newCompanies = familyBusinessCompanies.filter(c => !existingCompanyIds.has(c.id)).map(inheritedCompany);
       newState.companies = [...(newState.companies || []), ...newCompanies];
     }
 

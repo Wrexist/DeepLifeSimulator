@@ -5994,3 +5994,18 @@ so a refused second tap still paid them. Guard:
 
 - **A bonus's ceiling is a number you can compute before shipping it.** Achievement Hunter paid +20% of a base that only ever pays for raising the lifetime PEAK count, at 10 points each: 160 x 10 x 20% = 320 points across every life, for a 4,000-point price. Before pricing a multiplier, multiply it by the largest thing it can ever multiply; if that is below the cost, the bonus is a label.
 - **A migration that writes a field changes what the save audit demands of it.** The v55 make-good writes `youthPills`, so the audit counted it as migration-covered: it had to leave `LEGACY_PRE_MIGRATION_FIELDS` (the ratchet's stale check) and gain a `repairGameState` mirror (rule (b): a partial save stamped at the current version skips the migration). Run `npm run audit:save` after any migration that touches an existing field, not only after adding one.
+
+## 2026-10-19 — A balance that crosses a boundary must take its ledger with it
+
+Restart Game carried the gem balance into the new life and left behind the
+records that make those gems once-only (achievement mint ids, the Live Ops
+claim ledger, the login day stamp), so every fresh life re-claimed them.
+Prestige and heirs already carried two of the three; the third transition was
+the hole. Same shape in three other places this sweep: an IPO record deleted
+with the sold company, a family business left behind by the sale, a favour
+cooldown that lived only in "one OPEN favour". Rule: when a value crosses a
+boundary (life, sale, rewind), list every guard that makes it once-only and
+carry or re-check each one; a ledger can only refuse, so carrying it is always
+safe. And prove the exploit with a passing test before fixing it, then flip
+that test: four hunters did this in parallel and none of the 11 findings was
+over-graded.

@@ -90,8 +90,9 @@ function computeReward(state: GameState): number {
   } catch {
     base = 0;
   }
-  const cash = state?.stats?.money ?? 0;
-  base = Math.max(base || 0, cash, 0);
+  // Net worth alone, like the bank's sponsored bonus (BankingActions
+  // getAdCashBonusAmount): a cash term only ever beat it with borrowed cash.
+  base = Math.max(base || 0, 0);
   const raw = base * REWARD_PCT;
   const clamped = Math.max(REWARD_MIN, Math.min(REWARD_MAX, raw));
   // Round to a clean number ($10 steps).

@@ -45,6 +45,56 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.16.1',
+    date: 'October 2026',
+    headline: 'A fair game for everyone',
+    summary: 'Loopholes that paid out for nothing are closed, so every fortune is earned.',
+    changes: [
+      {
+        category: 'fixed',
+        title: 'Rewards pay once',
+        bullets: [
+          'Restarting the game no longer re-pays achievement gems, event rewards or the daily login.',
+          'A favour from a contact can be called in once every 12 weeks.',
+          'Rewinding time no longer shows you the stock and crypto prices to come.',
+          'Rewinding time no longer pays a Life Ambition’s gems twice.',
+          'Restarting the game keeps your Legacy Pass progress and rewards.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Crime and politics',
+        bullets: [
+          'You can take on one dark web job a week.',
+          'A public apology works once per scandal, and it takes energy.',
+          'Campaign donations start at $5,000: one approval point per $5,000.',
+          'Elections and lawsuits can no longer be retried by closing the app.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Business that adds up',
+        bullets: [
+          'A company needs 26 weeks of ownership before an IPO, and can go public once per life.',
+          'After an IPO you earn, and sell, only the share you kept.',
+          'A family business goes with the company when you sell it.',
+          'Cancelling a marketing campaign early gives back its brand boost.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Honest money',
+        bullets: [
+          'Borrowed money no longer raises the bank bonus or the reward orb.',
+          'Car insurance covers damage done after you buy it, not damage that was already there.',
+          'Rent on a property with no value cannot be set above the market.',
+          'Selling an heirloom takes it out of the Dynasty Vault.',
+          'Selling a home sells its rooms, decor and upgrades with it.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.16.0',
     date: 'October 2026',
     headline: 'Fairer choices, bigger rewards',

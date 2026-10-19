@@ -51,6 +51,7 @@ import {
 } from '@/utils/saveValidation';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-carve-out-round-trip';
 
@@ -411,7 +412,116 @@ const CARVE_OUTS: CarveOut[] = [
       };
     },
   },
+  {
+    version: 56,
+    path: 'companies.0.foundedWeek',
+    // The week a company was founded. Erased on load, the company would read
+    // as pre-v56 (old enough), and a freshly built one could float the week
+    // it was founded again - the loop the field exists to close.
+    value: 3_700,
+    build: () => ({ ...base(), companies: [foundedFactory(3_700)] }),
+  },
+  {
+    version: 56,
+    path: 'ipoListedCompanyIds',
+    // Company ids this life has floated. Erased on load, a sold-and-refounded
+    // company could be floated a second time.
+    value: ['factory'],
+    build: () => ({ ...base(), ipoListedCompanyIds: ['factory'] }),
+  },
+  {
+    version: 56,
+    path: 'vehicles.0.insurance.conditionAtPurchase',
+    // The car's condition when its policy started. Erased on load, the policy
+    // would read as pre-v56 and cover the damage it was bought on top of.
+    value: 40,
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        vehicles: [
+          {
+            id: 'basic_sedan',
+            name: 'Basic Sedan',
+            type: 'car' as const,
+            brand: 'Basic',
+            model: 'Basic Sedan',
+            year: 2025,
+            price: 15_000,
+            condition: 40,
+            fuelLevel: 100,
+            fuelCapacity: 50,
+            fuelEfficiency: 30,
+            mileage: 0,
+            weeklyMaintenanceCost: 50,
+            weeklyFuelCost: 40,
+            maxSpeed: 120,
+            owned: true,
+            reputationBonus: 10,
+            speedBonus: 0,
+            insurance: {
+              type: 'premium' as const,
+              active: true,
+              coveragePercent: 80,
+              expiresWeek: 4_000,
+              monthlyCost: 300,
+              conditionAtPurchase: 40,
+            },
+          },
+        ],
+      };
+    },
+  },
+  {
+    version: 56,
+    path: 'hustleApp.companies.factory.activeCampaigns.0.brandLiftGranted',
+    // The brand a launch actually added. Erased on load, a cancel would read the
+    // campaign as pre-v56 and keep its whole lift.
+    value: 3,
+    build: () => campaignState(),
+  },
 ];
+
+/** A factory founded at `week` - the v56 rows' company. */
+function campaignState(): GameState {
+  const b = base();
+  return {
+    ...b,
+    hustleApp: {
+      companies: {
+        factory: {
+          ...createDefaultCompanyOverlay('factory', 3_700),
+          activeCampaigns: [
+            { id: 'camp-1', kind: 'guerrilla', spendPerWeek: 100, startedWeek: 3_700, durationWeeks: 52, projectedROI: 0, active: true, brandLiftGranted: 3 },
+          ],
+        },
+      },
+      lifetimeStats: {
+        totalCompaniesFounded: 1, totalCompaniesSold: 0, totalIPOsLaunched: 0, totalAcquisitionsCompleted: 0,
+        totalScandalsSurvived: 0, totalCampaignsRun: 1, totalNamedHires: 0, totalFires: 0,
+        peakBrandScore: 53, peakMarketShare: 5, peakSharePrice: 0,
+      },
+    },
+  } as GameState;
+}
+
+function foundedFactory(week: number): GameState['companies'][number] {
+  return {
+    id: 'factory',
+    name: 'My Factory',
+    type: 'factory',
+    weeklyIncome: 2_000,
+    baseWeeklyIncome: 2_000,
+    upgrades: [],
+    employees: 0,
+    workerSalary: 500,
+    workerMultiplier: 1.1,
+    marketingLevel: 1,
+    miners: {},
+    warehouseLevel: 0,
+    foundedWeek: week,
+  };
+}
 
 /**
  * A save carrying all five v47 political carve-outs. One shape shared by the
@@ -479,8 +589,10 @@ describe('the §7 carve-out fields survive the load merge', () => {
     // 26 as of the v50/v51 merge: `shownNotificationIds` and `metAt` were both
     // authored as v50 on separate branches, so the merged history carries two
     // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`,
-    // 28 with v55 `Vehicle.reputationGranted`.
-    expect(CARVE_OUTS).toHaveLength(28);
+    // 28 with v55 `Vehicle.reputationGranted`, 32 with v56 `Company.foundedWeek`,
+    // `ipoListedCompanyIds`, `VehicleInsurance.conditionAtPurchase` and
+    // `HustleCampaign.brandLiftGranted`.
+    expect(CARVE_OUTS).toHaveLength(32);
     // Bumps that add NO field, so they have no row here: v53 reprices the
     // stored diet catalogue; v54 reprices careers/street jobs/items and mints
     // `lineageId`. Declared, so an undeclared new field still fails.

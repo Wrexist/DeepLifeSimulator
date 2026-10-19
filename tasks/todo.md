@@ -1,3 +1,16 @@
+# Exploit sweep + ad system - 19 October 2026
+
+Owner: "look for exploits, and fix them all; improve the ad system and maximize ads like Block Blast". Branch `claude/exploits-ads-2026-10-18`, ships as 2.16.1 (v56). [Report](exploit-sweep-2026-10-19.md).
+
+- [x] F0. Time Machine market foresight: `marketSalt` (life + rewind count) for stocks and crypto.
+- [x] Round 1 (4 hunters): C1-C3 Restart Game claim ledgers; S1-S2 favour cooldown; W1-W4 IPO loop, owner share, family business, campaign cancel; M1-M3 borrowed cash, insurance, $0 rent. Each proved, fixed, flipped into `__tests__/exploits/`.
+- [x] Round 2 (2 hunters): DW1 dark-web weekly cap; PU1 one apology; PO1 campaign minimum; seeded election/lawsuit rolls; R2-F1 vault; R2-A1 ambition rewind; R2-P1 Legacy Pass on restart; R2-R1 property improvements.
+- [x] Ads A1: the interstitial fallback obeys the year-end pacing. A2: Remove Ads and the ad claim say only what is true.
+- [x] Ads A3: Block Blast research (no public formula; documented model) and the owner steps, in the report.
+- [x] Docs: CLAUDE.md §7 v56, DEV/WORKFLOW/AGENTS, changelog + WHATS_NEW 2.16.1, lessons.
+- [ ] Verify: full suite, type-checks, lint, gates; PR; CI.
+- [ ] Owner: interstitial ad units (iOS + Android), mediation bidders, SKAdNetwork ids - see the report.
+
 # Ship 2.16.0 - 18 October 2026
 
 Owner: "do everything for me". Branch `claude/store-1.7.0` (PR #243).

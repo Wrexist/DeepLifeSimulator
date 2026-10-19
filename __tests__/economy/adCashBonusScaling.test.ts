@@ -88,18 +88,32 @@ describe('it scales with everything that has worth, not just cash', () => {
     }
   });
 
-  it('uses cash when it EXCEEDS net worth, so debt cannot bury a rich wallet', () => {
-    // netWorth subtracts loans; a cash-rich, mortgage-heavy player must not be
-    // pushed to the floor by a number that says nothing about what they can
-    // spend. Same `max(netWorth, cash)` rule AdRewardOrb uses.
+  it('a mortgage backed by a property does not bury a cash-rich wallet', () => {
+    // A cash-rich, mortgage-heavy player: $1M cash, a $5M home, a $5M loan on
+    // it. Net worth nets the loan against the home and keeps the cash, so the
+    // bonus is still 2% of the $1M. Same base AdRewardOrb uses.
     const base = createTestGameState();
-    const leveraged: GameState = {
+    const mortgaged: GameState = {
       ...base,
       stats: { ...base.stats, money: 1_000_000 },
+      realEstate: [{ id: 'home', name: 'Home', price: 5_000_000, currentValue: 5_000_000, owned: true } as never],
       loans: [{ id: 'L', remaining: 5_000_000 } as never],
     };
-    expect(netWorth(leveraged)).toBeLessThan(1_000_000);
-    expect(getAdCashBonusAmount(leveraged)).toBe(20_000); // 2% of the $1M cash
+    expect(getAdCashBonusAmount(mortgaged)).toBe(20_000); // 2% of the $1M cash
+  });
+
+  it('borrowed cash with nothing behind it does not count (exploit sweep 2026-10-19)', () => {
+    // $1M cash that is all borrowed: net worth ~0, cash net of debt 0, so the
+    // bonus is the floor. Counting it paid 2% of any loan, then the loan was
+    // prepaid the same week.
+    const base = createTestGameState();
+    const borrowed: GameState = {
+      ...base,
+      stats: { ...base.stats, money: 1_000_000 },
+      loans: [{ id: 'L', remaining: 1_000_000 } as never],
+    };
+    expect(netWorth(borrowed)).toBeLessThan(1_000_000);
+    expect(getAdCashBonusAmount(borrowed)).toBe(AD_CASH_BONUS_MIN);
   });
 });
 

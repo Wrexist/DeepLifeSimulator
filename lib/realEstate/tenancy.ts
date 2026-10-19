@@ -142,7 +142,10 @@ export function effectiveAskRent(
   const ask = safe(askRent, 0);
   if (ask <= 0) return market;
   const ceiling = Math.max(0, safe(propertyValue)) * ASK_RENT_CEILING_RATE;
-  return ceiling > 0 ? Math.min(ask, ceiling) : ask;
+  // No value means no ceiling to scale an ask against, so the ask cannot beat
+  // the market: an uncapped ask on a $0 property (the luxury-minted island)
+  // paid whatever the player typed (exploit sweep, 2026-10-19).
+  return ceiling > 0 ? Math.min(ask, ceiling) : Math.min(ask, market);
 }
 
 /** Ask/market ratio, clamped to a sane band (market floored at 1 to avoid /0). */

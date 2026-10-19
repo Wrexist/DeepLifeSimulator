@@ -133,7 +133,12 @@ export const DIVORCE_SETTLEMENT_RANGE = 0.20;
 export const DIVORCE_LAWYER_BASE_FEE = 5000;
 
 // ── Politics ──────────────────────────────────────────────
-export const CAMPAIGN_MINIMUM_AMOUNT = 500;
+/**
+ * One approval point's worth (DIRECT_USD_PER_APPROVAL_POINT). It was $500
+ * while any spend bought at least +1, so ten $500 pushes bought +10 where one
+ * $5,000 push bought +1 (exploit sweep, 2026-10-19).
+ */
+export const CAMPAIGN_MINIMUM_AMOUNT = 5_000;
 
 // ── R&D ──────────────────────────────────────────────────
 export const PATENT_COSTS: Record<number, number> = { 1: 10000, 2: 50000, 3: 100000 };

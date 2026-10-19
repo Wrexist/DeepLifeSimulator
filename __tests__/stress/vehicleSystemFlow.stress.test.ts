@@ -312,13 +312,17 @@ describe('Vehicle system deep audit', () => {
     const uninsuredCost = moneyBeforeUninsured - captured!.state.stats.money;
     expect(uninsuredCost).toBeGreaterThan(0);
 
-    // Damage again + buy insurance + repair → cost should be lower.
+    // Buy insurance, THEN take the same damage, then repair → cost should be
+    // lower. A policy covers only damage done after it started (v56).
     act(() => captured!.setGameState(prev => ({
       ...prev,
       stats: { ...prev.stats, money: 1_000_000 },
-      vehicles: prev.vehicles?.map(v => v.id === vid ? { ...v, condition: 50 } : v),
     })));
     act(() => { purchaseInsurance(captured!.state, captured!.setGameState, vid, 'premium', deps); });
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      vehicles: prev.vehicles?.map(v => v.id === vid ? { ...v, condition: 50 } : v),
+    })));
     const moneyBeforeInsured = captured!.state.stats.money;
     act(() => { repairVehicle(captured!.state, captured!.setGameState, vid, deps); });
     const insuredCost = moneyBeforeInsured - captured!.state.stats.money;

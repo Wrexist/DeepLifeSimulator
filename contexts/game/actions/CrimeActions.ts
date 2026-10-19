@@ -17,6 +17,7 @@ import {
   startJob as startJobPure,
   submitToMixer,
   withdrawCleanBtc,
+  JOB_HISTORY_CAP,
 } from '@/lib/darkweb/operations';
 
 const log = logger.scope('CrimeActions');
@@ -408,7 +409,14 @@ export const acquireNewIdentity = (
       ...state.darkWeb,
       heat: 0,
       playerReputation: 0,
+      // Dropped jobs are archived, not erased: the one-job-a-week cap counts
+      // start weeks in `jobHistory`, and erasing them let a new identity open a
+      // second job the same week.
       activeJobs: [],
+      jobHistory: [
+        ...(state.darkWeb.activeJobs ?? []).map((j) => ({ ...j, status: 'expired' as const })),
+        ...(state.darkWeb.jobHistory ?? []),
+      ].slice(0, JOB_HISTORY_CAP),
     };
     const newBanking = state.banking
       ? {

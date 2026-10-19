@@ -1,5 +1,6 @@
 // cspell:words realestate fintech
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { companyOwnerShare } from '@/lib/economy/passiveIncome';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from './companyUpgradeCatalog';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { logger } from '@/utils/logger';
@@ -84,8 +85,9 @@ export function createCompany(
 
   setGameState(prev => ({
     ...prev,
-    companies: [...(prev.companies || []), newCompany],
-    company: prev.company ?? newCompany,
+    // The founding week (v56): an IPO needs IPO_MIN_WEEKS_OWNED of it.
+    companies: [...(prev.companies || []), { ...newCompany, foundedWeek: prev.weeksLived ?? 0 }],
+    company: prev.company ?? { ...newCompany, foundedWeek: prev.weeksLived ?? 0 },
     // Mirror into lifetimeStatistics (trackNewCompany was never called).
     lifetimeStatistics: prev.lifetimeStatistics
       ? {
@@ -367,7 +369,9 @@ export function quoteCompanySaleValue(gameState: GameState, companyId: string): 
   });
 
   const totalInvestment = inflatedCompanyCost + totalUpgradeCost;
-  return Math.round(totalInvestment * 0.5); // 50% of total investment
+  // 50% of total investment, times the share the player still owns: after an
+  // IPO the public holders own the rest (exploit sweep, 2026-10-19).
+  return Math.round(totalInvestment * 0.5 * companyOwnerShare(gameState, companyId));
 }
 
 export function sellCompany(
@@ -384,10 +388,14 @@ export function sellCompany(
     // Re-check against prev - a same-batch double-tap must not sell twice.
     if (!(prev.companies || []).some(c => c.id === companyId)) return prev;
     const companies = prev.companies.filter(c => c.id !== companyId);
+    // Priced against `prev`, not the snapshot: an IPO in the same batch changes
+    // the owner's share, and the sale must pay the share actually owned.
+    const freshValue = quoteCompanySaleValue(prev, companyId);
+    if (freshValue == null) return prev;
     // Canonical credit path (MONEY_CEILING clamp + dailySummary tracking).
     // Abort outright if the credit is rejected - the company must never be
     // removed while the player receives nothing.
-    const salePatch = applyMoneyDelta(prev, sellValue, 'Company sale');
+    const salePatch = applyMoneyDelta(prev, freshValue, 'Company sale');
     if (!salePatch) return prev;
     // Drop the sold company's Hustle overlay and count the exit - the
     // Dashboard 'Sold' milestone reads lifetimeStats.totalCompaniesSold.
@@ -404,12 +412,19 @@ export function sellCompany(
         },
       };
     }
+    // A family business is the company's; it goes with the sale (exploit sweep,
+    // 2026-10-19). Left behind, it re-attached free - brand and all - to the
+    // next company founded under the same id.
+    const familyBusinesses = prev.familyBusinesses?.some((fb) => fb?.companyId === companyId)
+      ? prev.familyBusinesses.filter((fb) => fb?.companyId !== companyId)
+      : prev.familyBusinesses;
     return {
       ...prev,
       ...salePatch,
       companies,
       company: prev.company?.id === companyId ? undefined : prev.company,
       hustleApp,
+      familyBusinesses,
     };
   });
 

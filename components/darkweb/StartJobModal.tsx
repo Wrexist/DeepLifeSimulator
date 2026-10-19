@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { X, Target } from 'lucide-react-native';
 import { DarkWebJobTemplate, JOB_TEMPLATES } from '@/lib/darkweb/jobs';
 import { DarkWebState } from '@/contexts/game/types';
+import { darkWebJobsStartedInWeek, MAX_DARKWEB_JOBS_PER_WEEK } from '@/lib/darkweb/operations';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -10,6 +11,8 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 interface Props {
   visible: boolean;
   darkWeb: DarkWebState;
+  /** `weeksLived` now, for the one-job-a-week limit. */
+  weeksLived: number;
   darkMode: boolean;
   onClose: () => void;
   onStart: (templateId: string) => void;
@@ -22,9 +25,11 @@ const CATEGORY_LABEL: Record<string, string> = {
   crypto: 'Crypto',
 };
 
-export default function StartJobModal({ visible, darkWeb, darkMode, onClose, onStart }: Props) {
+export default function StartJobModal({ visible, darkWeb, weeksLived, darkMode, onClose, onStart }: Props) {
   const theme = getThemeColors(darkMode);
   const [selected, setSelected] = useState<DarkWebJobTemplate | null>(null);
+  // startJob refuses past the weekly limit, so say so here instead of a silent no-op.
+  const weekFull = darkWebJobsStartedInWeek(darkWeb, weeksLived) >= MAX_DARKWEB_JOBS_PER_WEEK;
 
   useEffect(() => {
     if (!visible) setSelected(null);
@@ -113,10 +118,15 @@ export default function StartJobModal({ visible, darkWeb, darkMode, onClose, onS
             })}
           </ScrollView>
 
+          {weekFull && (
+            <Text style={[styles.tplMeta, { color: theme.textMuted, textAlign: 'center' }]}>
+              You can take on one job a week. Come back next week.
+            </Text>
+          )}
           <TouchableOpacity
-            disabled={!selected}
-            onPress={() => selected && onStart(selected.id)}
-            style={[styles.confirm, { backgroundColor: selected ? accent.info : theme.border }]}
+            disabled={!selected || weekFull}
+            onPress={() => selected && !weekFull && onStart(selected.id)}
+            style={[styles.confirm, { backgroundColor: selected && !weekFull ? accent.info : theme.border }]}
           >
             <Text style={styles.confirmText}>Start Job</Text>
           </TouchableOpacity>

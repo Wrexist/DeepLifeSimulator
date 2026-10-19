@@ -1626,6 +1626,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       <StartJobModal
         visible={showStartJob}
         darkWeb={dw}
+        weeksLived={gameState.weeksLived ?? 0}
         darkMode={darkMode}
         onClose={() => setShowStartJob(false)}
         onStart={(templateId) => {

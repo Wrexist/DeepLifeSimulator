@@ -416,10 +416,11 @@ export const setPropertyRentMode = (
     // of value per week (~10%/yr gross) × 2 headroom is a generous ceiling.
     const owned = findOwnedById(list, propertyId);
     const propValue = owned && typeof owned.price === 'number' && isFinite(owned.price) ? owned.price : 0;
-    if (propValue > 0) {
-      const rentCeiling = Math.ceil(propValue * 0.004); // ~0.4%/wk (~20%/yr) generous upper bound
-      safeRent = Math.min(safeRent, rentCeiling);
-    }
+    // A property with no value (the luxury-minted private island) has a ceiling
+    // of 0, not none: an uncapped ask on it paid up to the $150k/wk portfolio
+    // cap (exploit sweep, 2026-10-19).
+    const rentCeiling = propValue > 0 ? Math.ceil(propValue * 0.004) : 0; // ~0.4%/wk (~20%/yr) generous upper bound
+    safeRent = Math.min(safeRent, rentCeiling);
     const properties = setRentModePure(list, propertyId, mode, safeRent);
     return { ...prev, realEstate: properties };
   });

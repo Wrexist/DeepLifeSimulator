@@ -13,6 +13,7 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { runMigrations } from '@/utils/saveMigrations';
 import { repairGameState } from '@/utils/saveValidation';
 import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
+import { LIFE_AMBITIONS } from '@/lib/ambitions/catalog';
 
 /**
  * How many rewind targets a life keeps.
@@ -308,6 +309,36 @@ function unionClaimIds(live: unknown, restored: unknown): string[] | undefined {
  * (`prestige.claimedPrestigeAchievements` needs nothing: it is only ever
  * written inside `executePrestige`, never mid-life, so no rewind straddles it.)
  */
+/**
+ * The ambition gems a rewind to `checkpointId` will take back (see
+ * `ambitionGemsClaimedSince`), for the confirm dialog: the rewind costs this
+ * on top of the gem price, and the dialog has to say so. 0 if unknown.
+ */
+export function rewindAmbitionGemTakeBack(state: GameState, checkpointId: string): number {
+  try {
+    const checkpoint = (state.checkpoints ?? []).find((c) => c.id === checkpointId);
+    if (!checkpoint) return 0;
+    const snapshot = (typeof checkpoint.snapshot === 'string'
+      ? JSON.parse(checkpoint.snapshot)
+      : checkpoint.snapshot) as Partial<GameState> | undefined;
+    return ambitionGemsClaimedSince(state, { prestige: snapshot?.prestige } as GameState);
+  } catch {
+    return 0;
+  }
+}
+
+/** Gems paid by Life Ambitions the live save claimed that `restored` has not. */
+function ambitionGemsClaimedSince(live: GameState, restored: GameState): number {
+  const before = new Set(restored.prestige?.claimedAmbitions ?? []);
+  let total = 0;
+  for (const id of live.prestige?.claimedAmbitions ?? []) {
+    if (typeof id !== 'string' || before.has(id)) continue;
+    const gems = LIFE_AMBITIONS.find((a) => a.id === id)?.payoff?.gems;
+    if (typeof gems === 'number' && isFinite(gems) && gems > 0) total += gems;
+  }
+  return total;
+}
+
 function carryClaimLedgers(live: GameState, restored: GameState): void {
   // Daily login gems (home.tsx): calendar-day key, epoch mark, streak - verbatim.
   if (live.lastLoginRewardDate !== undefined) restored.lastLoginRewardDate = live.lastLoginRewardDate;
@@ -496,11 +527,16 @@ export function rewindToCheckpoint(
     carryClaimLedgers(currentState, restored);
 
     // Deduct gem cost from CURRENT state's gems, carry into restored state
-    // This prevents negative gems when the checkpoint was saved with fewer gems than the cost
+    // This prevents negative gems when the checkpoint was saved with fewer gems than the cost.
+    // Also take back the gems of any Life Ambition claimed since the checkpoint:
+    // its claim, cash and points are rewound (see carryClaimLedgers), so the
+    // replay can claim it again, and without this the carried balance paid its
+    // gems a second time - repeatable for free with Chronomaster (exploit
+    // sweep, 2026-10-19).
     if (restored.stats) {
       restored.stats = {
         ...restored.stats,
-        gems: gems - cost,
+        gems: Math.max(0, gems - cost - ambitionGemsClaimedSince(currentState, restored)),
       };
     }
 

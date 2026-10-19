@@ -98,6 +98,22 @@ export function lifeSalt(state: { lineageId?: string; generationNumber?: number 
 }
 
 /**
+ * The salt for MARKET tapes (stocks and crypto): the life, plus how many Time
+ * Machine rewinds it has used. A rewind restores the snapshot but carries the
+ * live use count +1 (`rewindToCheckpoint`), so the replayed weeks walk a NEW
+ * tape. Without it a rewinding player had already watched every price move and
+ * could buy the winners - with Chronomaster, for free and without limit. A life
+ * that never rewinds keeps exactly its `lifeSalt` tape.
+ */
+export function marketSalt(
+  state: { lineageId?: string; generationNumber?: number; timeMachineUsesThisLife?: number } | null | undefined,
+): string {
+  const base = lifeSalt(state);
+  const uses = state?.timeMachineUsesThisLife;
+  return typeof uses === 'number' && Number.isFinite(uses) && uses > 0 ? `${base}#tm${Math.floor(uses)}` : base;
+}
+
+/**
  * A weekly roll stream keyed on the life AND the week. Same life + same week +
  * same key → same number, on every device and after every reload; a different
  * life gets a different number for the same key. Use this for any draw that
