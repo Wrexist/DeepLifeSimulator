@@ -118,7 +118,7 @@ export const APPLE = {
    */
   keywords: [
     'mafia', 'prison', 'stock', 'invest', 'empire', 'dating', 'family',
-    'story', 'money', 'offline', 'wifi', 'games', 'avatar',
+    'story', 'money', 'offline', 'wifi', 'games', 'avatar', 'rich', 'choice', 'rpg',
   ],
 
   /** 170 chars. The ONLY field that updates without a review cycle. */
@@ -443,7 +443,7 @@ Datenschutzerklärung: https://wrexist.github.io/DeepLifeSimulator/privacy.html`
       // is not worth creating, so it has to be kept in step when en-US moves.
       keywords: [
         'mafia', 'prison', 'stock', 'invest', 'empire', 'dating', 'family',
-        'story', 'money', 'offline', 'wifi', 'games', 'avatar',
+        'story', 'money', 'offline', 'wifi', 'games', 'avatar', 'rich', 'choice', 'rpg',
       ],
     },
   },
