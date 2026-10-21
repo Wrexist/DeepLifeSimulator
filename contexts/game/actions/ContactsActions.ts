@@ -1229,14 +1229,14 @@ export function removeContact(
   if (rel.type === 'partner') {
     return { success: false, message: `${rel.name} is your partner - break up with them instead.` };
   }
-  setGameState((prev) => {
-    const current = (prev.relationships ?? []).find((r) => r?.id === contactId);
-    if (!current || isFamilyRelationship(current) || current.type === 'partner') return prev;
-    return {
-      ...prev,
-      relationships: (prev.relationships ?? []).filter((r) => r?.id !== contactId),
-    };
-  });
+  // The filter re-applies both guards against `prev`, so a same-batch promotion
+  // to partner is never removed - without a reject path the outcome cannot hide.
+  setGameState((prev) => ({
+    ...prev,
+    relationships: (prev.relationships ?? []).filter(
+      (r) => r?.id !== contactId || isFamilyRelationship(r) || r.type === 'partner'
+    ),
+  }));
   log.info('Contact removed', { contactId });
   return { success: true, message: `${rel.name} is no longer part of your life.` };
 }
