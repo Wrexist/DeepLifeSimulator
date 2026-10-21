@@ -937,7 +937,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: fontScale(16),
     color: '#DC2626',
-    fontWeight: '700',
+    fontWeight: '600',
     textAlign: 'center',
     marginBottom: scale(6),
   },
