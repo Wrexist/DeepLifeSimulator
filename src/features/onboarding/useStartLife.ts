@@ -175,7 +175,7 @@ export function useStartLife() {
           isSaveSigningConfigError,
           resolveNewLifeSlot,
           snapshotOutgoingSave,
-        });
+        }, origin);
 
         if (!result.success) {
           haptic.error();

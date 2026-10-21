@@ -5,6 +5,7 @@ import {
   type OnboardingInputs,
 } from '@/src/features/onboarding/gameInitializer';
 import type { NewLifeSlotResolution } from '@/src/features/onboarding/slotSafety';
+import * as onboardingAnalytics from '@/src/features/onboarding/onboardingAnalytics';
 
 // ---------------------------------------------------------------------------
 // validateOnboardingInputs
@@ -114,6 +115,19 @@ describe('initializeAndSaveGame', () => {
     resolveNewLifeSlot: jest.fn(
       async (slot: unknown): Promise<NewLifeSlotResolution> => ({ ok: true, slot: slot as number }),
     ),
+  });
+
+  it('attributes the completion to the door the life started from (ONB-18)', async () => {
+    const complete = jest.spyOn(onboardingAnalytics, 'logOnboardingStepComplete');
+    try {
+      await initializeAndSaveGame({ version: 12 }, 1, mockDeps(), 'MainMenu');
+      expect(complete).toHaveBeenCalledWith('MainMenu', expect.anything());
+      complete.mockClear();
+      await initializeAndSaveGame({ version: 12 }, 1, mockDeps());
+      expect(complete).toHaveBeenCalledWith('Perks', expect.anything());
+    } finally {
+      complete.mockRestore();
+    }
   });
 
   it('succeeds on valid flow', async () => {
