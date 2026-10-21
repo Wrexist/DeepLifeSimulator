@@ -40,7 +40,7 @@ function VitalsSummary({ vitals }: { vitals: Vital[] }) {
       {vitals.map((v) => {
         const Icon = STAT_IDENTITY[v.key].Icon;
         return (
-          <View key={v.key} style={styles.vitalRingCell}>
+          <View key={v.key} style={styles.vitalsSummaryCell}>
             <Icon size={scale(12)} color={v.color} accessible={false} />
             <Text
               style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? uiPalette.line }]}
@@ -219,8 +219,10 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // Program 4 logged and Program 5 closes.
   const vitals: (Vital & { Icon: typeof STAT_IDENTITY.health.Icon })[] = [
     { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: STAT_IDENTITY.health.color, Icon: STAT_IDENTITY.health.Icon },
-    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
+    // Same order as the HUD rings (health, happiness, energy) so a number is
+    // read in the same place on both surfaces (VIS-20).
     { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: STAT_IDENTITY.happiness.color, Icon: STAT_IDENTITY.happiness.Icon },
+    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
     { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: STAT_IDENTITY.fitness.color, Icon: STAT_IDENTITY.fitness.Icon },
   ];
 
@@ -519,9 +521,16 @@ const styles = StyleSheet.create({
     color: uiPalette.muted,
     letterSpacing: 0.3,
   },
+  // Each value gets a fixed-width column with a real gap: sharing the width
+  // with `flex: 1` ran the numbers together ('97 100 100 9', VIS-20).
   vitalsSummary: {
     flexDirection: 'row',
-    gap: layoutSpace.sm,
+    gap: layoutSpace.md,
+  },
+  vitalsSummaryCell: {
+    alignItems: 'center',
+    gap: layoutSpace.xs,
+    minWidth: scale(28),
   },
   vitalsSummaryValue: {
     fontSize: fontScale(13),

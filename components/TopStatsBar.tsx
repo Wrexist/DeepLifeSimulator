@@ -651,6 +651,7 @@ function TopStatsBarComponent() {
  accessibilityLabel={ACCESSIBILITY_HINTS.GAME_ELEMENTS.MONEY}
  accessibilityRole="button"
  accessibilityHint="Tap to see your cash, savings and investments"
+ style={styles.moneyChipTarget}
  >
  <View
  style={[

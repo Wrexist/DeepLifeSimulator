@@ -1199,7 +1199,9 @@ const styles = StyleSheet.create({
   },
   sheet: {
     height: '88%',
-    backgroundColor: 'rgba(9, 12, 22, 0.96)',
+    // Opaque: at 0.96 the HUD money and the Home cards ghosted through the
+    // tabs and the banner (VIS-9). The dimming belongs to the backdrop.
+    backgroundColor: '#090C16',
     borderTopLeftRadius: responsiveBorderRadius.xl,
     borderTopRightRadius: responsiveBorderRadius.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -1273,9 +1275,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
+  // Four equal cells across the sheet. With md padding and a 6pt icon gap the
+  // longest label ('Upgrades') ran to the right edge at 390pt and clipped on
+  // web, where adjustsFontSizeToFit does nothing (VIS-22).
   tabRow: {
     flexDirection: 'row',
-    paddingHorizontal: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
@@ -1288,7 +1293,7 @@ const styles = StyleSheet.create({
   tabContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: scale(4),
     // Four tabs share the row; let the label give rather than overflow.
     maxWidth: '100%',
   },
