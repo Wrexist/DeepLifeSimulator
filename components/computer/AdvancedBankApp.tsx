@@ -235,6 +235,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     });
   }, [saveGame]);
 
+  // Refinance reports its outcome either way: a refusal (DTI, credit score)
+  // used to vanish into the log and look like a button that did nothing.
+  const refinance = useCallback((loanId: string, termWeeks: number) => {
+    const result = refinanceLoan(setGameState, gameState, loanId, termWeeks, weeklyIncome);
+    gameAlert(result.success ? 'Refinanced' : 'Refinance declined', result.message);
+    if (result.success) queueSave();
+  }, [setGameState, gameState, weeklyIncome, queueSave]);
+
   // Loan tap → choose Prepay or Refinance. Refinance re-prices the APR from the
   // CURRENT credit score (and adds a hard inquiry), so a player who has built
   // credit since taking the loan can cut their rate.
@@ -251,8 +259,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               'Refinance term',
               'Re-price this loan at your current credit score. Adds a hard inquiry.',
               [
-                { text: '1 year (52 wks)', onPress: () => { refinanceLoan(setGameState, loan.id, 52); queueSave(); } },
-                { text: '2 years (104 wks)', onPress: () => { refinanceLoan(setGameState, loan.id, 104); queueSave(); } },
+                { text: '1 year (52 wks)', onPress: () => refinance(loan.id, 52) },
+                { text: '2 years (104 wks)', onPress: () => refinance(loan.id, 104) },
                 { text: 'Cancel', style: 'cancel' },
               ]
             );
@@ -261,7 +269,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         { text: 'Cancel', style: 'cancel' },
       ]
     );
-  }, [setGameState, queueSave]);
+  }, [refinance]);
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
