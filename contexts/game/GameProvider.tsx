@@ -5,6 +5,7 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { logger } from '@/utils/logger';
+import { fontScale, scale } from '@/utils/scaling';
 import { GameStateProvider } from './GameStateContext';
 import { GameActionsProvider } from './GameActionsContext';
 import { GameUIProvider } from './GameUIContext';
@@ -206,14 +207,14 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   retryButton: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    marginTop: scale(20),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    borderRadius: scale(10),
     backgroundColor: '#2563eb',
   },
   retryText: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#fff',
   },
