@@ -17,28 +17,54 @@ Links to paste:
 - App Store: https://apps.apple.com/us/app/deep-life-simulator/id6749675615
 - Google Play: https://play.google.com/store/apps/details?id=com.deeplife.simulator
 - Site and guide: https://wrexist.github.io/DeepLifeSimulator/guide.html
-- Press kit: upload `marketing/press-kit.html` to the support site first, or
-  attach as a link to the GitHub Pages copy once deployed.
+- Press kit: https://wrexist.github.io/DeepLifeSimulator/press.html (live once
+  the PR merges; the old `marketing/press-kit.html` had a wrong App Store id
+  and is now only a redirect)
 
-## Target pages (found 21 Oct 2026)
+## Target pages (each one read on 21 Oct 2026)
 
-| # | Page | Why it matters | How to reach |
-|---|---|---|---|
-| 1 | [GamesAkin: 21 Games Like BitLife](https://www.gamesakin.com/games-like-bitlife/) | Updated June 2026, ranks by similarity | Contact page on site |
-| 2 | [GGs Dude: Best Games like BitLife for iOS & Android](https://www.ggsdude.com/similar/games-like-bitlife-ios-android/) | Mobile-only list, older, due a refresh | Contact page / author |
-| 3 | [lifesim.io: Games like BitLife collection](https://www.lifesimulator.io/collection/games-like-bitlife) | 98-game catalogue updated October 2026 | Look for "submit a game" |
-| 4 | [Gameaton: BitLife similar games](https://gameaton.com/game/bitlife) | Similar-games database | Submit / contact form |
-| 5 | [Dot Esports: best games like BitLife](https://dotesports.com/bitlife/news/best-games-like-bitlife) | Big gaming outlet, high authority | Author's X / email on author page |
-| 6 | [iGeeksBlog: best life simulation games](https://www.igeeksblog.com/best-iphone-ipad-life-simulation-games/) | iPhone-focused roundup | Author / contact page |
-| 7 | [Cozy Game Reviews: 20 best life sims](https://cozygamereviews.com/life-sims/best-life-simulation-games/) | Life-sim audience | Contact page |
-| 8 | [PixPulse: best life simulation games 2026](https://pixpulse.net/life-simulation-games/) | 2026 list, mobile included | Contact page |
-| 9 | [MadFox: best simulation games mobile 2026](https://madfox.dev/games_en/best-simulation-games-mobile-2026) | Sorted by genre, mobile | Contact page |
-| 10 | [Summer Engine: games like The Sims](https://www.summerengine.com/blog/games-like-the-sims) | Adjacent "Sims" searches | Contact page |
-| 11 | AlternativeTo: BitLife alternatives | Ranks for "BitLife alternative" | Self-submit (see checklist) |
-| 12 | Pocket Gamer, TouchArcade, Droid Gamers, 148Apps | Press with authority | See press section |
+Ranked by fit. "Fit" is how likely the page is to add a mobile, text-first life
+sim, judged from what it already lists.
 
-Skip pages written by competing games (Infinite Life Simulation, Tiny Fates,
-thelifesim.com). They will not list a rival.
+| # | Page | What it lists now | Fit | How to reach |
+|---|---|---|---|---|
+| 1 | [lifesim.io: Games like BitLife](https://www.lifesimulator.io/collection/games-like-bitlife) | ~107 mobile life sims; badges for "no forced ads" and a "solo-built" pick (Bloodline) | **High** | Submit form: https://www.lifesimulator.io/submit |
+| 2 | AlternativeTo: BitLife alternatives | User-voted alternatives | **High** | Self-submit (see `wiki-and-listings.md`) |
+| 3 | [GGs Dude: Best Games like BitLife for iOS & Android](https://www.ggsdude.com/similar/games-like-bitlife-ios-android/) | 8 mobile games (Avakin Life, Idle Life Sim, AltLife, Simulife…); last updated 1 Jan 2025 | **High** (stale, mobile-only) | https://www.ggsdude.com/contact-us/ |
+| 4 | [MadFox: best simulation games mobile 2026](https://madfox.dev/games_en/best-simulation-games-mobile-2026) | 15 mobile sims incl. BitLife, Game Dev Tycoon; by Ilya Azarov, 2 Oct 2026 | Medium | hello@madfox.dev |
+| 5 | [iGeeksBlog: best life simulation games](https://www.igeeksblog.com/best-iphone-ipad-life-simulation-games/) | 9 iPhone games, mostly not life sims (Whiteout Survival, Pizza Ready!); by Ava Biswas, 19 Jun 2026 | Medium (the list is weak, which is the opening) | https://www.igeeksblog.com/contact/ |
+| 6 | [GamesAkin: 21 Games Like BitLife](https://www.gamesakin.com/games-like-bitlife/) | Mostly PC narrative games (Alter Ego, Reigns, The Sims, Episode); updated June 2026 | Medium | Footer contact form |
+| 7 | [PixPulse: best life simulation games 2026](https://pixpulse.net/life-simulation-games/) | 20 cozy/PC sims, BitLife and Sims FreePlay as the mobile entries; checked 9 Sep 2026 | Low–medium | pixpulse462@gmail.com |
+| 8 | [Cozy Game Reviews: 20 best life sims](https://cozygamereviews.com/life-sims/best-life-simulation-games/) | 20 cozy/PC sims, BitLife the only mobile one; by Carmen, updated 12 Jul 2026 | Low | https://cozygamereviews.com/contact/ |
+| 9 | Dot Esports: best games like BitLife | Blocked automated reading; check by hand | Unknown | Author page on the article |
+| 10 | Pocket Gamer, TouchArcade, Droid Gamers, 148Apps | Press | Needs a news hook | See press section |
+
+Skipped: Gameaton (a Steam database, no submissions), and pages written by
+competing games (Infinite Life Simulation, Tiny Fates, thelifesim.com), which
+will not list a rival.
+
+## Personalised openings
+
+Use these as the first two lines of the template below.
+
+- **lifesim.io (form):** "Deep Life Simulator is a solo-built, week-by-week
+  life sim for iOS and Android. Full-screen ads only appear at year-end breaks
+  and never in the first two in-game years, and DeepLife+ removes them."
+  (They badge ads and solo-built games, so lead with both, honestly.)
+- **GGs Dude:** "Your mobile list of games like BitLife was last updated in
+  January 2025; here is one from this year that fits next to AltLife and
+  Simulife."
+- **MadFox (Ilya):** "Your October list has BitLife and Game Dev Tycoon side by
+  side. Deep Life Simulator sits between them: a BitLife-style life with a
+  tycoon-grade economy (stocks, companies, IPOs)."
+- **iGeeksBlog (Ava):** "Your life simulation roundup is mostly broader
+  sims; if you want a pure life sim for iPhone, Deep Life Simulator is free and
+  plays one week per tap."
+- **GamesAkin:** "You rank by similarity to BitLife; Deep Life Simulator is the
+  same text-first format on iPhone and Android, with weekly turns and a
+  deeper economy."
+- **PixPulse / Cozy Game Reviews:** only pitch as a mobile entry ("your list
+  has BitLife as its phone pick; here is another one"). Low priority.
 
 Also search these yourself every month, in Google, Bing and Perplexity, and add
 new pages to the table: `games like BitLife`, `BitLife alternatives`,

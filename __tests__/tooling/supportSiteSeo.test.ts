@@ -10,7 +10,7 @@ import * as path from 'path';
 
 const SITE = path.join(__dirname, '..', '..', 'support-site');
 const BASE = 'https://wrexist.github.io/DeepLifeSimulator/';
-const PAGES = ['index.html', 'features.html', 'guide.html', 'gallery.html', 'whats-new.html', 'support.html', 'privacy.html'];
+const PAGES = ['index.html', 'features.html', 'guide.html', 'gallery.html', 'whats-new.html', 'support.html', 'privacy.html', 'press.html'];
 
 const read = (rel: string): string => fs.readFileSync(path.join(SITE, rel), 'utf8');
 
@@ -21,6 +21,18 @@ describe('support site SEO', () => {
     expect(canonical?.[1]).toBe(BASE + (page === 'index.html' ? '' : page));
     expect(html).toMatch(/<meta name="description" content="[^"]{50,}"/);
     expect(html).toMatch(/<title>[^<]*Deep Life Simulator[^<]*<\/title>/);
+    // iOS Safari's Smart App Banner: one tap from any page to the store.
+    expect(html).toContain('<meta name="apple-itunes-app" content="app-id=6749675615" />');
+    // The live App Store id. An old press kit carried a wrong one.
+    expect(html).not.toContain('6739205849');
+  });
+
+  it('shows real numbers in the homepage stats before any script runs', () => {
+    // Crawlers and link previews read the HTML as served; a count-up that
+    // starts at "0" told them the game had zero life events.
+    const stats = [...read('index.html').matchAll(/<div class="n" data-count="(\d+)"[^>]*>([^<]*)<\/div>/g)];
+    expect(stats.length).toBeGreaterThan(0);
+    for (const [, count, text] of stats) expect(text.startsWith(count)).toBe(true);
   });
 
   it('lists only pages that exist in the sitemap', () => {
@@ -35,7 +47,7 @@ describe('support site SEO', () => {
   });
 
   it('ships structured data that parses, with FAQ answers matching the visible FAQ', () => {
-    for (const page of ['index.html', 'guide.html']) {
+    for (const page of ['index.html', 'guide.html', 'press.html']) {
       const blocks = [...read(page).matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
       expect(blocks.length).toBeGreaterThan(0);
       for (const b of blocks) expect(() => JSON.parse(b[1])).not.toThrow();

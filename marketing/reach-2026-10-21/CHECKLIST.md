@@ -23,6 +23,11 @@ impact for the time it takes. Tick as you go.
 - [ ] **In-app event: "Nothing to Fear"** (15 min), live until 6 November.
       Copy in `in-app-events.md`. Then queue "First Steps" (starts 2 Nov).
 - [ ] **AlternativeTo listing** (15 min). Steps in `wiki-and-listings.md`.
+- [ ] **Submit to lifesim.io** (5 min), the best-fit list found:
+      https://www.lifesimulator.io/submit. Opening line is in
+      `list-and-press-outreach.md`.
+- [ ] **Promotional text** (2 min, no review needed). Paste the Halloween line
+      from `promotional-text.md`.
 
 ## This week (about 4 hours)
 
@@ -40,8 +45,16 @@ impact for the time it takes. Tick as you go.
 - [ ] **Message 10 creators** using `creator-outreach.md`. Create promo codes
       and one campaign link each.
 - [ ] **Create r/DeepLifeSimulator** and post the first patch notes.
+- [ ] **Post the two ready slideshows** from
+      `/mnt/project-files/reach-2026-10-21/slideshows/` (6 images each, made
+      from real screenshots) as TikTok photo posts, one a day. Captions are in
+      `short-video-and-slideshows.md`.
 - [ ] **Record one batch** of 10 lives and cut the first 3 videos from
       `short-video-and-slideshows.md`. Post them to TikTok, Reels and Shorts.
+- [ ] **Free store A/B tests.** App Store Connect › Product Page Optimization:
+      test a new first screenshot against the current one (up to 3
+      treatments, 90 days). Play Console › Store listing experiments: test the
+      short description. Keep the winner; it lifts every other channel.
 - [ ] **First AI check.** Ask the 10 questions in `ai-answer-tracker.md` and
       fill in October's row. This is the baseline.
 

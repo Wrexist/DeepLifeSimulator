@@ -52,6 +52,8 @@ Holidays" run in December, each pointing at the live in-game event.
 
 ## 5 TikTok slideshows
 
+**Ready to post:** A and D are rendered as 1080×1920 images in `/mnt/project-files/reach-2026-10-21/slideshows/` (`make.mjs` there re-renders them; edit the text and run it with Playwright). Caption for A: "Which one are you guilty of? #lifesim #moneytips #bitlife". Caption for D: "Week 1 is the hardest #lifesim #movingout #bitlife".
+
 From X threads that tested the format: 5–6 slides, one idea per slide, a hook
 on every slide so people swipe, the game mentioned softly around slide 4–5,
 same visual style throughout. Post from a separate niche account about money
