@@ -840,6 +840,51 @@ export function networkFavorCooldownLeft(ledger: FavorLedger, contactId: string,
   return Math.max(0, Math.ceil(last + NETWORK_FAVOR_COOLDOWN_WEEKS - week));
 }
 
+/** Bond a gift's recipient needs before the generosity leaves them owing you one. */
+export const GOODWILL_FAVOR_MIN_BOND = 70;
+
+/**
+ * Weeks between two goodwill favours from the same person (ACT-8, 2026-10-21).
+ *
+ * A generous gift at a strong bond records an `intro` favour, and redeeming an
+ * intro mints a new friend. "One OPEN goodwill favour per contact" was the only
+ * limit, so gift -> redeem re-armed every week: an unbounded supply of new
+ * contacts from one partner. Counted from the newest goodwill favour's
+ * `createdWeek`, which the ledger keeps after redemption - no new save field,
+ * the same shape as `networkFavorCooldownLeft`.
+ */
+export const GOODWILL_FAVOR_COOLDOWN_WEEKS = NETWORK_FAVOR_COOLDOWN_WEEKS;
+
+/**
+ * The goodwill favour a gift to `contactId` earns right now, or null. Pure, so
+ * the gift handler and a test read one rule.
+ */
+export function goodwillFavorFor(state: GameState, contactId: string): Omit<Favor, 'status'> | null {
+  const rel = (state.relationships ?? []).find((r) => r && r.id === contactId);
+  if (!rel || (rel.relationshipScore ?? 0) < GOODWILL_FAVOR_MIN_BOND) return null;
+  const ledger = ledgerOf(state);
+  const week = state.weeksLived ?? 0;
+  let last = Number.NEGATIVE_INFINITY;
+  for (const f of ledger.favors ?? []) {
+    if (f.contactId !== contactId || f.direction !== 'owed-to-player') continue;
+    // Any open favour still blocks, whatever produced it.
+    if (f.status === 'open') return null;
+    if (f.id.startsWith('goodwill-') && typeof f.createdWeek === 'number' && isFinite(f.createdWeek)) {
+      last = Math.max(last, f.createdWeek);
+    }
+  }
+  if (isFinite(last) && week < last + GOODWILL_FAVOR_COOLDOWN_WEEKS) return null;
+  return {
+    id: `goodwill-${contactId}-${week}`,
+    contactId,
+    direction: 'owed-to-player',
+    kind: 'intro',
+    value: 25,
+    createdWeek: week,
+    note: `${rel.name ?? 'They'} owes you a favor after your generosity`,
+  };
+}
+
 /** Standing a network contact needs before they will owe you anything. */
 export const NETWORK_FAVOR_MIN_STRENGTH = 40;
 

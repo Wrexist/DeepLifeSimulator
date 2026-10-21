@@ -87,6 +87,7 @@ import {
   borrowBlockedReason,
   lendBlockedReason,
   recordFavor,
+  goodwillFavorFor,
   askNetworkFavor,
   meetSomeone,
   removeContact as removeContactAction,
@@ -365,26 +366,11 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         saveGame();
         // A generous gift at a strong bond leaves them owing you one - a natural
         // producer of an owed-to-player (non-money) favor, so the Redeem side of
-        // the ledger actually populates. Deduped to one open goodwill favor per
-        // contact (recordFavor is also id-idempotent).
-        const rel = gameState.relationships?.find((x) => x.id === contactId);
-        const bond = rel?.relationshipScore ?? 0;
-        const ledger = gameState.favorLedger ?? { favors: [] };
-        const alreadyOwes = ledger.favors.some(
-          (f) => f.contactId === contactId && f.direction === 'owed-to-player' && f.status === 'open'
-        );
-        if (bond >= 70 && !alreadyOwes) {
-          const ws = gameState.weeksLived ?? 0;
-          recordFavor(setGameState, {
-            id: `goodwill-${contactId}-${ws}`,
-            contactId,
-            direction: 'owed-to-player',
-            kind: 'intro',
-            value: 25,
-            createdWeek: ws,
-            note: `${rel?.name ?? 'They'} owes you a favor after your generosity`,
-          });
-        }
+        // the ledger actually populates. One rule in `goodwillFavorFor`: no open
+        // favour from them, and a cooldown since the last goodwill favour, so a
+        // weekly gift cannot mint a new contact every week (ACT-8).
+        const favor = goodwillFavorFor(gameState, contactId);
+        if (favor) recordFavor(setGameState, favor);
       }
       flash(r.message, contactId);
     },
