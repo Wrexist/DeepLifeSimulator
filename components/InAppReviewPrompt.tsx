@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { useInterruptionState } from '@/contexts/InterruptionContext';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import {
   isPositiveWeek,
@@ -43,19 +44,26 @@ export default function InAppReviewPrompt() {
     shallowEqual,
   );
 
+  // The one-shot rating ask must not land on top of a queued popup (weekly
+  // event, daily reward, welcome back, a promo). It reads the shared queue
+  // rather than claiming it - the system sheet is not ours to budget - and
+  // re-evaluates the moment the slot frees, so a good week is not wasted on a
+  // cluttered moment. (2026-10 audit MON-20)
+  const { activeId: queueHolder } = useInterruptionState();
+
   useEffect(() => {
     if (alreadyAsked.current === null) return;
     const eligible = shouldAskForReview({
       weeksInLife: weeksSinceLifeStart(weeksLivedSafe(signals.weeksLived), signals.lifeStartWeek),
       alreadyAsked: alreadyAsked.current,
       positiveWeek: signals.positive,
-      blocked: signals.blocked,
+      blocked: signals.blocked || queueHolder !== null,
     });
     if (!eligible) return;
     // Optimistic latch: the ask can never re-fire while the promise settles.
     alreadyAsked.current = true;
     void requestReviewOnce();
-  }, [signals]);
+  }, [signals, queueHolder]);
 
   return null;
 }
