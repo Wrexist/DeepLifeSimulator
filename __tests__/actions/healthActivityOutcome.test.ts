@@ -83,12 +83,12 @@ describe('performHealthActivity', () => {
 
   it('ACT-4: reports its outcome even when another update is queued in the same batch', () => {
     prime(200, [disease('common_cold')]);
-    let result: { message: string } | undefined;
+    let result = undefined as { message: string } | undefined;
     act(() => {
       // Something else already queued in this batch - the case that made the
       // updater run lazily and the captured message come back undefined.
       captured!.setGameState((s) => ({ ...s, stats: { ...s.stats } }));
-      result = captured!.item.performHealthActivity('doctor');
+      result = captured!.item.performHealthActivity('doctor') || undefined;
     });
     expect(result?.message).toMatch(/Doctor visit/);
     // And it really was applied: the visit was charged.
