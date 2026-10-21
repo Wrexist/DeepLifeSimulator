@@ -51,6 +51,7 @@ import {
   MIRRORED_ACCOUNT_IDS,
   isReadOnlyMirror,
   canCloseAccount,
+  withLiveMirrorBalances,
 } from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -151,7 +152,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
-  const banking = gameState.banking ?? initialGameState.banking!;
+  // VIS-3: the mirror accounts show live cash / savings, not last tick's copy.
+  const storedBanking = gameState.banking ?? initialGameState.banking!;
+  const liveMoney = gameState.stats?.money ?? 0;
+  const liveSavings = gameState.bankSavings ?? 0;
+  const banking = useMemo(
+    () => withLiveMirrorBalances(storedBanking, liveMoney, liveSavings),
+    [storedBanking, liveMoney, liveSavings],
+  );
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [subView, setSubView] = useState<SubView>(null);
