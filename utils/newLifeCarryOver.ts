@@ -99,6 +99,8 @@ export interface NewLifeCarryOver {
   /** Claim ledgers (see the header). Absent in records written before 2026-10-19. */
   claims?: {
     claimedAchievementIds?: string[];
+    /** Milestone gem rewards already paid (ACT-2, 2026-10-21). */
+    claimedMilestoneRewards?: string[];
     liveOps?: GameState['liveOps'];
     lastLoginRewardDate?: string;
     lastLoginRewardAt?: number;
@@ -143,6 +145,10 @@ export function extractNewLifeCarryOver(state: GameState): NewLifeCarryOver {
   const achievementIds = state?.prestige?.claimedAchievementIds;
   if (Array.isArray(achievementIds) && achievementIds.length > 0) {
     claims.claimedAchievementIds = achievementIds.filter((id): id is string => typeof id === 'string');
+  }
+  const milestoneIds = state?.claimedMilestoneRewards;
+  if (Array.isArray(milestoneIds) && milestoneIds.length > 0) {
+    claims.claimedMilestoneRewards = milestoneIds.filter((id): id is string => typeof id === 'string');
   }
   // Ledger and rolling budget carry; the per-life cooldown weeks do not - the
   // same cut `applyDynastyTransition` makes for prestige and heirs.
@@ -267,6 +273,13 @@ export function applyNewLifeCarryOver<T extends GameState>(
         ...newState.prestige,
         claimedAchievementIds: Array.from(new Set([...own, ...carriedIds])),
       };
+    }
+    const carriedMilestones = Array.isArray(claims.claimedMilestoneRewards)
+      ? claims.claimedMilestoneRewards.filter((id): id is string => typeof id === 'string')
+      : [];
+    if (carriedMilestones.length > 0) {
+      const own = Array.isArray(newState.claimedMilestoneRewards) ? newState.claimedMilestoneRewards : [];
+      newState.claimedMilestoneRewards = Array.from(new Set([...own, ...carriedMilestones]));
     }
     if (claims.liveOps && typeof claims.liveOps === 'object') {
       newState.liveOps = { ...readLiveOpsState({ liveOps: claims.liveOps } as GameState), lastSeenWeek: {} };
