@@ -740,6 +740,29 @@ export async function createBackup(
  * the stringify is also deferred by one macrotask so a large save does not
  * block the frame that triggered it.
  */
+/**
+ * PERF-2: the rolling AUTO backups leave `checkpoints` out, exactly as the slot
+ * write does (saveQueue `performSave`). Checkpoints were ~62% of a late-game
+ * state (430-470KB of ~700KB measured at week 500) and already live in the
+ * slot's signed checkpoint sidecar, so every auto backup re-serialized, CRC'd
+ * and HMAC'd them for nothing, and each slot kept five copies on disk.
+ *
+ * Restoring such a backup writes a payload with no `checkpoints` key into the
+ * slot, and `loadGame` then reattaches the sidecar through
+ * `filterCheckpointsForState` - the same path every ordinary slot load takes -
+ * so a same-life restore keeps every rewind target that predates it.
+ *
+ * Only `auto_save`: the deliberate one-off snapshots (`before_prestige`,
+ * `before_restore`, a manual backup) stay self-contained, because the life
+ * they protect is exactly the one whose sidecar is about to be replaced.
+ */
+export function stripSidecarCheckpointsForAutoBackup<T>(state: T, reason: string): T {
+  if (reason !== 'auto_save' || !state || typeof state !== 'object') return state;
+  if (!('checkpoints' in (state as object))) return state;
+  const { checkpoints: _sidecarOwned, ...rest } = state as T & { checkpoints?: unknown };
+  return rest as T;
+}
+
 export async function createBackupFromState(
   slot: number,
   state: any,
@@ -755,9 +778,10 @@ export async function createBackupFromState(
     // await the result, so the stringify below should not run in the same frame.
     // Same idiom as the save queue's pre-serialize yield.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    const stateJson = JSON.stringify(state);
+    const backupState = stripSidecarCheckpointsForAutoBackup(state, reason);
+    const stateJson = JSON.stringify(backupState);
     const canonicalSaveData = createSaveEnvelope(stateJson);
-    return createBackup(slot, canonicalSaveData, reason, { state, canonicalSaveData });
+    return createBackup(slot, canonicalSaveData, reason, { state: backupState, canonicalSaveData });
   } catch (error) {
     logger.error('Failed to create backup from state', error);
     return null;
