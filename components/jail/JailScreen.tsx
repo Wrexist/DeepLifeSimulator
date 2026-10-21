@@ -4,7 +4,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
-import { getInflatedPrice } from '@/lib/economy/inflation';
+import { prisonFoodBase, resolvePrisonFoodPurchase } from '@/lib/economy/foodPurchase';
+import { satietyHint, scaledFoodRestore } from '@/lib/economy/foodSatiety';
 import { computeBailCost } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { 
@@ -389,14 +390,16 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               contentContainerStyle={styles.foodScrollContent}
             >
               {foods.slice(0, 6).map(food => {
-                // Prison food prices are 2x inflated (prison markup)
-                const basePrice = getInflatedPrice(food.price, economy?.priceIndex || 1);
-                const price = Math.round(basePrice * 2);
+                // Prison price/restores (2x price, reduced benefits) and the
+                // weekly satiety curve - the same helpers the purchase uses,
+                // so the card shows exactly what a tap applies.
+                const base = prisonFoodBase(food, economy?.priceIndex || 1);
+                const price = base.price;
                 const canAfford = stats.money >= price;
-                // Prison food gives less happiness (only 25% of health restore, minimum 1)
-                const happinessRestore = Math.max(1, Math.round(food.healthRestore * 0.25));
-                // Prison food gives less health (75% of normal)
-                const healthRestore = Math.round(food.healthRestore * 0.75);
+                const eaten = gameState.weeklyFoodPurchases;
+                const healthRestore = scaledFoodRestore(base.health, eaten);
+                const happinessRestore = scaledFoodRestore(base.happiness, eaten);
+                const energyRestore = scaledFoodRestore(base.energy, eaten);
                 
                 return (
                   <TouchableOpacity
@@ -406,30 +409,19 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         gameAlert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
                         return;
                       }
-                      // Use custom prison food handler with reduced benefits.
-                      // Atomic: re-check affordability against prev - the old
-                      // updateStats path clamped money at 0, so a same-batch
-                      // double-tap bought a second meal effectively free.
-                      const foodItem = foods.find(f => f.id === food.id);
-                      if (foodItem) {
-                        setGameState(prev => {
-                          if ((prev.stats?.money ?? 0) < price) return prev;
-                          return {
-                            ...prev,
-                            stats: {
-                              ...prev.stats,
-                              money: (prev.stats.money ?? 0) - price,
-                              health: Math.min(100, (prev.stats.health ?? 0) + healthRestore),
-                              happiness: Math.min(100, (prev.stats.happiness ?? 0) + happinessRestore),
-                              energy: Math.min(100, (prev.stats.energy ?? 0) + foodItem.energyRestore),
-                            },
-                          };
-                        });
-                        gameAlert(
-                          'Food Purchased',
-                          `You ate ${food.name}!\n+${healthRestore} Health\n+${happinessRestore} Happiness\n+${foodItem.energyRestore} Energy`
-                        );
-                      }
+                      // One pure resolution, run on the snapshot for the toast
+                      // and inside the updater for the commit (the market's
+                      // C-9 shape): it re-checks affordability against prev,
+                      // so a same-batch double tap cannot buy a free meal, and
+                      // it applies the satiety and happiness curves (CMP-12).
+                      const preview = resolvePrisonFoodPurchase(gameState, food.id);
+                      if (!preview.ok) return;
+                      setGameState(prev => resolvePrisonFoodPurchase(prev, food.id).next);
+                      const hint = satietyHint(preview.purchasesAfter);
+                      gameAlert(
+                        'Food Purchased',
+                        `You ate ${food.name}!\n+${preview.applied.health} Health\n+${preview.applied.happiness} Happiness\n+${preview.applied.energy} Energy${hint ? `\n\n${hint}` : ''}`
+                      );
                     }}
                     disabled={!canAfford}
                     style={styles.foodCard}
@@ -462,7 +454,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         </View>
                         <View style={styles.foodBenefitItem}>
                           <Zap size={12} color="#FCD34D" />
-                          <Text style={styles.foodBenefitText}>+{food.energyRestore}</Text>
+                          <Text style={styles.foodBenefitText}>+{energyRestore}</Text>
                         </View>
                       </View>
                     </LinearGradient>
