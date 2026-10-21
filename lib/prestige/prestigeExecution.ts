@@ -33,6 +33,7 @@ import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
 import { computeInheritance } from '@/lib/legacy/inheritance';
 import { appendLifeRecord, buildLifeRecord } from '@/lib/legacy/lifeRecord';
+import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 
 
 /**
@@ -289,6 +290,50 @@ function carryFamilyBusinessLoans(
 }
 
 /**
+ * ANTI-EXPLOIT (LATE-11): a carried family business keeps its stock listing.
+ *
+ * Both builders rebuild `hustleApp` from `initialGameState`, so a carried
+ * company arrived with no overlay, the first Hustle action minted a PRIVATE
+ * default one, and `ipoListedCompanyIds` (per life, v56) was empty - so the
+ * same company could be floated again every life, and its owner was silently
+ * restored to 100% of a company that was 60% public (`companyOwnerShare`).
+ * A listed carried company now arrives public, with the kept share, and is
+ * recorded as already floated this life. The earnings clock is re-based on
+ * the new life's counter (`weeksLived` is per life). Mutates `newState`.
+ */
+function carryFamilyBusinessListings(
+  oldState: GameState,
+  newState: GameState,
+  familyBusinessCompanyIds: readonly string[],
+): void {
+  const weeksLived = newState.weeksLived ?? 0;
+  const listed: string[] = [];
+  const overlays = { ...(newState.hustleApp?.companies ?? {}) };
+  for (const id of familyBusinessCompanyIds) {
+    const oldIpo = oldState.hustleApp?.companies?.[id]?.ipo;
+    const wasListed = oldIpo?.status === 'public' || (oldState.ipoListedCompanyIds ?? []).includes(id);
+    if (!wasListed) continue;
+    listed.push(id);
+    if (oldIpo?.status === 'public') {
+      overlays[id] = {
+        ...createDefaultCompanyOverlay(id, weeksLived),
+        ipo: {
+          ...oldIpo,
+          recentEarnings: [],
+          listedWeek: weeksLived,
+          lastEarningsWeek: weeksLived,
+        },
+      };
+    }
+  }
+  if (listed.length === 0) return;
+  newState.ipoListedCompanyIds = Array.from(new Set([...(newState.ipoListedCompanyIds ?? []), ...listed]));
+  if (newState.hustleApp) {
+    newState.hustleApp = { ...newState.hustleApp, companies: overlays };
+  }
+}
+
+/**
  * Create new game state for reset path (age 18, fresh start)
  */
 function createResetGameState(
@@ -368,6 +413,7 @@ function createResetGameState(
     }
     // The debt goes with the business - same rule, same helper as the heir path.
     carryFamilyBusinessLoans(oldState, newState, carriedIds);
+    carryFamilyBusinessListings(oldState, newState, carriedIds);
   }
 
   // Legacy Pass is SEASONAL (account-level), not per-life - preserve it across
@@ -892,6 +938,7 @@ function createChildGameState(
     }
 
     carryFamilyBusinessLoans(oldState, newState, familyBusinessCompanyIds);
+    carryFamilyBusinessListings(oldState, newState, familyBusinessCompanyIds);
   }
 
   // BUG FIX: Use calculateChildStats for proper stat calculation with percentages
