@@ -1297,7 +1297,7 @@ export class IAPService {
           return {
             success: false,
             message:
-              'Purchase service unavailable in production build. Please update to the latest version.',
+              "The store isn't available right now. Check your connection and that you're signed in to the App Store or Google Play, then try again. You have not been charged.",
           };
         }
 

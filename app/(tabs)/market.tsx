@@ -600,9 +600,9 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           visible={true}
           title={`Purchase ${showPurchaseConfirm.itemName}?`}
           message={`This will cost ${formatMoney(showPurchaseConfirm.price)}. You'll have ${formatMoney(gameState.stats.money - showPurchaseConfirm.price)} remaining.${showPurchaseConfirm.itemId === 'computer'
-            ? '\n\nThis will unlock computer apps including Crypto Mining, Real Estate, and Gaming!'
+            ? '\n\nThis will unlock computer apps including Crypto, Real Estate and YouVideo!'
             : showPurchaseConfirm.itemId === 'smartphone'
-              ? '\n\nThis will unlock mobile apps including Banking, Dating, and Social Media!'
+              ? '\n\nThis will unlock mobile apps including Bank, Spark and Pulse!'
               : ''
             }`}
           confirmText="Buy"

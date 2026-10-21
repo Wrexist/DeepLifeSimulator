@@ -17,8 +17,9 @@ import { fontScale } from '@/utils/scaling';
 import AlertHost from '@/components/ui/AlertHost';
 
 /**
- * The Onion Browser explainer, shared by the two FAQ sections that both ask
- * "What is the Onion Browser?".
+ * The Dark Web app explainer (the app was once called the Onion Browser),
+ * shared by the two FAQ sections that both ask
+ * "What is the Dark Web app?".
  *
  * It was pasted twice. An edit to one copy would not reach the other, and the
  * test that pins this copy (`__tests__/economy/uiTruthF5toF8.test.ts`) uses
@@ -26,7 +27,7 @@ import AlertHost from '@/components/ui/AlertHost';
  * a dark web that no longer exists and nothing would fail.
  */
 const ONION_BROWSER_ANSWER =
-  'The Onion Browser (dark web) has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store - lockpicks, gloves, VPNs, malware kits - bought with Bitcoin. Those tools are what unlock the illegal street jobs on the main Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts - recon, social engineering, exploit, exfiltration, then fencing the take - and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.';
+  'The Dark Web app has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store - lockpicks, gloves, VPNs, malware kits - bought with Bitcoin. Those tools are what unlock the illegal street jobs on the main Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts - recon, social engineering, exploit, exfiltration, then fencing the take - and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.';
 
 
 interface HelpModalProps {
@@ -40,19 +41,19 @@ const helpContent = [
     items: [
       {
         question: 'How do I play DeepLife Simulator?',
-        answer: 'DeepLife is a life simulation game where you make choices and manage your character\'s life. Start at age 18 with basic stats. Each week, you can work, invest, build relationships, and make life decisions. Tap "Next Week" to advance time. Your goal is to build wealth, achieve goals, and create a legacy. The game continues across generations through the Legacy system or resets with bonuses through Prestige.',
+        answer: 'DeepLife is a life simulation game where you make choices and manage your character\'s life. Pick a scenario, which sets your starting age, money and background. Each week, you can work, invest, build relationships, and make life decisions. Tap Next week to advance time. Your goal is to build wealth, achieve goals, and create a legacy. The game continues across generations through the Legacy system or resets with bonuses through Prestige.',
       },
       {
         question: 'How do I progress to the next week?',
-        answer: 'Tap the green "Next Week" button on the top bar. Each week advances time by 7 days, updates your stats, processes income/expenses, triggers random events, and applies disease effects. Your character ages approximately 0.019 years per week (about 1 week of age). Energy regenerates automatically each week. All passive income, investments, and recurring costs are processed weekly.',
+        answer: 'Tap Next week on the top bar. Each tap moves your life forward one week: stats update, income and bills are processed, and events can happen. 52 weeks make a year of age. Energy regenerates automatically each week. All passive income, investments, and recurring costs are processed weekly.',
       },
       {
         question: 'What should I do first?',
-        answer: '1. Get a street job for quick money. 2. Buy a phone to unlock mobile apps (Bank, Social Media, Dating). 3. Buy food and entertainment items to maintain health and happiness. 4. Save money for your first major purchase (computer or property). 5. Get education for better careers. 6. Start investing early - compound interest is powerful! Focus on building passive income streams.',
+        answer: '1. Get a street job for quick money. 2. Buy a phone to unlock mobile apps (Bank, Pulse, Spark). 3. Buy food and entertainment items to maintain health and happiness. 4. Save money for your first major purchase (computer or property). 5. Get education for better careers. 6. Start investing early - compound interest is powerful! Focus on building passive income streams.',
       },
       {
         question: 'How does the game save my progress?',
-        answer: 'Your game saves automatically after each week progression and after major actions. You can also manually save from Settings. Cloud save syncs your progress across devices (iOS, Android, Web). Enable cloud save in Settings to access your game from any device. Save files are stored locally and in the cloud for backup.',
+        answer: 'Your game saves automatically after every week and after major actions. In Settings you can also back up this device\'s save to the cloud and restore it later.',
       },
     ],
   },
@@ -61,11 +62,11 @@ const helpContent = [
     items: [
       {
         question: 'What are all the stats and what do they do?',
-        answer: 'Health (❤️): Your physical well-being. Affects lifespan, prevents diseases, and reduces negative events. Keep above 50 to avoid health issues. If health reaches 0 for 4 weeks, you die. Happiness (😊): Your mental well-being. Affects job performance, relationships, and prevents depression. Low happiness reduces career success. If happiness reaches 0 for 4 weeks, you die. Energy (⚡): Required for most actions. Regenerates 30 points weekly (more with prestige bonuses). Low energy prevents some activities. Fitness: Improves job performance, health, and unlocks some careers. Reputation: Affects career opportunities, social interactions, and political careers. Money: Your currency for purchases, investments, and expenses. Gems: Premium currency earned from achievements and purchases.',
+        answer: 'Health (❤️): Your physical well-being. Affects lifespan, prevents diseases, and reduces negative events. Keep above 50 to avoid health issues. If health reaches 0 for 4 weeks, you die. Happiness (😊): Your mental well-being. Affects job performance, relationships, and prevents depression. Low happiness reduces career success. If happiness reaches 0 for 4 weeks, you die. Energy (⚡): Required for most actions. Regenerates 40 points weekly (more with prestige bonuses). Low energy prevents some activities. Fitness: Improves job performance, health, and unlocks some careers. Reputation: Affects career opportunities, social interactions, and political careers. Money: Your currency for purchases, investments, and expenses. Gems: Premium currency earned from achievements and purchases.',
       },
       {
         question: 'How do stats change over time?',
-        answer: 'Stats naturally decay each week based on your wealth (poorer characters decay faster). Health decays ~2.4 points/week, Happiness decays ~3.2 points/week. Working a job reduces health by 2 and happiness by 3 per week. Education reduces health by 3 per week (more if multiple courses). Diseases apply negative effects weekly. Items, activities, and relationships can boost stats. Energy regenerates 30 points weekly (more with prestige bonuses). Keep stats balanced by buying items, maintaining relationships, and avoiding overwork.',
+        answer: 'Stats naturally decay each week. At the full rate, Health decays ~2.4 points/week and Happiness ~3.2 points/week. Decay is gentler in your first 8 weeks, and wealth slows it (down to half above $200K net worth). Working a job reduces health by 2 and happiness by 3 per week. Education reduces health by 3 per week (more if multiple courses). Diseases apply negative effects weekly. Items, activities, and relationships can boost stats. Energy regenerates 40 points weekly (more with prestige bonuses). Keep stats balanced by buying items, maintaining relationships, and avoiding overwork.',
       },
       {
         question: 'What happens when stats reach 0?',
@@ -73,11 +74,11 @@ const helpContent = [
       },
       {
         question: 'How do I increase my stats?',
-        answer: 'Health: Buy healthy food, visit doctor/hospital, exercise at gym, buy health items, maintain good fitness, avoid diseases. Happiness: Buy entertainment items, maintain relationships, go on dates, buy pets, purchase nice properties, achieve goals, avoid negative events. Energy: Regenerates automatically each week (30 base, more with prestige). Buy energy drinks for immediate boost. Fitness: Work out at gym, play sports hobbies, maintain active lifestyle. Reputation: Successful careers, achievements, positive social interactions, charitable actions, avoid criminal activities.',
+        answer: 'Health: Buy healthy food, visit doctor/hospital, exercise at gym, buy health items, maintain good fitness, avoid diseases. Happiness: Buy entertainment items, maintain relationships, go on dates, buy pets, purchase nice properties, achieve goals, avoid negative events. Energy: Regenerates automatically each week (40 base, more with prestige). Buy energy drinks for immediate boost. Fitness: Work out at gym, play sports hobbies, maintain active lifestyle. Reputation: Successful careers, achievements, positive social interactions, charitable actions, avoid criminal activities.',
       },
       {
         question: 'What is the stat decay system?',
-        answer: 'Stats naturally decay each week to simulate aging and life challenges. Decay rate depends on wealth: Poorer characters (low net worth) decay faster (up to 2x rate). Wealthier characters decay slower (minimum 0.5x rate). Base decay: Health -2.4/week, Happiness -3.2/week. Working adds: Health -2, Happiness -3. Education adds: Health -3 per course (more if multiple). This creates a balance - you need to work and study, but must maintain your well-being. Prestige bonuses can reduce decay rates.',
+        answer: 'Stats naturally decay each week to simulate aging and life challenges. Base decay: Health -2.4/week, Happiness -3.2/week. It ramps up over your first 8 weeks, and wealth slows it: from $100K net worth decay eases, reaching half speed at $200K. Working adds: Health -2, Happiness -3. Education adds: Health -3 per course (more if multiple). This creates a balance - you need to work and study, but must maintain your well-being. Prestige bonuses can reduce decay rates.',
       },
     ],
   },
@@ -173,7 +174,7 @@ const helpContent = [
       },
       {
         question: 'How do I start a company?',
-        answer: 'Buy a computer, then open the Company app. You need education and capital ($10,000+) to start. Companies generate passive income weekly. Hire workers to increase production. Upgrade facilities to improve efficiency. Manage your company weekly to maximize profits. Family businesses can be passed down through generations. Companies require ongoing management but provide excellent passive income.',
+        answer: 'Buy a computer, then open the Hustle app. You need education and capital ($10,000+) to start. Companies generate passive income weekly. Hire workers to increase production. Upgrade facilities to improve efficiency. Manage your company weekly to maximize profits. Family businesses can be passed down through generations. Companies require ongoing management but provide excellent passive income.',
       },
       {
         question: 'What are Family Businesses?',
@@ -190,18 +191,18 @@ const helpContent = [
     items: [
       {
         question: 'What mobile apps are available?',
-        answer: 'Phone apps: Bank (savings, loans, credit), Social Media (posting, followers, sponsorships), Dating (swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading). Buy a phone under Life → Market to unlock mobile apps. Some apps require additional items or achievements.',
+        answer: 'Phone apps: Bank (savings, loans, credit), Pulse (social media: posting, followers, sponsorships), Spark (dating: swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading). Buy a phone under Life → Market to unlock mobile apps. Some apps require additional items or achievements.',
       },
       {
         question: 'What computer apps are available?',
-        answer: 'Computer apps: Bitcoin Mining (crypto mining), Real Estate (property management), Stocks (trading), Company (business management), Onion Browser (dark web), YouVideo (gaming/streaming), Travel (trips), Political (political career). Buy a computer from the Shop to unlock desktop apps. Some apps require additional items, achievements, or specific conditions.',
+        answer: 'Computer apps: Crypto (mining and trading), Real Estate (property management), Stocks (trading), Hustle (business management), Dark Web, YouVideo (gaming/streaming), Travel (trips), Political Office (political career). Buy a computer under Life → Market to unlock desktop apps. Some apps require additional items, achievements, or specific conditions.',
       },
       {
-        question: 'How does Social Media work?',
+        question: 'How does Pulse (social media) work?',
         answer: 'Post content to gain followers. More followers = more sponsorship income. Post regularly to maintain followers (they decrease if you don\'t post). Engage with trending topics for bonus followers. High follower counts unlock premium features and higher earnings. Brand deals pay per sponsored post you deliver, not passively - deliver the posts a deal asks for before it expires. It\'s a long-term investment - build your audience over time.',
       },
       {
-        question: 'How does the Dating app work?',
+        question: 'How does Spark (dating) work?',
         answer: 'Swipe left (pass) or right (like) on profiles. If both like each other, you match! Go on dates to build relationships. Dates cost money but increase relationship score. Successful relationships can lead to marriage. Maintain relationships by spending time and money on dates and gifts. Higher relationship score = better chances of marriage and relationship benefits.',
       },
       {
@@ -209,7 +210,7 @@ const helpContent = [
         answer: 'The Bank app lets you: Save money with weekly interest, Take out loans for large purchases, Manage credit score, View transaction history, Track finances. Savings accounts earn interest weekly (low but safe). Loans require weekly payments with interest. Good credit = better loan terms. Use bank for emergency funds and strategic loans.',
       },
       {
-        question: 'What is the Onion Browser?',
+        question: 'What is the Dark Web app?',
         answer: ONION_BROWSER_ANSWER,
 
       },
@@ -269,7 +270,7 @@ const helpContent = [
       },
       {
         question: 'What is cryptocurrency mining?',
-        answer: 'Buy miners in the Bitcoin Mining app (requires computer and warehouse). Miners generate cryptocurrency weekly based on their power. More expensive miners earn faster but use more power. Power costs money - calculate net profit = crypto earnings - power costs. Miners degrade over time (2-5% per week) and need repair. You can trade crypto directly in the Crypto Market section of that app. Crypto prices fluctuate weekly.',
+        answer: 'Buy miners in the Crypto app (requires computer and warehouse). Miners generate cryptocurrency weekly based on their power. More expensive miners earn faster but use more power. Power costs money - calculate net profit = crypto earnings - power costs. Miners degrade over time (2-5% per week) and need repair. You can trade crypto directly in the Crypto Market section of that app. Crypto prices fluctuate weekly.',
       },
       {
         question: 'How do I maximize crypto earnings?',
@@ -286,7 +287,7 @@ const helpContent = [
     items: [
       {
         question: 'What are underground jobs?',
-        answer: 'Underground jobs are the dark web\'s multi-stage contracts, run from the Jobs tab of the Onion Browser. Each job is a chain of stages - recon, social engineering, exploit, exfiltration, fencing - and every stage rolls against the relevant dark-web skill. Harder jobs gate on minimum skill levels, pay more, and add more heat. Failing a stage costs you progress and raises heat; you keep any gear you bought. Skills level up from the XP each completed job awards.',
+        answer: 'Underground jobs are the dark web\'s multi-stage contracts, run from the Jobs tab of the Dark Web app. Each job is a chain of stages - recon, social engineering, exploit, exfiltration, fencing - and every stage rolls against the relevant dark-web skill. Harder jobs gate on minimum skill levels, pay more, and add more heat. Failing a stage costs you progress and raises heat; you keep any gear you bought. Skills level up from the XP each completed job awards.',
       },
       {
         question: 'What is wanted level?',
@@ -311,7 +312,7 @@ const helpContent = [
     items: [
       {
         question: 'How do I find a partner?',
-        answer: 'Use the Dating app (requires phone) to swipe on profiles. Swipe right to like, left to pass. If both like each other, you match! Go on dates to build relationships. Dates cost money but increase relationship score. Successful relationships can lead to marriage. Maintain relationships by spending time and money on dates and gifts. Higher relationship score = better chances of marriage.',
+        answer: 'Use Spark, the dating app (requires phone), to swipe on profiles. Swipe right to like, left to pass. If both like each other, you match! Go on dates to build relationships. Dates cost money but increase relationship score. Successful relationships can lead to marriage. Maintain relationships by spending time and money on dates and gifts. Higher relationship score = better chances of marriage.',
       },
       {
         question: 'How does marriage work?',
@@ -369,7 +370,7 @@ const helpContent = [
     items: [
       {
         question: 'How do vehicles work?',
-        answer: 'Vehicles provide transportation bonuses (reputation, happiness, career opportunities). Buy vehicles from the Shop. Vehicles depreciate over time based on mileage and condition. Higher mileage and lower condition = lower value. You can sell vehicles for their depreciated value. Better maintenance keeps vehicles in better condition. Some vehicles are required for certain careers.',
+        answer: 'Vehicles provide transportation bonuses (reputation, happiness, career opportunities). Buy vehicles in the Garage app. Vehicles depreciate over time based on mileage and condition. Higher mileage and lower condition = lower value. You can sell vehicles for their depreciated value. Better maintenance keeps vehicles in better condition. Some vehicles are required for certain careers.',
       },
       {
         question: 'What items can I buy?',
@@ -377,7 +378,7 @@ const helpContent = [
       },
       {
         question: 'What are collectibles?',
-        answer: 'Collectibles are rare items that can appreciate in value over time. They can be purchased from the Shop or found through special events. Collectibles are included in net worth calculations and can be sold for profit. Some collectibles are very rare and valuable. They\'re a long-term investment - buy and hold for appreciation.',
+        answer: 'Collectibles are rare items that can appreciate in value over time. They are bought in the Luxury app. Collectibles are included in net worth calculations and can be sold for profit. Some collectibles are very rare and valuable. They\'re a long-term investment - buy and hold for appreciation.',
       },
     ],
   },
@@ -419,7 +420,7 @@ const helpContent = [
     items: [
       {
         question: 'How do I start mining crypto?',
-        answer: 'Buy a computer and warehouse, then open the Bitcoin Mining app. Purchase your first miner from the Miners tab. Miners require warehouse space. Start with basic miners and upgrade as you earn more crypto. You need both a computer (to access the app) and a warehouse (to store miners). Miners generate cryptocurrency weekly based on their power rating.',
+        answer: 'Buy a computer and warehouse, then open the Crypto app. Purchase your first miner from the Miners tab. Miners require warehouse space. Start with basic miners and upgrade as you earn more crypto. You need both a computer (to access the app) and a warehouse (to store miners). Miners generate cryptocurrency weekly based on their power rating.',
       },
       {
         question: 'Which miner is best?',
@@ -456,7 +457,7 @@ const helpContent = [
     items: [
       {
         question: 'What mobile apps are available?',
-        answer: 'Phone apps include: Bank (savings, loans, credit management), Social Media (posting, followers, sponsorships), Dating (swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading), and more. Buy a phone under Life → Market to unlock mobile apps. Each app has specific features and requirements.',
+        answer: 'Phone apps include: Bank (savings, loans, credit management), Pulse (social media: posting, followers, sponsorships), Spark (dating: swipe, dates, relationships), Contacts (manage relationships), Education (enroll in courses), Stocks (mobile trading), and more. Buy a phone under Life → Market to unlock mobile apps. Each app has specific features and requirements.',
       },
       {
         question: 'How do I unlock mobile apps?',
@@ -467,11 +468,11 @@ const helpContent = [
         answer: 'The Bank app lets you: save money with weekly interest, take out loans for large purchases, manage credit score, view transaction history, and track finances. Savings accounts earn interest weekly (low but safe returns). Loans require weekly payments with interest. Good credit = better loan terms. Use bank for emergency funds and strategic loans. Track all your financial transactions here.',
       },
       {
-        question: 'How does Social Media work?',
+        question: 'How does Pulse (social media) work?',
         answer: 'Post content to gain followers. More followers = more sponsorship income. Post regularly to maintain followers (they decrease if you don\'t post). Engage with trending topics for bonus followers. High follower counts unlock premium features and higher earnings. Brand deals pay per sponsored post you deliver, not passively - deliver the posts a deal asks for before it expires. It\'s a long-term investment - build your audience over time. Consistency is key.',
       },
       {
-        question: 'How does the Dating app work?',
+        question: 'How does Spark (dating) work?',
         answer: 'Swipe left (pass) or right (like) on profiles. If both like each other, you match! Go on dates to build relationships. Dates cost money but increase relationship score. Successful relationships can lead to marriage. Maintain relationships by spending time and money on dates and gifts. Higher relationship score = better chances of marriage and relationship benefits. Be selective - quality over quantity.',
       },
       {
@@ -489,7 +490,7 @@ const helpContent = [
     items: [
       {
         question: 'What computer apps are available?',
-        answer: 'Computer apps include: Bitcoin Mining (crypto mining), Real Estate (property management), Stocks (trading), Company (business management), Onion Browser (dark web), YouVideo (gaming/streaming), Travel (trips), Political (political career), and more. Buy a computer from the Shop to unlock desktop apps. Each app offers unique features and income opportunities.',
+        answer: 'Computer apps include: Crypto (mining and trading), Real Estate (property management), Stocks (trading), Hustle (business management), Dark Web, YouVideo (gaming/streaming), Travel (trips), Political Office (political career), and more. Buy a computer under Life → Market to unlock desktop apps. Each app offers unique features and income opportunities.',
       },
       {
         question: 'How do I unlock computer apps?',
@@ -504,11 +505,11 @@ const helpContent = [
         answer: 'The Real Estate app lets you buy, sell, and manage properties. Properties generate weekly rent income. You can upgrade properties to increase value and rent. Some properties unlock at certain ages or require specific conditions. Real estate is a long-term investment - buy and hold for passive income. Properties appreciate in value over time. Manage your portfolio for maximum returns.',
       },
       {
-        question: 'What is the Company app?',
-        answer: 'The Company app lets you start and manage businesses. Companies generate passive income weekly. Hire workers to increase production. Upgrade facilities to improve efficiency. Manage your company weekly to maximize profits. Family businesses can be inherited by children. Companies require capital and education to start. Scale your business for maximum income.',
+        question: 'What is the Hustle app?',
+        answer: 'The Hustle app lets you start and manage businesses. Companies generate passive income weekly. Hire workers to increase production. Upgrade facilities to improve efficiency. Manage your company weekly to maximize profits. Family businesses can be inherited by children. Companies require capital and education to start. Scale your business for maximum income.',
       },
       {
-        question: 'What is the Onion Browser?',
+        question: 'What is the Dark Web app?',
         answer: ONION_BROWSER_ANSWER,
 
       },
@@ -521,8 +522,8 @@ const helpContent = [
         answer: 'The Travel app lets you book trips to different destinations. Trips cost money and take time. Some trips unlock business opportunities or special events. Travel can provide happiness bonuses and unlock new experiences. Some destinations have unique benefits or unlock special features. Travel can be a great way to boost happiness and discover new opportunities.',
       },
       {
-        question: 'What is the Political app?',
-        answer: 'The Political app is available if you have a political career. Run for office, create policies, participate in elections, work with lobbyists, and build your political career. Political careers require high reputation and specific qualifications. Political actions affect your reputation and can unlock special events. Build your political influence over time.',
+        question: 'What is the Political Office app?',
+        answer: 'The Political Office app is available if you have a political career. Run for office, create policies, participate in elections, work with lobbyists, and build your political career. Political careers require high reputation and specific qualifications. Political actions affect your reputation and can unlock special events. Build your political influence over time.',
       },
     ],
   },
@@ -556,7 +557,7 @@ const helpContent = [
     items: [
       {
         question: 'How do I get a pet?',
-        answer: 'Pets can be adopted from the Pets app (requires computer) or purchased from the Shop. Different pets have different costs, care requirements, and bonuses. Pets provide happiness and companionship. Some pets are more expensive but provide better bonuses. Choose pets that fit your budget and lifestyle.',
+        answer: 'Adopt pets from the Shop tab of the Pets app. Different pets have different costs, care requirements, and bonuses. Pets provide happiness and companionship. Some pets are more expensive but provide better bonuses. Choose pets that fit your budget and lifestyle.',
       },
       {
         question: 'How do I care for my pet?',

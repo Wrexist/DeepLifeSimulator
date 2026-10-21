@@ -29,6 +29,7 @@ import { applyMoneyDelta } from '@/lib/economy/moneyDelta';
 import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { applyChoiceConsequences, initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker';
 import { applyEventStatDeltas } from './statEffects';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 const finite = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
@@ -47,6 +48,26 @@ export function lifeMomentChoiceCost(choice: Pick<LifeMomentChoice, 'quickEffect
 /** Can `cash` cover the choice? Mirrors `applyMoneyDelta`'s overdraft test. */
 export function canAffordLifeMomentChoice(choice: Pick<LifeMomentChoice, 'quickEffect'>, cash: number): boolean {
   return finite(cash) - lifeMomentChoiceCost(choice) >= -0.01;
+}
+
+/**
+ * The text on a choice's effect chip, as the resolver will apply it.
+ *
+ * The authored labels are static ("+10 Happiness"), but a happiness GAIN goes
+ * through `applyEventStatDeltas`, which puts it on the diminishing curve
+ * (`scaledHappinessGain`): a happy player tapping "+10 Happiness" gets about
+ * +2. So a positive happiness chip is re-derived from the live value - the
+ * same rule `TopStatsBar`'s toasts follow. Losses are never scaled and every
+ * other stat lands as authored, so those keep their label.
+ */
+export function lifeMomentEffectLabel(
+  effect: LifeMomentChoice['quickEffect'][number],
+  currentHappiness: number,
+): string {
+  if (effect && effect.stat === 'happiness' && finite(effect.amount) > 0) {
+    return `+${Math.round(scaledHappinessGain(finite(currentHappiness), finite(effect.amount)))} Happiness`;
+  }
+  return effect?.label ?? '';
 }
 
 /** `lifeMoments` with the pending moment cleared. Counters are NOT re-incremented (they were counted at generation). */

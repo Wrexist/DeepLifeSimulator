@@ -382,12 +382,10 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
         }
       }
     } catch (error) {
+      // The raw exception (a StoreKit/Play code, a JS TypeError) stays in the
+      // log; the player gets a sentence they can act on.
       logger.error('Purchase error:', error);
-      let errorMsg = 'An unexpected error occurred during purchase.';
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      gameAlert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
+      gameAlert('Purchase Failed', 'Something went wrong with the purchase. Please try again, or contact support if it keeps happening.');
     } finally {
       setPurchasingId(null);
     }
