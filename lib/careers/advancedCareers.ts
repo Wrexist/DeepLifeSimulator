@@ -62,13 +62,13 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         name: 'Board Seat',
         salary: 31000,
         experienceRequired: 1040, // 20 years
-        description: 'A seat at the table you spent a career reaching',
+        description: 'Other companies want your name on their board',
       },
       {
-        name: 'Chairman Emeritus',
+        name: 'Chair Emeritus',
         salary: 38000,
         experienceRequired: 1560, // 30 years
-        description: 'They name things after you now',
+        description: 'The company still calls you before the big decisions',
       },
     ],
     level: 0,
@@ -136,13 +136,13 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         name: 'Board Seat',
         salary: 8100,
         experienceRequired: 1040, // 20 years
-        description: 'A seat at the table you spent a career reaching',
+        description: 'You sit on the board that funds the next generation of research',
       },
       {
         name: 'Professor Emeritus',
         salary: 10000,
         experienceRequired: 1560, // 30 years
-        description: 'They name things after you now',
+        description: 'Your old lectures are still required reading',
       },
     ],
     level: 0,
@@ -164,7 +164,7 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     description: 'Lead creative teams and develop brand strategies',
     levels: [
       {
-        name: 'Junior Designer',
+        name: 'Brand Designer',
         salary: 1050, // ~$55k/yr
         experienceRequired: 0,
         description: 'Entry-level design position',
@@ -209,13 +209,13 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         name: 'Board Seat',
         salary: 7200,
         experienceRequired: 1040, // 20 years
-        description: 'A seat at the table you spent a career reaching',
+        description: 'You sign off on the campaigns everyone remembers',
       },
       {
         name: 'Creative Emeritus',
         salary: 8800,
         experienceRequired: 1560, // 30 years
-        description: 'They name things after you now',
+        description: 'Design students study your work',
       },
     ],
     level: 0,
@@ -283,13 +283,13 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         name: 'Board Seat',
         salary: 21500,
         experienceRequired: 1040, // 20 years
-        description: 'A seat at the table you spent a career reaching',
+        description: 'Founders pitch to you now',
       },
       {
         name: 'Senior Advisor Emeritus',
         salary: 26500,
         experienceRequired: 1560, // 30 years
-        description: 'They name things after you now',
+        description: 'Deals still close faster with your name on them',
       },
     ],
     level: 0,
@@ -356,13 +356,13 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
         name: 'Board Seat',
         salary: 21500,
         experienceRequired: 1040, // 20 years
-        description: 'A seat at the table you spent a career reaching',
+        description: 'You help steer the hospital from its board',
       },
       {
         name: 'Surgeon Emeritus',
         salary: 26500,
         experienceRequired: 1560, // 30 years
-        description: 'They name things after you now',
+        description: 'Residents still learn your technique by name',
       },
     ],
     level: 0,

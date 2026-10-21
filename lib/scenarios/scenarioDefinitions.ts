@@ -466,7 +466,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'balanced_life',
     name: 'Balanced Life',
-    description: 'Money isn\'t everything. Achieve excellence across health, wealth, relationships, and career.',
+    description: 'Money isn\'t everything. Save $100K while building a strong reputation and five real relationships.',
     icon: '⚖️',
     difficulty: 'hard',
     startingConditions: {
@@ -574,7 +574,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'minimalist',
     name: 'Minimalist Challenge',
-    description: 'Less is more. Reach maximum happiness with under $5,000. Prove money can\'t buy joy.',
+    description: 'Less is more. Start with $500 and win on reputation and friendships, not money. Prove money can\'t buy joy.',
     icon: '🧘',
     difficulty: 'medium',
     startingConditions: {

@@ -56,21 +56,24 @@ interface AccusationVariants {
 }
 
 /**
- * Per-trigger accusation variants, split by tone. Lines may contain `{partner}`,
- * interpolated with the jealous partner's name (a wounded, third-person
- * self-reference) so the confrontation reads personal instead of canned. This
- * replaces the single fixed accusation per trigger; `getJealousyFlavor` still
- * returns the stable default line for the title + fallback.
+ * Per-trigger accusation variants, split by tone. Every line is spoken BY the
+ * jealous partner, so it is written in the first person. Six lines used to
+ * carry `{partner}` - the speaker's own name, as a "wounded third-person
+ * self-reference" - which read as if a third person were involved, and with
+ * the 'your partner' fallback had the speaker say "explain that to your
+ * partner" about themselves. `{partner}` is still interpolated if a line uses
+ * it. `getJealousyFlavor` still returns the stable default line for the
+ * title + fallback.
  */
 const ACCUSATIONS: Record<TriggerType, AccusationVariants> = {
   spotted_swiping: {
     mild: [
       '"A friend swears they saw you on Spark last night. Are you seeing other people?"',
-      '"Someone showed me your profile - still active. Want to explain that to {partner}?"',
+      '"Someone showed me your profile - still active. Want to explain that to me?"',
       '"I didn\'t want to believe it, but they saw you swiping. Is it true?"',
     ],
     severe: [
-      '"You\'re STILL on the apps? Don\'t insult {partner} by denying it."',
+      '"You\'re STILL on the apps? Don\'t insult me by denying it."',
       '"Half the city has seen you swiping. How long did you think you\'d get away with it?"',
       '"I saw the screenshots myself. Do not lie to my face."',
     ],
@@ -82,7 +85,7 @@ const ACCUSATIONS: Record<TriggerType, AccusationVariants> = {
       '"There\'s a rumor going around about you. Tell me it\'s nothing."',
     ],
     severe: [
-      '"Everyone but {partner} seems to know what you\'ve been doing. Am I a fool for trusting you?"',
+      '"Everyone but me seems to know what you\'ve been doing. Am I a fool for trusting you?"',
       '"The whole friend group is whispering. Were you ever going to tell me?"',
       '"I\'m done hearing it secondhand. Is there someone else - yes or no?"',
     ],
@@ -91,22 +94,22 @@ const ACCUSATIONS: Record<TriggerType, AccusationVariants> = {
     mild: [
       '"Be honest with me - am I the only one you\'re seeing right now?"',
       '"I need to hear it from you. Is there someone else in the picture?"',
-      '"Is {partner} the only person on your mind, or not?"',
+      '"Am I the only person on your mind, or not?"',
     ],
     severe: [
       '"Don\'t you dare lie. Am I one of several to you?"',
-      '"{partner} deserves the truth. Are you juggling me with other people?"',
+      '"I deserve the truth. Are you juggling me with other people?"',
       '"I feel like an option, not a priority. Tell me the truth right now."',
     ],
   },
   flirty_dm: {
     mild: [
       '"I saw the messages. That did not read like just friends. Explain."',
-      '"Those DMs were a little too warm. Want to tell {partner} what that was about?"',
+      '"Those DMs were a little too warm. Want to tell me what that was about?"',
       '"I read the thread. Friends don\'t talk like that. What\'s going on?"',
     ],
     severe: [
-      '"I read every word. Is this who you are now - someone who lies to {partner}\'s face?"',
+      '"I read every word. Is this who you are now - someone who lies to my face?"',
       '"Don\'t play dumb. Those messages were an affair in slow motion."',
       '"I know what I saw. Do not gaslight me about those DMs."',
     ],
