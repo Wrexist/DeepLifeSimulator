@@ -651,12 +651,32 @@ function createChildGameState(
   }
   
   // Create FamilyMemberNode for the prestiged character
-  // Deterministic in the LIFE, not the wall clock (Program 14). This node is a
-  // permanent entry in the family tree and its id is referenced by the heir's
-  // `parents` array, so a clock-derived id meant the same dynasty replayed with
-  // different edges. The lineage plus the prestige count already identify it:
-  // a lineage passes through prestige N exactly once.
-  const prestigedCharacterId = `prestige_${oldState.lineageId ?? 'unknown'}_${prestigeData.totalPrestiges}`;
+  //
+  // An heir is ALREADY in the tree: the previous transition added them as a
+  // living child node (no `deathYear`, `parents` pointing at their parent). That
+  // node is this character, so it is completed in place rather than duplicated.
+  //
+  // Otherwise (the founder, or a tree from before this fix) a node is minted,
+  // deterministic in the LIFE, not the wall clock (Program 14), and unique per
+  // GENERATION. It used to be keyed on `prestige.totalPrestiges`, which the
+  // death -> heir flow (`continueAsChild`) never increments - so the second
+  // succession reused the first one's id, `addMember` overwrote the
+  // grandparent with the parent, and the parent's own child node ended up
+  // pointing at itself as its parent (LATE-4).
+  const currentGeneration = oldState.generationNumber || 1;
+  const existingSelf = Object.values(familyTree.members).find(
+    (m) =>
+      !!m &&
+      m.generation === currentGeneration &&
+      m.deathYear === undefined &&
+      m.finalStats === undefined &&
+      // A reset prestige keeps the generation and the tree but starts a
+      // DIFFERENT person, so the living node must also be this character.
+      m.firstName === (oldState.userProfile?.firstName || 'Player') &&
+      m.lastName === (oldState.userProfile?.lastName || 'Unknown'),
+  );
+  const prestigedCharacterId =
+    existingSelf?.id ?? `prestige_${oldState.lineageId ?? 'unknown'}_g${currentGeneration}`;
   const prestigedCharacter: FamilyMemberNode = {
     id: prestigedCharacterId,
     firstName: oldState.userProfile?.firstName || 'Player',
@@ -664,7 +684,7 @@ function createChildGameState(
     generation: oldState.generationNumber || 1,
     birthYear: birthYear,
     deathYear: currentYear, // Prestige year becomes "death" year
-    parents: [],
+    parents: existingSelf?.parents ? [...existingSelf.parents] : [],
     children: oldState.family?.children?.map(c => c.id) || [],
     spouse: oldState.family?.spouse?.id,
     traits: oldState.activeTraits || [],
