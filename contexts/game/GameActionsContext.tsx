@@ -133,7 +133,7 @@ import {
   applyPetLivingSideEffects,
   PET_WEEKLY_FOOD_COST,
 } from './actions/weekly/applyPets';
-import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
+import { applyVehiclesForWeek, settleTotaledVehicles } from './actions/weekly/applyVehicles';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
@@ -3358,6 +3358,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowDeathPopup,
  });
 
+ // A car the accident roll totaled: move the active car off the wreck and
+ // unlink its auto loan (the debt stays). Same refs when nothing was totaled.
+ const totalLossSettlement = settleTotaledVehicles(
+   prevState.vehicles, updatedVehicles, prevState.activeVehicleId, bankingTick.loansWithTrackers);
+
  let nextState: GameState = {
  ...prevState,
  // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
@@ -3371,7 +3376,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  week: nextWeek,
  weeksLived: nextWeeksLived,
  bankSavings: newBankSavings,
- loans: bankingTick.loansWithTrackers,
+ loans: totalLossSettlement.loans ?? bankingTick.loansWithTrackers,
+ activeVehicleId: totalLossSettlement.activeVehicleId,
  banking: nextBankingSlice,
  // v22 Wave A: memberships payout + level/perkTier recompute; favor expiry.
  gamingStreaming: nextGamingStreaming,
