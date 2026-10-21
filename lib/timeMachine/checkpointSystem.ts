@@ -222,7 +222,15 @@ export function addCheckpoint(
   existingCheckpoints: Checkpoint[],
   newCheckpoint: Checkpoint
 ): Checkpoint[] {
-  const updated = [...existingCheckpoints, newCheckpoint];
+  // Ids are `cp_<lineage>_<weeksLived>`, so replaying a stretch after a rewind
+  // mints the SAME id again at the same year boundary. Appending made two
+  // entries share an id: the death screen listed both (duplicate React keys)
+  // and `rewindToCheckpoint`'s `find` resolved the new one to the OLD
+  // timeline's snapshot. The newer snapshot replaces the older one.
+  const updated = [
+    ...existingCheckpoints.filter((c) => c?.id !== newCheckpoint.id),
+    newCheckpoint,
+  ];
 
   // Keep only the most recent MAX_CHECKPOINTS
   while (updated.length > MAX_CHECKPOINTS) {
@@ -497,7 +505,16 @@ export function rewindToCheckpoint(
     // Preserve cross-life data from current state
     restored.ribbonCollection = currentState.ribbonCollection;
     restored.discoveredSecrets = currentState.discoveredSecrets;
-    restored.checkpoints = currentState.checkpoints; // Keep full checkpoint list
+    // Keep the checkpoints up to the restored point - not the abandoned
+    // timeline's later ones. Those are the "from the future" checkpoints the
+    // sidecar load filter (`filterCheckpointsForState`) already drops on the
+    // next reload; keeping them in-session made rewind a free fast-forward
+    // into a timeline the player just left.
+    const restoredWeeks = typeof restored.weeksLived === 'number' ? restored.weeksLived : checkpoint.weeksLived;
+    const kept = checkpoints.filter(
+      (c) => !(typeof c?.weeksLived === 'number' && c.weeksLived > restoredWeeks),
+    );
+    restored.checkpoints = kept.length === checkpoints.length ? currentState.checkpoints : kept;
     restored.timeMachineUsesThisLife = (currentState.timeMachineUsesThisLife ?? 0) + 1;
 
     // The crypto market STAYS where it is (it is stripped from snapshots for
