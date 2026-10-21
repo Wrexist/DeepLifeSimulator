@@ -69,21 +69,27 @@ describe('PostCard is memoized', () => {
   });
 });
 
-describe('its writes persist after the commit, not before it', () => {
-  it('defers saveGame past the state update', () => {
-    // `saveGame` reads `gameStateRef.current`, which a POST-COMMIT effect
-    // syncs — a synchronous call persists the PRE-like snapshot. Same
-    // convention as BrandDealsScreen and DeathPopup.
+describe('its writes are persisted', () => {
+  // These used to pin a `setTimeout(..., 0)` deferral, the workaround for a
+  // `saveGame` that read a post-commit ref synchronously. `saveGame` now waits
+  // for the pending commit itself (`waitForPendingCommit`), which
+  // __tests__/save/saveInSameHandlerPersistsAction.test.ts pins for every
+  // caller, so the like/repost handlers save inline after dispatching.
+  const SAVE_AFTER = /void saveGame\?\.\(\);/;
+
+  it('saves after the like is dispatched', () => {
     const likeBlock = source.slice(source.indexOf('const handleLike'), source.indexOf('const handleRepost'));
 
     expect(likeBlock).toMatch(/likePost\(setGameState, post\.id\)/);
-    expect(likeBlock).toMatch(/setTimeout\(\(\) => \{ void saveGame\?\.\(\); \}, 0\)/);
+    expect(likeBlock).toMatch(SAVE_AFTER);
+    expect(likeBlock.indexOf('likePost(')).toBeLessThan(likeBlock.search(SAVE_AFTER));
   });
 
   it('does the same for repost', () => {
-    const repostBlock = source.slice(source.indexOf('const handleRepost'));
+    const repostBlock = source.slice(source.indexOf('const handleRepost')).slice(0, 600);
 
     expect(repostBlock).toMatch(/repostPost\(setGameState, post\.id\)/);
-    expect(repostBlock.slice(0, 600)).toMatch(/setTimeout\(\(\) => \{ void saveGame\?\.\(\); \}, 0\)/);
+    expect(repostBlock).toMatch(SAVE_AFTER);
+    expect(repostBlock.indexOf('repostPost(')).toBeLessThan(repostBlock.search(SAVE_AFTER));
   });
 });

@@ -118,7 +118,9 @@ Path alias: `@/*` → repo root (tsconfig + jest `moduleNameMapper` + metro).
 - **Never mutate.** Always `setGameState(prev => ({ ...prev, … }))`.
 - Values computed *inside* a `setGameState` updater are not visible outside it —
   don't assign to an outer variable from within the updater and read it after.
-- Call `saveGame()` after state-changing actions.
+- Call `saveGame()` after state-changing actions. Call it inline: it waits for
+  the commit carrying everything dispatched before it (`waitForPendingCommit`),
+  so the old `setTimeout(() => saveGame(), 0)` deferral is not needed.
 
 ### 4.2 Time: `week` vs `weeksLived`
 

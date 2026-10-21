@@ -39,7 +39,7 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
       pulseHaptics.success();
       // Persist the gem spend like every sibling Pulse mutation - without
       // this a reload inside the 2-minute autosave window reverted it.
-      setTimeout(() => { void saveGame?.(); }, 0);
+      void saveGame?.();
       onDismiss();
     } else {
       pulseHaptics.error();

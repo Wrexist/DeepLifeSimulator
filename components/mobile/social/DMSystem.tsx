@@ -453,9 +453,8 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  revealedDMClues: [...(prev.revealedDMClues || []), clueId],
  };
  });
- // Defer the save past the commit + parent ref-sync so the granted money AND
- // the reveal flag both persist (a synchronous save captures the pre-grant state).
- setTimeout(() => { void saveGame(); }, 0);
+ // Persist the granted money AND the reveal flag; saveGame waits for the pending commit itself (waitForPendingCommit).
+ void saveGame();
  }
 
  setCurrentClue({

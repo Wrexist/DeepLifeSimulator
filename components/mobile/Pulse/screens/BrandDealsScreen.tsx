@@ -40,14 +40,11 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
   const active: PulseActiveBrandDeal[] = useMemo(() => sm?.activeBrandDeals ?? [], [sm?.activeBrandDeals]);
   const history: PulseDealHistoryEntry[] = useMemo(() => sm?.brandInbox?.history ?? [], [sm?.brandInbox?.history]);
 
-  // Every mutation below persists via the codebase's post-commit pattern: the
-  // action commits through setGameState, but saveGame reads gameStateRef.current
-  // which is synced to state in a POST-COMMIT effect. A synchronous saveGame()
-  // would persist the PRE-action snapshot, so accept/decline/deliver/breach
-  // progress was silently dropped on reload. Deferring to a macrotask lets the
-  // commit + parent ref-sync run first, so the mutated brand-deal state is saved.
+  // Every mutation below persists right after it dispatches. saveGame waits for
+  // the pending commit itself (waitForPendingCommit), so it saves the mutated
+  // brand-deal state; the old macrotask deferral is no longer needed.
   const persist = useCallback(() => {
-    setTimeout(() => { void saveGame?.(); }, 0);
+    void saveGame?.();
   }, [saveGame]);
 
   const handleAccept = useCallback((id: string) => {
