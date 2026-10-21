@@ -11,11 +11,10 @@ import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 describe('applyYouthPill', () => {
   it('spends one pill and resets the displayed age', () => {
     const base = createTestGameState();
-    const prev = { ...base, youthPills: 2, date: { ...base.date, age: 64 }, userProfile: { ...base.userProfile, age: 64 } };
+    const prev = { ...base, youthPills: 2, date: { ...base.date, age: 64 } };
     const next = applyYouthPill(prev);
     expect(next.youthPills).toBe(1);
     expect(next.date.age).toBe(YOUTH_PILL_AGE);
-    expect(next.userProfile.age).toBe(YOUTH_PILL_AGE);
   });
 
   it('refuses (returns prev unchanged) when there is no pill, so a double tap applies once', () => {

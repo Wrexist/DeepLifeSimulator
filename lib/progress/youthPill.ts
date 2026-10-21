@@ -13,8 +13,9 @@ export const YOUTH_PILL_AGE = 18;
  * the old `Math.max(0, ...)` turned into a free reset. Returns `prev`
  * unchanged (same reference) when there is no pill to spend.
  *
- * `date.age` is the canonical ticking age (the week loop advances it) and
- * `userProfile.age` mirrors it for display.
+ * `date.age` is the ticking age (the week loop advances it). The modal also
+ * used to write `userProfile.age`, which is not a `UserProfile` field and has
+ * no reader, so it is no longer written.
  */
 export function applyYouthPill(prev: GameState): GameState {
   const pills = Number.isFinite(prev.youthPills) ? prev.youthPills : 0;
@@ -23,6 +24,5 @@ export function applyYouthPill(prev: GameState): GameState {
     ...prev,
     youthPills: pills - 1,
     date: { ...prev.date, age: YOUTH_PILL_AGE },
-    userProfile: { ...prev.userProfile, age: YOUTH_PILL_AGE },
   };
 }
