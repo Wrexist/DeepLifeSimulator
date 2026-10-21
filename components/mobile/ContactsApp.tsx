@@ -69,7 +69,7 @@ import {
   cashLoanRepayableWeek,
   hasCashDebtDueDate,
 } from '@/lib/contacts/favors';
-import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
+import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, GIFT_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
 import {
   currentIntroduction,
   meetBlockedReason,
@@ -850,8 +850,8 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                   {isPartner && (
                     <>
                       <View style={styles.actionsRow}>
-                        <ActionBtn label="Flowers" Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
-                        <ActionBtn label="Jewelry" Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
+                        <ActionBtn label={`Flowers · ${formatMoney(mindsetPrice(GIFT_CONFIGS.flowers.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
+                        <ActionBtn label={`Jewelry · ${formatMoney(mindsetPrice(GIFT_CONFIGS.jewelry.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
                       </View>
                       {!r.livingTogether && (
                         <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} darkMode={darkMode} wide />

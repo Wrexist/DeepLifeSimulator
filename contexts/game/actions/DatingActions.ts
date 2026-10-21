@@ -319,11 +319,26 @@ export const goOnDate = (
 /**
  * Give a gift to a partner
  */
+export type GiftType = 'flowers' | 'jewelry' | 'trip' | 'surprise' | 'luxury';
+
+/**
+ * Base gift prices and effects - the single source the action charges and the
+ * Contacts buttons quote (APP-18: the buttons used to show no price at all).
+ * Read the price through `mindsetPrice(cost, mindsetEffects(state).socialCost)`.
+ */
+export const GIFT_CONFIGS: Record<GiftType, { cost: number; relationshipBoost: number; message: string }> = {
+  flowers: { cost: 50, relationshipBoost: 2, message: 'flowers' },
+  jewelry: { cost: 500, relationshipBoost: 8, message: 'beautiful jewelry' },
+  trip: { cost: 2000, relationshipBoost: 15, message: 'a surprise trip' },
+  surprise: { cost: 200, relationshipBoost: 5, message: 'a thoughtful surprise' },
+  luxury: { cost: 2000, relationshipBoost: 15, message: 'a luxury gift' },
+};
+
 export const giveGift = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   partnerId: string,
-  giftType: 'flowers' | 'jewelry' | 'trip' | 'surprise' | 'luxury',
+  giftType: GiftType,
   /**
    * Unused, and optional so callers need not fake it.
    *
@@ -340,15 +355,7 @@ export const giveGift = (
     return { success: false, message: 'Partner not found.' };
   }
 
-  const giftConfigs = {
-    flowers: { cost: 50, relationshipBoost: 2, message: 'flowers' },
-    jewelry: { cost: 500, relationshipBoost: 8, message: 'beautiful jewelry' },
-    trip: { cost: 2000, relationshipBoost: 15, message: 'a surprise trip' },
-    surprise: { cost: 200, relationshipBoost: 5, message: 'a thoughtful surprise' },
-    luxury: { cost: 2000, relationshipBoost: 15, message: 'a luxury gift' },
-  };
-
-  const config = giftConfigs[giftType];
+  const config = GIFT_CONFIGS[giftType];
 
   // ANTI-EXPLOIT: Limit gifts per week per partner to prevent relationship score farming
   const MAX_GIFTS_PER_WEEK = 2;
