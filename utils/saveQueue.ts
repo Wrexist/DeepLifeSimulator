@@ -1091,6 +1091,10 @@ class SaveQueue {
       const cap = (n: number) => Math.max(20, Math.floor(n * k));
       const tail = (arr: any, n: number) =>
         Array.isArray(arr) && arr.length > n ? arr.slice(-n) : arr;
+      // For arrays written NEWEST-FIRST (`[item, ...prev]`): keep the head.
+      // `tail` on one of those keeps the OLDEST entries and drops the latest.
+      const head = (arr: any, n: number) =>
+        Array.isArray(arr) && arr.length > n ? arr.slice(0, n) : arr;
 
       if (pruned.lifetimeStatistics && typeof pruned.lifetimeStatistics === 'object') {
         const ls = { ...pruned.lifetimeStatistics };
@@ -1145,7 +1149,15 @@ class SaveQueue {
         bank.budgetSpend = tail(bank.budgetSpend, cap(104));
         pruned.banking = bank;
       }
-      pruned.travelHistory = tail(pruned.travelHistory, cap(100));
+      // Trip records live at `travel.travelHistory` (oldest-first, appended in
+      // TravelActions and capped there at 100). There is no top-level
+      // `travelHistory`; capping one was a no-op.
+      if (pruned.travel && typeof pruned.travel === 'object' && Array.isArray(pruned.travel.travelHistory)) {
+        pruned.travel = {
+          ...pruned.travel,
+          travelHistory: tail(pruned.travel.travelHistory, cap(100)),
+        };
+      }
       if (pruned.socialMedia && typeof pruned.socialMedia === 'object') {
         const sm = { ...pruned.socialMedia };
         sm.scandalHistory = tail(sm.scandalHistory, cap(50));
@@ -1185,8 +1197,12 @@ class SaveQueue {
       }
       if (pruned.gamingStreaming && typeof pruned.gamingStreaming === 'object') {
         const gs = { ...pruned.gamingStreaming };
-        gs.streamHistory = tail(gs.streamHistory, cap(100));
-        gs.videos = tail(gs.videos, cap(100));
+        // Both are written NEWEST-FIRST and capped at 200 in ContentActions
+        // (`[stream, ...history].slice(0, 200)`), so keep the head, at the same
+        // cap as the write site: a normal save then stores exactly what is in
+        // memory, and only the aggressive over-size pass trims (oldest first).
+        gs.streamHistory = head(gs.streamHistory, cap(200));
+        gs.videos = head(gs.videos, cap(200));
         pruned.gamingStreaming = gs;
       }
       if (pruned.hustleApp && pruned.hustleApp.companies && typeof pruned.hustleApp.companies === 'object') {
