@@ -1034,6 +1034,19 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // A null/non-object hole in family.children crashed validateRelationshipState
+  // (`child.id`) on load AND on every save, so the life could neither load nor
+  // save. Drop the holes; a non-object entry carries no child to keep.
+  if (s.family && typeof s.family === 'object' && Array.isArray(s.family.children)) {
+    const kids: unknown[] = s.family.children;
+    const kept = kids.filter((c) => !!c && typeof c === 'object');
+    if (kept.length !== kids.length) {
+      s.family = { ...s.family, children: kept };
+      repairs.push(`Removed ${kids.length - kept.length} malformed family.children entr${kids.length - kept.length === 1 ? 'y' : 'ies'}`);
+      repaired = true;
+    }
+  }
+
   // P1-12: clamp a tampered/corrupt credit score into the real FICO range [300, 850].
   // The loan-APR adjustment already clamps at use (amortization.ts:84), but the loan/card
   // eligibility gates (operations.ts:194,498) and the UI read banking.creditScore.score
