@@ -31,7 +31,7 @@ import { applyDynastyTransition } from '@/lib/dynasty/transition';
 import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBonuses';
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
-import { computeInheritance } from '@/lib/legacy/inheritance';
+import { computeInheritance, isCarriedFamilyBusinessLoan } from '@/lib/legacy/inheritance';
 import { appendLifeRecord, buildLifeRecord } from '@/lib/legacy/lifeRecord';
 import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 
@@ -279,10 +279,7 @@ function carryFamilyBusinessLoans(
   if (!Array.isArray(oldState.loans) || oldState.loans.length === 0) return;
   // Business-type loans AND any loan tied to a carried family business.
   const transferredLoans = oldState.loans.filter(loan =>
-    loan && loan.remaining > 0 && (
-      loan.type === 'business' ||
-      familyBusinessCompanyIds.some(id => loan.id?.includes(id) || loan.name?.includes('Business'))
-    )
+    isCarriedFamilyBusinessLoan(loan, familyBusinessCompanyIds)
   );
   if (transferredLoans.length > 0) {
     newState.loans = [...(newState.loans || []), ...transferredLoans.map(loan => ({ ...loan }))];
@@ -858,9 +855,10 @@ function createChildGameState(
   // This includes heirloom bonuses and proper net worth calculation
   const inheritanceSummary = computeInheritance(oldState);
   
-  // CRITICAL FIX: Use inheritanceSummary.totalNetWorth instead of currentNetWorth
-  // inheritanceSummary.totalNetWorth is the correct value calculated by computeInheritance
-  // which includes cash, bank savings, real estate, companies, and debts properly
+  // inheritanceSummary.totalNetWorth is the ESTATE (`estateValue`): the
+  // canonical net worth of everything that does not pass down in kind - so
+  // stocks, crypto and vehicles count, and family businesses (carried as live
+  // companies below) are not paid a second time in cash.
   const parentNetWorth = inheritanceSummary.totalNetWorth;
   
   // Calculate child-specific inheritance with education/career bonuses

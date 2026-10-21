@@ -1,4 +1,4 @@
-import { GameState , RealEstate, Company, Heirloom, DynastyStats } from '@/contexts/game/types';
+import { GameState , RealEstate, Company, Heirloom, DynastyStats, Loan } from '@/contexts/game/types';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { Memory, MEMORY_TEMPLATES, generateMemoryId } from './memories';
 import {
@@ -7,7 +7,8 @@ import {
   updateDynastyOnDeath,
   getHeirloomBonuses,
 } from './dynasty';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { netWorth } from '@/lib/progress/achievements';
+import { vaultItemIds } from '@/lib/dynasty/state';
 
 export interface InheritanceSummary {
   totalNetWorth: number;
@@ -32,8 +33,63 @@ export interface InheritanceSummary {
   updatedDynastyStats: DynastyStats;
 }
 
+/**
+ * The company ids that cross a life boundary IN KIND, as live companies - the
+ * family businesses both prestige builders carry (`prestigeExecution`).
+ */
+export function carriedFamilyBusinessIds(state: GameState): string[] {
+  const list = Array.isArray(state.familyBusinesses) ? state.familyBusinesses : [];
+  return list.map(fb => fb?.companyId).filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
+/**
+ * Whether a loan crosses the life boundary WITH a carried family business. One
+ * predicate for the carry (`carryFamilyBusinessLoans`) and the estate below, so
+ * a carried debt is never also charged against the cash inheritance.
+ */
+export function isCarriedFamilyBusinessLoan(
+  loan: Pick<Loan, 'id' | 'name' | 'type' | 'remaining'> | null | undefined,
+  familyBusinessCompanyIds: readonly string[],
+): boolean {
+  if (!loan || !(loan.remaining > 0) || familyBusinessCompanyIds.length === 0) return false;
+  return (
+    loan.type === 'business' ||
+    familyBusinessCompanyIds.some(id => loan.id?.includes(id) || loan.name?.includes('Business'))
+  );
+}
+
+/**
+ * What the ESTATE is worth: the canonical `netWorth` (lib/progress/achievements)
+ * of everything that does NOT pass to the heir in kind.
+ *
+ * It used to be its own sum - cash + bank + property price + 5x company income
+ * - which never read stocks, crypto, the bank accounts a player opened, savings
+ * goals, vehicles, luxury items or card debt. A parent with $50M in an index
+ * fund left their heir almost nothing while the death screen quoted $50M
+ * (LATE-3). And it counted every company, including the family businesses the
+ * heir also receives as live companies, so those were paid twice.
+ *
+ * Carried in kind, and therefore left out here: family-business companies,
+ * the loans that travel with them, and luxury items preserved in the Vault.
+ */
+export function estateValue(state: GameState): number {
+  const familyIds = carriedFamilyBusinessIds(state);
+  const vaulted = new Set(vaultItemIds(state));
+  const companies = Array.isArray(state.companies) ? state.companies : [];
+  const loans = Array.isArray(state.loans) ? state.loans : [];
+  const luxuryItems = Array.isArray(state.luxuryItems) ? state.luxuryItems : [];
+  const probate: GameState = {
+    ...state,
+    companies: familyIds.length > 0 ? companies.filter(c => !familyIds.includes(c?.id)) : companies,
+    loans: familyIds.length > 0 ? loans.filter(l => !isCarriedFamilyBusinessLoan(l, familyIds)) : loans,
+    luxuryItems: vaulted.size > 0 ? luxuryItems.filter(id => !vaulted.has(id)) : luxuryItems,
+  };
+  const value = netWorth(probate);
+  return Number.isFinite(value) ? value : 0;
+}
+
 export function computeInheritance(state: GameState): InheritanceSummary {
-  const cash = state.stats.money ?? 0;
+  const cash = state.stats?.money ?? 0;
   const bankSavings = state.bankSavings ?? 0;
 
   const ownedRealEstate = (state.realEstate as RealEstate[] | undefined) ?? [];
@@ -43,27 +99,16 @@ export function computeInheritance(state: GameState): InheritanceSummary {
 
   const companies = (state.companies as Company[] | undefined) ?? [];
   const companyIds: string[] = companies.map(c => c.id);
-  
-  // Identify family businesses (for now, any company owned is passed down as potential family business)
-  // In future, check if it was already inherited
-  const familyBusinessIds = companyIds;
 
-  const realEstateValue = ownedRealEstate
-    .filter(p => p.owned)
-    .reduce((sum, p) => sum + (p.price ?? 0), 0);
-
-  const companyValue = companies.reduce(
-    (sum, c) => sum + (c.weeklyIncome ?? 0) * WEEKS_PER_YEAR * 5,
-    0
-  );
+  // The companies that pass down as live family businesses (not as cash).
+  const familyBusinessIds = carriedFamilyBusinessIds(state).filter(id => companyIds.includes(id));
 
   const loansTotal =
     state.loans?.reduce((sum, loan) => sum + (loan.remaining ?? 0), 0) ??
     0;
 
   const debts = loansTotal < 0 ? 0 : loansTotal;
-  const grossAssets = cash + bankSavings + realEstateValue + companyValue;
-  const totalNetWorth = grossAssets - debts;
+  const totalNetWorth = estateValue(state);
 
   // Clamp starting debt for next life
   const clampedNetWorth =
