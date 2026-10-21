@@ -23,6 +23,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import { clampStat, clampStatByKey } from '@/utils/statUtils';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
@@ -111,7 +112,9 @@ export default function GymCard() {
           energy: clampStatByKey('energy', (st.energy ?? 0) - energyCost),
           fitness: clampStatByKey('fitness', (st.fitness ?? 0) + 5),
           health: clampStatByKey('health', (st.health ?? 0) + 3),
-          happiness: clampStatByKey('happiness', (st.happiness ?? 0) + 2),
+          // Through the happiness taper (CLAUDE.md 4.3) like every other gain:
+          // a raw +2 per $50 session was an uncapped way to buy happiness.
+          happiness: clampStatByKey('happiness', (st.happiness ?? 0) + scaledHappinessGain(st.happiness ?? 0, 2)),
         },
       };
     });
