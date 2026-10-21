@@ -1,5 +1,5 @@
 import { uiPalette } from '@/lib/config/theme';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
@@ -28,6 +28,8 @@ import {
   Smile
 } from 'lucide-react-native';
 import { gameAlert } from '@/utils/gameAlert';
+import { logger } from '@/utils/logger';
+import { useError } from '@/contexts/UIUXContext';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
@@ -38,6 +40,7 @@ interface JailScreenProps {
 
 export default function JailScreen({ onClose }: JailScreenProps) {
   const { gameState, performJailActivity, payBail, setGameState, nextWeek } = useGame();
+  const { showError } = useError();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
   const insets = useSafeAreaInsets();
   const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
@@ -87,6 +90,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   // bar. "Serve a Week" always works: it advances the week, which decrements the
   // sentence, with no cost. This is the fix for the "freezes after working 2
   // jobs" report (2 crime jobs → caught → jail with no obvious way out).
+  const servingRef = useRef(false);
   const handleServeTime = () => {
     gameAlert(
       'Serve Your Time',
@@ -96,11 +100,21 @@ export default function JailScreen({ onClose }: JailScreenProps) {
         {
           text: 'Serve a Week',
           onPress: () => {
-            try {
-              nextWeek();
-            } catch {
-              // nextWeek guards itself; never let this throw block the escape.
-            }
+            // nextWeek is ASYNC: a sync try/catch never saw its rejection, so a
+            // failed tick here was an unhandled rejection with no feedback
+            // (TAB-17). Same handling as the HUD's Next Week button, and one
+            // tick at a time.
+            if (servingRef.current) return;
+            servingRef.current = true;
+            void Promise.resolve()
+              .then(() => nextWeek())
+              .catch((error: unknown) => {
+                logger.error('Serve-a-week tick failed:', error);
+                showError('weekly-interaction', 'Could not finish the weekly transition. Please try again.');
+              })
+              .finally(() => {
+                servingRef.current = false;
+              });
           },
         },
       ]

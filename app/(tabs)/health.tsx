@@ -27,6 +27,7 @@ import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
+import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 
 type Vital = { key: HealthDelta['stat']; label: string; value: number; color: string };
 
@@ -291,7 +292,13 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
       const activity = (gameState.healthActivities ?? []).find((a) => a.id === id);
       return activity?.name ?? id;
     });
-    const immunityNames = (gameState.diseaseImmunities ?? []).map((id) => `${id} (immune)`);
+    // Display names from the disease catalogue: the raw ids ('common_cold')
+    // used to be shown next to properly named vaccines (TAB-10).
+    const immunityNames = (gameState.diseaseImmunities ?? []).map((id) => {
+      const name = getDiseaseTemplate(id)?.name
+        ?? id.split('_').filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      return `${name} (immune)`;
+    });
     return [...vaccineNames, ...immunityNames];
   }, [gameState.vaccinations, gameState.diseaseImmunities, gameState.healthActivities]);
   const sectionDescStyle = [styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark];

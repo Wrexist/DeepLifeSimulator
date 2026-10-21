@@ -228,12 +228,14 @@ function TopStatsBarComponent() {
  refuseWeeklyGate();
  return;
  }
- // The toast states the gain the updater will actually apply, taper included.
- const joy = (n: number) => Math.round(scaledHappinessGain(stats?.happiness ?? 0, n));
+ // The toast states the gain the updater will actually apply: taper
+ // included, and clamped at 100 - at 98 health "+7 health" applied +2.
+ const room = (current: number | undefined, n: number) => Math.max(0, Math.min(n, 100 - (current ?? 0)));
+ const joy = (n: number) => room(stats?.happiness, Math.round(scaledHappinessGain(stats?.happiness ?? 0, n)));
  switch (action) {
  case 'eat':
  if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
- apply({ money: -12, health: 7, happiness: 4 }, `Healthy meal - +7 health, +${joy(4)} happiness.`);
+ apply({ money: -12, health: 7, happiness: 4 }, `Healthy meal - +${room(stats?.health, 7)} health, +${joy(4)} happiness.`);
  break;
  case 'rest':
  // Resting at full energy used to spend the weekly slot and cost 5
@@ -247,7 +249,7 @@ function TopStatsBarComponent() {
  break;
  case 'exercise':
  if ((s.energy ?? 0) < 12) { haptic('warning'); info('Too tired to work out right now.'); return; }
- apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout - +6 fitness, +5 health.');
+ apply({ energy: -12, fitness: 6, health: 5 }, `Great workout - +${room(stats?.fitness, 6)} fitness, +${room(stats?.health, 5)} health.`);
  break;
  }
  }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
@@ -390,8 +392,8 @@ function TopStatsBarComponent() {
  // Exercise (no happiness at all) and Energy offered Eat (no energy),
  // under a hint promising "Quick action to improve <stat>".
  quickActions: [
- { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
- { icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
+ { id: 'eat', icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
+ { id: 'exercise', icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
  ],
  },
  {
@@ -401,8 +403,8 @@ function TopStatsBarComponent() {
  gradient: [STAT_IDENTITY.happiness.color, '#FBBF24'] as [string, string],
  max: 100,
  quickActions: [
- { icon: Coffee, label: 'Socialize', action: () => handleQuickAction('social') },
- { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
+ { id: 'social', icon: Coffee, label: 'Socialize', action: () => handleQuickAction('social') },
+ { id: 'eat', icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
  ],
  },
  {
@@ -412,7 +414,7 @@ function TopStatsBarComponent() {
  gradient: [STAT_IDENTITY.energy.color, '#60A5FA'] as [string, string],
  max: 100,
  quickActions: [
- { icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
+ { id: 'rest', icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
  ],
  },
  ];
@@ -617,22 +619,28 @@ function TopStatsBarComponent() {
  {/* quick actions omitted for clarity; keep if you used them */}
  {showQuickActions === key && quickActions && (
  <View style={styles.quickActionsContainer}>
- {quickActions.map((action, index) => (
+ {quickActions.map((action, index) => {
+ // Shown as used BEFORE the tap: a spent action used to look
+ // live and only refuse once pressed (TAB-13). Still pressable,
+ // so the tap explains itself.
+ const used = settings?.quickActionWeeks?.[action.id] === weeksLived;
+ return (
  <TouchableOpacity
  key={index}
- style={styles.quickActionButton}
+ style={[styles.quickActionButton, used && { opacity: 0.45 }]}
  onPress={action.action}
  activeOpacity={0.7}
- accessibilityLabel={action.label}
+ accessibilityLabel={used ? `${action.label}, used this week` : action.label}
  accessibilityRole="button"
- accessibilityHint={`Quick action to improve ${statLabel.toLowerCase()}`}
+ accessibilityHint={used ? 'Available again next week' : `Quick action to improve ${statLabel.toLowerCase()}`}
  >
  <View style={[styles.quickActionGradient, { backgroundColor: '#2563EB' }]}>
  <action.icon size={16} color="#FFFFFF"/>
- <Text maxFontSizeMultiplier={1.3} style={styles.quickActionText}>{action.label}</Text>
+ <Text maxFontSizeMultiplier={1.3} style={styles.quickActionText}>{used ? `${action.label} · Used` : action.label}</Text>
  </View>
  </TouchableOpacity>
- ))}
+ );
+ })}
  </View>
  )}
  </View>
