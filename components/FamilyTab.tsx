@@ -1,4 +1,5 @@
 import { familyPlanningBlock } from '@/lib/dating/familyPlanning';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { uiPalette , colors, accent } from '@/lib/config/theme';
 /**
  * Family Tab - spouse / partner, children, pregnancy and the parenting loop.
@@ -338,10 +339,22 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  // `?app=tinder` opens the dating app itself. Without it this lands on the
  // launcher grid - and on a computer-owning save the grid opens on "Desktop
  // Apps", where Dating is not even in the visible category.
+ // The CTA follows the SAME unlock the launcher enforces. It used to send a
+ // first-session player to a Spark that was still locked behind Chapter 2 -
+ // the screen's main action dead-ended (VIS-4). While Spark is locked the
+ // tier-1 door (Contacts > meet someone, CLAUDE.md 4.8) is offered instead
+ // when it is open, and the requirement is stated either way.
+ const datingUnlocked = isFeatureUnlocked(gameState, 'app:tinder');
+ const datingLockReason = unlockRequirement(gameState, 'app:tinder');
+ const contactsUnlocked = isFeatureUnlocked(gameState, 'app:contacts');
+ const findPartnerApp = datingUnlocked ? 'tinder' : contactsUnlocked ? 'contacts' : null;
+ const findPartnerLabel = datingUnlocked ? 'Open the dating app' : 'Meet someone in Contacts';
+
  const handleFindPartner = useCallback(() => {
+ if (!findPartnerApp) return;
  onClose?.();
- router.push('/(tabs)/apps?app=tinder');
- }, [onClose, router]);
+ router.push(`/(tabs)/apps?app=${findPartnerApp}`);
+ }, [onClose, router, findPartnerApp]);
 
  const handlePropose = useCallback(() => {
  if (!partner) return;
@@ -1083,17 +1096,19 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <Text style={styles.emptyStateTitle}>No partner yet</Text>
  <Text style={styles.emptyStateText}>
- {ownsDevice
+ {!ownsDevice
+ ? 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'
+ : datingUnlocked
  ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
- : 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'}
+ : `The dating app unlocks later (${datingLockReason || 'keep playing'}).${contactsUnlocked ? ' Until then, meet people through Contacts.' : ''}`}
  </Text>
- {ownsDevice && (
+ {ownsDevice && findPartnerApp && (
  <TouchableOpacity
  style={styles.emptyStateCta}
  onPress={handleFindPartner}
  activeOpacity={0.85}
  accessibilityRole="button"
- accessibilityLabel="Open the dating app"
+ accessibilityLabel={findPartnerLabel}
  >
  <LinearGradient
  colors={['#EC4899', '#DB2777']}
@@ -1102,7 +1117,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  style={styles.emptyStateCtaFill}
  >
  <Search size={scale(17)} color={uiPalette.white} />
- <Text style={styles.emptyStateCtaText}>Open the dating app</Text>
+ <Text style={styles.emptyStateCtaText}>{findPartnerLabel}</Text>
  </LinearGradient>
  </TouchableOpacity>
  )}
