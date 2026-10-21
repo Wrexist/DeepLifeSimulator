@@ -139,7 +139,7 @@ export const achievements: Achievement[] = [
     // connection the player MADE - counting them completed this at birth.
     progressSpec: {
       kind: 'counter',
-      current: gs => gs.relationships?.filter(r => r?.type !== 'parent' && r?.type !== 'child').length ?? 0,
+      current: gs => gs.relationships?.filter((r: { type?: string } | null | undefined) => r?.type !== 'parent' && r?.type !== 'child').length ?? 0,
       goal: 1,
     },
     goldReward: 10,
@@ -1024,7 +1024,7 @@ export const achievements: Achievement[] = [
     description: `Get all ${VACCINE_IDS.length} vaccinations.`,
     progressSpec: {
       kind: 'counter',
-      current: gs => (gs.vaccinations ?? []).filter(id => (VACCINE_IDS as readonly string[]).includes(id)).length,
+      current: gs => (gs.vaccinations ?? []).filter((id: string) => (VACCINE_IDS as readonly string[]).includes(id)).length,
       goal: VACCINE_IDS.length,
     },
     goldReward: 40,

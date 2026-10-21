@@ -39,7 +39,7 @@ describe('Live a Life of Crime - First Score', () => {
   it('is not complete for a fresh life at the starting criminal level', () => {
     const s = createTestGameState({ criminalLevel: 1, criminalXp: 0, streetJobsCompleted: 0 });
     expect(firstScore().checkComplete(s)).toBe(false);
-    expect(firstScore().checkProgress(s)).toBe(0);
+    expect(firstScore().checkProgress?.(s)).toBe(0);
   });
 
   it('completes on the first street job, or past the starting level', () => {

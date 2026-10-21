@@ -9,7 +9,7 @@ import { TravelEventDef } from '@/lib/travel/events';
 import { quoteActivity } from '@/lib/travel/activities';
 import { evaluateTravelMilestones, TravelMilestoneTier } from '@/lib/travel/milestones';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { fnv1a32 } from '@/utils/seededRoll';
+import { fnv1a32, lifeSalt } from '@/utils/seededRoll';
 import type { Dispatch, SetStateAction } from 'react';
 
 const log = logger.scope('TravelActions');
@@ -144,7 +144,11 @@ export const returnFromTrip = (
   }
 
   const trip = gameState.travel.currentTrip;
-  const roller = makeTripRoller(`${trip.destinationId}:${trip.startWeek}`);
+  // Salted with the LIFE (CLAUDE.md §4.3): keyed on destination + week alone,
+  // every life that booked Paris on the same week drew the same lost wallet.
+  // Safe to change for a trip already under way: its events are only rolled
+  // here, at return, so no player has seen an outcome this could move.
+  const roller = makeTripRoller(`${lifeSalt(gameState)}|${trip.destinationId}:${trip.startWeek}`);
   const summary = buildTripReturnSummary(gameState, roller);
   if (!summary) {
     log.error(`Destination ${trip.destinationId} not found`);
