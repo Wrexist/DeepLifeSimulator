@@ -3,7 +3,7 @@
  * This maintains backward compatibility with existing code
  */
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { logger } from '@/utils/logger';
 import { GameStateProvider } from './GameStateContext';
 import { GameActionsProvider } from './GameActionsContext';
@@ -18,6 +18,7 @@ import { initialGameState, STATE_VERSION } from './initialState';
 import { GameState } from './types';
 import { IAPHandler } from '@/components/IAPHandler';
 import { ReviewPromptHandler } from '@/components/ReviewPromptHandler';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 /**
  * Lightweight error boundary for individual provider isolation.
@@ -41,12 +42,17 @@ class ProviderBoundary extends Component<
     });
   }
 
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
       return (
         <ProviderErrorFallback
           error={this.state.error || new Error(`${this.props.name} initialization failed`)}
           providerName={this.props.name}
+          onRetry={this.handleRetry}
         />
       );
     }
@@ -57,7 +63,15 @@ class ProviderBoundary extends Component<
 /**
  * Error fallback component for provider failures
  */
-function ProviderErrorFallback({ error, providerName }: { error: Error; providerName?: string }) {
+function ProviderErrorFallback({
+  error,
+  providerName,
+  onRetry,
+}: {
+  error: Error;
+  providerName?: string;
+  onRetry?: () => void;
+}) {
   return (
     <View style={styles.errorContainer}>
       <Text style={styles.errorTitle}>Game Initialization Error</Text>
@@ -66,8 +80,18 @@ function ProviderErrorFallback({ error, providerName }: { error: Error; provider
       )}
       <Text style={styles.errorMessage}>{error.message}</Text>
       <Text style={styles.errorHint}>
-        Please restart the app. If the issue persists, contact support.
+        Try again, or restart the app. If the issue persists, contact support.
       </Text>
+      {onRetry && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+          onPress={onRetry}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryText}>Try again</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -111,9 +135,21 @@ export function GameProvider({
                                   <CompanyActionsProvider>
                                     <ProviderBoundary name="GameActionsProvider">
                                       <GameActionsProvider>
-                                        <IAPHandler />
-                                        <ReviewPromptHandler />
-                                        {children}
+                                        {/*
+                                          The app renders INSIDE every ProviderBoundary above,
+                                          so without this any screen or overlay crash was caught
+                                          by "GameActionsProvider"'s boundary: a dead-end screen
+                                          that named the wrong component and unmounted the
+                                          provider, taking its autosave interval and background
+                                          save with it. Catching app crashes here keeps all nine
+                                          providers (and autosave) alive and shows the screen
+                                          with Try Again / Main Menu. (audit SAVE-2)
+                                        */}
+                                        <ErrorBoundary>
+                                          <IAPHandler />
+                                          <ReviewPromptHandler />
+                                          {children}
+                                        </ErrorBoundary>
                                       </GameActionsProvider>
                                     </ProviderBoundary>
                                   </CompanyActionsProvider>
@@ -168,6 +204,18 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    backgroundColor: '#2563eb',
+  },
+  retryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 
