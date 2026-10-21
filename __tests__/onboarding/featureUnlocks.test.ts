@@ -463,8 +463,10 @@ describe('the grid shows locked apps rather than hiding them', () => {
   );
 
   it('each card carries its lock state', () => {
-    expect(SRC).toMatch(/locked: !isFeatureUnlocked\(gameState, `app:\$\{app\.id\}`\)/);
-    expect(SRC).toMatch(/lockReason: unlockRequirement\(gameState, `app:\$\{app\.id\}`\)/);
+    // PERF: the launcher reads the tier once and asks the AtTier forms, which
+    // __tests__/progression/unlockAtTierParity.test.ts pins to the state forms.
+    expect(SRC).toMatch(/const locked = !isFeatureUnlockedAtTier\(tier, `app:\$\{app\.id\}`\)/);
+    expect(SRC).toMatch(/lockReason: unlockRequirementAtTier\(tier, `app:\$\{app\.id\}`\)/);
   });
 
   it('a locked card is disclosed and badged, not removed', () => {
@@ -711,8 +713,8 @@ describe("Life's Stats segment is the one gated surface outside the grids", () =
   );
 
   it('it reads the same table everything else reads', () => {
-    expect(LIFE).toMatch(/isFeatureUnlocked\(gameState, 'tab:progression'\)/);
-    expect(LIFE).toMatch(/unlockRequirement\(gameState, 'tab:progression'\)/);
+    expect(LIFE).toMatch(/isFeatureUnlocked\(\w+, 'tab:progression'\)/);
+    expect(LIFE).toMatch(/unlockRequirement\(\w+, 'tab:progression'\)/);
     expect(LIFE).toMatch(/locked: statsLocked, lockReason: statsReason/);
   });
 
