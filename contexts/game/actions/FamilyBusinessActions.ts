@@ -6,28 +6,31 @@ import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('FamilyBusinessActions');
 
+/** One-time price of turning a company into a family business. The screen imports it. */
+export const FAMILY_BUSINESS_COST = 1_000_000;
+
 export const createFamilyBusiness = (
   gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
   /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
   _deps?: { updateMoney: typeof updateMoney }
-) => {
+): { success: boolean; message: string } => {
   const company = gameState.companies.find(c => c.id === companyId);
   if (!company) {
     log.error(`Company ${companyId} not found`);
-    return;
+    return { success: false, message: 'Company not found.' };
   }
 
   if (gameState.familyBusinesses?.some(fb => fb.companyId === companyId)) {
     log.warn(`Company ${companyId} is already a family business`);
-    return;
+    return { success: false, message: `${company.name} is already a family business.` };
   }
 
-  const cost = 1000000;
+  const cost = FAMILY_BUSINESS_COST;
   if (gameState.stats.money < cost) {
     log.warn('Insufficient funds to create family business');
-    return;
+    return { success: false, message: `You need ${formatMoney(cost)} to make ${company.name} a family business.` };
   }
 
   // ATOMICITY FIX: fold the $1M debit and the familyBusinesses append into ONE
@@ -55,6 +58,7 @@ export const createFamilyBusiness = (
   });
 
   log.info(`Created family business for company ${companyId}`);
+  return { success: true, message: `${company.name} is now a family business. It will pass to your heir.` };
 };
 
 export type FamilyBusinessManageAction = 'marketing' | 'branding' | 'reputation';
