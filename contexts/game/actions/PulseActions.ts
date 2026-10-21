@@ -1300,12 +1300,25 @@ export const endLiveStream = (
 // Monetization
 // ─────────────────────────────────────────────────────────────────────
 
+/** True when `postId` was already boosted this game week (one boost per post per week). */
+export function postBoostedThisWeek(state: GameState, postId: string): boolean {
+  const ws = state.weeksLived ?? 0;
+  return (state.socialMedia?.pendingBoosts ?? []).some(
+    (b) => b.type === 'post' && b.postId === postId && b.appliedWeek === ws,
+  );
+}
+
 export const boostPostWithGems = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
   postId: string,
   gemCost: number = 200,
 ): { success: boolean; message: string } => {
+  // APP-5: mirror the updater's once-a-week refusal here, or the modal reports
+  // a boost that never happened.
+  if (postBoostedThisWeek(gameState, postId)) {
+    return { success: false, message: 'Already boosted this week.' };
+  }
   if ((gameState.stats.gems ?? 0) < gemCost) {
     return { success: false, message: `Need ${gemCost} gems to boost.` };
   }
@@ -1320,9 +1333,7 @@ export const boostPostWithGems = (
     const ws = prev.weeksLived ?? 0;
     // One boost per post per week: a same-batch double tap used to charge
     // twice for one boost (the updater only re-checked the gem balance).
-    if ((prev.socialMedia?.pendingBoosts ?? []).some(
-      (b) => b.type === 'post' && b.postId === postId && b.appliedWeek === ws,
-    )) {
+    if (postBoostedThisWeek(prev, postId)) {
       return prev;
     }
     const salt = lifeSalt(prev);
