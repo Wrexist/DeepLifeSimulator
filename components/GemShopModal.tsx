@@ -1275,18 +1275,21 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  // Four equal cells across the sheet. With md padding and a 6pt icon gap the
-  // longest label ('Upgrades') ran to the right edge at 390pt and clipped on
-  // web, where adjustsFontSizeToFit does nothing (VIS-22).
+  // Cells sized to their labels (flexBasis auto), not four equal quarters: in
+  // equal cells the longest label ('Upgrades') was wider than its quarter and,
+  // centred, ran to the right edge at 390pt - and clipped on web, where
+  // adjustsFontSizeToFit does nothing (VIS-22).
   tabRow: {
     flexDirection: 'row',
-    paddingHorizontal: responsiveSpacing.xs,
+    paddingHorizontal: responsiveSpacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   tabBtn: {
     minHeight: 44,
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 'auto',
     paddingVertical: verticalScale(10),
     alignItems: 'center',
   },
