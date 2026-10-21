@@ -2399,6 +2399,21 @@ export async function atomicSave(
   }
 }
 
+// ─── SLOT STORAGE GENERATION ───────────────────────────────────────────
+// Bumped by every committed double-buffer write and every slot deletion, from
+// ANY caller (the save queue, a force-save, an IAP grant, a backup restore,
+// the onboarding write). `saveGame` records it beside the state object it just
+// persisted and skips a later NON-forced save only while the generation is
+// unchanged - i.e. while nothing else can have put different bytes in a slot
+// since. A counter rather than a per-slot map on purpose: a write to another
+// slot only costs one redundant save, and the coarser rule is the safer one.
+let slotStorageGeneration = 0;
+
+/** Monotonic count of slot writes/deletions this session (see above). */
+export function getSlotStorageGeneration(): number {
+  return slotStorageGeneration;
+}
+
 // ─── DOUBLE-BUFFER SAVE SYSTEM (A-1 crash fix) ─────────────────────────
 // Maintains two permanent buffers per save slot (A and B) with a pointer key.
 // Always writes to the INACTIVE buffer, then flips the pointer.
@@ -2417,6 +2432,10 @@ export async function doubleBufferSave(
   const pointerKey = `${slotKey}_active`;
   const keyA = `${slotKey}_A`;
   const keyB = `${slotKey}_B`;
+  // Counted on entry too, not only on success: a write that reports failure
+  // can still have flipped the pointer, so any ATTEMPT changes what a slot may
+  // hold. (See getSlotStorageGeneration.)
+  slotStorageGeneration++;
 
   try {
     // Step 1: Read current active pointer (default to 'A' if none exists)
@@ -2479,6 +2498,7 @@ export async function doubleBufferSave(
       };
     }
 
+    slotStorageGeneration++;
     return { success: true, buffer: inactiveBuffer };
   } catch (error) {
     return {
@@ -2759,7 +2779,14 @@ export async function deleteSaveSlot(
     // spellings together.
     `checkpoint_sidecar_slot_${slot}`,
   ];
-  await storage.multiRemove(keysToRemove);
+  // Bumped BEFORE the remove as well as after it: a save that read the
+  // generation while this delete was in flight must not count as current.
+  slotStorageGeneration++;
+  try {
+    await storage.multiRemove(keysToRemove);
+  } finally {
+    slotStorageGeneration++;
+  }
 }
 
 /**

@@ -31,9 +31,11 @@ interface SaveOperation {
    * processing (written, permanently failed, or been dropped as invalid). Not
    * part of the persisted shape — `JSON.stringify` drops function-valued keys,
    * so a restored operation simply has none. See `addToQueue` for why the
-   * enqueuer needs to know when the write actually landed.
+   * enqueuer needs to know when the write actually landed. `persisted` is true
+   * only when the write landed; a dropped or permanently failed operation
+   * settles with false.
    */
-  onSettled?: () => void;
+  onSettled?: (persisted: boolean) => void;
 }
 
 type ToastCallback = (message: string, type: 'success' | 'error') => void;
@@ -97,7 +99,7 @@ class SaveQueue {
     return this.processingPromise !== null;
   }
 
-  async addToQueue(slot: number, data: any): Promise<void> {
+  async addToQueue(slot: number, data: any): Promise<boolean> {
     // REFUSE, don't substitute. A NaN, undefined or out-of-range slot is
     // exactly the state you are in when something upstream has already gone
     // wrong, and this used to redirect that write onto whatever the player had
@@ -127,10 +129,12 @@ class SaveQueue {
     // Bounded: three retries with a 1s/2s/3s backoff is ~6s worst case, well
     // inside the mutex's 30s watchdog.
     let settled = false;
-    let settle: () => void = () => {};
+    let persisted = false;
+    let settle: (didPersist: boolean) => void = () => {};
     const completed = new Promise<void>(resolve => {
-      settle = () => {
+      settle = (didPersist: boolean) => {
         settled = true;
+        persisted = didPersist;
         resolve();
       };
     });
@@ -179,6 +183,11 @@ class SaveQueue {
         await Promise.resolve();
       }
     }
+    // Resolves (never rejects) on a permanent failure too - see
+    // `settleOperation` - so the result is how a caller tells a write that
+    // landed from one that did not. `saveGame` only records the state as
+    // persisted on `true`.
+    return persisted;
   }
 
   /**
@@ -220,7 +229,7 @@ class SaveQueue {
       // Validate operation has valid slot
       if (typeof operation.slot !== 'number' || isNaN(operation.slot) || operation.slot < 1 || operation.slot > 3) {
         this.log.error(`Invalid slot in queue operation: ${operation.slot}. Skipping operation.`);
-        this.settleOperation(operation);
+        this.settleOperation(operation, false);
         continue;
       }
 
@@ -246,7 +255,7 @@ class SaveQueue {
         }
 
         // Don't show success toast - silent saves
-        this.settleOperation(operation);
+        this.settleOperation(operation, true);
       } catch (error) {
         this.log.error(`Save failed for slot ${operation.slot}:`, error);
 
@@ -277,7 +286,7 @@ class SaveQueue {
           if (this.toastCallback) {
             this.toastCallback('Save Failed! Please try again.', 'error');
           }
-          this.settleOperation(operation);
+          this.settleOperation(operation, false);
         }
       }
     }
@@ -292,12 +301,12 @@ class SaveQueue {
    * same write. The contract `addToQueue` keeps is "your operation is no longer
    * pending" - which is exactly what the mutex holder needs to know.
    */
-  private settleOperation(operation: SaveOperation): void {
+  private settleOperation(operation: SaveOperation, persisted: boolean): void {
     const settle = operation.onSettled;
     if (!settle) return;
     operation.onSettled = undefined;
     try {
-      settle();
+      settle(persisted);
     } catch {
       // A settle callback cannot fail, but it must never break the drain.
     }
@@ -795,7 +804,7 @@ class SaveQueue {
     // Anything waiting on a dropped operation must still be told it is no longer
     // pending, or it waits forever - and, since F-9, holds the save/load mutex
     // while it does.
-    for (const operation of dropped) this.settleOperation(operation);
+    for (const operation of dropped) this.settleOperation(operation, false);
   }
 
   /** Journal the queue if a save is still pending after the grace period. */
@@ -1334,7 +1343,7 @@ class SaveQueue {
 export const saveQueue = new SaveQueue();
 
 // Helper function for easy usage
-export const queueSave = (slot: number, data: any): Promise<void> => {
+export const queueSave = (slot: number, data: any): Promise<boolean> => {
   return saveQueue.addToQueue(slot, data);
 };
 
