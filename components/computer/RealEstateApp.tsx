@@ -84,7 +84,7 @@ import {
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
 import { EVICTION_AFTER_WEEKS, getRentalTier } from '@/lib/realEstate/rentals';
-import { endRental, listRentalOptions, rentHome } from '@/contexts/game/actions/RentalActions';
+import { endRental, listRentalOptions, rentHome, moveOutWarning, switchTierWarning } from '@/contexts/game/actions/RentalActions';
 import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
@@ -709,15 +709,33 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   };
 
   const handleRent = useCallback((tierId: string) => {
-    const result = rentHome(setGameState, gameState, tierId);
-    gameAlert(result.success ? 'Moved in' : 'Cannot rent that', result.message);
-    if (result.success) void saveGame();
+    const doRent = () => {
+      const result = rentHome(setGameState, gameState, tierId);
+      gameAlert(result.success ? 'Moved in' : 'Cannot rent that', result.message);
+      if (result.success) void saveGame();
+    };
+    // APP-3: swapping one home for another says what changes first.
+    const warning = switchTierWarning(gameState, tierId);
+    if (!warning) { doRent(); return; }
+    gameAlert('Move house?', warning, [
+      { text: 'Stay', style: 'cancel' },
+      { text: 'Move', onPress: doRent },
+    ]);
   }, [gameState, setGameState, saveGame]);
 
   const handleEndRental = useCallback(() => {
-    const result = endRental(setGameState, gameState);
-    gameAlert(result.success ? 'Moved out' : 'Not renting', result.message);
-    if (result.success) void saveGame();
+    const doMoveOut = () => {
+      const result = endRental(setGameState, gameState);
+      gameAlert(result.success ? 'Moved out' : 'Not renting', result.message);
+      if (result.success) void saveGame();
+    };
+    // APP-3: say what moving out costs before doing it.
+    const warning = moveOutWarning(gameState);
+    if (!warning) { doMoveOut(); return; }
+    gameAlert('Move out?', warning, [
+      { text: 'Stay', style: 'cancel' },
+      { text: 'Move out', style: 'destructive', onPress: doMoveOut },
+    ]);
   }, [gameState, setGameState, saveGame]);
 
   const renderRent = () => {
