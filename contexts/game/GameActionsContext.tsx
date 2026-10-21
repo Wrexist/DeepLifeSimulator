@@ -50,7 +50,7 @@ import { initialGameState, STATE_VERSION } from './initialState';
 import { fileDivorce } from './actions/DatingActions';
 import { queueSave, forceSave } from '@/utils/saveQueue';
 import { isWritableSlot } from '@/utils/slotNumber';
-import { isSaveFromFutureError } from '@/utils/saveMigrations';
+import { isSaveFromFutureError, isSaveUnreadableError, SaveUnreadableError } from '@/utils/saveMigrations';
 import { haptic } from '@/utils/haptics';
 import { lifeSalt, makeLifeRoll, makeWeeklyRoll, marketSalt } from '@/utils/seededRoll';
 // Diminishing returns on happiness GAINS (Program 14). Every positive happiness
@@ -5166,6 +5166,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const loadResult = await doubleBufferLoad(`save_slot_${slot}`, undefined, { allowLegacy });
 
  if (!loadResult.data) {
+ // SAVE-1: data that is PRESENT but unverifiable is not an empty slot.
+ // Returning null here made Continue say "No save found ... start a new
+ // game" over a slot with restorable backups. Refuse with a typed error so
+ // the menu can send the player to Restore instead.
+ if (loadResult.blobPresent) {
+ logger.error('[LOAD_GAME] Save present but unreadable', { slot, source: loadResult.source });
+ throw new SaveUnreadableError(slot);
+ }
  logger.warn('No save data found for slot:', { slot });
  return null;
  }
@@ -5407,12 +5415,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // the markers set synchronously on load.
  setCurrentSlot(slot);
 
+ // R3-S1: a life is in play again, so the ambient autosave may resume.
+ // SAVE-10: resumed BEFORE any further fallible IO. The state above is already
+ // committed, so a throw below must not leave a live life with autosave off.
+ resumeLifeAutosave();
+
  // Keep both slot markers in sync for legacy and new slot authority readers.
+ // Best-effort: setCurrentSlot above already persists both. A storage error
+ // here (a nearly full device) used to reach the catch below, which reported
+ // "Load Error" and returned null AFTER the loaded life was installed, so the
+ // menu said "No save found" over a game that was in memory.
+ try {
  await AsyncStorage.setItem('currentSlot', String(slot));
  await AsyncStorage.setItem('lastSlot', String(slot));
-
- // R3-S1: a life is in play again, so the ambient autosave may resume.
- resumeLifeAutosave();
+ } catch (markerError) {
+ logger.warn('[LOAD_GAME] Failed to write slot markers (non-critical):', { error: markerError });
+ }
  logger.info('Game loaded successfully from slot:', { slot });
 
  // CRITICAL: Log child information if present (for debugging single parent scenario)
@@ -5453,6 +5471,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.warn('Refusing to load a save from a newer build', { slot });
  throw error;
  }
+ // SAVE-1: same reasoning - the caller explains it and offers Restore.
+ if (isSaveUnreadableError(error)) throw error;
  logger.error('Failed to load game:', error);
  showError('Load Error', 'Failed to load game progress');
  return null;

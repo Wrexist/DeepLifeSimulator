@@ -37,7 +37,12 @@ import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { useStartLife } from '@/src/features/onboarding/useStartLife';
-import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
+import {
+  isSaveFromFutureError,
+  isSaveUnreadableError,
+  SAVE_FROM_FUTURE_MESSAGE,
+  SAVE_UNREADABLE_MESSAGE,
+} from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
@@ -545,7 +550,7 @@ export default function MainMenu() {
         // showed the generic "or start a new game" message over an intact save
         // from a newer build - the exact advice the outer handler exists to
         // avoid. Re-throw that one case so it reaches its handler.
-        if (isSaveFromFutureError(loadError)) throw loadError;
+        if (isSaveFromFutureError(loadError) || isSaveUnreadableError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
         gameAlert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },
@@ -621,6 +626,16 @@ export default function MainMenu() {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version');
         gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
+        return;
+      }
+      // The slot holds data that does not verify. Never suggest a new game
+      // here: send the player to the slot's Restore instead. (audit SAVE-1)
+      if (isSaveUnreadableError(error)) {
+        log.warn('Save is present but unreadable', { slot: error.slot });
+        gameAlert('Save Needs Recovery', SAVE_UNREADABLE_MESSAGE, [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open Save Slots', onPress: () => router.push('/(onboarding)/SaveSlots') },
+        ]);
         return;
       }
       log.error('Error in continueGame:', error);
