@@ -71,6 +71,8 @@ import {
   buyAccessory,
   upgradePCComponent,
   ACCESSORY_PRICES,
+  ACCESSORY_LABELS,
+  PC_LABELS,
   PC_BASE_PRICES,
   MAX_PC_TIER,
   LIVE_ENERGY_DRAIN_PER_SEC,
@@ -120,14 +122,6 @@ type Route =
   | { kind: 'category'; id: string }
   | { kind: 'broadcast'; id: string };
 
-const ACCESSORY_LABELS: Record<keyof GamingStreamingState['equipment'], string> = {
-  microphone: 'Microphone',
-  webcam: 'Webcam',
-  gamingChair: 'Gaming chair',
-  greenScreen: 'Green screen',
-  lighting: 'Studio lights',
-};
-
 // Presentation-only mirror of lib/content/quality's accessory weights, so gear
 // rows can advertise their setup-score contribution (no logic, display text).
 const ACCESSORY_QUALITY: Record<keyof GamingStreamingState['equipment'], number> = {
@@ -136,18 +130,6 @@ const ACCESSORY_QUALITY: Record<keyof GamingStreamingState['equipment'], number>
   gamingChair: 2,
   greenScreen: 3,
   lighting: 4,
-};
-
-const PC_LABELS: Record<keyof GamingStreamingState['pcUpgradeLevels'], string> = {
-  cpu: 'CPU',
-  gpu: 'GPU',
-  ram: 'RAM',
-  ssd: 'SSD',
-  motherboard: 'Motherboard',
-  cooling: 'Cooling',
-  psu: 'Power supply',
-  case: 'Case',
-  network: 'Network',
 };
 
 const TABS: { key: TabType; label: string; icon: IconCmp }[] = [
