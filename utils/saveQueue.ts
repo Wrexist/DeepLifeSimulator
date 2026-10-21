@@ -1061,7 +1061,10 @@ class SaveQueue {
         key === 'unsynced_logs' ||
         key.startsWith('cloud_sync_data') ||
         key.startsWith('leaderboard_cache') ||
-        key.startsWith('achievements_cache')
+        key.startsWith('achievements_cache') ||
+        // Write-only crash copies from older builds (ErrorBoundary no longer
+        // writes them; nothing ever read them). audit SAVE-7.
+        key.startsWith('error_backup_')
       );
       
       if (cacheKeys.length > 0) {
