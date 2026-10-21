@@ -48,8 +48,10 @@ import { netWorth } from '@/lib/progress/achievements';
 import { STAT_DECAY_BASE_RATE, graceRampFactor, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { mindsetEffects } from '@/lib/mindset/effects';
+import { countStressfulEducations, educationStressPenalties } from '@/lib/education/educationStress';
+import { dietPlanWeeklyCost } from '@/lib/economy/dietPlanCost';
 
-export type DriftCauseId = 'decay' | 'home' | 'job' | 'items' | 'rest';
+export type DriftCauseId = 'decay' | 'home' | 'job' | 'items' | 'education' | 'diet' | 'rest';
 
 export interface DriftCause {
   id: DriftCauseId;
@@ -120,6 +122,36 @@ function itemBonuses(state: GameState): DriftCause | null {
 }
 
 /**
+ * The active diet plan's gains, or null. A plan the player cannot afford this
+ * week is skipped by the tick (no gains, no charge), so it projects nothing:
+ * the modals used to promise a broke player its full gain (TAB-7).
+ */
+function dietGains(state: GameState): DriftCause | null {
+  const plan = (state.dietPlans ?? []).find((p) => p && p.active);
+  if (!plan) return null;
+  if (finite(state.stats?.money, 0) < dietPlanWeeklyCost(plan)) return null;
+  const health = Math.max(0, finite(plan.healthGain, 0));
+  const energy = Math.max(0, finite(plan.energyGain, 0));
+  const happiness = Math.max(0, finite(plan.happinessGain, 0));
+  if (health === 0 && energy === 0 && happiness === 0) return null;
+  return { id: 'diet', label: `${plan.name} diet`, health, happiness, energy };
+}
+
+/** Studying's capped weekly toll (lib/education/educationStress), or null. */
+function educationToll(state: GameState): DriftCause | null {
+  const count = countStressfulEducations(state.educations);
+  if (count === 0) return null;
+  const p = educationStressPenalties(count);
+  return {
+    id: 'education',
+    label: count > 1 ? `Studying (${count} courses)` : 'Studying',
+    health: p.health,
+    happiness: p.happiness,
+    energy: p.energy,
+  };
+}
+
+/**
  * Project next week's vital changes from the current state.
  *
  * Pure and total: a malformed state yields the natural-decay line and nothing
@@ -158,6 +190,14 @@ export function projectWeeklyVitalDrift(state: GameState | null | undefined): Vi
 
   const items = itemBonuses(state);
   if (items) causes.push(items);
+
+  // Studying and an active diet plan, which the recap's "Each week" line used
+  // to leave out (TAB-6). Relationship support/neglect is still not projected.
+  const education = educationToll(state);
+  if (education) causes.push(education);
+
+  const diet = dietGains(state);
+  if (diet) causes.push(diet);
 
   const regenMultiplier = getEnergyRegenMultiplier(state.prestige?.unlockedBonuses || []);
   const safeRegen = Number.isFinite(regenMultiplier) && regenMultiplier > 0 ? regenMultiplier : 1;
