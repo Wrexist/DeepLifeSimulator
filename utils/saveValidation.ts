@@ -2786,6 +2786,19 @@ export async function deleteSaveSlot(
     `checkpoint_sidecar_slot_${slot}`,
   ];
   await storage.multiRemove(keysToRemove);
+
+  // Pending and journalled writes for this slot belong to the life just
+  // deleted; a startup replay would otherwise resurrect it (audit SAVE-8).
+  // Dynamic import: saveQueue imports this module. Best-effort and guarded,
+  // because a test double of saveQueue may not implement it.
+  try {
+    const { saveQueue } = await import('@/utils/saveQueue');
+    if (saveQueue && typeof saveQueue.discardSlot === 'function') {
+      await saveQueue.discardSlot(slot);
+    }
+  } catch (error) {
+    logger.warn('[deleteSaveSlot] Could not discard queued saves for slot (non-critical)', { slot, error });
+  }
 }
 
 /**
