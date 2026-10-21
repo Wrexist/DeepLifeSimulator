@@ -27,6 +27,7 @@ import {
 import { logger } from '@/utils/logger';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { applyMoneyDelta } from './MoneyActions';
+import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
 import {
@@ -1123,7 +1124,14 @@ export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect
         // A professional introduction is a working adult, not a classmate.
         age: 28 + (seed % 22),
       };
-      return { outcome: 'applied', state: { ...prev, relationships: [...(prev.relationships ?? []), introduced] } };
+      return {
+        outcome: 'applied',
+        state: {
+          ...prev,
+          relationships: [...(prev.relationships ?? []), introduced],
+          lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
+        },
+      };
     }
     default:
       return { outcome: 'noop' };
@@ -1347,6 +1355,7 @@ export function resolveMeeting(
         ...(next.relationships ?? []),
         introductionToRelationship(intro, weeksInThisLife(next)),
       ],
+      lifetimeStatistics: countNewRelationship(next.lifetimeStatistics),
     },
   };
 }
