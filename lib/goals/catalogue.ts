@@ -15,6 +15,7 @@
  *  2. `measure().target` is always > 0, so `current / target` can never divide
  *     by zero and produce a NaN progress bar.
  */
+import { countOf } from '@/utils/grammar';
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { financialIndependence } from '@/lib/statistics/fireTracker';
@@ -244,7 +245,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
       return { current: Math.max(0, total - remaining), target: total };
     },
     priority: () => 95,
-    format: (c, t) => `${Math.round(t - c)} weeks left`,
+    format: (c, t) => `${countOf(Math.round(t - c), 'week')} left`,
     achievementLevel: (s) => (s.educations ?? []).filter((e) => e?.completed).length,
   },
   {

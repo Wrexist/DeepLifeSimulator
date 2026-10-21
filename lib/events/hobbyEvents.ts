@@ -86,7 +86,7 @@ const hobbyLocalShow: EventTemplate = {
     const money = moneyReward(level, 30, 12);
     return {
       id: 'hobby_local_show',
-      description: `A curator saw your ${def.name.toLowerCase()} and wants to feature it at a local show. As a ${tierForLevel(level).name}, your work is turning heads.`,
+      description: `A curator saw your ${def.name.toLowerCase()} and wants to feature it at a local show. Your ${tierForLevel(level).name.toLowerCase()}-level work is turning heads.`,
       choices: [
         {
           id: 'exhibit',

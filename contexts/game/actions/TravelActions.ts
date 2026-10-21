@@ -1,4 +1,5 @@
 import { GameState, TravelState } from '../types';
+import { countOf } from '@/utils/grammar';
 import { logger } from '@/utils/logger';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
@@ -110,7 +111,7 @@ export const travelTo = (
   log.info(`Traveled to ${destination.name}, returning week ${returnWeek} (cost ${formatMoney(adjustedCost)})`);
   return {
     success: true,
-    message: `Enjoyed your trip to ${destination.name}! You'll return in ${adjustedDuration} week(s).`,
+    message: `Enjoyed your trip to ${destination.name}! You'll return in ${countOf(adjustedDuration, 'week')}.`,
     adjustedCost,
     adjustedDuration,
   };
@@ -139,7 +140,7 @@ export const returnFromTrip = (
   if (!readiness.ready) {
     return {
       success: false,
-      message: `You're still traveling! Return in ${readiness.weeksRemaining} week(s).`,
+      message: `You're still traveling! Return in ${countOf(readiness.weeksRemaining, 'week')}.`,
     };
   }
 
