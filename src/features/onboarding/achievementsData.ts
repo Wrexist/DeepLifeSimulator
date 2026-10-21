@@ -3,6 +3,7 @@ import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { financialIndependence } from '@/lib/statistics/fireTracker';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { chosenCompanyOf } from '@/lib/events/socialCircle';
 import { isLuxuryLifeComplete, getOwnedLuxuryCount, getTotalLuxuryValue } from '@/lib/luxury';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.webp');
@@ -122,7 +123,10 @@ export const achievements: Achievement[] = [
     id: 'beginner_social_life',
     title: 'Social Life',
     description: 'Make your first friend or connection.',
-    progressSpec: { kind: 'counter', current: gs => gs.relationships?.length ?? 0, goal: 1 },
+    // SOC-18: counts the people the player CHOSE. Every life is seeded with
+    // Mom and Dad in `relationships`, so the raw length completed this on frame
+    // one - the pre-ticked goal Program 11 removed from `ch2_make_friend`.
+    progressSpec: { kind: 'counter', current: gs => chosenCompanyOf(gs).length, goal: 1 },
     goldReward: 10,
     group: 'beginner',
   },
