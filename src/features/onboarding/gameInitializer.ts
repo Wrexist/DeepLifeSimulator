@@ -105,6 +105,15 @@ export interface InitializeGameDeps {
    * without it an overwrite has no rescue copy.
    */
   snapshotOutgoingSave?: (slot: number) => Promise<string | null>;
+  /**
+   * Drop the slot's anti-exploit protected state before the new life's first
+   * write. That record (death, jail, highest age) belongs to the life that used
+   * to be in the slot; left in place it ratchets into the new life, which then
+   * cannot restore its own backups ("Cannot restore to age 18. You have already
+   * reached age 60.") and embeds the old life's death in every save.
+   * 2026-10-21 audit SAVE-3. Optional for existing callers; production passes it.
+   */
+  clearProtectedState?: (slot: number) => Promise<void>;
   /** Force-save to a slot. */
   forceSave: (slot: number, state: any) => Promise<void>;
   /** Load game from a slot. */
@@ -210,6 +219,14 @@ export async function initializeAndSaveGame(
     if (deps.snapshotOutgoingSave) {
       await deps.snapshotOutgoingSave(targetSlot).catch((err) => {
         log.warn('Outgoing-save snapshot failed (non-critical):', err);
+      });
+    }
+
+    // AFTER the outgoing snapshot (which is a verbatim copy and needs no
+    // record), BEFORE the first backup/save of the new life writes a fresh one.
+    if (deps.clearProtectedState) {
+      await deps.clearProtectedState(targetSlot).catch((err) => {
+        log.warn('Clearing the previous life\'s protected state failed (non-critical):', err);
       });
     }
 
