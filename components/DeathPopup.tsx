@@ -40,6 +40,9 @@ import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 import LifeStoryModal from './LifeStoryModal';
+import ObituaryShareCard, { CARD_EXPORT_WIDTH } from '@/components/ObituaryShareCard';
+import { shareViewAsImage } from '@/utils/shareImage';
+import type { Obituary } from '@/lib/legacy/obituaryGenerator';
 import { createStyles } from '@/components/DeathPopupStyles';
 import { explainVitalDeath } from '@/lib/economy/deathCauses';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
@@ -667,10 +670,31 @@ function DeathPopup() {
     );
   }, [gameState, performStartNewGame]);
 
-  const handleShareObituary = useCallback(async () => {
+  // The obituary is computed once per death screen and feeds both the share
+  // text and the off-screen image card, so the two always agree.
+  const obituary = useMemo(() => {
     try {
       const { generateObituary } = require('@/lib/legacy/obituaryGenerator');
-      const obituary = generateObituary(gameState);
+      return generateObituary(gameState) as Obituary;
+    } catch (err) {
+      logger.error('Failed to build obituary:', err);
+      return null;
+    }
+  }, [gameState]);
+  const shareCardRef = useRef<View>(null);
+
+  const handleShareObituary = useCallback(async () => {
+    if (!obituary) return;
+    try {
+      // A picture of the life first; it is what gets reposted. Text is the
+      // floor for web, older binaries without the native modules, and any
+      // capture failure (utils/shareImage.ts).
+      const sharedImage = await shareViewAsImage(shareCardRef, {
+        message: obituary.shareText,
+        title: obituary.headline,
+        width: CARD_EXPORT_WIDTH,
+      });
+      if (sharedImage) return;
       await Share.share({
         message: obituary.shareText,
         title: obituary.headline,
@@ -678,7 +702,7 @@ function DeathPopup() {
     } catch (err) {
       logger.error('Failed to share obituary:', err);
     }
-  }, [gameState]);
+  }, [obituary]);
 
   // ── One scroll surface ─────────────────────────────────────────────────────
   // The whole card scrolls: tombstone, verdict, identity card, segmented
@@ -876,6 +900,13 @@ function DeathPopup() {
       onDismiss={flushPendingStore}
     >
       <View style={styles.container}>
+        {/* Off-screen source for the share image. Never seen or touched; it
+            only exists so shareViewAsImage has a laid-out view to capture. */}
+        {obituary ? (
+          <View style={offscreenStyle} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <ObituaryShareCard ref={shareCardRef} card={obituary.card} />
+          </View>
+        ) : null}
         <View style={styles.overlay} />
 
         <Animated.View
@@ -1794,3 +1825,7 @@ function DeathPopup() {
 
 
 export default React.memo(DeathPopup);
+
+// Far outside the window, so the share card is laid out (and capturable)
+// without ever being visible.
+const offscreenStyle = { position: 'absolute' as const, left: -10000, top: 0 };

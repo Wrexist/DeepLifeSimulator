@@ -9,10 +9,29 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { shareUrlFor } from '@/lib/config/appConfig';
 
+/**
+ * The same facts as `shareText`, split into fields so the share-image card
+ * (components/ObituaryShareCard.tsx) can lay them out. Derived here, beside
+ * the text, so the picture and the message can never disagree.
+ */
+export interface ObituaryCard {
+  name: string;
+  age: number;
+  /** e.g. "Millionaire" - the wealth descriptor, capitalised. */
+  verdict: string;
+  /** At most three life facts, most notable first. */
+  facts: string[];
+  netWorth: string;
+  cause: string;
+  /** 1 for a first life; higher for an heir. */
+  generation: number;
+}
+
 export interface Obituary {
   headline: string;
   body: string;
   shareText: string;
+  card: ObituaryCard;
 }
 
 export function generateObituary(state: GameState): Obituary {
@@ -150,7 +169,17 @@ export function generateObituary(state: GameState): Obituary {
     '#DeepLifeSim',
   ].join('\n');
 
-  return { headline, body, shareText };
+  const card: ObituaryCard = {
+    name,
+    age,
+    verdict: descriptor.charAt(0).toUpperCase() + descriptor.slice(1),
+    facts: facts.slice(0, 3),
+    netWorth: formatMoney(netWorth),
+    cause: deathReason,
+    generation: Math.max(1, Math.floor(state.generationNumber ?? 1)),
+  };
+
+  return { headline, body, shareText, card };
 }
 
 /**
