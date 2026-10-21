@@ -560,8 +560,8 @@ function TopStatsBarComponent() {
  <View style={styles.vitalRingWrap}>
  <ProgressRing
  value={pct}
- size={40}
- strokeWidth={5}
+ size={scale(40)}
+ strokeWidth={scale(5)}
  ambient={false}
  showPill={false}
  accentColor={ringColor}
