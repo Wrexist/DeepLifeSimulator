@@ -75,7 +75,7 @@ import {
 } from '@/contexts/game/actions/CrimeActions';
 import { JOB_TEMPLATES, stageSuccessProbability } from '@/lib/darkweb/jobs';
 import { MIXER_TIERS, effectiveMixerParams } from '@/lib/darkweb/laundering';
-import { RAID_SHARE_OF_POLICE_EVENTS } from '@/lib/darkweb/weeklyTick';
+import { raidShareOfPoliceEvents } from '@/lib/darkweb/weeklyTick';
 import { gameAlert } from '@/utils/gameAlert';
 
 // ---------------------------------------------------------------------------
@@ -694,10 +694,11 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const access = rep >= 35 ? 'common+pro+elite' : rep >= 10 ? 'common+pro' : 'common';
     const band = heatBand(dw.heat ?? 0);
     // R3-C8: this printed P(any police event), but the raid - the only branch
-    // that jails you - is a sub-roll worth `RAID_SHARE_OF_POLICE_EVENTS` of
-    // them. At heat 80+ the label read 40%/wk against a real ~10%, so a player
-    // managing heat was working from a number 4x too high.
-    const raidRisk = policeEventProbability(dw.heat ?? 0) * RAID_SHARE_OF_POLICE_EVENTS * 100;
+    // that jails you - is a sub-roll worth `raidShareOfPoliceEvents` of them.
+    // At heat 80+ the label read 40%/wk against a real ~10%, so a player
+    // managing heat was working from a number 4x too high. The share depends on
+    // the dirty wallet: with nothing to sting, the sting band becomes a raid.
+    const raidRisk = policeEventProbability(dw.heat ?? 0) * raidShareOfPoliceEvents(dw.dirtyBtc) * 100;
     const opsecLvl = dw.skills.opsec?.level ?? 1;
     const weeklyDecay = Math.max(0, Math.round((dw.heat ?? 0) - decayHeat(dw.heat ?? 0, opsecLvl)));
     const listings = dw.listings ?? [];

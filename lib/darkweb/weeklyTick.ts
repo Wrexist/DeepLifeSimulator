@@ -59,8 +59,24 @@ export interface DarkWebWeeklyTickResult {
  */
 export const RAID_SUBROLL_MIN = 0.30;
 export const RAID_SUBROLL_MAX = 0.55;
-/** Share of police events that are a jail raid. */
+/** Share of police events that are a jail raid (when there is dirty BTC to sting). */
 export const RAID_SHARE_OF_POLICE_EVENTS = RAID_SUBROLL_MAX - RAID_SUBROLL_MIN;
+
+/**
+ * The share of police events that resolve into a jail raid FOR THIS WALLET.
+ *
+ * The sting band (`subRoll < RAID_SUBROLL_MIN`) only fires when there is dirty
+ * BTC to seize; with an empty dirty wallet it falls through to the raid branch,
+ * so the raid then covers the whole `[0, RAID_SUBROLL_MAX)` band - 55%, not
+ * 25%. The Onion app printed the 25% figure in every state, understating the
+ * real jail risk 2.2x right after a launder or for a buyer-only player. One
+ * helper, read by the tick's branch order and by the display.
+ */
+export function raidShareOfPoliceEvents(dirtyBtc: number | undefined | null): number {
+  return typeof dirtyBtc === 'number' && dirtyBtc > 0
+    ? RAID_SHARE_OF_POLICE_EVENTS
+    : RAID_SUBROLL_MAX;
+}
 
 export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeeklyTickResult {
   // Normalize optional slices up front: a partially-migrated / CloudSync-merged /
