@@ -2492,6 +2492,19 @@ export async function doubleBufferSave(
       };
     }
 
+    // Retire the legacy single-key save now that a verified buffer is
+    // committed. The migration in doubleBufferLoad kept it "as extra fallback
+    // until next successful save", and nothing ever removed it - so months
+    // later, if both buffers failed verification, the load quietly resurrected
+    // that months-old life, re-wrapped it into buffer A, and the next autosave
+    // made the rollback permanent. Best-effort: a failure here leaves the old
+    // behaviour, never a lost save. 2026-10-21 audit SAVE-9.
+    try {
+      await storage.removeItem(slotKey);
+    } catch (legacyRemoveError) {
+      logger.warn('[DOUBLE_BUFFER] Could not retire legacy key (non-critical)', { error: legacyRemoveError });
+    }
+
     return { success: true, buffer: inactiveBuffer };
   } catch (error) {
     return {
