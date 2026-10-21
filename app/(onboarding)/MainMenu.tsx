@@ -550,7 +550,9 @@ export default function MainMenu() {
         // showed the generic "or start a new game" message over an intact save
         // from a newer build - the exact advice the outer handler exists to
         // avoid. Re-throw that one case so it reaches its handler.
-        if (isSaveFromFutureError(loadError) || isSaveUnreadableError(loadError)) throw loadError;
+        if (isSaveFromFutureError(loadError)) throw loadError;
+        // Same for a save that exists but cannot be read (audit SAVE-1).
+        if (isSaveUnreadableError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
         gameAlert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },
