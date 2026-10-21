@@ -15,12 +15,6 @@
  */
 import type { Dispatch, SetStateAction } from 'react';
 
-// The election roll is seeded on the life and week; force it so a win is a win.
-jest.mock('@/utils/seededRoll', () => ({
-  ...jest.requireActual('@/utils/seededRoll'),
-  makeLifeRoll: () => () => 0,
-}));
-
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import {
@@ -36,6 +30,13 @@ import { getPoliticalPensionWeekly } from '@/lib/economy/passiveIncome';
 import { RETIRED_FROM_WORK_MESSAGE } from '@/lib/politics/appointments';
 import { mergeRetirement } from '@/lib/politics/retirement';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
+// The election roll is seeded on the life and week; force it so a win is a win.
+// (jest hoists this above the imports.)
+jest.mock('@/utils/seededRoll', () => ({
+  ...jest.requireActual('@/utils/seededRoll'),
+  makeLifeRoll: () => () => 0,
+}));
 
 const deps = { updateMoney };
 
