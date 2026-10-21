@@ -37,7 +37,7 @@ import {
   dismissCatfishSuspicion,
   REWIND_GEM_COST,
 } from '@/contexts/game/actions/SparkActions';
-import { swipesRemaining, superLikesRemaining, isCatfish } from '@/lib/dating/sparkLogic';
+import { swipesRemaining, superLikesRemaining, isCatfish, sparkDeckGenderFilter } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import ProfileCard from '../components/ProfileCard';
 import EmptyState from '../components/EmptyState';
@@ -78,11 +78,9 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const showCatfishWarning = (p: DatingProfile): boolean =>
     isCatfish(p, catfishSeed) && !dismissedCatfish.has(p.id);
 
-  // The gender the player is seeking. Saves from before this field existed (or
-  // an explicit 'any') should NOT empty the deck - only filter when we have a
-  // concrete male/female preference to honor.
-  const seeking = gameState.userProfile?.seekingGender;
-  const genderFilter = seeking === 'male' || seeking === 'female' ? seeking : null;
+  // The gender the player is seeking, or null for everyone (bisexual, or a
+  // save from before the field existed) - see sparkDeckGenderFilter.
+  const genderFilter = sparkDeckGenderFilter(gameState.userProfile);
 
   // Filter out already-swiped, reported, or promoted profiles, and profiles
   // whose gender doesn't match the player's orientation.
