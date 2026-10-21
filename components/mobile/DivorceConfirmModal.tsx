@@ -476,7 +476,7 @@ export default function DivorceConfirmModal({
                 <Text style={styles.confirmButtonText}>
                   {canAffordFinal 
                     ? (selectedLawyer ? `Divorce (with Lawyer)` : 'Confirm Divorce')
-                    : 'Insufficient Funds'
+                    : 'Not enough money'
                   }
                 </Text>
               </LinearGradient>

@@ -67,7 +67,7 @@ export const AVATAR_PICKERS: PickerCategory[] = [
     label: 'Hair',
     kind: 'shape',
     options: named(HAIR_STYLES),
-    tint: { field: 'hairColor', label: 'Hair colour', options: swatches(HAIR_COLORS) },
+    tint: { field: 'hairColor', label: 'Hair color', options: swatches(HAIR_COLORS) },
   },
   // Facial hair is only drawn on masculine faces, so offering it on a feminine
   // one would be a control with no visible effect.
@@ -81,7 +81,7 @@ export const AVATAR_PICKERS: PickerCategory[] = [
     label: 'Outfit',
     kind: 'shape',
     options: named(CLOTHING),
-    tint: { field: 'clothingColor', label: 'Outfit colour', options: swatches(CLOTHING_COLORS) },
+    tint: { field: 'clothingColor', label: 'Outfit color', options: swatches(CLOTHING_COLORS) },
   },
   { field: 'headwear', label: 'Headwear', kind: 'shape', options: named(HEADWEAR) },
 ];

@@ -370,7 +370,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleBuyMiner = (tierId: string) => {
     const price = MINER_PRICES[tierId];
     if (price == null || cash < price) {
-      gameAlert('Insufficient funds', `Need ${formatMoneyCompact(price)} to buy this miner.`);
+      gameAlert('Not enough money', `You need ${formatMoneyCompact(price)} to buy this miner.`);
       return;
     }
     setGameState((prev) => {
@@ -645,7 +645,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
         <View style={{ gap: responsiveSpacing.sm }}>
           <SectionTitle
-            title="Open Orders"
+            title="Open orders"
             right={<Text style={[styles.subText, { color: theme.textMuted }]}>{(market.openOrders ?? []).length} active</Text>}
           />
           {(market.openOrders ?? []).length === 0 ? (
@@ -668,7 +668,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </View>
 
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle title="Recent Fills" />
+          <SectionTitle title="Recent fills" />
           {(market.orderHistory ?? []).length === 0 ? (
             <EmptyText theme={theme} darkMode={darkMode}>No fills yet.</EmptyText>
           ) : (
@@ -746,7 +746,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       {/* Mining target picker - keeps the existing selectedCrypto radio, now with
           a live readout of the coin miners are minting. */}
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle title="Mining Target" />
+        <SectionTitle title="Mining target" />
         <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
           Minting {mineTargetCoin?.name ?? mineTargetId.toUpperCase()}
           {mineTargetMarket ? ` · ${mineTargetMarket.regime} regime` : ''} · {formatPrice(mineTargetCoin?.price ?? 0)}
@@ -942,7 +942,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         {/* Miner upgrades - per owned tier (efficiency / power / durability / cooling). */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <SectionTitle
-            title="Miner Upgrades"
+            title="Miner upgrades"
             right={<Text style={[styles.subText, { color: theme.textMuted }]}>+yield · −power</Text>}
           />
           {!hasRigs ? (

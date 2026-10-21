@@ -364,7 +364,7 @@ const tuitionInvoice: MailTemplate = (ctx) => {
     preview: `${docMoney(termCost)} for the current term.`,
     body:
       `Your tuition statement for ${active.name} is attached.\n\n` +
-      `Weeks remaining on your programme: ${Math.max(0, Math.round(active.weeksRemaining ?? 0))}.\n` +
+      `Weeks remaining on your program: ${Math.max(0, Math.round(active.weeksRemaining ?? 0))}.\n` +
       (typeof active.gpa === 'number' ? `Current GPA: ${active.gpa.toFixed(2)}\n` : '') +
       '\nCharges are collected weekly alongside your other commitments.',
     category: 'finance',
@@ -375,7 +375,7 @@ const tuitionInvoice: MailTemplate = (ctx) => {
       reference: docReference('TUI', ctx.week, 13),
       rows: [
         { label: 'Term tuition', value: docMoney(termCost) },
-        { label: 'Programme total', value: docMoney(active.cost ?? 0), muted: true },
+        { label: 'Program total', value: docMoney(active.cost ?? 0), muted: true },
       ],
       total: { label: 'Due this term', value: docMoney(termCost) },
       note: 'Withdrawing forfeits the term. Speak to the registrar first.',
@@ -589,7 +589,7 @@ const vehicleService: MailTemplate = (ctx) => {
     attachment: {
       kind: 'invoice',
       title: 'Service estimate',
-      issuer: 'AutoCare Service Centre',
+      issuer: 'AutoCare Service Center',
       reference: docReference('SRV', ctx.week, 19),
       rows: [
         { label: 'Labour · inspection and adjustment', value: docMoney(labour) },

@@ -490,7 +490,7 @@ export default function SaveSlots() {
 
   const primaryAction = async () => {
     if (!selectedSlot) {
-      gameAlert('Select A Slot', 'Choose a slot first to continue.');
+      gameAlert('Select a slot', 'Choose a slot first to continue.');
       return;
     }
     if (selectedCard?.hasData) {

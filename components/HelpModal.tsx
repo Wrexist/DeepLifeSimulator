@@ -299,7 +299,7 @@ const helpContent = [
       },
       {
         question: 'How do I reduce dark-web risk?',
-        answer: 'Raise the dark-web skill the job\'s stages roll against - OPSEC in particular lowers how much heat you take. Buy gear under Life → Market before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defence. Attempting a job below its skill gate is how most runs go wrong.',
+        answer: 'Raise the dark-web skill the job\'s stages roll against - OPSEC in particular lowers how much heat you take. Buy gear under Life → Market before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defense. Attempting a job below its skill gate is how most runs go wrong.',
       },
       {
         question: 'What are talent trees?',
