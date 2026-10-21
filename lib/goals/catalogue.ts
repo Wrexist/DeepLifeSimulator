@@ -105,7 +105,10 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     title: 'Get hired',
     rationale: 'A steady wage is what every other plan is funded by.',
     route: '/(tabs)/work',
-    isEligible: (s) => !s.currentJob,
+    // Not for a retired life (applyForJob refuses every application: retirement
+    // is a one-way latch) or one serving a sentence (the Work tab is the jail
+    // screen) - the top NOW card must be something the player can act on.
+    isEligible: (s) => !s.currentJob && !s.isRetired && !((s.jailWeeks ?? 0) > 0),
     // Only one application can be pending. Track the two real stages rather
     // than asking for three simultaneous applications the action rejects.
     measure: (s) => ({
