@@ -25,6 +25,7 @@ import {
   getLegacyPassReward,
   getClaimableCount,
   getUnclaimedEarnedRewards,
+  getUnclaimedPremiumRewardStats,
   claimLegacyPassTier,
   type LegacyPassTrack,
 } from '@/lib/legacyPass/legacyPass';
@@ -83,23 +84,20 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   // upsell copy so "go premium" is a concrete offer, not a vague banner.
   const premiumStats = useMemo(() => {
     let total = 0;         // total premium rewards in the season
-    let earnedLocked = 0;  // premium rewards already earned but unclaimable (no sub)
-    let lockedGems = 0;    // gems sitting behind the paywall, already earned
     let headline = '';     // the flashiest premium reward to name-drop
     for (let tier = 1; tier <= MAX_TIER; tier++) {
       const r = getLegacyPassReward('premium', tier);
       if (!r) continue;
       total += 1;
-      if (currentTier >= tier) {
-        earnedLocked += 1;
-        if (r.kind === 'gems') lockedGems += r.amount ?? 0;
-      }
       // Prefer a non-gems, high-tier reward as the headline (cosmetics/items feel premium).
       if (r.kind !== 'gems' && (!headline || tier > MAX_TIER / 2)) headline = r.label;
     }
     if (!headline) headline = 'exclusive rewards';
-    return { total, earnedLocked, lockedGems, headline };
-  }, [currentTier]);
+    // "Already waiting" = reached AND not yet claimed. Counting claimed tiers
+    // promised a lapsed member rewards they already had (MON-11).
+    const waiting = getUnclaimedPremiumRewardStats(pass);
+    return { total, earnedLocked: waiting.count, lockedGems: waiting.gems, headline };
+  }, [pass]);
 
   const equipped = useGameSelector((s) => s.equippedCosmetics);
   const ownedCosmetics = useMemo(() => resolveOwnedCosmetics(pass.ownedCosmetics), [pass.ownedCosmetics]);
