@@ -7,9 +7,9 @@
  *   1. Year boundary. `shouldAutoCheckpoint(nextWeeksLived)` is true
  *      every WEEKS_PER_YEAR weeks. Label: `Age <yearAge>` where
  *      `yearAge = floor(ADULTHOOD_AGE + nextWeeksLived / WEEKS_PER_YEAR)`.
- *      Snapshot uses the SYNTHETIC post-tick state (prevState + newStats
- *      + nextWeeksLived) so the checkpoint reflects what the player just
- *      finished, not what they started the tick with.
+ *      Snapshot uses `postTickState` - the tick's fully assembled next
+ *      state - so the checkpoint is a state the game was actually in (see
+ *      the field's note for what the old synthetic snapshot duplicated).
  *
  * A second gate used to snapshot `prevState` as "Before Death" on the tick
  * that killed you. It is gone — see the note at the removal site. In short, a
@@ -46,6 +46,16 @@ export interface AutoCheckpointInput {
    * career equivalent of practising a hobby. See the growth block below.
    */
   workedThisWeek?: boolean;
+  /**
+   * The FULLY ASSEMBLED post-tick state, which is what a year checkpoint must
+   * snapshot. The tick passes it; when absent the snapshot falls back to the
+   * synthetic `{ ...prevState, stats: newStats, weeksLived }`, which is NOT a
+   * state the game was ever in: `newStats.money` already carries the week's
+   * sell-order proceeds, loan autopay, savings-goal sweeps and DCA buys while
+   * holdings, loans and banking are last week's. Rewinding to it duplicated a
+   * sale (shares AND cash) or lost a payment (debt back, cash still gone).
+   */
+  postTickState?: GameState;
 }
 
 export interface AutoCheckpointResult {
@@ -107,10 +117,9 @@ export function applyAutoCheckpoint(input: AutoCheckpointInput): AutoCheckpointR
 
     if (shouldAutoCheckpoint(input.nextWeeksLived)) {
       const yearAge = Math.floor(ADULTHOOD_AGE + input.nextWeeksLived / WEEKS_PER_YEAR);
-      const cp = createCheckpoint(
-        { ...input.prevState, stats: input.newStats, weeksLived: input.nextWeeksLived },
-        `Age ${yearAge}`,
-      );
+      const snapshot = input.postTickState
+        ?? { ...input.prevState, stats: input.newStats, weeksLived: input.nextWeeksLived };
+      const cp = createCheckpoint(snapshot, `Age ${yearAge}`);
       currentCheckpoints = addCheckpoint(currentCheckpoints, cp);
     }
 

@@ -54,6 +54,37 @@ describe('zero-stat death counters', () => {
     expect(rows[1].counter).toBe(0);
   });
 
+  it('count a week a disease pushed to zero after decay (2026-10-21, TICK-4)', async () => {
+    // Health 6 survives decay mid-tick (the old decision point reset the
+    // counter there); the disease's -10 then lands later in the tick and the
+    // week ENDS at 0. That week must count - it did not before the fix.
+    const rows: { health: number; counter: number }[] = [];
+    await runPersona({
+      name: 'disease ends at zero',
+      scenarioId: 'food_courier',
+      seed: 1,
+      weeks: 2,
+      mutateSeed: (st) => ({
+        ...st,
+        weeksLived: st.weeksLived + 12,
+        lifeStartWeek: st.weeksLived,
+        stats: { ...st.stats, health: 6, happiness: 80 },
+        lastDiseaseWeek: st.weeksLived + 12,
+        diseases: [{
+          id: 'flu', name: 'Flu', severity: 'serious', curable: true, treatmentRequired: false,
+          effects: { health: -10 }, naturalRecoveryWeeks: 50,
+        }] as typeof st.diseases,
+      }),
+      policy: (ctx) => {
+        const s = ctx.state();
+        rows.push({ health: s.stats.health, counter: s.healthZeroWeeks ?? 0 });
+      },
+    });
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(rows[1].health).toBeLessThanOrEqual(0);
+    expect(rows[1].counter).toBe(1);
+  });
+
   it('never count a week whose final health or happiness was above zero', async () => {
     const violations: string[] = [];
     let sawCounter = false;
@@ -71,6 +102,13 @@ describe('zero-stat death counters', () => {
         }
         if ((s.happinessZeroWeeks ?? 0) > 0 && s.stats.happiness > 0) {
           violations.push(`week ${ctx.week}: happinessZeroWeeks ${s.happinessZeroWeeks} at happiness ${s.stats.happiness}`);
+        }
+        // ...and the converse (TICK-4): a week that ended AT zero must count.
+        if (ctx.week > 0 && s.stats.health <= 0 && (s.healthZeroWeeks ?? 0) === 0) {
+          violations.push(`week ${ctx.week}: health ${s.stats.health} but healthZeroWeeks 0`);
+        }
+        if (ctx.week > 0 && s.stats.happiness <= 0 && (s.happinessZeroWeeks ?? 0) === 0) {
+          violations.push(`week ${ctx.week}: happiness ${s.stats.happiness} but happinessZeroWeeks 0`);
         }
       },
     });

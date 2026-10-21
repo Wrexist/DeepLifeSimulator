@@ -260,7 +260,7 @@ export function applyEducationProgression(
         }
 
         ctx.notifications.push({
-          id: 'education-exam',
+          id: `education-exam-${edu.id}`,
           message: `${examResult.grade} - ${examResult.message}`,
           title: `📝 Exam in ${edu.name}`,
         });
@@ -286,7 +286,7 @@ export function applyEducationProgression(
           }
         }
         ctx.notifications.push({
-          id: 'education-complete',
+          id: `education-complete-${edu.id}`,
           message: `GPA: ${(updatedEdu.gpa || 2.5).toFixed(1)} - Class bonuses applied!`,
           title: `🎓 ${edu.name} Completed!`,
         });

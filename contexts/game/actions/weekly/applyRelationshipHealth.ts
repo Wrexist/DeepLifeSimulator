@@ -3,8 +3,8 @@
  *
  * Scope: the per-rel breakup / disappointed / healthy-reset / fall-through
  * branches previously inline in `GameActionsContext.tsx:860-920` (~60 lines).
- * Caller invokes for EVERY non-handled rel (i.e. after pregnancy, wedding,
- * and child-aging gates have all returned null/undefined).
+ * Caller invokes for EVERY rel, AFTER the pregnancy, wedding and child-aging
+ * transforms have been applied to it (they compose; none of them skips this).
  *
  * Internal sub-gates (in order):
  *
@@ -101,10 +101,20 @@ export const NEGLECT_HAPPINESS_DRAG_CAP = -3;
 /** One-off happiness hit when a friendship finally fades. */
 export const FRIEND_DRIFT_HAPPINESS_PENALTY = -8;
 
+export interface RelationshipHealthOptions {
+  /**
+   * Skip the partner breakup roll this week (the low-bond counter and the
+   * disappointed roll still run). Set by the caller while the partner is still
+   * pregnant, so a breakup can never silently drop an unborn child.
+   */
+  holdBreakup?: boolean;
+}
+
 export function applyRelationshipHealth(
   rel: Relationship,
   relIdx: number,
   ctx: WeekContext,
+  opts: RelationshipHealthOptions = {},
 ): RelationshipHealthResult {
   const preRolls = ctx.preRolls;
 
@@ -122,10 +132,10 @@ export function applyRelationshipHealth(
       const breakupChance = Math.min(0.4, (30 - rel.relationshipScore) / 100) * safeDecayMult;
       const disappointedChance = 0.3 * safeDecayMult;
 
-      if (preRolls.relBreakup[relIdx % preRolls.relBreakup.length] < breakupChance) {
+      if (!opts.holdBreakup && preRolls.relBreakup[relIdx % preRolls.relBreakup.length] < breakupChance) {
         logger.info(`[RELATIONSHIP] ${rel.name} broke up due to low relationship (${rel.relationshipScore}%)`);
         ctx.notifications.push({
-          id: 'relationship-breakup',
+          id: `relationship-breakup-${rel.id}`,
           message: `${rel.name} has ended the relationship. Your relationship score was too low (${rel.relationshipScore}%).`,
           title: '💔 Relationship Ended',
         });
@@ -135,7 +145,7 @@ export function applyRelationshipHealth(
       if (preRolls.relDisappointed[relIdx % preRolls.relDisappointed.length] < disappointedChance) {
         logger.info(`[RELATIONSHIP] ${rel.name} is disappointed (${rel.relationshipScore}%)`);
         ctx.notifications.push({
-          id: 'relationship-disappointed',
+          id: `relationship-disappointed-${rel.id}`,
           message: `${rel.name} is disappointed with you. Your relationship is at ${rel.relationshipScore}%. Consider going on dates or giving gifts to improve it.`,
           title: '😔 Partner Disappointed',
         });
@@ -231,7 +241,7 @@ export function applyRelationshipHealth(
         if (preRolls.relBreakup[relIdx % preRolls.relBreakup.length] < driftChance) {
           logger.info(`[RELATIONSHIP] ${rel.name} drifted away (${rel.relationshipScore}%)`);
           ctx.notifications.push({
-            id: 'relationship-drifted',
+            id: `relationship-drifted-${rel.id}`,
             message: `You and ${rel.name} have drifted apart. Neither of you reached out for a long time.`,
             title: '🍂 Friendship Faded',
           });
@@ -244,7 +254,7 @@ export function applyRelationshipHealth(
       // what taught players to swipe these away.
       if (weeksAtLow === 1) {
         ctx.notifications.push({
-          id: 'relationship-neglected',
+          id: `relationship-neglected-${rel.id}`,
           message:
             rel.type === 'friend'
               ? `${rel.name} has noticed you never call. The friendship is fading.`
