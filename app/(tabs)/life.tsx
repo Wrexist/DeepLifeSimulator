@@ -6,9 +6,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { Activity, Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import Freeze from '@/components/ui/Freeze';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { HealthScreenContent } from './health';
 import { MarketScreenContent } from './market';
@@ -34,10 +35,9 @@ import AlertHost from '@/components/ui/AlertHost';
  * without this the whole children/heir subsystem was unreachable in shipped
  * builds.
  *
- * Only the active segment is mounted (matching the layout's freezeOnBlur
- * philosophy): keeping all three heavy screens live at once would undo the
- * whole point of trimming the tab bar. Switching segments remounts, which is
- * the same reset you'd get switching bottom tabs before.
+ * A segment mounts on its first visit and then stays mounted but hidden and
+ * FROZEN (matching the layout's freezeOnBlur philosophy): it keeps its scroll
+ * and sub-tab, and only the visible segment re-renders with game state.
  *
  * Stats is the one segment behind a progressive-disclosure gate. It holds
  * achievements, prestige and legacy - dense, and none of it actionable in
@@ -54,13 +54,10 @@ function LifeScreen() {
     () => new Set<LifeSegment>(['health'])
   );
   const [showFamily, setShowFamily] = useState(false);
-  // This shell re-renders with game state, but all three of its children are
-  // already subscribed and only one is mounted, so the added cost is a
-  // 4-segment control - not a screen's worth of work.
-  const { gameState } = useGame();
-
-  const statsLocked = !isFeatureUnlocked(gameState, 'tab:progression');
-  const statsReason = unlockRequirement(gameState, 'tab:progression');
+  // Two primitives, so the shell re-renders only when the Stats gate itself
+  // changes - not on every mutation the visible segment makes (PERF-3).
+  const statsLocked = useGameSelector((s) => !isFeatureUnlocked(s, 'tab:progression'));
+  const statsReason = useGameSelector((s) => unlockRequirement(s, 'tab:progression'));
 
   // Deep-link support: `/(tabs)/life?segment=shop` lands on a specific segment,
   // so CTAs elsewhere ("buy a computer in the Market") can point straight at
@@ -137,7 +134,12 @@ function LifeScreen() {
             lost its sub-tab and filters and Progression lost its scroll every
             time the player looked at Health. `display: none` keeps the tree
             alive without painting or laying it out, and a segment the player
-            has never opened is never mounted at all. */}
+            has never opened is never mounted at all.
+            PERF-3: a hidden segment is also FROZEN. Each one subscribes to the
+            whole game state, so `display: none` alone still re-rendered the
+            invisible ones on every tap - Progression re-scoring all 159
+            achievements for each meal bought in Market. Freeze keeps their
+            state and skips their renders until they are shown again. */}
         <View style={styles.body}>
           {(['health', 'shop', 'stats'] as const)
             .filter((key) => visitedSegments.has(key))
@@ -151,13 +153,15 @@ function LifeScreen() {
                 importantForAccessibility={segment === key ? 'auto' : 'no-hide-descendants'}
                 pointerEvents={segment === key ? 'auto' : 'none'}
               >
-                {key === 'health' ? (
-                  <HealthScreenContent embedded />
-                ) : key === 'shop' ? (
-                  <MarketScreenContent embedded />
-                ) : (
-                  <ProgressionScreenContent embedded />
-                )}
+                <Freeze freeze={segment !== key}>
+                  {key === 'health' ? (
+                    <HealthScreenContent embedded />
+                  ) : key === 'shop' ? (
+                    <MarketScreenContent embedded />
+                  ) : (
+                    <ProgressionScreenContent embedded />
+                  )}
+                </Freeze>
               </View>
             ))}
         </View>
