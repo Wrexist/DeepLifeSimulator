@@ -62,10 +62,35 @@ export interface RcPurchaseResult {
   transactionId?: string;
   /** True when the user cancelled the store sheet (not a real error). */
   cancelled?: boolean;
-  /** The store charging API was never invoked. Safe to discard a local intent. */
+  /**
+   * No charge happened (or can happen) for this attempt. Safe to discard a
+   * local intent. Set when the charging API was never invoked, and when the
+   * store refused the purchase outright (already owned, not allowed, invalid,
+   * not available) - see `NO_CHARGE_ERROR_CODES`.
+   */
   notCharged?: boolean;
+  /** The store reports the payment as PENDING (Ask to Buy, Play cash payment). */
+  paymentPending?: boolean;
+  /** The store refused because the product is already owned (non-consumable). */
+  alreadyOwned?: boolean;
   message?: string;
 }
+
+/**
+ * RevenueCat `PURCHASES_ERROR_CODE`s that are a definitive "the store did not
+ * charge". Every other non-cancel error after the sheet opened (network, store
+ * problem, unknown) is UNKNOWN and must keep the recovery intent. Literal
+ * values from @revenuecat/purchases-typescript-internal's generated enum, so
+ * this needs no native module to evaluate.
+ */
+const NO_CHARGE_ERROR_CODES = new Set([
+  '3', // PURCHASE_NOT_ALLOWED_ERROR
+  '4', // PURCHASE_INVALID_ERROR
+  '5', // PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR
+  '6', // PRODUCT_ALREADY_PURCHASED_ERROR
+]);
+const PRODUCT_ALREADY_PURCHASED_CODE = '6';
+const PAYMENT_PENDING_CODE = '20';
 
 // ── Lazy, crash-proof module load ───────────────────────────────────────────
 
@@ -512,7 +537,8 @@ class RevenueCatService {
         transactionId: transaction?.transactionIdentifier,
       };
     } catch (error) {
-      return { ...this.mapPurchaseError(error), notCharged: !storeInvoked };
+      const mapped = this.mapPurchaseError(error);
+      return { ...mapped, notCharged: !storeInvoked || mapped.notCharged === true };
     }
   }
 
@@ -709,6 +735,25 @@ class RevenueCatService {
   private mapPurchaseError(error: any): RcPurchaseResult {
     if (error?.userCancelled) return { success: false, cancelled: true, message: 'Purchase cancelled.' };
     log.warn('purchase failed', { error });
+    const code = error?.code === undefined || error?.code === null ? '' : String(error.code);
+    if (code === PRODUCT_ALREADY_PURCHASED_CODE) {
+      return {
+        success: false,
+        notCharged: true,
+        alreadyOwned: true,
+        message: 'You already own this. Tap Restore Purchases to apply it to this save.',
+      };
+    }
+    if (NO_CHARGE_ERROR_CODES.has(code)) {
+      return { success: false, notCharged: true, message: error?.message || 'The store did not complete this purchase. You were not charged.' };
+    }
+    if (code === PAYMENT_PENDING_CODE) {
+      return {
+        success: false,
+        paymentPending: true,
+        message: 'Your payment is pending approval. It will be added once the store confirms it.',
+      };
+    }
     return { success: false, message: error?.message || 'Purchase could not be completed.' };
   }
 }
