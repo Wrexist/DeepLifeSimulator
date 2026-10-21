@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { ComputerScreenContent } from './computer';
 import { MobileScreenContent } from './mobile';
 
@@ -28,11 +28,13 @@ import { MobileScreenContent } from './mobile';
  * that guesswork from the caller: it names the app, this screen finds it.
  */
 function AppsScreen() {
-  const { gameState } = useGame();
+  // PERF-4: one boolean, so this shell does not re-render on every mutation an
+  // open app makes (a trade, a swipe, the live-stream tick).
+  const ownsComputer = useGameSelector((s) =>
+    (s?.items ?? []).some((item) => item.id === 'computer' && item.owned),
+  );
   const router = useRouter();
   const { app } = useLocalSearchParams<{ app?: string }>();
-  const items = gameState?.items ?? [];
-  const ownsComputer = items.some((item) => item.id === 'computer' && item.owned);
 
   // Clear the param once the launcher has opened the app, so coming back to
   // this tab later shows the grid instead of re-opening it.

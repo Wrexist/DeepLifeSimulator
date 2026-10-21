@@ -83,8 +83,9 @@ describe('the tiles are de-noised', () => {
   });
 
   it('keeps the lock + badge treatment on every card', () => {
-    expect(launcher).toMatch(/locked: !isFeatureUnlocked\(gameState, `app:\$\{app\.id\}`\)/);
-    expect(launcher).toMatch(/lockReason: unlockRequirement\(gameState, `app:\$\{app\.id\}`\)/);
+    // Lock state is read off the selected unlock tier (PERF-4), not the whole state.
+    expect(launcher).toMatch(/const locked = !isFeatureUnlockedAtTier\(tier, `app:\$\{app\.id\}`\)/);
+    expect(launcher).toMatch(/lockReason: unlockRequirementAtTier\(tier, `app:\$\{app\.id\}`\)/);
     expect(launcher).toMatch(/appBadges\[app\.id\]/);
   });
 });

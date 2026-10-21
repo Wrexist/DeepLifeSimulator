@@ -30,7 +30,7 @@ import { uiPalette } from '@/lib/config/theme';
  * "Locked (N)" row per section that expands on tap. The teaching value stays
  * (every locked tile still shows its requirement); the wall goes.
  */
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -44,10 +44,19 @@ import {
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { ChevronDown, ChevronUp, LayoutGrid, Lock, Smartphone } from 'lucide-react-native';
 
-import { useGame } from '@/contexts/GameContext';
+import { shallowEqual, useGameSelector, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { isFeatureUnlocked, unlockGuide, unlockRequirement, type UnlockGuide } from '@/lib/progress/featureUnlocks';
+import {
+  isFeatureUnlocked,
+  isFeatureUnlockedAtTier,
+  unlockGuide,
+  unlockRequirement,
+  unlockRequirementAtTier,
+  unlockShortLabel,
+  unlockTier,
+  type UnlockGuide,
+} from '@/lib/progress/featureUnlocks';
 import LockedAppSheet, { type LockedAppInfo } from './LockedAppSheet';
 import { useRouter } from 'expo-router';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
@@ -98,8 +107,16 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
   const { t } = useTranslation();
   const { width: screenWidth, fontScale: textScale } = useWindowDimensions();
   const [category, setCategory] = useState<'all' | 'phone' | 'computer'>('all');
-  const { gameState } = useGame();
-  const { settings } = gameState;
+  // PERF-4: this used to take the WHOLE state, and it stays mounted while a
+  // full-screen app is open - so every trade, swipe and live-stream tick
+  // re-rendered it and re-decorated every tile (twice over through
+  // `unlockGuide`, which scores the active chapter). It reads three things:
+  // the unlock tier (a number - lock state is a function of it alone), the
+  // badge counts, and dark mode. Everything else is read at the moment of use.
+  const getState = useGameStateGetter();
+  const tier = useGameSelector(unlockTier);
+  const darkMode = useGameSelector((s) => !!s.settings?.darkMode);
+  const appBadges = useGameSelector(getAppBadgeCounts, shallowEqual);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<{ addListener: (e: string, cb: () => void) => () => void }>();
   const { buttonPress } = useFeedback();
@@ -116,13 +133,14 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
   useEffect(() => {
     if (!initialApp) return;
     const requested = appsForHost(host).find(app => app.id === initialApp);
-    if (requested && isFeatureUnlocked(gameState, `app:${initialApp}`)) {
+    const state = getState();
+    if (requested && isFeatureUnlocked(state, `app:${initialApp}`)) {
       setActiveApp(initialApp);
     } else if (requested) {
-      gameAlert(requested.name, unlockRequirement(gameState, `app:${initialApp}`));
+      gameAlert(requested.name, unlockRequirement(state, `app:${initialApp}`));
     }
     onInitialAppConsumed?.();
-  }, [initialApp, onInitialAppConsumed, gameState, host]);
+  }, [initialApp, onInitialAppConsumed, getState, host]);
 
   // Run sub-apps full-screen (hide the game TopStatsBar + floating tab bar) so
   // they don't feel sandwiched between the game chrome. Reset on unmount so the
@@ -141,15 +159,13 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
   // returns null for unmeasured ids, and `trackFeatureUse` is a no-op unless
   // telemetry is enabled and consented.
   //
-  // `weeksLived` is read through a ref so it is NOT a dependency: depending on
-  // it would re-run the effect on every week advance and re-record adoption for
-  // an app the player has not reopened.
-  const weeksLivedRef = useRef(gameState?.weeksLived ?? 0);
-  weeksLivedRef.current = gameState?.weeksLived ?? 0;
+  // `weeksLived` is read at the moment the app opens, so it is NOT a
+  // dependency: depending on it would re-run the effect on every week advance
+  // and re-record adoption for an app the player has not reopened.
   useEffect(() => {
     const feature = featureForAppId(activeApp);
-    if (feature) trackFeatureUse(feature, weeksLivedRef.current);
-  }, [activeApp]);
+    if (feature) trackFeatureUse(feature, getState()?.weeksLived ?? 0);
+  }, [activeApp, getState]);
 
   // Stable close handler, passed into every hosted app. `buttonPress` already
   // pairs the light haptic with the click sound, so it is the whole feedback.
@@ -187,13 +203,18 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
    */
   const appSections = useMemo(() => {
     const decorate = (apps: LauncherApp[]): DecoratedApp[] =>
-      apps.map((app) => ({
-        ...app,
-        locked: !isFeatureUnlocked(gameState, `app:${app.id}`),
-        lockReason: unlockRequirement(gameState, `app:${app.id}`),
-        guide: unlockGuide(gameState, `app:${app.id}`),
-        lockShort: unlockGuide(gameState, `app:${app.id}`)?.short,
-      }));
+      apps.map((app) => {
+        const locked = !isFeatureUnlockedAtTier(tier, `app:${app.id}`);
+        return {
+          ...app,
+          locked,
+          lockReason: unlockRequirementAtTier(tier, `app:${app.id}`),
+          // The routes + live progress in `unlockGuide` are built when the
+          // locked tile is TAPPED (see renderTile), not for every tile on every
+          // render; the tag on the tile depends only on the feature.
+          lockShort: locked ? unlockShortLabel(`app:${app.id}`) : undefined,
+        };
+      });
     const hosted = appsForHost(host);
     const sections =
       host === 'computer'
@@ -218,14 +239,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
             },
           ];
     return sections.filter((section) => section.apps.length > 0);
-  }, [gameState, host]);
-
-  // Per-app "needs attention" badge counts.
-  const appBadges = useMemo(
-    () => getAppBadgeCounts(gameState),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed to the exact state slices the badge math reads
-    [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies, gameState.mail],
-  );
+  }, [tier, host]);
 
   if (activeApp) {
     const AppComponent = resolveAppComponent(activeApp, host);
@@ -238,7 +252,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
     // Full-screen host: the game chrome is hidden while an app is open, so the
     // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
-      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? uiPalette.navy : uiPalette.paper }}>
+      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: darkMode ? uiPalette.navy : uiPalette.paper }}>
         {/* One boundary for all 19 apps. Seven of them shipped without their
             own, so a throw in any of those took the whole Apps tab down with
             it; the ones that still wrap themselves simply nest, and the
@@ -273,7 +287,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
               name,
               icon: iconAsset ?? undefined,
               Glyph: app.icon,
-              guide: app.guide,
+              guide: app.needsComputer ? app.guide : unlockGuide(getState(), `app:${app.id}`),
               needsComputer: app.needsComputer,
             });
             return;
@@ -284,7 +298,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
         accessibilityLabel={app.locked ? `${name}, locked` : `Open ${name}`}
         accessibilityHint={app.locked ? app.lockReason || 'Not available yet' : `Launch the ${name} app`}
       >
-        <View style={[styles.appCardInner, settings.darkMode && styles.appCardInnerDark]}>
+        <View style={[styles.appCardInner, darkMode && styles.appCardInnerDark]}>
           <View style={styles.appIconContainer}>
             {/* Padlock badge - reads as locked before the card is tapped. */}
             {app.locked && (
@@ -307,18 +321,18 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
               <View
                 style={[
                   styles.appIconFallback,
-                  settings.darkMode && styles.appIconFallbackDark,
+                  darkMode && styles.appIconFallbackDark,
                   app.tint ? { backgroundColor: app.tint, borderColor: app.tint } : null,
                 ]}
               >
                 <IconGlyph
                   size={responsiveIconSize.lg}
-                  color={app.tint ? uiPalette.white : settings.darkMode ? uiPalette.secondary : uiPalette.lightSecondary}
+                  color={app.tint ? uiPalette.white : darkMode ? uiPalette.secondary : uiPalette.lightSecondary}
                 />
               </View>
             )}
           </View>
-          <Text style={[styles.appName, settings.darkMode && styles.appNameDark]} numberOfLines={2}>
+          <Text style={[styles.appName, darkMode && styles.appNameDark]} numberOfLines={2}>
             {name}
           </Text>
           {/* ONE short pill, sized to fit the tile. Two lines of requirement
@@ -352,7 +366,7 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
         };
 
   return (
-    <View style={[styles.container, settings.darkMode && styles.containerDark]}>
+    <View style={[styles.container, darkMode && styles.containerDark]}>
       <ScreenHeader title={header.title} subtitle={header.subtitle} icon={header.icon} tint={uiPalette.blue} />
       {host === 'computer' && <SegmentedControl style={{ marginHorizontal: responsivePadding.horizontal, marginBottom: layoutSpace.compact }} segments={[{ key: 'all', label: 'All apps' }, { key: 'phone', label: 'Phone' }, { key: 'computer', label: 'Computer' }]} value={category} onChange={setCategory} />}
       <ScrollView
@@ -372,17 +386,17 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
           return (
             <View key={section.key} style={styles.appSection}>
               {!!section.title && (
-                <Text style={[styles.appSectionTitle, settings.darkMode && styles.appSectionTitleDark]}>
+                <Text style={[styles.appSectionTitle, darkMode && styles.appSectionTitleDark]}>
                   {section.title}
                 </Text>
               )}
               {unlocked.length > 0 ? <View style={styles.appsGrid}>{unlocked.map(renderTile)}</View> : (
-                <Text style={[styles.lockedRowText, settings.darkMode && styles.lockedRowTextDark]}>Apps for this device are locked. Open the list below to see each requirement.</Text>
+                <Text style={[styles.lockedRowText, darkMode && styles.lockedRowTextDark]}>Apps for this device are locked. Open the list below to see each requirement.</Text>
               )}
               {locked.length > 0 && (
                 <>
                   <TouchableOpacity
-                    style={[styles.lockedRow, settings.darkMode && styles.lockedRowDark]}
+                    style={[styles.lockedRow, darkMode && styles.lockedRowDark]}
                     onPress={() => {
                       buttonPress();
                       setExpandedLocked((prev) => ({ ...prev, [section.key]: !(prev[section.key] ?? true) }));
@@ -393,11 +407,11 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
                     accessibilityHint={expanded ? 'Collapse the locked apps' : 'Show the locked apps and how to unlock them'}
                     accessibilityState={{ expanded }}
                   >
-                    <Lock size={scale(14)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
-                    <Text style={[styles.lockedRowText, settings.darkMode && styles.lockedRowTextDark]}>
+                    <Lock size={scale(14)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
+                    <Text style={[styles.lockedRowText, darkMode && styles.lockedRowTextDark]}>
                       Locked ({locked.length}) - tap an app to see how to unlock it
                     </Text>
-                    <ExpandChevron size={scale(16)} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
+                    <ExpandChevron size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
                   </TouchableOpacity>
                   {expanded && <View style={styles.appsGrid}>{locked.map(renderTile)}</View>}
                 </>
