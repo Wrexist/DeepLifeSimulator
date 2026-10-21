@@ -47,6 +47,7 @@ import {
   applyChallengeSelectionToOnboardingState,
   applyLifePathSelectionToOnboardingState,
   canContinueFromScenarioSelection,
+  challengeStartFromConditions,
   getInitialScenarioTab,
 } from '@/src/features/onboarding/scenariosFlow';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
@@ -367,19 +368,9 @@ export default function Scenarios() {
       }
 
       const difficultyKey = isChallengeDifficulty(challenge.difficulty) ? challenge.difficulty : 'medium';
-      const startingConditions =
-        challenge.startingConditions && typeof challenge.startingConditions === 'object'
-          ? challenge.startingConditions
-          : {};
       const firstCondition = Array.isArray(challenge.winConditions)
         ? challenge.winConditions.find((condition) => typeof condition?.description === 'string')
         : undefined;
-      const educationList = Array.isArray(startingConditions.education)
-        ? startingConditions.education.filter((entry): entry is string => typeof entry === 'string')
-        : [];
-      const startItems = Array.isArray(startingConditions.items)
-        ? startingConditions.items.filter((entry): entry is string => typeof entry === 'string')
-        : [];
       const challengeIcon = typeof challenge.icon === 'string' ? challenge.icon : undefined;
       const challengeId =
         typeof challenge.id === 'string' && challenge.id.trim().length > 0
@@ -394,7 +385,6 @@ export default function Scenarios() {
           ? challenge.description
           : 'Complete this challenge to earn bonus rewards.';
       const rewardGems = typeof challenge.rewards?.gems === 'number' ? challenge.rewards.gems : 0;
-      const startingEducation = educationList.length > 0 ? educationList[0] : undefined;
 
       return {
         id: challengeId,
@@ -403,13 +393,7 @@ export default function Scenarios() {
         lifeGoal: firstCondition?.description || 'Complete the challenge',
         description,
         bonus: `Rewards: ${rewardGems} gems`,
-        start: {
-          age: typeof startingConditions.age === 'number' ? startingConditions.age : 18,
-          cash: typeof startingConditions.money === 'number' ? startingConditions.money : 0,
-          education: startingEducation,
-          items: startItems,
-          traits: [],
-        },
+        start: challengeStartFromConditions(challengeId, challenge.startingConditions),
         icon: CHALLENGE_ICONS[challengeId] ?? CHALLENGE_FALLBACK_ICON,
         isChallenge: true,
         difficultyKey,

@@ -25,6 +25,10 @@ export interface ScenarioStart {
   hasChild?: boolean;
   childAge?: number;
   noChildren?: boolean;
+  /** Challenge override of the template's starting reputation (perks add on top). */
+  reputation?: number;
+  /** Challenge overrides of the template's starting vitals (perks add on top). */
+  stats?: { health?: number; happiness?: number; energy?: number };
 }
 
 export interface OnboardingScenario {
@@ -231,11 +235,24 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     }
   }
 
-  const baseStats = initialGameState.stats;
+  // A challenge's starting reputation and vitals (Health Recovery starts at
+  // 15 health, Redemption Arc at -10 reputation, ...) REPLACE the template's
+  // value; perks then add on top. These used to be dropped on the way from
+  // the challenge card to here, so every challenge started as an ordinary life.
+  const templateStats = initialGameState.stats;
+  const startOverride = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  const baseStats = {
+    ...templateStats,
+    reputation: startOverride(scenario.start.reputation, templateStats.reputation),
+    health: startOverride(scenario.start.stats?.health, templateStats.health),
+    happiness: startOverride(scenario.start.stats?.happiness, templateStats.happiness),
+    energy: startOverride(scenario.start.stats?.energy, templateStats.energy),
+  };
   const newState: any = {
     ...initialGameState,
     stats: {
-      ...baseStats,
+      ...templateStats,
       money: scenario.start.cash + (perkStatBoosts.money || 0),
       reputation: clampBoundedStat(baseStats.reputation + (perkStatBoosts.reputation || 0)),
       energy: clampBoundedStat(baseStats.energy + (perkStatBoosts.energy || 0)),
