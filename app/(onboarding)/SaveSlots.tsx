@@ -220,10 +220,8 @@ export default function SaveSlots() {
     }
   }, [log]);
 
-  useEffect(() => {
-    void loadSlots();
-  }, [loadSlots]);
-
+  // The ONLY load trigger: useFocusEffect also fires on the initial focus, so a
+  // second mount-time useEffect decoded every multi-MB slot twice (ONB-15).
   useFocusEffect(
     useCallback(() => {
       void loadSlots();
@@ -231,10 +229,13 @@ export default function SaveSlots() {
   );
 
   // ── Cloud backup offers ──────────────────────────────────────────────────
-  // Slot id → the cloud copy's `weeksLived`, present only when that copy is
-  // AHEAD of the local slot. `weeksLived` is the absolute counter (§4.2), and
-  // it is the same measure `hydrateRemoteState` uses to refuse a regression, so
-  // an offer shown here can never be refused as "older" when it is tapped.
+  // Slot id → the cloud copy's week INTO ITS LIFE (for display), present only
+  // when that copy is AHEAD of the local slot. "Ahead" is decided on
+  // `weeksLived`, the absolute counter (§4.2) - the same measure
+  // `hydrateRemoteState` uses to refuse a regression, so an offer shown here
+  // can never be refused as "older" when it is tapped. The DISPLAYED number is
+  // measured from `lifeStartWeek` like the card's own Weeks stat; showing the
+  // raw counter advertised "week 376" beside "Weeks 12" (ONB-12).
   const [cloudOffers, setCloudOffers] = useState<Record<number, number>>({});
   const [cloudRestoreSlot, setCloudRestoreSlot] = useState<number | null>(null);
   const cloudEnabled = isCloudBackupEnabled();
@@ -282,7 +283,7 @@ export default function SaveSlots() {
       for (const { id, probe } of probes) {
         // Only when the cloud copy is AHEAD - restoring must be able to gain
         // something, and `hydrateRemoteState` would refuse an older one anyway.
-        if (probe?.newer) offers[id] = probe.remoteWeeks;
+        if (probe?.newer) offers[id] = weeksSinceLifeStart(probe.remoteWeeks, probe.remoteLifeStartWeek);
       }
       setCloudOffers(offers);
     })();

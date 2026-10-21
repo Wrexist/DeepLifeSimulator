@@ -728,7 +728,13 @@ export default function MainMenu() {
     }
   };
 
+  // `findFirstEmptySlot` decodes every occupied slot, so with saves present
+  // the button looked dead for a moment and a second tap pushed Intro twice
+  // (Back then landed on a duplicate). One start at a time (ONB-14).
+  const startNewInFlightRef = useRef(false);
   const startNew = async () => {
+    if (startNewInFlightRef.current) return;
+    startNewInFlightRef.current = true;
     haptic.light();
     try {
       // Always target the first EMPTY slot. Previously a new life inherited the
@@ -757,6 +763,13 @@ export default function MainMenu() {
     } catch (error) {
       log.error('Error starting new game:', error);
       gameAlert('Error', 'An error occurred while starting a new game. Please try again.', [{ text: 'OK' }]);
+    } finally {
+      // Released after a beat rather than at once: router.push resolves
+      // before the next screen has taken focus, so an immediate release
+      // would still let a fast second tap through.
+      setTimeout(() => {
+        startNewInFlightRef.current = false;
+      }, 600);
     }
   };
 

@@ -152,8 +152,9 @@ const styles = StyleSheet.create({
   secondary: { minHeight: 48, padding: 14, borderRadius: responsiveBorderRadius.md, borderWidth: 1, justifyContent: 'center' },
   people: { flexDirection: 'row', gap: 20, alignItems: 'flex-start', marginVertical: 24 },
   person: { flex: 1, backgroundColor: uiPalette.surface, padding: 9, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, gap: 12 },
-  // Accent border only. The 32pt drop made the two portraits look misaligned.
-  heir: { borderColor: '#71E2C4' },
+  // Not the selection colour: this card is the NEXT generation, not a choice,
+  // and a teal border here read as a second 'selected' option (VIS-14).
+  heir: { borderStyle: 'dashed', borderColor: uiPalette.muted },
   portraitFrame: { width: '100%', aspectRatio: 1 },
   portrait: { width: '100%', height: '100%', borderRadius: responsiveBorderRadius.md },
   primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, backgroundColor: '#FAF3DF', borderRadius: responsiveBorderRadius.lg, padding: 18, minHeight: 56, marginTop: 24 },

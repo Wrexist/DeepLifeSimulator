@@ -95,6 +95,12 @@ const CHALLENGE_ICONS: Record<string, ImageSourcePropType> = {
 
 const RECOMMENDED_SCENARIO_ID = 'food_courier';
 
+/** Challenges store 'college', life paths 'College': show one spelling. */
+const formatEducationLabel = (education: string | undefined): string => {
+  if (!education) return 'None';
+  return education.charAt(0).toUpperCase() + education.slice(1);
+};
+
 // Display-only ordering so brand-new players see the gentlest starts first.
 // (We sort a copy for rendering - the source `scenarios` array and every lookup
 // by id are untouched.)
@@ -277,9 +283,28 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             <Text style={styles.cardDescription} numberOfLines={2}>
               {scenario.description}
             </Text>
-            <Text style={styles.goalText} numberOfLines={1}>
-              Goal: {scenario.lifeGoal}
-            </Text>
+            {/* A challenge's goal is its first win condition, which IS tracked.
+                A life path's `lifeGoal` is flavour with no tracker behind it,
+                so it reads as a theme, and its `bonus` - the only copy that
+                states what the start actually does - is shown (ONB-11). */}
+            {isChallenge ? (
+              <Text style={styles.goalText} numberOfLines={1}>
+                Goal: {scenario.lifeGoal}
+              </Text>
+            ) : (
+              <>
+                {scenario.lifeGoal && scenario.lifeGoal !== 'Any' ? (
+                  <Text style={styles.goalText} numberOfLines={1}>
+                    Theme: {scenario.lifeGoal}
+                  </Text>
+                ) : null}
+                {scenario.bonus ? (
+                  <Text style={styles.cardDescription} numberOfLines={3}>
+                    {scenario.bonus}
+                  </Text>
+                ) : null}
+              </>
+            )}
 
             <View style={styles.statsRow}>
               <View style={styles.statCell}>
@@ -292,7 +317,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
               </View>
               <View style={styles.statCell}>
                 <Text style={styles.statLabel}>Study</Text>
-                <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
+                <Text style={styles.statValue}>{formatEducationLabel(scenario.start.education)}</Text>
               </View>
               {isChallenge ? (
                 <View style={styles.statCell}>
