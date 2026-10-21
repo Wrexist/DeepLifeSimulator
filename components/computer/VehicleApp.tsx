@@ -52,6 +52,8 @@ import {
   setActiveVehicle,
   purchaseInsurance,
   cancelInsurance,
+  insuranceCancelRefund,
+  INSURANCE_CANCEL_FEE,
   purchaseVehicleWithAutoLoan,
   vehiclePurchaseReputationGain,
   vehicleReputationTakeBack,
@@ -272,9 +274,29 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     if (!result.success) gameAlert('Insurance', result.message);
     queueSave();
   };
+  // APP-16: cancelling used to happen on one tap, silently. Quote the refund
+  // (the same function the cancel pays) and the fee first, then say what happened.
   const handleCancelInsurance = (v: Vehicle) => {
-    cancelInsurance(gameState, setGameState, v.id);
-    queueSave();
+    if (!v.insurance) return;
+    const refund = insuranceCancelRefund(v.insurance, gameState.weeksLived ?? 0);
+    gameAlert(
+      'Cancel insurance?',
+      refund > 0
+        ? `${v.name} - you get ${formatMoney(refund)} back (unused premium, less a ${formatMoney(INSURANCE_CANCEL_FEE)} admin fee). The car is uninsured from now on.`
+        : `${v.name} - the policy is near expiry, so there is no refund after the ${formatMoney(INSURANCE_CANCEL_FEE)} admin fee. The car is uninsured from now on.`,
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel policy',
+          style: 'destructive',
+          onPress: () => {
+            const result = cancelInsurance(gameState, setGameState, v.id);
+            gameAlert('Insurance', result.message);
+            queueSave();
+          },
+        },
+      ]
+    );
   };
   const openInsuranceTab = () => {
     setDetailVehicleId(null);
@@ -1023,6 +1045,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             // Celebrate the win too - buying a car is one of the game's most
             // aspirational purchases and used to complete in total silence.
             gameAlert(result.success ? 'New ride' : 'Purchase', result.message);
+            // APP-17: a refused purchase keeps the sheet open on the same car,
+            // so the player can pick a different deposit or term.
+            if (!result.success) return;
             queueSave();
             setActiveTab('garage');
           }
