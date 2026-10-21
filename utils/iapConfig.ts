@@ -582,6 +582,16 @@ export const isSubscriptionProduct = (productId: string): boolean => {
   return getAllSubscriptionIds().includes(productId);
 };
 
+/**
+ * True for a DeepLife+ subscription SKU, including the legacy dot-form ones.
+ * Pulse Verified Pro granted by a STORE subscription carries one of these as
+ * its `sku`; the in-game cash subscription does not (it carries `weeklyPrice`).
+ */
+export function isVerifiedProSubscriptionSku(productId: unknown): productId is string {
+  return typeof productId === 'string' &&
+    (isSubscriptionProduct(productId) || /^deeplife\.premium\.(monthly|yearly)$/i.test(productId));
+}
+
 // Helper function to check if product is popular
 export const isPopularProduct = (productId: string) => {
   const config = getProductConfig(productId);

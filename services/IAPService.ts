@@ -9,6 +9,7 @@ import {
   isConsumableProduct,
   hasPermanentEntitlements,
   isSubscriptionProduct,
+  isVerifiedProSubscriptionSku,
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { track } from '@/lib/analytics';
@@ -393,11 +394,6 @@ export function nativeRestoreLedgerId(productId: string, storeTransactionId: str
   return isConsumableProduct(productId) ? `native_restore:${productId}` : storeTransactionId;
 }
 
-/** True for a DeepLife+ subscription SKU, including the legacy dot-form ones. */
-function isVerifiedProSubscriptionSku(productId: unknown): productId is string {
-  return typeof productId === 'string' &&
-    (isSubscriptionProduct(productId) || /^deeplife\.premium\.(monthly|yearly)$/i.test(productId));
-}
 
 /**
  * Pulse Verified Pro fulfilment for a DeepLife+ subscription purchase (v13+).
