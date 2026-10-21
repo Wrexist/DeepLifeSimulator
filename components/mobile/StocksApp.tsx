@@ -46,6 +46,7 @@ import {
   sellStockMarket,
   placeStockLimitOrder,
   placeStockStopOrder,
+  type StockTradeOutcome,
   cancelStockOrder,
   toggleStockWatchlist,
 } from '@/contexts/game/actions/StockActions';
@@ -161,18 +162,28 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     (input: { side: 'buy' | 'sell'; type: 'market' | 'limit' | 'stop'; amount: number; limitPrice?: number; stopPrice?: number }) => {
       if (!tradeTarget) return;
       const { symbol, price } = tradeTarget;
+      let outcome: StockTradeOutcome | null = null;
       if (input.type === 'market') {
-        if (input.side === 'buy') buyStockMarket(setGameState, symbol, input.amount, price);
-        else sellStockMarket(setGameState, symbol, input.amount, price);
+        outcome = input.side === 'buy'
+          ? buyStockMarket(setGameState, symbol, input.amount, price, gameState)
+          : sellStockMarket(setGameState, symbol, input.amount, price, gameState);
       } else if (input.type === 'limit' && input.limitPrice != null) {
-        placeStockLimitOrder(setGameState, symbol, input.side, input.amount, input.limitPrice);
+        outcome = placeStockLimitOrder(setGameState, symbol, input.side, input.amount, input.limitPrice, gameState);
       } else if (input.type === 'stop' && input.stopPrice != null) {
-        placeStockStopOrder(setGameState, symbol, input.side, input.amount, input.stopPrice);
+        outcome = placeStockStopOrder(setGameState, symbol, input.side, input.amount, input.stopPrice, gameState);
+      }
+      if (!outcome) return;
+      // Say what happened either way (APP-8). A refused order keeps the sheet
+      // open so the player can fix the amount instead of hunting in Orders.
+      if (!outcome.ok) {
+        gameAlert('Order not placed', outcome.message);
+        return;
       }
       queueSave();
       setTradeTarget(null);
+      gameAlert(input.type === 'market' ? 'Order filled' : 'Order placed', outcome.message);
     },
-    [tradeTarget, setGameState, queueSave]
+    [tradeTarget, setGameState, gameState, queueSave]
   );
 
   // Week-over-week change per symbol. lastWeekPrices is written by the weekly tick.

@@ -355,16 +355,25 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     stopPrice?: number;
   }) => {
     if (!orderCoin) return;
+    let outcome: { ok: boolean; message: string } | null = null;
     if (input.type === 'market') {
-      if (input.side === 'buy') buyCryptoMarket(setGameState, orderCoin.id, input.amount);
-      else sellCryptoMarket(setGameState, orderCoin.id, input.amount);
+      outcome = input.side === 'buy'
+        ? buyCryptoMarket(setGameState, orderCoin.id, input.amount, gameState)
+        : sellCryptoMarket(setGameState, orderCoin.id, input.amount, gameState);
     } else if (input.type === 'limit' && input.limitPrice != null) {
-      placeLimitOrder(setGameState, orderCoin.id, input.side, input.amount, input.limitPrice);
+      outcome = placeLimitOrder(setGameState, orderCoin.id, input.side, input.amount, input.limitPrice, gameState);
     } else if (input.type === 'stop' && input.stopPrice != null) {
-      placeStopOrder(setGameState, orderCoin.id, input.side, input.amount, input.stopPrice);
+      outcome = placeStopOrder(setGameState, orderCoin.id, input.side, input.amount, input.stopPrice, gameState);
+    }
+    if (!outcome) return;
+    // Say what happened either way (APP-8); a refusal keeps the sheet open.
+    if (!outcome.ok) {
+      gameAlert('Order not placed', outcome.message);
+      return;
     }
     queueSave();
     setOrderCoin(null);
+    gameAlert(input.type === 'market' ? 'Order filled' : 'Order placed', outcome.message);
   };
 
   const handleBuyMiner = (tierId: string) => {
