@@ -1,5 +1,5 @@
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors } from '@/lib/config/theme';
 import { rewardArtwork } from '@/lib/config/rewardArtwork';
 /**
  * PromotionCelebrationModal - the payoff moment for a career promotion.
@@ -502,7 +502,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   fromTitle: {
-    color: 'rgba(226, 232, 240, 0.45)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
     fontSize: fontScale(13),
     fontWeight: '600',
     textAlign: 'center',
@@ -545,7 +546,8 @@ const styles = StyleSheet.create({
     letterSpacing: scale(-0.5),
   },
   wasLine: {
-    color: 'rgba(226, 232, 240, 0.42)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
     fontSize: fontScale(11),
     fontWeight: '600',
     marginTop: layoutSpace.xs,

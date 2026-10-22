@@ -595,14 +595,22 @@ function MailAppInner({ onBack }: Props) {
         animationType="fade"
         onRequestClose={() => setDrawerOpen(false)}
       >
-        <TouchableOpacity
-          style={s.scrim}
-          activeOpacity={1}
-          onPress={() => setDrawerOpen(false)}
-          accessibilityRole="button"
-          accessibilityLabel="Close folders"
-        >
-          <TouchableOpacity activeOpacity={1} style={[s.drawer, { paddingTop: insets.top + scale(12) }]}>
+        {/* The scrim is a SIBLING behind the drawer. As the drawer's parent
+            (and with the drawer itself a touchable) it was one accessible
+            "Close folders" button that hid every folder from VoiceOver. It
+            stays a named button here: the drawer has no X of its own. */}
+        <View style={s.scrim}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setDrawerOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close folders"
+          />
+          <View
+            onStartShouldSetResponder={() => true}
+            style={[s.drawer, { paddingTop: insets.top + scale(12) }]}
+          >
             <Text style={s.drawerTitle}>DeepMail</Text>
             <Text style={s.drawerAddress}>{address}</Text>
 
@@ -692,8 +700,8 @@ function MailAppInner({ onBack }: Props) {
                 </Text>
               ))}
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

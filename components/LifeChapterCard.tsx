@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/Card';
 import { getActiveChapter, getChapterProgress, getUpcomingChapter } from '@/lib/progress/lifeChapters';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
+import { getGoalRowAccessibilityProps } from '@/utils/accessibility';
 
 function LifeChapterCard() {
   // Chapter goals read arbitrary state fields, so select the whole snapshot for
@@ -87,7 +88,7 @@ function LifeChapterCard() {
         {progress.goals.map((g) => {
           const goalDef = chapter.goals.find((cg) => cg.id === g.id);
           return (
-            <View key={g.id} style={styles.goalRow}>
+            <View key={g.id} style={styles.goalRow} {...getGoalRowAccessibilityProps({ title: g.title, complete: g.complete, progress: g.progress, detail: goalDef?.description })}>
               <View style={[styles.checkBubble, g.complete && styles.checkBubbleDone]}>
                 {g.complete ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
               </View>

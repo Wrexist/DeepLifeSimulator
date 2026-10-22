@@ -100,7 +100,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(24)}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={hitSlopToMinTarget(36)} {...CLOSE_BUTTON_A11Y}>
                 <X size={24} color={darkMode ? uiPalette.white : uiPalette.surface} />
               </TouchableOpacity>
             </View>

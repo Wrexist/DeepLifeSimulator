@@ -247,7 +247,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                 </Text>
                 <View style={[styles.guestInputContainer, isDarkMode && styles.guestInputContainerDark]}>
                   <Users size={scale(20)} color={isDarkMode ? uiPalette.muted : uiPalette.lightMuted} />
-                  <TextInput
+                  <TextInput accessibilityLabel="Number of guests"
                     style={[styles.guestInput, isDarkMode && styles.guestInputDark]}
                     value={guestCount}
                     onChangeText={setGuestCount}

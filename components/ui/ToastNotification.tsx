@@ -22,6 +22,7 @@ import {
 import { useFeedback } from '@/utils/feedbackSystem';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { announceTransient } from '@/utils/accessibility';
 
 interface ToastNotificationProps {
   id: string;
@@ -145,6 +146,13 @@ export default function ToastNotification({
     }
     return undefined;
   }, [slideAnim, opacityAnim, scaleAnim, duration, dismiss, persistent, reducedMotion]);
+
+  // role="alert" and the live region do not announce on iOS; speak each toast
+  // once, keyed on its identity so a re-render never repeats it.
+  useEffect(() => {
+    if (message?.trim()) announceTransient(message);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const handleDismiss = () => {
     buttonPress();

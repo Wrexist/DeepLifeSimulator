@@ -606,7 +606,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  {/* Search */}
  <View style={styles.searchContainer}>
  <Search size={scale(18)} color={uiPalette.muted} />
- <TextInput
+ <TextInput accessibilityLabel="Search messages"
  style={styles.searchInput}
  placeholder="Search messages..."
  placeholderTextColor={uiPalette.muted}
@@ -784,7 +784,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
  {/* Input */}
  <View style={styles.inputContainer}>
- <TextInput
+ <TextInput accessibilityLabel="Reply"
  style={styles.messageInput}
  placeholder="Reply..."
  placeholderTextColor={uiPalette.muted}

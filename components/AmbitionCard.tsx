@@ -28,6 +28,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { getAmbitionCompletion } from '@/lib/ambitions';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
+import { getGoalRowAccessibilityProps } from '@/utils/accessibility';
 
 function AmbitionCard() {
   // Ambition milestones read arbitrary state fields, so select the whole
@@ -71,7 +72,7 @@ function AmbitionCard() {
 
       <View style={styles.list}>
         {milestones.map((m) => (
-          <View key={m.id} style={styles.row}>
+          <View key={m.id} style={styles.row} {...getGoalRowAccessibilityProps({ title: m.title, complete: m.complete, progress: m.progress, detail: m.description })}>
             <View style={[styles.checkBubble, m.complete && styles.checkBubbleDone]}>
               {m.complete ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
             </View>

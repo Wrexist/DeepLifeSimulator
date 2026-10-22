@@ -6,8 +6,14 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { colors, financeColors } from '@/lib/config/theme';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { announceTransient } from '@/utils/accessibility';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { fontScale, scale } from '@/utils/scaling';
+
+function weekChangeLabel(change: { money: number; health: number; happiness: number; energy: number }): string {
+  const money = `${change.money >= 0 ? '+' : '-'}${formatMoney(Math.abs(change.money))}`;
+  return `Week advanced. Cash ${money}. Health ${Math.round(change.health)}, happiness ${Math.round(change.happiness)}, energy ${Math.round(change.energy)}.`;
+}
 
 /** Feedback from committed state, never a second weekly simulator or modal. */
 export default function WeekChangeToast() {
@@ -28,6 +34,8 @@ export default function WeekChangeToast() {
   }, [current]);
   useEffect(() => {
     if (!change) return;
+    // iOS ignores accessibilityLiveRegion, so speak the summary there.
+    announceTransient(weekChangeLabel(change));
     fade.setValue(reduced ? 1 : 0);
     const enter = Animated.timing(fade, { toValue: 1, duration: reduced ? 0 : 180, useNativeDriver: true });
     enter.start();
@@ -37,7 +45,7 @@ export default function WeekChangeToast() {
   if (!change) return null;
   const money = `${change.money >= 0 ? '+' : '-'}${formatMoney(Math.abs(change.money))}`;
   return <Animated.View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + scale(76), opacity: fade, transform: [{ translateY: reduced ? 0 : fade.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}
-    accessibilityLiveRegion="polite" accessible accessibilityLabel={`Week advanced. Cash ${money}. Health ${Math.round(change.health)}, happiness ${Math.round(change.happiness)}, energy ${Math.round(change.energy)}.`}>
+    accessibilityLiveRegion="polite" accessible accessibilityLabel={weekChangeLabel(change)}>
     <View style={styles.row}><Text style={styles.title}>Week advanced</Text><Text style={[styles.money, { color: change.money >= 0 ? financeColors.cash : financeColors.debt }]}>{money} cash</Text></View>
     <View style={styles.row}>{(['health', 'happiness', 'energy'] as const).map(key => {
       const { Icon, color, label } = STAT_IDENTITY[key];

@@ -1,6 +1,24 @@
 /**
  * Accessibility utilities and helpers
  */
+import { AccessibilityInfo, Platform } from 'react-native';
+
+/**
+ * Speak a transient message (toast, banner) to VoiceOver.
+ *
+ * `accessibilityLiveRegion` is Android-only and `accessibilityRole="alert"`
+ * does not announce on iOS either, so a toast that auto-hides was never heard
+ * by a VoiceOver player. Android keeps its live region; announcing there too
+ * would read the message twice. Best-effort: a missing API never throws.
+ */
+export function announceTransient(message: string): void {
+  if (Platform.OS !== 'ios' || !message) return;
+  try {
+    AccessibilityInfo?.announceForAccessibility?.(message);
+  } catch {
+    // announcement is best-effort
+  }
+}
 
 export interface AccessibilityProps {
   accessibilityLabel?: string;
@@ -193,3 +211,31 @@ export const ACCESSIBILITY_HINTS = {
     PASSWORD: 'Enter a password',
   },
 } as const;
+
+/**
+ * Accessibility props for a goal / objective row (check bubble + title +
+ * progress bar). Completion is otherwise carried only by a check icon and a
+ * colour change, and progress only by a bar width, so a screen reader heard
+ * identical titles for done and not-done goals and no progress at all.
+ */
+export function getGoalRowAccessibilityProps(options: {
+  title: string;
+  complete: boolean;
+  /** 0..1 */
+  progress: number;
+  detail?: string;
+}): {
+  accessible: true;
+  accessibilityLabel: string;
+  accessibilityState: { checked: boolean };
+} {
+  const raw = Number.isFinite(options.progress) ? options.progress : 0;
+  const pct = Math.round(Math.max(0, Math.min(1, raw)) * 100);
+  const status = options.complete ? 'complete' : `${pct} percent`;
+  const detail = !options.complete && options.detail ? `. ${options.detail}` : '';
+  return {
+    accessible: true,
+    accessibilityLabel: `${options.title}, ${status}${detail}`,
+    accessibilityState: { checked: options.complete },
+  };
+}

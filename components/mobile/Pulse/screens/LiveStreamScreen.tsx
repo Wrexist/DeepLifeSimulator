@@ -111,7 +111,7 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
             Stream live to your followers. Donations + new followers based on peak viewers.
           </Text>
           <View style={[styles.inputWrap, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <TextInput
+            <TextInput accessibilityLabel="Stream title"
               value={topic}
               onChangeText={setTopic}
               placeholder="What's the stream about?"

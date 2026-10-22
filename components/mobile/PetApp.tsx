@@ -1079,7 +1079,7 @@ export default function PetApp({ onBack }: PetAppProps) {
           </View>
         }
       >
-        <TextInput
+        <TextInput accessibilityLabel="Pet name"
           value={petName}
           onChangeText={setPetName}
           placeholder="e.g. Rex"

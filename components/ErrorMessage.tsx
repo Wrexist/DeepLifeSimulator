@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { MotiView } from '@/components/anim/MotiStub';
 import { X, RefreshCw, Info, AlertCircle, AlertOctagon, XCircle, FileText } from 'lucide-react-native';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface ErrorMessageProps {
@@ -111,7 +112,7 @@ export default function ErrorMessage({
  <Text style={styles.message}>{message}</Text>
  </View>
  {onDismiss && (
- <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
+ <TouchableOpacity onPress={onDismiss} style={styles.dismissButton} hitSlop={hitSlopToMinTarget(28)} accessibilityRole="button" accessibilityLabel="Dismiss">
  <X size={20} color={uiPalette.white}/>
  </TouchableOpacity>
  )}

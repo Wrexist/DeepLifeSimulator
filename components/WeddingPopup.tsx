@@ -6,6 +6,7 @@ import { useGame } from '@/contexts/GameContext';
 import { Heart, Sparkles, Crown, PartyPopper, Gem as Rings } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
@@ -21,6 +22,7 @@ export default function WeddingPopup() {
   const heartPulseAnim = useRef(new Animated.Value(1)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
   const confettiAnim = useRef(new Animated.Value(0)).current;
+  const reducedMotion = useReducedMotion();
 
   // P2-2: keep refs to the running loops so the cleanup function always runs
   // (the previous version only registered cleanup inside the
@@ -28,7 +30,16 @@ export default function WeddingPopup() {
   // `showWeddingPopup` was false, the loops weren't cleaned up).
   const loopsRef = useRef<Animated.CompositeAnimation[]>([]);
   useEffect(() => {
-    if (showWeddingPopup) {
+    if (showWeddingPopup && reducedMotion) {
+      // Reduce Motion: render the celebration still - no entrance spring and
+      // none of the three endless pulse/fade loops over 50 icons.
+      fadeAnim.setValue(1);
+      scaleAnim.setValue(1);
+      slideAnim.setValue(0);
+      heartPulseAnim.setValue(1);
+      sparkleAnim.setValue(0.65);
+      confettiAnim.setValue(0.5);
+    } else if (showWeddingPopup) {
       // Start entrance animations
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
@@ -59,7 +70,7 @@ export default function WeddingPopup() {
       loopsRef.current.forEach(l => l.stop());
       loopsRef.current = [];
     };
-  }, [showWeddingPopup, fadeAnim, scaleAnim, slideAnim, heartPulseAnim, sparkleAnim, confettiAnim]);
+  }, [showWeddingPopup, reducedMotion, fadeAnim, scaleAnim, slideAnim, heartPulseAnim, sparkleAnim, confettiAnim]);
 
   /**
    * A raised flag must always have something that can lower it.
