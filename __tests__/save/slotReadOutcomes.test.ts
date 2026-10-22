@@ -235,6 +235,34 @@ describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
     expect(decoded.valid).toBe(true);
     expect(JSON.parse(decoded.data as string).userProfile.firstName).toBe('Ione');
   });
+
+  // 2026-10-21 audit SAVE-9: the legacy key was kept "until next successful
+  // save" and never removed, so a later double corruption silently loaded the
+  // months-old legacy life over the newer one.
+  it('retires the legacy key on the first committed double-buffer save', async () => {
+    store.set(SLOT_KEY, envelope('Old Life'));
+    await doubleBufferLoad(SLOT_KEY);
+    expect(store.has(SLOT_KEY)).toBe(true);
+
+    const saved = await doubleBufferSave(SLOT_KEY, envelope('New Life'));
+    expect(saved.success).toBe(true);
+    expect(store.has(SLOT_KEY)).toBe(false);
+
+    // Both buffers now fail verification: the old life must NOT come back.
+    store.set(`${SLOT_KEY}_A`, 'corrupt');
+    store.set(`${SLOT_KEY}_B`, 'corrupt');
+    const reread = await doubleBufferLoad(SLOT_KEY);
+    expect(reread.data).toBeNull();
+    expect(reread.source).toBe('unverified');
+  });
+
+  it('keeps the legacy key when the save does not commit', async () => {
+    store.set(SLOT_KEY, envelope('Old Life'));
+    throwOnPointerWrite = true;
+    const saved = await doubleBufferSave(SLOT_KEY, envelope('New Life'));
+    expect(saved.success).toBe(false);
+    expect(store.has(SLOT_KEY)).toBe(true);
+  });
 });
 
 describe('the callers that inherited the same blindness', () => {
