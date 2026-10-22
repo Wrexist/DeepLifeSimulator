@@ -1,5 +1,5 @@
 import WeekChangeToast from '@/components/feedback/WeekChangeToast';
-import { responsiveSpacing as layoutSpace , scale } from '@/utils/scaling';
+import { responsiveSpacing as layoutSpace , scale, fontScale } from '@/utils/scaling';
 import { uiPalette } from '@/lib/config/theme';
 import { UserRound , Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Bell, LayoutGrid, Activity } from 'lucide-react-native';
 import { Tabs, useRouter, useSegments } from 'expo-router';
@@ -126,7 +126,7 @@ function EventInboxPill({ count, bottom, onPress, compact = false }: EventInboxP
         }}
       >
         <Bell size={scale(15)} color={uiPalette.blue} />
-        <Text style={{ color: uiPalette.paper, fontWeight: '700', fontSize: scale(13) }}>
+        <Text style={{ color: uiPalette.paper, fontWeight: '700', fontSize: fontScale(13) }}>
           {compact ? count : `${count} decision${count === 1 ? '' : 's'} waiting`}
         </Text>
       </TouchableOpacity>

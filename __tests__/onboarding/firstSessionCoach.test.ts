@@ -47,6 +47,7 @@ function step(o: {
   weeksLived: number;
   baseline?: number | null;
   hasWorkedForPay?: boolean;
+  paidWeeks?: number;
   hasPendingApplication?: boolean;
   hasJob: boolean;
   establishedLife?: boolean;
@@ -57,6 +58,7 @@ function step(o: {
     baseline: o.baseline === undefined ? o.weeksLived : o.baseline,
     weeksLived: o.weeksLived,
     hasWorkedForPay: o.hasWorkedForPay ?? false,
+    paidWeeks: o.paidWeeks,
     hasPendingApplication: o.hasPendingApplication ?? false,
     hasJob: o.hasJob,
   });
@@ -104,6 +106,12 @@ describe('the coach always asks for the RIGHT next thing', () => {
 
 describe('the coach knows when to leave', () => {
   const base = { dismissed: false, weeksLived: 0, hasWorkedForPay: false, hasJob: false };
+
+  it('celebrates the FIRST paid week, then retires (VIS-12)', () => {
+    expect(step({ ...base, hasJob: true, hasWorkedForPay: true, paidWeeks: 1 })).toBe('paid');
+    expect(step({ ...base, hasJob: true, hasWorkedForPay: true, paidWeeks: 2 })).toBeNull();
+    expect(step({ ...base, weeksLived: 6, baseline: 0, hasJob: true, hasWorkedForPay: true, paidWeeks: 5 })).toBeNull();
+  });
 
   it('stays silent once dismissed', () => {
     expect(step({ ...base, dismissed: true })).toBeNull();

@@ -163,6 +163,7 @@ export default function FirstSessionCoach({ embedded = false, children }: FirstS
         baseline: typeof lifeStartWeek === 'number' ? lifeStartWeek : baseline,
         weeksLived,
         hasWorkedForPay: weeksWorked > 0,
+        paidWeeks: weeksWorked,
         hasPendingApplication,
         hasJob: Boolean(currentJob),
       }),

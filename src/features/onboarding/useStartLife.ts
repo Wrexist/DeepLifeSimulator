@@ -176,7 +176,7 @@ export function useStartLife() {
           resolveNewLifeSlot,
           snapshotOutgoingSave,
           clearProtectedState,
-        });
+        }, origin);
 
         if (!result.success) {
           haptic.error();

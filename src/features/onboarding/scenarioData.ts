@@ -15,6 +15,14 @@ export interface Scenario {
     traits?: string[];
     hasChild?: boolean;
     childAge?: number;
+    noChildren?: boolean;
+    /**
+     * Challenge-only overrides of the template's starting reputation and
+     * vitals. Life paths leave these unset and start from `initialGameState`.
+     * Applied by `buildNewGameState` before perk boosts.
+     */
+    reputation?: number;
+    stats?: { health?: number; happiness?: number; energy?: number };
   };
   icon: ImageSourcePropType;
 }

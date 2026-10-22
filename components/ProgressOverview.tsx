@@ -34,6 +34,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Achievement } from '@/contexts/game/types';
+import { achievementDisplay } from '@/lib/progress/achievementDisplay';
 const LinearGradient = Gradient;
 
 interface ProgressOverviewProps {
@@ -109,8 +110,9 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(ach => {
-        const name = ach.category === 'secret' && !ach.completed ? (ach.secretName || '???') : ach.name;
-        const desc = ach.category === 'secret' && !ach.completed ? (ach.secretDescription || '???') : ach.description;
+        // Searches only what the card shows, so a locked secret cannot be
+        // found by typing its hidden name.
+        const { name, description: desc } = achievementDisplay(ach);
         return name.toLowerCase().includes(query) || desc.toLowerCase().includes(query);
       });
     }
@@ -227,10 +229,8 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
     const categoryInfo = getCategoryInfo(achievement.category);
     const isCompleted = achievement.completed;
     const unlockedAt = unlockedMap.get(achievement.id);
-    const isSecret = achievement.category === 'secret';
 
-    const displayName = isSecret && !isCompleted ? (achievement.secretName || '???') : achievement.name;
-    const displayDesc = isSecret && !isCompleted ? (achievement.secretDescription || 'Complete secret objectives to unlock') : achievement.description;
+    const { name: displayName, description: displayDesc } = achievementDisplay(achievement);
 
     return (
       <MotiView
