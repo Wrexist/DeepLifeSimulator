@@ -565,6 +565,15 @@ function createChildGameState(
     return createResetGameState(oldState, prestigeData);
   }
 
+  // SOC-10: the heir's age when the parent's life ENDED, captured before the
+  // simulation below ages them to 18. Reading it afterwards made every minor
+  // heir look 18 already, so no years passed and the family tree recorded them
+  // as born up to 18 years late (a newborn heir "born" when the parent was 4).
+  const ageAtHandover =
+    typeof selectedChild.age === 'number' && Number.isFinite(selectedChild.age)
+      ? Math.max(0, Math.floor(selectedChild.age))
+      : ADULTHOOD_AGE;
+
   // Simulate child to age 18 if they're younger
   if ((selectedChild.age || 0) < ADULTHOOD_AGE) {
     selectedChild = simulateChildToAge(selectedChild, oldState, ADULTHOOD_AGE);
@@ -702,7 +711,9 @@ function createChildGameState(
   
   // CRITICAL: Create child node in family tree with proper parent relationship
   const childAge = Math.max(ADULTHOOD_AGE, Math.floor(selectedChild.age || ADULTHOOD_AGE));
-  const childBirthYear = currentYear - childAge;
+  // Born when they were really born - from the age at the handover, not the
+  // simulated one (SOC-10).
+  const childBirthYear = currentYear - ageAtHandover;
   const childNodeId = selectedChild.id;
   
   const childNode: FamilyMemberNode = {
@@ -759,10 +770,11 @@ function createChildGameState(
     gender: selectedChild.gender || oldState.userProfile?.gender || 'male',
   };
 
-  // BUG FIX: Continue year progression instead of resetting to 2025
-  // Calculate new year based on previous year + time progression
-  // childBirthYear is already calculated above (line 365)
-  const newYear = Math.max(currentYear, childBirthYear + 18); // Ensure child is at least 18 in new year
+  // BUG FIX: Continue year progression instead of resetting to 2025.
+  // The heir takes over in the year they reach `childAge`: the same year for an
+  // adult heir, and the years the simulation lived through for a minor one
+  // (SOC-10 - this used to resolve to `currentYear` for every heir).
+  const newYear = Math.max(currentYear, childBirthYear + childAge);
 
   // Set age
   newState.date = {

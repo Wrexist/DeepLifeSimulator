@@ -246,3 +246,40 @@ export function describeRejectReason(
       return 'That activity is not available.';
   }
 }
+
+/**
+ * SOC-2: keep the child's `relationships` entry in step with a parenting action.
+ *
+ * A child is TWO records: `family.children[]` (whose `relationshipScore` is the
+ * Family tab's Bond and the parenting stat - the tick deliberately keeps it
+ * authoritative) and `relationships[]` (what Contacts shows, and what the
+ * neglect drag and the want cycle read). Parenting only ever wrote the first,
+ * so the second never saw contact: a child parented every week lost -2 per
+ * want cycle, read ~40 on Contacts beside a 95% Bond on the Family tab, and
+ * eventually raised "Things are strained with <toddler>" plus a weekly
+ * happiness drag.
+ *
+ * A parenting action IS contact: stamp the recency and mirror the Bond, so the
+ * two screens agree and the neglect / want passes see the parent who showed up.
+ * Pure; returns an unchanged copy when there is no matching child entry.
+ */
+export function syncChildContactAfterParenting<R extends {
+  id: string;
+  type: string;
+  relationshipScore: number;
+  lastInteractionWeek?: number;
+  weeklyInteractions?: number;
+}>(relationships: readonly R[], child: Pick<ChildInfo, 'id' | 'relationshipScore'>, weeksLived: number): R[] {
+  return relationships.map((r) => {
+    if (!r || r.id !== child.id || r.type !== 'child') return r;
+    const bond = typeof child.relationshipScore === 'number' && Number.isFinite(child.relationshipScore)
+      ? Math.max(0, Math.min(100, child.relationshipScore))
+      : r.relationshipScore;
+    return {
+      ...r,
+      relationshipScore: bond,
+      lastInteractionWeek: weeksLived,
+      weeklyInteractions: r.lastInteractionWeek === weeksLived ? (r.weeklyInteractions ?? 0) + 1 : 1,
+    };
+  });
+}

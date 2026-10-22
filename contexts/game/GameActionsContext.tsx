@@ -185,6 +185,7 @@ import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import { clearPromotedSparkMatch, clearOrphanedSparkPromotions } from '@/lib/dating/sparkStats';
+import { pregnancyBlocksSplitMessage } from '@/lib/dating/familyPlanning';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import {
   applyRelationshipHealth,
@@ -4078,7 +4079,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const event = prevState.pendingEvents[eventIndex];
 
  // Find the choice
- const choice = event.choices?.find(c => c.id === choiceId);
+ const authoredChoice = event.choices?.find(c => c.id === choiceId);
+ // SOC-20: the wedding event is only GENERATED for a partner with no
+ // engagement and no booked wedding, but it can sit pending while the player
+ // proposes and books a venue. "Marry" then married them on the spot and
+ // `buildSpouseRecord` wiped the booked plan and its paid deposit. At
+ // resolution the same condition is re-checked against `prevState`: if a
+ // wedding is already in motion the choice resolves as a no-op (no charge,
+ // no honeymoon) and the booked wedding goes ahead as planned.
+ const weddingTarget = eventId === 'wedding' && choiceId === 'marry'
+ ? (prevState.relationships || []).find(r => r.id === event.relationId)
+ : undefined;
+ const weddingAlreadyInMotion = !!weddingTarget
+ && (weddingTarget.engagementWeek != null || !!weddingTarget.weddingPlanned);
+ const choice = authoredChoice && weddingAlreadyInMotion
+ ? { ...authoredChoice, effects: {}, followUpEventId: undefined, followUpDelayWeeks: undefined }
+ : authoredChoice;
  if (!choice) {
  logger.warn('Choice not found in event:', { eventId, choiceId });
  resolvingEventsRef.current.delete(resolutionKey);
@@ -5552,6 +5568,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: 'Partner not found.' };
  }
 
+ // SOC-8: the pregnancy lives on this record; removing it erased the baby.
+ if (partner.isPregnant) {
+ return { success: false, message: pregnancyBlocksSplitMessage(partner.name) };
+ }
+
  // M1 (§4.4): the -20 happiness used to be a SECOND, unconditional
  // `updateStats` dispatch. The outer guard above reads `gameStateRef`, which
  // lags by one commit, so a same-batch double-tap passed it twice: the filter
@@ -5559,7 +5580,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // dispatch is not, and the player lost 40 happiness for one breakup. Folded
  // into the same updater, re-checked against `prev`, matching `proposeToPartner`.
  setGameState(prev => {
- const stillPresent = (prev.relationships || []).some(r => r.id === partnerId && r.type === 'partner');
+ const stillPresent = (prev.relationships || []).some(r => r.id === partnerId && r.type === 'partner' && !r.isPregnant);
  if (!stillPresent) return prev; // already broken up in this batch - no second hit
  return {
 ...prev,
