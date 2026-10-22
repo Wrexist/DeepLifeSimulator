@@ -27,6 +27,7 @@ import {
 import { logger } from '@/utils/logger';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { applyMoneyDelta } from './MoneyActions';
+import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
 import {
@@ -314,6 +315,8 @@ export function lendMoney(
 export function lendBlockedReason(state: GameState, contactId: string): string | null {
   const rel = state.relationships?.find((r) => r.id === contactId);
   if (!rel) return 'Contact not found.';
+  const minor = minorMoneyBlockedReason(rel);
+  if (minor) return minor;
   if (rel.actions?.['lendmoney'] === (state.weeksLived ?? 0)) {
     return `You already lent ${rel.name} money this week.`;
   }
@@ -352,6 +355,7 @@ function lendMoneyNow(
     if (idx === -1) return prev;
     const target = rels[idx];
     const prevWs = prev.weeksLived ?? 0;
+    if (minorMoneyBlockedReason(target)) return prev;
     if (target.actions?.['lendmoney'] === prevWs) return prev; // already lent this week
     if (openCashLoanTo(ledgerOf(prev), contactId)) return prev; // they still owe you
 
@@ -418,9 +422,23 @@ export function borrowOutcome(rel: Relationship, roll: number): { granted: boole
 }
 
 /** Why `contactId` cannot be asked for money this week, or null. For the action and the button. */
+/**
+ * SOC-17: cash runs between adults. A newborn (bond 75) said yes to a loan of
+ * $137 at even odds and then collected it as an overdue debt, which breaks the
+ * fiction and is another route that moves a child's Contacts-only bond. One
+ * predicate for both money rows, so the button and the action agree.
+ */
+function minorMoneyBlockedReason(rel: Relationship): string | null {
+  if (rel.type !== 'child') return null;
+  const age = typeof rel.age === 'number' && Number.isFinite(rel.age) ? rel.age : 0;
+  return age < 18 ? `${rel.name} is too young to handle money.` : null;
+}
+
 export function borrowBlockedReason(state: GameState, contactId: string): string | null {
   const rel = state.relationships?.find((r) => r.id === contactId);
   if (!rel) return 'Contact not found.';
+  const minor = minorMoneyBlockedReason(rel);
+  if (minor) return minor;
   if (rel.actions?.['askmoney'] === (state.weeksLived ?? 0)) return 'Already asked this week.';
   const debt = openCashDebtTo(ledgerOf(state), contactId);
   if (debt) return `You still owe ${rel.name} ${usd(debt.value)} - pay it back first.`;
@@ -1123,7 +1141,14 @@ export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect
         // A professional introduction is a working adult, not a classmate.
         age: 28 + (seed % 22),
       };
-      return { outcome: 'applied', state: { ...prev, relationships: [...(prev.relationships ?? []), introduced] } };
+      return {
+        outcome: 'applied',
+        state: {
+          ...prev,
+          relationships: [...(prev.relationships ?? []), introduced],
+          lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
+        },
+      };
     }
     default:
       return { outcome: 'noop' };
@@ -1206,9 +1231,19 @@ export function removeContact(
   if (isFamilyRelationship(rel)) {
     return { success: false, message: `${rel.name} is family - they stay in your life.` };
   }
+  // SOC-7: removing a partner was a free break up - no -20 happiness, no Spark
+  // un-promote, and it silently deleted an engagement (with its paid wedding
+  // deposit) or a pregnancy. A partner leaves through Break up.
+  if (rel.type === 'partner') {
+    return { success: false, message: `${rel.name} is your partner - break up with them instead.` };
+  }
+  // The filter re-applies both guards against `prev`, so a same-batch promotion
+  // to partner is never removed - without a reject path the outcome cannot hide.
   setGameState((prev) => ({
     ...prev,
-    relationships: (prev.relationships ?? []).filter((r) => r?.id !== contactId),
+    relationships: (prev.relationships ?? []).filter(
+      (r) => r?.id !== contactId || isFamilyRelationship(r) || r.type === 'partner'
+    ),
   }));
   log.info('Contact removed', { contactId });
   return { success: true, message: `${rel.name} is no longer part of your life.` };
@@ -1347,6 +1382,7 @@ export function resolveMeeting(
         ...(next.relationships ?? []),
         introductionToRelationship(intro, weeksInThisLife(next)),
       ],
+      lifetimeStatistics: countNewRelationship(next.lifetimeStatistics),
     },
   };
 }

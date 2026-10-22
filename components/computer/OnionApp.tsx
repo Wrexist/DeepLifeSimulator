@@ -72,10 +72,11 @@ import {
   acquireNewIdentity,
   NEW_IDENTITY_COST_BTC,
   countLaunderingFronts,
+  newIdentitySettlement,
 } from '@/contexts/game/actions/CrimeActions';
 import { JOB_TEMPLATES, stageSuccessProbability } from '@/lib/darkweb/jobs';
 import { MIXER_TIERS, effectiveMixerParams } from '@/lib/darkweb/laundering';
-import { RAID_SHARE_OF_POLICE_EVENTS } from '@/lib/darkweb/weeklyTick';
+import { raidShareOfPoliceEvents } from '@/lib/darkweb/weeklyTick';
 import { gameAlert } from '@/utils/gameAlert';
 
 // ---------------------------------------------------------------------------
@@ -388,19 +389,22 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
   // New-identity cost preview (read-only mirror of acquireNewIdentity's settlement
   // math): base cost + 80% of walked-away unsecured-loan principal, priced in BTC.
+  // The same settlement the action charges - one computation, not a copy.
   const idInfo = useMemo(() => {
-    const btcPrice = (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.price ?? 0;
-    const dropped = (gameState.loans ?? []).filter(
-      (l: { type?: string }) => l?.type !== 'mortgage' && l?.type !== 'auto'
-    );
-    const principal = dropped.reduce(
-      (s: number, l: { remaining?: number }) =>
-        s + (typeof l?.remaining === 'number' && isFinite(l.remaining) ? Math.max(0, l.remaining) : 0),
-      0
-    );
-    const settle = btcPrice > 0 ? (principal * 0.8) / btcPrice : 0;
-    return { principal, settle, dropped: dropped.length, total: NEW_IDENTITY_COST_BTC + settle };
-  }, [gameState.cryptos, gameState.loans]);
+    const s = newIdentitySettlement({
+      loans: gameState.loans,
+      cryptos: gameState.cryptos,
+      banking: gameState.banking,
+    });
+    return {
+      principal: s.dischargedDebt,
+      settle: s.settleBtc,
+      dropped: s.droppedLoans.length,
+      cards: s.closedCards,
+      kept: s.keptLoans.length,
+      total: s.totalBtc,
+    };
+  }, [gameState.cryptos, gameState.loans, gameState.banking]);
 
   const heatColor = HEAT_BAND_COLOR[heatBand(dw.heat ?? 0)] ?? accent.info;
 
@@ -507,10 +511,12 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       // R3-C5: quote what will actually be spent, including the debt
       // settlement, rather than the base cost the player cannot act on.
       `This is permanent. ${idInfo.total.toFixed(2)} BTC will be spent` +
-        (idInfo.settle > 0 ? ` (${NEW_IDENTITY_COST_BTC.toFixed(2)} base + ${idInfo.settle.toFixed(2)} to settle ${idInfo.dropped} loan${idInfo.dropped === 1 ? '' : 's'})` : '') +
+        (idInfo.settle > 0 ? ` (${NEW_IDENTITY_COST_BTC.toFixed(2)} base + ${idInfo.settle.toFixed(2)} to settle the debt you walk away from)` : '') +
         `. ` +
-        `Heat resets, buyer rep resets, all loans + credit cards close, ` +
-        `credit score drops to 580, and ${(dw.activeJobs ?? []).length} active job${(dw.activeJobs ?? []).length === 1 ? '' : 's'} will be dropped.`,
+        `Heat resets, buyer rep resets, unsecured loans and credit cards close` +
+        (idInfo.kept > 0 ? ` (your mortgage and auto loans stay)` : '') +
+        `, credit score drops to 580, and ${(dw.activeJobs ?? []).length} active job${(dw.activeJobs ?? []).length === 1 ? '' : 's'} will be dropped. ` +
+        `Your street criminal record is not affected.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -694,10 +700,11 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const access = rep >= 35 ? 'common+pro+elite' : rep >= 10 ? 'common+pro' : 'common';
     const band = heatBand(dw.heat ?? 0);
     // R3-C8: this printed P(any police event), but the raid - the only branch
-    // that jails you - is a sub-roll worth `RAID_SHARE_OF_POLICE_EVENTS` of
-    // them. At heat 80+ the label read 40%/wk against a real ~10%, so a player
-    // managing heat was working from a number 4x too high.
-    const raidRisk = policeEventProbability(dw.heat ?? 0) * RAID_SHARE_OF_POLICE_EVENTS * 100;
+    // that jails you - is a sub-roll worth `raidShareOfPoliceEvents` of them.
+    // At heat 80+ the label read 40%/wk against a real ~10%, so a player
+    // managing heat was working from a number 4x too high. The share depends on
+    // the dirty wallet: with nothing to sting, the sting band becomes a raid.
+    const raidRisk = policeEventProbability(dw.heat ?? 0) * raidShareOfPoliceEvents(dw.dirtyBtc) * 100;
     const opsecLvl = dw.skills.opsec?.level ?? 1;
     const weeklyDecay = Math.max(0, Math.round((dw.heat ?? 0) - decayHeat(dw.heat ?? 0, opsecLvl)));
     const listings = dw.listings ?? [];
@@ -1079,8 +1086,8 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const launderLvl = dw.skills.laundering?.level ?? 1;
     const fronts = countLaunderingFronts(gameState);
     // R3-C5: gate on the TOTAL, not the base cost. `acquireNewIdentity`
-    // charges `NEW_IDENTITY_COST_BTC + (dischargedUnsecuredPrincipal * 0.8) /
-    // btcPrice` and returns `prev` (log-only) when the player cannot cover it -
+    // charges `newIdentitySettlement(state).totalBtc` (base + 80% of the
+    // discharged loan and card debt, in BTC) and returns `prev` (log-only) when the player cannot cover it -
     // and it returns void, so nothing surfaced the refusal. With the button
     // gated on the base cost alone, a player carrying student debt (typed
     // 'personal', so it counts as discharged principal) tapped "Burn it" and
@@ -1189,7 +1196,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             {idInfo.principal > 0 ? (
               <Text style={styles.hexLine} numberOfLines={1}>
                 <Text style={{ color: TERM.muted }}>{'debt_settle '}</Text>
-                <Text style={{ color: accent.warning }}>{`≈ ${idInfo.settle.toFixed(4)} ₿ (${idInfo.dropped} loans)`}</Text>
+                <Text style={{ color: accent.warning }}>{`≈ ${idInfo.settle.toFixed(4)} ₿ (${idInfo.dropped} loans, ${idInfo.cards} cards)`}</Text>
               </Text>
             ) : null}
             <Text style={styles.hexLine} numberOfLines={1}>

@@ -118,5 +118,32 @@ export function applyWeeklyEvents(input: WeeklyEventsInput): WeeklyEventsResult 
     updatedPendingEvents = updatedPendingEvents.slice(-MAX_PENDING_EVENTS);
   }
 
-  return { updatedPendingEvents, newEventCount: newEvents.length };
+  // Count only what was actually QUEUED. A roll whose every event was a
+  // duplicate of a queued one delivered nothing, so it must not reset the
+  // event pity timer (`lastEventWeeksLived`) as if it had.
+  return { updatedPendingEvents, newEventCount: freshEvents.length };
+}
+
+/**
+ * Keep the FIRST copy of every event id in a pending queue.
+ *
+ * `applyWeeklyEvents` already refuses to queue a re-rolled template, but the
+ * tick appends two more sources after it - cliffhanger resolutions and due
+ * chained follow-ups - and those used to bypass the check, reopening the
+ * duplicate-prompt class from the 2026-08-31 player report for sequel events.
+ * First-wins for the same reason as above: the earlier copy is the one the
+ * player has already been shown.
+ */
+export function dedupePendingEventsById<T extends { id?: string } | null | undefined>(events: T[]): T[] {
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    const id = event?.id;
+    if (!id) return true;
+    if (seen.has(id)) {
+      logger.info(`[EVENTS] Skipped duplicate '${id}' - an unresolved copy is already queued.`);
+      return false;
+    }
+    seen.add(id);
+    return true;
+  });
 }

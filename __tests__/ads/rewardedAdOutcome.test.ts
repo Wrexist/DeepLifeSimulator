@@ -26,6 +26,12 @@ const mockShowRewardedAd = jest.fn();
 jest.mock('@/services/AdMobService', () => ({
   adMobService: {
     showRewardedAd: (...args: unknown[]) => mockShowRewardedAd(...args),
+    // The tri-state the wrapper reads: true -> earned, false -> not shown,
+    // 'dismissed' -> an ad was shown and closed early.
+    showRewardedAdWithOutcome: async (...args: unknown[]) => {
+      const r = await mockShowRewardedAd(...args);
+      return r === 'dismissed' ? 'dismissed' : r ? 'earned' : 'not-shown';
+    },
   },
 }));
 
@@ -34,6 +40,7 @@ const ALL_OUTCOMES: RewardedAdOutcome[] = [
   'granted-direct',
   'granted-no-fill',
   'no-fill',
+  'dismissed',
   'error',
 ];
 
@@ -93,6 +100,16 @@ describe('runRewardedAd - grant path is distinguishable and display == grant', (
     const outcome = await runRewardedAd(grant, { grantOnNoFill: true });
     expect(outcome).toBe('granted-no-fill');
     expect(grant).toHaveBeenCalledTimes(1);
+  });
+
+  it('an ad that was SHOWN and closed early is "dismissed": never granted, even with grantOnNoFill (MON-3)', async () => {
+    mockShowRewardedAd.mockResolvedValue('dismissed');
+    const grant = jest.fn();
+    const outcome = await runRewardedAd(grant, { grantOnNoFill: true });
+    expect(outcome).toBe('dismissed');
+    expect(isGranted(outcome)).toBe(false);
+    expect(isNoFillGrant(outcome)).toBe(false);
+    expect(grant).not.toHaveBeenCalled();
   });
 
   it('ads-removed grants directly with no ad shown (paid perk, not no-fill)', async () => {

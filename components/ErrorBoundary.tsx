@@ -7,9 +7,32 @@ import { RefreshCw, AlertTriangle, Home, Download, MessageCircle, FileText } fro
 import { logger } from '@/utils/logger';
 import { remoteLogger } from '@/services/RemoteLoggingService';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
-import { validateGameState } from '@/utils/saveValidation';
+import {
+  validateGameState,
+  readSaveSlot,
+  decodePersistedSaveEnvelope,
+  shouldAllowUnsignedLegacySaves,
+} from '@/utils/saveValidation';
 import { DISCORD_URL } from '@/lib/config/appConfig';
+import { router } from 'expo-router';
 const LinearGradient = Gradient;
+
+/**
+ * `readSaveSlot` returns the persisted ENVELOPE (`{v, data, checksum, hmac}`),
+ * not a GameState. The crash context parsed the envelope directly, so every
+ * report and exported log carried version/week/age as undefined. Decode first.
+ * Throws when the save does not verify (callers already catch). (audit SAVE-6)
+ */
+function decodeSaveForContext(savedData: string): any {
+  const decoded = decodePersistedSaveEnvelope(savedData, { allowLegacy: shouldAllowUnsignedLegacySaves() });
+  if (!decoded.valid || typeof decoded.data !== 'string') {
+    throw new Error(decoded.error || 'Save envelope verification failed');
+  }
+  return JSON.parse(decoded.data);
+}
+
+/** Legacy crash copies (see `checkSaveOnDisk`). Nothing ever read them. */
+const LEGACY_ERROR_BACKUP_PREFIX = 'error_backup_';
 
 // CRITICAL: Lazy load AsyncStorage to prevent TurboModule crash on iOS 26 Beta
 // This creates a proxy that loads the real module on first use
@@ -115,12 +138,15 @@ class ErrorBoundary extends Component<Props, State> {
     ErrorBoundary.releasePresentation(this);
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  // retryCount is deliberately NOT reset here. handleRetry owns it: it bumps the
+  // count and clears hasError, and when the subtree throws again this runs. It
+  // used to return `retryCount: 0`, so the cap never tripped and a
+  // deterministic render crash looped "Try Again" forever. (audit SAVE-5)
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error,
       errorInfo: null,
-      retryCount: 0,
     };
   }
 
@@ -132,12 +158,13 @@ class ErrorBoundary extends Component<Props, State> {
     const category = this.categorizeError(error);
     const recoverySuggestion = this.getRecoverySuggestion(category);
 
-    // Try to backup game state before showing error
+    // Is the player's last save intact on disk? (A render crash does not touch
+    // it; this only decides whether we may truthfully say so.)
     let gameStateBackedUp = false;
     try {
-      gameStateBackedUp = await this.backupGameState();
+      gameStateBackedUp = await this.checkSaveOnDisk();
     } catch (backupError) {
-      logger.error('Failed to backup game state on error:', backupError);
+      logger.error('Failed to check the save on error:', backupError);
     }
 
     this.setState({
@@ -184,9 +211,9 @@ class ErrorBoundary extends Component<Props, State> {
   private getRecoverySuggestion(category: 'save' | 'progression' | 'ui' | 'network' | 'unknown'): string {
     switch (category) {
       case 'save':
-        return 'Try deleting old saves or freeing up device storage. Your progress has been saved locally.';
+        return 'Try deleting old saves or freeing up device storage.';
       case 'progression':
-        return 'Try restarting the app. Your game state has been backed up.';
+        return 'Try restarting the app.';
       case 'network':
         return 'Check your internet connection. The app will work offline with local saves.';
       case 'ui':
@@ -197,76 +224,31 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   /**
-   * Attempt to backup game state before error is shown
+   * Report whether the last slot holds a save that still verifies.
+   *
+   * This used to copy that save, byte for byte, into `error_backup_<ts>` on
+   * every caught error. Nothing in the app ever read those keys back (no
+   * restore UI, no loader), quota cleanup did not know about them, and a crash
+   * loop wrote one per tap - up to five multi-MB copies of bytes that were
+   * still sitting untouched in the slot's own double buffer and backup ring.
+   * They are no longer written, and any left over are removed here.
+   * (audit SAVE-7)
    */
-  private async backupGameState(): Promise<boolean> {
+  private async checkSaveOnDisk(): Promise<boolean> {
     try {
-      // Try to get the last saved state from AsyncStorage
+      const allKeys = await AsyncStorage.getAllKeys();
+      const legacy = allKeys.filter((k: string) => k.startsWith(LEGACY_ERROR_BACKUP_PREFIX));
+      if (legacy.length > 0) await AsyncStorage.multiRemove(legacy);
+    } catch {
+      // best-effort
+    }
+    try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
-      if (lastSlot) {
-        const slotNumber = parseInt(lastSlot, 10);
-        // CRASH FIX (A-1): Read from double-buffer system
-        const { readSaveSlot } = require('@/utils/saveValidation');
-        const savedData = await readSaveSlot(slotNumber);
-        if (savedData) {
-          // R2-H: prune old error_backup_* keys BEFORE writing the new one.
-          // Previously cleanup only fired on QuotaExceededError - so under
-          // normal conditions every crash wrote another 1-4MB blob that
-          // never got cleaned up, filling storage fast for crash-prone users.
-          try {
-            const existingKeys = await AsyncStorage.getAllKeys();
-            const oldBackups = existingKeys
-              .filter((k: string) => k.startsWith('error_backup_'))
-              .sort()
-              .slice(0, -4); // keep the 4 most recent (+ the one we're about to write = 5)
-            if (oldBackups.length > 0) {
-              await AsyncStorage.multiRemove(oldBackups);
-            }
-          } catch {
-            // best-effort; don't block the backup on cleanup failure
-          }
-          // Create emergency backup
-          const backupKey = `error_backup_${Date.now()}`;
-          try {
-            await AsyncStorage.setItem(backupKey, savedData);
-            logger.info('Game state backed up before error', { backupKey });
-            return true;
-          } catch (error: any) {
-            // Handle quota exceeded - try to clean up old error backups
-            if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
-              try {
-                const allKeys = await AsyncStorage.getAllKeys();
-                const errorBackupKeys = allKeys
-                  .filter(key => key.startsWith('error_backup_'))
-                  .sort()
-                  .slice(0, -5); // Keep only the 5 most recent error backups
-
-                if (errorBackupKeys.length > 0) {
-                  await AsyncStorage.multiRemove(errorBackupKeys);
-                  logger.info(`Cleaned up ${errorBackupKeys.length} old error backups`);
-
-                  // Retry backup after cleanup
-                  try {
-                    await AsyncStorage.setItem(backupKey, savedData);
-                    logger.info('Game state backed up before error after cleanup', { backupKey });
-                    return true;
-                  } catch (retryError) {
-                    logger.error('Failed to backup game state even after cleanup:', retryError);
-                    return false;
-                  }
-                }
-              } catch (cleanupError) {
-                logger.error('Failed to cleanup old error backups:', cleanupError);
-              }
-            }
-            logger.error('Failed to backup game state:', error);
-            return false;
-          }
-        }
-      }
-      return false;
+      if (!lastSlot) return false;
+      const savedData = await readSaveSlot(parseInt(lastSlot, 10));
+      return !!savedData;
     } catch (error) {
-      logger.error('Failed to backup game state:', error);
+      logger.error('Failed to check the save on disk:', error);
       return false;
     }
   }
@@ -278,15 +260,14 @@ class ErrorBoundary extends Component<Props, State> {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (lastSlot) {
         const slotNumber = parseInt(lastSlot, 10);
-        // CRASH FIX (A-1): Read from double-buffer system
-        const { readSaveSlot } = require('@/utils/saveValidation');
         const savedData = await readSaveSlot(slotNumber);
         if (savedData) {
           try {
-            const parsed = JSON.parse(savedData);
+            const parsed = decodeSaveForContext(savedData);
             // Only include safe, non-sensitive data
             gameContext = {
               week: parsed.week,
+              weeksLived: parsed.weeksLived,
               age: parsed.date?.age,
               version: parsed.version,
               // Don't include stats, money, or personal data
@@ -311,32 +292,11 @@ class ErrorBoundary extends Component<Props, State> {
       gameContext, // Sanitized game context
     };
 
-    // In production, send to crash reporting service
-    if (!__DEV__) {
-      // Send to crash reporting service (Sentry integration)
-      try {
-        // Dynamic import to avoid breaking if Sentry is not installed
-        const Sentry = require('@sentry/react-native');
-        if (Sentry && Sentry.captureException) {
-          Sentry.captureException(error, {
-            contexts: {
-              react: {
-                componentStack: errorInfo?.componentStack,
-              },
-            },
-            extra: {
-              retryCount: this.state.retryCount,
-              timestamp: errorData.timestamp,
-            },
-          });
-        }
-      } catch (sentryError) {
-        // Sentry not available, log to console
-        logger.warn('Error logged for crash reporting', errorData);
-      }
-    } else {
-      logger.error('Development error:', errorData);
-    }
+    // Recorded in the in-app log (utils/logger -> RemoteLoggingService), which
+    // is what Export Crash Log shares. There is no crash-reporting SDK: Sentry
+    // was removed (CLAUDE.md 4.6), and the `require('@sentry/react-native')`
+    // here could only ever fall through to this same log line.
+    logger.error('ErrorBoundary crash report:', errorData);
   };
 
   private handleRetry = () => {
@@ -369,12 +329,10 @@ class ErrorBoundary extends Component<Props, State> {
         const lastSlot = await AsyncStorage.getItem('lastSlot');
         if (lastSlot) {
           const slotNumber = parseInt(lastSlot, 10);
-          // CRASH FIX (A-1): Read from double-buffer system
-          const { readSaveSlot } = require('@/utils/saveValidation');
           const savedData = await readSaveSlot(slotNumber);
           if (savedData) {
             try {
-              const parsed = JSON.parse(savedData);
+              const parsed = decodeSaveForContext(savedData);
               // Include sanitized game context
               gameContext = {
                 week: parsed.week,
@@ -403,32 +361,25 @@ class ErrorBoundary extends Component<Props, State> {
         version: Platform.Version,
       };
 
-      // Try to send to Sentry if available
-      try {
-        const Sentry = require('@sentry/react-native');
-        if (Sentry && Sentry.captureMessage) {
-          Sentry.captureMessage('User reported bug', {
-            level: 'info',
-            extra: bugReport,
-            tags: {
-              errorCategory: errorCategory || 'unknown',
-            },
-          });
-        }
-      } catch (sentryError) {
-        // Sentry not available, log to console
-        logger.info('Bug report:', bugReport);
-      }
+      // Nothing leaves the device from here (no crash-reporting SDK), so say
+      // what actually happens: the report goes into the crash log the player
+      // can export and share. It used to claim "We will investigate. Your
+      // game state has been saved." while sending nothing. (audit SAVE-6)
+      logger.error('User bug report:', bugReport);
 
       Alert.alert(
         'Bug Report',
-        'Thank you for reporting this issue. We will investigate. Your game state has been saved.'
+        'Thanks! The details were added to your crash log. Tap Export Crash Log and share it in our Discord so we can look into it.'
       );
     }
   };
 
   private handleGoHome = () => {
-    // Reset error state and navigate to home
+    // Leave the screen that crashed. This used to clear the error state and
+    // nothing else ("handled by the parent component" - nothing handled it), so
+    // the same failing subtree re-mounted and threw again. The main menu sits
+    // outside the game tabs, and Continue there reloads the life from its save.
+    // (audit SAVE-5)
     ErrorBoundary.releasePresentation(this);
     this.setState({
       hasError: false,
@@ -436,9 +387,15 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo: null,
       retryCount: 0,
     });
-
-    // Navigate to home screen
-    // This will be handled by the parent component
+    // After the reset commits, so a boundary that wraps the navigator has its
+    // children (and the router) mounted again before we navigate.
+    setTimeout(() => {
+      try {
+        router.replace('/(onboarding)/MainMenu');
+      } catch (navError) {
+        logger.warn('ErrorBoundary could not navigate to the main menu', { error: navError });
+      }
+    }, 0);
   };
 
   /**
@@ -488,12 +445,10 @@ class ErrorBoundary extends Component<Props, State> {
             saveValidation = await validateSaveSlot(slotNumber);
           }
 
-          // CRASH FIX (A-1): Read from double-buffer system
-          const { readSaveSlot } = require('@/utils/saveValidation');
           const savedData = await readSaveSlot(slotNumber);
           if (savedData) {
             try {
-              const parsed = JSON.parse(savedData);
+              const parsed = decodeSaveForContext(savedData);
 
               // Essential game state info only
               gameStateInfo = {
@@ -775,7 +730,7 @@ Discord: ${DISCORD_URL}`;
               <Text style={styles.title}>Something went wrong</Text>
               <Text style={styles.subtitle}>
                 We're sorry, but something unexpected happened.
-                {this.state.gameStateBackedUp && '\n\nYour game state has been backed up.'}
+                {this.state.gameStateBackedUp && '\n\nYour last save is safe on this device.'}
               </Text>
 
               {this.state.recoverySuggestion && (
@@ -828,7 +783,7 @@ Discord: ${DISCORD_URL}`;
                   onPress={this.handleGoHome}
                 >
                   <Home size={20} color={uiPalette.white} />
-                  <Text style={styles.buttonText}>Go Home</Text>
+                  <Text style={styles.buttonText}>Main Menu</Text>
                 </TouchableOpacity>
               </View>
 

@@ -651,6 +651,33 @@ export const CAMPUS_EVENT_MAX_INTERVAL = 8;
 /**
  * Check if it's time for an exam.
  */
+/**
+ * The exam / campus-event cadence anchors for a program RESUMED at `now`.
+ *
+ * Anchors only advance on non-paused ticks, so across a pause the gap keeps
+ * growing and an exam would fire the moment study resumed. The first fix
+ * re-anchored both to `now`, which made a pause-and-resume in the same week a
+ * free reset of the exam clock: done every 12 weeks, it skipped every exam
+ * and every campus event for a whole degree.
+ *
+ * Instead the anchors are only pulled FORWARD as far as needed: at most
+ * `EXAM_INTERVAL_WEEKS - 1` weeks of the term count as elapsed (the exam is
+ * due the next study week at the latest), and at most
+ * `CAMPUS_EVENT_MAX_INTERVAL` for campus life. A zero-length pause changes
+ * nothing.
+ */
+export function resumedCadenceAnchors(
+  education: Pick<Education, 'lastExamWeek' | 'lastCampusEventWeek'>,
+  now: number,
+): { lastExamWeek: number; lastCampusEventWeek: number } {
+  const lastExam = education.lastExamWeek || 0;
+  const lastCampus = education.lastCampusEventWeek || 0;
+  return {
+    lastExamWeek: Math.max(lastExam, now - (EXAM_INTERVAL_WEEKS - 1)),
+    lastCampusEventWeek: Math.max(lastCampus, now - CAMPUS_EVENT_MAX_INTERVAL),
+  };
+}
+
 export function isExamWeek(education: Education, currentWeeksLived: number): boolean {
   // `<= 0` (not a falsy check) so NEGATIVE weeksRemaining — a corrupt/exhausted
   // save being finalize-only recovered by the weekly tick — can't fire a stray

@@ -20,6 +20,7 @@
 import React from 'react';
 import { GameState } from '../types';
 import type {
+  Relationship,
   SparkSwipeDirection,
   SparkPremiumTier,
   SparkMatch,
@@ -32,6 +33,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyStatsDelta } from './StatsActions';
 import { applyMoneyDelta } from './MoneyActions';
+import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { makeLifeRoll } from '@/utils/seededRoll';
 import {
   rollMatch,
@@ -43,6 +45,7 @@ import {
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
+import { pregnancyBlocksSplitMessage } from '@/lib/dating/familyPlanning';
 import {
   clampRapport,
   findConversationOption,
@@ -647,6 +650,7 @@ export function resolveMatchPromotion(
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
+      lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
     },
   };
 }
@@ -810,6 +814,7 @@ export const promoteMatchToFriend = (
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
+      lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
     };
   });
 
@@ -1286,6 +1291,32 @@ export const boostProfile = (
 // Catfish
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * The relationship a promoted match for this profile created, if it is still
+ * in the player's life (a promoted match shares its id with the relationship).
+ *
+ * SOC-19: report / expose only ever touched `sparkApp.matches`, so exposing a
+ * catfish you were already dating paid +5 reputation and left them as your
+ * partner - or spouse - on every other screen.
+ */
+function relationshipBackedByProfile(state: GameState, profileId: string): Relationship | undefined {
+  const ids = new Set(
+    (state.sparkApp?.matches ?? []).filter((m) => m?.profileId === profileId && m.promoted).map((m) => m.id),
+  );
+  if (ids.size === 0) return undefined;
+  return (state.relationships ?? []).find((r) => r && ids.has(r.id));
+}
+
+/** Why exposing this relationship's catfish cannot end it here, or null when it can. */
+function exposeEndingBlockedReason(rel: Relationship): string | null {
+  if (rel.type === 'spouse') return `You are married to ${rel.name}. That ends through a divorce, not a report.`;
+  if (rel.isPregnant) return pregnancyBlocksSplitMessage(rel.name);
+  return null;
+}
+
+/** Same cost as `breakUpWithPartner`, so exposing a catfish partner is not a cheaper way out. */
+const CATFISH_PARTNER_EXPOSED_HAPPINESS = -20;
+
 export const reportProfile = (
   gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -1297,9 +1328,16 @@ export const reportProfile = (
   if ((gameState.sparkApp?.reportedIds ?? []).includes(profileId)) {
     return { success: false, message: 'You already reported this profile.' };
   }
+  // SOC-19: a report unmatches, it does not end a relationship - and a free
+  // report beside a -20 "Break up" would be a cheaper exit from any partner.
+  const backing = relationshipBackedByProfile(gameState, profileId);
+  if (backing) {
+    return { success: false, message: `${backing.name} is part of your life now. End that relationship first.` };
+  }
   setGameState((prev) => {
     const s = ensureSpark(prev);
     if (s.reportedIds.includes(profileId)) return prev;
+    if (relationshipBackedByProfile(prev, profileId)) return prev;
     return {
       ...prev,
       sparkApp: {
@@ -1330,6 +1368,12 @@ export const exposeCatfish = (
     return { success: false, message: 'You already exposed this catfish.', reputationGain: 0 };
   }
 
+  // SOC-19: exposing somebody you are dating ends it, like a break up. A spouse
+  // or an expecting partner cannot be ended from here.
+  const backing = relationshipBackedByProfile(gameState, profileId);
+  const blocked = backing ? exposeEndingBlockedReason(backing) : null;
+  if (blocked) return { success: false, message: blocked, reputationGain: 0 };
+
   // ANTI-EXPLOIT (H-8/H-9 class): the outer call may fire twice in one React
   // batch, so the dedup is re-checked against FRESH state here. The reputation
   // grant folds into the SAME updater - it used to be a trailing `updateStats`
@@ -1340,7 +1384,16 @@ export const exposeCatfish = (
     if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'exposed')) {
       return prev;
     }
-    const withRep = { ...prev, ...applyStatsDelta(prev, { reputation: reputationGain }) };
+    const ending = relationshipBackedByProfile(prev, profileId);
+    if (ending && exposeEndingBlockedReason(ending)) return prev;
+    const delta = ending?.type === 'partner'
+      ? { reputation: reputationGain, happiness: CATFISH_PARTNER_EXPOSED_HAPPINESS }
+      : { reputation: reputationGain };
+    const withRep = {
+      ...prev,
+      ...applyStatsDelta(prev, delta),
+      ...(ending ? { relationships: (prev.relationships ?? []).filter((r) => r?.id !== ending.id) } : {}),
+    };
     return {
       ...withRep,
       sparkApp: {
@@ -1359,7 +1412,9 @@ export const exposeCatfish = (
   });
   return {
     success: true,
-    message: `Catfish exposed - +${reputationGain} reputation`,
+    message: backing
+      ? `Catfish exposed - +${reputationGain} reputation. You ended things with ${backing.name}.`
+      : `Catfish exposed - +${reputationGain} reputation`,
     reputationGain,
   };
 };
@@ -1442,7 +1497,12 @@ export const resolveJealousy = (
     confronted: { rep: 0, rel: -5, msg: 'You confronted them about being controlling. Tense.' },
     dismissed: { rep: -2, rel: -15, msg: 'You brushed off their concern. They\'re skeptical.' },
   };
-  const { rep, rel, msg } = effects[outcome];
+  const accuserGone = !(gameState.relationships ?? []).some(
+    (r) => r?.id === event.partnerId && (r.type === 'partner' || r.type === 'spouse'),
+  );
+  const { rep, rel, msg } = accuserGone
+    ? { rep: 0, rel: 0, msg: 'That relationship is over - there is nobody left to answer to.' }
+    : effects[outcome];
 
   // The outer `!event` check above is the reported outcome; the re-check below
   // is the same-batch RACE guard. The reputation hit folds in here too - it was
@@ -1452,6 +1512,15 @@ export const resolveJealousy = (
     const active = prev.sparkApp?.activeJealousy;
     if (!active) return prev;
     const s = ensureSpark(prev);
+    // SOC-14: the accuser has left the player's life (break up, divorce, the
+    // low-score roll). Nobody is left to confront, so the event is dropped with
+    // no reputation or bond effect. The Spark tick reconciles the same way.
+    const accuserStillPartner = (prev.relationships ?? []).some(
+      (r) => r?.id === active.partnerId && (r.type === 'partner' || r.type === 'spouse'),
+    );
+    if (!accuserStillPartner) {
+      return { ...prev, sparkApp: { ...s, activeJealousy: null } };
+    }
     const resolvedEvent = { ...active, resolved: true, outcome };
     const relationships = (prev.relationships ?? []).map((r) =>
       r.id === active.partnerId

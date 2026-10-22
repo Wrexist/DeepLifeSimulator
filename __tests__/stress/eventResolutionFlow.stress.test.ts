@@ -21,7 +21,7 @@ import React from 'react';
 import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState, Relationship } from '@/contexts/game/types';
+import type { GameState, Relationship, WeddingPlan } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
 
 jest.mock('@/utils/saveQueue', () => ({
@@ -104,7 +104,7 @@ function injectEvent(event: {
   description?: string;
   category?: string;
   relationId?: string;
-  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string; vehicleId?: string }[];
+  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string; vehicleId?: string; vehicleConditionLoss?: number }[];
 }) {
   act(() => captured!.setGameState(prev => ({
     ...prev,
@@ -312,6 +312,41 @@ describe('Random event resolution audit', () => {
     expect(captured!.state.relationships?.find(r => r.id === 'fiance')?.type).toBe('spouse');
   });
 
+  it('SOC-20: "marry" does not discard a wedding the player booked while the event waited', () => {
+    mounted = mountGame();
+    const plan: WeddingPlan = {
+      venueId: 'garden', venueName: 'Garden', venueType: 'garden', partnerId: 'booked',
+      guestCount: 80, scheduledWeek: 9_999, budget: 40_000,
+      catering: true, photography: true, music: true, decorations: true,
+    };
+    const partner: Relationship = {
+      id: 'booked',
+      name: 'Booked',
+      type: 'partner',
+      relationshipScore: 90,
+      personality: 'loving',
+      gender: 'female',
+      age: 25,
+      engagementWeek: 100,
+      weddingPlanned: plan,
+    };
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      relationships: [...(prev.relationships || []), partner],
+    })));
+    injectEvent({
+      id: 'wedding',
+      relationId: 'booked',
+      choices: [{ id: 'marry', effects: { money: -2000, relationship: 20 } }],
+    });
+    act(() => captured!.game.resolveEvent('wedding', 'marry'));
+    const after = captured!.state.relationships?.find(r => r.id === 'booked');
+    expect(after?.type).toBe('partner');
+    expect(after?.weddingPlanned).toEqual(plan);
+    expect(captured!.state.stats.money).toBe(10_000); // what injectEvent set; no $2,000 charge
+    expect(captured!.state.pendingEvents?.some(e => e.id === 'wedding')).toBe(false);
+  });
+
   it('resolveEvent: wedding event with non-marry choice does NOT promote to spouse', () => {
     mounted = mountGame();
     const partner: Relationship = {
@@ -400,6 +435,36 @@ describe('Random event resolution audit', () => {
     expect(s.activeVehicleId).toBe('sedan');
     expect(s.loans?.find(l => l.id === 'auto-1')).toMatchObject({ remaining: 30_000, vehicleId: undefined });
     expect(s.stats.money).toBe(moneyBefore + 40_000);
+  });
+
+  it('resolveEvent: damage_vehicle lowers the named car\'s condition, floored at 0 (vehicle_breakdown "wait and see")', () => {
+    mounted = mountGame();
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      vehicles: [
+        { id: 'sedan', name: 'Sedan', price: 20_000, owned: true, condition: 40 } as never,
+        { id: 'bike', name: 'Bike', price: 2_000, owned: true, condition: 10 } as never,
+      ],
+      activeVehicleId: 'sedan',
+    })));
+    injectEvent({
+      id: 'vehicle_breakdown',
+      choices: [{ id: 'delay', effects: {}, special: 'damage_vehicle', vehicleId: 'sedan', vehicleConditionLoss: 15 }],
+    });
+    act(() => captured!.game.resolveEvent('vehicle_breakdown', 'delay'));
+    let s = captured!.state;
+    expect(s.vehicles?.find(v => v.id === 'sedan')?.condition).toBe(25);
+    expect(s.vehicles?.find(v => v.id === 'bike')?.condition).toBe(10);
+    expect(s.activeVehicleId).toBe('sedan');
+
+    // A second event id: the duplicate-call guard refuses the same id twice in one week.
+    injectEvent({
+      id: 'vehicle_breakdown_again',
+      choices: [{ id: 'delay', effects: {}, special: 'damage_vehicle', vehicleId: 'bike', vehicleConditionLoss: 15 }],
+    });
+    act(() => captured!.game.resolveEvent('vehicle_breakdown_again', 'delay'));
+    s = captured!.state;
+    expect(s.vehicles?.find(v => v.id === 'bike')?.condition).toBe(0);
   });
 
   it('resolveEvent: grant_free_education adds reputation', () => {

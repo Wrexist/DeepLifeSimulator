@@ -66,3 +66,22 @@ it('distinguishes a lookup failure before charging from an ambiguous failure aft
   mockSdk.purchaseStoreProduct.mockRejectedValueOnce(new Error('offline after store'));
   expect((await revenueCatService.purchaseProduct(IAP_PRODUCTS.GEMS_500)).notCharged).toBe(false);
 });
+// MON-1 (2026-10 audit): store refusals that cannot have charged must say so,
+// or the recovery intent written before the sheet opened is never cleared.
+it.each([
+  ['PRODUCT_ALREADY_PURCHASED', '6', true],
+  ['PURCHASE_NOT_ALLOWED', '3', true],
+  ['PURCHASE_INVALID', '4', true],
+  ['PRODUCT_NOT_AVAILABLE_FOR_PURCHASE', '5', true],
+  ['STORE_PROBLEM (ambiguous)', '2', false],
+  ['PAYMENT_PENDING (may still charge)', '20', false],
+])('classifies %s after the sheet opened', async (_name, code, notCharged) => {
+  const { revenueCatService } = await import('@/services/RevenueCatService');
+  mockSdk.getProducts.mockResolvedValueOnce([{ identifier: IAP_PRODUCTS.REMOVE_ADS }]);
+  mockSdk.purchaseStoreProduct.mockRejectedValueOnce(Object.assign(new Error('store said no'), { code }));
+  const result = await revenueCatService.purchaseProduct(IAP_PRODUCTS.REMOVE_ADS);
+  expect(result.success).toBe(false);
+  expect(result.notCharged).toBe(notCharged);
+  expect(result.paymentPending === true).toBe(code === '20');
+  expect(result.alreadyOwned === true).toBe(code === '6');
+});

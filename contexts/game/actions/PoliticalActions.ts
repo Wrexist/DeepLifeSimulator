@@ -29,7 +29,13 @@ import {
   pacSpend,
 } from '@/lib/politics/operations';
 import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
-import { appointmentBarsOffice, appointmentBlocker, findAppointment, POLITICAL_APPOINTMENTS } from '@/lib/politics/appointments';
+import {
+  appointmentBarsOffice,
+  appointmentBlocker,
+  findAppointment,
+  POLITICAL_APPOINTMENTS,
+  RETIRED_FROM_WORK_MESSAGE,
+} from '@/lib/politics/appointments';
 import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 import {
   highestOfficeHeld,
@@ -42,6 +48,54 @@ import {
 } from '@/lib/politics/lifeOperations';
 
 const log = logger.scope('PoliticalActions');
+
+/**
+ * Close the job a player held before taking office - the same three writes
+ * `quitJob` makes (JobActionsContext): the career goes back to
+ * `accepted:false, applied:false, progress:0` and its open `careerHistory`
+ * entry gets an `endWeek`.
+ *
+ * Winning an election sets `currentJob: 'political'`, and every office exit
+ * (voted out, scandal, retirement) clears `currentJob` again. Without this the
+ * old career was left `applied + accepted` with no `currentJob` pointing at it:
+ * `applyForJob` refused it ("already applied"), `quitJob` returned early (no
+ * current job) and the career-progress tick never read it - a Doctor who
+ * dabbled in politics lost medicine for the rest of the life. Pure; returns the
+ * input slices unchanged when there is no non-political job to close.
+ */
+export function vacatePreviousJob(
+  prev: GameState,
+): Pick<GameState, 'careers' | 'lifetimeStatistics'> {
+  const previousJob = prev.currentJob;
+  if (!previousJob || previousJob === 'political') {
+    return { careers: prev.careers, lifetimeStatistics: prev.lifetimeStatistics };
+  }
+  const careers = (prev.careers || []).map(c =>
+    c && c.id === previousJob ? { ...c, accepted: false, applied: false, progress: 0 } : c,
+  );
+  const history = prev.lifetimeStatistics?.careerHistory || [];
+  let lastOpen = -1;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i]?.job === previousJob && history[i].endWeek === undefined) {
+      lastOpen = i;
+      break;
+    }
+  }
+  if (!prev.lifetimeStatistics || lastOpen === -1) {
+    return { careers, lifetimeStatistics: prev.lifetimeStatistics };
+  }
+  const endWeek = prev.weeksLived || 0;
+  const updated = [...history];
+  updated[lastOpen] = {
+    ...updated[lastOpen],
+    endWeek,
+    weeks: Math.max(0, endWeek - updated[lastOpen].startWeek),
+  };
+  return {
+    careers,
+    lifetimeStatistics: { ...prev.lifetimeStatistics, careerHistory: updated },
+  };
+}
 
 /**
  * Calculate aggregated active policy effects from all enacted policies
@@ -213,6 +267,14 @@ export const runForOffice = (
     return { success: false, message: `Unknown office: ${office}` };
   }
 
+  // Retirement is a one-way latch (`applyForJob` enforces it for every other
+  // career): a retired life draws a frozen pension and does not re-enter paid
+  // work. Office is paid work - without this a player could FIRE-retire to lock
+  // the pension and then win a seat for a second full salary on top of it.
+  if (gameState.isRetired) {
+    return { success: false, message: RETIRED_FROM_WORK_MESSAGE };
+  }
+
   // A Federal Judge, a lobbyist and a sitting board member cannot also run for
   // office. The conflict of interest IS the mechanic: those posts pay well
   // precisely because taking one closes the ballot to you until you resign it.
@@ -305,6 +367,10 @@ export const runForOffice = (
     return { success: false, message: 'You already hold this office (or a higher one).' };
   }
 
+  // Set below when the player already HELD the prerequisite rung and has left
+  // office since: their frozen tenure counter cannot re-accrue, so the tenure
+  // gate is waived (see the comment at the assignment).
+  let tenureWaived = false;
   if ('previousLevel' in requirements && requirements.previousLevel) {
     // Safe to use non-null assertion here because we checked requirements.previousLevel exists above
     const previousLevelStr = requirements.previousLevel;
@@ -350,6 +416,7 @@ export const runForOffice = (
      */
     const servedPreviousLevel =
       !career.accepted && previousLevelIndex >= 0 && (career.level ?? 0) >= previousLevelIndex;
+    tenureWaived = servedPreviousLevel;
     if (
       'minWeeksInPrevious' in requirements
       && requirements.minWeeksInPrevious
@@ -361,13 +428,17 @@ export const runForOffice = (
     }
   }
   
-  // Final check using canRunForOffice for safety
+  // Final check using canRunForOffice for safety. The tenure waiver has to
+  // reach it too: this check re-applies `minWeeksInPrevious` against the same
+  // frozen 0, so without passing the waiver through, the "served the rung
+  // already" rule above was dead and a former official still read as
+  // "You do not meet the requirements".
   if (!canRunForOffice(
     office,
     gameState.date.age,
     gameState.stats.reputation,
     career.level,
-    weeksInCurrentLevel,
+    tenureWaived ? Number.MAX_SAFE_INTEGER : weeksInCurrentLevel,
     hasEducation
   )) {
     return { success: false, message: 'You do not meet the requirements for this office' };
@@ -451,13 +522,16 @@ export const runForOffice = (
       // holding a ballot-barred post AND sitting in office (both salaries
       // streaming, §4.4 gate→grant). Refuse if the bar is set in `prev`.
       if (appointmentBarsOffice(prev.politics?.appointment?.id)) return prev;
+      // Taking office is a full-time job: the one held before it is closed
+      // here, in the same updater, exactly as quitting it would.
+      const vacated = vacatePreviousJob(prev);
       return {
       ...prev,
       stats: {
         ...prev.stats,
         money: Math.max(0, prev.stats.money - campaignCost + reward),
       },
-      careers: prev.careers.map(c => {
+      careers: vacated.careers.map(c => {
         if (c.id !== 'political') return c;
         return {
           ...c,
@@ -505,15 +579,15 @@ export const runForOffice = (
       // land, and the retirement path had no entry to close. Idempotent: a
       // re-election while already in office must not open a second entry.
       // 2026-07-28 audit GL-3.
-      lifetimeStatistics: prev.lifetimeStatistics
+      lifetimeStatistics: vacated.lifetimeStatistics
         ? {
-            ...prev.lifetimeStatistics,
-            careerHistory: (prev.lifetimeStatistics.careerHistory || []).some(
+            ...vacated.lifetimeStatistics,
+            careerHistory: (vacated.lifetimeStatistics.careerHistory || []).some(
               (e) => e.job === 'political' && e.endWeek === undefined,
             )
-              ? prev.lifetimeStatistics.careerHistory || []
+              ? vacated.lifetimeStatistics.careerHistory || []
               : [
-                  ...(prev.lifetimeStatistics.careerHistory || []),
+                  ...(vacated.lifetimeStatistics.careerHistory || []),
                   {
                     job: 'political',
                     weeks: 0,
@@ -522,7 +596,7 @@ export const runForOffice = (
                   },
                 ],
           }
-        : prev.lifetimeStatistics,
+        : vacated.lifetimeStatistics,
       };
     });
 
@@ -531,7 +605,13 @@ export const runForOffice = (
     // Validate newLevel is within bounds before accessing levels array
     const safeLevel = Math.max(0, Math.min(newLevel, POLITICAL_CAREER.levels.length - 1));
     const levelName = POLITICAL_CAREER.levels[safeLevel]?.name || 'Unknown Office';
-    return { success: true, message: `Congratulations! You won the election and are now ${levelName}!${rewardMessage}` };
+    const previousJob = gameState.currentJob && gameState.currentJob !== 'political'
+      ? gameState.careers?.find(c => c.id === gameState.currentJob)
+      : undefined;
+    const leftJobMessage = previousJob
+      ? ` You left your job${previousJob.levels?.[previousJob.level]?.name ? ` as ${previousJob.levels[previousJob.level].name}` : ''} to serve.`
+      : '';
+    return { success: true, message: `Congratulations! You won the election and are now ${levelName}!${rewardMessage}${leftJobMessage}` };
   } else {
     // Lost election - deduct campaign cost + small approval hit.
     // Re-check funds AND the per-week attempt marker against `prev` so a same-batch
@@ -1241,6 +1321,7 @@ export const availableAppointments = (
     // Same input the take resolver passes: a swap hands the held post's
     // reputation back first, so the list must price the step the tap applies.
     heldAppointmentId: gameState.politics?.appointment?.id,
+    retired: !!gameState.isRetired,
   };
   return POLITICAL_APPOINTMENTS.map(a => ({
     id: a.id,
@@ -1317,11 +1398,12 @@ export const embezzleCampaignFunds = (
 /**
  * Stand down voluntarily, with a pension and the title.
  *
- * The third exit from office and the only one the player chooses. It resets
- * `careers.political.level` and `politics.careerLevel` the same way the
- * voted-out path does - so lifestyle costs and the "in office?" UI stop
- * treating a private citizen as a sitting official - but it records the title
- * FIRST, while it is still true (the v42 reasoning).
+ * The third exit from office and the only one the player chooses. It clears
+ * `politics.careerLevel` and the career's `accepted` flag the same way the
+ * voted-out path does - so salary and the "in office?" UI stop treating a
+ * private citizen as a sitting official - and, like that path, keeps
+ * `careers.political.level` at its peak as the record of the rung held. It
+ * records the title FIRST, while it is still true (the v42 reasoning).
  */
 export const retireFromPolitics = (
   gameState: GameState,

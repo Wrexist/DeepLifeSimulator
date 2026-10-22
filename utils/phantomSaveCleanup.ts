@@ -92,21 +92,26 @@ export async function purgeSlotIfPhantom(slot: number): Promise<boolean> {
   // deadlock is possible — nothing under this call acquires the mutex, and the
   // only caller (MainMenu) holds nothing.
   //
-  // Best-effort: a lock we cannot take must not leave the phantom on screen
-  // forever, so a timeout falls through to the unlocked path it had before.
-  let token: MutexToken | null = null;
+  // Never delete without the lock. A timed-out acquire means another holder's
+  // storage IO is still in flight and cannot be cancelled (saveLoadMutex.ts),
+  // so a verdict read now can be overtaken by that write, and deleting then
+  // would wipe a life that just landed. Skip instead: the phantom stays on the
+  // menu until the next visit retries, which is harmless (restoreQueue makes
+  // the same call). 2026-10-21 audit SAVE-12.
+  let token: MutexToken;
   try {
     token = await saveLoadMutex.acquire('save');
   } catch (lockError) {
-    log.warn('Could not acquire save lock for phantom purge - proceeding unlocked', {
+    log.warn('Could not acquire save lock for phantom purge - skipping until next visit', {
       slot,
       error: lockError instanceof Error ? lockError.message : String(lockError),
     });
+    return false;
   }
   try {
     return await purgeSlotIfPhantomLocked(slot);
   } finally {
-    if (token !== null) saveLoadMutex.release(token);
+    saveLoadMutex.release(token);
   }
 }
 

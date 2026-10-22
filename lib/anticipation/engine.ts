@@ -19,7 +19,7 @@
  * 1–4 `week` and never the device clock (CLAUDE.md §4.2). A wall-clock horizon
  * here would be both wrong across a restore and farmable.
  */
-import { PREGNANCY_DURATION_WEEKS } from '@/lib/config/gameConstants';
+import { PREGNANCY_DURATION_WEEKS, WEDDING_REMAINDER_RATE } from '@/lib/config/gameConstants';
 import { weeksUntilBoardRefresh } from '@/lib/careers/jobMarket';
 import { mailEvents } from '@/lib/events/routing';
 import type { GameState, Relationship } from '@/contexts/game/types';
@@ -53,12 +53,15 @@ function educationEvents(state: GameState, now: number): UpcomingEvent[] {
     });
 }
 
-/** A birth, from the pregnancy counter the tick reads. */
+/**
+ * A birth, from the pregnancy counter the tick reads - which is the live
+ * `relationships` record ONLY. `family.spouse` is a wedding-day snapshot that
+ * is never refreshed while married, so a couple who married while expecting
+ * kept `isPregnant: true` on it after the birth: the snapshot won the dedupe
+ * and the panel said "is due" forever, masking any later real pregnancy (SOC-9).
+ */
 function birthEvents(state: GameState, now: number): UpcomingEvent[] {
-  const candidates: Relationship[] = [
-    ...(state.family?.spouse ? [state.family.spouse] : []),
-    ...(state.relationships ?? []),
-  ];
+  const candidates: Relationship[] = state.relationships ?? [];
   const seen = new Set<string>();
   const out: UpcomingEvent[] = [];
   for (const rel of candidates) {
@@ -98,7 +101,9 @@ function weddingEvents(state: GameState, now: number): UpcomingEvent[] {
       title: 'Your wedding',
       detail:
         weeksAway <= 1
-          ? `At ${plan.venueName} next week - ${money(plan.budget ?? 0)} is due.`
+          // The balance the tick will actually charge: the 25% deposit was paid
+          // at booking (applyScheduledWedding.ts), so the full budget is not due.
+          ? `At ${plan.venueName} next week - ${money(Math.floor((plan.budget ?? 0) * WEDDING_REMAINDER_RATE))} balance is due.`
           : `Booked at ${plan.venueName} in ${weeksAway} weeks.`,
       weeksAway: Math.max(0, weeksAway),
       dueWeeksLived: plan.scheduledWeek,

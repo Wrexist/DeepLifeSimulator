@@ -68,7 +68,8 @@ const performanceReview: EventTemplate = {
           },
           {
             id: 'negotiate',
-            text: 'Ask for a raise',
+            // A one-off payment: the salary does not change.
+            text: 'Push for a bigger bonus',
             effects: { money: perf >= 90 ? 500 : 100, stats: { reputation: perf >= 90 ? 5 : -2 } },
           },
         ],
@@ -124,13 +125,18 @@ const formalWarning: EventTemplate = {
   condition: (state) => {
     if (!state.currentJob) return false;
     const perf = getPerformance(state);
+    // Three warnings is termination (job_termination below); a fourth would
+    // print "(4/3)" if this template won the pick over it (2026-10-21 audit).
+    const careers = Array.isArray(state.careers) ? state.careers : [];
+    const career = careers.find(c => c && c.id === state.currentJob && c.accepted);
+    if ((career?.warningsReceived || 0) >= 3) return false;
     return perf < 35 && getWeeksEmployed(state) >= 8;
   },
   generate: (state) => {
     const name = getCareerName(state);
     const careers = Array.isArray(state.careers) ? state.careers : [];
     const career = careers.find(c => c && c.id === state.currentJob && c.accepted);
-    const warnings = (career?.warningsReceived || 0) + 1;
+    const warnings = Math.min(3, (career?.warningsReceived || 0) + 1);
 
     return {
       id: 'formal_warning',

@@ -26,9 +26,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import {
   ensureCurrentSeason,
-  getTierForXp,
-  getLegacyPassReward,
-  MAX_TIER,
+  getUnclaimedPremiumRewardStats,
 } from '@/lib/legacyPass/legacyPass';
 
 const MIN_LOCKED = 3;
@@ -64,19 +62,13 @@ function PremiumPassPromo() {
   const prevWeek = useRef<number | null>(null);
 
   const pass = useMemo(() => ensureCurrentSeason(legacyPassRaw), [legacyPassRaw]);
-  const currentTier = getTierForXp(pass.xp);
 
+  // Only rewards subscribing would actually hand over: reached AND unclaimed.
+  // Counting claimed tiers promised a lapsed member rewards they already had.
   const stats = useMemo(() => {
-    let locked = 0, gems = 0, headline = '';
-    for (let tier = 1; tier <= MAX_TIER; tier++) {
-      const r = getLegacyPassReward('premium', tier);
-      if (!r || currentTier < tier) continue;
-      locked += 1;
-      if (r.kind === 'gems') gems += r.amount ?? 0;
-      if (r.kind !== 'gems') headline = r.label;
-    }
-    return { locked, gems, headline: headline || 'exclusive cosmetics' };
-  }, [currentTier]);
+    const s = getUnclaimedPremiumRewardStats(pass);
+    return { locked: s.count, gems: s.gems, headline: s.headline ?? 'exclusive cosmetics' };
+  }, [pass]);
 
   // Animations.
   const pop = useRef(new Animated.Value(0)).current;

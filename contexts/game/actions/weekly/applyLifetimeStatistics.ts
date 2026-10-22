@@ -195,6 +195,10 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
        * monotonic and never decreases when someone leaves — which is what
        * "total ... in your lifetime" means. No new state: the previous count is
        * right here on `prevState`.
+       *
+       * This only sees growth INSIDE a tick, i.e. births. The relationship
+       * doors (Spark promotion, `meetSomeone`, the `intro` favour) run between
+       * ticks and count themselves with `countNewRelationship`.
        */
       totalRelationships:
         (ls.totalRelationships ?? 0) + Math.max(0, relationshipGrowth),

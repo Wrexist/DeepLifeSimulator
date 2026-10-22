@@ -25,7 +25,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
-import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
+import { isSaveFromFutureError, isSaveUnreadableError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { type SaveSlotData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
 import {
   readSaveSlotMeta,
@@ -381,6 +381,13 @@ export default function SaveSlots() {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version', { slot: selectedSlot });
         gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE);
+        return;
+      }
+      // Present but unverifiable: this screen IS where the backups are, so
+      // open the slot's Restore sheet directly. (audit SAVE-1)
+      if (isSaveUnreadableError(error)) {
+        log.warn('Save is present but unreadable', { slot: selectedSlot });
+        setRestoreSlot(selectedSlot);
         return;
       }
       log.error('Error continuing game', error);

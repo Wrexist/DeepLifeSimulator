@@ -50,6 +50,34 @@ export const MINER_UPGRADE_DEFINITIONS: Record<string, {
 };
 
 /**
+ * Durability at or above which a rig runs at full output. It is the same line
+ * auto-repair works to (`applyMiningWarehouse` repairs rigs "under 50%"), so a
+ * fleet kept on auto-repair never loses output, and the rig screen's red
+ * "Needs repair" band starts here too.
+ */
+export const MINER_FULL_YIELD_DURABILITY = 50;
+
+/** Share of full output a rig at 0% durability still produces. */
+export const MINER_MIN_YIELD_FACTOR = 0.25;
+
+/**
+ * Output multiplier for a rig tier at `durability` (0-100): 1.0 at or above
+ * `MINER_FULL_YIELD_DURABILITY`, falling in a straight line to
+ * `MINER_MIN_YIELD_FACTOR` at 0%.
+ *
+ * Before this, nothing read durability: rigs decayed 2-5% a week and repairs
+ * (manual or auto) cost real money, while the rig screen told the player "keep
+ * durability up or yield drops". Output never dropped, so following the screen
+ * only lost money. A missing or corrupt value counts as a healthy rig.
+ */
+export function minerDurabilityYieldFactor(durability: number | undefined): number {
+  if (typeof durability !== 'number' || !Number.isFinite(durability)) return 1;
+  const d = Math.max(0, Math.min(100, durability));
+  if (d >= MINER_FULL_YIELD_DURABILITY) return 1;
+  return MINER_MIN_YIELD_FACTOR + (1 - MINER_MIN_YIELD_FACTOR) * (d / MINER_FULL_YIELD_DURABILITY);
+}
+
+/**
  * Calculate mining earnings directly in crypto (not dollars)
  * Base earnings are now in crypto amounts per week
  */
@@ -174,6 +202,14 @@ export function calculateMiningEarnings(
     const automationBonus = (warehouse.automationLevel || 0) * 0.02; // 2% per level
     minerCryptoEarnings *= (1 + automationBonus);
     minerHardwareEarnings *= (1 + automationBonus);
+
+    // Worn rigs produce less (see `minerDurabilityYieldFactor`). Applied to
+    // the hardware figure too: a worn rig still draws its full power, so the
+    // electricity bill (charged as a share of `hardwareGrossUsd` by the
+    // callers) stays the same in absolute terms while the output shrinks.
+    const durabilityFactor = minerDurabilityYieldFactor(warehouse.minerDurability?.[miner.id]);
+    minerCryptoEarnings *= durabilityFactor;
+    minerHardwareEarnings *= durabilityFactor;
 
     // Apply difficulty multiplier (global mining difficulty).
     // Clamp to >= 1: difficulty should only ever reduce earnings. A corrupt or

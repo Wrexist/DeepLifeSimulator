@@ -501,6 +501,17 @@ export function resolveBuyMiner(
     return { state, success: false, message: 'Not enough money' };
   }
 
+  // Durability is ONE number per tier (the average over its units), so the new
+  // rig joins it as a count-weighted average. Writing 100 here repaired every
+  // worn unit of the tier for the price of one more, which has mattered since
+  // durability started to scale yield (`minerDurabilityYieldFactor`).
+  const ownedBefore = state.warehouse.miners[minerId] || 0;
+  const rawDurability = state.warehouse.minerDurability?.[minerId];
+  const durabilityBefore = typeof rawDurability === 'number' && Number.isFinite(rawDurability)
+    ? Math.max(0, Math.min(100, rawDurability))
+    : 100;
+  const durabilityAfter = (durabilityBefore * ownedBefore + 100) / (ownedBefore + 1);
+
   return {
     success: true,
     message: `Successfully purchased ${minerName}!`,
@@ -511,11 +522,11 @@ export function resolveBuyMiner(
         ...state.warehouse,
         miners: {
           ...state.warehouse.miners,
-          [minerId]: (state.warehouse.miners[minerId] || 0) + 1,
+          [minerId]: ownedBefore + 1,
         },
         minerDurability: {
           ...state.warehouse.minerDurability,
-          [minerId]: 100,
+          [minerId]: durabilityAfter,
         },
       },
     },

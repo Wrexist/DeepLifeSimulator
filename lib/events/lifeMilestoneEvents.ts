@@ -10,21 +10,42 @@
  * - Workplace interactions (gossip, WFH, raise negotiation)
  */
 import type { EventTemplate } from './engine';
-import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { ADULTHOOD_AGE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
-import { chosenCompanyOf } from './socialCircle';
+import { childrenAwaitingMilestone, chosenCompanyOf } from './socialCircle';
+import type { GameState, Relationship } from '@/contexts/game/types';
 
 // ---------------------------------------------------------------------------
 // Romantic relationship events
 // ---------------------------------------------------------------------------
 
+/**
+ * The spouse, in the first few weeks after a real wedding anniversary. The
+ * template used to need only a spouse, so it fired on any week - up to twice a
+ * year - on top of the tick's own anniversary grant (applyAnniversaries.ts),
+ * and a married player could have three anniversaries a year.
+ */
+const ANNIVERSARY_WINDOW_WEEKS = 4;
+function spouseInAnniversaryWindow(state: GameState): Relationship | undefined {
+  const spouse = state.relationships?.find(r => r.type === 'spouse');
+  if (!spouse) return undefined;
+  const married = spouse.marriageWeek ?? spouse.anniversaryWeek;
+  if (typeof married !== 'number' || !Number.isFinite(married)) return undefined;
+  const now = state.weeksLived || 0;
+  // Legacy saves stored the cyclic 1-4 week here; no real date to anchor to.
+  if (married <= 4 && now > 4) return undefined;
+  const weeksMarried = now - married;
+  if (weeksMarried < WEEKS_PER_YEAR) return undefined;
+  return weeksMarried % WEEKS_PER_YEAR < ANNIVERSARY_WINDOW_WEEKS ? spouse : undefined;
+}
+
 const anniversary: EventTemplate = {
   id: 'anniversary',
   category: 'relationship',
   weight: 0.3,
-  condition: state => state.relationships?.some(r => r.type === 'spouse') === true,
+  condition: state => spouseInAnniversaryWindow(state) !== undefined,
   generate: state => {
-    const spouse = state.relationships?.find(r => r.type === 'spouse');
+    const spouse = spouseInAnniversaryWindow(state);
     if (!spouse) return { id: 'anniversary', description: 'You reflect on your love life.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     return {
       id: 'anniversary',
@@ -130,9 +151,10 @@ const childFirstWords: EventTemplate = {
   id: 'child_first_words',
   category: 'relationship',
   weight: 0.2,
-  condition: state => state.family?.children?.some(c => c.age >= 1 && c.age <= 3) === true,
+  // Once per child (socialCircle.ts): a toddler says their FIRST word once.
+  condition: state => childrenAwaitingMilestone(state, 'child_first_words', (state.family?.children ?? []).filter(c => c.age >= 1 && c.age <= 3)).length > 0,
   generate: state => {
-    const toddler = state.family?.children?.find(c => c.age >= 1 && c.age <= 3);
+    const toddler = childrenAwaitingMilestone(state, 'child_first_words', (state.family?.children ?? []).filter(c => c.age >= 1 && c.age <= 3))[0];
     if (!toddler) return { id: 'child_first_words', description: 'A child milestone happens.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     return {
       id: 'child_first_words',
@@ -172,9 +194,10 @@ const childGraduation: EventTemplate = {
   id: 'child_graduation',
   category: 'relationship',
   weight: 0.15,
-  condition: state => state.family?.children?.some(c => c.age >= 17 && c.age <= 19) === true,
+  // Once per child (socialCircle.ts): a child graduates high school once.
+  condition: state => childrenAwaitingMilestone(state, 'child_graduation', (state.family?.children ?? []).filter(c => c.age >= 17 && c.age <= 19)).length > 0,
   generate: state => {
-    const child = state.family?.children?.find(c => c.age >= 17 && c.age <= 19);
+    const child = childrenAwaitingMilestone(state, 'child_graduation', (state.family?.children ?? []).filter(c => c.age >= 17 && c.age <= 19))[0];
     if (!child) return { id: 'child_graduation', description: 'A graduation ceremony happens.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     return {
       id: 'child_graduation',
@@ -208,21 +231,46 @@ const childAsksForMoney: EventTemplate = {
   },
 };
 
+/** The oldest age at which this event treats a pregnancy as plausible. */
+const PREGNANCY_SCARE_MAX_AGE = 45;
+
+/**
+ * Who could actually be pregnant in this couple. The template used to need
+ * only "any partner and a player under 45", and always said the PARTNER might
+ * be pregnant - so a male partner could be, and a 44-year-old's 60-year-old
+ * partner could be. Now: a female partner of a male player (her age counts),
+ * or a female player with a male partner (the player's age counts).
+ */
+function pregnancyScareCouple(state: GameState): { partner: Relationship; playerIsPregnant: boolean } | undefined {
+  const playerSex = state.userProfile?.sex ?? state.userProfile?.gender;
+  const playerAge = state.date?.age || ADULTHOOD_AGE;
+  for (const partner of state.relationships ?? []) {
+    if (partner?.type !== 'spouse' && partner?.type !== 'partner') continue;
+    if (playerSex === 'male' && partner.gender === 'female' && (partner.age ?? 0) <= PREGNANCY_SCARE_MAX_AGE) {
+      return { partner, playerIsPregnant: false };
+    }
+    if (playerSex === 'female' && partner.gender === 'male' && playerAge <= PREGNANCY_SCARE_MAX_AGE) {
+      return { partner, playerIsPregnant: true };
+    }
+  }
+  return undefined;
+}
+
 const pregnancyScare: EventTemplate = {
   id: 'pregnancy_scare',
   category: 'relationship',
   weight: 0.1,
-  condition: state => {
-    const hasPartner = state.relationships?.some(r => r.type === 'spouse' || r.type === 'partner') === true;
-    const age = state.date?.age || ADULTHOOD_AGE;
-    return hasPartner && age < 45;
-  },
+  condition: state => pregnancyScareCouple(state) !== undefined,
   generate: state => {
-    const partner = state.relationships?.find(r => r.type === 'spouse' || r.type === 'partner');
-    const name = partner?.name || 'Your partner';
+    const couple = pregnancyScareCouple(state);
+    if (!couple) return { id: 'pregnancy_scare', description: 'You and your partner talk about the future.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
+    const { partner, playerIsPregnant } = couple;
     return {
       id: 'pregnancy_scare',
-      description: `${name} tells you they might be pregnant. It turns out to be a false alarm.`,
+      description: playerIsPregnant
+        ? `You think you might be pregnant and tell ${partner.name}. It turns out to be a false alarm.`
+        : `${partner.name} tells you she might be pregnant. It turns out to be a false alarm.`,
+      relationId: partner.id,
       choices: [
         { id: 'relieved', text: 'Feel relieved', effects: { stats: { happiness: 5 } } },
         { id: 'discuss', text: 'Discuss starting a family', effects: { stats: { happiness: 10 } } },
@@ -332,24 +380,39 @@ const elderHealthScare: EventTemplate = {
   }),
 };
 
-/** Grandchildren come to visit - pure warmth. Needs at least one child. */
+/** Every grandchild on the family tree (ChildInfo.grandchildren, v34). */
+export function grandchildrenOf(state: Pick<GameState, 'family'>): { id: string; name: string }[] {
+  const children = Array.isArray(state.family?.children) ? state.family.children : [];
+  return children.flatMap(c => (Array.isArray(c?.grandchildren) ? c.grandchildren : []));
+}
+
+/** Grandchildren come to visit - pure warmth. Needs at least one real grandchild. */
 const grandchildVisit: EventTemplate = {
   id: 'grandchild_visit',
   category: 'relationship',
   weight: 0.3,
+  // Real grandchildren (ChildInfo.grandchildren, v34), not "any child": a
+  // 66-year-old whose only child is 3 has no grandchildren to host.
   condition: state => {
     const age = state.date?.age || ADULTHOOD_AGE;
-    const hasChildren = Array.isArray(state.family?.children) && state.family.children.length > 0;
-    return age >= 65 && hasChildren;
+    return age >= 65 && grandchildrenOf(state).length > 0;
   },
-  generate: () => ({
-    id: 'grandchild_visit',
-    description: 'The grandchildren come to stay for the weekend. The house is loud, messy, and wonderfully full of life.',
-    choices: [
-      { id: 'spoil', text: 'Spoil them rotten', effects: { money: -120, stats: { happiness: 12 } } },
-      { id: 'stories', text: 'Tell them the old family stories', effects: { stats: { happiness: 9, reputation: 2 } } },
-    ],
-  }),
+  generate: state => {
+    const grandkids = grandchildrenOf(state);
+    const who = grandkids.length === 1
+      ? `Your grandchild ${grandkids[0].name} comes`
+      : grandkids.length === 2
+        ? `Your grandchildren ${grandkids[0].name} and ${grandkids[1].name} come`
+        : 'The grandchildren come';
+    return {
+      id: 'grandchild_visit',
+      description: `${who} to stay for the weekend. The house is loud, messy, and wonderfully full of life.`,
+      choices: [
+        { id: 'spoil', text: 'Spoil them rotten', effects: { money: -120, stats: { happiness: 12 } } },
+        { id: 'stories', text: 'Tell them the old family stories', effects: { stats: { happiness: 9, reputation: 2 } } },
+      ],
+    };
+  },
 };
 
 const quarterLifeCrisis: EventTemplate = {
@@ -375,10 +438,13 @@ const emptyNest: EventTemplate = {
   id: 'empty_nest',
   category: 'relationship',
   weight: 0.15,
+  // "Your LAST child has moved out" - every child must be grown, and it
+  // happens once. It used to need only SOME adult child and repeated.
+  oncePerLife: true,
   condition: state => {
     const age = state.date?.age || ADULTHOOD_AGE;
-    const hasAdultChildren = state.family?.children?.some(c => c.age >= ADULTHOOD_AGE) === true;
-    return age >= 45 && hasAdultChildren;
+    const children = state.family?.children ?? [];
+    return age >= 45 && children.length > 0 && children.every(c => c.age >= ADULTHOOD_AGE);
   },
   generate: () => ({
     id: 'empty_nest',
@@ -473,7 +539,8 @@ const panicAttack: EventTemplate = {
     id: 'panic_attack',
     description: "Your heart races, you can't breathe. A panic attack hits without warning.",
     choices: [
-      { id: 'therapy', text: 'Start seeing a therapist ($100/week)', effects: { money: -100, stats: { happiness: 15, health: 5 } } },
+      // One session, one charge: nothing bills this weekly afterwards.
+      { id: 'therapy', text: 'Book a therapy session ($100)', effects: { money: -100, stats: { happiness: 15, health: 5 } } },
       { id: 'breathe', text: 'Practice breathing exercises', effects: { stats: { happiness: 5, energy: 5 } } },
       { id: 'ignore', text: 'Wait for it to pass', effects: { stats: { happiness: -5, health: -5 } } },
     ],
@@ -571,11 +638,12 @@ const raiseNegotiation: EventTemplate = {
   condition: state => !!state.currentJob && weeksInThisLife(state) > 52,
   generate: () => ({
     id: 'raise_negotiation',
-    description: "You feel underpaid. Annual reviews are coming up.",
+    // One-off payments, not a raise: the salary is untouched (2026-10-21 audit).
+    description: "You feel underpaid. Annual reviews are coming up, and there is a bonus pot.",
     choices: [
-      { id: 'ask', text: 'Ask for a raise', effects: { money: 200, stats: { happiness: 10, reputation: 5 } } },
+      { id: 'ask', text: 'Ask for a one-off bonus', effects: { money: 200, stats: { happiness: 10, reputation: 5 } } },
       { id: 'wait', text: 'Wait for them to offer', effects: { stats: { happiness: -3 } } },
-      { id: 'threaten', text: 'Threaten to quit', effects: { money: 300, stats: { reputation: -10 } } },
+      { id: 'threaten', text: 'Threaten to quit for a retention bonus', effects: { money: 300, stats: { reputation: -10 } } },
     ],
   }),
 };

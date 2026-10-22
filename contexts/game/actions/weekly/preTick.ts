@@ -22,6 +22,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { STAT_DECAY_GRACE_WEEKS, wealthDecayMultiplier } from '@/lib/economy/statDecay';
+import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { logger } from '@/utils/logger';
 import { makeLifeRoll } from '@/utils/seededRoll';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
@@ -37,10 +38,15 @@ import { weeksSinceLifeStart } from '@/utils/weekCounters';
 // same field iteration order, same logger calls. Any change here will
 // surface as a snapshot diff in `subsystemEquivalence.test.ts`.
 //
-// ⚠ NOT THE CANONICAL NET WORTH. The week loop reaches it through ONE door:
-// `computeDecayInputs` reads it for the decay wealth multiplier (clamped to
-// 0.5-2.0, so the two figures agree everywhere the clamp binds). It used to
-// feed `lifetimeStatistics.peakNetWorth` too, which is how a fresh life
+// ⚠ NOT THE CANONICAL NET WORTH, and the week loop no longer reads it at all.
+// `computeDecayInputs` used to read it for the decay wealth multiplier - and,
+// through its `netWorth` output, for the police fine - while it counts every
+// `realEstate` entry with no `owned` check. A SOLD property stays in that array
+// (`owned: false`), so buying and selling one $3.5M mansion permanently halved
+// stat decay and priced police fines on wealth the player no longer had, while
+// the HUD's `vitalDrift` projection (canonical figure) showed full-rate decay.
+// `computeDecayInputs` reads the canonical `netWorth()` now. This function used
+// to feed `lifetimeStatistics.peakNetWorth` too, which is how a fresh life
 // "peaked" $1,050 above its cash (owned Market items) and opened unlock tier 2
 // on its first tick; the peak sample is the canonical figure now (Program 6).
 //
@@ -206,7 +212,7 @@ export function calculateNetWorth(gameState: GameState): number {
 //   - gracePeriodWeeks: early-game grace window (inline default was 8)
 //
 // Outputs match the variables the inline code computed:
-//   - netWorth        — raw calculateNetWorth result (may be 0)
+//   - netWorth        — canonical netWorth() (lib/progress/achievements), floored at 0
 //   - safeNetWorth    — floored at 1000 for the wealthMultiplier divisor
 //   - wealthMultiplier — `wealthDecayMultiplier(safeNetWorth)` from
 //     `lib/economy/statDecay.ts`: 100000 / max(1000, netWorth), clamped to
@@ -237,12 +243,14 @@ export function computeDecayInputs(state: GameState, opts: DecayInputsOptions): 
   const baseDecayRate = opts.baseDecayRate;
   const gracePeriodWeeks = opts.gracePeriodWeeks ?? STAT_DECAY_GRACE_WEEKS;
 
-  // calculateNetWorth has its own try/catch and never throws, but the inline
-  // call site wrapped it in an additional try/catch defensive-belt-and-
-  // suspenders. Preserve the outer try/catch so error-log timing matches.
+  // The CANONICAL net worth (`lib/progress/achievements`) - the same figure the
+  // HUD's decay projection (`lib/economy/vitalDrift`) reads, so the decay rate
+  // previewed is the rate applied. See the note on `calculateNetWorth` above for
+  // why the private figure is no longer used here.
   let netWorth = 1000;
   try {
-    netWorth = calculateNetWorth(state);
+    const canonical = canonicalNetWorth(state);
+    netWorth = isFinite(canonical) ? Math.max(0, canonical) : 0;
   } catch (nwError) {
     logger.error('[WEEK PROGRESSION] Failed to calculate net worth:', nwError);
   }
