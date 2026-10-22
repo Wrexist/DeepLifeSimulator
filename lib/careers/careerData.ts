@@ -196,7 +196,11 @@ export const INITIAL_CAREERS: Career[] = [
         ],
         level: 0,
         description: 'Practice medicine and heal patients',
-        requirements: { education: ['phd'] },
+        // medical_school is the direct route: its catalog line has always said
+        // "Doctor track", yet until 2026-10-21 only the PhD opened this ladder,
+        // so a $150k / 180-week degree led to no doctor job at all (its one
+        // other reader, surgeon, also wants 60 reputation). The PhD route stays.
+        requirements: { education: ['phd'], educationAnyOf: ['medical_school'] },
         progress: 0,
         applied: false,
         accepted: false,

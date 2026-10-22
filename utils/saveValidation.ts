@@ -979,13 +979,37 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { POLITICAL_CAREER } = require('@/lib/careers/political');
     const catalogLevelsById = new Map<string, { name: string; salary: number }[]>();
+    const catalogAnyOfById = new Map<string, string[]>();
     for (const c of [...(INITIAL_CAREERS || []), ...(ADVANCED_CAREERS || []), POLITICAL_CAREER]) {
       if (c && typeof c.id === 'string' && Array.isArray(c.levels)) {
         catalogLevelsById.set(c.id, c.levels);
       }
+      const anyOf = c?.requirements && 'educationAnyOf' in c.requirements ? c.requirements.educationAnyOf : undefined;
+      if (c && typeof c.id === 'string' && Array.isArray(anyOf) && anyOf.length > 0) {
+        catalogAnyOfById.set(c.id, anyOf);
+      }
     }
-    for (const career of s.careers as { id?: unknown; levels?: unknown; level?: unknown }[]) {
-      if (!career || typeof career.id !== 'string' || !Array.isArray(career.levels)) continue;
+    for (const career of s.careers as { id?: unknown; levels?: unknown; level?: unknown; requirements?: unknown }[]) {
+      if (!career || typeof career.id !== 'string') continue;
+      // Careers (requirements included) are stored BY VALUE, so an alternative
+      // education route added to the catalog never reached an existing save:
+      // doctor's medical_school route (2026-10-21) would have opened only for
+      // new lives. Adopt any catalog `educationAnyOf` id the save lacks. An
+      // alternative route only ever OPENS a gate, so a union is always safe.
+      const catalogAnyOf = catalogAnyOfById.get(career.id);
+      if (catalogAnyOf && career.requirements && typeof career.requirements === 'object') {
+        const req = career.requirements as { educationAnyOf?: unknown };
+        const current = Array.isArray(req.educationAnyOf)
+          ? req.educationAnyOf.filter((id): id is string => typeof id === 'string')
+          : [];
+        const missing = catalogAnyOf.filter((id) => !current.includes(id));
+        if (missing.length > 0) {
+          req.educationAnyOf = [...current, ...missing];
+          repairs.push(`Added ${missing.join(', ')} as an education route for ${career.id}`);
+          repaired = true;
+        }
+      }
+      if (!Array.isArray(career.levels)) continue;
       const catalogLevels = catalogLevelsById.get(career.id);
       if (catalogLevels && catalogLevels.length > career.levels.length) {
         career.levels = JSON.parse(JSON.stringify(catalogLevels));
