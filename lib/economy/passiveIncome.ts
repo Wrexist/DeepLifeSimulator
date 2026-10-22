@@ -1,7 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { getStockInfo } from './stockMarket';
 import { companyIncomeFactors } from '@/lib/business/hustleLogic';
-import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { getUpgradeTier, getUpgradeRentBonus, getUpgradeUpkeepBonus } from '@/lib/realEstate/housing';
 import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
 import { getSocialMediaData } from '@/lib/social/socialMedia';
@@ -264,8 +264,8 @@ export function calcWeeklyPassiveIncome(
       const tier = getUpgradeTier(upgradeLevel) || getUpgradeTier(0);
       if (!tier) return; // Skip if tier lookup fails
       
-      const tierRentBonus = typeof tier.rentBonus === 'number' && isFinite(tier.rentBonus) ? tier.rentBonus : 0;
-      const tierUpkeepBonus = typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) ? tier.upkeepBonus : 0;
+      const tierRentBonus = getUpgradeRentBonus(tier, property);
+      const tierUpkeepBonus = getUpgradeUpkeepBonus(tier, property);
       
       // Apply rent modifier from policies (validate rentModifier)
       const safeRentModifier = typeof rentModifier === 'number' && isFinite(rentModifier) && rentModifier > 0 ? rentModifier : 1;

@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/game/types';
-import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { getUpgradeTier, getUpgradeUpkeepBonus } from '@/lib/realEstate/housing';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
@@ -103,7 +103,7 @@ export function calcWeeklyExpenses(
       if (!tier) return sum; // Skip if tier lookup fails
       
       const propertyUpkeep = typeof p.upkeep === 'number' && isFinite(p.upkeep) && p.upkeep >= 0 ? p.upkeep : 0;
-      const tierUpkeepBonus = typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) && tier.upkeepBonus >= 0 ? tier.upkeepBonus : 0;
+      const tierUpkeepBonus = getUpgradeUpkeepBonus(tier, p);
       
       const totalUpkeep = propertyUpkeep + tierUpkeepBonus;
       if (isFinite(totalUpkeep) && totalUpkeep > 0) {

@@ -33,6 +33,7 @@ import {
   ROOM_ADDITIONS,
   getUpgradeTier,
   getUpgradeTierCost,
+  getUpgradeRentBonus,
 } from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
@@ -711,7 +712,7 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
   return {
     result: {
       success: true,
-      message: `Upgraded ${property.name} to tier ${nextTier.level} (+$${nextTier.rentBonus}/wk rent when rented).`,
+      message: `Upgraded ${property.name} to tier ${nextTier.level} (+$${getUpgradeRentBonus(nextTier, property).toLocaleString('en-US')}/wk rent when rented).`,
     },
     next: {
       ...state,
