@@ -15,6 +15,7 @@ import { INITIAL_CAREERS } from '../careerData';
 import { EDUCATION_PROGRAMS } from '@/lib/education/programs';
 import type { Career } from '@/contexts/game/types';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
+import { isEntryTierCareer } from '../jobMarket';
 
 const byId = (id: string): Career => {
   const c = INITIAL_CAREERS.find((x) => x.id === id);
@@ -77,6 +78,86 @@ describe('the gate sets the ceiling', () => {
     const presidentWeekly =
       POLITICAL_CAREER.levels[POLITICAL_CAREER.levels.length - 1].salary / 52;
     expect(ceiling('politician')).toBeLessThan(presidentWeekly);
+  });
+
+  // ── ECO-6 (2026-10-22): every catalogue entry, not a hand-picked list ──────
+  //
+  // The tests above named 7 ungated and 8 gated careers, so when the ungated
+  // ladders were raised nobody noticed the masters tier fall below them:
+  // therapist and vet topped at $850, architect at $1,300, and the fitness-
+  // gated military/firefighter sat under the free chef. These walk the whole
+  // catalogue so a ladder added or retuned later is checked by construction.
+
+  type Req = NonNullable<Career['requirements']>;
+  const reqOf = (c: Career): Req => c.requirements ?? {};
+  const hasEducation = (c: Career) => {
+    const r = reqOf(c);
+    return 'education' in r && Array.isArray(r.education) && r.education.length > 0;
+  };
+  const hasStatOrItemGate = (c: Career) => {
+    const r = reqOf(c);
+    return (
+      ('items' in r && Array.isArray(r.items) && r.items.length > 0) ||
+      ('fitness' in r && typeof r.fitness === 'number' && r.fitness > 0) ||
+      ('reputation' in r && typeof r.reputation === 'number' && r.reputation > 0)
+    );
+  };
+  /**
+   * Free to walk into. The musician is the one deliberate exception (best
+   * ceiling in the tier, paid for in tenure - pinned by its own test above).
+   */
+  const FREE = INITIAL_CAREERS.filter((c) => !hasEducation(c) && !hasStatOrItemGate(c) && c.id !== 'musician');
+  const top = (c: Career) => c.levels[c.levels.length - 1].salary;
+  const bestFree = Math.max(...FREE.map(top));
+
+  it('every education-gated ladder in the catalogue out-earns every free one', () => {
+    expect(FREE.length).toBeGreaterThanOrEqual(7);
+    const gated = INITIAL_CAREERS.filter(hasEducation);
+    expect(gated.length).toBeGreaterThanOrEqual(15);
+    expect(gated.filter((c) => top(c) <= bestFree).map((c) => `${c.id} ${top(c)}`)).toEqual([]);
+  });
+
+  it('every item- or stat-gated ladder out-earns every free one too', () => {
+    // military (fitness 50) and firefighter (fitness 55) sat at $500/$550,
+    // below the free chef's $805: a gym bar that bought a pay cut.
+    const gated = INITIAL_CAREERS.filter((c) => !hasEducation(c) && hasStatOrItemGate(c));
+    expect(gated.map((c) => c.id)).toEqual(expect.arrayContaining(['military', 'firefighter', 'real_estate_agent']));
+    expect(gated.filter((c) => top(c) <= bestFree).map((c) => `${c.id} ${top(c)}`)).toEqual([]);
+  });
+
+  it('the $90k masters tier out-earns every ladder that needs no degree but a phone or a laptop', () => {
+    const itemOnly = INITIAL_CAREERS.filter((c) => !hasEducation(c) && hasStatOrItemGate(c) && !('fitness' in reqOf(c)) && !('reputation' in reqOf(c)));
+    const bestItemOnly = Math.max(...itemOnly.map(top));
+    const masters = INITIAL_CAREERS.filter((c) => {
+      const r = reqOf(c);
+      return 'education' in r && Array.isArray(r.education) && r.education.includes('masters_degree');
+    });
+    expect(masters.map((c) => c.id)).toEqual(expect.arrayContaining(['therapist', 'veterinarian', 'architect']));
+    expect(masters.filter((c) => top(c) <= bestItemOnly).map((c) => `${c.id} ${top(c)}`)).toEqual([]);
+    expect(ceiling('therapist')).toBe(1600);
+    expect(ceiling('veterinarian')).toBe(1600);
+    expect(byId('therapist').levels[0].salary).toBe(250);
+    expect(byId('veterinarian').levels[0].salary).toBe(250);
+    expect(byId('architect').levels[0].salary).toBe(350);
+    expect(ceiling('architect')).toBe(2200);
+  });
+
+  it('no two careers behind the SAME requirements where one pays at least as much on every rung', () => {
+    // Same gate, worse ladder = a career nobody should ever take. Journalist
+    // vs pilot (both a business degree) was exactly this: the pilot paid at
+    // least as much on all six rungs. The entry tier is excluded here: its
+    // ladders are told apart by hiring bar, weekly toll and pace as well as
+    // pay, and `jobMarket.test.ts` checks dominance on all of those at once.
+    const nonEntry = INITIAL_CAREERS.filter((c) => !isEntryTierCareer(c.id));
+    const key = (c: Career) => JSON.stringify(reqOf(c), Object.keys(reqOf(c)).sort());
+    const dominated: string[] = [];
+    for (const a of nonEntry) {
+      for (const b of nonEntry) {
+        if (a.id === b.id || key(a) !== key(b) || a.levels.length !== b.levels.length) continue;
+        if (a.levels.every((lvl, i) => lvl.salary >= b.levels[i].salary)) dominated.push(`${a.id} >= ${b.id}`);
+      }
+    }
+    expect(dominated).toEqual([]);
   });
 
   it('and it no longer claims offices you can only win at an election', () => {

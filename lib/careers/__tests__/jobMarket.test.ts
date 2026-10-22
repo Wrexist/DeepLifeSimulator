@@ -212,3 +212,48 @@ describe('presentation helpers', () => {
     expect(careerCeiling({ levels: [] })).toBe(0);
   });
 });
+
+describe('no entry job is a trap (ECO-8, 2026-10-22)', () => {
+  // The chef ($805 ceiling, no bar, steady) used to beat janitor ($200),
+  // retail ($250) and fast food ($230) on ceiling with the same or a lower bar,
+  // so whether a new life was stuck on a $200 ceiling came down to which four
+  // cards the week-1 board dealt. A job is a trap when another one is at least
+  // as good on EVERY axis at once: ceiling, pace, hiring bar, weekly toll, and
+  // the tenure its top rungs demand (the musician's $2,120 sits behind 40/100/
+  // 170-week gates - its whole price is time).
+  type Profile = (typeof ENTRY_JOB_PROFILES)[number];
+  const careerOf = (id: string) => INITIAL_CAREERS.find((c) => c.id === id);
+  const ceilingOf = (id: string) => careerCeiling(careerOf(id));
+  const tenureOf = (id: string) => (careerOf(id)?.levels ?? []).reduce((sum, l) => sum + (l.experienceRequired ?? 0), 0);
+  const PACE = { slow: 0, steady: 1, fast: 2 } as const;
+  const bar = (p: Profile, k: 'fitness' | 'reputation' | 'health') => p.hiringBar[k] ?? 0;
+  const toll = (p: Profile, k: 'energy' | 'health' | 'happiness') => p.weeklyToll[k] ?? 0;
+
+  /** True when `a` is at least as good as `b` on every axis. */
+  const weaklyDominates = (a: Profile, b: Profile) =>
+    ceilingOf(a.careerId) >= ceilingOf(b.careerId) &&
+    PACE[a.growth] >= PACE[b.growth] &&
+    tenureOf(a.careerId) <= tenureOf(b.careerId) &&
+    (['fitness', 'reputation', 'health'] as const).every((k) => bar(a, k) <= bar(b, k)) &&
+    (['energy', 'health', 'happiness'] as const).every((k) => toll(a, k) >= toll(b, k));
+
+  it('no entry profile is at least as good as another on ceiling, pace, bar and toll at once', () => {
+    const traps: string[] = [];
+    for (const a of ENTRY_JOB_PROFILES) {
+      for (const b of ENTRY_JOB_PROFILES) {
+        if (a.careerId !== b.careerId && weaklyDominates(a, b)) traps.push(`${a.careerId} >= ${b.careerId}`);
+      }
+    }
+    expect(traps).toEqual([]);
+  });
+
+  it('the three ladders the chef used to dwarf now top out in the $450-$520 band', () => {
+    expect(ceilingOf('janitor')).toBe(520);
+    expect(ceilingOf('retail')).toBe(500);
+    expect(ceilingOf('fast_food')).toBe(450);
+    // Still below the chef: they win on bar, toll or pace, not on pay.
+    for (const id of ['janitor', 'retail', 'fast_food']) {
+      expect(ceilingOf(id)).toBeLessThan(ceilingOf('chef'));
+    }
+  });
+});

@@ -62,6 +62,24 @@ import { Career } from '@/contexts/game/types';
  * ladders; the $48k business degree clears the certificates; the $90k+ degrees
  * own the professional tier. Nothing was nerfed to get there — the dominated
  * ladders were raised.
+ *
+ * ── 2026-10-22: the rule had regressed (audit ECO-6 / ECO-8) ─────────────
+ *
+ * The ungated ladders were raised after 2026-08-25 and nothing re-checked the
+ * gated ones, so the $90k master's bought three dead ladders: therapist and
+ * vet topped at $850 (below the free chef's $805 + toll and the $600-phone
+ * realtor's $985) and architect at $1,300. Military and firefighter (fitness
+ * bars) sat below the free chef too, and journalist cleared it by $30. Raised:
+ * therapist and vet $250 -> $1,600, architect $350 -> $2,200, journalist
+ * $180 -> $1,150, military top $900, firefighter top $950. On the entry board
+ * the chef ($805) dominated janitor ($200), retail ($250) and fast food ($230)
+ * on ceiling with the same or a lower bar; those three now top at $520 / $500
+ * / $450, each keeping its own trade-off against the chef (jobMarket.ts).
+ *
+ * `lib/careers/__tests__/gateSetsTheCeiling.test.ts` now covers EVERY entry
+ * here, including a same-requirements dominance check. Careers are stored BY
+ * VALUE in the save, so a change to a ladder ships with a migration that
+ * adopts it for known ids (v54, v57).
  */
 
 /**
@@ -82,11 +100,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'fast_food',
         levels: [
             { name: 'Fast Food Worker', salary: 110 },
-            { name: 'Crew Member', salary: 130 },
-            { name: 'Shift Leader', salary: 140 },
-            { name: 'Assistant Manager', salary: 150 },
-            { name: 'Restaurant Manager', salary: 180 },
-            { name: 'District Manager', salary: 230 },
+            { name: 'Crew Member', salary: 150 },
+            { name: 'Shift Leader', salary: 200 },
+            { name: 'Assistant Manager', salary: 270 },
+            { name: 'Restaurant Manager', salary: 350 },
+            { name: 'District Manager', salary: 450 },
         ],
         level: 0,
         description: 'Flip burgers in a fast-food restaurant',
@@ -99,11 +117,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'retail',
         levels: [
             { name: 'Retail Associate', salary: 110 },
-            { name: 'Senior Associate', salary: 120 },
-            { name: 'Floor Supervisor', salary: 140 },
-            { name: 'Assistant Manager', salary: 165 },
-            { name: 'Store Manager', salary: 205 },
-            { name: 'Regional Manager', salary: 250 },
+            { name: 'Senior Associate', salary: 140 },
+            { name: 'Floor Supervisor', salary: 190 },
+            { name: 'Assistant Manager', salary: 260 },
+            { name: 'Store Manager', salary: 360 },
+            { name: 'Regional Manager', salary: 500 },
         ],
         level: 0,
         description: 'Assist customers and manage inventory in retail',
@@ -116,11 +134,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'janitor',
         levels: [
             { name: 'Janitor', salary: 110 },
-            { name: 'Senior Janitor', salary: 130 },
-            { name: 'Maintenance Lead', salary: 135 },
-            { name: 'Maintenance Supervisor', salary: 135 },
-            { name: 'Facility Manager', salary: 165 },
-            { name: 'Facilities Director', salary: 200 },
+            { name: 'Senior Janitor', salary: 150 },
+            { name: 'Maintenance Lead', salary: 210 },
+            { name: 'Maintenance Supervisor', salary: 290 },
+            { name: 'Facility Manager', salary: 390 },
+            { name: 'Facilities Director', salary: 520 },
         ],
         level: 0,
         description: 'Keep buildings clean and operational',
@@ -383,11 +401,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'military',
         levels: [
             { name: 'Private', salary: 120 },
-            { name: 'Corporal', salary: 160 },
-            { name: 'Sergeant', salary: 210 },
-            { name: 'Lieutenant', salary: 280 },
-            { name: 'Captain', salary: 370 },
-            { name: 'Colonel', salary: 500 },
+            { name: 'Corporal', salary: 180 },
+            { name: 'Sergeant', salary: 270 },
+            { name: 'Lieutenant', salary: 400 },
+            { name: 'Captain', salary: 590 },
+            { name: 'Colonel', salary: 900 },
         ],
         level: 0,
         description: 'Serve your country in the armed forces',
@@ -416,12 +434,12 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'journalist',
         levels: [
-            { name: 'Intern Reporter', salary: 110 },
-            { name: 'Staff Writer', salary: 185 },
-            { name: 'Senior Reporter', salary: 290 },
-            { name: 'Editor', salary: 435 },
-            { name: 'Managing Editor', salary: 615 },
-            { name: 'Editor-in-Chief', salary: 835 },
+            { name: 'Intern Reporter', salary: 180 },
+            { name: 'Staff Writer', salary: 300 },
+            { name: 'Senior Reporter', salary: 450 },
+            { name: 'Editor', salary: 650 },
+            { name: 'Managing Editor', salary: 880 },
+            { name: 'Editor-in-Chief', salary: 1150 },
         ],
         level: 0,
         description: 'Report the news and uncover stories',
@@ -433,12 +451,12 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'architect',
         levels: [
-            { name: 'Draftsperson', salary: 200 },
-            { name: 'Junior Architect', salary: 350 },
-            { name: 'Architect', salary: 500 },
-            { name: 'Senior Architect', salary: 700 },
-            { name: 'Principal Architect', salary: 950 },
-            { name: 'Firm Partner', salary: 1300 },
+            { name: 'Draftsperson', salary: 350 },
+            { name: 'Junior Architect', salary: 600 },
+            { name: 'Architect', salary: 900 },
+            { name: 'Senior Architect', salary: 1300 },
+            { name: 'Principal Architect', salary: 1700 },
+            { name: 'Firm Partner', salary: 2200 },
         ],
         level: 0,
         description: 'Design buildings and structures',
@@ -450,12 +468,12 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'veterinarian',
         levels: [
-            { name: 'Vet Assistant', salary: 110 },
-            { name: 'Vet Technician', salary: 190 },
-            { name: 'Veterinarian', salary: 355 },
-            { name: 'Senior Vet', salary: 505 },
-            { name: 'Specialist Vet', salary: 655 },
-            { name: 'Clinic Owner', salary: 850 },
+            { name: 'Vet Assistant', salary: 250 },
+            { name: 'Vet Technician', salary: 420 },
+            { name: 'Veterinarian', salary: 620 },
+            { name: 'Senior Vet', salary: 850 },
+            { name: 'Specialist Vet', salary: 1150 },
+            { name: 'Clinic Owner', salary: 1600 },
         ],
         level: 0,
         description: 'Care for animals and treat their illnesses',
@@ -552,12 +570,12 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'therapist',
         levels: [
-            { name: 'Counseling Intern', salary: 110 },
-            { name: 'Licensed Counselor', salary: 210 },
-            { name: 'Therapist', salary: 355 },
-            { name: 'Senior Therapist', salary: 505 },
-            { name: 'Clinical Director', salary: 655 },
-            { name: 'Private Practice Owner', salary: 850 },
+            { name: 'Counseling Intern', salary: 250 },
+            { name: 'Licensed Counselor', salary: 380 },
+            { name: 'Therapist', salary: 580 },
+            { name: 'Senior Therapist', salary: 880 },
+            { name: 'Clinical Director', salary: 1200 },
+            { name: 'Private Practice Owner', salary: 1600 },
         ],
         level: 0,
         description: 'Help people with their mental health',
@@ -570,11 +588,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'firefighter',
         levels: [
             { name: 'Probationary Firefighter', salary: 130 },
-            { name: 'Firefighter', salary: 190 },
-            { name: 'Senior Firefighter', salary: 250 },
-            { name: 'Lieutenant', salary: 330 },
-            { name: 'Captain', salary: 420 },
-            { name: 'Fire Chief', salary: 550 },
+            { name: 'Firefighter', salary: 200 },
+            { name: 'Senior Firefighter', salary: 300 },
+            { name: 'Lieutenant', salary: 450 },
+            { name: 'Captain', salary: 650 },
+            { name: 'Fire Chief', salary: 950 },
         ],
         level: 0,
         description: 'Fight fires and save lives',

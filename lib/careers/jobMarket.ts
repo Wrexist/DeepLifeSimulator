@@ -120,7 +120,9 @@ export const ENTRY_JOB_PROFILES: readonly EntryJobProfile[] = [
     path: 'Crew → shift lead → district manager',
     hiringBar: {},
     weeklyToll: { energy: -12, happiness: -3 },
-    // The FAST ladder, and the tier's lowest ceiling ($230). Promotions come
+    // The FAST ladder, and the tier's lowest ceiling ($450 since 2026-10-22;
+    // $230 before, when the chef's $805 beat it on every axis but pace and the
+    // job was a trap the board offered as an equal choice). Promotions come
     // quickly because the whole ladder is short - the opposite bet to the
     // musician, who climbs slowest to the highest ceiling. Before 2026-08-25
     // the musician held 'fast' AND the top ceiling, so no other pace was worth
