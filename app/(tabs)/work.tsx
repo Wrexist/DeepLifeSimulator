@@ -1243,6 +1243,7 @@ function WorkScreenContent() {
                                             education: gameState.educations || [],
                                             claimedAchievements: gameState.claimedProgressAchievements || [],
                                             stats: gameState.stats,
+                                            vehicles: gameState.vehicles,
                                             // Experience is weeks played in THIS life. The raw
                                             // counter is seeded from the starting age, so an
                                             // age-25 start already had 364 weeks of "experience"

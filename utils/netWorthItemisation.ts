@@ -25,6 +25,7 @@ import { MIRRORED_ACCOUNT_IDS, totalCreditCardDebt } from '@/lib/banking/operati
 import { getOwnedLuxuryItems, getLuxuryHoldingValue } from '@/lib/luxury';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { calculateVehicleSellPrice } from '@/lib/vehicles/resale';
 
 /** Display groups, in the order the modal renders them. */
 export const NET_WORTH_GROUPS = [
@@ -254,25 +255,9 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
    */
   (vehicles || []).forEach((vehicle) => {
     if (!vehicle) return;
-    const price =
-      typeof vehicle.price === 'number' && isFinite(vehicle.price) && vehicle.price >= 0 ? vehicle.price : 0;
-    const condition =
-      typeof vehicle.condition === 'number' &&
-      isFinite(vehicle.condition) &&
-      vehicle.condition >= 0 &&
-      vehicle.condition <= 100
-        ? vehicle.condition
-        : 100;
-    const mileage =
-      typeof vehicle.mileage === 'number' && isFinite(vehicle.mileage) && vehicle.mileage >= 0
-        ? vehicle.mileage
-        : 0;
-    if (price <= 0) return;
-
-    const baseSellPercent = 0.8;
-    const conditionMultiplier = 0.2 + (condition / 100) * 0.8;
-    const mileagePenalty = Math.min(0.3, mileage / 500000);
-    const depreciatedValue = price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
+    // The same formula a sale pays and canonical net worth counts, including
+    // the age term (LIFE-8) - this was the third hand copy of it.
+    const depreciatedValue = calculateVehicleSellPrice(vehicle);
     if (!isFinite(depreciatedValue) || depreciatedValue <= 0) return;
 
     assets.push({

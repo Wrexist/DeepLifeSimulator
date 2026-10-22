@@ -34,7 +34,7 @@ import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { getUpgradeTier, getUpgradeUpkeepBonus } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
 import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
 import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
@@ -1013,7 +1013,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
                   if (!tier) return;
                   
                   const propertyUpkeep = typeof property.upkeep === 'number' && isFinite(property.upkeep) && property.upkeep >= 0 ? property.upkeep : 0;
-                  const tierUpkeepBonus = typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) && tier.upkeepBonus >= 0 ? tier.upkeepBonus : 0;
+                  const tierUpkeepBonus = getUpgradeUpkeepBonus(tier, property);
                   const totalUpkeep = propertyUpkeep + tierUpkeepBonus;
                   
                   if (isFinite(totalUpkeep) && totalUpkeep > 0) {
@@ -1031,7 +1031,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
                       const upgradeLevel = property ? (typeof property.upgradeLevel === 'number' && isFinite(property.upgradeLevel) && property.upgradeLevel >= 0 ? property.upgradeLevel : 0) : 0;
                       const propertyUpkeep = property ? (typeof property.upkeep === 'number' && isFinite(property.upkeep) && property.upkeep >= 0 ? property.upkeep : 0) : 0;
                       const tier = property ? (getUpgradeTier(upgradeLevel) || getUpgradeTier(0)) : null;
-                      const tierUpkeepBonus = tier ? (typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) && tier.upkeepBonus >= 0 ? tier.upkeepBonus : 0) : 0;
+                      const tierUpkeepBonus = tier && property ? getUpgradeUpkeepBonus(tier, property) : 0;
                       
                       return (
                         <View key={idx} style={[styles.modalSubItem, isDarkMode && styles.modalSubItemDark]}>
@@ -1238,7 +1238,8 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
                   if (!vehicle) return;
                   
                   const maintenanceCost = typeof vehicle.weeklyMaintenanceCost === 'number' && isFinite(vehicle.weeklyMaintenanceCost) && vehicle.weeklyMaintenanceCost >= 0 ? vehicle.weeklyMaintenanceCost : 0;
-                  const fuelCost = (gameState.activeVehicleId === vehicle.id && typeof vehicle.weeklyFuelCost === 'number' && isFinite(vehicle.weeklyFuelCost) && vehicle.weeklyFuelCost >= 0) ? vehicle.weeklyFuelCost : 0;
+                  // Fuel is paid at the pump (Refuel), not billed weekly (LIFE-7).
+                  const fuelCost = 0;
                   const insuranceCost = (vehicle.insurance?.active && typeof vehicle.insurance.monthlyCost === 'number' && isFinite(vehicle.insurance.monthlyCost) && vehicle.insurance.monthlyCost >= 0) ? Math.round(vehicle.insurance.monthlyCost / 4) : 0;
                   
                   const total = maintenanceCost + fuelCost + insuranceCost;

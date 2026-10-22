@@ -29,6 +29,8 @@ import {
   getInsurancePlan,
   calculateAccidentDamage,
   AccidentSeverity,
+  vehicleReputationBonus,
+  vehicleReputationTakeBack,
 } from '@/lib/vehicles/vehicles';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -74,7 +76,7 @@ const log = logger.scope('VehicleActions');
 //     bonus while you owned the car, selling and rebuying returns you to the
 //     bonus. That is exactly what a first-time buyer at the same reputation
 //     gets, and below what owning the car already reaches through the weekly
-//     nudge (`applyVehicles`: +1/wk up to 3x the bonus) - so it can restore the
+//     nudge (`applyVehicles`: +1/wk up to the bonus, max 20) - so it can restore the
 //     car's own floor but never lift reputation above anything ownership does
 //     not already grant.
 
@@ -99,31 +101,11 @@ export function reputationAfterVehicleSale(reputation: unknown, bonus: unknown):
   return Math.max(0, clampReputation(reputation) - positiveBonus(bonus));
 }
 
-/**
- * The reputation a garage vehicle carries: the bonus stamped on it at purchase
- * (`createVehicleFromTemplate` copies the template's), else its template's.
- * Read from the vehicle first so a later template rebalance cannot change what
- * selling an already-owned car takes back, and so a vehicle that never carried
- * any (a rental, the prestige starter car) takes back nothing.
- */
-export function vehicleReputationBonus(vehicle: Pick<Vehicle, 'id' | 'reputationBonus'>): number {
-  const own = vehicle.reputationBonus;
-  if (typeof own === 'number' && isFinite(own) && own >= 0) return own;
-  return positiveBonus(VEHICLE_TEMPLATES.find((t) => t.id === vehicle.id)?.reputationBonus);
-}
-
-/**
- * The reputation selling `vehicle` takes back: what its purchase actually
- * granted (`reputationGranted`, v55), else - for a vehicle bought before the
- * record existed - the whole bonus it carries (`vehicleReputationBonus`).
- */
-export function vehicleReputationTakeBack(
-  vehicle: Pick<Vehicle, 'id' | 'reputationBonus' | 'reputationGranted'>,
-): number {
-  const granted = vehicle.reputationGranted;
-  if (typeof granted === 'number' && isFinite(granted) && granted >= 0) return granted;
-  return vehicleReputationBonus(vehicle);
-}
+// `vehicleReputationBonus` / `vehicleReputationTakeBack` moved down to
+// `lib/vehicles/vehicles.ts` (ECO-9) so the career gate in `lib/careers` can
+// read what a garage granted without a lib -> contexts import. Re-exported here
+// so every existing importer is untouched.
+export { vehicleReputationBonus, vehicleReputationTakeBack };
 
 const POLICY_TERM_WEEKS = 26; // matches the 6-month term set at purchase
 

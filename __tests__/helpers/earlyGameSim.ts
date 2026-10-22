@@ -47,7 +47,7 @@ import {
   buyCompanyUpgrade as buyCompanyUpgradeAction,
 } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney as updateMoneyModule } from '@/contexts/game/actions/MoneyActions';
-import { getDriversLicense, purchaseVehicle } from '@/contexts/game/actions/VehicleActions';
+import { getDriversLicense, purchaseVehicle, refuelVehicle } from '@/contexts/game/actions/VehicleActions';
 import { purchaseLuxuryItem } from '@/contexts/game/actions/LuxuryActions';
 import { acceptLoan } from '@/contexts/game/actions/LoanActions';
 import { buyPet as buyPetAction } from '@/contexts/game/actions/PetActions';
@@ -110,6 +110,8 @@ export interface SimActions {
   buyCompanyUpgrade: (upgradeId: string, companyId?: string) => Promise<SimActionResult | undefined>;
   getLicense: () => Promise<SimActionResult | undefined>;
   buyVehicle: (vehicleId: string) => Promise<SimActionResult | undefined>;
+  /** Fill a vehicle's tank at the pump (LIFE-7: fuel drains, Refuel pays for it). */
+  refuelVehicle: (vehicleId: string) => Promise<SimActionResult | undefined>;
   buyLuxury: (itemId: string) => Promise<SimActionResult | undefined>;
   takeLoan: (principal: number, termWeeks: number, type: 'personal' | 'auto' | 'business') => Promise<void>;
   /** Spend `amountUSD` of cash on a coin at the board price (the Crypto app's buy). */
@@ -590,6 +592,8 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         ),
       buyVehicle: (vehicleId) =>
         spend('vehicle', () => purchaseVehicle(captured!.state, captured!.setGameState, vehicleId)),
+      refuelVehicle: (vehicleId) =>
+        spend('vehicle', () => refuelVehicle(captured!.state, captured!.setGameState, vehicleId)),
       buyLuxury: (itemId) =>
         spend('luxury', () => purchaseLuxuryItem(captured!.state, captured!.setGameState, itemId)),
       takeLoan: (principal, termWeeks, type) =>

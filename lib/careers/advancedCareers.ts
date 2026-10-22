@@ -4,8 +4,9 @@
  * High-level careers that require specific education, experience, or achievements
  */
 
-import { Career } from '@/contexts/game/types';
+import type { Career, GameState } from '@/contexts/game/types';
 import { AdvancedCareerUnlockRequirements } from '@/lib/types/requirements';
+import { careerGateReputation } from './careerRequirements';
 
 export interface AdvancedCareer extends Career {
   unlockRequirements: AdvancedCareerUnlockRequirements;
@@ -391,6 +392,8 @@ export function isCareerUnlocked(
     /** Live claimed-achievement IDs (state.claimedProgressAchievements). */
     claimedAchievements: string[];
     stats: { reputation: number };
+    /** Owned vehicles: their purchase reputation is not counted (ECO-9). */
+    vehicles?: GameState['vehicles'];
     /** Weeks played in THIS life (`weeksSinceLifeStart`), NOT the raw counter. */
     weeksLived: number;
     /** Precomputed via the shared calculateNetWorth helper (task #64). */
@@ -413,7 +416,8 @@ export function isCareerUnlocked(
   }
 
   // Check reputation
-  if ('reputation' in req && req.reputation && gameState.stats.reputation < req.reputation) {
+  // Earned reputation only - status cars do not count (ECO-9).
+  if ('reputation' in req && req.reputation && careerGateReputation(gameState) < req.reputation) {
     return false;
   }
 
