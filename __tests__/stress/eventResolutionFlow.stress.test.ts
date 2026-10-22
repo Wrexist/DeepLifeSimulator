@@ -21,7 +21,7 @@ import React from 'react';
 import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState, Relationship } from '@/contexts/game/types';
+import type { GameState, Relationship, WeddingPlan } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
 
 jest.mock('@/utils/saveQueue', () => ({
@@ -310,6 +310,41 @@ describe('Random event resolution audit', () => {
     });
     act(() => captured!.game.resolveEvent('wedding', 'marry'));
     expect(captured!.state.relationships?.find(r => r.id === 'fiance')?.type).toBe('spouse');
+  });
+
+  it('SOC-20: "marry" does not discard a wedding the player booked while the event waited', () => {
+    mounted = mountGame();
+    const plan: WeddingPlan = {
+      venueId: 'garden', venueName: 'Garden', venueType: 'garden', partnerId: 'booked',
+      guestCount: 80, scheduledWeek: 9_999, budget: 40_000,
+      catering: true, photography: true, music: true, decorations: true,
+    };
+    const partner: Relationship = {
+      id: 'booked',
+      name: 'Booked',
+      type: 'partner',
+      relationshipScore: 90,
+      personality: 'loving',
+      gender: 'female',
+      age: 25,
+      engagementWeek: 100,
+      weddingPlanned: plan,
+    };
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      relationships: [...(prev.relationships || []), partner],
+    })));
+    injectEvent({
+      id: 'wedding',
+      relationId: 'booked',
+      choices: [{ id: 'marry', effects: { money: -2000, relationship: 20 } }],
+    });
+    act(() => captured!.game.resolveEvent('wedding', 'marry'));
+    const after = captured!.state.relationships?.find(r => r.id === 'booked');
+    expect(after?.type).toBe('partner');
+    expect(after?.weddingPlanned).toEqual(plan);
+    expect(captured!.state.stats.money).toBe(10_000); // what injectEvent set; no $2,000 charge
+    expect(captured!.state.pendingEvents?.some(e => e.id === 'wedding')).toBe(false);
   });
 
   it('resolveEvent: wedding event with non-marry choice does NOT promote to spouse', () => {

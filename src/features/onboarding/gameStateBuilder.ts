@@ -382,7 +382,15 @@ function buildFamilyAndRelationships(
   childBondBonus = 0,
 ): { family: any; relationships: any[] } {
   const baseFamily = { ...initialGameState.family };
-  const baseRelationships = [...(initialGameState.relationships || [])];
+  // SOC-12: the template parents (45 / 47) are authored for an 18-year-old.
+  // Copied unchanged, a 30-year-old start had a mother who gave birth at 15.
+  // They age with the starting age, so the gap between generations holds.
+  const yearsPastEighteen = Math.max(0, Math.floor((scenarioStart.age || 18) - 18));
+  const baseRelationships = (initialGameState.relationships || []).map((rel: any) =>
+    rel?.type === 'parent' && typeof rel.age === 'number' && yearsPastEighteen > 0
+      ? { ...rel, age: rel.age + yearsPastEighteen }
+      : rel,
+  );
 
   if (scenarioStart.noChildren) {
     return {

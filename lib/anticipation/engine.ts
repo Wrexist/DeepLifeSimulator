@@ -53,12 +53,15 @@ function educationEvents(state: GameState, now: number): UpcomingEvent[] {
     });
 }
 
-/** A birth, from the pregnancy counter the tick reads. */
+/**
+ * A birth, from the pregnancy counter the tick reads - which is the live
+ * `relationships` record ONLY. `family.spouse` is a wedding-day snapshot that
+ * is never refreshed while married, so a couple who married while expecting
+ * kept `isPregnant: true` on it after the birth: the snapshot won the dedupe
+ * and the panel said "is due" forever, masking any later real pregnancy (SOC-9).
+ */
 function birthEvents(state: GameState, now: number): UpcomingEvent[] {
-  const candidates: Relationship[] = [
-    ...(state.family?.spouse ? [state.family.spouse] : []),
-    ...(state.relationships ?? []),
-  ];
+  const candidates: Relationship[] = state.relationships ?? [];
   const seen = new Set<string>();
   const out: UpcomingEvent[] = [];
   for (const rel of candidates) {

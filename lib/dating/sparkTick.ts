@@ -100,25 +100,44 @@ export function processSparkWeeklyTick(
     sp.lifetimeStats.totalPremiumWeeks += 1;
   }
 
+  // 5a. SOC-14: a confrontation belongs to a CURRENT partner. Every path that
+  //     ends a relationship (break up, divorce, the low-score roll) left it
+  //     standing, so the player was accused by "Your partner" - somebody no
+  //     longer in their life - lost reputation for answering, and no new event
+  //     could spawn while it sat there. Reconciled here against the live set
+  //     rather than at each removal site, so a path added later is covered too.
+  if (sp.activeJealousy) {
+    const accuserId = sp.activeJealousy.partnerId;
+    const stillTogether = (state.relationships ?? []).some(
+      (r) => r?.id === accuserId && (r.type === 'partner' || r.type === 'spouse'),
+    );
+    if (!stillTogether) sp.activeJealousy = null;
+  }
+
   // 5. Jealousy event spawn — at most 1 active at a time, deterministic per week
   if (!sp.activeJealousy) {
     const risk = calculateJealousyRisk(state);
     if (risk > 0) {
-      const rng = seededRandom(`spark-jealousy|${state.lineageId ?? 'init'}|${nextWeeksLived}`);
+      const jealousySeed = `spark-jealousy|${state.lineageId ?? 'init'}|${nextWeeksLived}`;
+      const rng = seededRandom(jealousySeed);
       if (rng < risk) {
         const partners = (state.relationships ?? []).filter(
           (r) => (r.type === 'partner' || r.type === 'spouse') && (r.relationshipScore ?? 0) > 40,
         );
         if (partners.length > 0) {
-          const partner = partners[Math.floor(rng * partners.length)];
+          // SOC-15: the partner, trigger and severity each get their OWN draw.
+          // They all reused the gate roll, which is already known to be below
+          // `risk` (capped at 0.7), so severity could never pass 74 and the
+          // severity-75 "Confess the affair" choice was unreachable.
+          const partner = partners[Math.floor(seededRandom(`${jealousySeed}|partner`) * partners.length)];
           const triggers: SparkJealousyEvent['triggerType'][] =
             ['spotted_swiping', 'rumored_affair', 'multiple_dating', 'flirty_dm'];
-          const trigger = triggers[Math.floor((rng * 10_000) % triggers.length)];
+          const trigger = triggers[Math.floor(seededRandom(`${jealousySeed}|trigger`) * triggers.length)];
           sp.activeJealousy = {
             id: `sj-${nextWeeksLived}-${partner.id}`,
             partnerId: partner.id,
             triggerType: trigger,
-            severity: Math.floor(40 + rng * 50),
+            severity: Math.floor(40 + seededRandom(`${jealousySeed}|severity`) * 50),
             startedWeek: nextWeeksLived,
             resolved: false,
           };
