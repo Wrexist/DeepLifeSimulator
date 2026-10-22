@@ -5,6 +5,8 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
+import { hasSeenIntro, markIntroSeen, INTRO_SEEN_KEY } from '@/src/features/onboarding/introSeen';
 
 // An in-memory device store, so "seen" survives between reads like the real one.
 const mockStore = new Map<string, string>();
@@ -15,9 +17,6 @@ jest.mock('@/utils/storageWrapper', () => ({
     removeItem: jest.fn(async (k: string) => { mockStore.delete(k); }),
   },
 }));
-
-import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { hasSeenIntro, markIntroSeen, INTRO_SEEN_KEY } from '@/src/features/onboarding/introSeen';
 
 const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 

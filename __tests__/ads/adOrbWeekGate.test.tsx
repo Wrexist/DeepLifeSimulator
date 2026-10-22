@@ -10,6 +10,9 @@
  */
 import React from 'react';
 import { act } from 'react-test-renderer';
+import { renderWithProviders } from '../render/helpers/renderWithProviders';
+import AdRewardOrb from '@/components/AdRewardOrb';
+import { AD_FREE_PERK_LABEL } from '@/lib/ads/orbGates';
 
 const mockUnlocked = jest.fn<boolean, []>();
 const mockAdsRemoved = jest.fn<boolean, []>();
@@ -26,10 +29,6 @@ jest.mock('@/lib/ads/rewardedAd', () => {
     adsAvailable: () => false,
   };
 });
-
-import { renderWithProviders } from '../render/helpers/renderWithProviders';
-import AdRewardOrb from '@/components/AdRewardOrb';
-import { AD_FREE_PERK_LABEL } from '@/lib/ads/orbGates';
 
 async function advance(ms: number): Promise<void> {
   act(() => {
