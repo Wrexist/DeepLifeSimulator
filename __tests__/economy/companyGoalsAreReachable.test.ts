@@ -42,16 +42,24 @@ describe('the company ceiling is what this test thinks it is', () => {
       require('path').join(__dirname, '../../contexts/game/actions/CompanyActions.ts'),
       'utf8',
     ) as string;
-    const from = src.indexOf('const companyCosts');
-    const to = src.indexOf('const baseCost');
+    // v57 (ECO-10): the four restated cost tables became ONE,
+    // `COMPANY_FOUNDING_COST` in companyUpgradeCatalog.ts. Pin that
+    // createCompany reads it, then compare its keys to the literal above.
+    expect(src).toMatch(/const companyCosts = COMPANY_FOUNDING_COST;/);
+    const catalog = require('fs').readFileSync(
+      require('path').join(__dirname, '../../contexts/game/companyUpgradeCatalog.ts'),
+      'utf8',
+    ) as string;
+    const from = catalog.indexOf('export const COMPANY_FOUNDING_COST');
+    const to = catalog.indexOf('} as const;', from);
     expect(`anchors found: ${from > -1 && to > from}`).toBe('anchors found: true');
-    const table = src.slice(from, to);
+    const table = catalog.slice(from, to);
 
     // EXACT set, both directions. Only checking that the five expected keys are
     // present would accept a sixth type being added - at which point
     // MAX_COMPANIES silently understates the real ceiling and the achievement
     // this file guards becomes reachable-but-wrong instead of unreachable.
-    const declared = [...table.matchAll(/^\s{4}(\w+):\s*\d/gm)].map((m) => m[1]).sort();
+    const declared = [...table.matchAll(/^\s{2}(\w+):\s*\d/gm)].map((m) => m[1]).sort();
     expect(declared).toEqual([...COMPANY_TYPES].sort());
   });
 

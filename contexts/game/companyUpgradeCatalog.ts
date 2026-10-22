@@ -402,19 +402,39 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
 export const COMPANY_UPGRADE_COST_MULTIPLIER = 1.5;
 
 /**
+ * Founding cost per industry, before inflation. The ONE table: it used to be
+ * restated in `createCompany` (both copies) and `calculateCompanyROI`, and the
+ * Create Company screen printed its own literal - four copies of one number.
+ */
+export const COMPANY_FOUNDING_COST = {
+  factory: 50_000,
+  ai: 90_000,
+  restaurant: 130_000,
+  realestate: 200_000,
+  // $2M until v57 (ECO-10). At $2M and $4,000/wk it yielded 10.4%/yr against
+  // a real-estate company's 83% - a 9.6x price for 1.25x the income, i.e. the
+  // most expensive company was the worst one to own, and the cheapest way to
+  // spend $2M on businesses was ten real-estate firms. Now $400k / $5,500.
+  bank: 400_000,
+} as const;
+
+export type CompanyFoundingType = keyof typeof COMPANY_FOUNDING_COST;
+
+/**
  * Starting weekly income per industry (was a flat 2000 for every type, which
- * made pricier companies strictly worse buys). Scales loosely with founding
- * cost so payback periods stay sane:
- *   factory    $50k  → $1,500/wk (~33 wk payback, cheap steady starter)
- *   ai         $90k  → $2,200/wk (~41 wk; big upgrade ceiling)
- *   restaurant $130k → $2,600/wk (~50 wk)
- *   realestate $200k → $3,200/wk (~63 wk)
- *   bank       $2M   → $4,000/wk (endgame; huge upgrade bonuses carry it)
+ * made pricier companies strictly worse buys). Scales with founding cost so the
+ * YIELD falls as the ticket rises - a bigger company is a bigger, steadier
+ * business, never a strictly worse buy (pinned by companyYieldLadder.test.ts):
+ *   factory    $50k  → $1,500/wk (156%/yr, ~33 wk payback, cheap steady starter)
+ *   ai         $90k  → $2,200/wk (127%/yr, ~41 wk; big upgrade ceiling)
+ *   restaurant $130k → $2,600/wk (104%/yr, ~50 wk)
+ *   realestate $200k → $3,200/wk ( 83%/yr, ~63 wk)
+ *   bank       $400k → $5,500/wk ( 72%/yr, ~73 wk; was $2M → $4,000, 10%/yr)
  */
 export const COMPANY_STARTING_INCOME: Record<string, number> = {
   factory: 1500,
   ai: 2200,
   restaurant: 2600,
   realestate: 3200,
-  bank: 4000,
+  bank: 5500,
 };

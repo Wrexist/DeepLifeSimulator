@@ -20,6 +20,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
+import { COMPANY_FOUNDING_COST } from '@/contexts/game/companyUpgradeCatalog';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -55,11 +56,11 @@ const INDUSTRIES: {
   description: string;
   cost: number;
 }[] = [
-  { id: 'factory', name: 'Manufacturing', icon: Factory, description: 'Industrial production, hard assets, slow & steady growth.', cost: 50_000 },
-  { id: 'ai', name: 'AI / Tech', icon: Briefcase, description: 'High R&D leverage, fast scale, prone to media swings.', cost: 90_000 },
-  { id: 'restaurant', name: 'Restaurant', icon: Utensils, description: 'Brand-driven, local footprint, sensitive to reviews.', cost: 130_000 },
-  { id: 'realestate', name: 'Real Estate', icon: Building2, description: 'Capital-heavy, durable income, regulator exposure.', cost: 200_000 },
-  { id: 'bank', name: 'Bank', icon: Landmark, description: 'Massive moat, complex compliance, premium endgame play.', cost: 2_000_000 },
+  { id: 'factory', name: 'Manufacturing', icon: Factory, description: 'Industrial production, hard assets, slow & steady growth.', cost: COMPANY_FOUNDING_COST.factory },
+  { id: 'ai', name: 'AI / Tech', icon: Briefcase, description: 'High R&D leverage, fast scale, prone to media swings.', cost: COMPANY_FOUNDING_COST.ai },
+  { id: 'restaurant', name: 'Restaurant', icon: Utensils, description: 'Brand-driven, local footprint, sensitive to reviews.', cost: COMPANY_FOUNDING_COST.restaurant },
+  { id: 'realestate', name: 'Real Estate', icon: Building2, description: 'Capital-heavy, durable income, regulator exposure.', cost: COMPANY_FOUNDING_COST.realestate },
+  { id: 'bank', name: 'Bank', icon: Landmark, description: 'Massive moat, complex compliance, premium endgame play.', cost: COMPANY_FOUNDING_COST.bank },
 ];
 
 interface CreateCompanyScreenProps {

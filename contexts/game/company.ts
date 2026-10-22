@@ -1,7 +1,7 @@
 // cspell:words realestate fintech
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { companyOwnerShare } from '@/lib/economy/passiveIncome';
-import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from './companyUpgradeCatalog';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME, COMPANY_FOUNDING_COST } from './companyUpgradeCatalog';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './actions/MoneyActions';
@@ -18,13 +18,7 @@ export function createCompany(
     logger.error('createCompany: companyType must be a string, received:', { type: typeof companyType, value: companyType });
     return { success: false, message: 'Invalid company type' };
   }
-  const companyCosts = {
-    factory: 50000,
-    ai: 90000,
-    restaurant: 130000,
-    realestate: 200000,
-    bank: 2000000,
-  } as const;
+  const companyCosts = COMPANY_FOUNDING_COST;
 
   // Validate companyType against allowed types
   const validTypes = Object.keys(companyCosts);
@@ -339,13 +333,7 @@ export function quoteCompanySaleValue(gameState: GameState, companyId: string): 
   if (!company) return null;
   
   // Calculate total investment (company cost + all upgrade costs)
-  const companyCosts = {
-    factory: 50000,
-    ai: 90000,
-    restaurant: 130000,
-    realestate: 200000,
-    bank: 2000000,
-  } as const;
+  const companyCosts = COMPANY_FOUNDING_COST;
 
   const baseCompanyCost = companyCosts[company.type as keyof typeof companyCosts] || 0;
   const inflatedCompanyCost = getInflatedPrice(baseCompanyCost, gameState.economy.priceIndex);
