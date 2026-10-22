@@ -3,8 +3,10 @@
  *
  * Before this, a player could apply for a card but never USE it: nothing charged
  * a balance, so payCreditCard always rejected "zero balance" and rewards could
- * never accrue or be redeemed. The AdvancedBankApp now surfaces the existing
- * `spendOnCard` (charge), `payDownCard` (settle), and `redeemRewards` actions.
+ * never accrue or be redeemed. The AdvancedBankApp surfaces `payDownCard`
+ * (settle) and `redeemRewards`. Its free-standing Charge button was removed
+ * under ECO-5 (charging bought nothing); `spendOnCard` stays as the action a
+ * future card payment rail will call, so the loop is still pinned here.
  *
  * This suite pins the full loop at the game-state action level:
  *   charge → balance grows, cash unchanged, NO rewards yet (anti-exploit: cashback
