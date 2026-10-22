@@ -1,7 +1,7 @@
 /**
  * The weekly mail generator.
  *
- * Deterministic in `(week, salt)` — no `Math.random`, no device clock. The same
+ * Deterministic in `(life, week, salt)` — no `Math.random`, no device clock. The same
  * week always produces the same inbox, which is what lets the whole thing run
  * inside a `setGameState` updater that React 19 may invoke twice, and what lets
  * a tick replayed after a failed save land in the same place.
@@ -18,6 +18,7 @@ import { arrearsInvoice, jobOfferLetter } from './offers';
 import { breachNotice, extortionDemand } from './security';
 import { mailEvents } from '@/lib/events/routing';
 import type { MailContext, MailFacts } from './types';
+import { makeLifeRoll } from '@/utils/seededRoll';
 
 /**
  * Ceiling per week.
@@ -29,18 +30,19 @@ import type { MailContext, MailFacts } from './types';
  */
 export const MAX_MESSAGES_PER_WEEK = 3;
 
-/** Deterministic 0..1 from a week and a salt string. */
-function makeRand(week: number): (salt: string) => number {
-  return (salt: string) => {
-    let h = Math.floor(week) * 2654435761;
-    for (let i = 0; i < salt.length; i += 1) {
-      h = (h * 31 + salt.charCodeAt(i)) | 0;
-    }
-    // sin-based hash, the same shape used by the seasonal-event and
-    // wealth-event generators — cheap, stable across platforms, no state.
-    const x = Math.sin(h) * 10000;
-    return x - Math.floor(x);
-  };
+/**
+ * Deterministic 0..1 from the LIFE, the week and a salt string.
+ *
+ * This was a week-only `Math.sin` hash, so every life got the same phishing
+ * mail (and the same recruiter offer, and the same service invoice) on the
+ * same week - and a scam can take real cash, which makes it a life-affecting
+ * roll keyed on the week alone (CLAUDE.md §4.3). `Math.sin` is also not
+ * bit-exact across Hermes and V8. Same life + same week still gives the same
+ * inbox, so a replayed tick lands in the same place.
+ */
+function makeRand(state: GameState, week: number): (salt: string) => number {
+  const roll = makeLifeRoll(state, week);
+  return (salt: string) => roll(`mail:${salt}`);
 }
 
 export interface GenerateMailInput {
@@ -62,7 +64,7 @@ export function generateWeeklyMail(input: GenerateMailInput): MailMessage[] {
     state: input.state,
     week,
     facts: input.facts ?? {},
-    rand: makeRand(week),
+    rand: makeRand(input.state, week),
   };
 
   const out: MailMessage[] = [];

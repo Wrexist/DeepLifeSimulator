@@ -16,6 +16,7 @@
  * gate, so these cannot be farmed.
  */
 import type { EventTemplate, WeeklyEvent } from './engine';
+import { payloadRoll, pickSeeded } from './seededPayload';
 import type { GameState } from '@/contexts/game/types';
 import {
   PURSUITS,
@@ -50,15 +51,16 @@ function activeByCategory(
   );
 }
 
-/** Deterministic pick keyed on the week so a given week is stable across resumes. */
-function seededPick<T>(items: T[], seed: number): T | undefined {
+/**
+ * Deterministic pick keyed on the LIFE and the week (`payloadRoll`), so a given
+ * week is stable across resumes but two lives do not name the same hobby. This
+ * was a week-only `Math.sin` hash - identical in every life and not bit-exact
+ * across Hermes and V8 (CLAUDE.md §4.3).
+ */
+function seededPick<T>(items: T[], state: GameState, salt: number): T | undefined {
   if (items.length === 0) return undefined;
-  const x = Math.sin(seed) * 10000;
-  const roll = x - Math.floor(x);
-  return items[Math.min(items.length - 1, Math.floor(roll * items.length))];
+  return pickSeeded(items, payloadRoll(state, `hobby-pick-${salt}`), 'pick');
 }
-
-const seedFor = (state: GameState, salt: number) => (state.weeksLived || 0) * 100 + salt;
 
 /** Trivial fallback so generate() always returns a valid event (never crashes). */
 const noopEvent = (id: string): WeeklyEvent => ({
@@ -80,7 +82,7 @@ const hobbyLocalShow: EventTemplate = {
   condition: (state) => activeByCategory(state, ['creative']).length > 0,
   generate: (state) => {
     const items = activeByCategory(state, ['creative']);
-    const pick = seededPick(items, seedFor(state, 1));
+    const pick = seededPick(items, state, 1);
     if (!pick) return noopEvent('hobby_local_show');
     const { def, level } = pick;
     const money = moneyReward(level, 30, 12);
@@ -113,7 +115,7 @@ const hobbyTournament: EventTemplate = {
   condition: (state) => activeByCategory(state, ['physical', 'intellectual']).length > 0,
   generate: (state) => {
     const items = activeByCategory(state, ['physical', 'intellectual']);
-    const pick = seededPick(items, seedFor(state, 2));
+    const pick = seededPick(items, state, 2);
     if (!pick) return noopEvent('hobby_tournament');
     const { def, level } = pick;
     const prize = moneyReward(level, 40, 14);
@@ -147,7 +149,7 @@ const hobbyWentViral: EventTemplate = {
   condition: (state) => activeByCategory(state, ['musical']).length > 0,
   generate: (state) => {
     const items = activeByCategory(state, ['musical']);
-    const pick = seededPick(items, seedFor(state, 3));
+    const pick = seededPick(items, state, 3);
     if (!pick) return noopEvent('hobby_went_viral');
     const { def, level } = pick;
     const tips = moneyReward(level, 20, 10);
@@ -178,7 +180,7 @@ const hobbyMarketplaceSale: EventTemplate = {
   condition: (state) => activeByCategory(state, ['culinary', 'collecting']).length > 0,
   generate: (state) => {
     const items = activeByCategory(state, ['culinary', 'collecting']);
-    const pick = seededPick(items, seedFor(state, 4));
+    const pick = seededPick(items, state, 4);
     if (!pick) return noopEvent('hobby_marketplace_sale');
     const { def, level } = pick;
     const money = moneyReward(level, 35, 16);
@@ -213,7 +215,7 @@ const hobbyCommunitySpotlight: EventTemplate = {
   condition: (state) => activeByCategory(state, ['social', 'outdoor', 'wellness']).length > 0,
   generate: (state) => {
     const items = activeByCategory(state, ['social', 'outdoor', 'wellness']);
-    const pick = seededPick(items, seedFor(state, 5));
+    const pick = seededPick(items, state, 5);
     if (!pick) return noopEvent('hobby_community_spotlight');
     const { def, level } = pick;
     return {
@@ -244,7 +246,7 @@ const hobbyBreakthrough: EventTemplate = {
   condition: (state) => activePursuits(state).some((p) => p.level >= 4),
   generate: (state) => {
     const items = activePursuits(state).filter((p) => p.level >= 4);
-    const pick = seededPick(items, seedFor(state, 6));
+    const pick = seededPick(items, state, 6);
     if (!pick) return noopEvent('hobby_breakthrough');
     const { def, level } = pick;
     return {
@@ -275,7 +277,7 @@ const hobbyInvitedToTeach: EventTemplate = {
   condition: (state) => activePursuits(state).some((p) => p.level >= 6),
   generate: (state) => {
     const items = activePursuits(state).filter((p) => p.level >= 6);
-    const pick = seededPick(items, seedFor(state, 7));
+    const pick = seededPick(items, state, 7);
     if (!pick) return noopEvent('hobby_invited_to_teach');
     const { def, level } = pick;
     const fee = moneyReward(level, 50, 18);

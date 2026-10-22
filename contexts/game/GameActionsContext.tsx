@@ -4361,6 +4361,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    }
  }
 
+ // A vehicle the event damaged (a breakdown left unrepaired). Condition only,
+ // floored at 0; the car stays in the garage.
+ if (choice.special === 'damage_vehicle' && 'vehicleId' in choice && typeof choice.vehicleId === 'string') {
+   const damagedId = choice.vehicleId;
+   const loss = typeof choice.vehicleConditionLoss === 'number' && Number.isFinite(choice.vehicleConditionLoss)
+     ? Math.max(0, choice.vehicleConditionLoss)
+     : 0;
+   const garage = updatedVehicles || [];
+   if (loss > 0 && garage.some(v => v.id === damagedId)) {
+     updatedVehicles = garage.map(v => {
+       if (v.id !== damagedId) return v;
+       const current = typeof v.condition === 'number' && Number.isFinite(v.condition) ? v.condition : 100;
+       return { ...v, condition: Math.max(0, current - loss) };
+     });
+   }
+ }
+
  // Determine event category (needed for consequence tracking)
  const seasonalEventIds = ['spring_festival', 'garden_event', 'beach_party', 'summer_sale', 'harvest_festival', 'career_fair', 'winter_holidays', 'new_year', 'valentines_day', 'halloween', 'christmas', 'easter_egg_hunt', 'spring_cleaning', 'summer_music_festival', 'national_holiday', 'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'];
  const economicEventIds = ['economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift', 'economic_event_end'];
