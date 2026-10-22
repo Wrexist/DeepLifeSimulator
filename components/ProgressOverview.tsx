@@ -52,7 +52,9 @@ const ACHIEVEMENT_CATEGORIES = [
   { id: 'health', label: 'Health', icon: Activity, color: '#06B6D4', gradient: ['#06B6D4', '#0891B2'] },
   { id: 'items', label: 'Items', icon: Package, color: '#F97316', gradient: ['#F97316', '#EA580C'] },
   { id: 'special', label: 'Special', icon: Star, color: '#A855F7', gradient: ['#A855F7', '#9333EA'] },
-  { id: 'secret', label: 'Secret', icon: Lock, color: uiPalette.lightMuted, gradient: [uiPalette.lightMuted, uiPalette.lightSecondary] },
+  // Indigo, not grey: grey-on-grey on a dimmed locked card made the Secret chip
+  // nearly invisible (VIS-32). Distinct from Special's purple.
+  { id: 'secret', label: 'Secret', icon: Lock, color: '#818CF8', gradient: ['#818CF8', '#6366F1'] },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [

@@ -23,7 +23,8 @@ export const styles = StyleSheet.create({
     borderWidth: 0,
   },
   /** The compact identity strip (Program 4): avatar · name + facts · net worth. */
-  heroBackdrop: { position: 'absolute', right: 0, bottom: 0, width: '70%', height: scale(80), opacity: 0.12 },
+  // Faint enough not to strike through the net-worth line it sits behind (VIS-19).
+  heroBackdrop: { position: 'absolute', right: 0, bottom: 0, width: '70%', height: scale(80), opacity: 0.06 },
   recordHeader: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', gap: responsiveSpacing.sm },
   recordLabel: { ...tier4, color: uiPalette.muted, letterSpacing: 1, fontVariant: ['tabular-nums'] },
   strip: {
@@ -48,7 +49,7 @@ export const styles = StyleSheet.create({
     marginBottom: 0,
   },
   compactAvatar: { width: scale(52), height: scale(52) },
-  compactAvatarGlow: { width: scale(48), height: scale(48), borderRadius: scale(24) },
+  compactAvatarGlow: { width: scale(60), height: scale(60), borderRadius: scale(30) },
   compactText: { minWidth: 0, gap: responsiveSpacing.xs },
   compactDetails: { marginBottom: 0 },
   scenarioNote: { marginVertical: responsiveSpacing.sm },
@@ -116,14 +117,17 @@ export const styles = StyleSheet.create({
       },
     }),
   },
+  // A ring 4pt larger than the avatar on every side, so it is centred on the
+  // frame (scale(68), compact 52). It was a raw 60 box at -3/-3, which sat
+  // up and left of it (VIS-19).
   avatarGlow: {
     position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: scale(76),
+    height: scale(76),
+    borderRadius: scale(38),
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    top: -3,
-    left: -3,
+    top: -scale(4),
+    left: -scale(4),
     zIndex: -1,
   },
   name: {

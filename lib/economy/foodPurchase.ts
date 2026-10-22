@@ -14,6 +14,7 @@ import type { GameState } from '@/contexts/game/types';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { scaledFoodRestore } from '@/lib/economy/foodSatiety';
 import { getFoodPurchasePrice } from '@/lib/economy/itemPricing';
+import { getInflatedPrice } from '@/lib/economy/inflation';
 import { mindsetEffects } from '@/lib/mindset/effects';
 
 export interface FoodPurchaseResolution {
@@ -72,6 +73,78 @@ export function resolveFoodPurchase(state: GameState, foodId: string): FoodPurch
     },
     applied,
     price,
+    purchasesAfter: eatenBefore + 1,
+  };
+}
+
+/** Prison canteen markup over the inflated street price. */
+export const PRISON_FOOD_PRICE_MULTIPLIER = 2;
+
+/**
+ * What a prison canteen meal costs and restores BEFORE satiety: 2x the
+ * inflated price, 75% of the health, a quarter of the health as happiness
+ * (at least 1), full energy. Shared by the card label and the purchase so the
+ * two cannot disagree.
+ */
+export function prisonFoodBase(
+  food: { price: number; healthRestore: number; energyRestore: number },
+  priceIndex: number,
+): { price: number; health: number; happiness: number; energy: number } {
+  return {
+    price: Math.round(getInflatedPrice(food.price, priceIndex || 1) * PRISON_FOOD_PRICE_MULTIPLIER),
+    health: Math.round(food.healthRestore * 0.75),
+    happiness: Math.max(1, Math.round(food.healthRestore * 0.25)),
+    energy: food.energyRestore,
+  };
+}
+
+/**
+ * The prison canteen purchase, through the SAME satiety curve and happiness
+ * curve as `resolveFoodPurchase` (CMP-12). The jail screen wrote stats
+ * directly, so in jail money converted to health and energy with no weekly
+ * cap - the uncapped conversion v48 removed from the market - and the
+ * happiness gain skipped the diminishing curve. Call it inside the updater;
+ * a refusal returns the input state (same reference).
+ */
+export function resolvePrisonFoodPurchase(state: GameState, foodId: string): FoodPurchaseResolution {
+  const refuse = (reason: FoodPurchaseResolution['reason']): FoodPurchaseResolution => ({
+    ok: false,
+    reason,
+    next: state,
+    applied: { health: 0, energy: 0, happiness: 0 },
+    price: 0,
+    purchasesAfter: state.weeklyFoodPurchases || 0,
+  });
+
+  const food = state.foods?.find((f) => f.id === foodId);
+  if (!food) return refuse('not_found');
+
+  const base = prisonFoodBase(food, state.economy?.priceIndex ?? 1);
+  if ((state.stats.money ?? 0) < base.price) return refuse('unaffordable');
+
+  const eatenBefore = state.weeklyFoodPurchases || 0;
+  const applied = {
+    health: scaledFoodRestore(base.health, eatenBefore),
+    energy: scaledFoodRestore(base.energy, eatenBefore),
+    happiness: scaledFoodRestore(base.happiness, eatenBefore),
+  };
+
+  return {
+    ok: true,
+    next: {
+      ...state,
+      stats: {
+        ...state.stats,
+        money: (state.stats.money ?? 0) - base.price,
+        health: Math.min(100, (state.stats.health ?? 0) + applied.health),
+        energy: Math.min(100, (state.stats.energy ?? 0) + applied.energy),
+        happiness: Math.min(100, (state.stats.happiness ?? 0)
+          + scaledHappinessGain(state.stats.happiness ?? 0, applied.happiness)),
+      },
+      weeklyFoodPurchases: eatenBefore + 1,
+    },
+    applied,
+    price: base.price,
     purchasesAfter: eatenBefore + 1,
   };
 }

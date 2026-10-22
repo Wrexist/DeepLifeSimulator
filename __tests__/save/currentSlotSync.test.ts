@@ -23,6 +23,8 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import { useGameUI } from '@/contexts/game/GameUIContext';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
+import { isSaveUnreadableError } from '@/utils/saveMigrations';
+import { isLifeAutosaveSuspended, suspendLifeAutosave } from '@/utils/autosaveSuspension';
 
 const mockQueueSave = jest.fn().mockResolvedValue(undefined);
 const mockForceSave = jest.fn().mockResolvedValue(undefined);
@@ -218,5 +220,47 @@ describe('currentSlot sync on load (data-loss regression)', () => {
     // The persisted slot markers must also point at slot 2.
     expect(await AsyncStorageMock.getItem('currentSlot')).toBe('2');
     expect(await AsyncStorageMock.getItem('lastSlot')).toBe('2');
+  });
+
+  // 2026-10-21 audit SAVE-1: present-but-unverifiable is not "no save".
+  it('refuses an unverifiable slot with SaveUnreadableError instead of returning null', async () => {
+    await AsyncStorageMock.setItem('save_slot_2_A', 'corrupt-but-maybe-recoverable');
+    await AsyncStorageMock.setItem('save_slot_2_active', 'A');
+    mounted = mountGame();
+
+    let outcome: unknown;
+    await act(async () => {
+      outcome = await captured!.loadGame(2).catch((e: unknown) => e);
+    });
+    expect(isSaveUnreadableError(outcome)).toBe(true);
+    // The blob is left exactly where it was, for the Restore flow.
+    expect(await AsyncStorageMock.getItem('save_slot_2_A')).toBe('corrupt-but-maybe-recoverable');
+    expect(captured!.currentSlot).toBe(1);
+  });
+
+  // 2026-10-21 audit SAVE-10: the life is installed before the marker writes,
+  // so a storage error there must not turn the load into a reported failure.
+  it('still reports success, with autosave resumed, when the slot-marker writes fail', async () => {
+    await seedSlot(2);
+    mounted = mountGame();
+    suspendLifeAutosave('test');
+    const realSetItem = AsyncStorageMock.setItem.getMockImplementation();
+    AsyncStorageMock.setItem.mockImplementation((k: string, v: string) =>
+      k === 'currentSlot' || k === 'lastSlot'
+        ? Promise.reject(new Error('Storage full'))
+        : realSetItem(k, v),
+    );
+
+    let loaded: GameState | null = null;
+    try {
+      await act(async () => {
+        loaded = await captured!.loadGame(2);
+      });
+    } finally {
+      AsyncStorageMock.setItem.mockImplementation(realSetItem);
+    }
+    expect(loaded).not.toBeNull();
+    expect(captured!.currentSlot).toBe(2);
+    expect(isLifeAutosaveSuspended()).toBe(false);
   });
 });

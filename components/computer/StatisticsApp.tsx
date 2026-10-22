@@ -630,7 +630,7 @@ export default function StatisticsApp({ onBack }: Props) {
               <DetailRow label="Projected year" value={`${retirement.projectedRetirementDate}`} theme={theme} />
             </View>
             <Text style={[styles.recItem, { color: theme.textSecondary }]}>
-              • Save ${Math.round(retirement.monthlySavingsNeeded).toLocaleString('en-US')}/mo to close the gap
+              • Save {formatMoney((retirement.monthlySavingsNeeded * 12) / 52)}/wk to close the gap
             </Text>
             <Text style={[styles.recItem, { color: theme.textSecondary }]}>
               • Assumes {retirement.assumptions.expectedReturnRate}% returns, {retirement.assumptions.inflationRate}% inflation

@@ -153,6 +153,16 @@ function normalizePurchase(pu: any): any {
   };
 }
 
+// A purchase the store has NOT been paid for yet (Google Play "pay with cash" /
+// pending payment methods; expo-iap `purchaseState: 'pending'`). It must never
+// reach the grant path: the payment can still be declined, and a pending
+// purchase cannot be acknowledged/finished anyway. The store delivers the SAME
+// purchase again with `purchaseState: 'purchased'` once it clears, and that
+// update goes to the background listener, which grants it. (2026-10 audit MON-13)
+function isPendingPurchase(pu: any): boolean {
+  return pu?.purchaseState === 'pending';
+}
+
 // Store the listener subscriptions so they can be removed on disconnect -
 // otherwise a connect→disconnect→connect cycle stacks duplicate callbacks.
 let updatedSub: { remove?: () => void } | null = null;
@@ -186,6 +196,12 @@ function attachListeners(): void {
     // An interactive purchaseItemAsync() waiting on this SKU? resolve it and let
     // the foreground flow handle validation + finishTransaction.
     const entry = pending.find((p) => p.sku === norm.productId);
+    if (isPendingPurchase(purchase)) {
+      // Not paid yet: tell an interactive caller it is DEFERRED (no grant, no
+      // finish) and drop a background delivery. The cleared purchase arrives later.
+      if (entry) settlePending(entry, { responseCode: IAPResponseCode.DEFERRED, results: [] });
+      return;
+    }
     if (entry) {
       settlePending(entry, { responseCode: IAPResponseCode.OK, results: [norm] });
       return;
@@ -248,7 +264,8 @@ export async function getProductsAsync(
 
 export async function getPurchaseHistoryAsync(): Promise<LegacyResult> {
   const purchases = await requireIap().getAvailablePurchases();
-  const list = Array.isArray(purchases) ? purchases : [];
+  // A pending (unpaid) purchase is not owned yet - never restore it (MON-13).
+  const list = (Array.isArray(purchases) ? purchases : []).filter((pu) => !isPendingPurchase(pu));
   return { responseCode: IAPResponseCode.OK, results: list.map(normalizePurchase) };
 }
 

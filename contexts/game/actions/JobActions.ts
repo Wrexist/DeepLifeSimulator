@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { showLevelUpToast } from '@/utils/achievementToast';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
+import { trackMoneyEarned, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA, getKarmaModifiers } from '@/lib/karma/karmaSystem';
 import { activeMindsetIds, mindsetStreetTerms, type MindsetStreetTerms } from '@/lib/mindset/streetWork';
@@ -775,12 +776,22 @@ export const performStreetJob = (
         // achievementsData and the Statistics screen both read
         // gs.lifetimeStatistics.totalCrimesCommitted, but no callsite
         // ever ran trackCrime() to actually increment it.
-        lifetimeStatistics: prev.lifetimeStatistics && success
-          ? {
-              ...prev.lifetimeStatistics,
-              totalCrimesCommitted: (prev.lifetimeStatistics.totalCrimesCommitted ?? 0) + 1,
-            }
-          : prev.lifetimeStatistics,
+        //
+        // The pay is EARNED money too. It is credited straight to
+        // `stats.money` here (not through updateMoney), so it never reached
+        // `totalMoneyEarned` - Chapter 1's "Earn $500 of your own", the
+        // Legacy Contracts and the Statistics card all sat at $0 while a new
+        // player ground street jobs, the main early earner.
+        lifetimeStatistics: (() => {
+          let ls = prev.lifetimeStatistics;
+          if (ls && success) {
+            ls = { ...ls, totalCrimesCommitted: (ls.totalCrimesCommitted ?? 0) + 1 };
+          }
+          if (moneyGained > 0) {
+            ls = trackMoneyEarned(ls ?? getDefaultStatistics(), moneyGained);
+          }
+          return ls;
+        })(),
         rngCommitLog: nextRngCommitLog,
         karma: updatedKarma,
         wantedLevel: updatedWantedLevel,

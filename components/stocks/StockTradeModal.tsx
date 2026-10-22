@@ -12,6 +12,7 @@ import Gradient from '@/components/ui/Gradient';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { STOCK_CAPITAL_GAINS_TAX_RATE } from '@/lib/stocks/weeklyTick';
 
 const LinearGradient = Gradient;
 
@@ -159,7 +160,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, reser
             )}
             {side === 'sell' && estimatedUSD > 0 && (
               <Text style={[styles.estimate, { color: theme.textMuted }]}>
-                ≈ {formatMoney(estimatedUSD)} at mid (excludes 2% commission, spread, slippage)
+                ≈ {formatMoney(estimatedUSD)} at mid (excludes 2% commission, spread, slippage and {Math.round(STOCK_CAPITAL_GAINS_TAX_RATE * 100)}% tax on any gain)
               </Text>
             )}
             {amountText.trim() !== '' && parseAmount(amountText) === null && (

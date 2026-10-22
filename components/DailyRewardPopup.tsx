@@ -98,7 +98,9 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  // No ad to show. The day's gems were credited before this popup opened, so
  // nothing is lost - bring the popup back with the plain Claim.
  claimInProgressRef.current = false;
- setAdNote('No ad is available right now. Your daily gems are already in your wallet.');
+ setAdNote(outcome === 'dismissed'
+ ? 'The ad closed before the bonus was earned. Your daily gems are already in your wallet.'
+ : 'No ad is available right now. Your daily gems are already in your wallet.');
  setHiddenForAd(false);
  };
 
@@ -165,6 +167,16 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  onDismiss={() => dismissResolver.current?.()}
  >
  <View style={[styles.overlay, { backgroundColor: palette.backdrop }]}>
+ {/* Tapping outside closes it, like Android back. The gems are already
+ credited, so nothing rides on the button; a modal that silently ate the
+ player's 'Next week' taps behind it read as a frozen game (VIS-26). */}
+ <TouchableOpacity
+ style={StyleSheet.absoluteFill}
+ activeOpacity={1}
+ onPress={handleClaim}
+ accessibilityLabel="Close daily reward"
+ accessibilityRole="button"
+ />
  <Animated.View
  style={[
  styles.sheet,
@@ -192,7 +204,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  <View style={[styles.rewardIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
  <Gem size={scale(20)} color="#8B5CF6" strokeWidth={2.4} />
  </View>
- <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Gems</Text>
+ <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Gems added</Text>
  <Text style={[styles.rewardAmount, { color: palette.title }]}>+{safeRewardAmount.toLocaleString('en-US')}</Text>
  </View>
  </View>
@@ -233,9 +245,12 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  onPress={handleClaim}
  activeOpacity={0.88}
  accessibilityRole="button"
- accessibilityLabel="Claim daily reward"
+ // The day's gems are credited when the popup opens, so the button
+ // closes rather than claims - 'Claim Reward' promised a grant that had
+ // already happened (VIS-26).
+ accessibilityLabel="Close daily reward. Your gems are already in your wallet"
  >
- <Text style={styles.claimButtonText}>Claim Reward</Text>
+ <Text style={styles.claimButtonText}>Nice!</Text>
  </TouchableOpacity>
  </Animated.View>
  </View>

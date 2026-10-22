@@ -18,7 +18,7 @@ import { uiPalette } from '@/lib/config/theme';
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { claimTransferCode, mintTransferCode } from '@/lib/progress/cloud';
 import { resolveDeviceId } from '@/utils/deviceIdentity';
@@ -107,7 +107,12 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      {/* KeyboardAvoidingView: on a small phone the keyboard covered the
+          submit button and the error line under the code field (CMP-9). */}
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.card}>
           <Text style={styles.title}>{showing ? 'Move to a new phone' : 'Enter a transfer code'}</Text>
 
@@ -142,6 +147,10 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
                 placeholderTextColor={uiPalette.lightSecondary}
                 style={styles.input}
                 accessibilityLabel="Transfer code from your old device"
+                returnKeyType="go"
+                onSubmitEditing={() => {
+                  if (!busy && entered.length === CODE_LENGTH) void handleClaim();
+                }}
               />
               <TouchableOpacity
                 accessibilityRole="button"
@@ -168,7 +177,7 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
             <Text style={styles.closeText}>Done</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

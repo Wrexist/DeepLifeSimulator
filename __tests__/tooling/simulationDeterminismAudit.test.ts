@@ -118,6 +118,11 @@ const DECLARED_TICK_REACHABLE: Record<string, string> = {
     'sorts, gates or compares them. The id on this path was made deterministic in Program 14.',
   'lib/events/seededPayload.ts':
     'the seeded payload helper itself; its fallback is the documented non-tick path.',
+  'lib/vehicles/vehicles.ts':
+    'the vehicle tick reads only the pure `calculateRepairCostAfterInsurance` (the accident repair ' +
+    'quote). The draw is `calculateAccidentDamage`, which the tick does NOT call (it uses the fixed ' +
+    '`ACCIDENT_CONDITION_DAMAGE` table), and the clock read is the display model year in ' +
+    '`createVehicleFromTemplate`, a purchase-time action.',
   'lib/progress/cloud.ts': 'cloud sync scheduling, not simulation.',
   'lib/analytics/context.ts': 'analytics envelope timestamps.',
   'lib/liveops/session.ts': 'Live Ops windows are REAL UTC time by design (docs/LIVEOPS.md).',

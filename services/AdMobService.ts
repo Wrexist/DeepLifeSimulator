@@ -117,6 +117,16 @@ const CIRCUIT_RECOVERY_MS = 5 * 60 * 1000;
 
 type BreakerKey = 'init' | FullscreenAdFormat;
 
+/** What a rewarded show actually did. See `showRewardedAdWithOutcome`. */
+export type RewardedShowOutcome = 'earned' | 'dismissed' | 'not-shown';
+
+/**
+ * Last-resort resolve for a rewarded ad whose CLOSED event never arrives. It
+ * was 60s, which a long video + end card (or a paused ad) can outlast; the
+ * reward listener was then torn down while the ad was still up. (MON-16)
+ */
+const REWARDED_CLOSE_FALLBACK_MS = 180_000;
+
 interface Breaker {
   failures: number;
   open: boolean;
@@ -896,7 +906,23 @@ class AdMobServiceImpl {
     onReward: () => void,
     opts: { placement?: string; waitMs?: number } = {},
   ): Promise<boolean> {
-    if (!this.isAvailable()) return false;
+    return (await this.showRewardedAdWithOutcome(onReward, opts)) === 'earned';
+  }
+
+  /**
+   * Same as {@link showRewardedAd}, but tells a skipped ad apart from no ad:
+   *   - 'earned'    the ad was shown and EARNED_REWARD fired (onReward ran)
+   *   - 'dismissed' the ad was shown and closed without the reward
+   *   - 'not-shown' nothing was shown (no inventory, load/show failure)
+   * Only 'not-shown' is a no-fill. A boolean collapsed 'dismissed' into it, so
+   * the reward orb's no-fill courtesy paid a player who closed the ad at once.
+   * (2026-10 audit MON-3)
+   */
+  async showRewardedAdWithOutcome(
+    onReward: () => void,
+    opts: { placement?: string; waitMs?: number } = {},
+  ): Promise<RewardedShowOutcome> {
+    if (!this.isAvailable()) return 'not-shown';
     const placement = opts.placement ?? 'rewarded';
     if (!this.isReady('rewarded')) {
       const pending = this.ensureLoaded('rewarded');
@@ -911,11 +937,12 @@ class AdMobServiceImpl {
         ]);
         if (timer) clearTimeout(timer);
       }
-      if (!this.isReady('rewarded') || !this.isAvailable()) return false;
+      if (!this.isReady('rewarded') || !this.isAvailable()) return 'not-shown';
     }
 
     const ad = this.rewarded;
     let rewarded = false;
+    let displayed = false;
     let unsubReward: (() => void) | undefined;
     let unsubClosed: (() => void) | undefined;
     let closeFallback: ReturnType<typeof setTimeout> | undefined;
@@ -934,15 +961,19 @@ class AdMobServiceImpl {
       // P2-16: resolve when the ad CLOSES, not when show() resolves. EARNED_REWARD
       // can arrive around close time, so reading `rewarded` immediately after
       // show() could drop a legitimately-earned reward. A timeout fallback ensures
-      // we never hang if no CLOSED event is delivered.
+      // we never hang if no CLOSED event is delivered. It is generous on purpose
+      // (MON-16): a rewarded unit can run well past a minute (video + end card or
+      // playable, or a paused/backgrounded ad), and resolving early unsubscribed
+      // the reward listener while the ad was still on screen.
       const closed = new Promise<void>((resolve) => {
         if (closedEvent) {
           unsubClosed = ad.addAdEventListener(closedEvent, () => resolve());
         }
-        closeFallback = setTimeout(resolve, 60000);
+        closeFallback = setTimeout(resolve, REWARDED_CLOSE_FALLBACK_MS);
       });
 
       await ad.show();
+      displayed = true;
       track('ad_shown', { kind: 'rewarded', placement });
       noteFullscreenShown('rewarded');
       this.reportLifecycle('displayed', 'rewarded', this.rewardedAdUnitId, this.rewardedImpressionId);
@@ -958,14 +989,14 @@ class AdMobServiceImpl {
 
       // Pre-load next one
       void this.ensureLoaded('rewarded');
-      return rewarded;
+      return rewarded ? 'earned' : 'dismissed';
     } catch (error: any) {
       this.recordFailure('rewarded');
       log.warn('Rewarded show failed:', error?.message);
       this.setState({ isRewardedLoaded: false });
       this.loadedAt.rewarded = 0;
       void this.ensureLoaded('rewarded');
-      return false;
+      return displayed ? 'dismissed' : 'not-shown';
     } finally {
       if (closeFallback) clearTimeout(closeFallback);
       unsubReward?.();

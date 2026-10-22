@@ -98,7 +98,7 @@ const RECOMMENDED_SCENARIO_ID = 'food_courier';
 /** Challenges store 'college', life paths 'College': show one spelling. */
 const formatEducationLabel = (education: string | undefined): string => {
   if (!education) return 'None';
-  return education.charAt(0).toUpperCase() + education.slice(1);
+  return formatTokenLabel(education);
 };
 
 // Display-only ordering so brand-new players see the gentlest starts first.
@@ -106,7 +106,7 @@ const formatEducationLabel = (education: string | undefined): string => {
 // by id are untouched.)
 const LIFE_PATH_DIFFICULTY_RANK: Record<string, number> = {
   Easy: 0,
-  Moderate: 1,
+  Medium: 1,
   Hard: 2,
 };
 
@@ -218,7 +218,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   const difficultyColor =
     scenario.difficulty === 'Easy'
       ? '#10B981'
-      : scenario.difficulty === 'Moderate'
+      : scenario.difficulty === 'Medium'
         ? '#3B82F6'
         : scenario.difficulty === 'Hard'
           ? '#F59E0B'
@@ -481,7 +481,7 @@ export default function Scenarios() {
   const continueToCustomize = () => {
     if (!canContinueFromScenarioSelection(selectedScenario)) {
       haptic.error();
-      gameAlert('Pick A Scenario', 'Choose a life path or challenge before continuing.');
+      gameAlert('Pick a scenario', 'Choose a life path or challenge before continuing.');
       return;
     }
     haptic.medium();

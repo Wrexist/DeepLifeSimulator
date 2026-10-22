@@ -13,11 +13,12 @@
  * lib/vehicles/__tests__/accidents.test.ts; this file pins the tick wiring.
  */
 
-import { applyVehiclesForWeek } from '../applyVehicles';
+import { applyVehiclesForWeek, settleTotaledVehicles } from '../applyVehicles';
 import type { WeekContext } from '../weekContext';
 import type { PreRolls } from '../preTick';
 import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
-import type { GameStats, Vehicle } from '@/contexts/game/types';
+import type { GameStats, Loan, Vehicle } from '@/contexts/game/types';
+import { calculateRepairCost } from '@/lib/vehicles/vehicles';
 
 function stats(overrides: Partial<GameStats> = {}): GameStats {
   return {
@@ -205,5 +206,64 @@ describe('applyVehiclesForWeek - total loss', () => {
 
     const ids = result.map((v) => v.id);
     expect(ids).toEqual(['survivor']); // wreck removed, survivor kept
+  });
+});
+
+describe('applyVehiclesForWeek - an accident is billed once, at the garage (LIFE-5)', () => {
+  it('lowers condition and quotes the repair without charging it', () => {
+    const ctx = ctxWith(stats({ money: 1000, health: 90 }), {
+      vehicleAccident: [0.001],
+      vehicleAccidentSeverity: [0.9],
+    });
+    const [after] = applyVehiclesForWeek([vehicle({ condition: 80 })], ctx, 'v1');
+
+    expect(after.condition).toBeLessThan(79); // more than weekly wear: an accident
+    // Only the running cost (50 maintenance + 30 fuel) - no accident bill. The
+    // repair it would have charged is exactly what repairVehicle bills later.
+    expect(ctx.newStats.money).toBe(920);
+    const notif = ctx.notifications.find((n) => n.id === 'vehicle-accident-v1');
+    expect(notif?.message).toContain(`Repair estimate: $${calculateRepairCost(after).toLocaleString('en-US')}`);
+  });
+});
+
+describe('applyVehiclesForWeek - a total loss takes the car\'s status with it (TICK-7)', () => {
+  it('takes back the reputation the purchase granted', () => {
+    const ctx = ctxWith(stats({ reputation: 50 }), {
+      vehicleAccident: [0.001],
+      vehicleAccidentSeverity: [0.1],
+    });
+    applyVehiclesForWeek([vehicle({ id: 'wreck', condition: 10, reputationBonus: 8, reputationGranted: 6 })], ctx);
+    expect(ctx.newStats.reputation).toBe(44);
+  });
+});
+
+describe('settleTotaledVehicles (TICK-7 / LIFE-6)', () => {
+  const loan = (id: string, vehicleId?: string): Loan =>
+    ({ id, name: 'Auto loan', remaining: 5000, vehicleId } as unknown as Loan);
+
+  it('moves the active car off the wreck and unlinks its loan, keeping the debt', () => {
+    const prev = [vehicle({ id: 'wreck' }), vehicle({ id: 'survivor' })];
+    const loans = [loan('l1', 'wreck'), loan('l2', 'survivor')];
+    const out = settleTotaledVehicles(prev, [prev[1]], 'wreck', loans);
+    expect(out.totaledIds).toEqual(['wreck']);
+    expect(out.activeVehicleId).toBe('survivor');
+    expect(out.loans).toHaveLength(2);
+    expect(out.loans?.[0].vehicleId).toBeUndefined();
+    expect(out.loans?.[0].remaining).toBe(5000);
+    expect(out.loans?.[1].vehicleId).toBe('survivor');
+  });
+
+  it('clears the active car when the garage is empty', () => {
+    const out = settleTotaledVehicles([vehicle({ id: 'wreck' })], [], 'wreck', []);
+    expect(out.activeVehicleId).toBeUndefined();
+  });
+
+  it('returns the same references when nothing was totaled', () => {
+    const prev = [vehicle()];
+    const loans = [loan('l1', 'v1')];
+    const out = settleTotaledVehicles(prev, prev, 'v1', loans);
+    expect(out.loans).toBe(loans);
+    expect(out.activeVehicleId).toBe('v1');
+    expect(out.totaledIds).toEqual([]);
   });
 });

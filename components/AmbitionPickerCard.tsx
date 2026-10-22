@@ -69,12 +69,9 @@ function AmbitionPickerCard() {
       return { ...prev, ambitionId: id };
     });
     setExpanded(false);
-    // Deferred to a macrotask, not called inline. `saveGame` reads
-    // `gameStateRef.current`, which is synced to state in a POST-COMMIT effect,
-    // so a synchronous call here persists the snapshot from BEFORE the pick -
-    // the ambition would be silently lost on reload. Same pattern as
-    // BrandDealsScreen's `persist`.
-    setTimeout(() => { void saveGame?.(false); }, 0);
+    // Persist the pick. Called inline: saveGame waits for the pending commit itself (waitForPendingCommit),
+    // so it saves the post-pick state.
+    void saveGame?.(false);
   };
 
   return (

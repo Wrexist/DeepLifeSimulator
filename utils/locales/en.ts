@@ -187,7 +187,7 @@ export default {
         benefits: 'Benefits',
         chanceToCure: 'Chance to cure diseases',
         curesAllHealthIssues: 'Cures all health issues',
-        do: 'Do',
+        do: 'Do it',
         dietPlans: 'Diet Plans',
         chooseAutomaticDaily: 'Choose an automatic daily diet plan',
         activePlan: 'Active Plan:',

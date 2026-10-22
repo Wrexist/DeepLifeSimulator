@@ -466,7 +466,7 @@ export default function Perks() {
 
   const floatingStartButton = (
     <OnboardingFloatingButton
-      title="Start Your Life"
+      title="Start your life"
       onPress={start}
       loading={isStarting}
       icon={<Play size={24} color={uiPalette.white} />}
@@ -481,7 +481,7 @@ export default function Perks() {
           onInfo={() =>
             gameAlert(
               'Perks & Mindset',
-              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your whole life - your pay, your relationships, your money - with one upside and one downside. Both are optional: tap "Start Your Life" whenever you are ready.'
+              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your whole life - your pay, your relationships, your money - with one upside and one downside. Both are optional: tap "Start your life" whenever you are ready.'
             )
           }
         />
@@ -490,7 +490,7 @@ export default function Perks() {
 
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
-            ? 'Optional. Most perks unlock as you earn achievements - new players can just tap "Start Your Life".'
+            ? 'Optional. Most perks unlock as you earn achievements - new players can just tap "Start your life".'
             : 'Optional. A mindset shapes your whole life with one upside and one downside. Skip it if you’re not sure.'}
         </Text>
 
@@ -591,7 +591,7 @@ export default function Perks() {
                     <Text style={styles.noPerksTitle}>No perks yet - and that's fine</Text>
                     <Text style={styles.noPerksBody}>
                       Perks are starting bonuses you unlock by earning achievements. Play your first life,
-                      and the next one can start stronger. Tap "Start Your Life" to begin.
+                      and the next one can start stronger. Tap "Start your life" to begin.
                     </Text>
                   </View>
                 ) : null}
@@ -656,7 +656,7 @@ export default function Perks() {
                     onPress={() => setState(prev => ({ ...prev, mindset: null }))}
                   >
                     <Text style={styles.clearButtonText}>
-                      Clear Mindset Selection
+                      Clear mindset
                     </Text>
                   </TouchableOpacity>
                 )}

@@ -4,8 +4,11 @@ import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Image } from
 import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
+import { applyYouthPill } from '@/lib/progress/youthPill';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface YouthPillModalProps {
@@ -15,6 +18,7 @@ interface YouthPillModalProps {
 
 export default function YouthPillModal({ visible, onClose }: YouthPillModalProps) {
   const setGameState = useSetGameState();
+  const { saveGame } = useGameActions();
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const youthPills = useGameSelector((s) => s.youthPills || 0);
   const currentAge = useGameSelector((s) => s.date?.age ?? 18);
@@ -22,20 +26,12 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
   const handleUseYouthPill = () => {
     if (youthPills <= 0) return;
 
-    // Use one youth pill and reset age to 18.
-    // BUG FIX: the canonical age that drives aging + old-age death is
-    // `date.age` (the week tick reads/writes it); `userProfile.age` is cosmetic.
-    // Previously only userProfile.age was reset, so the paid youth pill had ZERO
-    // effect on lifespan. Reset date.age (and keep userProfile.age in sync).
-    setGameState(prev => ({
-      ...prev,
-      youthPills: Math.max(0, prev.youthPills - 1),
-      date: { ...prev.date, age: 18 },
-      userProfile: {
-        ...prev.userProfile,
-        age: 18,
-      }
-    }));
+    // One updater that re-checks the pill count against `prev` (see
+    // `applyYouthPill`), then a save: spending a PAID consumable must not be
+    // undone by a force-quit inside the autosave window (CMP-10). saveGame
+    // waits for the pending commit itself, so it persists the post-pill state.
+    setGameState(applyYouthPill);
+    void saveGame();
 
     onClose();
   };
@@ -65,7 +61,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(24)}>
                 <X size={24} color={settings.darkMode ? uiPalette.secondary : uiPalette.lightMuted} />
               </TouchableOpacity>
             </View>

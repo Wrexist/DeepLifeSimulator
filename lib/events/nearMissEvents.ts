@@ -532,8 +532,9 @@ const nearMissGasleak: EventTemplate = {
   weight: 0.05,
   condition: (s) =>
     weeksInThisLife(s) > 15 &&
-    Array.isArray(s.realEstate) &&
-    s.realEstate.length > 0,
+    // OWNED, not merely listed: a sold property keeps its record with
+    // owned:false, and the player pays for the repair here.
+    (s.realEstate ?? []).some((r) => r?.owned),
   generate: () => ({
     id: 'near_miss_gas_leak',
     description:

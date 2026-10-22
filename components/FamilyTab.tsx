@@ -83,6 +83,7 @@ import {
  canPerformParentingAction,
  applyParentingAction,
  describeRejectReason,
+ syncChildContactAfterParenting,
  MAX_PARENTING_ACTIONS_PER_WEEK,
  type ParentingAction,
  type NurtureStatKey,
@@ -250,6 +251,16 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  const partner = gameState.relationships?.find(r => r.type === 'partner');
  const spouse = gameState.family?.spouse;
+ // `family.spouse` is a SNAPSHOT taken on the wedding day and never refreshed
+ // while the marriage lasts, so dates, gifts, neglect, jealousy and a lost job
+ // never reached it. The live record in `relationships` is what the tick and
+ // every action move, so the card, the household mood and the baby gate all
+ // read it, falling back to the snapshot only if it is missing (SOC-3).
+ const spouseRelationship = useMemo(() =>
+ gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
+ [gameState.relationships, spouse?.id]
+ );
+ const liveSpouse = spouse ? (spouseRelationship ?? spouse) : undefined;
  // Whose faces the children inherit. Memoized because it is passed to every
  // child avatar, and a fresh object each render would defeat their memoization.
  const parentSources = useMemo(
@@ -284,14 +295,14 @@ function FamilyTab({ onClose }: FamilyTabProps) {
   */
  const householdMood = useMemo(() => {
  const scores: number[] = [];
- if (spouse) scores.push(spouse.relationshipScore);
+ if (liveSpouse) scores.push(liveSpouse.relationshipScore);
  else if (partner) scores.push(partner.relationshipScore);
  children.forEach(child => {
  scores.push(child.happiness ?? child.familyHappiness ?? 50);
  });
  if (scores.length === 0) return null;
  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
- }, [spouse, partner, children]);
+ }, [liveSpouse, partner, children]);
 
  /**
   * What the household ACTUALLY contributes per week.
@@ -314,13 +325,6 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  [gameState.relationships],
  );
 
- // Check pregnancy status from relationships array (has latest state).
- // Falls back to the partner relationship so engaged/cohabiting couples
- // (who never reach family.spouse) can also start a family.
- const spouseRelationship = useMemo(() =>
- gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
- [gameState.relationships, spouse?.id]
- );
  const babyTarget = spouseRelationship ?? partner ?? null;
  const isPregnant = babyTarget?.isPregnant ?? false;
  const pregnancyWeeks = isPregnant && babyTarget?.pregnancyStartWeek != null
@@ -573,7 +577,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  return (
  <View style={styles.card}>
- {renderRelationshipHeader(spouse, 'spouse', `Your spouse · ${spouse.personality}`)}
+ {renderRelationshipHeader(target, 'spouse', `Your spouse · ${target.personality}`)}
 
  {isPregnant && renderPregnancy(target)}
 
@@ -753,6 +757,8 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  ...prev.family,
  children: prevChildren.map(ch => (ch.id === childId ? outcome.child! : ch)),
  },
+ // SOC-2: parenting is contact - the child's Contacts record sees it too.
+ relationships: syncChildContactAfterParenting(prev.relationships || [], outcome.child, w),
  };
  });
  saveGame();
@@ -1099,7 +1105,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {!ownsDevice
  ? 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'
  : datingUnlocked
- ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
+ ? 'Match on Spark, go on dates to build the bond, then move in, propose and start a family.'
  : `The dating app unlocks later (${datingLockReason || 'keep playing'}).${contactsUnlocked ? ' Until then, meet people through Contacts.' : ''}`}
  </Text>
  {ownsDevice && findPartnerApp && (

@@ -59,7 +59,7 @@ export default function HomeScene({ children }: { children?: React.ReactNode }) 
             {scene.rent > 0 ? `${formatMoney(scene.rent)}/week rent · ${scene.subtitle}` : scene.subtitle}
           </Text>
         </View>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Explore housing in the Shop"
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Explore housing in the Market"
           onPress={() => router.push({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } })}
           style={[styles.housing, { backgroundColor: theme.background }]} activeOpacity={0.8}>
           <ArrowUpRight size={scale(20)} color={theme.text} />

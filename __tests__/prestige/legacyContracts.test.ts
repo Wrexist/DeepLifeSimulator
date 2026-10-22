@@ -31,6 +31,7 @@ import { repairGameState } from '@/utils/saveValidation';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 import { DEFAULT_DYNASTY_STATS } from '@/lib/legacy/dynasty';
+import { calculateLifetimeStats } from '@/lib/prestige/prestigePoints';
 
 /**
  * Build a state by MUTATING a factory instance rather than spreading over it
@@ -116,6 +117,20 @@ describe('reading metrics', () => {
       s.prestige!.lifetimeStats.totalWeeksLived = 100;
     });
     expect(readMetric(s, 'weeksLivedTotal')).toBe(900);
+  });
+
+  // LATE-14: `weeksLived` is seeded from the starting age, so an heir taking
+  // over at 40 began at 1,144. Endurance counts weeks PLAYED.
+  it('counts weeks played this life, not the age-seeded counter', () => {
+    const s = withState((s) => {
+      s.lifeStartWeek = 1_144;
+      s.weeksLived = 1_244;
+      s.prestige!.lifetimeStats.totalWeeksLived = 0;
+    });
+    expect(readMetric(s, 'weeksLivedTotal')).toBe(100);
+
+    const folded = calculateLifetimeStats(s, s.prestige!.lifetimeStats);
+    expect(folded.totalWeeksLived).toBe(100);
   });
 
   it('treats a negative or NaN metric as 0', () => {

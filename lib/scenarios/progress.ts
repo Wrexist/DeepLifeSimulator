@@ -22,6 +22,7 @@ import type { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { nonMirrorDeposits } from '@/lib/banking/operations';
 import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
+import { getAge } from '@/lib/progress/lifeChapters';
 import {
   checkScenarioWin,
   getScenario,
@@ -52,8 +53,12 @@ export function projectScenarioState(gameState: GameState): ScenarioEvalState {
     stats: {
       money: gameState.stats?.money ?? 0,
       reputation: gameState.stats?.reputation ?? 0,
+      health: gameState.stats?.health ?? 0,
     },
-    age: gameState.date?.age || 18,
+    // `getAge`, not raw `date.age`: the stored age accumulates +1/52 float
+    // drift and reads a hair below the true age, so "Survive to age 23"
+    // completed late and disagreed with the chapter "Turn 40" goals.
+    age: getAge(gameState),
     education: (gameState.educations || []).map((e) => ({ id: e.id, completed: e.completed })),
     careers: (gameState.careers || []).map((c) => ({
       id: c.id,
@@ -102,6 +107,13 @@ function numericCurrent(condition: ScenarioCondition, evalState: ScenarioEvalSta
       return evalState.stats.money;
     case 'reputation':
       return evalState.stats.reputation;
+    case 'health':
+      return evalState.stats.health ?? 0;
+    case 'career':
+      // Only the numeric form ("hold N jobs") has a bar; an id is boolean.
+      return typeof condition.value === 'number'
+        ? evalState.careers.filter((c) => c.accepted).length
+        : null;
     case 'age':
       return evalState.age;
     case 'relationship':

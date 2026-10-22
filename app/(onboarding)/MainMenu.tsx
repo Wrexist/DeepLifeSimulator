@@ -37,7 +37,12 @@ import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
 import { defaultOnboardingState, useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { useStartLife } from '@/src/features/onboarding/useStartLife';
-import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
+import {
+  isSaveFromFutureError,
+  isSaveUnreadableError,
+  SAVE_FROM_FUTURE_MESSAGE,
+  SAVE_UNREADABLE_MESSAGE,
+} from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
@@ -546,6 +551,8 @@ export default function MainMenu() {
         // from a newer build - the exact advice the outer handler exists to
         // avoid. Re-throw that one case so it reaches its handler.
         if (isSaveFromFutureError(loadError)) throw loadError;
+        // Same for a save that exists but cannot be read (audit SAVE-1).
+        if (isSaveUnreadableError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
         gameAlert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },
@@ -581,17 +588,17 @@ export default function MainMenu() {
             { text: 'OK' },
           ]);
         } else if (!validation.stateComplete) {
+          // validation.errors are validator strings ("Missing stat: happiness
+          // (value is null or undefined)") - logged above, never shown.
           gameAlert(
             'Incomplete Save',
-            validation.errors[0] ||
-              'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
+            'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         } else {
           gameAlert(
             'Invalid Save',
-            validation.errors[0] ||
-              'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
+            'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         }
@@ -621,6 +628,16 @@ export default function MainMenu() {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version');
         gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
+        return;
+      }
+      // The slot holds data that does not verify. Never suggest a new game
+      // here: send the player to the slot's Restore instead. (audit SAVE-1)
+      if (isSaveUnreadableError(error)) {
+        log.warn('Save is present but unreadable', { slot: error.slot });
+        gameAlert('Save Needs Recovery', SAVE_UNREADABLE_MESSAGE, [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open Save Slots', onPress: () => router.push('/(onboarding)/SaveSlots') },
+        ]);
         return;
       }
       log.error('Error in continueGame:', error);
@@ -824,7 +841,7 @@ export default function MainMenu() {
             </HeroLine>
             <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                TYCOON
+                SIMULATOR
               </Text>
             </HeroLine>
           </View>

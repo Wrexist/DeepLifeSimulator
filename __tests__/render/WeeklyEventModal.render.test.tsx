@@ -1,7 +1,7 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
-import WeeklyEventModal from '@/components/WeeklyEventModal';
+import WeeklyEventModal, { EVENT_RESOLVE_STALL_MS } from '@/components/WeeklyEventModal';
 
 /**
  * Render smoke test for the redesigned (Liquid Glass) weekly "Heads Up" event
@@ -139,6 +139,87 @@ describe('render - WeeklyEventModal (Liquid Glass)', () => {
     expect(json).not.toContain('1,000');
     act(() => {
       renderer!.unmount();
+    });
+  });
+
+  /**
+   * CMP-1: the corner X and the Android back gesture used to dismiss ANY event
+   * without applying a choice, so a lawsuit or a fine could be skipped for
+   * free. A valid event is answered by its choices; the escape only appears
+   * once a tapped choice failed to resolve (the event is still pending).
+   */
+  describe('no free skip (CMP-1 / CMP-3)', () => {
+    const findRequestClose = (r: TestRenderer.ReactTestRenderer) =>
+      r.root.findAll((n) => typeof n.props.onRequestClose === 'function')[0].props.onRequestClose as () => void;
+    const hasSkip = (r: TestRenderer.ReactTestRenderer) =>
+      r.root.findAll((n) => n.props.accessibilityLabel === 'Skip this event').length > 0;
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('a valid event shows no dismiss control and Android back applies nothing', () => {
+      let renderer: TestRenderer.ReactTestRenderer | undefined;
+      act(() => {
+        renderer = TestRenderer.create(<WeeklyEventModal />);
+      });
+      expect(hasSkip(renderer!)).toBe(false);
+      expect(JSON.stringify(renderer!.toJSON())).not.toContain('"Dismiss"');
+      act(() => {
+        findRequestClose(renderer!)();
+      });
+      expect(mockSetGameState).not.toHaveBeenCalled();
+      expect(mockSaveGame).not.toHaveBeenCalled();
+      act(() => {
+        renderer!.unmount();
+      });
+    });
+
+    it('offers the escape only after a tapped choice failed to resolve', () => {
+      jest.useFakeTimers();
+      let renderer: TestRenderer.ReactTestRenderer | undefined;
+      act(() => {
+        renderer = TestRenderer.create(<WeeklyEventModal />);
+      });
+      // resolveEvent is a mock, so the event stays pending - a failed resolve.
+      const choice = renderer!.root.findAll(
+        (n) => n.props.accessibilityLabel === 'Support them' && typeof n.props.onPress === 'function',
+      )[0];
+      act(() => {
+        choice.props.onPress();
+      });
+      expect(mockResolveEvent).toHaveBeenCalledWith('friend_advice', 'support');
+      expect(hasSkip(renderer!)).toBe(false);
+      act(() => {
+        jest.advanceTimersByTime(EVENT_RESOLVE_STALL_MS + 10);
+      });
+      expect(hasSkip(renderer!)).toBe(true);
+      act(() => {
+        findRequestClose(renderer!)();
+      });
+      expect(mockSetGameState).toHaveBeenCalledTimes(1);
+      act(() => {
+        renderer!.unmount();
+      });
+    });
+
+    it('clears a malformed event from an effect, not during render', () => {
+      mockGameState = { weeksLived: 5, pets: [], pendingEvents: [{ id: 'broken', description: 'x', choices: [] }] };
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      let renderer: TestRenderer.ReactTestRenderer | undefined;
+      act(() => {
+        renderer = TestRenderer.create(<WeeklyEventModal />);
+      });
+      expect(renderer!.toJSON()).toBeNull();
+      expect(mockSetGameState).toHaveBeenCalledTimes(1);
+      const updater = mockSetGameState.mock.calls[0][0] as (prev: { pendingEvents: { id: string }[] }) => { pendingEvents: unknown[] };
+      expect(updater({ pendingEvents: [{ id: 'broken' }, { id: 'other' }] }).pendingEvents).toEqual([{ id: 'other' }]);
+      const renderPhaseWarnings = consoleError.mock.calls.filter((c) => String(c[0]).includes('while rendering'));
+      expect(renderPhaseWarnings).toHaveLength(0);
+      consoleError.mockRestore();
+      act(() => {
+        renderer!.unmount();
+      });
     });
   });
 });

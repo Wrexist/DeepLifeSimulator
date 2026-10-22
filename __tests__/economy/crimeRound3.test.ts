@@ -31,7 +31,12 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { RAID_SHARE_OF_POLICE_EVENTS } from '@/lib/darkweb/weeklyTick';
+import {
+  RAID_SHARE_OF_POLICE_EVENTS,
+  raidShareOfPoliceEvents,
+  runDarkWebWeeklyTick,
+} from '@/lib/darkweb/weeklyTick';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import { initialGameState } from '@/contexts/game/initialState';
 
 const read = (rel: string): string =>
@@ -177,10 +182,31 @@ describe('R3-C8 - raid_risk states the raid chance', () => {
     expect(RAID_SHARE_OF_POLICE_EVENTS).toBeLessThan(1);
   });
 
-  it('the display scales by that share', () => {
+  it('the display scales by the share for THIS wallet', () => {
     expect(read('components/computer/OnionApp.tsx')).toMatch(
-      /policeEventProbability\(dw\.heat \?\? 0\) \* RAID_SHARE_OF_POLICE_EVENTS \* 100/,
+      /policeEventProbability\(dw\.heat \?\? 0\) \* raidShareOfPoliceEvents\(dw\.dirtyBtc\) \* 100/,
     );
+  });
+
+  // LATE-9: with an empty dirty wallet the sting band falls through to the
+  // raid, so the raid is 55% of police events, not 25%. Measured on the tick.
+  it.each([
+    ['empty dirty wallet', 0],
+    ['dirty BTC held', 2],
+  ])('the stated share matches the tick (%s)', (_label, dirtyBtc) => {
+    const base = createTestGameState().darkWeb!;
+    const steps = 1000;
+    let raids = 0;
+    for (let i = 0; i < steps; i++) {
+      const sub = (i + 0.5) / steps;
+      const res = runDarkWebWeeklyTick({
+        darkWeb: { ...base, heat: 100, dirtyBtc, cleanBtc: 1, lastHeatDecayWeek: 500 },
+        currentWeek: 500,
+        rollFor: (key) => (key === 'darkweb.policeEvent' ? 0 : key === 'darkweb.policeEvent.kind' ? sub : 0.99),
+      });
+      if (res.jailWeeksAdded > 0) raids++;
+    }
+    expect(raids / steps).toBeCloseTo(raidShareOfPoliceEvents(dirtyBtc), 2);
   });
 });
 

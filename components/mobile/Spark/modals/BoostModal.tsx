@@ -13,7 +13,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { boostProfile } from '@/contexts/game/actions/SparkActions';
+import { activeBoostExpiresWeek, boostProfile } from '@/contexts/game/actions/SparkActions';
 import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 
@@ -28,10 +28,14 @@ export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const gems = gameState.stats?.gems ?? 0;
+  const runningUntil = activeBoostExpiresWeek(gameState);
+  const boostRunning = runningUntil !== null;
   const canAfford = gems >= BOOST_COST;
+  const canBuy = canAfford && !boostRunning;
+  const weeksLeft = boostRunning ? Math.max(1, runningUntil - (gameState.weeksLived ?? 0)) : 0;
 
   const handle = useCallback(() => {
-    if (!canAfford) {
+    if (!canBuy) {
       sparkHaptics.error();
       return;
     }
@@ -43,7 +47,7 @@ export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
     } else {
       sparkHaptics.error();
     }
-  }, [canAfford, setGameState, gameState, saveGame, onDismiss]);
+  }, [canBuy, setGameState, gameState, saveGame, onDismiss]);
 
   return (
     <BaseModal
@@ -73,17 +77,19 @@ export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
 
       <Pressable
         onPress={handle}
-        disabled={!canAfford}
+        disabled={!canBuy}
         accessibilityRole="button"
-        accessibilityLabel={canAfford ? `Spend ${BOOST_COST} gems to boost` : 'Not enough gems'}
-        accessibilityState={{ disabled: !canAfford }}
+        accessibilityLabel={boostRunning ? `Boost active for ${weeksLeft} more ${weeksLeft === 1 ? 'week' : 'weeks'}` : canAfford ? `Spend ${BOOST_COST} gems to boost` : 'Not enough gems'}
+        accessibilityState={{ disabled: !canBuy }}
         style={[
           styles.cta,
-          { backgroundColor: canAfford ? SPARK_COLORS.accent : theme.border },
-          !canAfford && styles.ctaDisabled,
+          { backgroundColor: canBuy ? SPARK_COLORS.accent : theme.border },
+          !canBuy && styles.ctaDisabled,
         ]}
       >
-        {canAfford ? (
+        {boostRunning ? (
+          <Text style={styles.ctaText}>{`Boost active · ${weeksLeft} ${weeksLeft === 1 ? 'week' : 'weeks'} left`}</Text>
+        ) : canAfford ? (
           <View style={styles.ctaRow}>
             <Text style={styles.ctaText}>{`Boost for ${BOOST_COST}`}</Text>
             <Gem size={fontScale(16)} color={uiPalette.white} />

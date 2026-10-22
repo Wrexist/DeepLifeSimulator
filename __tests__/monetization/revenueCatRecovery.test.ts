@@ -219,3 +219,71 @@ it.each(['life', 'slot'])('clears a completed purchase after cleanup failed and 
   expect(mockDisk.stats.gems).toBe(originalGems);
   expect(revenueCatService.purchaseProduct).toHaveBeenCalledTimes(1);
 });
+
+// ── MON-1 (2026-10 audit): a pending intent must not block every future purchase ──
+describe('pending intent that can never resolve (MON-1)', () => {
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+
+  it('clears the intent when the store refuses because the product is already owned', async () => {
+    jest.mocked(revenueCatService.purchaseProduct).mockResolvedValueOnce({ success: false, notCharged: true, alreadyOwned: true, message: 'You already own this.' });
+    expect((await service.purchaseProduct(productId)).success).toBe(false);
+    expect(await readPendingRcGrant()).toBeNull();
+    expect((await service.purchaseProduct(productId)).success).toBe(true);
+  });
+
+  it('clears the intent when the store "succeeds" with a transaction already in the baseline (iOS re-buy of an owned item)', async () => {
+    jest.mocked(revenueCatService.purchaseProduct).mockResolvedValueOnce({ success: true, transactionId: 'historical' });
+    const result = await service.purchaseProduct(productId);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('already own');
+    expect(mockDisk.stats.gems).toBe(0);
+    expect(await readPendingRcGrant()).toBeNull();
+  });
+
+  it('keeps a pending-payment intent with a pending message', async () => {
+    jest.mocked(revenueCatService.purchaseProduct).mockResolvedValueOnce({ success: false, paymentPending: true, message: 'Your payment is pending approval.' });
+    const result = await service.purchaseProduct(productId);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('pending');
+    expect(await readPendingRcGrant()).not.toBeNull();
+  });
+
+  it('expires an intent with no receipt after the TTL, without charging on that tap, and allows the next purchase', async () => {
+    await writePendingRcGrant(intent());
+    receipts = { ...receipts, requestDate: 1000 + WEEK + 1 };
+    const tap = await service.purchaseProduct(productId);
+    expect(tap.success).toBe(false);
+    expect(tap.message).toContain('cleared');
+    expect(revenueCatService.purchaseProduct).not.toHaveBeenCalled();
+    expect(await readPendingRcGrant()).toBeNull();
+    expect(mockDisk.stats.gems).toBe(0);
+    expect((await service.purchaseProduct(productId)).success).toBe(true);
+  });
+
+  it('does NOT expire before the TTL', async () => {
+    await writePendingRcGrant(intent());
+    receipts = { ...receipts, requestDate: 1000 + WEEK - 1 };
+    expect(await service.recoverPendingRevenueCatPurchase()).toBe(false);
+    expect(await readPendingRcGrant()).not.toBeNull();
+  });
+
+  it('does NOT expire an intent whose receipt arrived but cannot be granted (paid, ungranted)', async () => {
+    await writePendingRcGrant(intent());
+    receipts = { ...receipts, requestDate: 1000 + 2 * WEEK, transactions: [...receipts.transactions, tx] };
+    slot = 2; // the original character is not loaded
+    expect(await service.recoverPendingRevenueCatPurchase()).toBe(false);
+    expect(await readPendingRcGrant()).not.toBeNull();
+  });
+
+  it('does NOT expire an intent with a recorded receipt, or one seen from another store account', async () => {
+    await writePendingRcGrant({ ...intent(), transactionId: 'recorded' });
+    receipts = { ...receipts, requestDate: 1000 + 2 * WEEK };
+    expect(await service.recoverPendingRevenueCatPurchase()).toBe(false);
+    expect(await readPendingRcGrant()).not.toBeNull();
+
+    await writePendingRcGrant(intent());
+    receipts = { ...receipts, customerId: 'account-b' };
+    expect(await service.recoverPendingRevenueCatPurchase()).toBe(false);
+    expect(await readPendingRcGrant()).not.toBeNull();
+  });
+});

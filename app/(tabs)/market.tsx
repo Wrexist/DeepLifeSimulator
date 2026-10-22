@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
-import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
+import { listRentalOptions, rentHome, endRental, moveOutWarning, switchTierWarning } from '@/contexts/game/actions/RentalActions';
+import { gameAlert } from '@/utils/gameAlert';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { satietyHint, scaledFoodRestore } from '@/lib/economy/foodSatiety';
 import { getFoodPurchasePrice, getItemPurchasePrice } from '@/lib/economy/itemPricing';
@@ -503,18 +504,36 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                   key={t2.id}
                   activeOpacity={disabled ? 1 : 0.85}
                   onPress={() => {
+                    // APP-3: moving out and swapping homes used to happen on
+                    // one tap of the card. Both now say what changes first.
                     if (option.current) {
-                      const r = endRental(setGameState, gameState);
-                      if (r.message) showInfo(r.message);
+                      const doMoveOut = () => {
+                        const r = endRental(setGameState, gameState);
+                        if (r.message) showInfo(r.message);
+                      };
+                      const warning = moveOutWarning(gameState);
+                      if (!warning) { doMoveOut(); return; }
+                      gameAlert('Move out?', warning, [
+                        { text: 'Stay', style: 'cancel' },
+                        { text: 'Move out', style: 'destructive', onPress: doMoveOut },
+                      ]);
                       return;
                     }
                     if (disabled) {
                       showError(option.reason || 'You cannot rent this yet.');
                       return;
                     }
-                    const r = rentHome(setGameState, gameState, t2.id);
-                    if (r.success) showSuccess(r.message);
-                    else showError(r.message);
+                    const doRent = () => {
+                      const r = rentHome(setGameState, gameState, t2.id);
+                      if (r.success) showSuccess(r.message);
+                      else showError(r.message);
+                    };
+                    const switchWarning = switchTierWarning(gameState, t2.id);
+                    if (!switchWarning) { doRent(); return; }
+                    gameAlert('Move house?', switchWarning, [
+                      { text: 'Stay', style: 'cancel' },
+                      { text: 'Move', onPress: doRent },
+                    ]);
                   }}
                   accessibilityRole="button"
                   accessibilityState={{ disabled, selected: option.current }}
@@ -528,12 +547,12 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                         ? accent.success
                         : settings.darkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
                       opacity: disabled ? 0.55 : 1,
-                      marginBottom: 10,
+                      marginBottom: scale(10),
                     },
                   ]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    {option.current ? <Check size={18} color={accent.success} /> : <Home size={18} color={accent.info} />}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(10) }}>
+                    {option.current ? <Check size={scale(18)} color={accent.success} /> : <Home size={scale(18)} color={accent.info} />}
                     <View style={{ flex: 1 }}>
                       <Text style={styles.housingCardTitle}>{t2.name}</Text>
                       <Text style={styles.housingCardSubtitle}>
@@ -600,9 +619,9 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           visible={true}
           title={`Purchase ${showPurchaseConfirm.itemName}?`}
           message={`This will cost ${formatMoney(showPurchaseConfirm.price)}. You'll have ${formatMoney(gameState.stats.money - showPurchaseConfirm.price)} remaining.${showPurchaseConfirm.itemId === 'computer'
-            ? '\n\nThis will unlock computer apps including Crypto Mining, Real Estate, and Gaming!'
+            ? '\n\nThis will unlock computer apps including Crypto, Real Estate and YouVideo!'
             : showPurchaseConfirm.itemId === 'smartphone'
-              ? '\n\nThis will unlock mobile apps including Banking, Dating, and Social Media!'
+              ? '\n\nThis will unlock mobile apps including Bank, Spark and Pulse!'
               : ''
             }`}
           confirmText="Buy"

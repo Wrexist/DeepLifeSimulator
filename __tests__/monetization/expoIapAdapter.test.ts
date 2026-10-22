@@ -177,4 +177,25 @@ describe('expoIapAdapter', () => {
     await adapter.finishTransactionAsync(purchase, true);
     expect(finishMock).toHaveBeenCalledWith({ purchase: purchase._raw, isConsumable: true });
   });
+
+  // MON-13 (2026-10 audit): an Android PENDING purchase (cash / slow payment
+  // method) was resolved as OK and granted before the payment cleared.
+  it('resolves an interactive PENDING purchase as DEFERRED, not OK', async () => {
+    const adapter = await freshAdapter();
+    const p = adapter.purchaseItemAsync('deeplife_gems_500');
+    updatedCb!({ productId: 'deeplife_gems_500', purchaseToken: 'TOK', purchaseState: 'pending' });
+    const res = await p;
+    expect(res.responseCode).toBe(adapter.IAPResponseCode.DEFERRED);
+    expect(res.results).toHaveLength(0);
+  });
+
+  it('never hands a PENDING background purchase to the grant listener, but does hand over the cleared one', async () => {
+    const adapter = await freshAdapter();
+    const cb = jest.fn();
+    adapter.setPurchaseListener(cb);
+    updatedCb!({ productId: 'deeplife_gems_500', purchaseToken: 'TOK', purchaseState: 'pending' });
+    expect(cb).not.toHaveBeenCalled();
+    updatedCb!({ productId: 'deeplife_gems_500', purchaseToken: 'TOK', purchaseState: 'purchased' });
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
 });

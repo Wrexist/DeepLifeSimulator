@@ -111,9 +111,8 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
         deliverBrandDealPost(gameState, setGameState, sponsorDealId, r.postId);
       }
       pulseHaptics.success();
-      // Persist AFTER the commit (post-commit ref-sync pattern) so the delivery
-      // + any completion payout are saved, not the pre-action snapshot.
-      setTimeout(() => { void saveGame?.(); }, 0);
+      // Persist the delivery + any completion payout; saveGame waits for the pending commit itself (waitForPendingCommit).
+      void saveGame?.();
       reset();
       onDismiss();
     } else {

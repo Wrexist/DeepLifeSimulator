@@ -23,6 +23,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import { clampStat, clampStatByKey } from '@/utils/statUtils';
+import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
@@ -44,7 +45,7 @@ export default function GymCard() {
   // When all three already sit at the cap every gain clamps to zero, so the visit
   // would charge money + energy for nothing. Compute the clamped deltas and treat
   // "all zero" as "already in top shape".
-  const gymGainsAllZero = useMemo(() => {
+  const gymGains = useMemo(() => {
     // Normalize first: a NaN/undefined stat on a corrupted save makes every
     // delta NaN, and `NaN <= 0` is false - the guard's answer would flip on
     // garbage input instead of being computed from a real baseline.
@@ -54,8 +55,9 @@ export default function GymCard() {
     const fitnessGain = clampStat(fitness + 5) - fitness;
     const healthGain = clampStat(health + 3) - health;
     const happinessGain = clampStat(happiness + 2) - happiness;
-    return fitnessGain <= 0 && healthGain <= 0 && happinessGain <= 0;
+    return { fitness: fitnessGain, health: healthGain, happiness: happinessGain };
   }, [gameState.stats.fitness, gameState.stats.health, gameState.stats.happiness]);
+  const gymGainsAllZero = gymGains.fitness <= 0 && gymGains.health <= 0 && gymGains.happiness <= 0;
 
   // A gym session also refreshes the gym-visit timer the weekly tick reads to
   // scale fitness decay. When that timer is stale (behind the current week) a
@@ -111,20 +113,28 @@ export default function GymCard() {
           energy: clampStatByKey('energy', (st.energy ?? 0) - energyCost),
           fitness: clampStatByKey('fitness', (st.fitness ?? 0) + 5),
           health: clampStatByKey('health', (st.health ?? 0) + 3),
-          happiness: clampStatByKey('happiness', (st.happiness ?? 0) + 2),
+          // Through the happiness taper (CLAUDE.md 4.3) like every other gain:
+          // a raw +2 per $50 session was an uncapped way to buy happiness.
+          happiness: clampStatByKey('happiness', (st.happiness ?? 0) + scaledHappinessGain(st.happiness ?? 0, 2)),
         },
       };
     });
-    // Persist the session - deferred one macrotask so the save captures the
-    // post-commit state (repo convention). Untracked on purpose: the save must
-    // survive even if the screen unmounts right after the tap.
-    setTimeout(() => { void saveGame?.(); }, 0);
+    // Persist the session. SaveGame waits for the pending commit itself (waitForPendingCommit),
+    // so an inline call saves the post-commit state.
+    void saveGame?.();
     // Effort → reward feedback, matching the food/buy paths on the Market. When
     // stats are already capped the session still counts - it keeps the routine up.
+    // The toast names every stat the updater grants, at its clamped size (the
+    // same deltas the guard above computes), so it never claims +5 at 98.
+    const gained = [
+      gymGains.fitness > 0 ? `+${Math.round(gymGains.fitness)} fitness` : null,
+      gymGains.health > 0 ? `+${Math.round(gymGains.health)} health` : null,
+      gymGains.happiness > 0 ? `+${Math.round(gymGains.happiness)} happiness` : null,
+    ].filter(Boolean).join(', ');
     showSuccess(gymGainsAllZero
       ? '💪 Workout done! Fitness routine maintained.'
-      : '💪 Workout done! +5 Fitness, +3 Health');
-  }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, setGameState, saveGame, showSuccess]);
+      : `💪 Workout done! ${gained}`);
+  }, [hasMembership, gymGains, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, setGameState, saveGame, showSuccess]);
 
   return (
     <View style={styles.gymCard}>
