@@ -62,6 +62,7 @@ import { MINER_PRICES } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWarehouse';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { estimateWeeklyMining, MINING_USD_CAP } from '@/lib/crypto/estimateWeeklyMining';
+import { minerDurabilityYieldFactor, MINER_FULL_YIELD_DURABILITY } from '@/lib/crypto/miningEarnings';
 import {
   repairRig,
   setAutoRepair,
@@ -170,10 +171,11 @@ function formatHashrate(th: number): string {
   return `${Math.round(th)} TH/s`;
 }
 
-// Durability -> rig status band (drives the LED colour + label).
+// Durability -> rig status band (drives the LED colour + label). The red band
+// starts where output starts to fall (`MINER_FULL_YIELD_DURABILITY`).
 function healthBand(h: number): { color: string; label: string } {
   if (h >= 70) return { color: accent.success, label: 'Online' };
-  if (h >= 40) return { color: accent.warning, label: 'Degrading' };
+  if (h >= MINER_FULL_YIELD_DURABILITY) return { color: accent.warning, label: 'Degrading' };
   return { color: accent.danger, label: 'Needs repair' };
 }
 
@@ -787,7 +789,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
           {autoRepairEnabled
             ? `Each week, rigs below 50% health are repaired - cheapest first - for as much as your ${autoRepairCryptoId.toUpperCase()} balance covers.`
-            : 'Rigs degrade 2–5% per week. Enable to auto-restore worn rigs from a crypto of your choice.'}
+            : 'Rigs lose 2–5% health per week, and below 50% their output falls. Enable to auto-restore worn rigs from a crypto of your choice.'}
         </Text>
         {/*
           Player report: "Auto repair in the crypto page does not work."
@@ -1478,6 +1480,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 </View>
                 <ProgressBar value={dur / 100} color={band.color} label="Durability" />
                 <View style={styles.conditionRow}>
+                  <Text style={[styles.conditionLabel, { color: theme.textMuted }]}>Output</Text>
+                  <Text style={[styles.conditionValue, { color: band.color }]}>
+                    {Math.round(minerDurabilityYieldFactor(dur) * 100)}%
+                  </Text>
+                </View>
+                <View style={styles.conditionRow}>
                   <View style={styles.conditionInline}>
                     <Activity size={scale(12)} color={theme.textMuted} />
                     <Text style={[styles.conditionLabel, { color: theme.textMuted }]}>Network difficulty</Text>
@@ -1510,7 +1518,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
               </>
             ) : (
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                No units deployed. Rigs degrade 2–5% per week; keep durability up or yield drops.
+                No units deployed. Rigs lose 2–5% health per week; below 50% their output falls, down to a quarter at 0%.
                 Full repair runs {formatMoneyCompact(repairFull)} per unit at 0%.
               </Text>
             )}
