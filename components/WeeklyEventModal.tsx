@@ -31,6 +31,7 @@ const SPECIAL_EFFECT_LABELS: Record<EventSpecial | '', { text: string; positive:
  fire_from_job: { text: 'You lose your job', positive: false },
  add_career_warning: { text: 'Formal warning at work', positive: false },
  lose_vehicle: { text: 'The vehicle is gone', positive: false },
+ damage_vehicle: { text: 'The vehicle gets worse', positive: false },
 };
 
 /** Net worth for the money-preview scaling; a throw must not blank the modal. */

@@ -75,6 +75,7 @@ import {
   meetBlockedReason,
   MEET_ENERGY_COST,
 } from '@/lib/social/meetPeople';
+import { pregnancyBlocksSplitMessage } from '@/lib/dating/familyPlanning';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
@@ -520,6 +521,13 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         setRingTargetId(contactId);
         return;
       }
+      const rel = gameState.relationships?.find((x) => x.id === contactId);
+      // SOC-8: refuse up front, before a confirm or the divorce modal is shown,
+      // with the same reason the actions themselves give.
+      if ((action === 'divorce' || action === 'breakup') && rel?.isPregnant) {
+        flash(pregnancyBlocksSplitMessage(rel.name), contactId);
+        return;
+      }
       if (action === 'divorce') {
         // Divorce-confirmation flow → DivorceConfirmModal, where the player can
         // hire a lawyer to fight the settlement. The actual fileDivorce call
@@ -527,14 +535,34 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         setDivorceTargetId(contactId);
         return;
       }
-      const fn = action === 'movein' ? moveInTogether : breakUpWithPartner;
-      const r: any = fn(contactId);
-      if (r) {
-        if (r.success) saveGame();
-        flash(r.message, contactId);
+      const run = (fn: typeof moveInTogether | typeof breakUpWithPartner) => {
+        const r = fn(contactId);
+        if (r) {
+          if (r.success) saveGame();
+          flash(r.message, contactId);
+        }
+      };
+      if (action === 'movein') {
+        run(moveInTogether);
+        return;
       }
+      // APP-2: Break up deletes the relationship outright and cannot be undone,
+      // so it gets the same destructive confirm as Remove contact - naming what
+      // goes with it when they are engaged.
+      const name = rel?.name ?? 'them';
+      const losses = ['-20 happiness'];
+      if (rel?.engagementRing || rel?.engagementWeek != null) losses.push('the engagement');
+      if (rel?.weddingPlanned) losses.push('the wedding deposit');
+      gameAlert(
+        `Break up with ${name}?`,
+        `This ends the relationship for good. You lose ${losses.join(', ')}.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Break up', style: 'destructive', onPress: () => run(breakUpWithPartner) },
+        ]
+      );
     },
-    [moveInTogether, breakUpWithPartner, saveGame, flash]
+    [gameState, moveInTogether, breakUpWithPartner, saveGame, flash]
   );
 
   const handleProposeWithRing = useCallback(
@@ -591,15 +619,28 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   const renderPersonalCard = (c: ContactView) => {
     const r = c.raw as Relationship;
     const expanded = expandedId === c.id;
-    const isPartner = c.kind === 'partner';
+    // The aggregator files BOTH a partner and a spouse under kind 'partner', so
+    // `c.kind` answers "is this a romance?" (dates, gifts) and the record's own
+    // type answers "is this an unmarried partner?" (move in, propose, plan the
+    // wedding, break up). Gating the second set on `c.kind` showed Propose and
+    // Break up on every spouse, and both actions refuse a spouse with
+    // "Partner not found." (SOC-1).
+    const isRomance = c.kind === 'partner';
+    const isPartner = r.type === 'partner';
     const rec = recencyMeta(c.weeksSinceContact, theme);
     const sColor = strengthColor(c.strength);
     const innerLine = [styles.innerLifeLine, { color: theme.textSecondary }];
+    // Every stamp below is absolute `weeksLived`, which starts at
+    // (age - 18) * 52, so an age-25 life read "Married since wk 412" beside
+    // "Met at work · week 12". One numbering on the card: the life week
+    // (§4.2, SOC-16). `anniversaryWeek` is stamped equal to `marriageWeek` by
+    // `buildSpouseRecord`, so it is not printed a second time.
+    const lifeStart = gameState.lifeStartWeek;
     const milestone =
       r.marriageWeek != null
-        ? `Married since wk ${r.marriageWeek}${r.anniversaryWeek ? ` · anniversary wk ${r.anniversaryWeek}` : ''}`
+        ? `Married since ${formatLifeWeek(r.marriageWeek, lifeStart)}`
         : r.engagementWeek != null
-          ? `Engaged since wk ${r.engagementWeek}`
+          ? `Engaged since ${formatLifeWeek(r.engagementWeek, lifeStart)}`
           : null;
     return (
       <View key={c.id} style={cardSurface}>
@@ -696,7 +737,14 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                   `npcMemories`, which `decayMemories` drops after a year, so
                   the one fact a player most wants back was the first thing the
                   game forgot. */}
-              {r.metAt ? <Chip label={`Met ${r.metAt.label} · week ${r.metAt.week}`} tint={accent.success} /> : null}
+              {r.metAt ? (
+                <Chip
+                  // `metAt.week` is already life-relative (weeksInThisLife), so
+                  // it is rebased onto the life start for the shared formatter.
+                  label={`Met ${r.metAt.label} · ${formatLifeWeek((lifeStart ?? 0) + r.metAt.week, lifeStart)}`}
+                  tint={accent.success}
+                />
+              ) : null}
               {r.job ? <Chip label={`Job · ${r.job}`} /> : null}
               {/* "/yr". `Relationship.income` is an annual salary copied from the
                   Spark profile; it read "/wk" here and in FamilyTab while the
@@ -789,7 +837,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               <View style={styles.innerLifeRow}>
                 <Pin size={fontScale(12)} color={theme.textSecondary} />
                 <Text style={innerLine} numberOfLines={1}>
-                  {r.lastLifeEvent.event} (wk {r.lastLifeEvent.weeksLived})
+                  {r.lastLifeEvent.event} ({formatLifeWeek(r.lastLifeEvent.weeksLived, lifeStart)})
                 </Text>
               </View>
             ) : null}
@@ -802,7 +850,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               </Text>
             ) : null}
             </CollapsibleSection>
-            {isPartner && (
+            {isRomance && (
               <CollapsibleSection id={`contact-dates-${c.id}`} title="Plan a date" defaultCollapsed compact>
                 <View style={styles.dateList}>
                   {DATE_TIER_META.map((t) => {
@@ -844,15 +892,17 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 these are the moves you make once, not the ones you make weekly
                 - and a "Break up" sitting next to "Hang Out" at the same weight
                 is how a mis-tap happens. */}
-            {isPartner || r.type === 'spouse' || !isFamilyRelationship(r) ? (
+            {isRomance || !isFamilyRelationship(r) ? (
               <CollapsibleSection id={`contact-relationship-${c.id}`} title="Relationship" defaultCollapsed compact>
                 <View style={styles.groupBody}>
+                  {isRomance && (
+                    <View style={styles.actionsRow}>
+                      <ActionBtn label={`Flowers · ${formatMoney(mindsetPrice(GIFT_CONFIGS.flowers.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
+                      <ActionBtn label={`Jewelry · ${formatMoney(mindsetPrice(GIFT_CONFIGS.jewelry.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
+                    </View>
+                  )}
                   {isPartner && (
                     <>
-                      <View style={styles.actionsRow}>
-                        <ActionBtn label={`Flowers · ${formatMoney(mindsetPrice(GIFT_CONFIGS.flowers.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
-                        <ActionBtn label={`Jewelry · ${formatMoney(mindsetPrice(GIFT_CONFIGS.jewelry.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
-                      </View>
                       {!r.livingTogether && (
                         <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} darkMode={darkMode} wide />
                       )}
@@ -868,7 +918,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                   {r.type === 'spouse' && (
                     <ActionBtn label="File for divorce" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'divorce')} darkMode={darkMode} wide subtle />
                   )}
-                  {!isFamilyRelationship(r) && (
+                  {/* A partner leaves through Break up, which carries the
+                      happiness cost and ends the Spark match. "Remove contact"
+                      beside it was a free breakup (SOC-7). */}
+                  {!isFamilyRelationship(r) && !isPartner && (
                     <ActionBtn label="Remove contact" Icon={UserMinus} color={accent.danger} onPress={() => handleRemoveContact(r)} darkMode={darkMode} wide subtle />
                   )}
                 </View>
@@ -991,7 +1044,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             that vendors and politicals "can't [be] associate[d] with". */}
         {favorKind ? (
           <View style={cardSurface}>
-            <SectionTitle title="Call in a favour" />
+            <SectionTitle title="Call in a favor" />
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
               {owedFavor
                 ? `${c.name} already owes you ${favorPhrase(owedFavor.kind)}. Redeem it from the Favors tab.`
@@ -1010,7 +1063,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             >
               <Handshake size={scale(15)} color={theme.text} />
               <Text style={[styles.triageBtnText, { color: theme.text }]}>
-                {owedFavor ? 'Favour outstanding' : `Ask for ${favorPhrase(favorKind)}`}
+                {owedFavor ? 'Favor outstanding' : `Ask for ${favorPhrase(favorKind)}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1562,7 +1615,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             spouseName={divorceTarget.name}
             estimatedSettlement={costs.settlement}
             lawyerFees={costs.lawyerFees}
-            currentMoney={gameState.stats.money}
+            liquidity={costs.liquidity}
             currentGems={gameState.stats.gems}
             netWorth={costs.netWorth}
             isDarkMode={darkMode}
@@ -1739,12 +1792,12 @@ function recencyMeta(
  */
 function favorPhrase(kind: string): string {
   switch (kind) {
-    case 'money': return 'a cash favour';
-    case 'influence': return 'a political favour';
+    case 'money': return 'a cash favor';
+    case 'influence': return 'a political favor';
     case 'discount': return 'a discount';
     case 'safety': return 'a cover-up';
     case 'intro': return 'an introduction';
-    default: return 'a favour';
+    default: return 'a favor';
   }
 }
 

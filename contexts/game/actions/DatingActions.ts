@@ -9,7 +9,7 @@
  * - Divorce
  */
 
-import { GameState, WeddingPlan } from '../types';
+import { GameState, RealEstate, WeddingPlan } from '../types';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta, updateMoney } from './MoneyActions';
@@ -44,6 +44,7 @@ import {
 import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 import { composePost } from './PulseActions';
 import { mindsetEffects, mindsetPrice } from '@/lib/mindset/effects';
+import { pregnancyBlocksSplitMessage } from '@/lib/dating/familyPlanning';
 
 const log = logger.scope('DatingActions');
 
@@ -60,6 +61,31 @@ const safeNumber = (value: unknown, fallback = 0): number => {
   return fallback;
 };
 
+/**
+ * What is still owed on the mortgage attached to a property (0 when none).
+ *
+ * SOC-6: the divorce path valued and force-sold houses at their GROSS value and
+ * never touched the linked loan, so a mortgaged homeowner paid a settlement on
+ * equity they did not have and kept paying the mortgage on a house they no
+ * longer owned. Every divorce reader below works on equity instead.
+ */
+const linkedMortgageRemaining = (state: GameState, property: RealEstate): number => {
+  if (!property.mortgageId) return 0;
+  const loan = (state.loans ?? []).find(l => l?.id === property.mortgageId);
+  return Math.max(0, safeNumber(loan?.remaining));
+};
+
+const propertyMarketValue = (property: RealEstate): number =>
+  Math.max(0, safeNumber(property.currentValue) || safeNumber(property.price));
+
+/** What a forced divorce sale of this property puts in hand after the mortgage is paid off. */
+const forcedSaleNetProceeds = (state: GameState, property: RealEstate): number =>
+  Math.max(
+    0,
+    Math.floor(propertyMarketValue(property) * FORCED_REAL_ESTATE_LIQUIDATION_RATE) -
+      linkedMortgageRemaining(state, property),
+  );
+
 const calculateDivorceNetWorth = (state: GameState): number => {
   let netWorth = safeNumber(state.stats?.money);
   netWorth += safeNumber(state.bankSavings);
@@ -73,9 +99,8 @@ const calculateDivorceNetWorth = (state: GameState): number => {
   if (Array.isArray(state.realEstate)) {
     state.realEstate.forEach(property => {
       if (!property?.owned) return;
-      const currentValue = safeNumber(property.currentValue);
-      const baseValue = safeNumber(property.price);
-      netWorth += Math.max(0, currentValue || baseValue);
+      // Equity, not gross value: the bank's share of the house is not marital wealth.
+      netWorth += Math.max(0, propertyMarketValue(property) - linkedMortgageRemaining(state, property));
     });
   }
 
@@ -101,11 +126,7 @@ const calculateForcedRealEstateLiquidity = (state: GameState): number => {
   if (!Array.isArray(state.realEstate)) return 0;
   return state.realEstate.reduce((total, property) => {
     if (!property?.owned) return total;
-    const currentValue = safeNumber(property.currentValue);
-    const baseValue = safeNumber(property.price);
-    const liquidationBase = Math.max(0, currentValue || baseValue);
-    if (liquidationBase <= 0) return total;
-    return total + Math.floor(liquidationBase * FORCED_REAL_ESTATE_LIQUIDATION_RATE);
+    return total + forcedSaleNetProceeds(state, property);
   }, 0);
 };
 
@@ -882,6 +903,10 @@ export const calculateDivorceCosts = (gameState: GameState, spouseId: string): {
   moneyAfter: number;
   immediateLiquidity: number;
   projectedDebt: number;
+  /** What the confirm screen needs to re-project the outcome for any lawyer choice. */
+  liquidity: DivorceLiquidity;
+  /** True when cash and savings alone cannot cover the base settlement, so stocks / property are sold. */
+  usesAssets: boolean;
 } | null => {
   const spouse = gameState.relationships?.find(r => r.id === spouseId && r.type === 'spouse');
   if (!spouse) {
@@ -896,17 +921,14 @@ export const calculateDivorceCosts = (gameState: GameState, spouseId: string): {
   const settlementRatio = DIVORCE_SETTLEMENT_BASE + ((spouseHash % 20) / 100); // 15-35% of net worth (deterministic)
   const settlement = Math.floor(netWorth * settlementRatio);
   const lawyerFees = DIVORCE_LAWYER_BASE_FEE;
-  const liquidAssets = safeNumber(gameState.stats.money) + safeNumber(gameState.bankSavings);
-  const forcedStockLiquidity = calculateForcedStockLiquidity(gameState);
-  const forcedRealEstateLiquidity = calculateForcedRealEstateLiquidity(gameState);
-  const immediateLiquidity = Math.max(
-    0,
-    liquidAssets + forcedStockLiquidity + forcedRealEstateLiquidity - MIN_DIVORCE_CASH_BUFFER
-  );
+  const liquidity: DivorceLiquidity = {
+    cash: safeNumber(gameState.stats.money),
+    savings: safeNumber(gameState.bankSavings),
+    stockLiquidity: calculateForcedStockLiquidity(gameState),
+    propertyLiquidity: calculateForcedRealEstateLiquidity(gameState),
+  };
   const totalCost = settlement + lawyerFees;
-  const projectedDebt = Math.max(0, totalCost - immediateLiquidity);
-  const immediatePaid = Math.min(totalCost, immediateLiquidity);
-  const moneyAfter = Math.max(MIN_DIVORCE_CASH_BUFFER, liquidAssets + forcedStockLiquidity + forcedRealEstateLiquidity - immediatePaid);
+  const projection = projectDivorcePayment(liquidity, totalCost);
 
   return {
     netWorth,
@@ -914,11 +936,59 @@ export const calculateDivorceCosts = (gameState: GameState, spouseId: string): {
     settlementPercent: netWorth > 0 ? (settlement / netWorth) * 100 : 0,
     lawyerFees,
     totalCost,
-    moneyAfter,
-    immediateLiquidity,
-    projectedDebt,
+    moneyAfter: projection.moneyAfter,
+    immediateLiquidity: projection.immediateLiquidity,
+    projectedDebt: projection.projectedDebt,
+    liquidity,
+    usesAssets: projection.usesAssets,
   };
 };
+
+/** Every source a divorce settlement is paid from, in the order `fileDivorce` drains them. */
+export interface DivorceLiquidity {
+  cash: number;
+  savings: number;
+  /** Forced-sale proceeds of the whole portfolio (at `FORCED_STOCK_LIQUIDATION_RATE`). */
+  stockLiquidity: number;
+  /** Forced-sale proceeds of every property with equity, net of its mortgage. */
+  propertyLiquidity: number;
+}
+
+export const DIVORCE_FORCED_STOCK_RATE = FORCED_STOCK_LIQUIDATION_RATE;
+export const DIVORCE_FORCED_PROPERTY_RATE = FORCED_REAL_ESTATE_LIQUIDATION_RATE;
+export const DIVORCE_SETTLEMENT_DEBT_APR = DIVORCE_DEBT_APR;
+export const DIVORCE_SETTLEMENT_DEBT_TERM_WEEKS = DIVORCE_DEBT_TERM_WEEKS;
+
+/**
+ * What paying `totalCost` does, by the same waterfall `fileDivorce` runs:
+ * cash above the $1,000 floor, then savings, then forced stock and property
+ * sales, then a settlement loan for the rest.
+ *
+ * SOC-5: the confirm screen projected from CASH alone - "Money After" ignored
+ * savings and assets, a forced sale or a 104-week loan was never mentioned, and
+ * a player with $4,999 cash (or $1M in savings and stocks) was refused outright
+ * although the action handles both. One pure projection now feeds the preview
+ * for every lawyer choice, so what the screen promises is what is applied.
+ */
+export function projectDivorcePayment(liquidity: DivorceLiquidity, totalCost: number): {
+  immediateLiquidity: number;
+  projectedDebt: number;
+  moneyAfter: number;
+  usesAssets: boolean;
+} {
+  const cash = Math.max(0, safeNumber(liquidity.cash));
+  const savings = Math.max(0, safeNumber(liquidity.savings));
+  const assets = Math.max(0, safeNumber(liquidity.stockLiquidity)) + Math.max(0, safeNumber(liquidity.propertyLiquidity));
+  const cost = Math.max(0, safeNumber(totalCost));
+  const immediateLiquidity = Math.max(0, cash + savings + assets - MIN_DIVORCE_CASH_BUFFER);
+  const immediatePaid = Math.min(cost, immediateLiquidity);
+  return {
+    immediateLiquidity,
+    projectedDebt: Math.max(0, cost - immediateLiquidity),
+    moneyAfter: Math.max(MIN_DIVORCE_CASH_BUFFER, cash + savings + assets - immediatePaid),
+    usesAssets: assets > 0 && cost > Math.max(0, cash - MIN_DIVORCE_CASH_BUFFER) + savings,
+  };
+}
 
 /**
  * File for divorce
@@ -933,6 +1003,12 @@ export const fileDivorce = (
   const spouse = gameState.relationships?.find(r => r.id === spouseId && r.type === 'spouse');
   if (!spouse) {
     return { success: false, message: 'Spouse not found.' };
+  }
+
+  // SOC-8: the pregnancy lives on the spouse record, so removing the record
+  // erased a named, announced baby without a word. Wait for the birth.
+  if (spouse.isPregnant) {
+    return { success: false, message: pregnancyBlocksSplitMessage(spouse.name) };
   }
 
   // ANTI-EXPLOIT: Divorce cooldown - prevent marry/divorce/remarry loop for stat/money manipulation
@@ -1050,24 +1126,32 @@ export const fileDivorce = (
   });
 
   let propertyLiquidationGained = 0;
+  // Mortgages discharged by a forced sale (the proceeds above are already net
+  // of them), and whether the sale took the roof over the player's head.
+  const liquidatedMortgageIds = new Set<string>();
+  let soldHome = false;
   let updatedRealEstate = Array.isArray(gameState.realEstate) ? [...gameState.realEstate] : [];
   if (requiredFromAssetLiquidation > 0 && updatedRealEstate.length > 0) {
+    // Net of the linked mortgage (SOC-6): the sale pays the bank first, so a
+    // house with no equity raises nothing and is not sold. The home the player
+    // lives in goes last - every rental/holiday property is sold before it.
     const liquidationCandidates = updatedRealEstate
       .filter(property => property?.owned)
-      .map(property => {
-        const currentValue = safeNumber(property.currentValue);
-        const baseValue = safeNumber(property.price);
-        const liquidationBase = Math.max(0, currentValue || baseValue);
-        const proceeds = Math.floor(liquidationBase * FORCED_REAL_ESTATE_LIQUIDATION_RATE);
-        return { id: property.id, proceeds };
-      })
+      .map(property => ({
+        id: property.id,
+        proceeds: forcedSaleNetProceeds(gameState, property),
+        mortgageId: property.mortgageId,
+        isHome: !!property.currentResidence,
+      }))
       .filter(candidate => candidate.proceeds > 0)
-      .sort((a, b) => b.proceeds - a.proceeds);
+      .sort((a, b) => (a.isHome === b.isHome ? b.proceeds - a.proceeds : a.isHome ? 1 : -1));
 
     const liquidatedPropertyIds = new Set<string>();
     liquidationCandidates.forEach(candidate => {
       if (requiredFromAssetLiquidation <= 0) return;
       liquidatedPropertyIds.add(candidate.id);
+      if (candidate.mortgageId) liquidatedMortgageIds.add(candidate.mortgageId);
+      if (candidate.isHome) soldHome = true;
       propertyLiquidationGained += candidate.proceeds;
       requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - candidate.proceeds);
     });
@@ -1133,7 +1217,7 @@ export const fileDivorce = (
      * This updater writes `lastDivorceWeek`, so the second tap's re-check sees
      * the first tap's write and rejects. CLAUDE.md §4.4.
      */
-    const stillMarried = prev.relationships?.some(r => r.id === spouseId && r.type === 'spouse');
+    const stillMarried = prev.relationships?.some(r => r.id === spouseId && r.type === 'spouse' && !r.isPregnant);
     if (!stillMarried) return prev;
 
     const prevLastDivorce = prev.lastDivorceWeek || 0;
@@ -1162,7 +1246,8 @@ export const fileDivorce = (
     const actualDebtShortfall = Math.max(0, Math.ceil(remaining));
     const actualImmediatePayment = totalObligation - actualDebtShortfall;
 
-    const newLoans = [...(prev.loans || [])];
+    // A forced sale paid these mortgages off out of its gross proceeds.
+    const newLoans = (prev.loans || []).filter(l => !liquidatedMortgageIds.has(l?.id));
     if (actualDebtShortfall > 0) {
       const weeklyPayment = Math.max(
         50,
@@ -1294,7 +1379,11 @@ export const fileDivorce = (
     message += `Forced stock liquidation: $${Math.round(forcedStockLiquidationPaid).toLocaleString('en-US')}\n`;
   }
   if (forcedPropertyLiquidationPaid > 0) {
-    message += `Forced property liquidation: $${Math.round(forcedPropertyLiquidationPaid).toLocaleString('en-US')}\n`;
+    message += `Forced property liquidation: $${Math.round(forcedPropertyLiquidationPaid).toLocaleString('en-US')}` +
+      `${liquidatedMortgageIds.size > 0 ? ' (after paying off the mortgage)' : ''}\n`;
+  }
+  if (soldHome) {
+    message += `Your home was sold in the settlement - you will need somewhere new to live.\n`;
   }
   if (divorceDebtCreated > 0) {
     message += `Settlement debt created: $${Math.round(divorceDebtCreated).toLocaleString('en-US')} (auto-paid weekly)\n`;

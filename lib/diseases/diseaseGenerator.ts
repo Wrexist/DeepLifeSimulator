@@ -15,15 +15,6 @@ export const DISEASE_BASE_WEEKLY_CHANCE = 0.03;
 export const DISEASE_OCCURRENCE_CAP = 0.35;
 
 /**
- * Deterministic seeded random function for consistency
- * Uses the same pattern as the event system
- */
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-/**
  * Cache for disease risk calculations
  * Key: `${weeksLived}_${health}_${fitness}_${age}`
  */
@@ -349,9 +340,13 @@ export function generateEventDisease(eventId: string, state: GameState): Disease
     return null;
   }
 
-  // Use deterministic random based on event and week
-  const eventSeed = weeksLived * 1000 + eventId.charCodeAt(0) * 100;
-  const diseaseIndex = Math.floor(seededRandom(eventSeed) * possibleDiseaseIds.length);
+  // Keyed on the LIFE and the week (`makeLifeRoll`), like `generateRandomDisease`
+  // above. This used to be `Math.sin(weeksLived * 1000 + ...)` - a week-only
+  // seed, so every life with a medical emergency in week N got the SAME
+  // diagnosis (terminal ones included), and `Math.sin` is not bit-exact across
+  // Hermes and V8 (CLAUDE.md §4.3).
+  const roll = makeLifeRoll(state, weeksLived)(`event-disease:${eventId}`);
+  const diseaseIndex = Math.min(possibleDiseaseIds.length - 1, Math.floor(roll * possibleDiseaseIds.length));
   const diseaseId = possibleDiseaseIds[diseaseIndex];
 
   const template = getDiseaseTemplate(diseaseId);

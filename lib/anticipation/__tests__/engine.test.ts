@@ -55,6 +55,33 @@ describe('upcomingEvents', () => {
     expect(birth?.weeksAway).toBe(0);
   });
 
+  it('ignores a stale wedding-day spouse snapshot once the baby is born (SOC-9)', () => {
+    // Married while expecting: the snapshot copied `isPregnant` at the wedding
+    // and is never refreshed, while the live record was cleared by the birth.
+    const base = createTestGameState({ weeksLived: 400 });
+    const live = { id: 's1', name: 'Alex', type: 'spouse' as const, relationshipScore: 80,
+      personality: 'kind', gender: 'female' as const, age: 30, isPregnant: false };
+    const state = createTestGameState({
+      weeksLived: 400,
+      relationships: [live],
+      family: { ...base.family, spouse: { ...live, isPregnant: true, pregnancyStartWeek: 380 } },
+    });
+    expect(upcomingEvents(state).find((e) => e.kind === 'birth')).toBeUndefined();
+  });
+
+  it('reports a new pregnancy on the live record even with a stale snapshot (SOC-9)', () => {
+    const base = createTestGameState({ weeksLived: 400 });
+    const live = { id: 's1', name: 'Alex', type: 'spouse' as const, relationshipScore: 80,
+      personality: 'kind', gender: 'female' as const, age: 30, isPregnant: true, pregnancyStartWeek: 398 };
+    const state = createTestGameState({
+      weeksLived: 400,
+      relationships: [live],
+      family: { ...base.family, spouse: { ...live, pregnancyStartWeek: 300 } },
+    });
+    const birth = upcomingEvents(state).find((e) => e.kind === 'birth');
+    expect(birth?.weeksAway).toBe(PREGNANCY_DURATION_WEEKS - 2);
+  });
+
   it('puts a caution ahead of good news landing the same week', () => {
     const state = createTestGameState({
       weeksLived: 200,

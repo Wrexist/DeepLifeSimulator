@@ -14,6 +14,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import {
+  addCheckpoint,
   createCheckpoint,
   rewindToCheckpoint,
   slimCheckpointSnapshot,
@@ -405,3 +406,38 @@ describe('checkpointSystem - player state survives the snapshot', () => {
     expect(snap.jailActivities).toBeUndefined();
   });
 });
+
+// LATE-12: a rewind kept the abandoned timeline's later checkpoints, and the
+// replay re-minted the same `cp_<lineage>_<weeksLived>` id beside the old one.
+describe('checkpointSystem - rewinding prunes the abandoned timeline', () => {
+  function at(weeks: number, money: number): GameState {
+    const s = createTestGameState();
+    s.weeksLived = weeks;
+    s.stats = { ...s.stats, money };
+    return s;
+  }
+
+  it('drops checkpoints dated after the restored week', () => {
+    const cp1 = createCheckpoint(at(52, 1_000), 'Age 19');
+    const cp2 = createCheckpoint(at(104, 2_000), 'Age 20');
+    const cp3 = createCheckpoint(at(156, 3_000), 'Age 21');
+    const live = at(170, 4_000);
+    live.stats = { ...live.stats, gems: 100_000 };
+    live.checkpoints = [cp1, cp2, cp3];
+
+    const restored = rewindToCheckpoint(live, cp2.id)!;
+    expect(restored.weeksLived).toBe(104);
+    expect(restored.checkpoints!.map(c => c.id)).toEqual([cp1.id, cp2.id]);
+  });
+
+  it('a replayed year boundary replaces the old snapshot instead of duplicating its id', () => {
+    const oldTimeline = createCheckpoint(at(104, 2_000), 'Age 20');
+    const replayed = createCheckpoint(at(104, 9_999), 'Age 20');
+    expect(replayed.id).toBe(oldTimeline.id);
+
+    const list = addCheckpoint([oldTimeline], replayed);
+    expect(list).toHaveLength(1);
+    expect((list[0].snapshot as GameState).stats.money).toBe(9_999);
+  });
+});
+

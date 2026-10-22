@@ -204,7 +204,10 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   const blockedByGameWeek = claimSettled && !daySettled;
   const week = buildDeepLifePlusWeekStatus(claimDays, new Date());
   // Everyone gets a daily drop; the amount is tiered (members 250, free 20).
-  const amount = active ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
+  // Read from the SAME save flag `claimDailyGems` pays from (`entitled`), not
+  // the subscription service's live answer, so the label and the payout agree
+  // during the reconcile window (MON-17).
+  const amount = entitled ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
   // A completed Mon→Sun week pays a bonus daily drop (see claimDailyGems). When
   // today's claim closed out the week, celebrate it.
   const perfectWeek = claimedToday && isPerfectDeepLifePlusWeek(claimDays, new Date());

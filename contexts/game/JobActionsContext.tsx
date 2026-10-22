@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { countOf } from '@/utils/grammar';
 import * as JobActions from './actions/JobActions';
 import { rejectIfBlocked, isPlayerJailed } from './actions/_guards';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
@@ -330,7 +332,7 @@ function applyCriminalXp(
 
     // Check cost
     if (activity.cost && state.stats.money < activity.cost) {
-      return { success: false, message: `Insufficient funds. Need $${activity.cost}, have $${state.stats.money}` };
+      return { success: false, message: `Not enough money. Need ${formatMoney(activity.cost)}, have ${formatMoney(state.stats.money)}` };
     }
 
     // Check education requirement
@@ -343,7 +345,7 @@ function applyCriminalXp(
 
     // Check weeks requirement
     if (activity.requiresWeeks && state.jailWeeks < activity.requiresWeeks) {
-      return { success: false, message: `This activity requires at least ${activity.requiresWeeks} weeks remaining` };
+      return { success: false, message: `This activity requires at least ${countOf(activity.requiresWeeks, 'week')} remaining` };
     }
 
     // Check success rate for activities with failure chance.

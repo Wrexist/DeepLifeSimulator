@@ -18,6 +18,8 @@ import {
 import { initialGameState } from '@/contexts/game/initialState';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState, Loan, Heirloom } from '@/contexts/game/types';
+import { createDefaultCompanyOverlay, ipoOwnershipBlocker } from '@/lib/business/hustleLogic';
+import { companyOwnerShare } from '@/lib/economy/passiveIncome';
 
 const businessLoan: Loan = {
   id: 'loan-co1',
@@ -136,3 +138,50 @@ it('the preference list holds no weeksLived marker (those must not cross a life)
     expect(key.toLowerCase()).not.toContain('week');
   }
 });
+
+// LATE-11: the family business's stock listing used to be dropped with the
+// rebuilt hustleApp, so the same company could be floated again every life and
+// its owner was restored to 100% of a company that was 60% public.
+describe.each([
+  ['prestige reset', (s: GameState) => executePrestige(s, 'reset')],
+  ['prestige as child', (s: GameState) => executePrestige(s, 'child', 'heir-1')],
+  ['death -> continue as heir', (s: GameState) => continueAsChild(s, 'heir-1')],
+])('a floated family business stays floated (%s)', (_label, transition) => {
+  function floatedOwner(): GameState {
+    const s = owner();
+    const overlay = createDefaultCompanyOverlay('co1', 1_900);
+    return {
+      ...s,
+      ipoListedCompanyIds: ['co1'],
+      hustleApp: {
+        ...s.hustleApp!,
+        companies: {
+          ...(s.hustleApp?.companies ?? {}),
+          co1: {
+            ...overlay,
+            ipo: {
+              status: 'public', listedWeek: 1_900, ownershipPercent: 60, sharePrice: 42,
+              sharesOutstandingK: 100, lastEarningsWeek: 1_990, recentEarnings: [],
+            },
+          },
+        },
+      },
+    };
+  }
+
+  it('keeps the public listing, the kept share, and refuses a second float', () => {
+    const after = transition(floatedOwner());
+    expect(after.companies?.some((c) => c.id === 'co1')).toBe(true);
+    expect(after.hustleApp?.companies?.co1?.ipo.status).toBe('public');
+    expect(companyOwnerShare(after, 'co1')).toBeCloseTo(0.6, 6);
+    expect(after.hustleApp?.companies?.co1?.ipo.lastEarningsWeek).toBe(after.weeksLived);
+    expect(ipoOwnershipBlocker({ id: 'co1' }, after.weeksLived ?? 0, after.ipoListedCompanyIds)).not.toBeNull();
+  });
+
+  it('a private family business is unaffected', () => {
+    const after = transition(owner());
+    expect(after.ipoListedCompanyIds ?? []).not.toContain('co1');
+    expect(companyOwnerShare(after, 'co1')).toBe(1);
+  });
+});
+

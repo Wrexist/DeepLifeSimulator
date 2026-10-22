@@ -18,6 +18,7 @@ import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
  * Order matching, sector rotation and dividends still run in the weekly tick.
  */
 
+import { countOf } from '@/utils/grammar';
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { BarChart3, Briefcase, Clock, X, Star } from 'lucide-react-native';
@@ -853,7 +854,7 @@ function SectorTile({
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={`${SECTOR_LABEL[data.sector]} sector, ${word}, ${data.count} stocks${
-        data.weeks != null && data.state !== 'neutral' ? `, ${data.weeks} weeks left` : ''
+        data.weeks != null && data.state !== 'neutral' ? `, ${countOf(data.weeks, 'week')} left` : ''
       }`}
       style={[
         getGlassCard(darkMode, 6),

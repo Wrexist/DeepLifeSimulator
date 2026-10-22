@@ -43,7 +43,7 @@ describe('applyRelationshipHealth - pre-roll index wrap', () => {
     const result = applyRelationshipHealth(lowSpouse as never, 21, ctx);
 
     expect(result.rel).toBeNull(); // broke up — pre-fix it read undefined and survived
-    expect(ctx.notifications.some(n => n.id === 'relationship-breakup')).toBe(true);
+    expect(ctx.notifications.some(n => n.id.startsWith('relationship-breakup-'))).toBe(true);
   });
 
   it('a spouse past the buffer can still become disappointed (idx 21 wrap)', () => {
@@ -55,7 +55,7 @@ describe('applyRelationshipHealth - pre-roll index wrap', () => {
 
     expect(result.rel).not.toBeNull();
     expect(result.rel?.relationshipScore).toBeLessThan(lowSpouse.relationshipScore);
-    expect(ctx.notifications.some(n => n.id === 'relationship-disappointed')).toBe(true);
+    expect(ctx.notifications.some(n => n.id.startsWith('relationship-disappointed-'))).toBe(true);
   });
 
   it('a high draw past the buffer leaves the relationship intact', () => {

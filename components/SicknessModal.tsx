@@ -1,4 +1,5 @@
 import { uiPalette } from '@/lib/config/theme';
+import { plural, countOf } from '@/utils/grammar';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -247,11 +248,11 @@ function SicknessModal() {
     if (isTerminal) {
       const weeksLeft = (disease as { weeksUntilDeath: number }).weeksUntilDeath;
       recommendations.push(
-        `This is a terminal illness - approximately ${weeksLeft} week(s) remain and there is no cure.`,
+        `This is a terminal illness - approximately ${countOf(weeksLeft, 'week')} ${plural(weeksLeft, 'remains', 'remain')} and there is no cure.`,
       );
       recommendations.push('Treatment can ease symptoms but will not stop its progression.');
     } else if ('weeksUntilDeath' in disease && typeof disease.weeksUntilDeath === 'number' && disease.weeksUntilDeath <= 4) {
-      recommendations.push(`URGENT: Only ${disease.weeksUntilDeath} week(s) until death - seek immediate treatment!`);
+      recommendations.push(`URGENT: Only ${countOf(disease.weeksUntilDeath, 'week')} until death - seek immediate treatment!`);
       if (disease.severity === 'critical' && disease.curable) {
         recommendations.push('Experimental treatment recommended for critical diseases');
       } else if (disease.curable) {
@@ -276,7 +277,7 @@ function SicknessModal() {
     if ('naturalRecoveryWeeks' in disease && typeof disease.naturalRecoveryWeeks === 'number') {
       // The tick keeps FRACTIONAL recovery progress (good health speeds it), so
       // the stored value can be 2.5; a week count is shown rounded up.
-      recommendations.push(`Natural recovery possible in ${Math.ceil(disease.naturalRecoveryWeeks)} week(s) with good health`);
+      recommendations.push(`Natural recovery possible in ${countOf(Math.ceil(disease.naturalRecoveryWeeks), 'week')} with good health`);
     }
 
     if (template && template.preventionTips) {

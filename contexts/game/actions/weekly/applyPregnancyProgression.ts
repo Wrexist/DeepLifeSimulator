@@ -10,8 +10,8 @@
  *
  *   1. Birth. `pregnancyWeeks >= PREGNANCY_DURATION_WEEKS`. Constructs the
  *      child relationship (uses `preRolls.childGender`,
- *      `preRolls.childIdSuffix`, `preRolls.childPersonality`,
- *      `preRolls.timestamp` for determinism), pushes it to the result's
+ *      `preRolls.childIdSuffix`, `preRolls.childPersonality` and the
+ *      week for determinism - never the wall-clock `preRolls.timestamp`), pushes it to the result's
  *      `newborn` field, charges $5000 (floored at 0), bumps happiness +30
  *      (capped at 100), and CLEARS the pregnancy state on the returning rel
  *      while bumping relationshipScore +15 (clamped).
@@ -78,13 +78,19 @@ export function applyPregnancyProgression(
     // Birth! Create the child.
     const childGender = rel.pregnancyChildGender || preRolls.childGender;
     const namePool = childGender === 'male' ? MALE_BABY_NAMES : FEMALE_BABY_NAMES;
-    const pickedName = namePool[Math.abs(Math.floor(preRolls.timestamp)) % namePool.length];
+    // Name and id are functions of the LIFE and the week, never the wall clock
+    // (CLAUDE.md §4.3, Program 14): `childIdSuffix` is drawn from the life-salted
+    // pre-roll stream. Both used to read `preRolls.timestamp` (`Date.now()`), so
+    // replaying or continuing the same life minted a different child id - and a
+    // different name whenever conception had not already picked one.
+    const nameIndex = parseInt(preRolls.childIdSuffix, 36);
+    const pickedName = namePool[(Number.isFinite(nameIndex) ? nameIndex : 0) % namePool.length];
     const childName = rel.pregnancyChildName || pickedName;
     // Include the parent relationship's id so two births in the SAME tick (two
     // pregnant partners reaching term together) don't collide on an identical
     // child id — which dropped one twin on the next load-time child merge and
-    // caused a React key collision.
-    const childId = `child_${preRolls.timestamp}_${preRolls.childIdSuffix}_${rel.id}`;
+    // caused a React key collision. The week keeps ids from different weeks apart.
+    const childId = `child_${nextWeeksLived}_${preRolls.childIdSuffix}_${rel.id}`;
 
     const newChild: Relationship = {
       id: childId,

@@ -600,7 +600,10 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           };
         } else {
           result = {
-            message: `Doctor visit completed, but no diseases were cured this time. The treatment wasn't effective.`
+            // The cure roll is seeded on the life and the WEEK, so another visit
+            // this week repeats this answer. Say so, rather than inviting a
+            // paid retry that cannot succeed.
+            message: `Doctor visit completed, but the treatment wasn't effective this week. Another visit this week won't change that - try again next week, or check into the hospital.`
           };
         }
       } else if (activityId === 'hospital') {

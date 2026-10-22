@@ -176,12 +176,13 @@ export const identityTheft: EventTemplate = {
     const bankSavings = state.bankSavings || 0;
     const totalAssets = money + bankSavings;
     
-    // Theft amount is a percentage of assets
-    const theftAmount = Math.min(totalAssets * 0.1, 5000); // 10% or max $5000
+    // Theft amount is a percentage of assets, in whole dollars: un-rounded,
+    // "Freeze accounts" charged $2.50 into the cash balance (2026-10-21 audit).
+    const theftAmount = Math.floor(Math.min(Math.max(0, totalAssets) * 0.1, 5000)); // 10% or max $5000
     
     return {
       id: 'identity_theft',
-      description: 'You discover that your identity has been stolen! Someone has been using your financial information.',
+      description: `You discover that your identity has been stolen! Someone has run up $${theftAmount.toLocaleString('en-US')} using your financial information.`,
       choices: [
         {
           id: 'report',
@@ -198,7 +199,7 @@ export const identityTheft: EventTemplate = {
           id: 'freeze',
           text: 'Freeze accounts immediately',
           effects: {
-            money: -theftAmount * 0.5, // Less loss but more hassle
+            money: -Math.floor(theftAmount * 0.5), // Less loss but more hassle
             stats: {
               happiness: -10,
             },
@@ -208,7 +209,7 @@ export const identityTheft: EventTemplate = {
           id: 'ignore',
           text: 'Hope it resolves itself',
           effects: {
-            money: -theftAmount * 1.5, // More loss
+            money: -Math.floor(theftAmount * 1.5), // More loss
             stats: {
               happiness: -20,
               reputation: -5,

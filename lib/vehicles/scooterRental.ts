@@ -60,7 +60,7 @@ export const SCOOTER_RENTAL_PLANS: readonly ScooterRentalPlan[] = [
   {
     id: 'scooter_rental_basic',
     name: 'City Scooter Pass',
-    blurb: 'Unlock one at the kerb, ride it, leave it. No licence, no deposit.',
+    blurb: 'Unlock one at the curb, ride it, leave it. No license, no deposit.',
     weeklyPrice: 18,
     signupFee: 5,
     tier: 'scooter',
