@@ -13,6 +13,23 @@ import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { getAge as canonicalAge, weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { ADULTHOOD_AGE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { makeLifeRoll } from '@/utils/seededRoll';
+
+/**
+ * Share of lives that ever see `secret_unlucky_13` (EVT-20). At weight 100 its
+ * condition (any week-1 at age 16-18) won almost every event week it was
+ * eligible for, so nearly every age-18 start saw the "legendary" secret.
+ */
+export const UNLUCKY_13_LIFE_CHANCE = 0.1;
+
+/**
+ * Is this the rare life the omen belongs to? ONE draw per life: keyed on the
+ * life salt (lineage + generation) and a fixed week, never on the current week,
+ * so a life cannot fish for it across its many week-1s.
+ */
+export function isUnluckyThirteenLife(s: Pick<GameState, 'lineageId' | 'generationNumber'>): boolean {
+  return makeLifeRoll(s, 0)('secret_unlucky_13.omen') < UNLUCKY_13_LIFE_CHANCE;
+}
 
 /**
  * Weeks since birth. `weeksLived` is NOT that: it counts from the 18th
@@ -227,7 +244,7 @@ const unluckyThirteen: EventTemplate = {
  // it would fire only for that one scenario. Banding it to 16-18 keeps the
  // "unlucky thirteen" omen an early-life beat while making it reachable from
  // every start.
- return age >= 16 && age <= 18 && week === 1;
+ return age >= 16 && age <= 18 && week === 1 && isUnluckyThirteenLife(s);
  },
  generate: () => ({
  id: 'secret_unlucky_13',

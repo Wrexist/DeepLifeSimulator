@@ -352,47 +352,7 @@ function resolveBuyCompanyUpgrade(
       };
     }
 
-    // ECONOMY FIX: Diminishing returns to upgrade ROI
-    // Level 1: 100% bonus, Level 2: 90% bonus, Level 3: 80% bonus, etc.
-    const levelPenalty = currentLevel * 0.1; // 10% reduction per level
-    const bonusEfficiency = Math.max(0.5, 1 - levelPenalty); // Minimum 50% efficiency
-    const baseBonus = upgradeDefinition.weeklyIncomeBonus;
-    const bonus = Math.round(baseBonus * bonusEfficiency);
-
-    // Update or add the upgrade using fresh state
-    const updatedUpgrades = freshExistingUpgrade
-      ? companyToUpdate.upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1 } : u)
-      : [...companyToUpdate.upgrades, {
-          id: upgradeId,
-          name: upgradeDefinition.name,
-          description: upgradeDefinition.description,
-          cost: upgradeDefinition.cost,
-          weeklyIncomeBonus: upgradeDefinition.weeklyIncomeBonus,
-          level: 1,
-          maxLevel: upgradeDefinition.maxLevel
-        }];
-
-    // ECONOMY FIX: Apply diminishing returns when calculating income with upgrades
-    const employeeCount = companyToUpdate.employees;
-    let incomeMultiplier: number;
-    if (employeeCount <= 5) {
-      incomeMultiplier = Math.pow(companyToUpdate.workerMultiplier, employeeCount);
-    } else if (employeeCount <= 10) {
-      incomeMultiplier = Math.pow(companyToUpdate.workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
-    } else if (employeeCount <= 20) {
-      incomeMultiplier = Math.pow(companyToUpdate.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
-    } else {
-      incomeMultiplier = Math.pow(companyToUpdate.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
-    }
-
-    const updated: typeof companyToUpdate = {
-      ...companyToUpdate,
-      baseWeeklyIncome: companyToUpdate.baseWeeklyIncome + bonus,
-      weeklyIncome: Math.round(
-        (companyToUpdate.baseWeeklyIncome + bonus) * incomeMultiplier
-      ),
-      upgrades: updatedUpgrades,
-    };
+    const updated = withUpgradeLevel(companyToUpdate, upgradeId, upgradeDefinition);
     companies[freshIndex] = updated;
 
     return {
@@ -414,3 +374,125 @@ function resolveBuyCompanyUpgrade(
 }
 
 
+
+type UpgradeDefinition = { name: string; description: string; cost: number; weeklyIncomeBonus: number; maxLevel: number };
+
+/**
+ * PURE: `company` with one more level of `upgradeId`, its income recomputed.
+ *
+ * The one place an upgrade level is applied, shared by a purchase
+ * (`resolveBuyCompanyUpgrade`) and a partner's capital
+ * (`investPartnerCapital`), so the two can never price a level differently.
+ */
+function withUpgradeLevel(company: Company, upgradeId: string, upgradeDefinition: UpgradeDefinition): Company {
+  const existing = company.upgrades.find(u => u.id === upgradeId);
+  const currentLevel = existing?.level || 0;
+
+  // ECONOMY FIX: Diminishing returns to upgrade ROI
+  // Level 1: 100% bonus, Level 2: 90% bonus, Level 3: 80% bonus, etc.
+  const levelPenalty = currentLevel * 0.1; // 10% reduction per level
+  const bonusEfficiency = Math.max(0.5, 1 - levelPenalty); // Minimum 50% efficiency
+  const bonus = Math.round(upgradeDefinition.weeklyIncomeBonus * bonusEfficiency);
+
+  const updatedUpgrades = existing
+    ? company.upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1 } : u)
+    : [...company.upgrades, {
+        id: upgradeId,
+        name: upgradeDefinition.name,
+        description: upgradeDefinition.description,
+        cost: upgradeDefinition.cost,
+        weeklyIncomeBonus: upgradeDefinition.weeklyIncomeBonus,
+        level: 1,
+        maxLevel: upgradeDefinition.maxLevel
+      }];
+
+  // ECONOMY FIX: Apply diminishing returns when calculating income with upgrades
+  const employeeCount = company.employees;
+  let incomeMultiplier: number;
+  if (employeeCount <= 5) {
+    incomeMultiplier = Math.pow(company.workerMultiplier, employeeCount);
+  } else if (employeeCount <= 10) {
+    incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
+  } else if (employeeCount <= 20) {
+    incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
+  } else {
+    incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
+  }
+
+  return {
+    ...company,
+    baseWeeklyIncome: company.baseWeeklyIncome + bonus,
+    weeklyIncome: Math.round((company.baseWeeklyIncome + bonus) * incomeMultiplier),
+    upgrades: updatedUpgrades,
+  };
+}
+
+export interface PartnerCapitalResult {
+  /** `state` with the upgrades applied; null when nothing could be invested. */
+  next: GameState | null;
+  /** Dollars of the capital actually spent on upgrade levels. */
+  spentUSD: number;
+  /** Upgrade levels the capital bought. */
+  levelsBought: number;
+}
+
+/**
+ * PURE: put a business partner's capital into `companyId` (EVT-1).
+ *
+ * `business_partnership` used to pay its "capital for equity" into the
+ * player's wallet. Capital belongs to the company, and a `Company` has no cash
+ * balance (`money` was deleted 2026-08-11 for having no reader), so the
+ * capital is spent the way a company spends cash: on its upgrades, at the
+ * catalogue price the player would pay (inflation included, no Business
+ * Banking discount - that perk is on the player's own purchases). It buys the
+ * cheapest next level it can afford, repeatedly, so it spreads over the
+ * company rather than maxing one line. What is left when no further level is
+ * affordable stays with the partner.
+ *
+ * Never touches `stats.money`. Returns `next: null` when the company is gone
+ * (sold between the event and the choice) or nothing was affordable.
+ */
+export function investPartnerCapital(state: GameState, companyId: string, capitalUSD: number): PartnerCapitalResult {
+  const none: PartnerCapitalResult = { next: null, spentUSD: 0, levelsBought: 0 };
+  const capital = typeof capitalUSD === 'number' && Number.isFinite(capitalUSD) ? Math.max(0, Math.floor(capitalUSD)) : 0;
+  const companies = [...(state.companies || [])];
+  const index = companies.findIndex(c => c?.id === companyId);
+  if (capital <= 0 || index === -1) return none;
+
+  const priceIndex = typeof state.economy?.priceIndex === 'number' && isFinite(state.economy.priceIndex) && state.economy.priceIndex > 0
+    ? state.economy.priceIndex
+    : 1;
+  const catalogue = COMPANY_UPGRADES[companies[index].type] || [];
+  let company = companies[index];
+  let remaining = capital;
+  let levelsBought = 0;
+
+  // Bounded by the catalogue: every pass buys one level or stops.
+  for (let guard = 0; guard < 200; guard++) {
+    let best: { def: (typeof catalogue)[number]; cost: number } | null = null;
+    for (const def of catalogue) {
+      const level = company.upgrades.find(u => u.id === def.id)?.level || 0;
+      if (level >= def.maxLevel) continue;
+      const listCost = level === 0 ? def.cost : Math.round(def.cost * Math.pow(COMPANY_UPGRADE_COST_MULTIPLIER, level));
+      const cost = Math.round(getInflatedPrice(listCost, priceIndex));
+      if (!isFinite(cost) || cost <= 0 || cost > remaining) continue;
+      if (!best || cost < best.cost) best = { def, cost };
+    }
+    if (!best) break;
+    company = withUpgradeLevel(company, best.def.id, best.def);
+    remaining -= best.cost;
+    levelsBought++;
+  }
+
+  if (levelsBought === 0) return none;
+  companies[index] = company;
+  return {
+    next: {
+      ...state,
+      companies,
+      company: state.company?.id === companyId ? company : state.company,
+    },
+    spentUSD: capital - remaining,
+    levelsBought,
+  };
+}

@@ -128,6 +128,13 @@ export function companyIncomeCap(company: { employees?: number } | null | undefi
  * produce a 52x pension — so there is exactly one copy.
  */
 export function getPoliticalWeeklySalary(state: GameState): number {
+  // LATE-8: no office or appointment pay while serving a sentence - the same
+  // rule payroll, company profit share and Pulse already apply. A jailed
+  // President kept collecting the full salary. Because this is also the WORK
+  // `applyLifetimeStatistics` counts toward a pension, jailed weeks earn no
+  // pension credit either. The pension itself (`getPoliticalPensionWeekly`)
+  // is deliberately untouched: it is earned, not worked.
+  if ((state?.jailWeeks ?? 0) > 0) return 0;
   // Paid political WORK, which is the elected seat plus any appointed post
   // (Ambassador, Cabinet Secretary, Lobbyist, …). A pension is deliberately
   // NOT here: this figure is what `applyLifetimeStatistics` counts as work

@@ -182,11 +182,9 @@ export function paidWeeklyCareerSalary(state: GameState): PaidWeeklyJobPay {
   const none: PaidWeeklyJobPay = { fromPayroll: 0, fromOffice: 0, total: 0 };
   if (!state?.currentJob) return none;
 
-  // Office pay is reported as-is even while incarcerated, because that is what
-  // the tick does: `calcWeeklyPassiveIncome` has no jail check and nothing
-  // strips `politics.careerLevel` on arrest, so the money is still credited.
-  // Whether it SHOULD be is a design question; reporting a number the tick will
-  // not pay is a bug, and this function's job is to agree with the tick.
+  // Office pay is withheld while incarcerated (LATE-8), exactly like payroll.
+  // `getPoliticalWeeklySalary` owns that rule and is what the tick pays, so
+  // reading it here keeps this function agreeing with the tick.
   if (isAnnualSalaryCareer(state.currentJob)) {
     const fromOffice = getPoliticalWeeklySalary(state);
     return { fromPayroll: 0, fromOffice, total: fromOffice };
