@@ -1,6 +1,6 @@
 import { logger } from '@/utils/logger';
 import { isWritableSlot } from '@/utils/slotNumber';
-import { listBackups } from '@/utils/saveBackup';
+import { listBackups, backupsToEvict } from '@/utils/saveBackup';
 import { safeSetItem, safeMultiRemove, safeGetAllKeys, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { isSaveSigningConfigError, SAVE_SIGNING_CONFIG_ERROR_CODE } from '@/utils/saveValidation';
 // Keep the per-slot summary cache fresh straight from the in-memory state object
@@ -1089,15 +1089,15 @@ class SaveQueue {
     let cleanedCount = 0;
     try {
       const backups = await listBackups(slot);
-      // Keep only the 2 most recent backups (instead of 3) when cleaning up
-      if (backups.length > 2) {
-        const toDelete = backups.slice(2);
-        const keysToDelete = toDelete.map(b => b.id);
-        if (keysToDelete.length > 0) {
-          await safeMultiRemove(keysToDelete);
-          cleanedCount = keysToDelete.length;
-          this.log.info(`Cleaned up ${cleanedCount} old backups for slot ${slot}`);
-        }
+      // The SAME retention policy as createBackup's own quota cleanup
+      // (SAVE-4). This kept "the 2 most recent backups" of any kind, so a
+      // storage-quota save deleted the pre-prestige and pre-overwrite copies
+      // that rotation had promised to keep forever.
+      const keysToDelete = backupsToEvict(backups, Date.now(), 'quota');
+      if (keysToDelete.length > 0) {
+        await safeMultiRemove(keysToDelete);
+        cleanedCount = keysToDelete.length;
+        this.log.info(`Cleaned up ${cleanedCount} old backups for slot ${slot}`);
       }
     } catch (error) {
       this.log.error('Error cleaning up old backups:', error);
