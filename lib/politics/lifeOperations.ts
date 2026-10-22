@@ -33,7 +33,7 @@ import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { findParty, switchParty, type PartyId } from './parties';
 import { appointmentBlocker, findAppointment, reputationStepOnTake } from './appointments';
 import { planSkim, readEmbezzlement } from './embezzlement';
-import { buildRetirement, retirementBlocker } from './retirement';
+import { buildRetirement, mergeRetirement, retirementBlocker } from './retirement';
 import { applyOfficeExit } from './operations';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
@@ -191,6 +191,7 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
     // The blocker refuses a reputation step the player cannot cover, and that
     // step depends on the post being handed back (see `reputationStepOnTake`).
     heldAppointmentId: politics.appointment?.id,
+    retired: !!state.isRetired,
   });
   if (blocker) return refuse(state, blocker);
 
@@ -316,17 +317,30 @@ export function resolveRetirement(state: GameState): PoliticalOutcome {
   // still true - the v42 `CareerHistoryEntry.title` reasoning. Retiring resets
   // the career the same way the voted-out path does, so a title derived
   // afterwards would name whatever rank 0 is called.
-  const record = buildRetirement({
+  //
+  // A second retirement (retire as President, win a Council seat, retire again)
+  // MERGES into the first record rather than replacing it: the pension was only
+  // suspended while back in office (`getPoliticalPensionWeekly`), and a Council
+  // record built from the current rank would quietly cut it to Council's rate
+  // and rename the President a Council Member.
+  const thisOffice = buildRetirement({
     careerLevel: politics.careerLevel,
     termsServed: politics.electionsWon,
     approvalRating: politics.approvalRating,
     weeksLived: state.weeksLived ?? 0,
   });
+  const record = mergeRetirement(politics.retirement, thisOffice);
 
   const next: GameState = {
     ...state,
+    // `level` is KEPT at its peak, exactly as the voted-out exit keeps it: it is
+    // the record `runForOffice` reads to waive the tenure gate for a rung already
+    // served (`servedPreviousLevel`). Zeroing it made the voluntary, rewarded
+    // exit strictly worse than being voted out - a retired Senator could only
+    // run for Council again. `accepted: false` + `politics.careerLevel: 0` +
+    // the cleared `currentJob` are what stop the salary and the in-office UI.
     careers: (state.careers ?? []).map((c) =>
-      c && c.id === 'political' ? { ...c, accepted: false, applied: false, level: 0 } : c
+      c && c.id === 'political' ? { ...c, accepted: false, applied: false } : c
     ),
     currentJob: state.currentJob === 'political' ? undefined : state.currentJob,
     // Retirement is the THIRD office-exit path. The other two (voted-out in
@@ -350,7 +364,7 @@ export function resolveRetirement(state: GameState): PoliticalOutcome {
   return {
     ok: true,
     message:
-      `You stood down as ${record.title} after ${years} year${years === 1 ? '' : 's'} `
+      `You stood down as ${thisOffice.title} after ${years} year${years === 1 ? '' : 's'} `
       + `and ${record.termsServed} election win${record.termsServed === 1 ? '' : 's'}. `
       + `Pension: ${formatMoney(record.weeklyPension)}/wk for life.`,
     next,

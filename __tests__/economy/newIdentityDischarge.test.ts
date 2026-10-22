@@ -7,8 +7,8 @@
  */
 import { createTestGameState } from '../helpers/createTestGameState';
 import { applyWithSetState as apply } from '../helpers/setGameStateStub';
-import { acquireNewIdentity, NEW_IDENTITY_COST_BTC } from '@/contexts/game/actions/CrimeActions';
-import { GameState, Loan } from '@/contexts/game/types';
+import { acquireNewIdentity, NEW_IDENTITY_COST_BTC, newIdentitySettlement } from '@/contexts/game/actions/CrimeActions';
+import { CreditCard, GameState, Loan } from '@/contexts/game/types';
 
 
 
@@ -54,5 +54,31 @@ describe('new-identity debt-discharge cost (M-1)', () => {
     const after = apply(state, (set) => acquireNewIdentity(set));
     expect(after.loans?.some((l) => l.id === 'pl1')).toBe(true); // still owes
     expect(after.cryptos.find((c) => c.id === 'btc')!.owned).toBe(1); // nothing spent
+  });
+
+  // LATE-16: closing the cards used to wipe their balances for free.
+  it('card balances are settled like unsecured debt, and the mortgage stays', () => {
+    const card: CreditCard = {
+      id: 'cc1', name: 'Gold', tier: 'gold' as CreditCard['tier'], creditLimit: 50_000, balance: 40_000,
+      baseAPR: 0.24, rewardsRate: 0.01, rewardsType: 'cashback' as CreditCard['rewardsType'],
+      pendingRewards: 0, openedWeek: 0, minCreditScore: 600,
+    };
+    const mortgage: Loan = { ...personalLoan(200_000), id: 'mg1', name: 'Mortgage', type: 'mortgage' };
+    const base = freshState({ loans: [mortgage] });
+    base.banking = { ...base.banking!, creditCards: [card] };
+    const { state, price } = setBtc(base, 50);
+
+    const quote = newIdentitySettlement(state);
+    expect(quote.dischargedDebt).toBe(40_000);
+    expect(quote.closedCards).toBe(1);
+    expect(quote.keptLoans.map((l) => l.id)).toEqual(['mg1']);
+    expect(quote.totalBtc).toBeCloseTo(NEW_IDENTITY_COST_BTC + (40_000 * 0.8) / price, 6);
+
+    const before = state.cryptos.find((c) => c.id === 'btc')!.owned;
+    const after = apply(state, (set) => acquireNewIdentity(set));
+    const spent = before - after.cryptos.find((c) => c.id === 'btc')!.owned;
+    expect(spent).toBeCloseTo(quote.totalBtc, 6);
+    expect(after.banking!.creditCards).toEqual([]);
+    expect(after.loans?.map((l) => l.id)).toEqual(['mg1']);
   });
 });

@@ -30,6 +30,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { hasSeatWing } from '@/lib/dynasty/seat';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export type ContractMetric =
   | 'totalPrestiges'
@@ -170,7 +171,11 @@ export function readMetric(state: GameState | undefined | null, metric: Contract
     case 'weeksLivedTotal':
       // Lifetime total when present, else this life — never less than this life,
       // so the bar cannot go backwards on a save that lacks the lifetime field.
-      return Math.max(num(lifetime?.totalWeeksLived), num(state.weeksLived));
+      // "This life" is weeks PLAYED, not the age-seeded absolute counter (§4.2).
+      return Math.max(
+        num(lifetime?.totalWeeksLived),
+        weeksSinceLifeStart(state.weeksLived, state.lifeStartWeek),
+      );
     case 'companiesFounded':
       return Math.max(
         num(state.lifetimeStatistics?.totalCompaniesOwned),
