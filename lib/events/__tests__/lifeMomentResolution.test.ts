@@ -10,6 +10,7 @@ import {
   dismissLifeMoment,
   canAffordLifeMomentChoice,
   lifeMomentChoiceCost,
+  lifeMomentEffectLabel,
 } from '../lifeMomentResolution';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import type { GameState } from '@/contexts/game/types';
@@ -95,5 +96,39 @@ describe('dismissLifeMoment', () => {
     const prev = withMoment(0);
     expect(dismissLifeMoment(prev, windfall.id).lifeMoments?.pendingMoment).toBeUndefined();
     expect(dismissLifeMoment(prev, 'a-newer-moment')).toBe(prev);
+  });
+});
+
+describe('lifeMomentEffectLabel - the chip states what the resolver applies', () => {
+  const party: LifeMoment = {
+    id: 'moment-party-1',
+    situation: 'A friend throws you a party.',
+    category: 'social',
+    createdAt: 0,
+    choices: [{ id: 'go', text: 'Go', quickEffect: [{ stat: 'happiness', amount: 10, label: '+10 Happiness' }] }],
+  };
+  const gain = party.choices[0].quickEffect[0];
+  const at = (happiness: number): GameState =>
+    createTestGameState({
+      weeksLived: 300,
+      stats: { money: 0, happiness },
+      lifeMoments: { lastMomentWeek: 300, momentsThisWeek: 1, totalMoments: 1, pendingMoment: party },
+    });
+
+  it('a happy life sees the scaled gain - the number that actually lands, not the authored +10', () => {
+    const prev = at(90);
+    const next = resolveLifeMomentChoice(prev, party.id, 'go');
+    const landed = Math.round(next.stats.happiness - prev.stats.happiness);
+    expect(lifeMomentEffectLabel(gain, prev.stats.happiness)).toBe(`+${landed} Happiness`);
+    expect(landed).toBeLessThan(10);
+  });
+
+  it('a low-happiness life sees the full authored gain', () => {
+    expect(lifeMomentEffectLabel(gain, 30)).toBe('+10 Happiness');
+  });
+
+  it('losses and other stats keep their authored label', () => {
+    expect(lifeMomentEffectLabel({ stat: 'happiness', amount: -3, label: '-3 Happiness' }, 95)).toBe('-3 Happiness');
+    expect(lifeMomentEffectLabel({ stat: 'money', amount: 500, label: '+$500' }, 95)).toBe('+$500');
   });
 });

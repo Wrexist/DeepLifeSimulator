@@ -1058,7 +1058,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             that vendors and politicals "can't [be] associate[d] with". */}
         {favorKind ? (
           <View style={cardSurface}>
-            <SectionTitle title="Call in a favour" />
+            <SectionTitle title="Call in a favor" />
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
               {owedFavor
                 ? `${c.name} already owes you ${favorPhrase(owedFavor.kind)}. Redeem it from the Favors tab.`
@@ -1077,7 +1077,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             >
               <Handshake size={scale(15)} color={theme.text} />
               <Text style={[styles.triageBtnText, { color: theme.text }]}>
-                {owedFavor ? 'Favour outstanding' : `Ask for ${favorPhrase(favorKind)}`}
+                {owedFavor ? 'Favor outstanding' : `Ask for ${favorPhrase(favorKind)}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1806,12 +1806,12 @@ function recencyMeta(
  */
 function favorPhrase(kind: string): string {
   switch (kind) {
-    case 'money': return 'a cash favour';
-    case 'influence': return 'a political favour';
+    case 'money': return 'a cash favor';
+    case 'influence': return 'a political favor';
     case 'discount': return 'a discount';
     case 'safety': return 'a cover-up';
     case 'intro': return 'an introduction';
-    default: return 'a favour';
+    default: return 'a favor';
   }
 }
 

@@ -343,7 +343,7 @@ const neighbourPetition: EventTemplate = {
         text: 'Get both sides talking instead (an evening of it)',
         effects: {
           stats: { energy: -8, happiness: 6, reputation: 6 },
-          karma: { dimension: 'generosity', amount: 2, reason: 'Defused a neighbourhood dispute' },
+          karma: { dimension: 'generosity', amount: 2, reason: 'Defused a neighborhood dispute' },
         },
       },
       {

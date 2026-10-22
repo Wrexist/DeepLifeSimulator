@@ -588,17 +588,17 @@ export default function MainMenu() {
             { text: 'OK' },
           ]);
         } else if (!validation.stateComplete) {
+          // validation.errors are validator strings ("Missing stat: happiness
+          // (value is null or undefined)") - logged above, never shown.
           gameAlert(
             'Incomplete Save',
-            validation.errors[0] ||
-              'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
+            'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         } else {
           gameAlert(
             'Invalid Save',
-            validation.errors[0] ||
-              'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
+            'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         }
@@ -821,7 +821,7 @@ export default function MainMenu() {
             </HeroLine>
             <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                TYCOON
+                SIMULATOR
               </Text>
             </HeroLine>
           </View>

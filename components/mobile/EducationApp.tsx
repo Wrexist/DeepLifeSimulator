@@ -953,7 +953,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
           </DetailCard>
         )}
         <DetailCard theme={theme} darkMode={darkMode}>
-          <StatTile align="left" tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-programme GPA" />
+          <StatTile align="left" tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-program GPA" />
         </DetailCard>
       </View>
 

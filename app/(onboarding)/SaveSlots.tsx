@@ -349,11 +349,13 @@ export default function SaveSlots() {
     try {
       const slotValidation = await validateSaveSlot(selectedSlot);
       if (!slotValidation.valid) {
+        log.error('Save slot validation failed', { slot: selectedSlot, errors: slotValidation.errors });
+        // Only the messages written for players are shown; structural checks
+        // ("Save is missing stats object") go to the log above.
         const errorMessage =
           slotValidation.errors.find((e) => e.includes('version')) ||
-          slotValidation.errors.find((e) => e.includes('corrupted')) ||
-          slotValidation.errors[0] ||
-          'This save file cannot be loaded.';
+          slotValidation.errors.find((e) => e.includes('backup') || e.includes('try again')) ||
+          'This save file cannot be loaded. Please try a backup or start a new game.';
 
         gameAlert('Save Unavailable', errorMessage);
         return;
@@ -367,7 +369,8 @@ export default function SaveSlots() {
 
       const validation = validateGameEntry(loadedState);
       if (!validation.canEnter) {
-        gameAlert('Invalid Save', validation.errors[0] || 'This save cannot be loaded right now.');
+        log.error('Game entry validation failed', { slot: selectedSlot, errors: validation.errors });
+        gameAlert('Invalid Save', 'This save cannot be loaded right now. Please try a backup or start a new game.');
         return;
       }
 
@@ -494,7 +497,7 @@ export default function SaveSlots() {
 
   const primaryAction = async () => {
     if (!selectedSlot) {
-      gameAlert('Select A Slot', 'Choose a slot first to continue.');
+      gameAlert('Select a slot', 'Choose a slot first to continue.');
       return;
     }
     if (selectedCard?.hasData) {

@@ -36,7 +36,7 @@ export function createCompany(
   const baseCost = companyCosts[companyType as keyof typeof companyCosts];
   const cost = getInflatedPrice(baseCost, gameState.economy.priceIndex);
   if (gameState.stats.money < cost) {
-    return { success: false, message: 'Insufficient funds' };
+    return { success: false, message: 'Not enough money' };
   }
   if ((gameState.companies || []).find(c => c.id === companyType)) {
     return { success: false, message: 'You already own this company type' };

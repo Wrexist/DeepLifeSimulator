@@ -1,4 +1,5 @@
 import { uiPalette } from '@/lib/config/theme';
+import { countOf } from '@/utils/grammar';
 import React, { useState, useMemo } from 'react';
 import { Platform, View, Text, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -312,7 +313,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                 <View style={[styles.warningCard, settings.darkMode && styles.warningCardDark]}>
                   <Clock size={20} color="#F59E0B" />
                   <Text style={[styles.warningText, settings.darkMode && styles.textDark]}>
-                    You can change commitments in {weeksUntilChange} week(s)
+                    You can change commitments in {countOf(weeksUntilChange, 'week')}
                   </Text>
                 </View>
               )}

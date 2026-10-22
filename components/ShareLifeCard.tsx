@@ -140,7 +140,7 @@ export default function ShareLifeCard({ gameState, onClose }: ShareLifeCardProps
  const tagline = generateTagline(gameState);
 
  // Build share text
- const shareText = ` My Deep Life:
+ const shareText = ` My DeepLife:
  ${characterName} (${age})
  ${careerName} - ${formatCurrency(salary)}/week
  Net Worth: ${formatCurrency(netWorth)}
@@ -149,7 +149,7 @@ ${childrenCount > 0 ? ` ${childrenCount} children` : ''}
  Generation ${prestigeLevel}
 ${tagline}
 
-Live your own life in Deep Life Simulator:
+Live your own life in DeepLife Simulator:
 ${shareUrlFor('life_card')}
 
 #DeepLifeSim`;
@@ -159,7 +159,7 @@ ${shareUrlFor('life_card')}
  setIsSharing(true);
  await Share.share({
  message: shareText,
- title: `${characterName}'s Life in Deep Life Simulator`,
+ title: `${characterName}'s Life in DeepLife Simulator`,
  url: Platform.OS === 'ios' ? undefined : undefined,
  });
  } catch (error) {

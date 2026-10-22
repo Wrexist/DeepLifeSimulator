@@ -313,8 +313,8 @@ export default function Customize() {
   return (
     <OnboardingScreenShellV2 quiet footerInFlow
       floatingButton={
-        <MotionPressable accessibilityLabel="Continue To Perks" onPress={handleContinue} style={styles.continueButton}>
-          <Text style={styles.continueLabel}>Continue To Perks</Text>
+        <MotionPressable accessibilityLabel="Continue to perks" onPress={handleContinue} style={styles.continueButton}>
+          <Text style={styles.continueLabel}>Continue to perks</Text>
           <ArrowRight size={20} color={uiPalette.white} />
         </MotionPressable>
       }
@@ -445,7 +445,7 @@ export default function Customize() {
 
               <View style={[styles.nameRow, wideIdentity && styles.nameRowWide]}>
                 <View style={[styles.nameField, wideIdentity && styles.nameFieldWide]}>
-                  <Text style={styles.inputLabel}>First Name</Text>
+                  <Text style={styles.inputLabel}>First name</Text>
                   <View style={styles.inputWrap}>
                     <TextInput
                       accessibilityLabel="First name"
@@ -466,7 +466,7 @@ export default function Customize() {
                 </View>
 
                 <View style={[styles.nameField, wideIdentity && styles.nameFieldWide]}>
-                  <Text style={styles.inputLabel}>Last Name</Text>
+                  <Text style={styles.inputLabel}>Last name</Text>
                   <View style={styles.inputWrap}>
                     <TextInput
                       ref={lastNameInput}
