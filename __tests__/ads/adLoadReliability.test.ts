@@ -311,6 +311,50 @@ describe('showing a rewarded ad', () => {
     await expect(shown).resolves.toBe(false);
     expect(onReward).not.toHaveBeenCalled();
   });
+
+  // MON-3 (2026-10 audit): a SHOWN ad closed before the reward must not read
+  // as "no ad" - that is what let the orb's no-fill courtesy pay a skip.
+  it('reports an ad that was shown and closed early as "dismissed", not "not-shown"', async () => {
+    const service = await boot();
+    const ad = latestRewarded();
+    ad.emit('rewarded_loaded');
+    await flush();
+
+    const onReward = jest.fn();
+    const outcome = service.showRewardedAdWithOutcome(onReward, { waitMs: 0 });
+    await flush();
+    ad.emit('closed');
+    await flush();
+    await expect(outcome).resolves.toBe('dismissed');
+    expect(onReward).not.toHaveBeenCalled();
+  });
+
+  it('reports "not-shown" when nothing could be shown', async () => {
+    const service = await boot();
+    latestRewarded().emit('error', NO_FILL);
+    await flush();
+    const outcome = service.showRewardedAdWithOutcome(jest.fn(), { waitMs: 4000 });
+    await advance(4000);
+    await expect(outcome).resolves.toBe('not-shown');
+  });
+
+  // MON-16: a reward earned after the old 60s fallback still pays.
+  it('still pays a reward earned after a minute on screen', async () => {
+    const service = await boot();
+    const ad = latestRewarded();
+    ad.emit('rewarded_loaded');
+    await flush();
+
+    const onReward = jest.fn();
+    const outcome = service.showRewardedAdWithOutcome(onReward, { waitMs: 0 });
+    await flush();
+    await advance(90_000);
+    ad.emit('earned_reward');
+    ad.emit('closed');
+    await flush();
+    await expect(outcome).resolves.toBe('earned');
+    expect(onReward).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('the rewarded interstitial (year-end break)', () => {

@@ -66,6 +66,35 @@ export async function clearPendingRcGrant(): Promise<void> {
   if (await storage.getItem(RC_PENDING_GRANT_KEY) !== null) throw new Error('Purchase recovery record could not be cleared');
 }
 
+/**
+ * How long an intent that never produced ANY receipt may block new purchases.
+ *
+ * A pending record is written before the store sheet opens and is only cleared
+ * by a grant, a cancel or a definitive no-charge error. Everything else (a
+ * declined Ask to Buy, a Play cash payment never paid, a store hiccup) used to
+ * leave it forever, and every later one-time purchase on the install answered
+ * "awaiting recovery". Ask to Buy requests expire after a day and Play pending
+ * purchases after a few days, so a week with no matching receipt is proof
+ * enough that no charge is coming. Measured on the store's own `requestDate`,
+ * never the device clock. (2026-10 audit MON-1)
+ */
+export const PENDING_RC_GRANT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * True when the intent can be discarded: same store account, no recorded
+ * receipt, no candidate receipt in a fresh snapshot, and older than the TTL.
+ * A recorded receipt (paid, ungranted) is never expired - that is a support
+ * case, not a stale intent.
+ */
+export function isPendingGrantExpired(pending: PendingRcGrant, snapshot: ReceiptSnapshot): boolean {
+  if (pending.transactionId) return false;
+  if (snapshot.customerId !== pending.customerId) return false;
+  if (snapshot.requestDate - pending.baselineDate < PENDING_RC_GRANT_TTL_MS) return false;
+  const anyNew = snapshot.transactions.some(t =>
+    t.productId === pending.productId && !pending.baseline.includes(t.id) && t.purchaseDate > pending.baselineDate);
+  return !anyNew;
+}
+
 /** Only a single NEW receipt for this intent/account is eligible. Never history replay. */
 export function resolvePendingReceipt(pending: PendingRcGrant, snapshot: ReceiptSnapshot): string | null {
   if (snapshot.customerId !== pending.customerId || snapshot.requestDate < pending.baselineDate) return null;

@@ -26,6 +26,7 @@ export type RewardedAdOutcome =
   | 'granted-direct' // no ad shown (ads removed / no ad SDK) — reward granted
   | 'granted-no-fill' // ads ON but no inventory; `grantOnNoFill` honored the reward with NO ad shown
   | 'no-fill' // ad system on but no ad was available — NOT granted
+  | 'dismissed' // an ad WAS shown and closed before the reward — NOT granted, never a no-fill
   | 'error'; // ad failed to load / show — NOT granted
 
 /** True when the reward was actually applied (with or without an ad). */
@@ -126,8 +127,12 @@ export async function runRewardedAd(
   }
   try {
     const { adMobService } = await import('@/services/AdMobService');
-    const shown = await adMobService.showRewardedAd(grant, { placement: opts.placement });
-    if (shown) return 'granted-ad';
+    const shown = await adMobService.showRewardedAdWithOutcome(grant, { placement: opts.placement });
+    if (shown === 'earned') return 'granted-ad';
+    // An ad was on screen and the player closed it before earning the reward.
+    // That is a skip, not missing inventory: the no-fill courtesy below must
+    // not pay it, or "close the ad at once" collects the reward for free. MON-3.
+    if (shown === 'dismissed') return 'dismissed';
     // No ad was available to serve (no-fill — very common in TestFlight and on
     // brand-new ad units). `grantOnNoFill` callers (e.g. the rate-limited reward
     // orb) grant the reward anyway rather than cheating a player who tapped

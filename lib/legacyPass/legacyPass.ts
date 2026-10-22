@@ -233,6 +233,36 @@ export function getClaimableTiers(pass: LegacyPassState, track: LegacyPassTrack)
 }
 
 /**
+ * Premium-track rewards the player has EARNED (tier reached) and NOT yet
+ * claimed, regardless of whether premium is owned - i.e. what subscribing
+ * would actually hand over right now. The upsell copy ("N premium rewards
+ * already waiting - +X gems") reads this. It used to count every reached tier,
+ * so a lapsed member who had already claimed tiers 1-N was promised rewards
+ * that subscribing would not give them (2026-10 audit MON-11).
+ */
+export function getUnclaimedPremiumRewardStats(pass: LegacyPassState): {
+  count: number;
+  gems: number;
+  /** Label of the highest unclaimed non-gem reward, if any. */
+  headline: string | null;
+} {
+  const reached = getTierForXp(pass.xp);
+  const claimed = new Set(pass.claimedPremiumTiers);
+  let count = 0;
+  let gems = 0;
+  let headline: string | null = null;
+  for (let tier = 1; tier <= Math.min(reached, MAX_TIER); tier++) {
+    if (claimed.has(tier)) continue;
+    const r = getLegacyPassReward('premium', tier);
+    if (!r) continue;
+    count += 1;
+    if (r.kind === 'gems') gems += r.amount ?? 0;
+    else headline = r.label;
+  }
+  return { count, gems, headline };
+}
+
+/**
  * Every reward the player has EARNED (tier reached) but not yet claimed, across
  * both tracks (premium tiers only when premium is owned). Used at season rollover
  * to auto-collect what would otherwise be silently lost. Returns them in tier
