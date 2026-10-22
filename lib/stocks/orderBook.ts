@@ -60,10 +60,18 @@ export function askPrice(mid: number): number {
 }
 
 /**
- * Effective fill price for a market order with size-based slippage on top of the spread.
+ * Effective fill price for a market order with size-based slippage on top of
+ * the spread. `priorWeekVolumeUSD` is what was already traded in this symbol
+ * this game week (ECO-2): slippage is charged on the week's volume, so
+ * splitting an order no longer avoids it.
  */
-export function marketFillPrice(midPrice: number, side: StockOrderSide, notionalUSD: number): number {
-  return marketFillPriceFor(midPrice, side, notionalUSD, DEFAULT_SPREAD, STOCK_LIQUIDITY);
+export function marketFillPrice(
+  midPrice: number,
+  side: StockOrderSide,
+  notionalUSD: number,
+  priorWeekVolumeUSD = 0,
+): number {
+  return marketFillPriceFor(midPrice, side, notionalUSD, DEFAULT_SPREAD, STOCK_LIQUIDITY, priorWeekVolumeUSD);
 }
 
 export function limitOrderShouldFill(order: StockOrder, midPrice: number): boolean {

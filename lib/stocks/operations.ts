@@ -8,6 +8,8 @@
 
 import { StockOrder, StockOrderSide, marketFillPrice, limitOrderShouldFill, stopOrderShouldTrigger } from './orderBook';
 import { Sector, SectorSnapshot, ALL_SECTORS, nextState, sampleDuration } from './sectors';
+import { priorWeekVolume, recordWeekVolume } from '@/lib/markets/orderBook';
+import type { WeeklyTradedVolume } from '@/contexts/game/types';
 
 const safe = (n: number, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -93,15 +95,24 @@ export function processOpenOrders(
    * (the caller floored negative cash to 0, forgiving the debt). Defaults to
    * Infinity to preserve legacy/test behavior.
    */
-  cashAvailable: number = Infinity
+  cashAvailable: number = Infinity,
+  /**
+   * ECO-2 (v57): notional already traded per symbol this game week. Each fill
+   * pays slippage on the week's cumulative volume and adds to it, so ten small
+   * resting orders cost what one big one would.
+   */
+  weekVolume?: WeeklyTradedVolume,
 ): {
   orders: StockOrder[];
   orderHistory: StockOrder[];
   fills: { order: StockOrder; notionalUSD: number; shares: number }[];
+  /** The week-volume record after this batch of fills (unchanged ref when none filled). */
+  weekVolume: WeeklyTradedVolume | undefined;
 } {
   const fills: { order: StockOrder; notionalUSD: number; shares: number }[] = [];
   const remaining: StockOrder[] = [];
   let history = orderHistory;
+  let volume = weekVolume;
   let cashLeft = typeof cashAvailable === 'number' && isFinite(cashAvailable) ? cashAvailable : Infinity;
 
   for (const order of orders) {
@@ -128,12 +139,16 @@ export function processOpenOrders(
       continue;
     }
 
-    // Execute at current mid + spread + slippage.
+    // Execute at current mid + spread + slippage on the week's volume.
+    const sym = order.symbol?.toUpperCase();
+    const tradedNotional = order.side === 'buy' ? order.amount : order.amount * mid;
     const fillPrice = marketFillPrice(
       mid,
       order.side,
-      order.side === 'buy' ? order.amount : order.amount * mid
+      tradedNotional,
+      priorWeekVolume(volume, sym, currentWeek),
     );
+    volume = recordWeekVolume(volume, sym, currentWeek, tradedNotional);
     const shares = order.side === 'buy' ? order.amount / fillPrice : order.amount;
     const notional = order.side === 'buy' ? order.amount : order.amount * fillPrice;
     // Track the running cash budget: buys consume cash, sells add proceeds.
@@ -149,7 +164,7 @@ export function processOpenOrders(
     fills.push({ order: completed, notionalUSD: notional, shares });
   }
 
-  return { orders: remaining, orderHistory: history, fills };
+  return { orders: remaining, orderHistory: history, fills, weekVolume: volume };
 }
 
 /**
@@ -161,7 +176,9 @@ export function executeMarket(
   side: StockOrderSide,
   amount: number,
   midPrice: number,
-  currentWeek: number
+  currentWeek: number,
+  /** Notional already traded in this symbol this game week (ECO-2, v57). */
+  priorWeekVolumeUSD = 0,
 ): { order: StockOrder; notionalUSD: number; shares: number } | { error: string } {
   const amt = safe(amount);
   // R2-G: also reject absurdly-large amounts. `safe()` only normalizes NaN to 0
@@ -171,7 +188,7 @@ export function executeMarket(
   if (amt <= 0 || !isFinite(amt) || amt > 1e12) return { error: 'Amount must be positive and bounded' };
   const mid = safe(midPrice);
   if (mid <= 0 || !isFinite(mid)) return { error: 'Invalid price' };
-  const fillPrice = marketFillPrice(mid, side, side === 'buy' ? amt : amt * mid);
+  const fillPrice = marketFillPrice(mid, side, side === 'buy' ? amt : amt * mid, priorWeekVolumeUSD);
   const shares = side === 'buy' ? amt / fillPrice : amt;
   const notional = side === 'buy' ? amt : amt * fillPrice;
   const order: StockOrder = {

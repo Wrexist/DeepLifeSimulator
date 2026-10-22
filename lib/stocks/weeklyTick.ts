@@ -16,6 +16,7 @@ import { computePayouts, DIVIDEND_INTERVAL_WEEKS, isDividendWeek, sumPayouts } f
 import { initialSectorSnapshots, processOpenOrders, tickSectors } from './operations';
 import { StockOrder } from './orderBook';
 import { CAPITAL_GAINS_TAX_RATE, clampTaxMult } from '@/lib/economy/taxLedger';
+import type { WeeklyTradedVolume } from '@/contexts/game/types';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -74,6 +75,11 @@ export interface StocksTickInput {
   currentWeek: number;
   /** Player's cash on hand entering the tick — gates buy-order fills. */
   cashIn?: number;
+  /**
+   * Notional traded per symbol this game week (ECO-2, v57). Limit/stop fills
+   * pay slippage on it and add to it, exactly as market orders do.
+   */
+  weekVolume?: WeeklyTradedVolume;
   /**
    * Current macro economy state. Crypto already reacts to this via forced
    * regimes; stocks previously ignored it, so a recession/crash/boom rotated
@@ -155,6 +161,8 @@ export interface StocksTickResult {
    */
   priceFactors: Record<string, number>;
   notifications: { id: string; title: string; message: string }[];
+  /** The week-volume record after this tick's fills (ECO-2). */
+  weekVolume: WeeklyTradedVolume | undefined;
 }
 
 export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
@@ -231,6 +239,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     prices,
     input.currentWeek,
     typeof input.cashIn === 'number' && isFinite(input.cashIn) ? input.cashIn : Infinity,
+    input.weekVolume,
   );
   for (const fill of orderResult.fills) {
     const sym = fill.order.symbol.toUpperCase();
@@ -344,6 +353,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     capitalGainsTaxUnpaid,
     priceFactors,
     notifications,
+    weekVolume: orderResult.weekVolume,
   };
 }
 

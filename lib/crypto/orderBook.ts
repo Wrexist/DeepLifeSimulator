@@ -91,14 +91,17 @@ export function marketFillPrice(
   midPrice: number,
   side: OrderSide,
   notionalUSD: number,
-  regime: CryptoRegime
+  regime: CryptoRegime,
+  /** Notional already traded in this coin this game week (ECO-2, v57). */
+  priorWeekVolumeUSD = 0,
 ): number {
   return marketFillPriceFor(
     midPrice,
     side,
     notionalUSD,
     bidAskSpreadForRegime(regime),
-    CRYPTO_LIQUIDITY
+    CRYPTO_LIQUIDITY,
+    priorWeekVolumeUSD,
   );
 }
 
@@ -147,7 +150,9 @@ export function fillMarketOrder(
   midPrice: number,
   regime: CryptoRegime,
   /** Average cost basis per coin (for realized-gain calculation on sells). */
-  costBasisPerCoin?: number
+  costBasisPerCoin?: number,
+  /** Notional already traded in this coin this game week (ECO-2, v57). */
+  priorWeekVolumeUSD = 0,
 ): OrderFillResult {
   const amount = Math.max(0, safe(order.amount));
   if (amount === 0) {
@@ -156,14 +161,14 @@ export function fillMarketOrder(
 
   if (order.side === 'buy') {
     // For buys, notional = order.amount (USD). Slippage uses that notional.
-    const fillPrice = marketFillPrice(midPrice, 'buy', amount, regime);
+    const fillPrice = marketFillPrice(midPrice, 'buy', amount, regime, priorWeekVolumeUSD);
     const coinAmount = amount / fillPrice;
     return { filled: true, filledPrice: fillPrice, notionalUSD: amount, coinAmount };
   }
 
   // For sells, notional is coinAmount * mid (approx pre-slippage).
   const approxNotional = amount * midPrice;
-  const fillPrice = marketFillPrice(midPrice, 'sell', approxNotional, regime);
+  const fillPrice = marketFillPrice(midPrice, 'sell', approxNotional, regime, priorWeekVolumeUSD);
   const notional = amount * fillPrice;
   const realizedGain =
     costBasisPerCoin != null && isFinite(costBasisPerCoin)

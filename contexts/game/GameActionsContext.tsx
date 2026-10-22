@@ -3108,6 +3108,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  currentWeek: nextWeeksLived,
  // Gate buy-order fills on actual cash (anti free-fill exploit).
  cashIn: newStats.money,
+ // ECO-2 (v57): resting-order fills pay slippage on the week's volume.
+ weekVolume: prevState.stocks?.weekVolume,
  // Macro teeth: a recession/crash/boom now drives a broad-market drift on
  // equities (crypto already reacts via forced regimes).
  economyState: prevState.economy?.economyEvents?.currentState,
@@ -3602,6 +3604,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  openOrders: stocksTickResult.openOrders,
  orderHistory: stocksTickResult.orderHistory,
  sectorSnapshots: stocksTickResult.sectorSnapshots,
+ weekVolume: stocksTickResult.weekVolume,
  totalDividends: (prevState.stocks?.totalDividends ?? 0) + stocksTickResult.dividendsUSD,
  // Honor the field's "resets at year boundary" contract (was accumulate-forever,
  // converging on lifetime totalDividends). Zeroes on the 52-week boundary,
