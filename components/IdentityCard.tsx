@@ -8,7 +8,8 @@ import { View,
   TouchableOpacity,
   Modal,
   ScrollView } from 'react-native';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils, Scale } from 'lucide-react-native';
+import { getKarmaColor, getKarmaLabel, getKarmaTier, karmaEffectLines } from '@/lib/karma/karmaSystem';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { traitPanelEntries } from '@/lib/mindset/characterTraits';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
@@ -158,6 +159,8 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
       equippedCosmetics: s?.equippedCosmetics,
       loginStreak: s?.loginStreak,
       mindset: s?.mindset,
+      // The karma row (LATE-15).
+      karma: s?.karma,
       // The Traits panel lists the scenario traits THIS life holds.
       activeTraits: s?.activeTraits,
       previousLives: s?.previousLives,
@@ -406,6 +409,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
   const [showTraits, setShowTraits] = useState(false);
   const [showModifiers, setShowModifiers] = useState(false);
   const [showMindset, setShowMindset] = useState(false);
+  const [showKarma, setShowKarma] = useState(false);
   const [showLegacyTimeline, setShowLegacyTimeline] = useState(false);
   // Lives remembered outside this dynasty (a heirless death archives the life
   // rather than erasing it). Read once on mount: without this the archive's
@@ -502,6 +506,11 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
   // interruptive week-advance popups (sickness modal + zero-stat warning):
   // every active problem is listed here alongside how to fix it.
   const perksCount = activePerks.length;
+  const karmaScore = typeof gameState.karma?.score === 'number' && isFinite(gameState.karma.score) ? gameState.karma.score : 0;
+  const karmaTier = getKarmaTier(karmaScore);
+  const karmaLabel = getKarmaLabel(karmaTier);
+  const karmaColor = getKarmaColor(karmaTier);
+  const karmaLines = karmaEffectLines(gameState.karma);
   const traitsCount = traitEntries.length;
 
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -738,6 +747,17 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
             <ChevronRight size={20} color={uiPalette.muted} />
           </TouchableOpacity>
         )}
+        {/* LATE-15: karma moved election odds, bond growth, street-crime
+            success and scandal risk with no surface at all. */}
+        <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowKarma(true)}>
+          <View style={styles.listItemContent}>
+            <Scale size={20} color={karmaColor} />
+            <Text style={[styles.listLabel, styles.listLabelDark]}>
+              Karma: {karmaLabel}
+            </Text>
+          </View>
+          <ChevronRight size={20} color={uiPalette.muted} />
+        </TouchableOpacity>
         {hasRememberedLives(gameState.previousLives, archivedLifeCount) && (
           <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowLegacyTimeline(true)}>
             <View style={styles.listItemContent}>
@@ -1546,6 +1566,41 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
             </View>
           </View>
         )}
+      </InfoModal>
+
+      <InfoModal
+        visible={showKarma}
+        title="Karma"
+        onClose={() => setShowKarma(false)}
+        darkMode={isDarkMode}
+        t={t}
+      >
+        <View style={styles.modalSection}>
+          <Text style={[styles.modalSectionTitle, isDarkMode && styles.modalSectionTitleDark]}>
+            {karmaLabel} ({Math.round(karmaScore)})
+          </Text>
+          <View style={[styles.traitContainer, isDarkMode && styles.traitContainerDark]}>
+            <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+              Karma runs from -100 to 100 and moves with the choices you make: charity, honesty, crime and loyalty.
+            </Text>
+            <View style={styles.traitBonuses}>
+              {/* Generated from the modifiers the game applies (lib/karma). */}
+              {karmaLines.length > 0 ? karmaLines.map((line) => (
+                <View key={line.text} style={styles.bonusItem}>
+                  <Text style={[styles.bonusText, { color: line.upside ? accent.success : accent.warning }]}>
+                    {line.upside ? '+ ' : '− '}{line.text}
+                  </Text>
+                </View>
+              )) : (
+                <View style={styles.bonusItem}>
+                  <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                    Neutral karma changes nothing right now.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
       </InfoModal>
 
       <InfoModal
