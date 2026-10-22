@@ -7,6 +7,15 @@ import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { DIVORCE_LAWYERS, getLawyerExpectedValue } from '@/lib/dating/divorceLawyers';
 import { formatMoney } from '@/utils/moneyFormatting';
+import {
+  projectDivorcePayment,
+  DIVORCE_FORCED_STOCK_RATE,
+  DIVORCE_FORCED_PROPERTY_RATE,
+  DIVORCE_SETTLEMENT_DEBT_APR,
+  DIVORCE_SETTLEMENT_DEBT_TERM_WEEKS,
+  type DivorceLiquidity,
+} from '@/contexts/game/actions/DatingActions';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface DivorceConfirmModalProps {
@@ -16,7 +25,14 @@ interface DivorceConfirmModalProps {
   spouseName: string;
   estimatedSettlement: number;
   lawyerFees: number;
-  currentMoney: number;
+  /**
+   * Everything the settlement is paid from (cash, savings, forced stock and
+   * property sales), from `calculateDivorceCosts`. SOC-5: the screen used to
+   * read cash alone, so its "Money After" was wrong whenever savings or assets
+   * were involved, it never mentioned a forced sale or a settlement loan, and
+   * it refused a divorce the action would have handled.
+   */
+  liquidity: DivorceLiquidity;
   currentGems: number;
   netWorth: number;
   isDarkMode: boolean;
@@ -29,7 +45,7 @@ export default function DivorceConfirmModal({
   spouseName,
   estimatedSettlement,
   lawyerFees,
-  currentMoney,
+  liquidity,
   currentGems,
   netWorth,
   isDarkMode,
@@ -37,8 +53,6 @@ export default function DivorceConfirmModal({
   const [selectedLawyer, setSelectedLawyer] = useState<string | null>(null);
   
   const baseTotalCost = estimatedSettlement + lawyerFees;
-  const moneyAfterDivorce = Math.max(1000, currentMoney - baseTotalCost);
-  const canAffordBase = currentMoney >= lawyerFees;
 
   const settlementPercent = useMemo(() => {
     if (netWorth === 0) return 0;
@@ -51,7 +65,6 @@ export default function DivorceConfirmModal({
       const expected = getLawyerExpectedValue(estimatedSettlement, lawyer);
       const lawyerCost = expected.lawyerCost; // Use dynamic cost
       const totalCost = lawyerFees + lawyerCost;
-      const canAfford = currentMoney >= totalCost;
       const finalCost = expected.expectedSettlement + totalCost;
       const netSavings = expected.expectedSavings;
       
@@ -60,12 +73,11 @@ export default function DivorceConfirmModal({
         expected,
         lawyerCost, // Dynamic cost
         totalCost,
-        canAfford,
         finalCost,
         netSavings,
       };
     });
-  }, [estimatedSettlement, lawyerFees, currentMoney]);
+  }, [estimatedSettlement, lawyerFees]);
 
   const selectedLawyerData = selectedLawyer 
     ? lawyerOutcomes.find(o => o.lawyer.id === selectedLawyer)
@@ -75,10 +87,11 @@ export default function DivorceConfirmModal({
     ? selectedLawyerData.finalCost
     : baseTotalCost;
 
-  const finalMoneyAfter = Math.max(1000, currentMoney - finalTotalCost);
-  const canAffordFinal = selectedLawyerData 
-    ? selectedLawyerData.canAfford && currentMoney >= finalTotalCost
-    : canAffordBase;
+  // The same waterfall `fileDivorce` runs - nothing here can refuse the
+  // divorce, because the action never does: what cash and savings cannot
+  // cover is sold, and what sales cannot cover becomes a settlement loan.
+  const projection = projectDivorcePayment(liquidity, finalTotalCost);
+  const finalMoneyAfter = projection.moneyAfter;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -90,7 +103,7 @@ export default function DivorceConfirmModal({
               <AlertTriangle size={scale(24)} color="#EF4444" />
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>Confirm Divorce</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(scale(24))}>
               <X size={scale(24)} color={isDarkMode ? uiPalette.white : '#000'} />
             </TouchableOpacity>
           </View>
@@ -180,13 +193,11 @@ export default function DivorceConfirmModal({
                       style={[
                         styles.lawyerCard,
                         isSelected && styles.lawyerCardSelected,
-                        !outcome.canAfford && styles.lawyerCardDisabled,
                         isDarkMode && styles.lawyerCardDark,
                       ]}
-                      onPress={() => outcome.canAfford && setSelectedLawyer(
+                      onPress={() => setSelectedLawyer(
                         selectedLawyer === outcome.lawyer.id ? null : outcome.lawyer.id
                       )}
-                      disabled={!outcome.canAfford}
                     >
                       <LinearGradient
                         colors={isSelected 
@@ -295,13 +306,6 @@ export default function DivorceConfirmModal({
                           </Text>
                         </View>
 
-                        {!outcome.canAfford && (
-                          <View style={styles.cannotAffordBadge}>
-                            <Text style={styles.cannotAffordText}>
-                              Need ${(outcome.totalCost - currentMoney).toLocaleString('en-US')} more
-                            </Text>
-                          </View>
-                        )}
                       </LinearGradient>
                     </TouchableOpacity>
                   );
@@ -442,14 +446,23 @@ export default function DivorceConfirmModal({
               </View>
             </View>
 
-            {!canAffordFinal && (
+            {(projection.usesAssets || projection.projectedDebt > 0) && (
               <View style={[styles.errorBox, isDarkMode && styles.errorBoxDark]}>
-                <Text style={styles.errorText}>
-                  {selectedLawyerData 
-                    ? `You need $${Math.round(selectedLawyerData.finalCost).toLocaleString('en-US')} total to proceed with this lawyer.`
-                    : `You need at least $${lawyerFees.toLocaleString('en-US')} for lawyer fees to proceed with the divorce.`
-                  }
-                </Text>
+                <Text style={styles.errorTitle}>Your cash and savings will not cover this</Text>
+                {projection.usesAssets && (
+                  <Text style={styles.errorText}>
+                    Stocks are sold at {Math.round(DIVORCE_FORCED_STOCK_RATE * 100)}% of their value, then
+                    property at {Math.round(DIVORCE_FORCED_PROPERTY_RATE * 100)}% (after its mortgage), until the
+                    settlement is paid. Your home is sold last, but it can be sold.
+                  </Text>
+                )}
+                {projection.projectedDebt > 0 && (
+                  <Text style={styles.errorText}>
+                    The remaining {formatMoney(projection.projectedDebt)} becomes a settlement loan at{' '}
+                    {Math.round(DIVORCE_SETTLEMENT_DEBT_APR * 100)}% APR, repaid weekly over{' '}
+                    {DIVORCE_SETTLEMENT_DEBT_TERM_WEEKS} weeks.
+                  </Text>
+                )}
               </View>
             )}
           </ScrollView>
@@ -465,19 +478,15 @@ export default function DivorceConfirmModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmButton, (!canAffordFinal) && styles.confirmButtonDisabled]}
+              style={styles.confirmButton}
               onPress={() => onConfirm(selectedLawyer || undefined)}
-              disabled={!canAffordFinal}
             >
               <LinearGradient
-                colors={!canAffordFinal ? [uiPalette.muted, uiPalette.lightMuted] : ['#EF4444', '#DC2626']}
+                colors={['#EF4444', '#DC2626']}
                 style={styles.confirmButtonGradient}
               >
                 <Text style={styles.confirmButtonText}>
-                  {canAffordFinal 
-                    ? (selectedLawyer ? `Divorce (with Lawyer)` : 'Confirm Divorce')
-                    : 'Insufficient Funds'
-                  }
+                  {selectedLawyer ? `Divorce (with Lawyer)` : 'Confirm Divorce'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -703,9 +712,6 @@ const styles = StyleSheet.create({
   lawyerCardSelected: {
     borderColor: '#8B5CF6',
   },
-  lawyerCardDisabled: {
-    opacity: 0.5,
-  },
   lawyerCardDark: {
     // Handled by gradient
   },
@@ -869,18 +875,6 @@ const styles = StyleSheet.create({
   lawyerCostValueDark: {
     color: '#FBBF24',
   },
-  cannotAffordBadge: {
-    marginTop: scale(8),
-    padding: scale(6),
-    backgroundColor: '#FEE2E2',
-    borderRadius: scale(6),
-  },
-  cannotAffordText: {
-    fontSize: fontScale(11),
-    color: '#DC2626',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   noLawyerOption: {
     padding: scale(12),
     borderRadius: scale(10),
@@ -941,11 +935,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#7F1D1D',
     borderColor: '#991B1B',
   },
-  errorText: {
+  errorTitle: {
     fontSize: fontScale(16),
     color: '#DC2626',
     fontWeight: '600',
     textAlign: 'center',
+    marginBottom: scale(6),
+  },
+  errorText: {
+    fontSize: fontScale(14),
+    color: '#DC2626',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: scale(4),
   },
   footer: {
     flexDirection: 'row',
@@ -979,9 +981,6 @@ const styles = StyleSheet.create({
     flex: 2,
     borderRadius: scale(12),
     overflow: 'hidden',
-  },
-  confirmButtonDisabled: {
-    opacity: 0.5,
   },
   confirmButtonGradient: {
     padding: scale(16),

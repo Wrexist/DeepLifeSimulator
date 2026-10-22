@@ -24,6 +24,7 @@
  *   - `policeEncounterJailWeeks`  — feeds the jail-weeks accumulator.
  */
 
+import { countOf } from '@/utils/grammar';
 import { logger } from '@/utils/logger';
 import { chargeOrDefer } from './chargeOrDefer';
 import type { WeekContext } from './weekContext';
@@ -106,7 +107,7 @@ export function applyCrimeTick(input: CrimeTickInput, ctx: WeekContext): CrimeTi
       logger.info(`[POLICE] Random encounter! Wanted ${newWantedLevel}, jailed ${policeEncounterJailWeeks} weeks, fined $${fine}`);
       ctx.notifications.push({
         id: 'police-encounter',
-        message: `The police caught up with you! You've been fined $${fine.toLocaleString('en-US')} and sentenced to ${policeEncounterJailWeeks} week(s) in jail.`,
+        message: `The police caught up with you! You've been fined $${fine.toLocaleString('en-US')} and sentenced to ${countOf(policeEncounterJailWeeks, 'week')} in jail.`,
         title: 'Police Encounter',
       });
     }

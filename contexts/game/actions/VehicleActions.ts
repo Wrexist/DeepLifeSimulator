@@ -9,6 +9,7 @@
  * - Weekly vehicle maintenance processing
  */
 
+import { withArticle } from '@/utils/grammar';
 import { GameState, Vehicle, VehicleInsurance } from '../types';
 import { getActiveRental, getRentalPlan } from '@/lib/vehicles/scooterRental';
 import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
@@ -122,6 +123,29 @@ export function vehicleReputationTakeBack(
   const granted = vehicle.reputationGranted;
   if (typeof granted === 'number' && isFinite(granted) && granted >= 0) return granted;
   return vehicleReputationBonus(vehicle);
+}
+
+const POLICY_TERM_WEEKS = 26; // matches the 6-month term set at purchase
+
+/**
+ * The pro-rata refund of an insurance premium at `weeksLived`: the unused
+ * fraction of the premium actually paid (`monthlyCost * 6` for a 26-week
+ * term), less a $25 admin fee, clamped to [0, premium]. Shared by
+ * `cancelInsurance` and `sellVehicle` - selling an insured car used to forfeit
+ * the whole unused premium, while cancelling first refunded it.
+ */
+export function insuranceRefund(ins: VehicleInsurance, weeksLived: number): number {
+  // H-3 refund-printer fix: prorate against the ACTUAL premium paid and the
+  // ACTUAL policy term, not a 4-week month, so the refund can never exceed
+  // what was paid: cancelling only ever costs the $25 admin fee.
+  const expires = ins.expiresWeek ?? weeksLived;
+  const monthly = typeof ins.monthlyCost === 'number' && isFinite(ins.monthlyCost)
+    ? ins.monthlyCost
+    : 0;
+  const premium = monthly * 6;
+  const remaining = Math.min(POLICY_TERM_WEEKS, Math.max(0, expires - weeksLived));
+  const raw = Math.floor(premium * (remaining / POLICY_TERM_WEEKS)) - INSURANCE_CANCEL_FEE;
+  return Math.max(0, Math.min(premium, raw));
 }
 
 /**
@@ -275,7 +299,7 @@ const resolvePurchaseVehicle = (
     : state.banking;
 
   return {
-    result: { success: true, message: `Congratulations! You are now the proud owner of a ${template.name}!` },
+    result: { success: true, message: `Congratulations! You are now the proud owner of ${withArticle(template.name)}!` },
     next: {
       ...state,
       banking,
@@ -371,6 +395,10 @@ export const sellVehicle = (
           )
         : (prev.loans || []).filter(l => l.id !== vehicleLoan.id);
 
+    // An active policy goes with the car: refund its unused premium exactly as
+    // `cancelInsurance` would, so selling never costs more than cancelling first.
+    const policyRefund = sold.insurance?.active ? insuranceRefund(sold.insurance, prev.weeksLived ?? 0) : 0;
+
     return {
       ...prev,
       stats: {
@@ -378,7 +406,7 @@ export const sellVehicle = (
         money: Math.max(
           0,
           (typeof prev.stats.money === 'number' && isFinite(prev.stats.money) ? prev.stats.money : 0) +
-            cashDelta
+            cashDelta + policyRefund
         ),
         // Exactly what the purchase granted (the whole bonus for a car bought
         // before v55), so a buy + sell can never net positive.
@@ -390,8 +418,15 @@ export const sellVehicle = (
     };
   });
 
+  const refundPreview = vehicle.insurance?.active ? insuranceRefund(vehicle.insurance, gameState.weeksLived ?? 0) : 0;
   log.info(`Player sold vehicle: ${vehicle.name} for $${sellPrice}`);
-  return { success: true, message: `Sold ${vehicle.name} for $${sellPrice.toLocaleString('en-US')}!`, sellPrice };
+  return {
+    success: true,
+    message: refundPreview > 0
+      ? `Sold ${vehicle.name} for $${sellPrice.toLocaleString('en-US')}! Insurance refund: $${refundPreview.toLocaleString('en-US')}.`
+      : `Sold ${vehicle.name} for $${sellPrice.toLocaleString('en-US')}!`,
+    sellPrice,
+  };
 };
 
 /**
@@ -638,6 +673,21 @@ export const purchaseInsurance = (
   return { success: true, message: `${capitalizedType} insurance active for 6 months!` };
 };
 
+/** Flat admin fee taken from every cancellation refund. */
+export const INSURANCE_CANCEL_FEE = 25;
+
+/**
+ * What cancelling this policy now refunds: the unused fraction of the premium
+ * paid (`monthlyCost * 6` for a 26-week term), less the admin fee, clamped to
+ * [0, premium]. Exported so the cancel confirmation quotes the same number the
+ * cancel pays (APP-16).
+ */
+export function insuranceCancelRefund(ins: VehicleInsurance, weeksLived: number): number {
+  // One proration for cancel and sale: `insuranceRefund` above (the sale path
+  // shares it). Kept under this name for the cancel confirmation's quote.
+  return insuranceRefund(ins, weeksLived);
+}
+
 /**
  * Cancel insurance for a vehicle
  */
@@ -671,22 +721,11 @@ export const cancelInsurance = (
   // prorating `premiumPaid * remaining/term` and clamping to `premiumPaid`, the
   // refund can never exceed what was paid: cancelling only ever costs the $25
   // admin fee.
-  const POLICY_TERM_WEEKS = 26; // matches the 6-month term set at purchase
-  // Pure refund proration - also used INSIDE the updater against `prev` so a
-  // same-batch double-cancel can't credit the refund twice (the first tap clears
-  // `insurance`, the second sees it gone and returns prev). Mirrors the H-9
-  // ownership re-check on sellVehicle.
-  const computeRefund = (ins: VehicleInsurance, weeksLived: number): number => {
-    const expires = ins.expiresWeek ?? weeksLived;
-    const monthly = typeof ins.monthlyCost === 'number' && isFinite(ins.monthlyCost)
-      ? ins.monthlyCost
-      : 0;
-    const premium = monthly * 6;
-    const remaining = Math.min(POLICY_TERM_WEEKS, Math.max(0, expires - weeksLived));
-    // 25 admin fee minimum; refund is the unused fraction of the premium paid.
-    const raw = Math.floor(premium * (remaining / POLICY_TERM_WEEKS)) - 25;
-    return Math.max(0, Math.min(premium, raw));
-  };
+  // Pure refund proration (`insuranceRefund`, module level) - also used INSIDE the
+  // updater against `prev` so a same-batch double-cancel can't credit the
+  // refund twice (the first tap clears `insurance`, the second sees it gone and
+  // returns prev). Mirrors the H-9 ownership re-check on sellVehicle.
+  const computeRefund = insuranceRefund;
   // Best-effort value for the user-facing message (recomputed authoritatively in
   // the updater below from `prev`).
   const refund = computeRefund(vehicle.insurance, currentWeek);

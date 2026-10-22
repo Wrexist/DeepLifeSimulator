@@ -42,6 +42,7 @@ export function validateRelationshipState(state: GameState): RelationshipValidat
   
   // Check children consistency
   (state.family?.children || []).forEach(child => {
+    if (!child) return;
     const childInRelationships = state.relationships?.find(
       r => r.id === child.id && r.type === 'child'
     );
@@ -53,9 +54,9 @@ export function validateRelationshipState(state: GameState): RelationshipValidat
   });
   
   // Check for orphaned child relationships (in relationships but not in family.children)
-  const childRelationships = (state.relationships || []).filter(r => r.type === 'child');
+  const childRelationships = (state.relationships || []).filter(r => r?.type === 'child');
   childRelationships.forEach(childRel => {
-    const inFamily = state.family?.children?.some(c => c.id === childRel.id);
+    const inFamily = state.family?.children?.some(c => c?.id === childRel.id);
     if (!inFamily) {
       issues.push(`Orphaned child relationship: ${childRel.id} in relationships but not in family.children`);
     }

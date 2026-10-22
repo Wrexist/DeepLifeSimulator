@@ -45,7 +45,7 @@ export const LUXURY_VERBS: readonly LuxuryVerb[] = [
     id: 'race_horse',
     itemId: 'racehorse',
     label: 'Enter a race',
-    description: 'Pay the entry, run your colours, see what happens.',
+    description: 'Pay the entry, run your colors, see what happens.',
     cost: 25_000,
     cooldownWeeks: 3,
     energyCost: 10,
@@ -200,7 +200,7 @@ export function resolveRace(roll: number, holding: LuxuryHolding | undefined): V
       money: 70_000,
       reputation: 3,
       happiness: 6,
-      message: 'Your colours came home first. The winner\'s enclosure, the photograph, all of it.',
+      message: 'Your colors came home first. The winner\'s enclosure, the photograph, all of it.',
       holdingPatch: nextRecord,
     };
   }

@@ -28,6 +28,19 @@
 
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
+import { payloadRoll } from './seededPayload';
+
+/**
+ * The contest branches below name both outcomes in their copy ("$0 now, $120
+ * if refused"), and until 2026-10-21 always charged the worse one - so every
+ * contest was strictly dominated and the copy misled. They are real gambles
+ * now: rolled per life and week at generation (`payloadRoll`), shown as
+ * "Outcome uncertain" (`outcomeHidden`), and gated on the named worst case
+ * (`stake`).
+ */
+export const PARKING_APPEAL_SUCCESS_CHANCE = 0.5;
+export const SPEEDING_COURT_SUCCESS_CHANCE = 0.4;
+export const SETTLEMENT_COUNTER_ACCEPT_CHANCE = 0.5;
 
 /** Liquid wealth, for gating letters that only make sense above a floor. */
 function liquid(state: GameState): number {
@@ -49,7 +62,7 @@ const parkingFine: EventTemplate = {
   category: 'economy',
   weight: 0.35,
   condition: (state) => ownsVehicle(state),
-  generate: () => ({
+  generate: (state) => ({
     id: 'legal_parking_fine',
     description:
       'A penalty charge notice has been issued against your vehicle. The photograph ' +
@@ -64,8 +77,12 @@ const parkingFine: EventTemplate = {
       },
       {
         id: 'appeal',
-        text: 'Appeal it - you were loading ($0 now, $120 if refused)',
-        effects: { money: -120, stats: { happiness: -2 } },
+        text: 'Appeal it - you were loading ($0 if upheld, $120 if refused)',
+        outcomeHidden: true,
+        stake: 120,
+        effects: payloadRoll(state, 'legal_parking_fine')('appeal') < PARKING_APPEAL_SUCCESS_CHANCE
+          ? { stats: { happiness: 2 } }
+          : { money: -120, stats: { happiness: -2 } },
       },
       {
         id: 'ignore',
@@ -81,7 +98,7 @@ const speedingNotice: EventTemplate = {
   category: 'economy',
   weight: 0.3,
   condition: (state) => ownsVehicle(state),
-  generate: () => ({
+  generate: (state) => ({
     id: 'legal_speeding_notice',
     description:
       'A notice of intended prosecution has been served. You were recorded at ' +
@@ -97,8 +114,12 @@ const speedingNotice: EventTemplate = {
       },
       {
         id: 'court',
-        text: 'Elect court - you say the limit was unposted ($400 if it goes badly)',
-        effects: { money: -400, stats: { happiness: -6 } },
+        text: 'Elect court - you say the limit was unposted ($0 if you win, $400 if it goes badly)',
+        outcomeHidden: true,
+        stake: 400,
+        effects: payloadRoll(state, 'legal_speeding_notice')('court') < SPEEDING_COURT_SUCCESS_CHANCE
+          ? { stats: { energy: -5, happiness: 3 } }
+          : { money: -400, stats: { happiness: -6 } },
       },
       {
         id: 'ignore',
@@ -124,7 +145,7 @@ const smallClaim: EventTemplate = {
     choices: [
       {
         id: 'defend',
-        text: 'File a defence and attend ($250 and a day)',
+        text: 'File a defense and attend ($250 and a day)',
         effects: { money: -250, stats: { energy: -8, happiness: -3 } },
       },
       {
@@ -150,7 +171,7 @@ const settlementOffer: EventTemplate = {
   category: 'economy',
   weight: 0.18,
   condition: (state) => hasRecord(state) && liquid(state) > 10_000,
-  generate: () => ({
+  generate: (state) => ({
     id: 'legal_settlement_offer',
     description:
       'Our client is prepared to resolve this matter without proceedings. The ' +
@@ -166,7 +187,11 @@ const settlementOffer: EventTemplate = {
       {
         id: 'counter',
         text: 'Counter-offer at half ($1,500 if accepted, $6,000 if not)',
-        effects: { money: -6000, stats: { happiness: -8 } },
+        outcomeHidden: true,
+        stake: 6000,
+        effects: payloadRoll(state, 'legal_settlement_offer')('counter') < SETTLEMENT_COUNTER_ACCEPT_CHANCE
+          ? { money: -1500, stats: { happiness: -2 } }
+          : { money: -6000, stats: { happiness: -8 } },
       },
       {
         id: 'refuse',

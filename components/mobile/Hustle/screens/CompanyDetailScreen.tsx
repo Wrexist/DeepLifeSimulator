@@ -40,6 +40,7 @@ import { addWorker, removeWorker, quoteCompanySaleValue, sellCompany } from '@/c
 import { useCompanyActions } from '@/contexts/game/CompanyActionsContext';
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { FAMILY_BUSINESS_COST } from '@/contexts/game/actions/FamilyBusinessActions';
 import { formatMoney, formatMoneyCompact } from '@/utils/moneyFormatting';
 import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
 import { clearHustleNotifications, markHustleNotificationRead, quoteIPO } from '@/contexts/game/actions/HustleActions';
@@ -69,7 +70,6 @@ const meterColor = (v: number) => (v >= 70 ? HUSTLE_COLORS.success : v >= 45 ? H
 // Family-business economy - costs + effects mirror createFamilyBusiness /
 // manageFamilyBusiness in FamilyBusinessActions (those actions stay the source of
 // truth; these are display-only labels for the buttons).
-const FAMILY_BUSINESS_COST = 1_000_000; // one-time conversion cost in createFamilyBusiness
 const FAMILY_MANAGE_OPTIONS: { action: 'marketing' | 'branding' | 'reputation'; label: string; cost: number; effect: string }[] = [
   { action: 'marketing', label: 'Marketing push', cost: 10_000, effect: '+5 brand value' },
   { action: 'reputation', label: 'Reputation drive', cost: 25_000, effect: '+10 reputation' },
@@ -205,11 +205,27 @@ export default function CompanyDetailScreen({
   // ($1M, atomic); manageFamilyBusiness spends to build brand + reputation (also
   // atomic - one charge, one benefit per tap). The button gating below keeps the
   // disabled states honest, so a press only fires when it can succeed.
+  // $1M and irreversible, so it asks first and reports the result (APP-12),
+  // the way Sell company already does.
   const handleConvertToFamilyBusiness = useCallback(() => {
     hustleHaptics.tap();
-    createFamilyBusiness(companyId);
-    saveGame?.();
-  }, [createFamilyBusiness, companyId, saveGame]);
+    gameAlert(
+      'Make it a family business?',
+      `Spend $${FAMILY_BUSINESS_COST.toLocaleString('en-US')} to turn ${company?.name ?? 'this company'} into a family business. It passes to your heir and builds brand and reputation across generations. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Convert',
+          onPress: () => {
+            const r = createFamilyBusiness(companyId);
+            if (r.success) { hustleHaptics.success(); saveGame?.(); }
+            else hustleHaptics.error();
+            gameAlert('Family Business', r.message);
+          },
+        },
+      ],
+    );
+  }, [createFamilyBusiness, companyId, company?.name, saveGame]);
 
   const handleManageFamilyBusiness = useCallback((action: 'marketing' | 'branding' | 'reputation') => {
     const r = manageFamilyBusiness(companyId, action);

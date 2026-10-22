@@ -1,4 +1,5 @@
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
+import { countOf } from '@/utils/grammar';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import PortraitSheet from '@/components/avatar/PortraitSheet';
@@ -268,7 +269,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           defaultCollapsed={!embedded}
           title="Life Stats"
           compact
-          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${weeksInThisLife(gameState)} weeks`}
+          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${countOf(weeksInThisLife(gameState), 'week')}`}
         >
         <View style={styles.statsGrid}>
           <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />
@@ -383,19 +384,25 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         )}
       </ScrollView>
 
-      {/* Modals - one at a time, mounted only while open. */}
+      {/* Modals - one at a time, mounted only while open. Several of these
+          subscribe to the whole GameState (and SmartNotificationCenter
+          evaluates the full notification catalogue before its own visibility
+          check), so a closed one left mounted re-rendered on every tap and
+          every week (CMP-6) - the same fix home.tsx made for PrestigeModal. */}
       {openModal === 'portrait' && <PortraitSheet onClose={closeModal} />}
       {openModal === 'settings' && <SettingsModal visible onClose={closeModal} />}
       {openModal === 'help' && <HelpModal visible onClose={closeModal} />}
-      <SmartNotificationCenter visible={openModal === 'notifications'} onClose={closeModal} />
-      <ActivityCommitmentModal visible={openModal === 'commitments'} onClose={closeModal} />
-      <YourStoryModal
-        visible={openModal === 'story'}
-        onClose={closeModal}
-        onOpen={openStorySurface}
-      />
-      <LifeStoryModal visible={openModal === 'lifeStory'} onClose={closeModal} />
-      <LifeTimelineModal visible={openModal === 'lifeTimeline'} onClose={closeModal} />
+      {openModal === 'notifications' && <SmartNotificationCenter visible onClose={closeModal} />}
+      {openModal === 'commitments' && <ActivityCommitmentModal visible onClose={closeModal} />}
+      {openModal === 'story' && (
+        <YourStoryModal
+          visible
+          onClose={closeModal}
+          onOpen={openStorySurface}
+        />
+      )}
+      {openModal === 'lifeStory' && <LifeStoryModal visible onClose={closeModal} />}
+      {openModal === 'lifeTimeline' && <LifeTimelineModal visible onClose={closeModal} />}
       {/* Journal renders inline (it is a View, not a Modal), so it gets a
           wrapper here - the same treatment ShareLifeCard below already needed. */}
       <Modal
@@ -405,8 +412,9 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         onRequestClose={closeModal}
       >
         <View style={[styles.journalSheet, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+          {/* Journal draws its own "Life Journal" title, so the sheet head
+              only carries the Done button (it used to show two titles). */}
           <View style={styles.journalSheetHead}>
-            <Text style={[styles.journalSheetTitle, { color: theme.text }]}>Journal</Text>
             <TouchableOpacity
               onPress={closeModal}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -416,9 +424,13 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
               <Text style={[styles.journalSheetClose, { color: theme.textSecondary }]}>Done</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + scale(24) }}>
-            <Journal />
-          </ScrollView>
+          {/* No ScrollView around it: Journal's entry list is a FlatList, and
+              nesting it in an unbounded ScrollView made it measure to full
+              height and render every entry - undoing the virtualization that
+              stops a long journal running out of memory (CMP-7). */}
+          <View style={styles.journalBody}>
+            {openModal === 'journal' && <Journal bottomInset={insets.bottom + scale(24)} />}
+          </View>
         </View>
       </Modal>
       {/* ShareLifeCard renders a full-bleed card rather than its own Modal, so it
@@ -432,17 +444,19 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
       >
         <ShareLifeCard gameState={gameState} onClose={closeModal} />
       </Modal>
-      <SkillTreeModal visible={openModal === 'skillTree'} onClose={closeModal} />
-      <HobbiesModal visible={openModal === 'hobbies'} onClose={closeModal} />
-      <LegacyPassModal
-        visible={openModal === 'legacyPass'}
-        onClose={closeModal}
-        onSubscribe={() => setOpenModal('subscription')}
-      />
-      <SubscriptionModal visible={openModal === 'subscription'} onClose={closeModal} />
-      <PrestigeHistoryModal visible={openModal === 'prestigeHistory'} onClose={closeModal} />
-      <PrestigeShopModal visible={openModal === 'prestigeShop'} onClose={closeModal} />
-      <PrestigeModal visible={openModal === 'prestige'} onClose={closeModal} />
+      {openModal === 'skillTree' && <SkillTreeModal visible onClose={closeModal} />}
+      {openModal === 'hobbies' && <HobbiesModal visible onClose={closeModal} />}
+      {openModal === 'legacyPass' && (
+        <LegacyPassModal
+          visible
+          onClose={closeModal}
+          onSubscribe={() => setOpenModal('subscription')}
+        />
+      )}
+      {openModal === 'subscription' && <SubscriptionModal visible onClose={closeModal} />}
+      {openModal === 'prestigeHistory' && <PrestigeHistoryModal visible onClose={closeModal} />}
+      {openModal === 'prestigeShop' && <PrestigeShopModal visible onClose={closeModal} />}
+      {openModal === 'prestige' && <PrestigeModal visible onClose={closeModal} />}
     </View>
   );
 }
@@ -617,16 +631,15 @@ const styles = StyleSheet.create({
   journalSheet: {
     flex: 1,
   },
+  journalBody: {
+    flex: 1,
+  },
   journalSheetHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-  },
-  journalSheetTitle: {
-    fontSize: fontScale(18),
-    fontWeight: '600',
   },
   journalSheetClose: {
     fontSize: fontScale(15),

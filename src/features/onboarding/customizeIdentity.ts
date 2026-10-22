@@ -1,3 +1,8 @@
+import { encodeAvatar } from '@/lib/avatar/encode';
+import { PORTRAIT_PRESETS } from '@/lib/avatar/portraitPresets';
+import type { PortraitId } from '@/lib/avatar/portraits';
+import type { AvatarConfig } from '@/lib/avatar/types';
+
 export type IdentitySex = 'male' | 'female' | 'random';
 export type IdentitySexuality = 'straight' | 'gay' | 'bi';
 
@@ -60,3 +65,35 @@ export const applyIdentityDraftToOnboardingState = <T extends OnboardingIdentity
     ...identityDraft,
   };
 };
+
+export interface IdentityEditorSnapshot {
+  firstName: string;
+  lastName: string;
+  sex: 'male' | 'female';
+  sexuality: IdentitySexuality;
+  artMode: 'portrait' | 'custom';
+  portraitId: PortraitId;
+  avatar: AvatarConfig;
+}
+
+/**
+ * The identity draft the character creator writes into onboarding state.
+ *
+ * In portrait mode the stored `avatar` is the PRESET the player is looking at.
+ * It used to be the unseen random face the custom editor was seeded with, and
+ * children inherit from the stored config (`resolveChildAvatar` ->
+ * `resolveAvatar`), so a portrait player's kids took their features from a
+ * face nobody had ever shown them (ONB-8). Existing saves are untouched: this
+ * only shapes a NEW life's draft.
+ */
+export const identityDraftFromEditor = (
+  editor: IdentityEditorSnapshot,
+  { trim = false }: { trim?: boolean } = {}
+): OnboardingIdentityStateShape => ({
+  firstName: trim ? editor.firstName.trim() : editor.firstName,
+  lastName: trim ? editor.lastName.trim() : editor.lastName,
+  sex: editor.sex,
+  sexuality: editor.sexuality,
+  avatarId: editor.artMode === 'portrait' ? editor.portraitId : undefined,
+  avatar: encodeAvatar(editor.artMode === 'portrait' ? PORTRAIT_PRESETS[editor.portraitId] : editor.avatar),
+});

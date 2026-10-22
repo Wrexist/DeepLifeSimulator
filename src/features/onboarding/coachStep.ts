@@ -48,6 +48,12 @@ export interface CoachStepInput {
   baseline: number | null;
   weeksLived: number;
   hasWorkedForPay: boolean;
+  /**
+   * Paid weeks worked in this life (`lifetimeStatistics.totalWeeksWorked`).
+   * The 'paid' card celebrates the FIRST paid week; once a second one is in,
+   * it has done its job. Optional so older callers keep the old behaviour.
+   */
+  paidWeeks?: number;
   hasPendingApplication: boolean;
   hasJob: boolean;
 }
@@ -64,6 +70,10 @@ export function resolveCoachStep(o: CoachStepInput): CoachStep {
   // MAX_COACH_WEEKS. A null baseline means "not anchored yet", which must not
   // hide the card.
   if (o.baseline !== null && o.weeksLived - o.baseline > MAX_COACH_WEEKS) return null;
+  // The payoff is for the first paid week only. Without this it stayed up
+  // until the 8-week window closed - still reading "Your first paid week" at
+  // week 7 (VIS-12).
+  if (o.hasWorkedForPay && (o.paidWeeks ?? 1) > 1) return null;
   if (o.hasWorkedForPay) return 'paid';
   if (o.hasJob) return 'advance';
   if (o.hasPendingApplication) return 'pending';

@@ -5,6 +5,7 @@ import {
   type OnboardingInputs,
 } from '@/src/features/onboarding/gameInitializer';
 import type { NewLifeSlotResolution } from '@/src/features/onboarding/slotSafety';
+import * as onboardingAnalytics from '@/src/features/onboarding/onboardingAnalytics';
 
 // ---------------------------------------------------------------------------
 // validateOnboardingInputs
@@ -116,6 +117,19 @@ describe('initializeAndSaveGame', () => {
     ),
   });
 
+  it('attributes the completion to the door the life started from (ONB-18)', async () => {
+    const complete = jest.spyOn(onboardingAnalytics, 'logOnboardingStepComplete');
+    try {
+      await initializeAndSaveGame({ version: 12 }, 1, mockDeps(), 'MainMenu');
+      expect(complete).toHaveBeenCalledWith('MainMenu', expect.anything());
+      complete.mockClear();
+      await initializeAndSaveGame({ version: 12 }, 1, mockDeps());
+      expect(complete).toHaveBeenCalledWith('Perks', expect.anything());
+    } finally {
+      complete.mockRestore();
+    }
+  });
+
   it('succeeds on valid flow', async () => {
     const deps = mockDeps();
     const result = await initializeAndSaveGame({ version: 12 }, 1, deps);
@@ -184,5 +198,28 @@ describe('initializeAndSaveGame', () => {
     (deps.forceSave as jest.Mock).mockImplementation(async () => { callOrder.push('save'); });
     await initializeAndSaveGame({}, 1, deps);
     expect(callOrder).toEqual(['backup', 'save']);
+  });
+
+  // 2026-10-21 audit SAVE-3: the previous life's death/jail/highest-age record
+  // must not ratchet into the new life written to the same slot.
+  it('clears the slot\'s protected state after the outgoing snapshot and before the first write', async () => {
+    const deps = mockDeps();
+    const callOrder: string[] = [];
+    deps.snapshotOutgoingSave = jest.fn(async () => { callOrder.push('snapshot'); return null; });
+    deps.clearProtectedState = jest.fn(async () => { callOrder.push('clear'); });
+    (deps.createBackupFromState as jest.Mock).mockImplementation(async () => { callOrder.push('backup'); });
+    (deps.forceSave as jest.Mock).mockImplementation(async () => { callOrder.push('save'); });
+    const result = await initializeAndSaveGame({}, 2, deps);
+    expect(result.success).toBe(true);
+    expect(deps.clearProtectedState).toHaveBeenCalledWith(2);
+    expect(callOrder).toEqual(['snapshot', 'clear', 'backup', 'save']);
+  });
+
+  it('still starts the life when clearing protected state fails', async () => {
+    const deps = mockDeps();
+    deps.clearProtectedState = jest.fn(async () => { throw new Error('storage'); });
+    const result = await initializeAndSaveGame({}, 1, deps);
+    expect(result.success).toBe(true);
+    expect(deps.forceSave).toHaveBeenCalled();
   });
 });

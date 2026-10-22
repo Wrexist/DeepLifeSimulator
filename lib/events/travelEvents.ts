@@ -5,13 +5,20 @@
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { payloadRoll } from './seededPayload';
+import { DESTINATIONS } from '@/lib/travel/destinations';
 
 function isOnTrip(state: GameState): boolean {
   return Boolean(state.travel?.currentTrip);
 }
 
+/**
+ * The destination's DISPLAY name. This returned the raw catalogue id, so seven
+ * descriptions read "While exploring new_york, ..." (2026-10-21 audit).
+ */
 function getCurrentDestinationName(state: GameState): string {
-  return state.travel?.currentTrip?.destinationId || 'your destination';
+  const id = state.travel?.currentTrip?.destinationId;
+  if (!id) return 'your destination';
+  return DESTINATIONS.find((d) => d.id === id)?.name ?? 'your destination';
 }
 
 function hasVisitedCount(state: GameState): number {

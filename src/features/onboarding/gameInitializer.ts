@@ -105,6 +105,15 @@ export interface InitializeGameDeps {
    * without it an overwrite has no rescue copy.
    */
   snapshotOutgoingSave?: (slot: number) => Promise<string | null>;
+  /**
+   * Drop the slot's anti-exploit protected state before the new life's first
+   * write. That record (death, jail, highest age) belongs to the life that used
+   * to be in the slot; left in place it ratchets into the new life, which then
+   * cannot restore its own backups ("Cannot restore to age 18. You have already
+   * reached age 60.") and embeds the old life's death in every save.
+   * 2026-10-21 audit SAVE-3. Optional for existing callers; production passes it.
+   */
+  clearProtectedState?: (slot: number) => Promise<void>;
   /** Force-save to a slot. */
   forceSave: (slot: number, state: any) => Promise<void>;
   /** Load game from a slot. */
@@ -136,7 +145,13 @@ export interface InitializeGameDeps {
 export async function initializeAndSaveGame(
   newState: any,
   slot: number,
-  deps: InitializeGameDeps
+  deps: InitializeGameDeps,
+  /**
+   * The funnel step that started this life. Quick Play starts from MainMenu;
+   * every failure and completion used to be logged as a Perks event, which
+   * hid how the one-tap door performs (ONB-18).
+   */
+  origin: 'Perks' | 'MainMenu' = 'Perks'
 ): Promise<InitializeGameResult> {
   // Step 0: Is this slot ours to write? Read fresh, here, against the same
   // storage the save is about to overwrite — not four screens ago. Everything
@@ -145,7 +160,7 @@ export async function initializeAndSaveGame(
   const resolution = await deps.resolveNewLifeSlot(slot);
   if (!resolution.ok) {
     log.error('Refused to start a new life in this slot', { slot, code: resolution.code });
-    logOnboardingValidationError('Perks', `slot_${resolution.code.replace(/-/g, '_')}`, { slot });
+    logOnboardingValidationError(origin, `slot_${resolution.code.replace(/-/g, '_')}`, { slot });
     return {
       success: false,
       errorTitle: resolution.title,
@@ -184,7 +199,7 @@ export async function initializeAndSaveGame(
         defaultsApplied: defaultsResult.defaults,
       });
 
-      logOnboardingValidationError('Perks', 'onboarding_state_invalid_after_defaults', {
+      logOnboardingValidationError(origin, 'onboarding_state_invalid_after_defaults', {
         errorCount: revalidation.errors.length,
       });
       return { success: false, errorTitle: 'Game Creation Failed', errorMessage: errorMessage + '\n\nPlease try again or contact support if this persists.' };
@@ -213,6 +228,14 @@ export async function initializeAndSaveGame(
       });
     }
 
+    // AFTER the outgoing snapshot (which is a verbatim copy and needs no
+    // record), BEFORE the first backup/save of the new life writes a fresh one.
+    if (deps.clearProtectedState) {
+      await deps.clearProtectedState(targetSlot).catch((err) => {
+        log.warn('Clearing the previous life\'s protected state failed (non-critical):', err);
+      });
+    }
+
     await deps.createBackupFromState(targetSlot, newState, 'new_life').catch((err) => {
       log.warn('Backup creation failed during onboarding (non-critical):', err);
     });
@@ -223,7 +246,7 @@ export async function initializeAndSaveGame(
     log.error('Failed to save game state', error);
 
     if (deps.isSaveSigningConfigError(error)) {
-      logOnboardingValidationError('Perks', 'save_signing_config', {});
+      logOnboardingValidationError(origin, 'save_signing_config', {});
       return {
         success: false,
         errorTitle: 'Build Configuration Error',
@@ -231,7 +254,7 @@ export async function initializeAndSaveGame(
       };
     }
 
-    logOnboardingValidationError('Perks', 'save_failed', {});
+    logOnboardingValidationError(origin, 'save_failed', {});
     return { success: false, errorTitle: 'Save Failed', errorMessage: 'Failed to save your game. Please try again.' };
   }
 
@@ -274,14 +297,14 @@ export async function initializeAndSaveGame(
     loadedState = await deps.loadGame(targetSlot);
   } catch (loadError) {
     log.error('loadGame failed:', loadError);
-    logOnboardingValidationError('Perks', 'load_after_save_exception', {});
+    logOnboardingValidationError(origin, 'load_after_save_exception', {});
     await rollbackFailedInit();
     return { success: false, errorTitle: 'Load Failed', errorMessage: 'Failed to load your game after saving. Please try again.' };
   }
 
   if (!loadedState) {
     log.error('loadGame returned null');
-    logOnboardingValidationError('Perks', 'load_after_save_null', {});
+    logOnboardingValidationError(origin, 'load_after_save_null', {});
     await rollbackFailedInit();
     return {
       success: false,
@@ -302,16 +325,16 @@ export async function initializeAndSaveGame(
       });
 
       if (!entryValidation.versionCompatible) {
-        logOnboardingValidationError('Perks', 'game_entry_version_incompatible', {
+        logOnboardingValidationError(origin, 'game_entry_version_incompatible', {
           reason: entryValidation.reason,
         });
         return { success: false, errorTitle: 'Version Incompatible', errorMessage: 'The game state created is incompatible. Please try again.' };
       }
       if (!entryValidation.stateComplete) {
-        logOnboardingValidationError('Perks', 'game_entry_incomplete', { reason: entryValidation.reason });
+        logOnboardingValidationError(origin, 'game_entry_incomplete', { reason: entryValidation.reason });
         return { success: false, errorTitle: 'Incomplete State', errorMessage: 'The game state is incomplete. Please try again.' };
       }
-      logOnboardingValidationError('Perks', 'game_entry_invalid', { reason: entryValidation.reason });
+      logOnboardingValidationError(origin, 'game_entry_invalid', { reason: entryValidation.reason });
       return {
         success: false,
         errorTitle: 'Invalid State',
@@ -324,11 +347,11 @@ export async function initializeAndSaveGame(
     }
 
     log.info('Game entry validation passed after onboarding, ready for gameplay');
-    logOnboardingStepComplete('Perks', { slot: targetSlot });
+    logOnboardingStepComplete(origin, { slot: targetSlot });
     return { success: true };
   } catch (validationError) {
     log.error('Error during post-load validation:', validationError);
-    logOnboardingValidationError('Perks', 'post_load_validation_exception', {});
+    logOnboardingValidationError(origin, 'post_load_validation_exception', {});
     return { success: false, errorTitle: 'Validation Error', errorMessage: 'An error occurred while validating your game. Please try again.' };
   }
 }

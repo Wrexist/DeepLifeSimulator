@@ -15,6 +15,14 @@ export interface Scenario {
     traits?: string[];
     hasChild?: boolean;
     childAge?: number;
+    noChildren?: boolean;
+    /**
+     * Challenge-only overrides of the template's starting reputation and
+     * vitals. Life paths leave these unset and start from `initialGameState`.
+     * Applied by `buildNewGameState` before perk boosts.
+     */
+    reputation?: number;
+    stats?: { health?: number; happiness?: number; energy?: number };
   };
   icon: ImageSourcePropType;
 }
@@ -22,7 +30,7 @@ export interface Scenario {
 export const scenarios: Scenario[] = [
   {
     id: 'highschool_dropout',
-    title: 'Highschool Dropout',
+    title: 'High School Dropout',
     difficulty: 'Easy',
     lifeGoal: 'Wealth Collector',
     description: 'Young and broke, with no education. Can you turn life around?',
@@ -43,7 +51,7 @@ export const scenarios: Scenario[] = [
   {
     id: 'corporate_intern',
     title: 'Corporate Intern',
-    difficulty: 'Moderate',
+    difficulty: 'Medium',
     lifeGoal: 'Career Climber',
     description: 'Starting at the bottom of the corporate ladder. Can you climb to CEO?',
     bonus: 'Start with a suit and college education.',
@@ -63,8 +71,8 @@ export const scenarios: Scenario[] = [
   {
     id: 'aspiring_entrepreneur',
     title: 'Aspiring Entrepreneur',
-    difficulty: 'Moderate',
-    lifeGoal: 'Business Magnet',
+    difficulty: 'Medium',
+    lifeGoal: 'Business Magnate',
     description: 'Armed with savings and a dream, can you build a business empire?',
     bonus: 'Start with $2,000, a computer, and a smartphone.',
     start: { age: 22, cash: 2000, items: ['computer', 'smartphone'] },
@@ -73,7 +81,7 @@ export const scenarios: Scenario[] = [
   {
     id: 'street_hustler',
     title: 'Street Hustler',
-    difficulty: 'Moderate',
+    difficulty: 'Medium',
     lifeGoal: 'Life of Crime',
     description: 'Tough life on the streets. Will you build wealth or end up in jail?',
     bonus: 'Start with $300 and the tough trait: street jobs cost 1 less health.',
@@ -137,7 +145,7 @@ export const scenarios: Scenario[] = [
   {
     id: 'tech_prodigy',
     title: 'Tech Prodigy',
-    difficulty: 'Moderate',
+    difficulty: 'Medium',
     lifeGoal: 'Tech Empire',
     description: 'Coding since age 12. You have the skills, now build something big.',
     bonus: 'Start at 19 with $3,000, a computer, and natural tech talent (Hacking skill level 2).',
@@ -157,7 +165,7 @@ export const scenarios: Scenario[] = [
   {
     id: 'military_recruit',
     title: 'Military Recruit',
-    difficulty: 'Moderate',
+    difficulty: 'Medium',
     lifeGoal: 'Serve & Lead',
     description: 'Enlisting in the armed forces. Discipline, duty, and a steady paycheck.',
     bonus: 'Start at 18 with $400, +20 fitness, and discipline: street jobs cost 1 less happiness.',
@@ -167,7 +175,7 @@ export const scenarios: Scenario[] = [
   {
     id: 'real_estate_hustler',
     title: 'Real Estate Hustler',
-    difficulty: 'Moderate',
+    difficulty: 'Medium',
     lifeGoal: 'Property Mogul',
     description: 'Buy low, sell high. Flip houses and build a real estate empire.',
     bonus: 'Start at 25 with $5,000, a smartphone, and a driver license.',

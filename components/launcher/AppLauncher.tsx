@@ -481,7 +481,10 @@ const styles = StyleSheet.create({
     // still match each other - a wrapped flex row stretches its items to the
     // line's height - so a locked tile grows its own row rather than padding all
     // of them. `minHeight` keeps a short name from collapsing into a stub.
-    minHeight: scale(104),
+    // 104 -> 80 (VIS-30): 104 was itself the old fixed height, so an all-
+    // unlocked row (Contacts / DeepMail / Bank) still left ~45% of each card
+    // empty under a one-line name. 80 fits icon + name + padding.
+    minHeight: scale(80),
     borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
     overflow: 'hidden',

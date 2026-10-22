@@ -39,6 +39,8 @@ import {
 } from '@/lib/offers';
 import type { OfferDefinition, ResolvedOfferPrice } from '@/lib/offers';
 import { offerBenefits } from '@/lib/offers/benefits';
+import { isNonConsumableOwned } from '@/lib/offers/ownership';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { iapArtFor } from '@/utils/iapArt';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import { gameAlert } from '@/utils/gameAlert';
@@ -92,6 +94,9 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
 
   const featured = window.current.offer;
   const featuredPrice = priceFor(featured);
+  // Same flags the gem shop's cards read: an owner sees "Owned", never "Buy"
+  // (re-buying a non-consumable takes money for nothing). MON-8.
+  const featuredOwned = useGameSelector((s) => isNonConsumableOwned(s, featured.productId));
 
   /**
    * The live USD amount, or null.
@@ -137,6 +142,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
   }, [visible, featured.id]);
 
   const buy = async (offer: OfferDefinition, price: ResolvedOfferPrice) => {
+    if (featuredOwned) return;
     // Refuse before touching iapService when this SKU did not load. The gem
     // shop takes the same stance for the same reason: a buy button next to a
     // price we could not confirm is worse than no button.
@@ -235,7 +241,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
                   It used to read "Unavailable" here AND on the button below it,
                   which said the same thing twice and made the card look broken
                   rather than simply offline. The button carries that state. */}
-              {featuredPrice.purchasable ? (
+              {featuredOwned ? null : featuredPrice.purchasable ? (
                 <View style={styles.priceRow}>
                   {/* Only ever rendered ALONGSIDE a proven discount - the two are
                       emitted together or not at all. */}
@@ -251,23 +257,28 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
               )}
 
               <TouchableOpacity
-                style={[styles.cta, !featuredPrice.purchasable && styles.ctaDisabled]}
+                style={[styles.cta, (featuredOwned || !featuredPrice.purchasable) && styles.ctaDisabled]}
                 onPress={() => buy(featured, featuredPrice)}
-                disabled={!featuredPrice.purchasable || purchasingId === featured.productId}
+                disabled={featuredOwned || !featuredPrice.purchasable || purchasingId === featured.productId}
                 activeOpacity={0.85}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: featuredOwned || !featuredPrice.purchasable }}
                 accessibilityLabel={
-                  featuredPrice.purchasable
-                    ? `Buy ${featured.name} for ${featuredPrice.displayPrice}`
-                    : `${featured.name}, unavailable`
+                  featuredOwned
+                    ? `${featured.name}, already owned`
+                    : featuredPrice.purchasable
+                      ? `Buy ${featured.name} for ${featuredPrice.displayPrice}`
+                      : `${featured.name}, unavailable`
                 }
               >
                 <Text style={styles.ctaText}>
-                  {purchasingId === featured.productId
-                    ? 'Processing…'
-                    : featuredPrice.purchasable
-                      ? `Buy · ${featuredPrice.displayPrice}`
-                      : 'Unavailable'}
+                  {featuredOwned
+                    ? 'Owned'
+                    : purchasingId === featured.productId
+                      ? 'Processing…'
+                      : featuredPrice.purchasable
+                        ? `Buy · ${featuredPrice.displayPrice}`
+                        : 'Unavailable'}
                 </Text>
               </TouchableOpacity>
 

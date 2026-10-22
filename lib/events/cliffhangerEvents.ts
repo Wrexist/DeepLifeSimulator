@@ -64,7 +64,9 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         },
         {
           id: 'let_go',
-          text: 'Tell them to go, then',
+          // A score drop, not a breakup: nothing here ends the relationship,
+          // so the copy asks for distance rather than telling them to leave.
+          text: 'Tell them you need some time apart',
           effects: { stats: { happiness: -25 }, relationship: -40 },
         },
       ],
@@ -87,7 +89,8 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         {
           id: 'confront',
           text: 'Put the phone down in front of them',
-          // The honest option and the expensive one. Ends it either way.
+          // The honest option and the expensive one. A heavy blow to the bond
+          // (it does not end the relationship - there is no breakup here).
           effects: { stats: { happiness: -22 }, relationship: -45 },
         },
         {
@@ -113,16 +116,18 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         return {
           id: 'ch_boss_meeting_resolve',
           description:
-            "Your boss announces you're being considered for a leadership position! The role comes with a significant raise.",
+            // A one-off bonus: the job and its salary do not change, so the
+            // copy no longer promises a leadership role or a raise.
+            "Your boss singles you out in front of the team for leading the last project - and hands you a one-off bonus.",
           choices: [
             {
               id: 'accept',
-              text: "I'm ready for the challenge!",
+              text: 'Thank them and take the $500',
               effects: { money: 500, stats: { happiness: 15, reputation: 5 } },
             },
             {
               id: 'negotiate',
-              text: 'Only if the pay reflects the responsibility',
+              text: 'Point out the work was worth more',
               effects: { money: 1000, stats: { happiness: 10 } },
             },
           ],
@@ -131,7 +136,8 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
       return {
         id: 'ch_boss_meeting_resolve',
         description:
-          "Your boss announces company-wide budget cuts. Everyone's taking a temporary pay reduction.",
+          // A one-off charge, not a pay cut: the salary is untouched.
+          "Your boss announces company-wide budget cuts. Everyone has to chip in for this quarter's shortfall.",
         choices: [
           {
             id: 'accept',
@@ -204,8 +210,9 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_strange_noise',
     teaser: "There's a strange noise coming from your attic at night...",
     weight: 0.15,
-    condition: (s) =>
-      Array.isArray(s.realEstate) && s.realEstate.length > 0,
+    // OWNED, not merely listed: sellProperty and bankruptcy keep the record
+    // with owned:false, and the player pays for the attic here.
+    condition: (s) => (s.realEstate ?? []).some((r) => r?.owned),
     resolveEvent: () => ({
       id: 'ch_strange_noise_resolve',
       description:
@@ -366,8 +373,8 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_neighbor_complaint',
     teaser: "Your neighbor left an angry note on your door...",
     weight: 0.15,
-    condition: (s) =>
-      Array.isArray(s.realEstate) && s.realEstate.length > 0,
+    // Somewhere the player actually lives: an owned home or a current tenancy.
+    condition: (s) => (s.realEstate ?? []).some((r) => r?.owned) || !!s.rental,
     resolveEvent: () => ({
       id: 'ch_neighbor_complaint_resolve',
       description:
@@ -455,6 +462,9 @@ export function rollCliffhanger(
 ): { teaser: string; resolveEventId: string; definition: CliffhangerDefinition } | null {
   // Only roll if no cliffhanger is already pending
   if (state.pendingCliffhanger) return null;
+  // None of these teasers (the attic, the boss, the partner's phone) can
+  // happen to somebody serving a sentence (2026-10-21 audit).
+  if ((state.jailWeeks ?? 0) > 0) return null;
 
   // Base chance: ~7% normally, a small bump to ~10% in the first 12 weeks so new
   // players still meet the "what happens next?" narrative hook without it firing

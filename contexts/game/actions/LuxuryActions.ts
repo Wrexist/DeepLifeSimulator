@@ -14,6 +14,7 @@
  *    it is not counted as earned income (see isIncomeReason in MoneyActions).
  */
 
+import { withArticle } from '@/utils/grammar';
 import React from 'react';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { GameState } from '../types';
@@ -127,7 +128,7 @@ export const purchaseLuxuryItem = (
   });
 
   log.info(`Player purchased luxury: ${item.name} ($${item.price.toLocaleString('en-US')})`);
-  return { success: true, message: `You are now the proud owner of a ${item.name}! ${item.emoji}` };
+  return { success: true, message: `You are now the proud owner of ${withArticle(item.name)}! ${item.emoji}` };
 };
 
 /**

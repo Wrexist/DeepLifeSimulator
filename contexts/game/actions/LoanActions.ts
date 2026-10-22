@@ -18,8 +18,10 @@ import {
 import {
   calculatePeriodicPayment,
   creditScoreAPRAdjustment,
+  exceedsDTI,
   MIN_SCORE_BY_LOAN_TYPE,
 } from '@/lib/banking/amortization';
+import { effectiveLoanAPR } from '@/lib/banking/rateEnvironment';
 
 const log = logger.scope('LoanActions');
 
@@ -345,58 +347,92 @@ export const prepayLoan = (
 /**
  * Refinance an existing loan into a new APR + term. Caller picks the new term.
  * The new APR comes from the borrower's current credit score and loan type.
+ *
+ * Priced like a NEW loan (ACT-1, 2026-10-21): the live rate environment's
+ * `loanDelta` is applied, exactly as `quoteLoan` applies it, so a loan taken in
+ * a recession can no longer be refinanced straight back to the base rate (and
+ * a boom discount is honoured the same way). A refinance that RAISES the weekly
+ * payment (a shorter term) must also pass the same DTI test a new loan does,
+ * with the new payment replacing this loan's. One that lowers it never needs
+ * to: it can only improve the borrower's DTI, and refusing it would trap a
+ * struggling borrower in the payment they cannot meet.
+ *
+ * Pure: returns the SAME state reference on refusal, so the action can run it
+ * on the snapshot for the message and again inside the updater for the commit.
  */
-export const refinanceLoan = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+export function resolveRefinanceLoan(
+  prev: GameState,
   loanId: string,
-  newTermWeeks: number
-) => {
-  setGameState((prev) => {
-    const state = ensureBanking(prev);
-    if (!state.banking || !state.loans) return prev;
-    const loanIdx = state.loans.findIndex((l) => l.id === loanId);
-    if (loanIdx === -1) return prev;
-    const loan = state.loans[loanIdx];
+  newTermWeeks: number,
+  weeklyIncome: number,
+): { ok: boolean; message: string; next: GameState } {
+  const refuse = (message: string) => ({ ok: false, message, next: prev });
+  if (isPlayerBlocked(prev)) return refuse('You cannot refinance right now.');
+  const state = ensureBanking(prev);
+  if (!state.banking || !state.loans) return refuse('Loan not found.');
+  const loanIdx = state.loans.findIndex((l) => l.id === loanId);
+  if (loanIdx === -1) return refuse('Loan not found.');
+  const loan = state.loans[loanIdx];
+  if (!(typeof loan.remaining === 'number' && isFinite(loan.remaining) && loan.remaining > 0)) {
+    return refuse('This loan is already paid off.');
+  }
+  if (!Number.isSafeInteger(newTermWeeks) || newTermWeeks <= 0) return refuse('Invalid term.');
 
-    if (state.banking.creditScore.score < MIN_SCORE_BY_LOAN_TYPE[loan.type]) {
-      log.info(`Refinance rejected: credit score too low`);
-      return prev;
-    }
+  if (state.banking.creditScore.score < MIN_SCORE_BY_LOAN_TYPE[loan.type]) {
+    return refuse(`Need a credit score of ${MIN_SCORE_BY_LOAN_TYPE[loan.type]} to refinance a ${loan.type} loan.`);
+  }
 
-    const baseByType: Record<Loan['type'], number> = {
-      personal: 0.12,
-      auto: 0.08,
-      business: 0.10,
-      mortgage: 0.065,
-    };
-    const cap = privateBankingAprCap(state);
-    // Same floor as a new quote. Refinance recomputes the APR inline rather
-    // than through `quoteLoan`, so it needs the politics floor applied here or
-    // it becomes the cheaper route to the sub-deposit-cap rate. R3-M2.
-    const politicsReduction = politicsAprReduction(state);
-    const floor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
-    let newAPR = Math.max(
-      floor,
-      baseByType[loan.type] + creditScoreAPRAdjustment(state.banking.creditScore.score) - politicsReduction
+  const baseByType: Record<Loan['type'], number> = {
+    personal: 0.12,
+    auto: 0.08,
+    business: 0.10,
+    mortgage: 0.065,
+  };
+  const cap = privateBankingAprCap(state);
+  // Same floor as a new quote. Refinance recomputes the APR inline rather
+  // than through `quoteLoan`, so it needs the politics floor applied here or
+  // it becomes the cheaper route to the sub-deposit-cap rate. R3-M2.
+  const politicsReduction = politicsAprReduction(state);
+  const floor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
+  let newAPR = Math.max(
+    floor,
+    baseByType[loan.type] + creditScoreAPRAdjustment(state.banking.creditScore.score) - politicsReduction
+  );
+  if (typeof cap === 'number') {
+    newAPR = Math.min(newAPR, Math.max(floor, cap));
+  }
+  // The live rate environment, applied after the cap exactly as `quoteLoan`
+  // applies it - otherwise refinancing was the way out of a recession premium.
+  const loanDelta = state.banking.rateEnvironment?.loanDelta;
+  if (typeof loanDelta === 'number' && isFinite(loanDelta) && loanDelta !== 0) {
+    newAPR = effectiveLoanAPR(newAPR, { depositMult: 1, loanDelta });
+  }
+  const newWeekly = calculatePeriodicPayment(loan.remaining, newAPR, newTermWeeks);
+
+  if (newWeekly > (loan.weeklyPayment ?? 0)) {
+    const otherPayments = state.loans.reduce(
+      (sum, l, i) => (i === loanIdx ? sum : sum + (typeof l.weeklyPayment === 'number' && isFinite(l.weeklyPayment) ? l.weeklyPayment : 0)),
+      0,
     );
-    if (typeof cap === 'number') {
-      newAPR = Math.min(newAPR, Math.max(floor, cap));
+    if (exceedsDTI(weeklyIncome, otherPayments, newWeekly)) {
+      return refuse('Debt-to-income ratio too high for a shorter term. Try the longer term.');
     }
-    const newWeekly = calculatePeriodicPayment(loan.remaining, newAPR, newTermWeeks);
+  }
 
-    const loans = [...state.loans];
-    loans[loanIdx] = {
-      ...loan,
-      rateAPR: newAPR,
-      interestRate: newAPR,
-      termWeeks: newTermWeeks,
-      weeksRemaining: newTermWeeks,
-      weeklyPayment: newWeekly,
-    };
+  const loans = [...state.loans];
+  loans[loanIdx] = {
+    ...loan,
+    rateAPR: newAPR,
+    interestRate: newAPR,
+    termWeeks: newTermWeeks,
+    weeksRemaining: newTermWeeks,
+    weeklyPayment: newWeekly,
+  };
 
-    log.info(`Refinanced ${loan.name}: ${(loan.rateAPR * 100).toFixed(2)}% → ${(newAPR * 100).toFixed(2)}%`);
-
-    return {
+  return {
+    ok: true,
+    message: `Refinanced at ${(newAPR * 100).toFixed(2)}% APR: $${Math.round(newWeekly).toLocaleString('en-US')}/wk for ${newTermWeeks} weeks.`,
+    next: {
       ...state,
       loans,
       banking: {
@@ -409,7 +445,26 @@ export const refinanceLoan = (
           ],
         },
       },
-    };
-  });
+    },
+  };
+}
+
+/**
+ * Refinance a loan. Resolved once on the snapshot for the player-facing
+ * message and once inside the updater against `prev` for the commit, so the
+ * charge-free re-pricing stays atomic (CLAUDE.md 4.4).
+ */
+export const refinanceLoan = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+  loanId: string,
+  newTermWeeks: number,
+  weeklyIncome: number,
+): { success: boolean; message: string } => {
+  const preview = resolveRefinanceLoan(gameState, loanId, newTermWeeks, weeklyIncome);
+  if (!preview.ok) return { success: false, message: preview.message };
+  setGameState((prev) => resolveRefinanceLoan(prev, loanId, newTermWeeks, weeklyIncome).next);
+  log.info(`Refinanced ${loanId}: ${preview.message}`);
+  return { success: true, message: preview.message };
 };
 

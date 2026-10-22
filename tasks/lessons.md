@@ -6009,3 +6009,18 @@ carry or re-check each one; a ledger can only refuse, so carrying it is always
 safe. And prove the exploit with a passing test before fixing it, then flip
 that test: four hunters did this in parallel and none of the 11 findings was
 over-graded.
+
+## 2026-10-21 - Weekly-tick audit: a decision made mid-tick judges a week that has not ended
+
+Four of the tick fixes were the same mistake in different clothes: something
+was decided on a value the rest of the tick still moved. The zero-stat death
+counter was judged right after decay, before diseases, pets and housing; the
+death week restored the pre-tick wallet but kept what that wallet had already
+funded; the yearly checkpoint snapshotted post-tick stats over pre-tick
+holdings; and the relationship pass early-returned, so a pregnancy hid the
+wedding gate (an exact-week equality that then never matched again) and every
+child skipped the neglect branch written for it. Rule: decide on the FINAL
+value, snapshot the ASSEMBLED state, and compose per-entry transforms instead
+of returning from the first one that fires. Also: a roll-audit declaration is a
+claim to re-check - the dark-web/politics/rent streams passed the week-only
+guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.

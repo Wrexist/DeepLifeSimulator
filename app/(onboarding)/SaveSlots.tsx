@@ -25,7 +25,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
-import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
+import { isSaveFromFutureError, isSaveUnreadableError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { type SaveSlotData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
 import {
   readSaveSlotMeta,
@@ -220,10 +220,8 @@ export default function SaveSlots() {
     }
   }, [log]);
 
-  useEffect(() => {
-    void loadSlots();
-  }, [loadSlots]);
-
+  // The ONLY load trigger: useFocusEffect also fires on the initial focus, so a
+  // second mount-time useEffect decoded every multi-MB slot twice (ONB-15).
   useFocusEffect(
     useCallback(() => {
       void loadSlots();
@@ -231,10 +229,13 @@ export default function SaveSlots() {
   );
 
   // ── Cloud backup offers ──────────────────────────────────────────────────
-  // Slot id → the cloud copy's `weeksLived`, present only when that copy is
-  // AHEAD of the local slot. `weeksLived` is the absolute counter (§4.2), and
-  // it is the same measure `hydrateRemoteState` uses to refuse a regression, so
-  // an offer shown here can never be refused as "older" when it is tapped.
+  // Slot id → the cloud copy's week INTO ITS LIFE (for display), present only
+  // when that copy is AHEAD of the local slot. "Ahead" is decided on
+  // `weeksLived`, the absolute counter (§4.2) - the same measure
+  // `hydrateRemoteState` uses to refuse a regression, so an offer shown here
+  // can never be refused as "older" when it is tapped. The DISPLAYED number is
+  // measured from `lifeStartWeek` like the card's own Weeks stat; showing the
+  // raw counter advertised "week 376" beside "Weeks 12" (ONB-12).
   const [cloudOffers, setCloudOffers] = useState<Record<number, number>>({});
   const [cloudRestoreSlot, setCloudRestoreSlot] = useState<number | null>(null);
   const cloudEnabled = isCloudBackupEnabled();
@@ -282,7 +283,7 @@ export default function SaveSlots() {
       for (const { id, probe } of probes) {
         // Only when the cloud copy is AHEAD - restoring must be able to gain
         // something, and `hydrateRemoteState` would refuse an older one anyway.
-        if (probe?.newer) offers[id] = probe.remoteWeeks;
+        if (probe?.newer) offers[id] = weeksSinceLifeStart(probe.remoteWeeks, probe.remoteLifeStartWeek);
       }
       setCloudOffers(offers);
     })();
@@ -349,11 +350,13 @@ export default function SaveSlots() {
     try {
       const slotValidation = await validateSaveSlot(selectedSlot);
       if (!slotValidation.valid) {
+        log.error('Save slot validation failed', { slot: selectedSlot, errors: slotValidation.errors });
+        // Only the messages written for players are shown; structural checks
+        // ("Save is missing stats object") go to the log above.
         const errorMessage =
           slotValidation.errors.find((e) => e.includes('version')) ||
-          slotValidation.errors.find((e) => e.includes('corrupted')) ||
-          slotValidation.errors[0] ||
-          'This save file cannot be loaded.';
+          slotValidation.errors.find((e) => e.includes('backup') || e.includes('try again')) ||
+          'This save file cannot be loaded. Please try a backup or start a new game.';
 
         gameAlert('Save Unavailable', errorMessage);
         return;
@@ -367,7 +370,8 @@ export default function SaveSlots() {
 
       const validation = validateGameEntry(loadedState);
       if (!validation.canEnter) {
-        gameAlert('Invalid Save', validation.errors[0] || 'This save cannot be loaded right now.');
+        log.error('Game entry validation failed', { slot: selectedSlot, errors: validation.errors });
+        gameAlert('Invalid Save', 'This save cannot be loaded right now. Please try a backup or start a new game.');
         return;
       }
 
@@ -378,6 +382,13 @@ export default function SaveSlots() {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version', { slot: selectedSlot });
         gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE);
+        return;
+      }
+      // Present but unverifiable: this screen IS where the backups are, so
+      // open the slot's Restore sheet directly. (audit SAVE-1)
+      if (isSaveUnreadableError(error)) {
+        log.warn('Save is present but unreadable', { slot: selectedSlot });
+        setRestoreSlot(selectedSlot);
         return;
       }
       log.error('Error continuing game', error);
@@ -487,7 +498,7 @@ export default function SaveSlots() {
 
   const primaryAction = async () => {
     if (!selectedSlot) {
-      gameAlert('Select A Slot', 'Choose a slot first to continue.');
+      gameAlert('Select a slot', 'Choose a slot first to continue.');
       return;
     }
     if (selectedCard?.hasData) {

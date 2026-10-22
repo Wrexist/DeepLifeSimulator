@@ -78,6 +78,8 @@ import {
   buyAccessory,
   upgradePCComponent,
   ACCESSORY_PRICES,
+  ACCESSORY_LABELS,
+  PC_LABELS,
   PC_BASE_PRICES,
   MAX_PC_TIER,
 } from '@/contexts/game/actions/ContentActions';
@@ -121,26 +123,6 @@ type IconType = React.ComponentType<{ size?: number; color?: string }>;
 
 // Mirrors MAX_VIDEOS_PER_WEEK inside ContentActions (display only).
 const WEEKLY_VIDEO_CAP = 5;
-
-const ACCESSORY_LABELS: Record<keyof GamingStreamingState['equipment'], string> = {
-  microphone: 'Microphone',
-  webcam: 'Webcam',
-  gamingChair: 'Gaming chair',
-  greenScreen: 'Green screen',
-  lighting: 'Studio lights',
-};
-
-const PC_LABELS: Record<keyof GamingStreamingState['pcUpgradeLevels'], string> = {
-  cpu: 'CPU',
-  gpu: 'GPU',
-  ram: 'RAM',
-  ssd: 'SSD',
-  motherboard: 'Motherboard',
-  cooling: 'Cooling',
-  psu: 'Power supply',
-  case: 'Case',
-  network: 'Network',
-};
 
 // Gear icons - always crisp + correct even where a photo stand-in is used.
 const ACCESSORY_ICON: Record<keyof GamingStreamingState['equipment'], IconType> = {

@@ -91,6 +91,7 @@ import {
   hasPartyMachine,
   isEndorsed,
   readPartySupport,
+  switchParty,
 } from '@/lib/politics/parties';
 import { appointmentPriceSummary, findAppointment } from '@/lib/politics/appointments';
 import {
@@ -396,13 +397,40 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     if (result.success) queueSave();
   }, [gameState, setGameState, nextOfficeKey, queueSave]);
 
-  const handleJoinParty = useCallback((party: 'democratic' | 'republican' | 'independent') => {
+  const commitJoinParty = useCallback((party: 'democratic' | 'republican' | 'independent') => {
     const result = joinParty(gameState, setGameState, party);
     // Crossing the floor costs approval and standing, so the outcome is
     // reported either way rather than silently applied.
     gameAlert(result.success ? 'Party membership' : 'Could not join', result.message);
     if (result.success) queueSave();
   }, [gameState, setGameState, queueSave]);
+
+  // A first join is free; a SWITCH is irreversible and costs more each time,
+  // so it asks first with the exact price (APP-11), read from the same
+  // `switchParty` the action applies.
+  const handleJoinParty = useCallback((party: 'democratic' | 'republican' | 'independent') => {
+    const politics = gameState.politics;
+    if (!politics?.party) {
+      commitJoinParty(party);
+      return;
+    }
+    const preview = switchParty({
+      currentParty: politics.party,
+      currentSupport: politics.partySupport,
+      switches: politics.partySwitches,
+      target: party,
+    });
+    const name = findParty(party)?.name ?? party;
+    const standing = hasPartyMachine(party) ? ` Party standing starts at ${preview.support}.` : '';
+    gameAlert(
+      `Cross the floor to ${name}?`,
+      `Approval ${preview.approvalDelta}.${standing} Every switch costs more than the last.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Switch', style: 'destructive', onPress: () => commitJoinParty(party) },
+      ],
+    );
+  }, [gameState.politics, commitJoinParty]);
 
   const handleTakeAppointment = useCallback((appointmentId: string) => {
     const result = takeAppointment(gameState, setGameState, appointmentId);

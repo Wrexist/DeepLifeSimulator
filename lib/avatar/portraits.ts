@@ -3,7 +3,7 @@ export const PORTRAITS = [
   { id: 'portrait-v1:ember', name: 'Ember', description: 'Wavy brown hair · charcoal hoodie', presents: 'male' },
   { id: 'portrait-v1:cedar', name: 'Cedar', description: 'Short curls · green sweater', presents: 'male' },
   { id: 'portrait-v1:river', name: 'River', description: 'Swept dark hair · blue crewneck', presents: 'male' },
-  { id: 'portrait-v1:dawn', name: 'Dawn', description: 'Natural curls · dark blazer', presents: 'female' },
+  { id: 'portrait-v1:dawn', name: 'Dawn', description: 'Natural curls · green blazer', presents: 'female' },
   { id: 'portrait-v1:sage', name: 'Sage', description: 'Auburn bob · coral sweater', presents: 'female' },
   { id: 'portrait-v1:indigo', name: 'Indigo', description: 'Short textured hair · round glasses', presents: 'male' },
 ] as const;

@@ -5,6 +5,7 @@ import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getAchievementHunterPointsPerAchievement } from './applyBonuses';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { netWorth } from '@/lib/progress/achievements';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 /**
  * Breakdown of prestige points calculation
@@ -243,7 +244,14 @@ export function calculateLifetimeStats(
 
   return {
     totalMoneyEarned: currentLifetimeStats.totalMoneyEarned + (gameState.stats.money || 0),
-    totalWeeksLived: currentLifetimeStats.totalWeeksLived + (gameState.weeksLived || 0),
+    // Weeks PLAYED in this life, not the absolute counter: `weeksLived` is
+    // seeded from the starting age, so an heir taking over at 40 began at
+    // 1,144 and the parent's overlapping years were counted a second time
+    // (and The Long Road added 624 unplayed weeks). The Endurance contracts
+    // read this total. Pre-v43 saves without `lifeStartWeek` fall back to the
+    // raw counter, which is what they counted before. §4.2 / LATE-14.
+    totalWeeksLived:
+      currentLifetimeStats.totalWeeksLived + weeksSinceLifeStart(gameState.weeksLived, gameState.lifeStartWeek),
     maxNetWorth: Math.max(currentLifetimeStats.maxNetWorth, currentNetWorth),
     achievementsUnlocked: Math.max(currentLifetimeStats.achievementsUnlocked, completedAchievementsCount),
     generationsCompleted: Math.max(currentLifetimeStats.generationsCompleted, gameState.generationNumber || 1),

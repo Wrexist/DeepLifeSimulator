@@ -16,7 +16,7 @@ interface HappinessBreakdownModalProps {
 
 export default function HappinessBreakdownModal({ visible, onClose }: HappinessBreakdownModalProps) {
   const { gameState } = useGame();
-  const { stats, careers, currentJob, educations } = gameState;
+  const { stats, careers, currentJob } = gameState;
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
@@ -30,6 +30,8 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
     const drift = projectWeeklyVitalDrift(gameState);
     const decayCause = drift.causes.find((c) => c.id === 'decay');
     const jobCause = drift.causes.find((c) => c.id === 'job');
+    const educationCause = drift.causes.find((c) => c.id === 'education');
+    const dietCause = drift.causes.find((c) => c.id === 'diet');
 
     if (decayCause && decayCause.happiness < 0) {
       drains.push({
@@ -67,25 +69,16 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
       }
     }
 
-    // Calculate happiness drain from active educations
-    const activeEducations = (educations || []).filter(edu =>
-      edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
-    );
-
-    if (activeEducations.length > 0) {
-      const numActiveEducations = activeEducations.length;
-      const baseHappinessPenalty = -6;
-      const stressMultiplier = numActiveEducations === 1 ? 1.0 :
-                               numActiveEducations === 2 ? 1.3 :
-                               1.6;
-      const totalHappinessDrain = Math.round(baseHappinessPenalty * numActiveEducations * stressMultiplier);
-
+    // Studying, from the SAME capped formula the tick applies
+    // (lib/education/educationStress via projectWeeklyVitalDrift). This used to
+    // restate it without the caps and overstate 3+ courses (TAB-4).
+    if ((educationCause?.happiness ?? 0) < 0) {
       drains.push({
-        label: `Education (${numActiveEducations} active)`,
-        value: totalHappinessDrain,
+        label: educationCause?.label ?? 'Studying',
+        value: (educationCause?.happiness ?? 0),
         icon: GraduationCap,
         color: '#F59E0B',
-        description: `Studying ${numActiveEducations > 1 ? 'multiple courses' : 'a course'} reduces happiness`,
+        description: `Studying costs ${Math.abs((educationCause?.happiness ?? 0))} happiness per week`,
       });
     }
 
@@ -101,15 +94,15 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
       });
     }
 
-    // Add active diet plan happiness gain (if applicable)
-    const activeDietPlan = (gameState.dietPlans || []).find(plan => plan && plan.active);
-    if (activeDietPlan && activeDietPlan.happinessGain && activeDietPlan.happinessGain > 0) {
+    // Active diet plan, projected like the tick: a plan the player cannot
+    // afford this week is skipped (no gain), so it is not listed (TAB-7).
+    if ((dietCause?.happiness ?? 0) > 0) {
       incomes.push({
-        label: `${activeDietPlan.name} Diet`,
-        value: activeDietPlan.happinessGain,
+        label: dietCause?.label ?? 'Diet',
+        value: (dietCause?.happiness ?? 0),
         icon: Utensils,
         color: '#10B981',
-        description: `Active diet plan provides ${activeDietPlan.happinessGain} happiness per week`,
+        description: `Active diet plan provides ${(dietCause?.happiness ?? 0)} happiness per week`,
       });
     }
 
@@ -200,7 +193,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
     // pre-tenancy numbers after the player rented - a modal advertising a
     // weekly effect different from the one the tick applies, which is the
     // exact class of divergence the shared helper was adopted to close.
-  }, [stats?.happiness, currentJob, careers, educations, gameState]);
+  }, [stats?.happiness, currentJob, careers, gameState]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {
@@ -252,7 +245,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
         text: (
           <>
             {'\u2022'} Happiness naturally decreases over time; wealth slows it down{'\n'}
-            {'\u2022'} Working at a career reduces happiness by 3 per week{'\n'}
+            {'\u2022'} Each job has its own weekly toll - see the Career line above{'\n'}
             {'\u2022'} Studying multiple educations simultaneously increases happiness drain{'\n'}
             {'\u2022'} Paused educations don't affect happiness{'\n'}
             {'\u2022'} Use health activities and hobbies to restore happiness{'\n'}

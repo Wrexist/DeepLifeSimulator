@@ -105,7 +105,7 @@ export default function CloudBackupRow() {
       if (!userId) {
         // No identity means nothing was ever uploaded under one, so there is
         // nothing to erase - and saying "deleted" would be a lie.
-        gameAlert('Nothing To Delete', 'This device has no cloud backup.');
+        gameAlert('Nothing to delete', 'This device has no cloud backup.');
         return;
       }
       const result = await deleteCloudSave(userId);

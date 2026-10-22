@@ -293,3 +293,28 @@ describe('buildNewGameState', () => {
     expect(validateOnboardingState(state).valid).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// SOC-12: the seeded parents age with the starting age
+// ---------------------------------------------------------------------------
+
+describe('seeded parents (SOC-12)', () => {
+  const parentAges = (age: number) =>
+    buildNewGameState(
+      baseParams({
+        initialGameState: createTestGameState(),
+        scenario: { id: 'x', start: { age, cash: 500 } },
+      })
+    )
+      .relationships.filter((r: { type: string }) => r.type === 'parent')
+      .map((r: { age: number }) => r.age);
+
+  it('keeps the authored ages for an 18-year-old start', () => {
+    expect(parentAges(18)).toEqual([45, 47]);
+  });
+
+  it('keeps the same generation gap for a 30-year-old start', () => {
+    // Was [45, 47]: a mother who gave birth at 15.
+    expect(parentAges(30)).toEqual([57, 59]);
+  });
+});

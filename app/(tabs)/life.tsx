@@ -79,8 +79,12 @@ function LifeScreen() {
     if (target === 'health' || target === 'shop' || (target === 'stats' && !statsLocked)) {
       setSegment(target);
       setVisitedSegments((prev) => (prev.has(target) ? prev : new Set(prev).add(target)));
+    } else if (target === 'stats') {
+      // A goal row that deep-links to locked Stats used to land on Health with
+      // no word of why - a dead tap. Say what the segment's own lock says.
+      gameAlert('Stats', statsReason || 'Keep playing to unlock this.');
     }
-  }, [params.segment, params.ts, statsLocked]);
+  }, [params.segment, params.ts, statsLocked, statsReason]);
 
   return (
     <ErrorBoundary>

@@ -477,6 +477,9 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
   const wealthNeeded = TIER_WEALTH[tier];
   const wealthNow = wealthMark(state);
   const weeksNow = Math.floor(weeksInThisLife(state));
+  // Weeks PLAYED, not a week number: "You're at week 1" sat beside the HUD's
+  // week-of-month "Week 2" and read as a contradiction (VIS-10).
+  const weeksPlayedLabel = `You've played ${weeksNow} ${weeksNow === 1 ? 'week' : 'weeks'}`;
 
   const progress = active ? `Chapter ${chapterIndex + 1} of ${LIFE_CHAPTERS.length} · or reach ${formatMoney(wealthNeeded)}` : `Or reach ${formatMoney(wealthNeeded)} net worth`;
   const details = [
@@ -485,7 +488,7 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     `1. ${feature.requirement}. ${chapterLine}.`,
     ...(remainingGoals.length ? [`  Next goals (Home → Your Progress):`, ...remainingGoals] : []),
     `2. Reach ${formatMoney(wealthNeeded)} net worth (best so far: ${formatMoney(wealthNow)}).`,
-    `3. Play ${OPEN_ALL_WEEKS} weeks in this life (you're at week ${weeksNow}).`,
+    `3. Play ${OPEN_ALL_WEEKS} weeks in this life (${weeksPlayedLabel}).`,
   ].join('\n');
 
   const chapterProgress = active ? getChapterProgress(active, state) : undefined;
@@ -502,7 +505,7 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     },
     {
       label: `Play ${OPEN_ALL_WEEKS} weeks in this life`,
-      detail: `You're at week ${weeksNow}`,
+      detail: weeksPlayedLabel,
       progress: Math.min(1, weeksNow / OPEN_ALL_WEEKS),
     },
   ];

@@ -278,7 +278,7 @@ export function generateShareableStory(state: GameState): string {
  // The link the obituary learned to carry (see obituaryGenerator): without it
  // a reader who wants the game has nowhere to go but a store search. Last, so
  // messaging clients build their preview from it.
- lines.push('Live your own life in Deep Life Simulator:');
+ lines.push('Live your own life in DeepLife Simulator:');
  lines.push(shareUrlFor('life_story'));
  lines.push('');
  lines.push('#DeepLifeSim');

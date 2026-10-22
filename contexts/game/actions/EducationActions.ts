@@ -19,6 +19,7 @@ import {
 } from '@/lib/education/operations';
 import {
   mapClassIdsToEnrolled,
+  resumedCadenceAnchors,
   STUDY_GROUP_BENEFITS,
   STUDY_GROUP_JOIN_COST,
 } from '@/lib/education/educationSystem';
@@ -339,14 +340,13 @@ export const togglePauseProgram = (
     // anchors (lastExamWeek/lastCampusEventWeek) only advance on non-paused
     // ticks. Across a pause the delta keeps growing while `weeksLived` advances,
     // so on resume the delta is already >= the interval and an exam fires
-    // immediately and stays perpetually due. Re-anchor the cadence to the
-    // current week on resume so it restarts cleanly from when study resumes.
+    // immediately and stays perpetually due. Pull the anchors forward only as
+    // far as that needs - NOT to `now`, which let a same-week pause/resume
+    // reset the exam clock and skip every exam (`resumedCadenceAnchors`).
     if (!willPause) {
       const now = prev.weeksLived ?? 0;
       educations = educations.map((e) =>
-        e.id === educationId
-          ? { ...e, lastExamWeek: now, lastCampusEventWeek: now }
-          : e,
+        e.id === educationId ? { ...e, ...resumedCadenceAnchors(e, now) } : e,
       );
     }
     return { ...prev, educations };

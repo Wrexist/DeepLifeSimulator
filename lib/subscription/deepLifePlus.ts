@@ -90,7 +90,7 @@ export interface DeepLifePlusBenefit {
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
   { id: 'no_ads', title: 'Ad-Free Play', description: 'No banners or interstitials while your premium access is active.' },
-  { id: 'daily_gems', title: 'Daily Gem Drop', description: 'Claim 250 gems from the daily gem drop each day while premium is active.' },
+  { id: 'daily_gems', title: 'Daily Gem Drop', description: 'Claim 250 gems from the daily gem drop each day you play while premium is active.' },
   { id: 'income_boost', title: 'Bigger Paychecks', description: 'Advance a working week to receive +25% career income while premium is active.' },
   { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Earn season XP, then claim unlocked premium tiers in the Legacy Pass.' },
   { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Earn seasonal themes, frames and skins through the premium Legacy Pass.' },
