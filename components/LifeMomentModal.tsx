@@ -105,6 +105,7 @@ export default function LifeMomentModal() {
                   ]}
                   onPress={handleDismiss}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
                     {hasChoices ? 'Not now' : 'Dismiss'}
@@ -127,6 +128,15 @@ export default function LifeMomentModal() {
                   activeOpacity={0.8}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: !affordable }}
+                  // The arrows are the ONLY carrier of direction and an SVG is
+                  // not read, so the label says it in words.
+                  accessibilityLabel={[
+                    choice.text,
+                    !affordable ? `Need ${formatMoney(lifeMomentChoiceCost(choice))}` : null,
+                    ...choice.quickEffect.map((effect) =>
+                      `${effect.label} ${effect.amount > 0 ? 'increases' : effect.amount < 0 ? 'decreases' : 'changes'}`,
+                    ),
+                  ].filter(Boolean).join('. ')}
                 >
                   <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
                     {choice.text}

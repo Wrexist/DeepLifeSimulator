@@ -21,6 +21,7 @@ import {
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { setAchievementToastRef } from '@/utils/achievementToast';
 import { haptic } from '@/utils/haptics';
+import { announceTransient } from '@/utils/accessibility';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -94,6 +95,13 @@ export default function AchievementToast() {
     if (!achievement || isVisible) return;
     setIsVisible(true);
     haptic.success();
+    // The toast auto-hides after 3s and has no focusable content, so a
+    // VoiceOver player never heard it. Speak it as it appears.
+    announceTransient(
+      `${achievement.kind === 'levelup' ? 'Level up' : 'Achievement unlocked'}: ${achievement.title}.${
+        achievement.detail ? ` ${achievement.detail}.` : ''
+      } Plus ${achievement.reward} gems.`,
+    );
   }, [achievement, isVisible]);
 
   useEffect(() => {
@@ -166,6 +174,7 @@ export default function AchievementToast() {
         damping: 20,
         stiffness: 300,
       }}
+      accessibilityLiveRegion="polite"
       style={[
         styles.container, 
         { 

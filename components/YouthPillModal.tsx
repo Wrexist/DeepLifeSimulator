@@ -6,6 +6,7 @@ import { X } from 'lucide-react-native';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface YouthPillModalProps {
@@ -65,7 +66,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={hitSlopToMinTarget(24)} {...CLOSE_BUTTON_A11Y}>
                 <X size={24} color={settings.darkMode ? uiPalette.secondary : uiPalette.lightMuted} />
               </TouchableOpacity>
             </View>

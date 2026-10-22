@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { actionColors, uiPalette } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -340,9 +340,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               onPress={handlePayBail}
               disabled={stats.money < bailCost}
               style={styles.bailButton}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: stats.money < bailCost }}
             >
               <LinearGradient
-                colors={stats.money < bailCost ? [uiPalette.lightMuted, uiPalette.lightSecondary] : ['#10B981', '#34D399']}
+                // White label: ['#10B981', '#34D399'] measured under 3:1 end to end.
+                colors={stats.money < bailCost ? [uiPalette.lightMuted, uiPalette.lightSecondary] : ['#059669', actionColors.success]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bailButtonGradient}
@@ -357,7 +360,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
             <Text style={[styles.sectionDescription, styles.serveTimeHint]}>
               Can't pay bail or do activities? Just serve your time.
             </Text>
-            <TouchableOpacity onPress={handleServeTime} style={styles.bailButton}>
+            <TouchableOpacity accessibilityRole="button" onPress={handleServeTime} style={styles.bailButton}>
               <LinearGradient
                 colors={['#3B82F6', '#2563EB']}
                 start={{ x: 0, y: 0 }}
@@ -399,7 +402,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 const healthRestore = Math.round(food.healthRestore * 0.75);
                 
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={food.id}
                     onPress={() => {
                       if (!canAfford) {
@@ -488,7 +491,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 const doneThisWeek = isActivityDoneThisWeek(activity.id);
 
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={activity.id}
                     onPress={() => handleActivity(activity.id)}
                     style={styles.activityCard}

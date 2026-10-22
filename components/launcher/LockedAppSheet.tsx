@@ -79,7 +79,16 @@ export default function LockedAppSheet({ app, onClose, onGoToMarket }: Props) {
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" accessibilityRole="button">
+      {/* The scrim is a SIBLING behind the sheet, hidden from screen readers.
+          As the sheet's parent it was one accessible "Close" button that hid
+          every route, "Go to Market" and "Got it" from VoiceOver. */}
+      <View style={styles.backdrop}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <Animated.View
           onStartShouldSetResponder={() => true}
           style={[
@@ -136,7 +145,12 @@ export default function LockedAppSheet({ app, onClose, onGoToMarket }: Props) {
                 const best = i === closest;
                 const pct = Math.round(r.progress * 100);
                 return (
-                  <View key={r.label} style={[styles.route, best && styles.routeBest]}>
+                  <View
+                    key={r.label}
+                    style={[styles.route, best && styles.routeBest]}
+                    accessible
+                    accessibilityLabel={`${r.label}. ${r.detail}. ${pct} percent there${best ? ', closest' : ''}`}
+                  >
                     <View style={[styles.routeIcon, { backgroundColor: withAlpha(best ? GOLD : uiPalette.blue, 0.16) }]}>
                       <Icon size={scale(18)} color={best ? GOLD : uiPalette.blue} />
                     </View>
@@ -174,7 +188,7 @@ export default function LockedAppSheet({ app, onClose, onGoToMarket }: Props) {
             <Text style={styles.secondaryText}>Got it</Text>
           </TouchableOpacity>
         </Animated.View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }

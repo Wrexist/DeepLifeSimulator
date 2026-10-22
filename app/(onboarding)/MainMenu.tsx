@@ -1,6 +1,6 @@
 import LifeLine from '@/components/ui/LifeLine';
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors } from '@/lib/config/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
@@ -1171,7 +1171,8 @@ const styles = StyleSheet.create({
 
   // Footer --------------------------------------------------------------------
   footerCaption: {
-    color: 'rgba(148, 163, 184, 0.45)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
     fontSize: fontScale(10),
     fontWeight: '700',
     letterSpacing: scale(2),

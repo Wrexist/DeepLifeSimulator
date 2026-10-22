@@ -700,7 +700,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
           </View>
         </View>
       <View style={[styles.list, { backgroundColor: colors.dark.surfaceInset }]}>
-        <TouchableOpacity style={styles.listItem} onPress={() => setShowCash(true)}>
+        <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowCash(true)}>
           <View style={styles.listItemContent}>
             <DollarSign size={20} color="#10B981" />
             <Text style={[styles.listLabel, styles.listLabelDark]}>
@@ -709,7 +709,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
           </View>
           <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.listItem} onPress={() => setShowPerks(true)}>
+        <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowPerks(true)}>
           <View style={styles.listItemContent}>
             <Star size={20} color="#F59E0B" />
             <Text style={[styles.listLabel, styles.listLabelDark]}>
@@ -718,7 +718,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
           </View>
           <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.listItem} onPress={() => setShowTraits(true)}>
+        <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowTraits(true)}>
           <View style={styles.listItemContent}>
             <Heart size={20} color="#EF4444" />
             <Text style={[styles.listLabel, styles.listLabelDark]}>
@@ -728,7 +728,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
           <ChevronRight size={20} color={uiPalette.muted} />
         </TouchableOpacity>
         {gameState.mindset?.activeTraitId && (
-          <TouchableOpacity style={styles.listItem} onPress={() => setShowMindset(true)}>
+          <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowMindset(true)}>
             <View style={styles.listItemContent}>
               <Brain size={20} color="#8B5CF6" />
               <Text style={[styles.listLabel, styles.listLabelDark]}>
@@ -739,7 +739,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
           </TouchableOpacity>
         )}
         {hasRememberedLives(gameState.previousLives, archivedLifeCount) && (
-          <TouchableOpacity style={styles.listItem} onPress={() => setShowLegacyTimeline(true)}>
+          <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowLegacyTimeline(true)}>
             <View style={styles.listItemContent}>
               <History size={20} color="#8B5CF6" />
               <Text style={[styles.listLabel, styles.listLabelDark]}>
@@ -751,7 +751,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
             <ChevronRight size={20} color={uiPalette.muted} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.listItem} onPress={() => setShowModifiers(true)}>
+        <TouchableOpacity accessibilityRole="button" style={styles.listItem} onPress={() => setShowModifiers(true)}>
           <View style={styles.listItemContent}>
             <TrendingUp size={20} color="#3B82F6" />
             <Text style={[styles.listLabel, styles.listLabelDark]}>

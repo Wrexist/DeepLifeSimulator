@@ -16,6 +16,7 @@ import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 
 const LinearGradient = Gradient;
 
@@ -99,7 +100,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={hitSlopToMinTarget(36)} {...CLOSE_BUTTON_A11Y}>
                 <X size={24} color={darkMode ? uiPalette.white : uiPalette.surface} />
               </TouchableOpacity>
             </View>

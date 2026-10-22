@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { actionColors, uiPalette } from '@/lib/config/theme';
 /**
  * Skill Tree Modal Component
  * 
@@ -887,9 +887,11 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
             <TouchableOpacity
               style={styles.unlockButton}
               onPress={() => handleUnlockNode(selectedNode)}
+              accessibilityRole="button"
             >
               <LinearGradient
-                colors={['#10B981', '#059669']}
+                // White label needs >= 4.5:1; #10B981 was 2.5:1.
+                colors={['#059669', actionColors.success]}
                 style={styles.unlockButtonGradient}
               >
                 <Zap size={18} color={uiPalette.white} />
@@ -913,16 +915,23 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           anything that hid it stranded the player in an unclosable sheet. The
           card claims the responder below, so taps inside it never reach here;
           the responder system asks children first, so inner controls and the
-          scroller still win. */}
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close Life Skills"
-      >
+          scroller still win.
+          The backdrop is a SIBLING behind the card, not its parent: an
+          accessible touchable hides every descendant from VoiceOver, so
+          wrapping the card collapsed the whole skill tree into one "Close"
+          button. It is hidden from screen readers; the labelled X is the
+          named exit. */}
+      <View style={styles.overlay}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
         <Animated.View
           onStartShouldSetResponder={() => true}
+          accessibilityViewIsModal
           style={[
             styles.container,
             settings.darkMode && styles.containerDark,
@@ -995,7 +1004,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           {/* Details Panel */}
           {renderNodeDetails()}
         </Animated.View>
-      </TouchableOpacity>
+      </View>
       {/* iOS presents an RN Modal from the view controller nearest its mount
           point, so the ROOT AlertHost's dialog cannot present while this Modal
           covers the screen - the tap that raised it looks dead. This nested

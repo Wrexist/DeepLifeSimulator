@@ -27,6 +27,7 @@ import {
 } from '@/utils/diagnosticReport';
 import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 
 interface Props {
   visible: boolean;
@@ -92,7 +93,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Report a Problem</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={hitSlopToMinTarget(24)} {...CLOSE_BUTTON_A11Y}>
               <X size={24} color={uiPalette.secondary} />
             </TouchableOpacity>
           </View>
@@ -109,7 +110,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
               diagnostic details automatically so we can fix it fast - no personal data.
             </Text>
 
-            <TextInput
+            <TextInput accessibilityLabel="Describe the problem"
               style={styles.input}
               placeholder="What happened? What were you doing?"
               placeholderTextColor={uiPalette.muted}

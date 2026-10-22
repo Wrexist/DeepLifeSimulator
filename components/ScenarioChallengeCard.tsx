@@ -25,6 +25,7 @@ import { getActiveScenarioProgress } from '@/lib/scenarios/progress';
 import { getDifficultyColor, getDifficultyLabel } from '@/lib/scenarios/scenarioDefinitions';
 import { fontScale, scale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
+import { getGoalRowAccessibilityProps } from '@/utils/accessibility';
 
 function ScenarioChallengeCard() {
   // Win conditions read money, careers, relationships, achievements, banking -
@@ -74,7 +75,7 @@ function ScenarioChallengeCard() {
 
       <View style={styles.list}>
         {view.rows.map((row) => (
-          <View key={row.description} style={styles.row}>
+          <View key={row.description} style={styles.row} {...getGoalRowAccessibilityProps({ title: row.description, complete: row.met, progress: row.progress })}>
             <View style={[styles.checkBubble, row.met && styles.checkBubbleDone]}>
               {row.met ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
             </View>

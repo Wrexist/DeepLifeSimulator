@@ -314,7 +314,7 @@ export default function Journal({ compact = false }: JournalProps) {
       {/* Search Bar */}
       <View style={[styles.searchContainer, settings.darkMode && styles.searchContainerDark]}>
         <Search size={18} color={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted} />
-        <TextInput
+        <TextInput accessibilityLabel="Search entries"
           style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
           placeholder="Search entries..."
           placeholderTextColor={settings.darkMode ? uiPalette.muted : uiPalette.muted}

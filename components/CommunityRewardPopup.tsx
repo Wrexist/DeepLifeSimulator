@@ -105,19 +105,21 @@ export default function CommunityRewardPopup({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleDismiss}>
-      {/* Tapping the dimmed area is the same quiet "not now" as the X. */}
-      <Pressable
-        style={styles.backdrop}
-        onPress={handleDismiss}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-      >
-        {/* Swallow taps inside the sheet so they never reach the backdrop.
-            A responder-claiming View rather than a Pressable: nesting a
-            pressable inside a pressable maps to a <button> inside a <button>
-            on react-native-web, which is invalid markup. */}
+      {/* Tapping the dimmed area is the same quiet "not now" as the X. The
+          scrim is a SIBLING behind the sheet and hidden from screen readers:
+          as the sheet's parent it was one accessible "Close" button that hid
+          Join, the link and "Maybe later" from VoiceOver. */}
+      <View style={styles.backdrop}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleDismiss}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
+        {/* Swallow taps inside the sheet so they never reach the backdrop. */}
         <View
           onStartShouldSetResponder={returnTrue}
+          accessibilityViewIsModal
           style={[
             styles.sheet,
             {
@@ -227,7 +229,7 @@ export default function CommunityRewardPopup({
             <Text style={[styles.dismissText, { color: theme.textSecondary }]}>Maybe later</Text>
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }

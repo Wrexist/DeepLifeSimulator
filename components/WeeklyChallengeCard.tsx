@@ -31,6 +31,7 @@ import {
 } from '@/lib/challenges/weeklyChallenges';
 import { fontScale, scale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
+import { getGoalRowAccessibilityProps } from '@/utils/accessibility';
 
 /** "2 weeks left" reads better than a raw week number. */
 export function weeksLeftLabel(startedWeek: number | undefined, weeksLived: number): string {
@@ -115,7 +116,7 @@ function WeeklyChallengeCard() {
 
       <View style={styles.list}>
         {objectives.map((o) => (
-          <View key={o.id} style={styles.row}>
+          <View key={o.id} style={styles.row} {...getGoalRowAccessibilityProps({ title: o.description, complete: o.completed, progress: objectiveFraction(o.current, o.target), detail: o.target > 1 ? `${Math.floor(o.current)} of ${o.target}` : undefined })}>
             <View style={[styles.checkBubble, o.completed && styles.checkBubbleDone]}>
               {o.completed ? <Check size={scale(12)} color={uiPalette.navy} /> : null}
             </View>

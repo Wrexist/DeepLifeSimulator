@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors } from '@/lib/config/theme';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -556,7 +556,8 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   talentEffectLocked: {
-    color: 'rgba(226, 232, 240, 0.4)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
   },
   talentDesc: {
     fontSize: fontScale(12),
@@ -578,7 +579,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   talentTierLocked: {
-    color: 'rgba(226, 232, 240, 0.4)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
   },
   lockedInfoBox: {
     flexDirection: 'row',

@@ -20,6 +20,7 @@ import {
   StyleProp,
 } from 'react-native';
 import { animation } from '@/lib/config/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface TransitionConfig {
   type?: 'timing' | 'spring';
@@ -96,6 +97,11 @@ function useAnimatedValues(
     ) as (keyof AnimatedStyleValues)[];
   }, []); // Stable - animation keys don't change after mount
 
+  // Reduce Motion: entrance/state transitions jump straight to their target
+  // (opacity included, so nothing is left invisible). Looping animations are
+  // left alone - those are spinners/progress, where the motion IS the signal.
+  const reducedMotion = useReducedMotion();
+
   // Create one Animated.Value per key
   const animatedValues = useRef<Record<string, Animated.Value>>({});
   if (keys.length > 0 && Object.keys(animatedValues.current).length === 0) {
@@ -113,6 +119,13 @@ function useAnimatedValues(
     if (!animate || keys.length === 0) return;
 
     const useNative = keys.every((key) => NATIVE_SAFE_KEYS.has(key));
+
+    if (reducedMotion && !transition?.loop) {
+      for (const key of keys) {
+        animatedValues.current[key]?.setValue(toNumber(key, animate[key]));
+      }
+      return;
+    }
 
     let animations = keys.map((key) => {
       const av = animatedValues.current[key];
@@ -153,7 +166,7 @@ function useAnimatedValues(
     const composite = Animated.parallel(animations);
     composite.start();
     return () => composite.stop();
-  }, [animate]); // Re-run if animate object identity changes
+  }, [animate, reducedMotion]); // Re-run if animate object identity changes
 
   // Build transform array and flat style
   const animatedStyle = useMemo(() => {

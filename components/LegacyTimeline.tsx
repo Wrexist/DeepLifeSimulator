@@ -272,6 +272,14 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                         style={styles.generationCard}
                         onPress={() => toggleExpand(index)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isExpanded }}
+                        // "View Family Tree" is drawn inside this card, which
+                        // hides it from VoiceOver; offer it as an action too.
+                        accessibilityActions={isExpanded && onOpenFamilyTree ? [{ name: 'familyTree', label: 'View Family Tree' }] : undefined}
+                        onAccessibilityAction={(e) => {
+                          if (e.nativeEvent.actionName === 'familyTree' && onOpenFamilyTree) onOpenFamilyTree(life.generation || 0);
+                        }}
                       >
                         <LinearGradient
                           colors={
@@ -444,6 +452,8 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                 <TouchableOpacity
                                   style={styles.familyTreeButton}
                                   onPress={() => onOpenFamilyTree(life.generation || 0)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel="View Family Tree"
                                 >
                                   <Users size={scale(16)} color="#3B82F6" />
                                   <Text style={styles.familyTreeButtonText}>View Family Tree</Text>

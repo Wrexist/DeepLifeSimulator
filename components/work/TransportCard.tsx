@@ -1,5 +1,5 @@
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale } from '@/utils/scaling';
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors } from '@/lib/config/theme';
 /**
  * TransportCard - rent your way into delivery work.
  *
@@ -184,5 +184,5 @@ const styles = StyleSheet.create({
     marginRight: layoutSpace.xs,
   },
   planCta: { color: '#7DD3A0', fontSize: fontScale(13), fontWeight: '800' },
-  planCtaLocked: { color: 'rgba(226, 232, 240, 0.45)', fontSize: fontScale(11.5) },
+  planCtaLocked: { color: colors.dark.textMuted, fontSize: fontScale(11.5) },
 });

@@ -30,6 +30,7 @@ import { useFeedback } from '@/utils/feedbackSystem';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface SmartNotificationCenterProps {
@@ -218,6 +219,10 @@ export default function SmartNotificationCenter({
                       setShowSettings(!showSettings);
                     }}
                     style={styles.headerButton}
+                    hitSlop={hitSlopToMinTarget(36)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Notification preferences"
+                    accessibilityState={{ expanded: showSettings }}
                   >
                     <Settings size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
@@ -228,6 +233,8 @@ export default function SmartNotificationCenter({
                       onClose();
                     }}
                     style={styles.headerButton}
+                    hitSlop={hitSlopToMinTarget(36)}
+                    {...CLOSE_BUTTON_A11Y}
                   >
                     <X size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
@@ -245,6 +252,8 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showTips')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: !!notificationPreferences.showTips }}
                     >
                       <View style={styles.settingInfo}>
                         <Lightbulb size={20} color="#F59E0B" />
@@ -262,6 +271,8 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showMilestones')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: !!notificationPreferences.showMilestones }}
                     >
                       <View style={styles.settingInfo}>
                         <Calendar size={20} color="#3B82F6" />
@@ -279,6 +290,8 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showWarnings')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: !!notificationPreferences.showWarnings }}
                     >
                       <View style={styles.settingInfo}>
                         <AlertCircle size={20} color="#F59E0B" />
@@ -296,6 +309,8 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showSuggestions')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: !!notificationPreferences.showSuggestions }}
                     >
                       <View style={styles.settingInfo}>
                         <MessageSquare size={20} color="#06B6D4" />

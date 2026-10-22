@@ -401,7 +401,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
       <View style={styles.searchFilterRow}>
         <View style={[styles.searchContainer, darkMode && styles.searchContainerDark]}>
           <Search size={scale(16)} color={darkMode ? uiPalette.muted : uiPalette.muted} />
-          <TextInput
+          <TextInput accessibilityLabel="Search achievements"
             style={[styles.searchInput, darkMode && styles.searchInputDark]}
             placeholder="Search achievements..."
             placeholderTextColor={darkMode ? uiPalette.muted : uiPalette.muted}

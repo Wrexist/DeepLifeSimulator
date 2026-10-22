@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { actionColors, uiPalette } from '@/lib/config/theme';
 import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
 import { AlertCircle, CheckCircle, Circle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
@@ -516,12 +516,14 @@ export default function WeeklyEventModal() {
  disabled={disabled}
  activeOpacity={0.85}
  accessibilityRole="button"
- accessibilityLabel={note ? `${choice.text || 'Continue'}. ${note}` : (choice.text || 'Continue')}
+ accessibilityLabel={choiceAccessibilityLabel(choice, enhancedChoice, note)}
  accessibilityState={{ disabled }}
  >
  {isPrimary ? (
  <LinearGradient
- colors={['#10B981', '#059669']}
+ // White label: #10B981 measured 2.5:1 at the bright end. #059669 to
+ // actionColors.success keeps the hue at >= 3.8:1 / 5.5:1.
+ colors={['#059669', actionColors.success]}
  start={{ x: 0, y: 0 }}
  end={{ x: 1, y: 1 }}
  style={styles.choiceButtonContent}
@@ -542,6 +544,30 @@ export default function WeeklyEventModal() {
  </View>
  </Modal>
  );
+}
+
+/**
+ * What a screen reader hears for a choice. An explicit label replaces the
+ * button's child text, so it must carry everything the button SHOWS - the
+ * gain/loss tradeoffs and impact tag included - or a VoiceOver player picks
+ * on the title alone while a sighted one sees the consequences.
+ */
+function choiceAccessibilityLabel(
+ choice: { text?: string },
+ enhancedChoice: EnhancedEventChoice,
+ note?: string,
+): string {
+ const parts = [choice.text || 'Continue'];
+ if (note) parts.push(note);
+ const gains = enhancedChoice.tradeoffs?.gain ?? [];
+ const losses = enhancedChoice.tradeoffs?.lose ?? [];
+ if (gains.length > 0) parts.push(`You gain ${gains.map((g) => g.label).join(', ')}`);
+ if (losses.length > 0) parts.push(`You lose ${losses.map((l) => l.label).join(', ')}`);
+ if (enhancedChoice.emotionalImpact) {
+ const impact = enhancedChoice.emotionalImpact === 'high' ? 'High' : enhancedChoice.emotionalImpact === 'medium' ? 'Medium' : 'Low';
+ parts.push(`${impact} impact`);
+ }
+ return parts.join('. ');
 }
 
 /**

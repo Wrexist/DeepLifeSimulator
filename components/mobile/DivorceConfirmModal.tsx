@@ -7,6 +7,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { DIVORCE_LAWYERS, getLawyerExpectedValue } from '@/lib/dating/divorceLawyers';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface DivorceConfirmModalProps {
@@ -90,7 +91,7 @@ export default function DivorceConfirmModal({
               <AlertTriangle size={scale(24)} color="#EF4444" />
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>Confirm Divorce</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={hitSlopToMinTarget(scale(24) + 8)} {...CLOSE_BUTTON_A11Y}>
               <X size={scale(24)} color={isDarkMode ? uiPalette.white : '#000'} />
             </TouchableOpacity>
           </View>

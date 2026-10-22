@@ -294,7 +294,7 @@ function SicknessModal() {
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <TouchableOpacity 
+        <TouchableOpacity importantForAccessibility="no" accessibilityElementsHidden 
           style={StyleSheet.absoluteFill} 
           activeOpacity={1} 
           onPress={handleClose}
@@ -409,7 +409,7 @@ function SicknessModal() {
                 </View>
                 
                 <View style={styles.treatmentButtons}>
-                  <TouchableOpacity 
+                  <TouchableOpacity accessibilityRole="button" 
                     style={styles.treatmentButton}
                     onPress={() => {
                       if (isClosing || !performHealthActivity) return;
@@ -445,7 +445,7 @@ function SicknessModal() {
                     </LinearGradient>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity accessibilityRole="button" 
                     style={styles.treatmentButton}
                     onPress={() => {
                       if (isClosing || !performHealthActivity) return;
@@ -817,7 +817,7 @@ function SicknessModal() {
 
             {/* Footer */}
             <View style={styles.footer}>
-              <TouchableOpacity onPress={handleClose} style={styles.continueButton} activeOpacity={0.7}>
+              <TouchableOpacity accessibilityRole="button" onPress={handleClose} style={styles.continueButton} activeOpacity={0.7}>
                 <LinearGradient
                   colors={['rgba(239, 68, 68, 0.7)', 'rgba(220, 38, 38, 0.8)']}
                   start={{ x: 0, y: 0 }}

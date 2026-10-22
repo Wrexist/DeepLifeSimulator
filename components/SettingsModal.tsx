@@ -962,7 +962,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       {/* Liquid Glass Reward Popup */}
       {showRewardPopup && (
         <Animated.View style={[styles.rewardOverlay, { opacity: rewardOpacityAnim }]}>
-          <TouchableOpacity style={styles.rewardOverlayTouch} activeOpacity={1} onPress={dismissRewardPopup}>
+          {/* Tap-anywhere dismiss stays, but the wrapper is NOT an accessible
+              element: as one it hid the title, amount and button from
+              VoiceOver. The "Awesome!" button is the named exit. */}
+          <TouchableOpacity style={styles.rewardOverlayTouch} activeOpacity={1} onPress={dismissRewardPopup} accessible={false}>
             <Animated.View style={[
               styles.rewardCard,
               {
@@ -1016,7 +1019,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 <Text style={styles.rewardMessage}>{rewardPopupMessage}</Text>
 
                 {/* Dismiss button */}
-                <TouchableOpacity style={styles.rewardDismissButton} onPress={dismissRewardPopup} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.rewardDismissButton} onPress={dismissRewardPopup} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Awesome! Dismiss">
                   <LinearGradient
                     colors={['#5865F2', '#4752C4']}
                     start={{ x: 0, y: 0 }}
