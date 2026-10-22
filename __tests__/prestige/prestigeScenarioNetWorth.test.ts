@@ -42,6 +42,8 @@ const WORLD_TRAVELER = SCENARIOS.find((s) => s.id === 'world_traveler');
 function prestigeReadyLife(cash: number, extraAccounts: unknown[] = []): GameState {
   const base = createTestGameState();
   return createTestGameState({
+    // LIFE-3: only the CHOSEN challenge pays, so the life must have picked it.
+    scenarioId: 'world_traveler',
     stats: { ...base.stats, money: cash, reputation: 60, gems: 0 },
     bankSavings: 0,
     stocks: {
@@ -113,14 +115,12 @@ describe('R4 - the first-prestige scenario award does not double-count mirrored 
   it('genuinely clearing the threshold still pays out', () => {
     // The control. Without this the fix could be "award nothing, ever" and
     // every assertion above would still pass.
-    // Direction only, deliberately: raising `stats.money` also crosses the
-    // `type: 'money'` scenarios, so the delta is not attributable to the
-    // net-worth condition alone. The test below isolates that by adding the
-    // wealth as a DEPOSIT, which the money conditions cannot see.
+    // Since LIFE-3 only the chosen challenge (world_traveler) can pay, so the
+    // delta is exactly its reward.
     const poor = gemsFrom(prestigeReadyLife(60_000));
     const rich = gemsFrom(prestigeReadyLife(110_000));
 
-    expect(rich).toBeGreaterThan(poor);
+    expect(rich).toBe(poor + (WORLD_TRAVELER?.rewards?.gems ?? 0));
   });
 
   it('a self-opened deposit account still counts toward the scenario', () => {
