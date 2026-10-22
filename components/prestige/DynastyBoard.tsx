@@ -226,7 +226,7 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
       <Section
         icon={Landmark}
         title="THE ENDOWMENT · Prestige 3"
-        blurb="Money does not survive you. Endow it and it comes back as Legacy Points. Each tranche can be taken once, ever."
+        blurb="Money does not survive you. Endow it and it comes back as legacy points. Each tranche can be taken once, ever."
         unlocked={endowmentOpen}
         requirement={prestigeUnlockRequirement(gameState, ENDOWMENT_FEATURE)}
         isDark={isDark}
@@ -256,7 +256,7 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
       <Section
         icon={Swords}
         title="DYNASTY TRIALS · Prestige 4"
-        blurb={`Make the next life harder on purpose. Paid in Legacy Points when that life ends. ${sworn.length}/${trialSlots} sworn${trialMultiplier > 1 ? ' · rewards doubled by the Chapter House' : ''}.`}
+        blurb={`Make the next life harder on purpose. Paid in legacy points when that life ends. ${sworn.length}/${trialSlots} sworn${trialMultiplier > 1 ? ' · rewards doubled by the Chapter House' : ''}.`}
         unlocked={trialsOpen}
         requirement={prestigeUnlockRequirement(gameState, TRIALS_FEATURE)}
         isDark={isDark}

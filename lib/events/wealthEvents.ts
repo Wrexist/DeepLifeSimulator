@@ -164,7 +164,7 @@ const hostileTakeover: EventTemplate = {
       description: 'A raider has quietly built a stake in your largest holding and gone public with a bid - above market, below what you think it is worth.',
       choices: [
         { id: 'sell', text: `Sell into the bid (${show(state, premium)}, you lose the asset)`, effects: { ...premium, stats: { reputation: -6, happiness: -4 } } },
-        { id: 'defend', text: `Fund a defence - bankers, poison pill (${show(state, defence)})`, effects: { ...defence, stats: { reputation: 8, energy: -12 } } },
+        { id: 'defend', text: `Fund a defense - bankers, poison pill (${show(state, defence)})`, effects: { ...defence, stats: { reputation: 8, energy: -12 } } },
         { id: 'counter', text: 'Court a friendlier buyer instead', effects: { stats: { reputation: 4, energy: -8, happiness: -2 } } },
       ],
     };
@@ -1056,7 +1056,7 @@ const opportunityFund: EventTemplate = {
       description: 'A first-time fund manager wants you as an anchor investor. The strategy is sound, the track record is one page long, and the fee is not negotiable.',
       choices: [
         { id: 'anchor', text: `Anchor the fund (${show(state, anchor)}, locked for years)`, effects: { ...anchor, stats: { reputation: 8, happiness: 3 } } },
-        { id: 'small_ticket', text: `Write a small cheque and watch (${show(state, small)})`, effects: { ...small, stats: { reputation: 3 } } },
+        { id: 'small_ticket', text: `Write a small check and watch (${show(state, small)})`, effects: { ...small, stats: { reputation: 3 } } },
         { id: 'pass', text: 'Pass - one page is not a track record', effects: { stats: { reputation: -2, energy: 3 } } },
       ],
     };

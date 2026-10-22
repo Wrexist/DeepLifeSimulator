@@ -136,7 +136,7 @@ class SmartNotificationSystem {
       {
         id: 'first_money',
         type: 'achievement',
-        title: '💰 First Earnings!',
+        title: 'First Earnings!',
         message: 'Congratulations! You earned your first money. Keep working to build your wealth!',
         priority: 'medium',
         category: 'wealth',
@@ -149,7 +149,7 @@ class SmartNotificationSystem {
       {
         id: 'first_million',
         type: 'achievement',
-        title: '🎉 Millionaire!',
+        title: 'Millionaire!',
         message: 'Incredible! You\'ve reached your first million. You\'re on your way to financial freedom!',
         priority: 'high',
         category: 'wealth',
@@ -160,7 +160,7 @@ class SmartNotificationSystem {
       {
         id: 'first_job',
         type: 'achievement',
-        title: '💼 First Job!',
+        title: 'First Job!',
         message: 'Great! You got your first job. This is the start of your career journey!',
         priority: 'medium',
         category: 'career',
@@ -171,7 +171,7 @@ class SmartNotificationSystem {
       {
         id: 'first_friend',
         type: 'achievement',
-        title: '👥 First Friend!',
+        title: 'First Friend!',
         message: 'Wonderful! You made your first friend. Building relationships is key to happiness!',
         priority: 'medium',
         category: 'social',
@@ -183,7 +183,7 @@ class SmartNotificationSystem {
       {
         id: 'married',
         type: 'achievement',
-        title: '💍 Married!',
+        title: 'Married!',
         message: 'Congratulations on getting married! May your life together be filled with joy!',
         priority: 'high',
         category: 'family',
@@ -194,7 +194,7 @@ class SmartNotificationSystem {
       {
         id: 'first_child',
         type: 'achievement',
-        title: '👶 First Child!',
+        title: 'First Child!',
         message: 'Amazing! You\'re now a parent. This is one of life\'s greatest adventures!',
         priority: 'high',
         category: 'family',
@@ -207,7 +207,7 @@ class SmartNotificationSystem {
       {
         id: 'age_milestone_25',
         type: 'milestone',
-        title: '🎂 Quarter Century!',
+        title: 'Quarter Century!',
         message: 'You\'ve reached 25! This is a great time to focus on your career and relationships.',
         priority: 'medium',
         category: 'general',
@@ -218,7 +218,7 @@ class SmartNotificationSystem {
       {
         id: 'age_milestone_30',
         type: 'milestone',
-        title: '🎂 Dirty Thirty!',
+        title: 'Dirty Thirty!',
         message: 'Welcome to your 30s! Time to focus on stability and long-term goals.',
         priority: 'medium',
         category: 'general',
@@ -229,7 +229,7 @@ class SmartNotificationSystem {
       {
         id: 'age_milestone_50',
         type: 'milestone',
-        title: '🎂 Half Century!',
+        title: 'Half Century!',
         message: 'You\'ve reached 50! This is a time for reflection and enjoying the fruits of your labor.',
         priority: 'medium',
         category: 'general',
@@ -240,7 +240,7 @@ class SmartNotificationSystem {
       {
         id: 'centenarian',
         type: 'milestone',
-        title: '🎂 Centenarian!',
+        title: 'Centenarian!',
         message: 'Incredible! You\'ve lived to 100! You\'ve truly mastered the art of living.',
         priority: 'high',
         category: 'general',
@@ -253,7 +253,7 @@ class SmartNotificationSystem {
       {
         id: 'new_disease',
         type: 'warning',
-        title: '🏥 New Health Condition',
+        title: 'New Health Condition',
         message: 'You\'ve contracted a health condition. Visit a doctor or hospital for treatment.',
         priority: 'high',
         category: 'health',
@@ -264,7 +264,7 @@ class SmartNotificationSystem {
       {
         id: 'disease_cured',
         type: 'celebration',
-        title: '✅ Disease Cured!',
+        title: 'Disease Cured!',
         message: 'Great news! Your health condition has been successfully treated.',
         priority: 'medium',
         category: 'health',
@@ -275,7 +275,7 @@ class SmartNotificationSystem {
       {
         id: 'critical_disease_warning',
         type: 'warning',
-        title: '🚨 Critical Health Warning',
+        title: 'Critical Health Warning',
         message: 'You have a critical health condition requiring immediate treatment!',
         priority: 'critical',
         category: 'health',
@@ -286,7 +286,7 @@ class SmartNotificationSystem {
       {
         id: 'death_warning_disease',
         type: 'warning',
-        title: '💀 Death Warning',
+        title: 'Death Warning',
         message: 'URGENT: Your condition is life-threatening! Seek treatment immediately!',
         priority: 'critical',
         category: 'health',
@@ -299,7 +299,7 @@ class SmartNotificationSystem {
       {
         id: 'low_health_warning',
         type: 'warning',
-        title: '⚠️ Health Warning',
+        title: 'Health Warning',
         message: 'Your health is getting low. Consider visiting a doctor or taking better care of yourself.',
         priority: 'high',
         category: 'health',
@@ -310,7 +310,7 @@ class SmartNotificationSystem {
       {
         id: 'low_happiness_warning',
         type: 'warning',
-        title: '😢 Happiness Warning',
+        title: 'Happiness Warning',
         message: 'Your happiness is declining. Try spending time with friends or doing activities you enjoy.',
         priority: 'high',
         category: 'health',
@@ -321,7 +321,7 @@ class SmartNotificationSystem {
       {
         id: 'low_energy_warning',
         type: 'warning',
-        title: '😴 Energy Warning',
+        title: 'Energy Warning',
         message: 'You\'re running low on energy. Make sure to get enough rest and eat well.',
         priority: 'medium',
         category: 'health',
@@ -332,7 +332,7 @@ class SmartNotificationSystem {
       {
         id: 'debt_warning',
         type: 'warning',
-        title: '💸 Debt Warning',
+        title: 'Debt Warning',
         message: 'You\'re in debt! Consider finding ways to increase your income or reduce expenses.',
         priority: 'high',
         category: 'wealth',
@@ -343,7 +343,7 @@ class SmartNotificationSystem {
       {
         id: 'jail_warning',
         type: 'warning',
-        title: '🔒 Jail Time',
+        title: 'Jail Time',
         message: 'You\'re in jail! Use this time to reflect on your choices and plan for the future.',
         priority: 'critical',
         category: 'general',
@@ -356,7 +356,7 @@ class SmartNotificationSystem {
       {
         id: 'investment_tip',
         type: 'tip',
-        title: '💡 Investment Tip',
+        title: 'Investment Tip',
         message: 'Consider investing in stocks or crypto to grow your wealth over time. Start small and diversify!',
         priority: 'low',
         category: 'wealth',
@@ -367,7 +367,7 @@ class SmartNotificationSystem {
       {
         id: 'real_estate_tip',
         type: 'tip',
-        title: '🏠 Real Estate Tip',
+        title: 'Real Estate Tip',
         message: 'Real estate can be a great investment! Consider buying property to build long-term wealth.',
         priority: 'low',
         category: 'wealth',
@@ -378,7 +378,7 @@ class SmartNotificationSystem {
       {
         id: 'education_tip',
         type: 'tip',
-        title: '🎓 Education Tip',
+        title: 'Education Tip',
         message: 'Education can open doors to better career opportunities. Consider investing in your skills!',
         priority: 'low',
         category: 'education',
@@ -389,7 +389,7 @@ class SmartNotificationSystem {
       {
         id: 'health_tip',
         type: 'tip',
-        title: '💪 Health Tip',
+        title: 'Health Tip',
         message: 'Regular exercise and a healthy diet can improve your stats and help you live longer!',
         priority: 'low',
         category: 'health',
@@ -400,7 +400,7 @@ class SmartNotificationSystem {
       {
         id: 'social_tip',
         type: 'tip',
-        title: '👥 Social Tip',
+        title: 'Social Tip',
         message: 'Strong relationships are key to happiness. Make time for friends and family!',
         priority: 'low',
         category: 'social',
@@ -413,7 +413,7 @@ class SmartNotificationSystem {
       {
         id: 'weekly_reminder',
         type: 'reminder',
-        title: '📅 Weekly Reminder',
+        title: 'Weekly Reminder',
         message: 'Time to advance to the next week! Make sure to check your stats and plan your activities.',
         priority: 'medium',
         category: 'general',
@@ -423,8 +423,8 @@ class SmartNotificationSystem {
       {
         id: 'save_reminder',
         type: 'reminder',
-        title: '💾 Save Reminder',
-        message: 'Don\'t forget to save your progress! Your game is automatically saved, but you can also save manually.',
+        title: 'Save Reminder',
+        message: 'Your game saves automatically after every week and every major action.',
         priority: 'low',
         category: 'general',
         icon: '💾',
@@ -435,7 +435,7 @@ class SmartNotificationSystem {
       {
         id: 'perfect_week',
         type: 'celebration',
-        title: '🌟 Perfect Week!',
+        title: 'Perfect Week!',
         message: 'Amazing! You had a perfect week with all stats above 90. Keep up the great work!',
         priority: 'high',
         category: 'general',
@@ -460,7 +460,7 @@ class SmartNotificationSystem {
       {
         id: 'career_suggestion',
         type: 'suggestion',
-        title: '💼 Career Suggestion',
+        title: 'Career Suggestion',
         message: 'Consider advancing your career or starting a business to increase your income potential.',
         priority: 'low',
         category: 'career',
@@ -471,7 +471,7 @@ class SmartNotificationSystem {
       {
         id: 'family_suggestion',
         type: 'suggestion',
-        title: '👨‍👩‍👧‍👦 Family Suggestion',
+        title: 'Family Suggestion',
         message: 'Ready to settle down? Consider getting married and starting a family for a fulfilling life.',
         priority: 'low',
         category: 'family',
@@ -482,7 +482,7 @@ class SmartNotificationSystem {
       {
         id: 'retirement_suggestion',
         type: 'suggestion',
-        title: '🏖️ Retirement Suggestion',
+        title: 'Retirement Suggestion',
         message: 'You\'ve worked hard! Consider retiring and enjoying the fruits of your labor.',
         priority: 'low',
         category: 'career',

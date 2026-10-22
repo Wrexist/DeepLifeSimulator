@@ -99,7 +99,7 @@ const RECOMMENDED_SCENARIO_ID = 'food_courier';
 // by id are untouched.)
 const LIFE_PATH_DIFFICULTY_RANK: Record<string, number> = {
   Easy: 0,
-  Moderate: 1,
+  Medium: 1,
   Hard: 2,
 };
 
@@ -211,7 +211,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   const difficultyColor =
     scenario.difficulty === 'Easy'
       ? '#10B981'
-      : scenario.difficulty === 'Moderate'
+      : scenario.difficulty === 'Medium'
         ? '#3B82F6'
         : scenario.difficulty === 'Hard'
           ? '#F59E0B'
@@ -291,7 +291,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
               </View>
               <View style={styles.statCell}>
                 <Text style={styles.statLabel}>Study</Text>
-                <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
+                <Text style={styles.statValue}>{scenario.start.education ? formatTokenLabel(scenario.start.education) : 'None'}</Text>
               </View>
               {isChallenge ? (
                 <View style={styles.statCell}>
@@ -472,7 +472,7 @@ export default function Scenarios() {
   const continueToCustomize = () => {
     if (!canContinueFromScenarioSelection(selectedScenario)) {
       haptic.error();
-      gameAlert('Pick A Scenario', 'Choose a life path or challenge before continuing.');
+      gameAlert('Pick a scenario', 'Choose a life path or challenge before continuing.');
       return;
     }
     haptic.medium();

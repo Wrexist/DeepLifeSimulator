@@ -9,6 +9,7 @@
  * - Weekly vehicle maintenance processing
  */
 
+import { withArticle } from '@/utils/grammar';
 import { GameState, Vehicle, VehicleInsurance } from '../types';
 import { getActiveRental, getRentalPlan } from '@/lib/vehicles/scooterRental';
 import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
@@ -298,7 +299,7 @@ const resolvePurchaseVehicle = (
     : state.banking;
 
   return {
-    result: { success: true, message: `Congratulations! You are now the proud owner of a ${template.name}!` },
+    result: { success: true, message: `Congratulations! You are now the proud owner of ${withArticle(template.name)}!` },
     next: {
       ...state,
       banking,

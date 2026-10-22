@@ -99,7 +99,7 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
             <View style={styles.benefitItem}>
               <Crown size={14} color="#F59E0B" />
               <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
-                Earn Prestige Points to buy permanent bonuses
+                Earn prestige points to buy permanent bonuses
               </Text>
             </View>
             <View style={styles.benefitItem}>

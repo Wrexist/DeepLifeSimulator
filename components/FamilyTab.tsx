@@ -1090,7 +1090,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={styles.emptyStateTitle}>No partner yet</Text>
  <Text style={styles.emptyStateText}>
  {ownsDevice
- ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
+ ? 'Match on Spark, go on dates to build the bond, then move in, propose and start a family.'
  : 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'}
  </Text>
  {ownsDevice && (

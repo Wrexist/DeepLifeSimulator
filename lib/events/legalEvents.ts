@@ -145,7 +145,7 @@ const smallClaim: EventTemplate = {
     choices: [
       {
         id: 'defend',
-        text: 'File a defence and attend ($250 and a day)',
+        text: 'File a defense and attend ($250 and a day)',
         effects: { money: -250, stats: { energy: -8, happiness: -3 } },
       },
       {

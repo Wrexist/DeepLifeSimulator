@@ -9,6 +9,7 @@ import { formatLifeWeek } from '@/utils/formatLifeWeek';
  * Pure functions.
  */
 
+import { countOf } from '@/utils/grammar';
 import { GameState } from '@/contexts/game/types';
 
 const safe = (n: number | undefined, fb = 0): number =>
@@ -50,14 +51,14 @@ export function buildMilestones(state: GameState): Milestone[] {
   if (safe(stats?.totalPropertiesOwned, 0) > 0) {
     out.push({
       id: 'first-property',
-      label: `Owned ${stats!.totalPropertiesOwned} property(s)`,
+      label: `Owned ${countOf(stats!.totalPropertiesOwned, 'property', 'properties')}`,
       category: 'wealth',
     });
   }
   if (safe(stats?.totalCompaniesOwned, 0) > 0) {
     out.push({
       id: 'first-company',
-      label: `Founded ${stats!.totalCompaniesOwned} company(s)`,
+      label: `Founded ${countOf(stats!.totalCompaniesOwned, 'company', 'companies')}`,
       category: 'career',
     });
   }
@@ -78,7 +79,7 @@ export function buildMilestones(state: GameState): Milestone[] {
   if (safe(stats?.totalViralPosts, 0) > 0) {
     out.push({
       id: 'viral',
-      label: `${stats!.totalViralPosts} viral post(s)`,
+      label: `${countOf(stats!.totalViralPosts, 'viral post')}`,
       category: 'creative',
     });
   }
@@ -118,7 +119,7 @@ export function buildMilestones(state: GameState): Milestone[] {
   if (safe(pol?.electionsWon, 0) > 0) {
     out.push({
       id: 'elected',
-      label: `Won ${pol?.electionsWon} election(s)`,
+      label: `Won ${countOf(pol?.electionsWon ?? 0, 'election')}`,
       category: 'career',
     });
   }
@@ -136,7 +137,7 @@ export function buildMilestones(state: GameState): Milestone[] {
   if (pets.length > 0) {
     out.push({
       id: 'pets',
-      label: `${pets.length} pet(s) owned in lifetime`,
+      label: `${countOf(pets.length, 'pet')} owned in lifetime`,
       category: 'family',
     });
   }

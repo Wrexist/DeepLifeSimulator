@@ -1263,7 +1263,7 @@ exports[`pre-tick equivalence - applyCrimeTick encounter with low money: fine ca
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $3 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $3 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1288,7 +1288,7 @@ exports[`pre-tick equivalence - applyCrimeTick encounter with zero money: fine =
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $0 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $0 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1313,7 +1313,7 @@ exports[`pre-tick equivalence - applyCrimeTick happiness floored at 0 when below
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1433,7 +1433,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel 6 → 5, encounter ch
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1477,7 +1477,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel extremely high (15 �
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 4 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 4 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1502,7 +1502,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel high (10 → 9), enco
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 3 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 3 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
