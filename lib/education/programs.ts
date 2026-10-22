@@ -69,7 +69,7 @@ export const EDUCATION_PREREQUISITES: Readonly<Record<string, EducationPrerequis
  */
 export function unmetEducationPrerequisite(
   programId: string,
-  educations: ReadonlyArray<{ id: string; completed?: boolean }> | null | undefined,
+  educations: readonly { id: string; completed?: boolean }[] | null | undefined,
 ): EducationPrerequisite | undefined {
   const req = EDUCATION_PREREQUISITES[programId];
   if (!req) return undefined;

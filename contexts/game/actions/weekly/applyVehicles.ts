@@ -51,12 +51,13 @@ import {
 } from '@/lib/vehicles/accidents';
 import { vehicleWeeklyRunningCost, weeklyFuelBurn } from '@/lib/vehicles/runningCosts';
 
-/** The fuel level (%) at which the driven car warns once on the way down. */
-const LOW_FUEL_WARNING = 20;
 import { calculateRepairCostAfterInsurance, vehicleReputationFloor } from '@/lib/vehicles/vehicles';
 import { reputationAfterVehicleSale, vehicleReputationTakeBack } from '../VehicleActions';
 import type { WeekContext } from './weekContext';
 import { chargeBill } from './chargeOrDefer';
+
+/** The fuel level (%) at which the driven car warns once on the way down. */
+const LOW_FUEL_WARNING = 20;
 
 // Deterministic condition damage per severity tier. Kept out of accidents.ts
 // (which owns the probability + injury math) because the weekly tick needs a
