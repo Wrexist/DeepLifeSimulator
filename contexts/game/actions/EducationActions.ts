@@ -27,6 +27,7 @@ import { applyMoneyDelta } from './MoneyActions';
 import { quoteScholarship } from '@/lib/education/scholarships';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { meritGpa } from '@/lib/education/gpa';
+import { unmetEducationPrerequisite } from '@/lib/education/programs';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
@@ -171,11 +172,16 @@ export function quoteEnrollment(
   const skillReduction = getLifeSkillModifiers(state).educationTimeReductionPct;
   const weeksReduction = perks.weeksReduction + Math.floor(safeDuration * Math.max(0, Math.min(0.4, skillReduction)));
   const existing = (state.educations ?? []).find(e => e.id === template.id);
+  // LIFE-16: entry requirements. enrollInProgram re-quotes inside its updater,
+  // so this gate is re-checked against `prev` at commit time.
+  const missing = unmetEducationPrerequisite(template.id, state.educations);
   const blockedReason = isPlayerBlocked(state)
     ? 'This life has ended.'
     : existing
       ? existing.completed ? 'You have already completed this program.' : 'You are already enrolled in this program.'
-      : undefined;
+      : missing
+        ? `Requires ${missing.label}.`
+        : undefined;
   return {
     blockedReason,
     weeksReduction,

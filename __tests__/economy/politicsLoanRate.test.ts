@@ -43,6 +43,8 @@ function atOffice(careerLevel: number): GameState {
   const base = createTestGameState();
   return createTestGameState({
     politics: { ...(base.politics ?? {}), careerLevel } as never,
+    // Law School needs a Bachelor's (LIFE-16); the loan rate is what is under test.
+    educations: [{ id: 'business_degree', name: 'Business Degree', description: '', cost: 48_000, duration: 90, completed: true }],
   });
 }
 
