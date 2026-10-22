@@ -147,6 +147,7 @@ import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
 import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
+import { legacyPointsEarnedThisWeek } from '@/lib/legacy/legacyAccrual';
 import { guardTick } from './actions/weekly/guardTick';
 import { mindsetEffects } from '@/lib/mindset/effects';
 import { applyResearchWeek } from './actions/RDActions';
@@ -2361,10 +2362,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // so this accrual must only ever ADD. An earlier revision of this comment
  // said "nothing reads this"; that was true before v29 and cost a later
  // audit a false finding - hence the correction.
+ //
+ // LATE-1 (owner decision 2026-10-22): a FLAT grant on every 10th PLAYED
+ // week of this life (`weeksSinceLifeStart`), +2 plus +1 per prestige level.
+ // It used to be `floor(weeksLived/10) + prestigeLevel*2` on the ABSOLUTE
+ // counter - quadratic, so one 18->65 life earned 29,890 LP against a 9,160 LP
+ // tree. The rule lives in `lib/legacy/legacyAccrual.ts`.
  let newLegacyPoints = prevState.legacyPoints || 0;
- if ((nextWeeksLived || 0) > 0 && (nextWeeksLived || 0) % 10 === 0) {
- const pointsEarned = Math.floor((nextWeeksLived || 0) / 10) +
- (prevState.prestige?.prestigeLevel || 0) * 2;
+ const pointsEarned = legacyPointsEarnedThisWeek(
+ weeksSinceLifeStart(nextWeeksLived, prevState.lifeStartWeek),
+ prevState.prestige?.prestigeLevel,
+ );
+ if (pointsEarned > 0) {
  newLegacyPoints += pointsEarned;
  logger.info(`[ENGAGEMENT] Legacy Points earned: +${pointsEarned} (total: ${newLegacyPoints})`);
  }

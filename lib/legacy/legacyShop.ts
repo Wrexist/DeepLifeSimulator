@@ -16,10 +16,12 @@
  * them buy compounding power would make the second generation strictly easier
  * than the first forever, which is prestige's job, not this system's.
  *
- * They are also deliberately cheap relative to accrual. The tick grants
- * `floor(weeksLived/10) + prestigeLevel*2` every ten weeks, so a single
- * 500-week life yields hundreds of points. Pricing them high would just mean
- * the shop is empty for a new player and irrelevant for an old one.
+ * The accrual rate lives in `lib/legacy/legacyAccrual.ts`. Since LATE-1
+ * (2026-10-22) it is a FLAT +2 LP per 10 PLAYED weeks, plus +1 per prestige
+ * level: ~490 LP for an 18 -> 65 life, so the tree below takes many lives.
+ * The history notes that follow describe the old quadratic rate
+ * (`floor(weeksLived/10) + prestigeLevel*2`), which bought the whole tree in
+ * one ordinary life.
  *
  * Purchases are stored as ids on `legacyUpgrades` and carried into the heir,
  * so what you bought is what your heir starts with. Buying is once-per-id:
