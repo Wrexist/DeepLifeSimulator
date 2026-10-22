@@ -69,6 +69,13 @@ export interface EventChoiceEffects {
   policyInfluence?: number; // Change to policy influence
   /** Karma change applied when this choice is selected */
   karma?: { dimension: KarmaDimension; amount: number; reason: string };
+  /**
+   * Dirty dollars this choice adds to `politics.pac.lifetimeDirtyUSD`, the one
+   * corruption currency `scandalProbability` reads (CLAUDE.md v47). Set on a
+   * bribe so the money carries the same scandal heat as laundered PAC money
+   * instead of arriving clean (EVT-15).
+   */
+  politicalDirtyUSD?: number;
 }
 
 /**
@@ -90,7 +97,11 @@ export type EventSpecial =
   | 'fire_from_job'
   | 'add_career_warning'
   | 'lose_vehicle'
-  | 'damage_vehicle';
+  | 'damage_vehicle'
+  /** Partner capital put into `companyId`'s upgrades (EVT-1). */
+  | 'invest_in_company'
+  /** A legal team kills the newest survivable political scandal (EVT-15). */
+  | 'clear_political_scandal';
 
 export interface EventChoice {
   id: string;
@@ -121,6 +132,14 @@ export interface EventChoice {
   vehicleId?: string; // Vehicle removed ('lose_vehicle') or damaged ('damage_vehicle')
   /** Condition points taken off `vehicleId` when special === 'damage_vehicle'. */
   vehicleConditionLoss?: number;
+  /** The company that receives the capital when special === 'invest_in_company'. */
+  companyId?: string;
+  /**
+   * Partner capital, in dollars, when special === 'invest_in_company'. It goes
+   * into the company, never the player's wallet: `investPartnerCapital` spends
+   * it on that company's upgrades (a `Company` has no cash balance to hold it).
+   */
+  investmentUSD?: number;
   /**
    * The effects are a ROLLED outcome, decided when the event was generated.
    * The event screen previews every choice's effects, so a gamble showed its
@@ -1089,16 +1108,32 @@ const politicalScandal: EventTemplate = {
   category: 'general',
   weight: 0.2,
   condition: state => Boolean(state.politics && state.politics.careerLevel > 0),
-  generate: () => ({
-    id: 'political_scandal',
-    description: 'A political scandal threatens your reputation. How do you respond?',
-    choices: [
-      { id: 'deny', text: 'Deny allegations', effects: { stats: { reputation: -15 } } },
-      { id: 'address', text: 'Address it publicly', effects: { money: -5000, stats: { reputation: 5 } } },
-      { id: 'hire_lawyer', text: 'Hire legal team', effects: { money: -10000, stats: { reputation: 0 } } },
-    ],
-  }),
+  generate: state => {
+    // EVT-15: the legal team cost twice what addressing it publicly did and
+    // returned less reputation (0 vs +5), so it was never the right answer. It
+    // is a gamble now: a seeded, life-salted roll decides whether the lawyers
+    // make it go away - and a win also kills the newest active scandal the
+    // politics tick is draining approval with (`clear_political_scandal`).
+    const lawyersWin = payloadRoll(state, 'political_scandal')('legal-team') < LEGAL_TEAM_WIN_CHANCE;
+    return {
+      id: 'political_scandal',
+      description: 'A political scandal threatens your reputation. How do you respond?',
+      choices: [
+        { id: 'deny', text: 'Deny allegations', effects: { stats: { reputation: -15 } } },
+        { id: 'address', text: 'Address it publicly', effects: { money: -5000, stats: { reputation: 5 } } },
+        lawyersWin
+          ? { id: 'hire_lawyer', text: 'Hire a legal team ($10,000) to make it go away', outcomeHidden: true, stake: 10000, special: 'clear_political_scandal', effects: { money: -10000, stats: { reputation: 10 } } }
+          : { id: 'hire_lawyer', text: 'Hire a legal team ($10,000) to make it go away', outcomeHidden: true, stake: 10000, effects: { money: -10000, stats: { reputation: -10 } } },
+      ],
+    };
+  },
 };
+
+/** Chance the legal team in `political_scandal` makes the story disappear. */
+export const LEGAL_TEAM_WIN_CHANCE = 0.5;
+
+/** What `lobbyist_offer` puts in the player's pocket - and on the dirty-money ledger. */
+export const LOBBYIST_BRIBE_USD = 20000;
 
 const electionCampaign: EventTemplate = {
   id: 'election_campaign',
@@ -1187,9 +1222,12 @@ const lobbyistOffer: EventTemplate = {
   condition: state => Boolean(state.politics && state.politics.careerLevel >= 1),
   generate: () => ({
     id: 'lobbyist_offer',
-    description: 'A powerful lobbyist offers to support your campaign in exchange for policy favors.',
+    description: `A powerful lobbyist offers you $${LOBBYIST_BRIBE_USD.toLocaleString('en-US')} in exchange for policy favors. Dirty money like this tends to surface later.`,
     choices: [
-      { id: 'accept', text: 'Accept the offer', effects: { money: 20000, stats: { reputation: -15 } } },
+      // EVT-15: the cash used to arrive clean. It now lands on the same
+      // dirty-money ledger as laundered PAC money, so it raises the weekly
+      // scandal odds for the rest of the life (`scandalProbability`).
+      { id: 'accept', text: 'Take the money', effects: { money: LOBBYIST_BRIBE_USD, stats: { reputation: -15 }, politicalDirtyUSD: LOBBYIST_BRIBE_USD } },
       { id: 'decline', text: 'Decline the offer', effects: { stats: { reputation: 13 } } },
     ],
   }),
@@ -1980,31 +2018,67 @@ const businessPartnership: EventTemplate = {
   id: 'business_partnership',
   category: 'economy',
   weight: 0.25,
-  condition: state => state.companies && state.companies.length > 0,
+  // EVT-1: this paid $10k-$150k of "capital for equity" into the player's
+  // WALLET, took nothing, and came back every 26 weeks. The capital now goes
+  // into one of the player's companies (spent on its upgrades: a `Company` has
+  // no cash balance of its own), once per life, and the event needs a company.
+  oncePerLife: true,
+  condition: state => Array.isArray(state.companies) && state.companies.length > 0,
   generate: (state) => {
-    // ECONOMY FIX: Scale partnership offer with net worth to prevent exploit
-    // At low net worth: Floor ensures minimum $10K (same as before)
-    // At high net worth: Cap ensures maximum $100K (prevents excessive rewards)
-    // Scales proportionally: 2-5% of net worth (maintains usefulness at all levels)
+    // Scaled with net worth: 2-5% of it, floor $10K, cap $100K.
+    const roll = payloadRoll(state, 'business_partnership');
     const currentNetWorth = netWorth(state);
-    const percentage = 0.02 + (payloadRoll(state, 'business_partnership')('pct') * 0.03); // 2-5% of net worth
+    const percentage = 0.02 + (roll('pct') * 0.03);
     const baseOffer = Math.floor(currentNetWorth * percentage);
-    const scaledOffer = Math.max(10000, Math.min(100000, baseOffer)); // Floor $10K, cap $100K
-
-    // Negotiate option gives 50% more (same ratio as before)
+    const scaledOffer = Math.max(10000, Math.min(100000, baseOffer));
     const negotiateOffer = Math.floor(scaledOffer * 1.5);
+    const companies = Array.isArray(state.companies) ? state.companies : [];
+    const company = pickSeeded(companies, roll, 'company');
+    const companyName = company?.name ?? 'your business';
+    // Hidden: a hard bargain lands the bigger cheque or ends the conversation.
+    const partnerAgrees = roll('negotiate') < PARTNER_NEGOTIATION_SUCCESS_CHANCE;
+    // The expansion sequel only follows a deal that actually happened.
+    const sequel = { followUpEventId: 'partnership_expansion', followUpDelayWeeks: 8 };
 
     return {
       id: 'business_partnership',
-      description: `A successful entrepreneur wants to partner with your business. They offer $${scaledOffer.toLocaleString('en-US')} capital for equity.`,
+      description: `A successful entrepreneur believes in ${companyName} and offers to put $${scaledOffer.toLocaleString('en-US')} into it. The money goes into the company's upgrades, not your pocket.`,
       choices: [
-        { id: 'accept', text: 'Accept the partnership', effects: { money: scaledOffer, stats: { reputation: 10 } } },
-        { id: 'negotiate', text: 'Negotiate better terms', effects: { money: negotiateOffer, stats: { reputation: 5 } } },
-        { id: 'decline', text: 'Keep full ownership', effects: { stats: { reputation: -5 } } },
+        {
+          id: 'accept',
+          text: `Take the $${scaledOffer.toLocaleString('en-US')} for ${companyName}`,
+          special: 'invest_in_company',
+          companyId: company?.id,
+          investmentUSD: scaledOffer,
+          ...sequel,
+          effects: { stats: { reputation: 10 } },
+        },
+        partnerAgrees
+          ? {
+              id: 'negotiate',
+              text: 'Push for a bigger investment',
+              outcomeHidden: true,
+              special: 'invest_in_company',
+              companyId: company?.id,
+              investmentUSD: negotiateOffer,
+              ...sequel,
+              effects: { stats: { reputation: 5 } },
+            }
+          : {
+              // The partner walks away: no capital, and word gets around.
+              id: 'negotiate',
+              text: 'Push for a bigger investment',
+              outcomeHidden: true,
+              effects: { stats: { reputation: -5 } },
+            },
+        { id: 'decline', text: 'Keep full control', effects: { stats: { happiness: 3 } } },
       ],
     };
   },
 };
+
+/** Chance the partner in `business_partnership` accepts a counter-offer. */
+export const PARTNER_NEGOTIATION_SUCCESS_CHANCE = 0.5;
 
 const distantRelativeInheritance: EventTemplate = {
   id: 'distant_relative_inheritance',
@@ -2110,16 +2184,53 @@ const carAccident: EventTemplate = {
   category: 'general',
   weight: 0.2,
   condition: state => eventVehicle(state) !== undefined,
-  generate: state => ({
-    id: 'car_accident',
-    description: `Someone hit your parked ${eventVehicle(state)?.name ?? 'car'} and drove off. You have the license plate number.`,
-    choices: [
-      { id: 'police', text: 'Report to police', effects: { money: -100, stats: { reputation: 5 } } },
-      { id: 'insurance', text: 'File insurance claim', effects: { money: -300, stats: { happiness: -5 } } },
-      { id: 'pay', text: 'Pay for repairs yourself', effects: { money: -800, stats: { happiness: -10 } } },
-    ],
-  }),
+  generate: state => {
+    // EVT-18: "Report to police" (-$100, +5 rep) beat both other choices on
+    // every axis, and "File insurance claim" ignored the car's real policy.
+    // The police route is now a seeded gamble on the driver being found, and
+    // the claim is only offered when the car is insured, at what the policy
+    // leaves the player to pay.
+    const roll = payloadRoll(state, 'car_accident');
+    const car = (Array.isArray(state.vehicles) ? state.vehicles : []).find(v => v?.id === eventVehicle(state)?.id);
+    const repair = CAR_ACCIDENT_REPAIR_USD;
+    const driverFound = roll('driver-found') < CAR_ACCIDENT_DRIVER_FOUND_CHANCE;
+    const policy = car?.insurance;
+    const coverage = policy?.active && typeof policy.coveragePercent === 'number' && Number.isFinite(policy.coveragePercent)
+      ? Math.max(0, Math.min(100, policy.coveragePercent)) / 100
+      : 0;
+    const insuredShare = Math.round(repair * (1 - coverage));
+    const choices: EventChoice[] = [
+      {
+        id: 'police',
+        text: 'Report it and wait for the police',
+        outcomeHidden: true,
+        stake: repair + CAR_ACCIDENT_POLICE_FEE_USD,
+        effects: driverFound
+          ? { money: -CAR_ACCIDENT_POLICE_FEE_USD, stats: { reputation: 3 } }
+          : { money: -(repair + CAR_ACCIDENT_POLICE_FEE_USD), stats: { happiness: -10 } },
+      },
+    ];
+    // An insured car claims INSTEAD of paying in full: offering both would put
+    // a strictly worse choice next to the claim.
+    if (coverage > 0) {
+      choices.push({ id: 'insurance', text: `File an insurance claim (you pay $${insuredShare.toLocaleString('en-US')})`, effects: { money: -insuredShare, stats: { happiness: -3 } } });
+    } else {
+      choices.push({ id: 'pay', text: `Pay for repairs yourself ($${repair.toLocaleString('en-US')})`, effects: { money: -repair, stats: { happiness: -5 } } });
+    }
+    return {
+      id: 'car_accident',
+      description: `Someone hit your parked ${eventVehicle(state)?.name ?? 'car'} and drove off. You have the license plate number.`,
+      choices,
+    };
+  },
 };
+
+/** What the hit-and-run repair costs before anyone else pays for it. */
+export const CAR_ACCIDENT_REPAIR_USD = 800;
+/** Report fee for the police route. */
+export const CAR_ACCIDENT_POLICE_FEE_USD = 100;
+/** Chance the police find the driver, whose insurer then pays the repair. */
+export const CAR_ACCIDENT_DRIVER_FOUND_CHANCE = 0.5;
 
 // ============================================
 // FAME EVENTS (when followers > 10k)
@@ -2397,14 +2508,21 @@ const surpriseParty: EventTemplate = {
   category: 'relationship',
   weight: 0.25,
   condition: state => friendsOf(state).length >= 2,
-  generate: () => ({
-    id: 'surprise_party',
-    description: 'Your friends throw a surprise party for you!',
-    choices: [
-      { id: 'enjoy', text: 'Enjoy the party!', effects: { stats: { happiness: 25, energy: -10 } } },
-      { id: 'emotional', text: 'Get emotional', effects: { stats: { happiness: 30 } } },
-    ],
-  }),
+  generate: state => {
+    // EVT-18: "Get emotional" (+30) beat "Enjoy the party" (+25, -10 energy)
+    // outright. Partying all night now costs energy and buys the host's bond;
+    // the quiet thank-you is cheaper on both.
+    const host = pickSeeded(friendsOf(state), payloadRoll(state, 'surprise_party'), 'host');
+    return {
+      id: 'surprise_party',
+      description: `${host?.name ?? 'Your friends'} and the rest of your friends throw a surprise party for you!`,
+      relationId: host?.id,
+      choices: [
+        { id: 'enjoy', text: 'Party until sunrise', effects: { stats: { happiness: 25, energy: -15 }, relationship: 6 } },
+        { id: 'emotional', text: 'Get emotional and thank everyone', effects: { stats: { happiness: 15 } } },
+      ],
+    };
+  },
 };
 
 const phoneLost: EventTemplate = {
@@ -2654,15 +2772,22 @@ const birthdayForgotten: EventTemplate = {
   category: 'relationship',
   weight: 0.2,
   condition: state => friendsOf(state).length >= 1,
-  generate: () => ({
-    id: 'birthday_forgotten',
-    description: "Oh no! You forgot a friend's birthday. It was yesterday!",
-    choices: [
-      { id: 'apologize', text: 'Apologize profusely', effects: { stats: { happiness: -10 } } },
-      { id: 'gift', text: 'Buy an expensive gift', effects: { money: -200, stats: { happiness: -5 } } },
-      { id: 'dinner', text: 'Take them to dinner', effects: { money: -150, stats: { happiness: 5 } } },
-    ],
-  }),
+  generate: state => {
+    // EVT-18: dinner (-$150, +5) beat the gift (-$200, -5) on both axes and no
+    // choice touched the friend. Each one moves that friend's bond now: the
+    // gift repairs the most, dinner is cheaper and nicer for you.
+    const friend = pickSeeded(friendsOf(state), payloadRoll(state, 'birthday_forgotten'), 'friend');
+    return {
+      id: 'birthday_forgotten',
+      description: `Oh no! You forgot ${friend?.name ? `${friend.name}'s` : "a friend's"} birthday. It was yesterday!`,
+      relationId: friend?.id,
+      choices: [
+        { id: 'apologize', text: 'Apologize profusely', effects: { stats: { happiness: -3 }, relationship: -8 } },
+        { id: 'gift', text: 'Buy an expensive gift', effects: { money: -200, stats: { happiness: -2 }, relationship: 6 } },
+        { id: 'dinner', text: 'Take them to dinner', effects: { money: -150, stats: { happiness: 5 }, relationship: 2 } },
+      ],
+    };
+  },
 };
 
 const taxRefund: EventTemplate = {

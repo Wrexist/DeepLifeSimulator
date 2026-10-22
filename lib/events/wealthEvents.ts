@@ -1064,7 +1064,36 @@ const opportunityFund: EventTemplate = {
 };
 
 /**
- * The pack, in the order authored. Spread into `eventTemplates` in engine.ts.
+ * One multiplier on every weight in the pack.
+ *
+ * The 1.3-1.8 weights were calibrated to ~28% of a $120M life's events. By
+ * 2026-10-22 the eligible late-game pool had thinned (jail gates, dead
+ * templates removed, condition fixes) and the pack measured ~70% of a $100M
+ * fixture's events at every age - past the "ordinary life still happens"
+ * ceiling `wealthEvents.test.ts` pins (60%). Nobody saw it because the same
+ * fixture also fired `secret_unlucky_13` on ~40% of its weeks, which diluted
+ * the share; gating that secret (EVT-20) exposed it. Scaling the pack as one
+ * keeps every authored ratio inside it.
+ *
+ * Measured on that fixture ($100M, 240 weeks, age 40): scale 1.0 -> 71% of
+ * events, 0.5 -> 62%, 0.35 -> 55%, 0.25 -> 47% (36 distinct wealth
+ * templates), 0.15 -> 37%. The share is far from linear in the weight because
+ * the rest of a tycoon's eligible pool is small. 0.25 keeps the pack the
+ * largest single source of a tycoon's events with room under the ceiling.
+ */
+export const WEALTH_PACK_WEIGHT_SCALE = 0.25;
+
+const scaleWeight = (t: EventTemplate): EventTemplate => {
+  const w = t.weight;
+  return {
+    ...t,
+    weight: typeof w === 'number' ? w * WEALTH_PACK_WEIGHT_SCALE : (s: GameState) => w(s) * WEALTH_PACK_WEIGHT_SCALE,
+  };
+};
+
+/**
+ * The pack, in the order authored, at its delivered weight. Spread into
+ * `eventTemplates` in engine.ts.
  */
 export const wealthEventTemplates: EventTemplate[] = [
   // A. Business / tycoon dealings
@@ -1120,4 +1149,4 @@ export const wealthEventTemplates: EventTemplate[] = [
   insiderApproach,
   staffLoyaltyTest,
   homelandRequest,
-];
+].map(scaleWeight);

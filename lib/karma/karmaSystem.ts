@@ -205,18 +205,78 @@ export function getKarmaModifiers(karma: KarmaState) {
       karma.score < -15 ? -2 :
       0,
 
-    /** Whether "honest" career paths are available (judge, politician, etc.) */
-    canAccessHonestCareers: karma.dimensions.honesty > -30,
-
-    /** Whether "corrupt" career paths are available (crime boss, etc.) */
-    canAccessCorruptCareers: karma.dimensions.violence < -20,
-
-    /** Reputation gain/loss multiplier */
-    reputationMultiplier:
-      karma.score > 30 ? 1.1 :
-      karma.score < -30 ? 0.85 :
-      1.0,
+    // `canAccessHonestCareers`, `canAccessCorruptCareers` and
+    // `reputationMultiplier` were deleted (LATE-15): computed here, read by
+    // nothing anywhere, so karma promised career gates and a reputation
+    // multiplier the game never applied. Every modifier left in this object
+    // has a production reader, and `karmaEffectLines` describes exactly these.
   };
+}
+
+/**
+ * Weekly scandal odds negative karma adds for an office-holder: 0.1 points per
+ * karma point below zero. Mirrors the karma term of `scandalProbability`
+ * (lib/politics/scandals.ts), which is what the politics tick applies.
+ */
+export function karmaScandalRiskPct(score: number): number {
+  const s = typeof score === 'number' && isFinite(score) ? score : 0;
+  return Math.max(0, -s) * 0.1;
+}
+
+/** One line of what karma is doing to this life right now. */
+export interface KarmaEffectLine {
+  text: string;
+  /** True for a help, false for a hindrance. */
+  upside: boolean;
+}
+
+const pctText = (n: number) => `${Math.round(n * 10) / 10}%`;
+
+/**
+ * What the player's karma ACTUALLY does, generated from the same modifiers the
+ * systems read (LATE-15). Karma moved election odds, bond growth, street-crime
+ * success and scandal risk while no screen showed it; the identity card lists
+ * these lines so a hidden stat stops changing outcomes the player cannot see.
+ * Only non-neutral effects are listed: an empty list means karma is changing
+ * nothing right now.
+ */
+export function karmaEffectLines(karmaIn: KarmaState | null | undefined): KarmaEffectLine[] {
+  // A render path: a partial or missing karma record reads as neutral rather
+  // than throwing on `dimensions.violence`.
+  const karma: KarmaState = {
+    ...INITIAL_KARMA,
+    ...(karmaIn ?? {}),
+    dimensions: { ...INITIAL_KARMA.dimensions, ...(karmaIn?.dimensions ?? {}) },
+  };
+  const m = getKarmaModifiers(karma);
+  const lines: KarmaEffectLine[] = [];
+  if (m.npcTrustMultiplier !== 1) {
+    const pct = Math.round((m.npcTrustMultiplier - 1) * 100);
+    lines.push({
+      text: `Bonds grow ${Math.abs(pct)}% ${pct > 0 ? 'faster' : 'slower'} when you reach out`,
+      upside: pct > 0,
+    });
+  }
+  if (m.politicalApprovalModifier !== 0) {
+    lines.push({
+      text: `${m.politicalApprovalModifier > 0 ? '+' : '-'}${Math.abs(m.politicalApprovalModifier)} points on your election odds`,
+      upside: m.politicalApprovalModifier > 0,
+    });
+  }
+  if (m.crimeSuccessBonus > 0) {
+    lines.push({
+      text: `+${Math.round(m.crimeSuccessBonus * 100)}% success on street jobs (a record of violence)`,
+      upside: true,
+    });
+  }
+  const scandal = karmaScandalRiskPct(karma.score);
+  if (scandal > 0) {
+    lines.push({
+      text: `+${pctText(scandal)} weekly scandal risk while in office`,
+      upside: false,
+    });
+  }
+  return lines;
 }
 
 // ---------------------------------------------------------------------------

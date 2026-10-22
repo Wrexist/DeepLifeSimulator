@@ -151,9 +151,6 @@ describe('Karma audit', () => {
       expect(Number.isFinite(m.npcTrustMultiplier)).toBe(true);
       expect(Number.isFinite(m.crimeSuccessBonus)).toBe(true);
       expect(Number.isFinite(m.politicalApprovalModifier)).toBe(true);
-      expect(Number.isFinite(m.reputationMultiplier)).toBe(true);
-      expect(typeof m.canAccessHonestCareers).toBe('boolean');
-      expect(typeof m.canAccessCorruptCareers).toBe('boolean');
     }
   });
 
@@ -192,19 +189,9 @@ describe('Karma audit', () => {
     expect(mul(-50)).toBeGreaterThan(mul(-90));  // corrupt > ruthless
   });
 
-  it('canAccessHonestCareers: gated on honesty > -30', () => {
-    const lowHonesty = { ...INITIAL_KARMA, dimensions: { ...INITIAL_KARMA.dimensions, honesty: -50 } };
-    expect(getKarmaModifiers(lowHonesty).canAccessHonestCareers).toBe(false);
-    const midHonesty = { ...INITIAL_KARMA, dimensions: { ...INITIAL_KARMA.dimensions, honesty: 0 } };
-    expect(getKarmaModifiers(midHonesty).canAccessHonestCareers).toBe(true);
-  });
-
-  it('canAccessCorruptCareers: gated on violence < -20', () => {
-    const peaceful = { ...INITIAL_KARMA, dimensions: { ...INITIAL_KARMA.dimensions, violence: 0 } };
-    expect(getKarmaModifiers(peaceful).canAccessCorruptCareers).toBe(false);
-    const violent = { ...INITIAL_KARMA, dimensions: { ...INITIAL_KARMA.dimensions, violence: -30 } };
-    expect(getKarmaModifiers(violent).canAccessCorruptCareers).toBe(true);
-  });
+  // `canAccessHonestCareers`, `canAccessCorruptCareers` and
+  // `reputationMultiplier` were deleted (LATE-15): no reader anywhere. Their
+  // absence is pinned in lib/events/__tests__/ownerDecisions20261022.test.ts.
 
   // ── KARMA_ACTIONS catalog ──────────────────────────────────────────────
   it('KARMA_ACTIONS: every entry has dimension, amount, reason', () => {

@@ -13,7 +13,10 @@
  *      || 0) + 1. If weeksAtLow >= 2:
  *        a. Breakup roll. `preRolls.relBreakup[relIdx] <
  *           min(0.4, (30 - score)/100)`. Result: rel = null, -25 happiness
- *           penalty, push 'relationship-breakup' notification.
+ *           penalty, push 'relationship-breakup' notification. A SPOUSE never
+ *           just breaks up (SOC-4): the same roll means they file for divorce
+ *           - rel = null, -40 happiness, `spouseFiledForDivorce`, and the
+ *           caller settles it (`applySpouseFiledDivorce.ts`).
  *        b. ELSE Disappointed roll. `preRolls.relDisappointed[relIdx] < 0.3`.
  *           Result: rel = { ...rel, score-5, weeksAtLow }, -10 happiness
  *           penalty, push 'relationship-disappointed' notification.
@@ -65,7 +68,19 @@ export interface RelationshipHealthResult {
    * standing-drag branch, so a large circle cannot out-earn a small one.
    */
   happinessSupport: number;
+  /**
+   * The spouse ended the marriage this week (SOC-4). `rel` is null, and the
+   * caller owes the divorce: settlement + lawyer fee charged or booked as
+   * arrears, the cooldown stamped, the notification posted.
+   */
+  spouseFiledForDivorce?: boolean;
 }
+
+/**
+ * Happiness lost when a spouse files - the same hit a player-filed divorce
+ * takes (`fileDivorce`), not the -25 of a dating breakup.
+ */
+export const SPOUSE_FILED_HAPPINESS_PENALTY = -40;
 
 /**
  * Score below which a parent / child / friend counts as neglected.
@@ -133,6 +148,15 @@ export function applyRelationshipHealth(
       const disappointedChance = 0.3 * safeDecayMult;
 
       if (!opts.holdBreakup && preRolls.relBreakup[relIdx % preRolls.relBreakup.length] < breakupChance) {
+        // SOC-4: a marriage does not end by quietly deleting the spouse. That
+        // skipped the settlement, the lawyer fee and the divorce cooldown, so a
+        // wealthy player could let a marriage rot instead of filing and keep
+        // everything. A neglected spouse FILES for divorce: the caller runs
+        // the divorce settlement (`spouseFiledDivorceTerms`) in this tick.
+        if (rel.type === 'spouse') {
+          logger.info(`[RELATIONSHIP] ${rel.name} filed for divorce (${rel.relationshipScore}%)`);
+          return { rel: null, happinessPenalty: SPOUSE_FILED_HAPPINESS_PENALTY, happinessSupport: 0, spouseFiledForDivorce: true };
+        }
         logger.info(`[RELATIONSHIP] ${rel.name} broke up due to low relationship (${rel.relationshipScore}%)`);
         ctx.notifications.push({
           id: `relationship-breakup-${rel.id}`,

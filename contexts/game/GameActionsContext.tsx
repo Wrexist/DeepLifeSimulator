@@ -71,7 +71,8 @@ import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
 import { recordMintedCoins } from '@/lib/crypto/operations';
 import { runDarkWebWeeklyTick } from '@/lib/darkweb/weeklyTick';
 import { runPoliticsWeeklyTick } from '@/lib/politics/weeklyTick';
-import { applyOfficeExit } from '@/lib/politics/operations';
+import { addLifetimeDirtyMoney, applyOfficeExit, clearScandalByLegalTeam } from '@/lib/politics/operations';
+import { investPartnerCapital } from './actions/CompanyActions';
 import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // R3-A: hoist the modules previously `require()`'d inside the `nextWeek`
 // updater. The per-call require() lookups were a constant overhead AND the
@@ -188,7 +189,7 @@ import { applyChildAging } from './actions/weekly/applyChildAging';
 import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
-import { clearPromotedSparkMatch, clearOrphanedSparkPromotions } from '@/lib/dating/sparkStats';
+import { bumpSparkLifetimeStat, clearPromotedSparkMatch, clearOrphanedSparkPromotions } from '@/lib/dating/sparkStats';
 import { pregnancyBlocksSplitMessage } from '@/lib/dating/familyPlanning';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import {
@@ -196,6 +197,7 @@ import {
   NEGLECT_HAPPINESS_DRAG,
   NEGLECT_HAPPINESS_DRAG_CAP,
 } from './actions/weekly/applyRelationshipHealth';
+import { settleSpouseFiledDivorce } from './actions/weekly/applySpouseFiledDivorce';
 import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents, dedupePendingEventsById } from './actions/weekly/applyWeeklyEvents';
@@ -1688,6 +1690,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // same way (Program 12). Declared beside the drag so the two stay visible as
  // the pair they are.
  let closeCircleSupportTotal = 0;
+ // SOC-4: the spouse who filed for divorce this week, settled after the pass.
+ let spouseWhoFiled: Relationship | undefined;
+ // Set once the divorce is settled; stamps `lastDivorceWeek` and Spark.
+ let spouseDivorcedThisWeek = false;
  const newBornChildren: Relationship[] = [];
  let newShowBirthPopup = false;
  let birthMessage = '';
@@ -1723,6 +1729,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const happinessPenaltyBefore = relationshipHappinessPenalty;
  const neglectDragBefore = neglectDragTotal;
  const closeCircleSupportBefore = closeCircleSupportTotal;
+ const spouseWhoFiledBefore = spouseWhoFiled;
 
  try {
 
@@ -1810,6 +1817,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   CLOSE_BOND_HAPPINESS_CAP,
   closeCircleSupportTotal + healthResult.happinessSupport,
  );
+ // SOC-4: a neglected spouse files for divorce. Recorded here and SETTLED
+ // after the pass (below), so a pass that fails and rolls back can never
+ // leave a divorce charged for a marriage that is still on the books.
+ if (healthResult.spouseFiledForDivorce) {
+  spouseWhoFiled = current;
+ }
  return healthResult.rel;
  } catch (relEntryErr) {
  // Roll back anything this entry managed to contribute before throwing, so a
@@ -1824,6 +1837,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  relationshipHappinessPenalty = happinessPenaltyBefore;
  neglectDragTotal = neglectDragBefore;
  closeCircleSupportTotal = closeCircleSupportBefore;
+ spouseWhoFiled = spouseWhoFiledBefore;
  // The id read is itself guarded: the entries that reach this catch are by
  // definition malformed, and a throwing getter must not escalate a contained
  // per-entry failure back into a whole-pass one.
@@ -1873,6 +1887,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  relationshipHappinessPenalty = 0;
  neglectDragTotal = 0;
  closeCircleSupportTotal = 0;
+ spouseWhoFiled = undefined;
+ }
+
+ // SOC-4: settle a spouse-filed divorce, only if the marriage really left
+ // the relationship list this week. Same terms `fileDivorce` uses.
+ if (spouseWhoFiled && !processedRelationships.some(r => r?.id === spouseWhoFiled!.id)) {
+  try {
+   const divorce = settleSpouseFiledDivorce(prevState, spouseWhoFiled, weeklyCtx);
+   spouseDivorcedThisWeek = true;
+   logger.info('[RELATIONSHIP] Spouse filed for divorce:', divorce);
+  } catch (divorceErr) {
+   logger.error('[RELATIONSHIP] Spouse-filed divorce settlement failed:', divorceErr);
+  }
  }
 
  // Applied outside the try: a throw mid-pass resets the accumulators above, so
@@ -2679,6 +2706,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // cannot be re-approached. Reconcile against the relationships this tick
  // actually produced. No-op (same object) when nothing is stale.
  sparkAppNext = clearOrphanedSparkPromotions(sparkAppNext, processedRelationships);
+ // A spouse-filed divorce is a divorce on the Spark record too (SOC-4).
+ if (spouseDivorcedThisWeek) {
+   sparkAppNext = bumpSparkLifetimeStat(sparkAppNext, 'totalDivorces');
+ }
 
  // In-game subscription auto-renew billing (Pulse Verified Pro + Spark
  // Premium). These are paid from cash - NOT real App Store IAPs - so the weekly
@@ -3505,6 +3536,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  },
  socialMedia: pulseSocialMedia,
  sparkApp: sparkAppNext,
+ // SOC-4: a spouse-filed divorce starts the same cooldown `fileDivorce` does.
+...(spouseDivorcedThisWeek && { lastDivorceWeek: nextWeeksLived }),
  hustleApp: hustleAppNext,
  // Same reference as prevState.userProfile unless a Verified Pro renewal lapsed
  // this tick (then verified is cleared) - no-op for saves with no active sub.
@@ -4538,6 +4571,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    }
  }
 
+ // A business partner's capital (EVT-1). It goes into the named company's
+ // upgrades, never the player's wallet; a company sold since the event was
+ // generated simply receives nothing.
+ let companiesFromEvent: Pick<GameState, 'companies' | 'company'> | undefined;
+ if (choice.special === 'invest_in_company' && typeof choice.companyId === 'string' && typeof choice.investmentUSD === 'number') {
+   const invested = investPartnerCapital(prevState, choice.companyId, choice.investmentUSD);
+   if (invested.next) {
+     companiesFromEvent = { companies: invested.next.companies, company: invested.next.company };
+     logger.info('Partner capital invested:', { companyId: choice.companyId, spentUSD: invested.spentUSD, levels: invested.levelsBought });
+   }
+ }
+
  // Determine event category (needed for consequence tracking)
  const seasonalEventIds = ['spring_festival', 'garden_event', 'beach_party', 'summer_sale', 'harvest_festival', 'career_fair', 'winter_holidays', 'new_year', 'valentines_day', 'halloween', 'christmas', 'easter_egg_hunt', 'spring_cleaning', 'summer_music_festival', 'national_holiday', 'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'];
  const economicEventIds = ['economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift', 'economic_event_end'];
@@ -4759,6 +4804,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
+ // EVT-15: a bribe taken through an event lands on the same dirty-money
+ // ledger as laundered PAC money, so it feeds `scandalProbability`; and a
+ // legal team that won its gamble kills the newest survivable scandal.
+ if (effects.politicalDirtyUSD && effectsAffordable) {
+   const politicsBase = updatedPolitics ?? prevState.politics;
+   if (politicsBase) updatedPolitics = addLifetimeDirtyMoney(politicsBase, effects.politicalDirtyUSD);
+ }
+ if (choice.special === 'clear_political_scandal') {
+   const politicsBase = updatedPolitics ?? prevState.politics;
+   if (politicsBase) {
+     const cleared = clearScandalByLegalTeam(politicsBase);
+     if (cleared !== politicsBase) updatedPolitics = cleared;
+   }
+ }
+
  // CRITICAL: Return complete state with all properties preserved
  // Use spread operator to ensure we don't lose any properties
  const newState: GameState = {
@@ -4798,6 +4858,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...(updatedCareersFromEvent!== prevState.careers && { careers: updatedCareersFromEvent }),
 ...(updatedVehicles !== prevState.vehicles && { vehicles: updatedVehicles, activeVehicleId: updatedActiveVehicleId }),
 ...(updatedLoansFromEvent !== prevState.loans && { loans: updatedLoansFromEvent }),
+...(companiesFromEvent ?? {}),
  };
 
  // Clear the resolving flag after a delay

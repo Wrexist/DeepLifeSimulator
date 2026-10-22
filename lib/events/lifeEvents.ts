@@ -94,14 +94,12 @@ export const CHAINED_EVENTS: ChainedEvent[] = [
     condition: 'released_statement',
   },
   
-  // Business partnership can chain to expansion
-  {
-    triggerEventId: 'business_partnership',
-    followUpEventId: 'partnership_expansion',
-    delayWeeks: 8,
-    condition: 'accepted_partnership',
-  },
-  
+  // `business_partnership` -> `partnership_expansion` is NOT registered here
+  // any more: its sequel is declared on the choices that actually close a deal
+  // (`followUpEventId`). Keyed on the choice id, a negotiation the partner
+  // walked away from would still have opened with "Your partnership is
+  // thriving!" (EVT-1).
+
   // Fitness challenge can chain to achievement
   {
     triggerEventId: 'fitness_challenge',
@@ -171,10 +169,13 @@ export const FOLLOW_UP_EVENTS = {
   
   partnership_expansion: {
     id: 'partnership_expansion',
-    description: 'Your partnership is thriving! Your partner proposes expanding to new markets.',
+    // EVT-16: "Fund the expansion" cost $50,000 for +15 reputation and changed
+    // nothing else - no revenue, no valuation, no stake. A flavour beat now: no
+    // cost, until the partnership is a real company stake.
+    description: 'Your partnership is thriving! Your partner wants to take the business to new markets and asks you to front the launch.',
     choices: [
-      { id: 'expand', text: 'Fund the expansion', effects: { money: -50000, stats: { reputation: 15 } } },
-      { id: 'cautious', text: 'Stay conservative', effects: { stats: { happiness: 5 } } },
+      { id: 'expand', text: 'Front the launch yourself', effects: { stats: { reputation: 8, energy: -10 } } },
+      { id: 'cautious', text: 'Let your partner run with it', effects: { stats: { happiness: 5 } } },
     ],
   },
   
@@ -214,7 +215,6 @@ export function checkForChainedEvent(
     accepted_interview: ['accept'],
     did_tests: ['tests', 'basic'],
     released_statement: ['statement'],
-    accepted_partnership: ['accept', 'negotiate'],
     accepted_challenge: ['accept'],
     volunteered: ['volunteer'],
   };

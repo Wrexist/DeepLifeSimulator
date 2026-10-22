@@ -42,8 +42,10 @@ describe('applyRelationshipHealth - pre-roll index wrap', () => {
 
     const result = applyRelationshipHealth(lowSpouse as never, 21, ctx);
 
-    expect(result.rel).toBeNull(); // broke up — pre-fix it read undefined and survived
-    expect(ctx.notifications.some(n => n.id.startsWith('relationship-breakup-'))).toBe(true);
+    expect(result.rel).toBeNull(); // left — pre-fix it read undefined and survived
+    // A spouse does not "break up": they file for divorce, which the caller
+    // settles and announces (SOC-4).
+    expect(result.spouseFiledForDivorce).toBe(true);
   });
 
   it('a spouse past the buffer can still become disappointed (idx 21 wrap)', () => {
