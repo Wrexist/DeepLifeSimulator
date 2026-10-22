@@ -16,13 +16,27 @@ export const YOUTH_PILL_AGE = 18;
  * `date.age` is the ticking age (the week loop advances it). The modal also
  * used to write `userProfile.age`, which is not a `UserProfile` field and has
  * no reader, so it is no longer written.
+ *
+ * v57 (CMP-11): the pill ALSO sets `ageOffsetWeeks` to the current
+ * `weeksLived`. `getAge` derives the age from that counter on every v43+ save
+ * and subtracts the offset, so the character is 18 on every card and to every
+ * system that asks (pension, Elder card, chapter age goals, old-age events),
+ * not just on the HUD. Overwritten rather than added to: a second pill resets
+ * to 18 from wherever the character is now, the same as the first.
  */
 export function applyYouthPill(prev: GameState): GameState {
   const pills = Number.isFinite(prev.youthPills) ? prev.youthPills : 0;
   if (pills <= 0) return prev;
+  const weeksLived =
+    typeof prev.weeksLived === 'number' && Number.isFinite(prev.weeksLived) && prev.weeksLived > 0
+      ? prev.weeksLived
+      : 0;
   return {
     ...prev,
     youthPills: pills - 1,
+    // `weeksLived` counts from the 18th birthday and `YOUTH_PILL_AGE` IS 18, so
+    // the whole counter comes off: getAge = 18 + (weeksLived - offset) / 52.
+    ageOffsetWeeks: weeksLived,
     date: { ...prev.date, age: YOUTH_PILL_AGE },
   };
 }

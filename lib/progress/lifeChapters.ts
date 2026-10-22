@@ -138,7 +138,22 @@ export function getAge(state: GameState | undefined | null): number {
     return storedAge;
   }
 
-  return ageFromWeeksLived(state.weeksLived);
+  // v57: weeks a Youth Pill took off (CMP-11). `weeksLived` is absolute and
+  // never moves back, so the pill records an offset instead of rewriting the
+  // counter; every reader of the age (pension, Elder card, chapter age goals,
+  // old-age events) sees the pill because they all come through here.
+  return ageFromWeeksLived(num(state.weeksLived) - ageOffsetWeeks(state));
+}
+
+/**
+ * The weeks a Youth Pill has taken off this life's age (v57 carve-out:
+ * absent = 0). Clamped to `[0, weeksLived]` so a corrupt value can never make
+ * the character younger than 18 or older than the counter says.
+ */
+export function ageOffsetWeeks(state: GameState | undefined | null): number {
+  const offset = num(state?.ageOffsetWeeks);
+  if (offset <= 0) return 0;
+  return Math.min(offset, Math.max(0, num(state?.weeksLived)));
 }
 
 /** Money EARNED in this life. Starts at 0 every life; only increases. */
