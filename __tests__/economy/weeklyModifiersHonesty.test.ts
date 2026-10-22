@@ -85,10 +85,13 @@ describe('C-4 - no weekly tick applies a low-health penalty', () => {
     const loop = read('contexts/game/GameActionsContext.tsx');
 
     // A single unconditional decay term is the whole of it. The Mindset factor
-    // (a Workaholic's 1.2) is a property of the LIFE, not of how low health is.
+    // (a Workaholic's 1.2) is a property of the LIFE, not of how low health is,
+    // and so is the ONB-2 perk shield: it reads the perk flags and the weeks
+    // into the life (lib/economy/perkDecayShield.ts), never the health value.
     expect(loop).toMatch(
-      /newStats\.health = Math\.max\(0, \(newStats\.health \|\| 0\) - effectiveDecayRate \* 0\.6 \* mindsetMods\.healthDecay\)/,
+      /newStats\.health = Math\.max\(0, \(newStats\.health \|\| 0\) - effectiveDecayRate \* 0\.6 \* mindsetMods\.healthDecay \* perkShield\.health\)/,
     );
+    expect(loop).toMatch(/const perkShield = perkDecayFactors\(prevState\);/);
   });
 });
 
