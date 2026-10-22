@@ -30,7 +30,22 @@ export interface RenderResult {
 /** Copy rendered by `ProviderBoundary`'s fallback — see contexts/ProviderBoundary. */
 const BOUNDARY_CRASH_MARKER = 'Game Initialization Error';
 
+/**
+ * Copy rendered by the app-level `ErrorBoundary` (components/ErrorBoundary).
+ * Since audit SAVE-2 that boundary sits inside GameActionsProvider, so a
+ * crash in the rendered screen lands HERE rather than on a ProviderBoundary -
+ * and must fail the harness just the same.
+ */
+const APP_BOUNDARY_CRASH_MARKER = 'Something went wrong';
+
 function throwIfBoundaryCaught(json: string): void {
+  if (json.includes(APP_BOUNDARY_CRASH_MARKER)) {
+    const message = /"(Element type is invalid[^"]*|[^"]*is not a function[^"]*|[^"]*Cannot read properties[^"]*)"/.exec(json)?.[1] ?? '';
+    throw new Error(
+      `renderWithProviders: the tree crashed and the app ErrorBoundary caught it - ` +
+        `the screen did not render.\n${message}`
+    );
+  }
   if (!json.includes(BOUNDARY_CRASH_MARKER)) return;
   // Pull the failing component + message out of the serialized fallback so the
   // test failure names the real cause instead of "expected true to be false".

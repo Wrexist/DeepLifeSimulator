@@ -39,7 +39,7 @@ import {
   initializeAndSaveGame,
 } from '@/src/features/onboarding/gameInitializer';
 import { resolveNewLifeSlot } from '@/src/features/onboarding/slotSafety';
-import { snapshotOutgoingSave, createBackupFromState } from '@/utils/saveBackup';
+import { snapshotOutgoingSave, createBackupFromState, clearProtectedState } from '@/utils/saveBackup';
 import { logOnboardingValidationError } from '@/src/features/onboarding/onboardingAnalytics';
 import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
@@ -175,6 +175,7 @@ export function useStartLife() {
           isSaveSigningConfigError,
           resolveNewLifeSlot,
           snapshotOutgoingSave,
+          clearProtectedState,
         });
 
         if (!result.success) {

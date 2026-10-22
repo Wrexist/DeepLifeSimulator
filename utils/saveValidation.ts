@@ -1058,6 +1058,19 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // A null/non-object hole in family.children crashed validateRelationshipState
+  // (`child.id`) on load AND on every save, so the life could neither load nor
+  // save. Drop the holes; a non-object entry carries no child to keep.
+  if (s.family && typeof s.family === 'object' && Array.isArray(s.family.children)) {
+    const kids: unknown[] = s.family.children;
+    const kept = kids.filter((c) => !!c && typeof c === 'object');
+    if (kept.length !== kids.length) {
+      s.family = { ...s.family, children: kept };
+      repairs.push(`Removed ${kids.length - kept.length} malformed family.children entr${kids.length - kept.length === 1 ? 'y' : 'ies'}`);
+      repaired = true;
+    }
+  }
+
   // P1-12: clamp a tampered/corrupt credit score into the real FICO range [300, 850].
   // The loan-APR adjustment already clamps at use (amortization.ts:84), but the loan/card
   // eligibility gates (operations.ts:194,498) and the UI read banking.creditScore.score
@@ -2503,6 +2516,19 @@ export async function doubleBufferSave(
       };
     }
 
+    // Retire the legacy single-key save now that a verified buffer is
+    // committed. The migration in doubleBufferLoad kept it "as extra fallback
+    // until next successful save", and nothing ever removed it - so months
+    // later, if both buffers failed verification, the load quietly resurrected
+    // that months-old life, re-wrapped it into buffer A, and the next autosave
+    // made the rollback permanent. Best-effort: a failure here leaves the old
+    // behaviour, never a lost save. 2026-10-21 audit SAVE-9.
+    try {
+      await storage.removeItem(slotKey);
+    } catch (legacyRemoveError) {
+      logger.warn('[DOUBLE_BUFFER] Could not retire legacy key (non-critical)', { error: legacyRemoveError });
+    }
+
     return { success: true, buffer: inactiveBuffer };
   } catch (error) {
     return {
@@ -2784,6 +2810,19 @@ export async function deleteSaveSlot(
     `checkpoint_sidecar_slot_${slot}`,
   ];
   await storage.multiRemove(keysToRemove);
+
+  // Pending and journalled writes for this slot belong to the life just
+  // deleted; a startup replay would otherwise resurrect it (audit SAVE-8).
+  // Dynamic import: saveQueue imports this module. Best-effort and guarded,
+  // because a test double of saveQueue may not implement it.
+  try {
+    const { saveQueue } = await import('@/utils/saveQueue');
+    if (saveQueue && typeof saveQueue.discardSlot === 'function') {
+      await saveQueue.discardSlot(slot);
+    }
+  } catch (error) {
+    logger.warn('[deleteSaveSlot] Could not discard queued saves for slot (non-critical)', { slot, error });
+  }
 }
 
 /**
