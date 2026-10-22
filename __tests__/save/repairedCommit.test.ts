@@ -11,10 +11,15 @@
 import { repairedCommit, repairGameState } from '@/utils/saveValidation';
 import { createTestGameState } from '../helpers/createTestGameState';
 
-/** A state repairGameState is known to fix (it backfills a missing `loans`). */
+/**
+ * A state repairGameState is known to fix: it backfills a missing `goals`
+ * (a required array with a concrete `[]` default). This used `loans` until
+ * v57, which stopped treating an absent `loans` as corruption (VIS-27) -
+ * it is optional, has no default, and every reader guards it.
+ */
 function corrupt() {
   const s = createTestGameState({ lastEventWeeksLived: 0 });
-  delete (s as { loans?: unknown }).loans;
+  delete (s as { goals?: unknown }).goals;
   return s;
 }
 
@@ -31,8 +36,8 @@ describe('repairedCommit', () => {
     const next = repairedCommit(committed, committed, clone);
     expect(next).toBe(clone);
     expect(next).not.toBe(committed);
-    expect(committed.loans).toBeUndefined();
-    expect(Array.isArray(next.loans)).toBe(true);
+    expect(committed.goals).toBeUndefined();
+    expect(Array.isArray(next.goals)).toBe(true);
   });
 
   it('repairs a newer state on a clone when the state has moved on', () => {
@@ -44,8 +49,8 @@ describe('repairedCommit', () => {
     const next = repairedCommit(newer, committed, clone);
     expect(next).not.toBe(newer);
     expect(next).not.toBe(clone);
-    expect(Array.isArray(next.loans)).toBe(true);
-    expect(newer.loans).toBeUndefined();
+    expect(Array.isArray(next.goals)).toBe(true);
+    expect(newer.goals).toBeUndefined();
   });
 
   it('returns prev unchanged when the newer state needs nothing', () => {

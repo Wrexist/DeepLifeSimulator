@@ -1536,6 +1536,7 @@ exports[`pre-tick equivalence - applyDeathRibbon edge case (death first fire): c
 {
   "legacyBonus": 0,
   "partial": {
+    "deathRibbonPaidForLife": ":1",
     "ribbonCollection": [
       {
         "earnedAt": 100,
