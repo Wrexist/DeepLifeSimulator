@@ -6,55 +6,68 @@ import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('FamilyBusinessActions');
 
+/** One-time price of turning a company into a family business. The screen imports it. */
+export const FAMILY_BUSINESS_COST = 1_000_000;
+
+/**
+ * PURE: what founding a family business on `companyId` does to `state`, and
+ * what to tell the player. Returns `state` itself on every refusal, so the
+ * updater below can use it directly and a same-batch double tap is a no-op
+ * (C-10 shape: the message and the commit come from one function).
+ */
+export function resolveCreateFamilyBusiness(
+  state: GameState,
+  companyId: string,
+): { success: boolean; message: string; next: GameState } {
+  const company = state.companies.find(c => c.id === companyId);
+  if (!company) {
+    return { success: false, message: 'Company not found.', next: state };
+  }
+  if (state.familyBusinesses?.some(fb => fb.companyId === companyId)) {
+    return { success: false, message: `${company.name} is already a family business.`, next: state };
+  }
+  const cost = FAMILY_BUSINESS_COST;
+  // ATOMICITY: the $1M debit and the familyBusinesses append land in ONE
+  // object (mirrors createCompany). The old code charged via a separate
+  // updateMoney and appended unconditionally, so a double tap charged once and
+  // granted twice.
+  const spend = applyMoneyDelta(state, -cost, 'Create Family Business');
+  if (!spend) {
+    return { success: false, message: `You need ${formatMoney(cost)} to make ${company.name} a family business.`, next: state };
+  }
+  const newFamilyBusiness: FamilyBusiness = {
+    companyId,
+    foundedGeneration: state.generationNumber,
+    generationsHeld: 0,
+    brandValue: 0,
+    reputation: 50, // Start with neutral reputation
+  };
+  return {
+    success: true,
+    message: `${company.name} is now a family business. It will pass to your heir.`,
+    next: {
+      ...state,
+      ...spend,
+      familyBusinesses: [...(state.familyBusinesses || []), newFamilyBusiness],
+    },
+  };
+}
+
 export const createFamilyBusiness = (
   gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
-  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  /** Unused - charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
   _deps?: { updateMoney: typeof updateMoney }
-) => {
-  const company = gameState.companies.find(c => c.id === companyId);
-  if (!company) {
-    log.error(`Company ${companyId} not found`);
-    return;
+): { success: boolean; message: string } => {
+  const { success, message } = resolveCreateFamilyBusiness(gameState, companyId);
+  if (!success) {
+    log.warn(`Family business refused for ${companyId}: ${message}`);
+    return { success, message };
   }
-
-  if (gameState.familyBusinesses?.some(fb => fb.companyId === companyId)) {
-    log.warn(`Company ${companyId} is already a family business`);
-    return;
-  }
-
-  const cost = 1000000;
-  if (gameState.stats.money < cost) {
-    log.warn('Insufficient funds to create family business');
-    return;
-  }
-
-  // ATOMICITY FIX: fold the $1M debit and the familyBusinesses append into ONE
-  // functional updater that reads `prev` (mirrors createCompany). The previous
-  // code charged via a separate updateMoney call and then appended the business
-  // UNCONDITIONALLY - so a same-batch double-tap (or a concurrent spend) charged
-  // once (overdraft reject) while BOTH appends ran, granting a free, duplicated
-  // family business and corrupting state with a duplicate companyId.
-  setGameState(prev => {
-    if (prev.familyBusinesses?.some(fb => fb.companyId === companyId)) return prev; // dedup vs fresh state
-    const spend = applyMoneyDelta(prev, -cost, 'Create Family Business');
-    if (!spend) return prev; // unaffordable against fresh state → reject
-    const newFamilyBusiness: FamilyBusiness = {
-      companyId,
-      foundedGeneration: prev.generationNumber,
-      generationsHeld: 0,
-      brandValue: 0,
-      reputation: 50, // Start with neutral reputation
-    };
-    return {
-      ...prev,
-      ...spend,
-      familyBusinesses: [...(prev.familyBusinesses || []), newFamilyBusiness],
-    };
-  });
-
+  setGameState(prev => resolveCreateFamilyBusiness(prev, companyId).next);
   log.info(`Created family business for company ${companyId}`);
+  return { success, message };
 };
 
 export type FamilyBusinessManageAction = 'marketing' | 'branding' | 'reputation';

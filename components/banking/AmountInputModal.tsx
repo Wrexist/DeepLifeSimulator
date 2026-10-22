@@ -1,4 +1,4 @@
-import AmountSlider from '@/components/ui/AmountSlider';
+import AmountSlider, { plainAmountText } from '@/components/ui/AmountSlider';
 import { uiPalette , getThemeColors, accent } from '@/lib/config/theme';
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
@@ -43,6 +43,7 @@ export default function AmountInputModal({
   subtitle,
   confirmLabel = 'Confirm',
   maxAmount,
+  presets,
   allowZero = false,
   currency = 'usd',
   darkMode,
@@ -59,6 +60,13 @@ export default function AmountInputModal({
   useEffect(() => {
     if (visible) setText('');
   }, [visible]);
+
+  // Caller-tuned quick amounts (APP-6): 26 call sites passed these - a goal's
+  // weekly/fortnightly/monthly saving, BTC chips - and none was ever rendered.
+  // Only finite, positive, affordable ones are offered.
+  const presetChips = (presets ?? []).filter(
+    (p, i, all) => Number.isFinite(p) && p > 0 && (maxAmount == null || p <= maxAmount) && all.indexOf(p) === i,
+  );
 
   const amount = parseAmount(text);
   const valid = amount !== null && (allowZero ? amount >= 0 : amount > 0) && (maxAmount == null || amount <= maxAmount);
@@ -88,6 +96,25 @@ export default function AmountInputModal({
           <View style={[styles.inputWrap, { borderColor: valid || text === '' ? theme.border : accent.danger, backgroundColor: theme.surfaceElevated }]}>
             <AmountSlider value={text} onChangeText={setText} accessibilityLabel={`${title} amount in ${isBtc ? 'bitcoin' : 'dollars'}`} maxAmount={maxAmount} unit={unitPrefix} precision={isBtc ? 8 : 2} darkMode={darkMode} />
           </View>
+
+          {presetChips.length > 0 && (
+            <View style={styles.presets}>
+              {presetChips.map((p) => {
+                const label = formatAmount(isBtc ? p : Math.round(p * 100) / 100);
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    onPress={() => setText(plainAmountText(isBtc ? p : Math.round(p * 100) / 100))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Use ${label}`}
+                    style={[styles.preset, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+                  >
+                    <Text style={[styles.presetText, { color: theme.text }]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {text.trim() !== '' && amount === null && (
             <Text accessibilityRole="alert" style={styles.error}>Enter a valid amount, such as 1,000.50.</Text>

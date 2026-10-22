@@ -673,7 +673,7 @@ export function buyAccessory(
       gamingStreaming: { ...ch, equipment: { ...ch.equipment, [id]: true } },
     };
   });
-  return { success: true, message: `${String(id)} acquired.` };
+  return { success: true, message: `${ACCESSORY_LABELS[id] ?? String(id)} bought.` };
 }
 
 export function upgradePCComponent(
@@ -688,7 +688,7 @@ export function upgradePCComponent(
   // the upgrade is a no-op for quality/earnings, so charging for it would be a
   // pure money sink. Refuse BEFORE any debit - never charge on a failure path.
   if (currentTier >= MAX_PC_TIER) {
-    return { success: false, message: `${String(id)} is maxed (tier ${MAX_PC_TIER}).` };
+    return { success: false, message: `${PC_LABELS[id] ?? String(id)} is maxed (tier ${MAX_PC_TIER}).` };
   }
   const nextTier = currentTier + 1;
   const cost = Math.round(basePrice * Math.pow(2, currentTier));
@@ -716,8 +716,30 @@ export function upgradePCComponent(
       },
     };
   });
-  return { success: true, message: `${String(id)} → tier ${nextTier}.`, newTier: nextTier };
+  return { success: true, message: `${PC_LABELS[id] ?? String(id)} upgraded to tier ${nextTier}.`, newTier: nextTier };
 }
+
+// Player-facing names, next to the prices (APP-14): the toasts used to print
+// the raw keys ("gamingChair acquired.", "psu → tier 2.").
+export const ACCESSORY_LABELS: Record<keyof GamingStreamingState['equipment'], string> = {
+  microphone: 'Microphone',
+  webcam: 'Webcam',
+  gamingChair: 'Gaming chair',
+  greenScreen: 'Green screen',
+  lighting: 'Studio lights',
+};
+
+export const PC_LABELS: Record<keyof GamingStreamingState['pcUpgradeLevels'], string> = {
+  cpu: 'CPU',
+  gpu: 'GPU',
+  ram: 'RAM',
+  ssd: 'SSD',
+  motherboard: 'Motherboard',
+  cooling: 'Cooling',
+  psu: 'Power supply',
+  case: 'Case',
+  network: 'Network',
+};
 
 // Pricing helpers re-exported for the UIs.
 export const ACCESSORY_PRICES: Record<keyof GamingStreamingState['equipment'], number> = {

@@ -139,6 +139,9 @@ const STAKING_RATES: Record<number, number> = { 1: 0.001, 2: 0.0015, 3: 0.002, 4
 // (the top 3 were defined in the economy but missing from this UI).
 // `hashrate` (TH/s) is a fixed per-model hardware spec used only for display
 // (a mining rig's headline number) - it is NOT game state and drives nothing.
+/** A rig at or above this price asks before it is bought. */
+const MINER_CONFIRM_THRESHOLD = 10_000;
+
 const MINER_TIERS: { id: string; label: string; weeklyEarnings: number; hashrate: number }[] = [
   { id: 'basic',      label: 'Basic Miner',      weeklyEarnings: 22,     hashrate: 95 },
   { id: 'advanced',   label: 'Advanced Miner',   weeklyEarnings: 105,    hashrate: 420 },
@@ -357,16 +360,25 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     stopPrice?: number;
   }) => {
     if (!orderCoin) return;
+    let outcome: { ok: boolean; message: string } | null = null;
     if (input.type === 'market') {
-      if (input.side === 'buy') buyCryptoMarket(setGameState, orderCoin.id, input.amount);
-      else sellCryptoMarket(setGameState, orderCoin.id, input.amount);
+      outcome = input.side === 'buy'
+        ? buyCryptoMarket(setGameState, orderCoin.id, input.amount, gameState)
+        : sellCryptoMarket(setGameState, orderCoin.id, input.amount, gameState);
     } else if (input.type === 'limit' && input.limitPrice != null) {
-      placeLimitOrder(setGameState, orderCoin.id, input.side, input.amount, input.limitPrice);
+      outcome = placeLimitOrder(setGameState, orderCoin.id, input.side, input.amount, input.limitPrice, gameState);
     } else if (input.type === 'stop' && input.stopPrice != null) {
-      placeStopOrder(setGameState, orderCoin.id, input.side, input.amount, input.stopPrice);
+      outcome = placeStopOrder(setGameState, orderCoin.id, input.side, input.amount, input.stopPrice, gameState);
+    }
+    if (!outcome) return;
+    // Say what happened either way (APP-8); a refusal keeps the sheet open.
+    if (!outcome.ok) {
+      gameAlert('Order not placed', outcome.message);
+      return;
     }
     queueSave();
     setOrderCoin(null);
+    gameAlert(input.type === 'market' ? 'Order filled' : 'Order placed', outcome.message);
   };
 
   const handleBuyMiner = (tierId: string) => {
@@ -375,6 +387,20 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       gameAlert('Not enough money', `You need ${formatMoneyCompact(price)} to buy this miner.`);
       return;
     }
+    // Rigs run to $50M and resell at half, while selling one already asked
+    // first. A big buy asks too (APP-10): over $10K or a tenth of your cash.
+    if (price >= MINER_CONFIRM_THRESHOLD || price > cash * 0.1) {
+      const label = MINER_TIERS.find((t) => t.id === tierId)?.label ?? 'rig';
+      gameAlert('Buy rig', `Buy one ${label} for ${formatMoneyCompact(price)}? You'll have ${formatMoneyCompact(cash - price)} left. Rigs sell back for half.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Buy', onPress: () => commitBuyMiner(tierId, price) },
+      ]);
+      return;
+    }
+    commitBuyMiner(tierId, price);
+  };
+
+  const commitBuyMiner = (tierId: string, price: number) => {
     setGameState((prev) => {
       // Atomic gate: re-check affordability against prev. The old
       // Math.max(0, money - price) clamp let a same-batch double-tap grant a

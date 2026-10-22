@@ -150,6 +150,37 @@ export function endRental(
   return result;
 }
 
+const signed = (n: number): string => `${n >= 0 ? '+' : ''}${n}`;
+const dollars = (n: number): string => `$${Math.round(n).toLocaleString('en-US')}`;
+
+/**
+ * What a confirmation should say before moving out (APP-3): the weekly stats
+ * the home was giving, and that arrears do not leave with you. Null when not
+ * renting (there is nothing to confirm). Pure, so the screens and tests agree.
+ */
+export function moveOutWarning(state: GameState): string | null {
+  const tier = getRentalTier(state.rental?.tierId);
+  if (!state.rental || !tier) return null;
+  const parts = [
+    `Leaving the ${tier.name} ends its weekly ${signed(tier.health)} health, ${signed(tier.energy)} energy and ${signed(tier.happiness)} happiness, and you will have nowhere to live.`,
+  ];
+  const owed = state.overdueBalance ?? 0;
+  if (owed > 0) parts.push(`Moving out does not clear the ${dollars(owed)} you owe.`);
+  return parts.join(' ');
+}
+
+/**
+ * What a confirmation should say before swapping one tenancy for another
+ * (APP-3). Null when not currently renting, or when `tierId` is already home -
+ * a first signing is its own confirmation (the card shows the rent).
+ */
+export function switchTierWarning(state: GameState, tierId: string): string | null {
+  const from = getRentalTier(state.rental?.tierId);
+  const to = getRentalTier(tierId);
+  if (!state.rental || !from || !to || from.id === to.id) return null;
+  return `Move from the ${from.name} to the ${to.name}? Rent goes from ${dollars(from.weeklyRent)} to ${dollars(to.weeklyRent)} a week, and the first week (${dollars(to.weeklyRent)}) is due now. Per week: health ${signed(from.health)} to ${signed(to.health)}, energy ${signed(from.energy)} to ${signed(to.energy)}, happiness ${signed(from.happiness)} to ${signed(to.happiness)}.`;
+}
+
 /** One row of the Rent screen: the tier, whether it is home, and the verdict. */
 export interface RentalOption extends LettingVerdict {
   tier: RentalTier;

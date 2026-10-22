@@ -1234,10 +1234,27 @@ export const cancelSparkPremium = (
 // Boost
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * The week a running boost expires, or null when none is running. The same
+ * test the updater uses to refuse a second boost, so the screen and the
+ * outer check can never promise a purchase the updater then rejects (APP-5).
+ */
+export function activeBoostExpiresWeek(state: GameState): number | null {
+  const boost = state.sparkApp?.boost;
+  const expires = boost?.expiresWeek ?? 0;
+  return boost?.active && expires > (state.weeksLived ?? 0) ? expires : null;
+}
+
 export const boostProfile = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
 ): { success: boolean; message: string } => {
+  // APP-5: this used to report success while the updater silently refused a
+  // second boost - a success haptic and a closed sheet for nothing.
+  const runningUntil = activeBoostExpiresWeek(gameState);
+  if (runningUntil !== null) {
+    return { success: false, message: 'Your boost is already running.' };
+  }
   if ((gameState.stats?.gems ?? 0) < BOOST_GEM_COST) {
     return { success: false, message: `Need ${BOOST_GEM_COST} gems to boost` };
   }

@@ -68,7 +68,7 @@ const DECLARED: Record<string, string> = {
   // ── UI / dev tooling ─────────────────────────────────────────────────────
   'components/TopStatsBar.tsx': 'quick actions scale explicitly with `scaledHappinessGain` inside their updater.',
   'components/computer/TravelApp.tsx': 'display preview of a trip total; the commit goes through TravelActions.',
-  'components/health/GymCard.tsx': 'routes through `updateStats` -> `applyStatsDelta`.',
+  'components/health/GymCard.tsx': 'the session writes happiness directly and scales it explicitly with `scaledHappinessGain` inside its updater.',
   'components/jail/JailScreen.tsx': 'routes through `updateStats` -> `applyStatsDelta`.',
   'lib/simulation/ComprehensiveGameSimulator.ts': 'dev-only simulator, never on a player tick.',
   'lib/simulation/RealActionSimulator.ts': 'dev-only simulator, never on a player tick.',
