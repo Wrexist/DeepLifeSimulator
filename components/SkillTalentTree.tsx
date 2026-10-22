@@ -32,6 +32,7 @@ import {
 } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGame, CrimeSkillId } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 - use the safe fallback.
 const LinearGradient = Gradient;
@@ -114,6 +115,9 @@ type NodeStatus = 'unlocked' | 'available' | 'locked';
 
 export default function SkillTalentTree({ skillId, visible, onClose }: SkillTalentTreeProps) {
   const { gameState, unlockCrimeSkillUpgrade } = useGame();
+  // The sheet is anchored to the bottom of a statusBarTranslucent Modal, so the
+  // sticky Unlock CTA has to clear the home indicator itself (CMP-18).
+  const insets = useSafeAreaInsets();
   const [selectedNode, setSelectedNode] = useState<TalentNode | null>(null);
 
   const tree = TALENT_TREES[skillId];
@@ -279,7 +283,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
           {/* Talent list */}
           <ScrollView
             style={styles.list}
-            contentContainerStyle={[styles.listContent, selectedNode && getNodeStatus(selectedNode) === 'available' ? { paddingBottom: verticalScale(80) } : undefined]}
+            contentContainerStyle={[styles.listContent, selectedNode && getNodeStatus(selectedNode) === 'available' ? { paddingBottom: verticalScale(80) + insets.bottom } : undefined]}
             showsVerticalScrollIndicator={false}
           >
             {sortedNodes.map((node) => {
@@ -356,7 +360,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
 
           {/* Sticky unlock CTA */}
           {selectedNode && getNodeStatus(selectedNode) === 'available' ? (
-            <View style={styles.stickyCta}>
+            <View style={[styles.stickyCta, { paddingBottom: verticalScale(12) + Math.max(insets.bottom, verticalScale(8)) }]}>
               <BlurViewFallback intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
               <TouchableOpacity activeOpacity={0.85} onPress={handleUnlock} style={styles.unlockBtnWrap}>
                 <LinearGradient

@@ -175,7 +175,7 @@ describe('the daily reward popup reports what was granted', () => {
     const j = json();
     // Text children serialize as ["+", "25"].
     expect(j).toContain('"+","25"');
-    expect(j).toContain('"Gems"');
+    expect(j).toContain('"Gems added"');
     expect(j).not.toContain('Money bonus');
     expect(j).not.toContain('"+1"');
     unmount();

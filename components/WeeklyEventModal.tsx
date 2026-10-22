@@ -1,5 +1,5 @@
 import { uiPalette } from '@/lib/config/theme';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
 import { AlertCircle, CheckCircle, Circle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
 import type { EnhancedEventChoice, EventSpecial } from '@/lib/events/engine';
@@ -15,7 +15,6 @@ import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import Gradient from '@/components/ui/Gradient';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
@@ -43,7 +42,14 @@ function safeNetWorth(state: GameState): number {
  }
 }
 
-const LinearGradient = Gradient;
+/**
+ * How long a choice tap may leave its event still pending before the modal
+ * offers the "skip this event" escape. `resolveEvent` removes the event in the
+ * same updater that applies the choice, so a healthy resolve clears it on the
+ * next render; still being here after this long means the resolve threw (its
+ * updater returns `prev` on error) and the event can never be answered.
+ */
+export const EVENT_RESOLVE_STALL_MS = 1500;
 const { height: screenHeight } = Dimensions.get('window');
 const log = logger.scope('WeeklyEventModal');
 
@@ -64,7 +70,17 @@ export default function WeeklyEventModal() {
  // this modal mounts outside the home ErrorBoundary on any weekly event.
  const pet = event ? gameState.pets?.find(p => p.id === event.relationId): undefined;
 
- // Emergency dismiss function - clears the current event if something is wrong
+ // Emergency dismiss - clears the current event WITHOUT applying a choice.
+ //
+ // It is reachable ONLY for an event that cannot be answered: a malformed one
+ // (no choices; auto-dismissed in the effect below) or one whose resolve
+ // failed (see `stalledEventId`). It used to sit behind an always-visible
+ // corner X and the Android back gesture, which made every event - lawsuits,
+ // fines, bills, the steps of a multi-week arc - skippable for free (CMP-1).
+ // The design intent elsewhere is that the choices ARE the way out: the Life
+ // Moment card has no X or backdrop tap for the same reason, and
+ // `choiceAvailability` guarantees at least one choice is always selectable,
+ // so a valid event can never trap the player.
  const handleEmergencyDismiss = useCallback(() => {
  log.warn('Emergency dismiss triggered for event:', { eventId: event?.id });
  // Remove BY ID, not by index. `slice(1)` assumed the visible event was
@@ -76,6 +92,37 @@ export default function WeeklyEventModal() {
  }));
  saveGame();
  }, [setGameState, saveGame, event?.id]);
+
+ // The event id a choice was tapped on, and the event id whose resolve has
+ // been pending for longer than EVENT_RESOLVE_STALL_MS. Only the second one
+ // reveals the escape hatch.
+ const [attemptedEventId, setAttemptedEventId] = useState<string | null>(null);
+ const [stalledEventId, setStalledEventId] = useState<string | null>(null);
+ const eventId = event?.id;
+ // A new event at the head of the queue starts with no attempt on record, so
+ // a template that fires again weeks later does not inherit an old tap.
+ useEffect(() => {
+ setAttemptedEventId(null);
+ setStalledEventId(null);
+ }, [eventId]);
+ useEffect(() => {
+ if (!eventId || attemptedEventId !== eventId) return undefined;
+ // Cleared by the cleanup when the event leaves the queue (the normal case).
+ const timer = setTimeout(() => setStalledEventId(eventId), EVENT_RESOLVE_STALL_MS);
+ return () => clearTimeout(timer);
+ }, [attemptedEventId, eventId]);
+ const canEscape = !!eventId && stalledEventId === eventId;
+
+ // A malformed event (no choices) cannot be answered, so it is cleared - in
+ // an effect, not during render: dismissing calls setGameState + saveGame,
+ // and a provider update from inside render is a React error that StrictMode
+ // or a discarded concurrent render can double-fire (CMP-3).
+ const isMalformed = !!event && (!Array.isArray(event.choices) || event.choices.length === 0);
+ useEffect(() => {
+ if (!isMalformed) return;
+ log.error('Event has no valid choices, auto-dismissing:', eventId);
+ handleEmergencyDismiss();
+ }, [isMalformed, eventId, handleEmergencyDismiss]);
 
  // Safe resolve handler with error catching
  const resolvingRef = useRef<Set<string>>(new Set());
@@ -90,6 +137,7 @@ export default function WeeklyEventModal() {
 
  resolvingRef.current.add(resolutionKey);
 
+ setAttemptedEventId(eventId);
  try {
  log.info('Resolving event', { eventId, choiceId });
  resolveEvent(eventId, choiceId);
@@ -108,13 +156,8 @@ export default function WeeklyEventModal() {
 
  if (!event) return null;
 
- // Validate event has choices
- if (!event.choices ||!Array.isArray(event.choices) || event.choices.length === 0) {
- log.error('Event has no valid choices, auto-dismissing:', event.id);
- // Auto-dismiss malformed events
- handleEmergencyDismiss();
- return null;
- }
+ // Malformed events are cleared by the effect above; render nothing meanwhile.
+ if (isMalformed) return null;
 
  // Check if this is a seasonal event
  const seasonalEventIds = [
@@ -273,7 +316,14 @@ export default function WeeklyEventModal() {
  const accentDeep = notificationStyle.accentDeep;
 
  return (
- <Modal visible transparent animationType="fade" onRequestClose={handleEmergencyDismiss}>
+ <Modal
+ visible
+ transparent
+ animationType="fade"
+ // Android back answers nothing - a choice is the way out (CMP-1). It
+ // only dismisses once a resolve has visibly failed.
+ onRequestClose={canEscape ? handleEmergencyDismiss : () => undefined}
+ >
  <View style={styles.overlay}>
  <BlurViewFallback
  intensity={34}
@@ -287,16 +337,20 @@ export default function WeeklyEventModal() {
  {/* Thin glass highlight along the top edge (structural, not an accent stripe). */}
  <View style={styles.topHighlight} pointerEvents="none" />
 
- {/* Emergency close button in corner */}
+ {/* Escape hatch - shown only when a choice was tapped and the event
+ is still here (the resolve failed), so a broken event can never
+ soft-lock the game while a valid one cannot be skipped for free. */}
+ {canEscape && (
  <TouchableOpacity
  style={styles.closeButton}
  onPress={handleEmergencyDismiss}
  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
  accessibilityRole="button"
- accessibilityLabel="Dismiss"
+ accessibilityLabel="Skip this event"
  >
  <X size={scale(18)} color="rgba(226, 232, 240, 0.75)" />
  </TouchableOpacity>
+ )}
 
  <ScrollView
  style={styles.scrollView}
@@ -507,7 +561,6 @@ export default function WeeklyEventModal() {
  const note = availability && !availability.affordable
  ? (disabled ? `Need ${formatMoney(availability.cost)}` : 'Takes what you have')
  : undefined;
- const isPrimary = index === 0 && !disabled;
 
  return (
  <TouchableOpacity
@@ -520,20 +573,13 @@ export default function WeeklyEventModal() {
  accessibilityLabel={note ? `${choice.text || 'Continue'}. ${note}` : (choice.text || 'Continue')}
  accessibilityState={{ disabled }}
  >
- {isPrimary ? (
- <LinearGradient
- colors={['#10B981', '#059669']}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 1 }}
- style={styles.choiceButtonContent}
- >
- {renderChoiceInner(choice, enhancedChoice, true, note)}
- </LinearGradient>
- ): (
+ {/* Every choice gets the same treatment. The first one used to be a
+ filled green button with a check mark, which read as "already
+ selected" and nudged the player toward whichever choice the
+ template happened to list first (VIS-29). */}
  <View style={[styles.choiceButtonContent, styles.secondaryChoiceContent]}>
- {renderChoiceInner(choice, enhancedChoice, false, note)}
+ {renderChoiceInner(choice, enhancedChoice, note)}
  </View>
- )}
  </TouchableOpacity>
  );
  })}
@@ -547,34 +593,25 @@ export default function WeeklyEventModal() {
 
 /**
  * Choice button inner content - icon + label, plus the optional tradeoff and
- * emotional-impact readouts. Split out so the primary (gradient) and secondary
- * (glass) buttons share identical inner markup.
+ * emotional-impact readouts.
  */
 function renderChoiceInner(
  choice: { text?: string },
  enhancedChoice: EnhancedEventChoice,
- isPrimary: boolean,
  note?: string,
 ) {
  return (
  <>
  <View style={styles.choiceContent}>
- {isPrimary ? (
- <CheckCircle size={scale(19)} color={uiPalette.white} />
- ): (
- // A hollow circle, not an X: the other choices are real options, and
- // a crossed circle read as "Cancel" (tester pass, 2026-10-10).
+ {/* A hollow circle, not an X: every choice is a real option, and a
+ crossed circle read as "Cancel" (tester pass, 2026-10-10). */}
  <Circle size={scale(19)} color="rgba(148, 163, 184, 0.9)" />
- )}
- <Text style={[
- styles.choiceText,
- isPrimary ? styles.primaryChoiceText: styles.secondaryChoiceText
- ]}>
+ <Text style={[styles.choiceText, styles.secondaryChoiceText]}>
  {choice.text || 'Continue'}
  </Text>
  </View>
  {note ? (
- <Text style={[styles.choiceNote, isPrimary ? styles.primaryChoiceText: styles.secondaryChoiceText]}>
+ <Text style={[styles.choiceNote, styles.secondaryChoiceText]}>
  {note}
  </Text>
  ): null}
@@ -637,11 +674,11 @@ const styles = StyleSheet.create({
  borderRadius: responsiveBorderRadius['2xl'],
  borderWidth: 1,
  overflow: 'hidden',
- // Solid frosted-dark body: real backdrop blur is disabled app-wide for
- // TurboModule crash-safety, so translucency is faked with a near-opaque dark
- // surface (legible over the dimmed game screen, on-brand with the game's
- // other glass panels). The slight transparency keeps a hint of depth.
- backgroundColor: 'rgba(17, 24, 39, 0.94)',
+ // Opaque dark body. Real backdrop blur is disabled app-wide for
+ // TurboModule crash-safety, so there is nothing to blur: a translucent
+ // body (it was 0.94) just let the HUD and the Home cards ghost through the
+ // description and choices (VIS-9). The dimming lives on the overlay only.
+ backgroundColor: '#111827',
  // Soft drop shadow via the glassmorphism design-system helper (accent
  // shadowColor is applied inline on the card so the glow matches the event).
 ...getPlatformShadows(16, 0.35, 12, 28),
@@ -865,9 +902,6 @@ const styles = StyleSheet.create({
  fontWeight: '700',
  textAlign: 'center',
  flexShrink: 1,
- },
- primaryChoiceText: {
- color: uiPalette.white,
  },
  secondaryChoiceText: {
  color: 'rgba(226, 232, 240, 0.92)',

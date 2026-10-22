@@ -39,6 +39,8 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#10B981', '#059669'],
           name: 'Spring',
           nextSeason: 'Summer',
+          nextIcon: Sun,
+          nextColor: '#F59E0B',
         };
       case 'summer':
         return {
@@ -47,6 +49,8 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#F59E0B', '#D97706'],
           name: 'Summer',
           nextSeason: 'Fall',
+          nextIcon: Leaf,
+          nextColor: '#EF4444',
         };
       case 'fall':
         return {
@@ -55,6 +59,8 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#EF4444', '#DC2626'],
           name: 'Fall',
           nextSeason: 'Winter',
+          nextIcon: Snowflake,
+          nextColor: '#3B82F6',
         };
       case 'winter':
         return {
@@ -63,12 +69,17 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
           gradient: ['#3B82F6', '#2563EB'],
           name: 'Winter',
           nextSeason: 'Spring',
+          nextIcon: Leaf,
+          nextColor: '#10B981',
         };
     }
   };
 
   const config = getSeasonConfig();
   const SeasonIcon = config.icon;
+  // The "Next Season" row shows the NEXT season's glyph - it used to repeat the
+  // current one, so "Spring in 11 weeks" sat beside a snowflake (VIS-28).
+  const NextSeasonIcon = config.nextIcon;
 
   const getHolidayInfo = () => {
     if (!seasonData.holiday) return null;
@@ -195,7 +206,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
                 </View>
 
                 <View style={styles.infoRow}>
-                  <SeasonIcon size={20} color={config.color} />
+                  <NextSeasonIcon size={20} color={config.nextColor} />
                   <View style={styles.infoTextContainer}>
                     <Text style={[
                       styles.infoLabel,

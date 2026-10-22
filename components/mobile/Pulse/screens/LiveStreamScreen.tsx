@@ -87,7 +87,7 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
     if (result.success) {
       // Persist tips + follower gains now - this is the moment the whole
       // stream's accumulated value lands in state.
-      setTimeout(() => { void saveGame?.(); }, 0);
+      void saveGame?.();
       setSummary({
         totalDonations: result.totalDonations,
         newFollowers: result.newFollowers,

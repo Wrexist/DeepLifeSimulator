@@ -84,10 +84,8 @@ function PostCard({
       return;
     }
     likePost(setGameState, post.id);
-    // Deferred: `saveGame` reads `gameStateRef.current`, synced in a
-    // POST-COMMIT effect, so a synchronous call persists the PRE-like snapshot.
-    // Same convention as BrandDealsScreen/DeathPopup.
-    setTimeout(() => { void saveGame?.(); }, 0);
+    // Inline is safe: saveGame waits for the pending commit itself (waitForPendingCommit).
+    void saveGame?.();
   }, [onLikeOverride, setGameState, saveGame, post.id]);
 
   const handleRepost = useCallback(() => {
@@ -97,7 +95,7 @@ function PostCard({
       return;
     }
     repostPost(setGameState, post.id);
-    setTimeout(() => { void saveGame?.(); }, 0);
+    void saveGame?.();
   }, [onRepostOverride, setGameState, saveGame, post.id]);
 
   /**
@@ -111,9 +109,7 @@ function PostCard({
   const handleBookmark = useCallback(() => {
     pulseHaptics.light();
     bookmarkPost(setGameState, post.id);
-    // Same post-commit deferral as `handleLike` - `saveGame` reads a ref that
-    // is synced in a post-commit effect.
-    setTimeout(() => { void saveGame?.(); }, 0);
+    void saveGame?.();
   }, [setGameState, saveGame, post.id]);
 
   // A viral post is marked by its rim and its pill, not by a gradient frame

@@ -15,6 +15,7 @@ import {
   DIVORCE_SETTLEMENT_DEBT_TERM_WEEKS,
   type DivorceLiquidity,
 } from '@/contexts/game/actions/DatingActions';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface DivorceConfirmModalProps {
@@ -102,7 +103,7 @@ export default function DivorceConfirmModal({
               <AlertTriangle size={scale(24)} color="#EF4444" />
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>Confirm Divorce</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(scale(24))}>
               <X size={scale(24)} color={isDarkMode ? uiPalette.white : '#000'} />
             </TouchableOpacity>
           </View>

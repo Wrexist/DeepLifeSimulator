@@ -25,8 +25,9 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
+import { SmartNotification, NotificationContext, useSmartNotifications, smartNotificationSystem } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
@@ -101,10 +102,16 @@ export default function SmartNotificationCenter({
     }
   }, [visible]);
 
+  // "Unread" = never shown, read from the two places a show is actually
+  // recorded: this session's history and the save's `shownNotificationIds`.
+  // It used to test `notification.lastShown`, a field nothing writes, so the
+  // tab listed everything (CMP-5).
+  const sessionShown = smartNotificationSystem.getNotificationHistory();
+  const savedShown = new Set(gameState.shownNotificationIds ?? []);
   const filteredNotifications = notifications.filter(notification => {
     switch (selectedFilter) {
       case 'unread':
-        return !notification.lastShown;
+        return !sessionShown.has(notification.id) && !savedShown.has(notification.id);
       case 'achievement':
         return notification.type === 'achievement';
       case 'warning':
@@ -218,6 +225,10 @@ export default function SmartNotificationCenter({
                       setShowSettings(!showSettings);
                     }}
                     style={styles.headerButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Notification preferences"
+                    accessibilityState={{ expanded: showSettings }}
+                    hitSlop={hitSlopToMinTarget(20)}
                   >
                     <Settings size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
@@ -228,6 +239,8 @@ export default function SmartNotificationCenter({
                       onClose();
                     }}
                     style={styles.headerButton}
+                    {...CLOSE_BUTTON_A11Y}
+                    hitSlop={hitSlopToMinTarget(20)}
                   >
                     <X size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
@@ -245,6 +258,9 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showTips')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityLabel="Show Tips"
+                      accessibilityState={{ checked: notificationPreferences.showTips }}
                     >
                       <View style={styles.settingInfo}>
                         <Lightbulb size={20} color="#F59E0B" />
@@ -262,6 +278,9 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showMilestones')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityLabel="Show Milestones"
+                      accessibilityState={{ checked: notificationPreferences.showMilestones }}
                     >
                       <View style={styles.settingInfo}>
                         <Calendar size={20} color="#3B82F6" />
@@ -279,6 +298,9 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showWarnings')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityLabel="Show Warnings"
+                      accessibilityState={{ checked: notificationPreferences.showWarnings }}
                     >
                       <View style={styles.settingInfo}>
                         <AlertCircle size={20} color="#F59E0B" />
@@ -296,6 +318,9 @@ export default function SmartNotificationCenter({
                     <TouchableOpacity
                       onPress={() => handlePreferenceToggle('showSuggestions')}
                       style={styles.settingItem}
+                      accessibilityRole="switch"
+                      accessibilityLabel="Show Suggestions"
+                      accessibilityState={{ checked: notificationPreferences.showSuggestions }}
                     >
                       <View style={styles.settingInfo}>
                         <MessageSquare size={20} color="#06B6D4" />
