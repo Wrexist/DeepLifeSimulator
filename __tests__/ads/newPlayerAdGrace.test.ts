@@ -20,6 +20,7 @@
 import { maybeShowInterstitialForWeek, __resetInterstitialCadence } from '@/lib/ads/interstitial';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
+import { BANNER_GRACE_WEEKS } from '@/lib/ads/orbGates';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs');
@@ -40,7 +41,10 @@ describe('the banner leaves a new player alone', () => {
   });
 
   it('grants at least a full game year of grace', () => {
-    expect(bannerSrc).toMatch(/const BANNER_GRACE_WEEKS = WEEKS_PER_YEAR/);
+    // The constant moved to lib/ads/orbGates.ts (MON-7) so the Remove Ads orb
+    // can wait past the same grace; the banner imports it from there.
+    expect(bannerSrc).toMatch(/import \{ BANNER_GRACE_WEEKS \} from '@\/lib\/ads\/orbGates'/);
+    expect(BANNER_GRACE_WEEKS).toBeGreaterThanOrEqual(WEEKS_PER_YEAR);
   });
 
   it('treats a non-finite week counter as week zero', () => {

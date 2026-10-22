@@ -5,9 +5,10 @@
  *
  * Money does not survive a life. Everything a player builds is deleted at
  * prestige, and the only meta-currency the game pays out — Legacy Points — is
- * earned by TIME alone (`floor(weeksLived/10) + prestigeLevel*2`, every ten
- * weeks). So a 900-week pauper and a 900-week trillionaire fund the Dynasty
- * Tree at exactly the same rate, and the last decade of a rich life has no
+ * earned by TIME alone (a flat +2 per 10 played weeks plus +1 per prestige
+ * level since LATE-1; see `lib/legacy/legacyAccrual.ts`). So a 900-week
+ * pauper and a 900-week trillionaire fund the Dynasty Tree at exactly the
+ * same rate, and the last decade of a rich life has no
  * decision in it at all: the money is going to evaporate either way.
  *
  * The Endowment is the first cross-life use for cash. It converts money into

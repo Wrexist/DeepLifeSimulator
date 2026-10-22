@@ -36,13 +36,15 @@ const spendEvents = (() => {
 
 describe('the budget records the housing the tick charges', () => {
   it('the housing row includes the tenancy rent', () => {
-    expect(spendEvents).toMatch(/category: 'housing', amount: weeklyRent \+ housingWellbeing\.rent \+ housingUpkeep/);
+    // TICK-13: the tenancy rent is read through the Budgeting discount first.
+    expect(spendEvents).toMatch(/category: 'housing', amount: weeklyRent \+ tenancyRentBill \+ housingUpkeep/);
+    expect(SRC).toMatch(/tenancyRentBill = billAfterBudgeting\(housingWellbeing\.rent,/);
   });
 
   it('and it is the same term the bill line uses', () => {
     // One source for the number. `weeklyBillsDue` is the authority on what is
     // owed; the budget row must not compute its own housing figure.
-    expect(SRC).toMatch(/weeklyBillsDue = Math\.max\(0, incomeTax \+ weeklyRent \+ housingWellbeing\.rent \+ housingUpkeep/);
+    expect(SRC).toMatch(/weeklyBillsDue = Math\.max\(0, incomeTax \+ weeklyRent \+ tenancyRentBill \+ housingUpkeep/);
   });
 });
 

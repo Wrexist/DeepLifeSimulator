@@ -162,29 +162,57 @@ const VOLATILITY_RISK_PREMIUM = 0.01;
  * relationship — more volatility earns more expected return — can be asserted
  * directly instead of inferred from a noisy 25-symbol sample, where dispersion
  * drowns the signal at every horizon short of the price ceiling.
+ *
+ * `dividendYield` is the symbol's CATALOGUE yield, and its weekly share comes
+ * off the price drift (ECO-11, owner decision 2026-10-22). Dividends used to be
+ * paid ON TOP of the full drift with no ex-dividend drop, so a 6.1% PFE
+ * expected ~15%/yr against ~9% for a non-payer of the same volatility, and the
+ * buy-and-hold investor beat the company-building tycoon on the strategy sim
+ * ($2.13M vs $1.83M over ten years). Now a payer trades price growth for cash:
+ * the TOTAL expectation (price + yield) is the same across a volatility tier,
+ * which is what `expectedTotalReturnFor` states. The read-time policy bonus
+ * (`policyAdjustedYield`) is deliberately not subtracted - an enacted policy is
+ * meant to be an edge.
  */
-export function weeklyLogDriftFor(volatility: number, isBoosted = false): number {
+export function weeklyLogDriftFor(volatility: number, isBoosted = false, dividendYield = 0): number {
   const vol = Number.isFinite(volatility) && volatility > 0 ? volatility : 0;
+  const yld = Number.isFinite(dividendYield) && dividendYield > 0 ? dividendYield : 0;
   return (
     WEEKLY_LOG_DRIFT -
     (vol * vol) / 2 +
     VOLATILITY_RISK_PREMIUM * vol +
-    (isBoosted ? BOOST_ANNUAL_DRIFT_BONUS_LOG : 0)
+    (isBoosted ? BOOST_ANNUAL_DRIFT_BONUS_LOG : 0) -
+    Math.log(1 + yld) / 52
   );
 }
 
 /**
- * The EXPECTED (arithmetic-mean) annual return the drift above produces for a
- * symbol of this volatility - the number a diversified holder actually
- * compounds at, and the one the design targets are written in.
+ * The EXPECTED (arithmetic-mean) annual PRICE return the drift above produces
+ * for a symbol of this volatility (and yield) - the number a diversified holder
+ * actually compounds at, and the one the design targets are written in.
  *
  * Exported so the drift test can assert the target in the unit the designer
  * thinks in instead of re-deriving the log-normal identity in the test.
  */
-export function expectedAnnualReturnFor(volatility: number, isBoosted = false): number {
+export function expectedAnnualReturnFor(volatility: number, isBoosted = false, dividendYield = 0): number {
   const vol = Number.isFinite(volatility) && volatility > 0 ? volatility : 0;
-  const weeklyLogMean = weeklyLogDriftFor(vol, isBoosted) + (vol * vol) / 2;
+  const weeklyLogMean = weeklyLogDriftFor(vol, isBoosted, dividendYield) + (vol * vol) / 2;
   return Math.exp(weeklyLogMean * 52) - 1;
+}
+
+/**
+ * Price return plus the dividend yield: what a holder who keeps the payouts
+ * earns. Equal (to rounding) for every yield at one volatility - ECO-11.
+ */
+export function expectedTotalReturnFor(volatility: number, dividendYield = 0, isBoosted = false): number {
+  const yld = Number.isFinite(dividendYield) && dividendYield > 0 ? dividendYield : 0;
+  return (1 + expectedAnnualReturnFor(volatility, isBoosted, yld)) * (1 + yld) - 1;
+}
+
+/** The catalogue yield for a symbol (0 when unknown). */
+function catalogueYieldFor(symbol: string): number {
+  const y = (DEFAULT_PRICES as Record<string, { dividendYield: number } | undefined>)[symbol]?.dividendYield;
+  return typeof y === 'number' && Number.isFinite(y) && y > 0 ? y : 0;
 }
 
 /**
@@ -435,7 +463,7 @@ export function simulateWeek(policyEffects?: {
     // the whole return, so a boosted stock gets a persistent edge instead of an
     // amplified shock - a policy that "supports" a company should not also make
     // it swing harder on the way down.
-    const logReturn = weeklyLogDriftFor(volatility, isBoosted) + z * volatility;
+    const logReturn = weeklyLogDriftFor(volatility, isBoosted, catalogueYieldFor(symbol)) + z * volatility;
 
     // Guard against extreme changes that could corrupt prices
     if (!isFinite(logReturn)) continue;

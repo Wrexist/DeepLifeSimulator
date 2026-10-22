@@ -67,6 +67,7 @@ import { quoteTrip, deriveExperienceStats, tripFare, tripHappiness } from '@/lib
 import { mindsetEffects } from '@/lib/mindset/effects';
 import { TravelEventDef, eligibleTripEvents } from '@/lib/travel/events';
 import { TRAVEL_MILESTONE_TIERS } from '@/lib/travel/milestones';
+import { BUSINESS_OPPORTUNITY_ANNUAL_YIELD, businessOpportunityWeeklyIncome } from '@/lib/travel/businessOpportunity';
 import {
   activitiesForDestination,
   quoteActivity,
@@ -313,7 +314,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       if (!opp) return;
       gameAlert(
         `Invest in ${opp.name}?`,
-        `${formatMoney(opp.cost)} for ${formatMoney(opp.weeklyIncome)}/week passive.`,
+        `${formatMoney(opp.cost)} for ${formatMoney(businessOpportunityWeeklyIncome(opp))}/week passive (${Math.round(BUSINESS_OPPORTUNITY_ANNUAL_YIELD * 100)}% a year).`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -832,7 +833,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               name={opp.name}
               locLabel={`${dest.name} · ${meta.code}`}
               description={opp.description}
-              weeklyIncome={opp.weeklyIncome}
+              weeklyIncome={businessOpportunityWeeklyIncome(opp)}
               cost={opp.cost}
               invested={!!opp.invested}
               hue={IDENTITY}
@@ -1003,7 +1004,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     }
 
     const investedOpps = opps.filter((o) => o.invested);
-    const weeklyPassive = investedOpps.reduce((s, o) => s + (o.weeklyIncome || 0), 0);
+    const weeklyPassive = investedOpps.reduce((s, o) => s + businessOpportunityWeeklyIncome(o), 0);
 
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
@@ -1035,7 +1036,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                   name={opp.name}
                   locLabel={`${destName} · ${meta.code}`}
                   description={opp.description}
-                  weeklyIncome={opp.weeklyIncome}
+                  weeklyIncome={businessOpportunityWeeklyIncome(opp)}
                   cost={opp.cost}
                   invested={!!opp.invested}
                   hue={IDENTITY}

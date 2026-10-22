@@ -12,6 +12,7 @@ import { useGameState } from '@/contexts/game';
 import { useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { adsAvailable, areAdsRemoved, isGranted, runRewardedAd } from '@/lib/ads/rewardedAd';
 import { applyDailyAdBonus, dailyAdBonusFor } from '@/lib/ads/dailyAdBonus';
+import { AD_FREE_PERK_LABEL, dailyBonusOfferMode } from '@/lib/ads/orbGates';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 // Static import (2026-08-16 audit L2). This was a `require()` INSIDE the render
@@ -44,11 +45,12 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const nextDayReward = DAILY_LOGIN_REWARDS[loginStreak % DAILY_LOGIN_REWARDS.length] || 50;
  const setGameState = useSetGameState();
  const getGameState = useGameStateGetter();
- // Optional doubler (lib/ads/dailyAdBonus.ts). Offered only when a real ad can
- // be shown: never to a player who paid to remove ads, and never in a build
- // with no ad SDK, where it would be free gems.
+ // Optional doubler (lib/ads/dailyAdBonus.ts). Offered when a real ad can be
+ // shown, and - MON-5 - to a player who paid to remove ads as a direct grant
+ // labelled as an ad-free perk, at the same 50-gem cap. Never in a build with
+ // no ad SDK and no entitlement, where it would be free gems.
  const adBonus = dailyAdBonusFor(safeRewardAmount);
- const offerAdBonus = adBonus > 0 && adsAvailable(areAdsRemoved(gameState));
+ const bonusMode = adBonus > 0 ? dailyBonusOfferMode(areAdsRemoved(gameState)) : null;
  // The Modal is hidden (not unmounted - home keeps the interruption slot) while
  // a fullscreen ad is up: an ad presented over an open RN Modal strands an
  // invisible touch-swallowing window on iOS (lib/ads/rewardedAd.ts).
@@ -86,10 +88,15 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  if (claimInProgressRef.current) return;
  claimInProgressRef.current = true;
  setAdNote(null);
+ const adsRemovedNow = areAdsRemoved(getGameState());
+ // A real fullscreen ad must not present over the open Modal. The ad-free
+ // perk shows no ad, so it grants in place (the same updater closes the popup).
+ if (adsAvailable(adsRemovedNow)) {
  setHiddenForAd(true);
  await waitForDismissal();
+ }
  const outcome = await runRewardedAd(() => setGameState(applyDailyAdBonus), {
- adsRemoved: areAdsRemoved(getGameState()),
+ adsRemoved: adsRemovedNow,
  placement: 'daily_bonus',
  });
  if (!isMountedRef.current) return;
@@ -224,16 +231,24 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  </View>
  </View>
 
- {offerAdBonus && (
+ {bonusMode && (
  <TouchableOpacity
  style={styles.adButton}
  onPress={() => { void handleWatchAd(); }}
  activeOpacity={0.88}
  accessibilityRole="button"
- accessibilityLabel={`Watch an ad for ${adBonus} more gems`}
+ accessibilityLabel={bonusMode === 'perk'
+ ? `${AD_FREE_PERK_LABEL}: claim ${adBonus} more gems`
+ : `Watch an ad for ${adBonus} more gems`}
  >
- <Play size={scale(16)} color="#8B5CF6" strokeWidth={2.6} />
- <Text style={styles.adButtonText}>Watch ad: +{adBonus.toLocaleString('en-US')} more gems</Text>
+ {bonusMode === 'perk'
+ ? <Gift size={scale(16)} color="#8B5CF6" strokeWidth={2.6} />
+ : <Play size={scale(16)} color="#8B5CF6" strokeWidth={2.6} />}
+ <Text style={styles.adButtonText}>
+ {bonusMode === 'perk'
+ ? `${AD_FREE_PERK_LABEL}: +${adBonus.toLocaleString('en-US')} more gems`
+ : `Watch ad: +${adBonus.toLocaleString('en-US')} more gems`}
+ </Text>
  </TouchableOpacity>
  )}
  {adNote && (

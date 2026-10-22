@@ -6,7 +6,7 @@
  */
 import { RealEstate } from '@/contexts/game/types';
 import { runRealEstateWeeklyTick, REAL_ESTATE_WEEKLY_RENT_CAP } from '../weeklyTick';
-import { UPGRADE_TIERS } from '../housing';
+import { UPGRADE_TIERS, getUpgradeRentBonus } from '../housing';
 
 function owned(over: Partial<RealEstate> = {}): RealEstate {
   return {
@@ -64,7 +64,7 @@ describe('runRealEstateWeeklyTick - upgrade rent bonus', () => {
 
     // Both earned the same realized rent (same tenant/rolls); the ONLY delta is
     // the tier-3 rent bonus.
-    expect(withUpgrade.rentalIncome - withoutUpgrade.rentalIncome).toBeCloseTo(tier3.rentBonus, 5);
+    expect(withUpgrade.rentalIncome - withoutUpgrade.rentalIncome).toBeCloseTo(getUpgradeRentBonus(tier3, tenanted), 5);
   });
 
   it('does NOT pay the upgrade bonus on a vacant rented unit (no rent received)', () => {

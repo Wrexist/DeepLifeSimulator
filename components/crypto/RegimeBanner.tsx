@@ -5,9 +5,15 @@ import { CryptoRegime } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+/**
+ * Shows the coin's CURRENT regime and nothing about how long it will last
+ * (ECO-1). The banner used to print the regime's countdown, and since the tick
+ * only re-rolled a regime when that countdown ran out, "Bull Run, 6 weeks
+ * left" was a guaranteed bull draw next week. The countdown is gone and a
+ * regime can now turn in any week (`REGIME_HAZARD_WEEKLY`).
+ */
 interface Props {
   regime: CryptoRegime;
-  weeksRemaining: number;
   darkMode: boolean;
 }
 
@@ -18,7 +24,7 @@ const REGIME_META: Record<CryptoRegime, { label: string; color: string; icon: Re
   bear:     { label: 'Bear',     color: accent.danger, icon: TrendingDown,  description: 'Negative drift. Down-trend dominant.' },
 };
 
-export default function RegimeBanner({ regime, weeksRemaining, darkMode }: Props) {
+export default function RegimeBanner({ regime, darkMode }: Props) {
   const theme = getThemeColors(darkMode);
   const meta = REGIME_META[regime];
   const Icon = meta.icon;
@@ -31,10 +37,7 @@ export default function RegimeBanner({ regime, weeksRemaining, darkMode }: Props
         <Text style={[styles.label, { color: meta.color }]}>{meta.label}</Text>
         <Text style={[styles.desc, { color: theme.textSecondary }]}>{meta.description}</Text>
       </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text style={[styles.weeksValue, { color: theme.text }]}>{weeksRemaining}</Text>
-        <Text style={[styles.weeksLabel, { color: theme.textMuted }]}>weeks left</Text>
-      </View>
+      <Text style={[styles.turnNote, { color: theme.textMuted }]}>Can turn{'\n'}any week</Text>
     </View>
   );
 }
@@ -63,11 +66,8 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.xs,
     marginTop: 2,
   },
-  weeksValue: {
-    fontSize: responsiveFontSize.lg,
-    fontWeight: '800',
-  },
-  weeksLabel: {
+  turnNote: {
     fontSize: responsiveFontSize.xs,
+    textAlign: 'right',
   },
 });

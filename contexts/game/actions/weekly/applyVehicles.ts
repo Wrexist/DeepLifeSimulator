@@ -49,11 +49,15 @@ import {
   healthLossForSeverity,
   type AccidentSeverity,
 } from '@/lib/vehicles/accidents';
-import { vehicleWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
-import { calculateRepairCostAfterInsurance } from '@/lib/vehicles/vehicles';
+import { vehicleWeeklyRunningCost, weeklyFuelBurn } from '@/lib/vehicles/runningCosts';
+
+import { calculateRepairCostAfterInsurance, vehicleReputationFloor } from '@/lib/vehicles/vehicles';
 import { reputationAfterVehicleSale, vehicleReputationTakeBack } from '../VehicleActions';
 import type { WeekContext } from './weekContext';
-import { chargeOrDefer } from './chargeOrDefer';
+import { chargeBill } from './chargeOrDefer';
+
+/** The fuel level (%) at which the driven car warns once on the way down. */
+const LOW_FUEL_WARNING = 20;
 
 // Deterministic condition damage per severity tier. Kept out of accidents.ts
 // (which owns the probability + injury math) because the weekly tick needs a
@@ -81,12 +85,30 @@ export function applyVehiclesForWeek(
     // rate while the expense panel promised 25% idle fuel — displayed ≠ applied).
     const isActive = activeVehicleId != null && v.id === activeVehicleId;
 
-    // Deduct weekly maintenance + fuel (idle vehicles pay 25% fuel — the ONE
-    // formula, shared with the expense panel and the budget mirror).
+    // Deduct weekly maintenance (the ONE formula, shared with the expense panel
+    // and the budget mirror). Fuel is bought at the pump since LIFE-7.
     const weeklyCost = vehicleWeeklyRunningCost(v, isActive);
     // Running costs are mandatory — defer what cannot be covered rather than
-    // forgiving it. See chargeOrDefer.
-    chargeOrDefer(ctx, weeklyCost);
+    // forgiving it. See chargeOrDefer. A recurring bill, so Budgeting applies.
+    chargeBill(ctx, weeklyCost);
+
+    // LIFE-7: the tank drains (a full one lasts FUEL_TANK_WEEKS of driving,
+    // idle cars burn a quarter of that) and the player pays at the pump with
+    // Refuel, instead of a flat weekly fuel bill on a gauge that never moved.
+    const fuelBefore =
+      typeof v.fuelLevel === 'number' && isFinite(v.fuelLevel) ? Math.max(0, Math.min(100, v.fuelLevel)) : 100;
+    const fuelAfter = Math.max(0, fuelBefore - weeklyFuelBurn(isActive));
+    v.fuelLevel = Math.round(fuelAfter * 100) / 100;
+    if (isActive && fuelBefore > LOW_FUEL_WARNING && fuelAfter <= LOW_FUEL_WARNING) {
+      ctx.notifications.push({
+        id: `vehicle-fuel-low-${v.id}-${ctx.nextWeeksLived}`,
+        message:
+          fuelAfter <= 0
+            ? `Your ${v.name} is out of fuel. Refuel it in the Garage to get its travel bonus back.`
+            : `Your ${v.name} is down to ${Math.round(fuelAfter)}% fuel. Refuel it in the Garage.`,
+        title: fuelAfter <= 0 ? 'Out of Fuel' : 'Low Fuel',
+      });
+    }
 
     // Condition degrades ~1% per week (driving wear)
     // BUGFIX: use ?? so a totaled (condition=0) vehicle doesn't get
@@ -185,7 +207,10 @@ export function applyVehiclesForWeek(
     (max, v) => (v?.owned ? Math.max(max, v?.reputationBonus || 0) : max),
     0,
   );
-  if (vehicleRepBonus > 0 && ctx.newStats.reputation < vehicleRepBonus * 3) {
+  // ECO-9 (owner decision 2026-10-22): the nudge holds reputation at the car's
+  // bonus, capped at 20 (`vehicleReputationFloor`). It used to be 3x the bonus,
+  // so a $55k Sports Coupe held reputation at 45, past the Celebrity bar.
+  if (vehicleRepBonus > 0 && ctx.newStats.reputation < vehicleReputationFloor(vehicleRepBonus)) {
     ctx.newStats.reputation = Math.min(100, ctx.newStats.reputation + 1);
   }
 

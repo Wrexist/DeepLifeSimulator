@@ -12,20 +12,45 @@ export type CommitmentArea = 'career' | 'hobbies' | 'relationships' | 'health';
 export interface CommitmentBonuses {
   progressBonus: number; // Percentage bonus to progress/effectiveness
   energyReduction: number; // Percentage reduction in energy costs
-  statBonus?: Partial<Record<'health' | 'happiness' | 'reputation', number>>; // Stat bonuses
+  /**
+   * Weekly stat effects, applied by the tick (`applyCommitmentStatsForWeek`).
+   * `reputation` is a SOFT TARGET: a primary focus nudges reputation up by
+   * `COMMITMENT_REPUTATION_STEP` a week while it sits below this number, the
+   * luxury-prestige shape, so it can never rail reputation past what the
+   * commitment level justifies.
+   */
+  statBonus?: Partial<Record<'health' | 'happiness' | 'reputation', number>>;
 }
 
 export interface CommitmentPenalties {
   progressPenalty: number; // Percentage penalty to progress/effectiveness
   energyIncrease: number; // Percentage increase in energy costs
-  statPenalty?: Partial<Record<'health' | 'happiness' | 'reputation', number>>; // Stat penalties
+  /** Weekly stat effects of neglecting this area; `happiness` is a per-week loss. */
+  statPenalty?: Partial<Record<'health' | 'happiness' | 'reputation', number>>;
 }
+
+/**
+ * LIFE-13 (owner decision 2026-10-22). These two numbers were computed and
+ * shown nowhere and applied nowhere: committing never paid its reputation and
+ * neglecting never cost happiness, so a focus had no downside beyond -15%
+ * progress. They are applied once a tick now, and sized for that:
+ *
+ * - A neglected area costs 1 happiness a week (the old figure was -2 per area,
+ *   which with one focus picked meant -6 a week - more than natural decay -
+ *   and made committing a trap rather than a trade).
+ * - A primary focus at level L holds reputation up toward floor(L/5) (0-20),
+ *   one point a week.
+ */
+export const COMMITMENT_NEGLECT_HAPPINESS = -1;
+export const COMMITMENT_REPUTATION_TARGET_MAX = 20;
+export const COMMITMENT_REPUTATION_STEP = 1;
+const COMMITMENT_AREAS: readonly CommitmentArea[] = ['career', 'hobbies', 'relationships', 'health'];
 
 /**
  * Get commitment bonuses for a specific activity area
  */
 export function getCommitmentBonuses(
-  gameState: GameState,
+  gameState: Pick<GameState, 'activityCommitments'>,
   activityArea: CommitmentArea
 ): CommitmentBonuses {
   const commitments = gameState.activityCommitments;
@@ -41,12 +66,12 @@ export function getCommitmentBonuses(
   const levelMultiplier = commitmentLevel / 100;
 
   if (isPrimary) {
-    // Primary commitment: +30% progress, -20% energy cost, +5% stat bonus
+    // Primary commitment: +30% progress, -20% energy cost, reputation soft target
     return {
       progressBonus: 30 + (levelMultiplier * 20), // 30-50% bonus
       energyReduction: 20 + (levelMultiplier * 10), // 20-30% reduction
       statBonus: {
-        reputation: Math.floor(levelMultiplier * 5),
+        reputation: Math.floor(levelMultiplier * COMMITMENT_REPUTATION_TARGET_MAX),
       },
     };
   } else if (isSecondary) {
@@ -64,7 +89,7 @@ export function getCommitmentBonuses(
  * Get commitment penalties for neglected areas
  */
 export function getCommitmentPenalties(
-  gameState: GameState,
+  gameState: Pick<GameState, 'activityCommitments'>,
   activityArea: CommitmentArea
 ): CommitmentPenalties {
   const commitments = gameState.activityCommitments;
@@ -91,9 +116,28 @@ export function getCommitmentPenalties(
     progressPenalty: 15,
     energyIncrease: 15,
     statPenalty: {
-      happiness: -2, // Small happiness penalty for neglecting areas
+      happiness: COMMITMENT_NEGLECT_HAPPINESS,
     },
   };
+}
+
+/**
+ * The week's commitment stat effects, summed over the four areas: the
+ * happiness lost to neglected areas, and the reputation soft target the
+ * primary focus holds. Pure; the tick applies it (`applyCommitmentStats`).
+ */
+export function weeklyCommitmentStatEffects(
+  gameState: Pick<GameState, 'activityCommitments'>,
+): { happiness: number; reputationTarget: number } {
+  let happiness = 0;
+  let reputationTarget = 0;
+  for (const area of COMMITMENT_AREAS) {
+    const penalty = getCommitmentPenalties(gameState, area).statPenalty?.happiness ?? 0;
+    if (Number.isFinite(penalty)) happiness += penalty;
+    const target = getCommitmentBonuses(gameState, area).statBonus?.reputation ?? 0;
+    if (Number.isFinite(target)) reputationTarget = Math.max(reputationTarget, target);
+  }
+  return { happiness, reputationTarget };
 }
 
 /**

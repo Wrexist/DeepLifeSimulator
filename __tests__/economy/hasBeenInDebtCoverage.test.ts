@@ -35,6 +35,8 @@ function borrower(): GameState {
     loans: [],
     hasDriversLicense: true,
     progress: { ...(base.progress ?? {}), hasBeenInDebt: false },
+    // Law School needs a Bachelor's (LIFE-16); the loan is what is under test.
+    educations: [{ id: 'business_degree', name: 'Business Degree', description: '', cost: 48_000, duration: 90, completed: true }],
   });
 }
 

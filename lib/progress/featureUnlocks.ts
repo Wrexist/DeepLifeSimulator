@@ -132,10 +132,14 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   // a player with no way to look at it.
   { id: 'app:mail', tier: 0, requirement: '' },
 
+  // The Profile tab (achievements, prestige, legacy). TAB-3 (owner decision
+  // 2026-10-22): it is a visible tab-bar button, so it is NOT gated - a tier
+  // gate on the Life tab's old Stats segment and Home's card, while the tab
+  // bar opened the same screen in week 1, read as a broken lock. The Stats
+  // segment is gone and Home's card points at the Profile tab.
+  { id: 'tab:progression', tier: 0, requirement: '' },
+
   // ── Tier 1 — Fresh Start done: earned $500, got hired, survived 4 weeks ──
-  // Life → Stats: achievements, prestige and legacy. Dense, and none of it is
-  // actionable in week 1. The only tier-gated surface outside the app grids.
-  { id: 'tab:progression', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
   { id: 'app:contacts', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
   { id: 'app:bank', tier: 1, requirement: 'Finish Chapter 1: Fresh Start' },
 

@@ -2,6 +2,7 @@ import { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getTotalLuxuryMarketValue } from '@/lib/luxury';
 import { nonMirrorDeposits, totalCreditCardDebt } from '@/lib/banking/operations';
+import { calculateVehicleSellPrice } from '@/lib/vehicles/resale';
 
 export interface AchievementProgress {
   id: string;
@@ -162,22 +163,12 @@ export const netWorth = (state: GameState): number => {
     state.vehicles.forEach(vehicle => {
       if (!vehicle) return; // Skip invalid vehicles
       
-      // CRITICAL: Validate all vehicle values before calculation
-      const price = typeof vehicle.price === 'number' && isFinite(vehicle.price) && vehicle.price >= 0 ? vehicle.price : 0;
-      const condition = typeof vehicle.condition === 'number' && isFinite(vehicle.condition) && vehicle.condition >= 0 && vehicle.condition <= 100 ? vehicle.condition : 100;
-      const mileage = typeof vehicle.mileage === 'number' && isFinite(vehicle.mileage) && vehicle.mileage >= 0 ? vehicle.mileage : 0;
-      
-      if (price > 0) {
-        // Use same depreciation logic as sell price
-        const baseSellPercent = 0.8;
-        const conditionMultiplier = 0.2 + (condition / 100) * 0.8;
-        const mileagePenalty = Math.min(0.3, mileage / 500000);
-        const depreciatedValue = price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-        
-        // CRITICAL: Validate result before adding
-        if (isFinite(depreciatedValue) && depreciatedValue > 0) {
-          vehicleValue += Math.floor(depreciatedValue);
-        }
+      // The SAME formula a sale pays (`calculateVehicleSellPrice`), including
+      // the 5%/yr age term (LIFE-8). This used to be a hand copy of the old
+      // formula, which is how the two would have drifted.
+      const depreciatedValue = calculateVehicleSellPrice(vehicle);
+      if (isFinite(depreciatedValue) && depreciatedValue > 0) {
+        vehicleValue += depreciatedValue;
       }
     });
   }

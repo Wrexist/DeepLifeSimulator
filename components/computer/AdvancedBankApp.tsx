@@ -76,7 +76,6 @@ import {
   openNewAccount,
   applyForCard,
   payDownCard,
-  spendOnCard,
   redeemRewards,
   addBill,
   removeBill,
@@ -188,7 +187,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
-  const [chargeCardId, setChargeCardId] = useState<string | null>(null);
   // v22 Wave A: computer-only budget cap picker + account transfer.
   const [budgetTargetCategory, setBudgetTargetCategory] = useState<BudgetCategory | null>(null);
   const [transferFromId, setTransferFromId] = useState<string | null>(null);
@@ -625,10 +623,9 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           ))
         )}
 
-        {/* The living-card loop is wired: charge posts to the balance, paying it
-            down accrues cashback, and Redeem banks that cashback as cash. Surface
-            the accrued rewards pool in the header meta now that it can actually
-            accrue. */}
+        {/* Pay and Redeem settle a balance and bank any accrued cashback. The
+            free-standing Charge button was removed (ECO-5), so a card is a
+            credit-history tool until purchases can be paid by card. */}
         <SectionTitle
           title="Credit Cards"
           subtitle={
@@ -644,23 +641,17 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           </EmptyCard>
         ) : (
           banking.creditCards.map((c) => {
-            const availableCredit = Math.max(0, (c.creditLimit ?? 0) - (c.balance ?? 0));
             const pending = Math.max(0, c.pendingRewards ?? 0);
             const hasBalance = (c.balance ?? 0) > 0;
             return (
               <View key={c.id} style={{ gap: responsiveSpacing.xs }}>
                 <CreditCardRow card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
+                {/* ECO-5 (owner decision 2026-10-22): no free-standing
+                    "Charge" button. Charging bought nothing - it only grew the
+                    interest-bearing balance - so the cashback it advertised was
+                    always a net loss. It returns when purchases can be paid by
+                    card (a card payment rail). */}
                 <View style={styles.detailSecondaryRow}>
-                  <TouchableOpacity
-                    onPress={() => setChargeCardId(c.id)}
-                    disabled={availableCredit <= 0}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Charge a purchase to ${c.name}`}
-                    accessibilityState={{ disabled: availableCredit <= 0 }}
-                    style={[getGlassButton(darkMode), styles.secondaryBtn, availableCredit <= 0 && styles.disabled]}
-                  >
-                    <Text style={[styles.secondaryText, { color: theme.text }]}>Charge</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setPayCardId(c.id)}
                     disabled={!hasBalance}
@@ -1119,11 +1110,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const detailAccount =
     subView?.kind === 'account' ? banking.accounts.find((a) => a.id === subView.id) ?? null : null;
 
-  // Charge-to-card modal derived values (used by the Charge AmountInputModal in
-  // the frame below). Available credit caps the charge so it can't exceed the limit.
-  const chargeCard = chargeCardId ? banking.creditCards.find((c) => c.id === chargeCardId) ?? null : null;
-  const chargeAvailableCredit = chargeCard ? Math.max(0, (chargeCard.creditLimit ?? 0) - (chargeCard.balance ?? 0)) : 0;
-
   // --- Frame ---------------------------------------------------------------
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
@@ -1429,31 +1415,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             gameAlert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
           }
           setPayCardId(null);
-        }}
-      />
-
-      {/* Charge a purchase to the card - grows the (interest-bearing) balance now
-          with no cash movement; cashback then accrues when you pay the balance
-          down (see chargeCreditCard / payCreditCard anti-exploit note). */}
-      <AmountInputModal
-        visible={!!chargeCardId}
-        title="Charge to card"
-        subtitle={
-          chargeCard
-            ? `Available credit: ${formatMoney(chargeAvailableCredit)}. Adds to your balance now - pay it down later to earn ${(chargeCard.rewardsRate * 100).toFixed(1)}% cashback.`
-            : `Cash on hand: ${formatMoney(cash)}`
-        }
-        confirmLabel="Charge"
-        maxAmount={chargeAvailableCredit}
-        presets={[100, 500, 1000]}
-        darkMode={darkMode}
-        onClose={() => setChargeCardId(null)}
-        onConfirm={(amt) => {
-          if (chargeCardId) {
-            spendOnCard(setGameState, chargeCardId, amt, 'Purchase');
-            queueSave();
-          }
-          setChargeCardId(null);
         }}
       />
     </View>

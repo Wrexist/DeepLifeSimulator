@@ -38,8 +38,9 @@ import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
-import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary, managementLevels, passiveIncomeEfficiency } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
+import { perkDecayFactors } from '@/lib/economy/perkDecayShield';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { getSlotStorageGeneration, isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
@@ -67,6 +68,7 @@ import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from
 import { updateStats as updateStatsAction, applyStatsDelta } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
+import { recordMintedCoins } from '@/lib/crypto/operations';
 import { runDarkWebWeeklyTick } from '@/lib/darkweb/weeklyTick';
 import { runPoliticsWeeklyTick } from '@/lib/politics/weeklyTick';
 import { applyOfficeExit } from '@/lib/politics/operations';
@@ -87,7 +89,7 @@ import { calculateActivePolicyEffects } from './actions/PoliticalActions';
 import { getPolicyById } from '@/lib/politics/policies';
 import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 
-import { getLifeSkillModifiers , applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
+import { getLifeSkillModifiers , applyRelationshipGain, billAfterBudgeting } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { companyPayrollTaxDeduction, processHustleWeeklyTick } from '@/lib/business/hustleTick';
@@ -136,6 +138,7 @@ import {
 import { applyVehiclesForWeek, settleTotaledVehicles } from './actions/weekly/applyVehicles';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
+import { applyCommitmentStats } from './actions/weekly/applyCommitmentStats';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
@@ -147,6 +150,7 @@ import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
 import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
+import { legacyPointsEarnedThisWeek } from '@/lib/legacy/legacyAccrual';
 import { guardTick } from './actions/weekly/guardTick';
 import { mindsetEffects } from '@/lib/mindset/effects';
 import { applyResearchWeek } from './actions/RDActions';
@@ -1004,7 +1008,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Mindset: a Workaholic's health and a Perfectionist's (or a restless
  // Adventurer's) happiness wear down faster - the same factors Home's vitals
  // projection applies (lib/economy/vitalDrift.ts).
- newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay);
+ // ONB-2: Longevity / Iron Will / Inner Peace / Optimist shield a vital's
+ // natural decay for the first weeks of the life - the same factors Home's
+ // projection reads (lib/economy/perkDecayShield.ts).
+ const perkShield = perkDecayFactors(prevState);
+ newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay * perkShield.health);
 
  // GL-3: the healthcare half of enacted policy. `PoliticalApp` has always
  // rendered "Health / week +N" for it; nothing ever added the health. Applied
@@ -1015,7 +1023,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (healthcarePolicy.weeklyHealthBonus > 0) {
  newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
  }
- newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay);
+ newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay * perkShield.happiness);
  // The baseline for the single diminishing-returns application at the end of
  // this updater (Program 14): happiness AFTER natural decay, not before it.
  //
@@ -1490,7 +1498,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // shortfall as a debt that is paid off the top of next week's income and drags
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
- const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
+ // TICK-13: the Budgeting life skill trims every recurring bill. Legacy rent
+ // and upkeep arrive already trimmed (applyRentAndHousing); the tenancy and the
+ // diet plan are trimmed here. Tax and student-loan payments are not bills.
+ const tenancyRentBill = billAfterBudgeting(housingWellbeing.rent, lifeSkillMods.expenseMult);
+ const dietBill = billAfterBudgeting(dietWeeklyCost, lifeSkillMods.expenseMult);
+ const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + tenancyRentBill + housingUpkeep + dietBill + educationWeeklyCost);
  const arrearsAvailableCash = currentMoney + totalIncome + housingRentalIncome + membershipIncome;
  // Fallback inputs, normalized to the same finite/non-negative contract
  // applyArrears enforces on its OWN inputs (`safe()`). The fallback only runs if
@@ -1934,14 +1947,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // into ./actions/weekly/applyMiningCryptos.ts. Same 8-tier miner catalog,
  // same calculateMiningEarnings call, same BTC halving, same auto-repair
  // deduction (both earning-path and zero-earning-path).
- const updatedCryptos = guardTick('miningCryptos', () => applyMiningCryptos({
+ const miningResult = guardTick('miningCryptos', () => applyMiningCryptos({
    prevWarehouse: prevState.warehouse,
    prevCryptos: prevState.cryptos || [],
    halvingCount: prevState.cryptoMarket?.halvingCount ?? 0,
    // Charge auto-repair on POST-degradation durability (same roll the warehouse
    // pass uses) so a miner crossing below 50% this tick isn't repaired for $0.
    minerDegradationRoll: preRolls.minerDegradation,
- }).updatedCryptos, prevState.cryptos || []);
+   // ECO-4: the same net-worth soft cap calcWeeklyPassiveIncome applies to
+   // companies and rent, from the same pre-tick net worth.
+   passiveEfficiency: passiveIncomeEfficiency(netWorth, managementLevels(prevState.companies)),
+ }), { updatedCryptos: prevState.cryptos || [] });
+ const updatedCryptos = miningResult.updatedCryptos;
+ // Booked at a zero cost basis on the crypto market below (ECO-4).
+ const mintedThisWeek = miningResult.minted;
 
  // R7 Phase 2 step 2.6-ii-B: warehouse update extracted into
  // ./actions/weekly/applyMiningWarehouse.ts. Same difficulty / durability /
@@ -2202,6 +2221,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (vehErr) {
  logger.error('[VEHICLE TICK] Failed:', vehErr);
  }
+ // LIFE-13: commitment neglect costs happiness, a primary focus holds
+ // reputation up. Inside the updater, before the net happiness scaling.
+ guardTick('commitmentStats', () => applyCommitmentStats(prevState.activityCommitments, weeklyCtx), undefined);
  // Luxury & Collectibles weekly tick - upkeep (mirror-safe cash deduction from
  // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
@@ -2251,7 +2273,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // The helper applies the cost atomically (clamped to the money floor) but doesn't
  // return the magnitude - recompute the nominal here to match the legacy contract.
  // Cheap: `O(updatedPets.length)`.
- const petFoodCost = updatedPets.filter((p) => !p.isDead).length * PET_WEEKLY_FOOD_COST;
+ const petFoodCost = billAfterBudgeting(updatedPets.filter((p) => !p.isDead).length * PET_WEEKLY_FOOD_COST, lifeSkillMods.expenseMult);
  // Actual amount charged after the money floor - the recap must report what left
  // the wallet, not the nominal (= nominal whenever the player could afford it).
  petFoodCharged = Math.min(petFoodCost, moneyBeforePetFood);
@@ -2361,10 +2383,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // so this accrual must only ever ADD. An earlier revision of this comment
  // said "nothing reads this"; that was true before v29 and cost a later
  // audit a false finding - hence the correction.
+ //
+ // LATE-1 (owner decision 2026-10-22): a FLAT grant on every 10th PLAYED
+ // week of this life (`weeksSinceLifeStart`), +2 plus +1 per prestige level.
+ // It used to be `floor(weeksLived/10) + prestigeLevel*2` on the ABSOLUTE
+ // counter - quadratic, so one 18->65 life earned 29,890 LP against a 9,160 LP
+ // tree. The rule lives in `lib/legacy/legacyAccrual.ts`.
  let newLegacyPoints = prevState.legacyPoints || 0;
- if ((nextWeeksLived || 0) > 0 && (nextWeeksLived || 0) % 10 === 0) {
- const pointsEarned = Math.floor((nextWeeksLived || 0) / 10) +
- (prevState.prestige?.prestigeLevel || 0) * 2;
+ const pointsEarned = legacyPointsEarnedThisWeek(
+ weeksSinceLifeStart(nextWeeksLived, prevState.lifeStartWeek),
+ prevState.prestige?.prestigeLevel,
+ );
+ if (pointsEarned > 0) {
  newLegacyPoints += pointsEarned;
  logger.info(`[ENGAGEMENT] Legacy Points earned: +${pointsEarned} (total: ${newLegacyPoints})`);
  }
@@ -2761,8 +2791,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Capital gains collected this tick, for the year-to-date tax ledger below.
  let cryptoCapitalGainsTax = 0;
  try {
+ const marketBeforeTick = prevState.cryptoMarket ?? initialGameState.cryptoMarket!;
  const cryptoTick = runCryptoWeeklyTick({
- market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
+ // ECO-4: this week's minted coins join the cost basis at $0, so a later
+ // sale realises the mined value as a taxable gain.
+ market: mintedThisWeek
+   ? recordMintedCoins(marketBeforeTick, mintedThisWeek.cryptoId, mintedThisWeek.amount)
+   : marketBeforeTick,
  cryptos: updatedCryptos,
  banking: prevState.banking ?? initialGameState.banking!,
  cashIn: newStats.money,
@@ -2837,8 +2872,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // charged. Without it the Budget tab reported a renting player's housing spend
  // as upkeep alone - $0 for most of them - while the tick took $45-$950 a week
  // and could evict them over the arrears. Same omission the identity card had.
- { category: 'housing', amount: weeklyRent + housingWellbeing.rent + housingUpkeep },
- { category: 'food', amount: dietWeeklyCost },
+ { category: 'housing', amount: weeklyRent + tenancyRentBill + housingUpkeep },
+ { category: 'food', amount: dietBill },
  { category: 'taxes', amount: incomeTax },
  // Student-loan payments, charged by `applyEducationProgression`. There was no
  // education row at all, so tuition debt service was invisible in the budget.
@@ -2852,7 +2887,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Vehicle running costs: the SAME shared formula applyVehiclesForWeek
  // charged (active full fuel, idle 25% - lib/vehicles/runningCosts.ts),
  // not a third inline copy that drifts.
- { category: 'transport', amount: fleetWeeklyRunningCost(prevState.vehicles, prevState.activeVehicleId) },
+ { category: 'transport', amount: billAfterBudgeting(fleetWeeklyRunningCost(prevState.vehicles, prevState.activeVehicleId), lifeSkillMods.expenseMult) },
  // In-game subscription fee (Pulse Verified Pro / Spark Premium) - appended only
  // when a fee was actually charged this tick, so the spendEvents array (and thus
  // banking.budgetSpend) is byte-identical when no in-game sub is active.

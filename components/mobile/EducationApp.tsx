@@ -55,6 +55,8 @@ import {
   EDUCATION_PROGRAMS,
   EDUCATION_TIER_LABEL,
   EDUCATION_TIER_ORDER,
+  EDUCATION_PREREQUISITES,
+  unmetEducationPrerequisite,
   type EducationTierId,
 } from '@/lib/education/programs';
 import {
@@ -347,7 +349,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
-      <SceneCard scene="work-study-modern" title="Back to class" subtitle="Compare tuition and study time." />
+      <SceneCard scene="work-study-modern" title="Back to class" subtitle="Compare tuition, study time and entry requirements." />
       {/* This tab's mandatory colourful element (the event banner) is its colour
           moment, so it carries NO Recipe B hero. */}
       <EconomyEventBanner context="generic" />
@@ -370,6 +372,8 @@ function EducationAppInner({ onBack }: EducationAppProps) {
                   theme={theme}
                   darkMode={darkMode}
                   canAfford={cash >= entry.cost}
+                  requirement={EDUCATION_PREREQUISITES[entry.id]?.label}
+                  requirementMet={!unmetEducationPrerequisite(entry.id, educations)}
                   onEnroll={() => setEnrollTarget(entry)}
                 />
               ))}
@@ -760,11 +764,14 @@ function CourseCard({ ed, theme, darkMode, study, onOpen, onStudy }: {
 }
 
 /** Catalog directory row - subject glyph, tuition + duration chips, Enroll button. */
-function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
+function CatalogRow({ entry, theme, darkMode, canAfford, requirement, requirementMet, onEnroll }: {
   entry: CatalogEntry;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
   canAfford: boolean;
+  /** LIFE-16: the entry requirement in words, if the programme has one. */
+  requirement?: string;
+  requirementMet: boolean;
   onEnroll: () => void;
 }) {
   return (
@@ -792,6 +799,12 @@ function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
               tint={entry.cost === 0 ? accent.success : EDU}
             />
             <Chip icon={<Clock size={scale(11)} color={theme.textMuted} />} label={formatStudyDuration(entry.duration)} />
+            {requirement ? (
+              <Chip
+                tone={requirementMet ? 'success' : 'warning'}
+                label={requirementMet ? 'Requirement met' : `Needs ${requirement}`}
+              />
+            ) : null}
           </View>
         </View>
         <View
@@ -801,7 +814,7 @@ function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
           ]}
         >
           <Plus size={scale(13)} color={EDU} />
-          <Text style={[styles.enrollBtnText, { color: EDU }]}>{canAfford ? 'Enroll' : 'Options'}</Text>
+          <Text style={[styles.enrollBtnText, { color: EDU }]}>{!requirementMet ? 'Details' : canAfford ? 'Enroll' : 'Options'}</Text>
         </View>
       </View>
     </TouchableOpacity>

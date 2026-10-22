@@ -9,7 +9,7 @@
 import type { RealEstate, RealEstateActivityEntry } from '@/contexts/game/types';
 import { applyRentAndHousing } from '../applyRentAndHousing';
 import type { WeekContext } from '../weekContext';
-import { UPGRADE_TIERS } from '@/lib/realEstate/housing';
+import { UPGRADE_TIERS, getUpgradeRentBonus } from '@/lib/realEstate/housing';
 import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 function ctx(): WeekContext {
@@ -121,6 +121,6 @@ describe('applyRentAndHousing - upgrade rent bonus reaches realized rent', () =>
 
     // ~= rentBonus; a few cents shy because the upgrade also lifts appreciation
     // (appreciatePropertyValue), nudging the upgraded unit's carrying cost up.
-    expect(withUp.housingRentalIncome - without.housingRentalIncome).toBeCloseTo(tier3.rentBonus, 0);
+    expect(withUp.housingRentalIncome - without.housingRentalIncome).toBeCloseTo(getUpgradeRentBonus(tier3, upgraded), 0);
   });
 });

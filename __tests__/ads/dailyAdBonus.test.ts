@@ -47,8 +47,10 @@ describe('applyDailyAdBonus', () => {
 describe('DailyRewardPopup', () => {
   const src = fs.readFileSync(path.join(process.cwd(), 'components/DailyRewardPopup.tsx'), 'utf8');
 
-  it('offers the doubler only when a real ad can be shown', () => {
-    expect(src).toMatch(/adsAvailable\(areAdsRemoved\(gameState\)\)/);
+  it('offers the doubler only when a real ad can be shown, or as the ad-free perk (MON-5)', () => {
+    // The mode decision is `dailyBonusOfferMode`, pinned in orbGates.test.ts.
+    expect(src).toMatch(/dailyBonusOfferMode\(areAdsRemoved\(gameState\)\)/);
+    expect(src).toMatch(/bonusMode === 'perk'/);
   });
 
   it('hides its Modal before the ad presents', () => {

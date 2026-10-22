@@ -18,7 +18,7 @@ import type { Pet } from '@/contexts/game/types';
 import { tickAllPets } from '@/lib/pets/decay';
 import { bondingSummary } from '@/lib/pets/bonding';
 import type { WeekContext } from './weekContext';
-import { chargeOrDefer } from './chargeOrDefer';
+import { chargeBill } from './chargeOrDefer';
 
 /** Weekly food cost per alive pet (USD). Matches the legacy inline constant. */
 // Re-exported from `@/lib/pets/lifecycle`, which now owns it: the Weekly
@@ -197,7 +197,7 @@ export function applyPetLivingSideEffects(
   // Pet food costs: deduct basic food per alive pet.
   const petFoodCost = alivePets.length * PET_WEEKLY_FOOD_COST;
   if (petFoodCost > 0) {
-    // Feeding the animals is not optional.
-    chargeOrDefer(ctx, petFoodCost);
+    // Feeding the animals is not optional. A recurring bill: Budgeting applies.
+    chargeBill(ctx, petFoodCost);
   }
 }

@@ -347,12 +347,14 @@ export default function TabLayout() {
           href: isInPrison ? null : undefined,
         }}
       />
-      {/* The five screens below are no longer their own bottom-bar tabs - they're
-          folded into Apps (mobile, computer) and Life (market, health,
-          progression). Their routes stay registered with href: null so deep
-          links and direct router.push() navigation still resolve; they just
-          never render a tab button. Without an explicit entry, expo-router would
-          auto-surface each file as a default tab and undo the merge. */}
+      {/* Four screens below are no longer their own bottom-bar tabs - they're
+          folded into Apps (mobile, computer) and Life (market, health). Their
+          routes stay registered with href: null so deep links and direct
+          router.push() navigation still resolve; they just never render a tab
+          button. Without an explicit entry, expo-router would auto-surface each
+          file as a default tab and undo the merge. `progression` is the
+          exception: it IS the Profile tab, the one door to that screen and not
+          tier-gated (TAB-3); Home's card points here. */}
       <Tabs.Screen
         name="mobile"
         options={{

@@ -2,28 +2,23 @@ import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadiu
 import { uiPalette } from '@/lib/config/theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { Activity, Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Activity, Heart, ShoppingCart, Users } from 'lucide-react-native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import Freeze from '@/components/ui/Freeze';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 
-import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { HealthScreenContent } from './health';
 import { MarketScreenContent } from './market';
-import { ProgressionScreenContent } from './progression';
 import FamilyTab from '@/components/FamilyTab';
-import { gameAlert } from '@/utils/gameAlert';
 import AlertHost from '@/components/ui/AlertHost';
 
 /**
  * Life - the merged personal tab.
  *
- * Folds the three always-on tabs the player touches least often (Health,
- * Market, Progress) into one, behind a Health / Shop / Stats segmented
- * sub-menu. Defaults to Health, so a player's vitals stay a single tap away -
+ * Folds the two always-on tabs the player touches least often (Health and
+ * Market) into one, behind a Health / Market segmented sub-menu. Defaults to Health, so a player's vitals stay a single tap away -
  * Health simply isn't its own bottom-bar icon any more.
  *
  * Family opens from a HEADER ACTION, not a segment. It used to sit in the
@@ -39,12 +34,14 @@ import AlertHost from '@/components/ui/AlertHost';
  * FROZEN (matching the layout's freezeOnBlur philosophy): it keeps its scroll
  * and sub-tab, and only the visible segment re-renders with game state.
  *
- * Stats is the one segment behind a progressive-disclosure gate. It holds
- * achievements, prestige and legacy - dense, and none of it actionable in
- * week 1. Health and Market are never gated: health decays from week 1 and
- * food lives in Market, so locking either could strand a player.
+ * There is no Stats segment any more (TAB-3, owner decision 2026-10-22).
+ * Achievements, prestige and legacy live on the Profile tab, the one door and
+ * the one name for that screen; a gated copy here, beside an ungated tab-bar
+ * button, read as a broken lock. Health and Market are never gated: health
+ * decays from week 1 and food lives in Market, so locking either could strand
+ * a player.
  */
-type LifeSegment = 'health' | 'shop' | 'stats';
+type LifeSegment = 'health' | 'shop';
 
 
 function LifeScreen() {
@@ -54,18 +51,14 @@ function LifeScreen() {
     () => new Set<LifeSegment>(['health'])
   );
   const [showFamily, setShowFamily] = useState(false);
-  // Two primitives, so the shell re-renders only when the Stats gate itself
-  // changes - not on every mutation the visible segment makes (PERF-3).
-  const statsLocked = useGameSelector((s) => !isFeatureUnlocked(s, 'tab:progression'));
-  const statsReason = useGameSelector((s) => unlockRequirement(s, 'tab:progression'));
+  const router = useRouter();
 
   // Deep-link support: `/(tabs)/life?segment=shop` lands on a specific segment,
   // so CTAs elsewhere ("buy a computer in the Market") can point straight at
   // the Market instead of dead-ending on this shell's default segment.
   //
   // Consume-once: the params stick to the route entry for its whole life, so
-  // without the ref this effect would re-fire on unrelated re-runs (e.g. the
-  // stats gate unlocking mid-game) and yank a player who had manually switched
+  // without the ref this effect would re-fire on unrelated re-runs and yank a player who had manually switched
   // segments back to the deep-linked one. Senders include a `ts` nonce so a
   // REPEATED tap of the same CTA still lands.
   const params = useLocalSearchParams<{ segment?: string; ts?: string }>();
@@ -76,20 +69,20 @@ function LifeScreen() {
     const key = `${target}|${params.ts ?? ''}`;
     if (consumedDeepLinkRef.current === key) return;
     consumedDeepLinkRef.current = key;
-    if (target === 'health' || target === 'shop' || (target === 'stats' && !statsLocked)) {
+    if (target === 'health' || target === 'shop') {
       setSegment(target);
       setVisitedSegments((prev) => (prev.has(target) ? prev : new Set(prev).add(target)));
     } else if (target === 'stats') {
-      // A goal row that deep-links to locked Stats used to land on Health with
-      // no word of why - a dead tap. Say what the segment's own lock says.
-      gameAlert('Stats', statsReason || 'Keep playing to unlock this.');
+      // TAB-3: the Stats segment moved to the Profile tab. A link written
+      // before that (an old goal row, a notification) still lands there.
+      router.navigate('/(tabs)/progression');
     }
-  }, [params.segment, params.ts, statsLocked, statsReason]);
+  }, [params.segment, params.ts, router]);
 
   return (
     <ErrorBoundary>
       <View style={styles.container}>
-        {/* This shell owns the title: its three children suppress their own
+        {/* This shell owns the title: its children suppress their own
             headers when embedded, which used to leave the tab with a bare
             segmented control floating over unlabelled content. */}
         <ScreenHeader
@@ -123,36 +116,31 @@ function LifeScreen() {
                 prev.has(next) ? prev : new Set(prev).add(next)
               );
             }}
-            onLockedPress={(_key, reason) => {
-              gameAlert('Stats', reason || 'Keep playing to unlock this.');
-            }}
             segments={[
               { key: 'health', label: 'Health', icon: Heart },
               { key: 'shop', label: 'Market', icon: ShoppingCart },
-              { key: 'stats', label: 'Stats', icon: Trophy, locked: statsLocked, lockReason: statsReason },
             ]}
           />
         </View>
         {/* Each segment is mounted ONCE, on first visit, then kept alive but
             hidden. Switching used to unmount the outgoing screen, so Market
-            lost its sub-tab and filters and Progression lost its scroll every
-            time the player looked at Health. `display: none` keeps the tree
+            lost its sub-tab and filters every time the player looked at
+            Health. `display: none` keeps the tree
             alive without painting or laying it out, and a segment the player
             has never opened is never mounted at all.
             PERF-3: a hidden segment is also FROZEN. Each one subscribes to the
             whole game state, so `display: none` alone still re-rendered the
-            invisible ones on every tap - Progression re-scoring all 159
-            achievements for each meal bought in Market. Freeze keeps their
+            invisible ones on every tap. Freeze keeps their
             state and skips their renders until they are shown again. */}
         <View style={styles.body}>
-          {(['health', 'shop', 'stats'] as const)
+          {(['health', 'shop'] as const)
             .filter((key) => visitedSegments.has(key))
             .map((key) => (
               <View
                 key={key}
                 style={segment === key ? styles.segmentActive : styles.segmentHidden}
                 // Hidden segments must be invisible to screen readers too,
-                // otherwise VoiceOver walks three screens' worth of content.
+                // otherwise VoiceOver walks every screen's content.
                 accessibilityElementsHidden={segment !== key}
                 importantForAccessibility={segment === key ? 'auto' : 'no-hide-descendants'}
                 pointerEvents={segment === key ? 'auto' : 'none'}
@@ -160,10 +148,8 @@ function LifeScreen() {
                 <Freeze freeze={segment !== key}>
                   {key === 'health' ? (
                     <HealthScreenContent embedded />
-                  ) : key === 'shop' ? (
-                    <MarketScreenContent embedded />
                   ) : (
-                    <ProgressionScreenContent embedded />
+                    <MarketScreenContent embedded />
                   )}
                 </Freeze>
               </View>

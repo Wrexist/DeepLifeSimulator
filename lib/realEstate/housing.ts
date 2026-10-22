@@ -21,9 +21,15 @@ export interface UpgradeTier {
   cost: number;
   /** Share of the property's value the tier costs once that exceeds `cost`. */
   valueRate: number;
-  rentBonus: number;
-  upkeepBonus: number;
+  /**
+   * Weekly rent bonus as a share of the property's value, paid while the unit
+   * is rented. Read it through `getUpgradeRentBonus`, never directly.
+   */
+  rentRate: number;
 }
+
+/** The upkeep a tier adds, as a share of the rent bonus it pays. */
+export const UPGRADE_UPKEEP_SHARE = 0.2;
 
 /**
  * Tier price = max(flat floor, value × valueRate) - read it through
@@ -45,12 +51,51 @@ export interface UpgradeTier {
  * ladder) instead of letting it climb with the price tag. $8M penthouse,
  * whole ladder: $85k -> $680k.
  */
+/*
+ * RENT BONUS is a share of value too (ECO-12, owner decision 2026-10-22). It
+ * was a flat $100/$250/$500 a week whatever the property was worth, so on the
+ * $95k studio tier 1 paid ~51%/yr and the whole ladder ~28%/yr, the bonus was
+ * 2.8x the studio's own market rent, and the best real-estate move was
+ * upgrading the cheapest unit you own.
+ *
+ * The audit suggested 0.02% / 0.05% / 0.1% of value a week, but that misses
+ * its own "10-20%/yr per tier at any value" target: above $1M a tier costs
+ * `valueRate` of value (1% / 2.5% / 5%), so 0.02%/wk on tier 1 would pay ~83%/yr
+ * net. The rates below are set from that target instead: each tier's MARGINAL
+ * rent, net of its upkeep, pays ~15%/yr on what the tier costs at or above $1M
+ * (where cost tracks value), and less below it (where the price is the flat
+ * floor). Studio: +$4 / $12 / $28 a week. $5M home: +$200 / $650 / $1,500.
+ * The tiers live in code (a property stores only its `upgradeLevel`), so no
+ * save migration is involved. `__tests__/upgradeRentBonus.test.ts` pins it.
+ */
 export const UPGRADE_TIERS: UpgradeTier[] = [
-  { level: 0, cost: 0, valueRate: 0, rentBonus: 0, upkeepBonus: 0 },
-  { level: 1, cost: 10000, valueRate: 0.01, rentBonus: 100, upkeepBonus: 20 },
-  { level: 2, cost: 25000, valueRate: 0.025, rentBonus: 250, upkeepBonus: 50 },
-  { level: 3, cost: 50000, valueRate: 0.05, rentBonus: 500, upkeepBonus: 100 },
+  { level: 0, cost: 0, valueRate: 0, rentRate: 0 },
+  { level: 1, cost: 10000, valueRate: 0.01, rentRate: 0.00004 },
+  { level: 2, cost: 25000, valueRate: 0.025, rentRate: 0.00013 },
+  { level: 3, cost: 50000, valueRate: 0.05, rentRate: 0.0003 },
 ];
+
+function upgradeBaseValue(property: Pick<RealEstate, 'currentValue' | 'price'>): number {
+  const raw = property.currentValue || property.price;
+  return typeof raw === 'number' && isFinite(raw) && raw > 0 ? raw : 0;
+}
+
+/** The weekly rent bonus `tier` pays on this property while it is rented. */
+export function getUpgradeRentBonus(
+  tier: UpgradeTier | undefined,
+  property: Pick<RealEstate, 'currentValue' | 'price'>,
+): number {
+  if (!tier || !(tier.rentRate > 0)) return 0;
+  return Math.round(upgradeBaseValue(property) * tier.rentRate);
+}
+
+/** The weekly upkeep `tier` adds on this property. */
+export function getUpgradeUpkeepBonus(
+  tier: UpgradeTier | undefined,
+  property: Pick<RealEstate, 'currentValue' | 'price'>,
+): number {
+  return Math.round(getUpgradeRentBonus(tier, property) * UPGRADE_UPKEEP_SHARE);
+}
 
 export function getUpgradeTier(level: number): UpgradeTier | undefined {
   return UPGRADE_TIERS.find(t => t.level === level);
@@ -66,9 +111,7 @@ export function getUpgradeTierCost(
   tier: UpgradeTier,
   property: Pick<RealEstate, 'currentValue' | 'price'>,
 ): number {
-  const raw = property.currentValue || property.price;
-  const value = typeof raw === 'number' && isFinite(raw) && raw > 0 ? raw : 0;
-  return Math.max(tier.cost, Math.round(value * tier.valueRate));
+  return Math.max(tier.cost, Math.round(upgradeBaseValue(property) * tier.valueRate));
 }
 
 // ─── Room Additions ──────────────────────────────────────────────────────
@@ -277,14 +320,14 @@ export function processWeeklyHousing(
     if (p.status === 'rented') {
       const baseRent = p.rent || Math.round((p.currentValue || p.price) * RENT_INCOME_RATE);
       const upgradeTier = getUpgradeTier(p.upgradeLevel);
-      const rentBonus = upgradeTier?.rentBonus || 0;
+      const rentBonus = getUpgradeRentBonus(upgradeTier, p);
       totalRentalIncome += baseRent + rentBonus;
     }
 
     // Upkeep costs
     const baseUpkeep = p.upkeep || 0;
     const upgradeTier = getUpgradeTier(p.upgradeLevel);
-    const upkeepBonus = upgradeTier?.upkeepBonus || 0;
+    const upkeepBonus = getUpgradeUpkeepBonus(upgradeTier, p);
     const weeklyUpkeep = Math.round((baseUpkeep + upkeepBonus) / 4);
     totalUpkeep += weeklyUpkeep;
 

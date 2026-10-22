@@ -3394,6 +3394,10 @@ exports[`pre-tick equivalence - applyMiningCryptos auto-repair enabled but NO ea
 
 exports[`pre-tick equivalence - applyMiningCryptos auto-repair enabled with earnings: deducts cost from autoRepairCryptoId 1`] = `
 {
+  "minted": {
+    "amount": 0.0036,
+    "cryptoId": "btc",
+  },
   "updatedCryptos": [
     {
       "id": "btc",
@@ -3417,6 +3421,10 @@ exports[`pre-tick equivalence - applyMiningCryptos auto-repair enabled with earn
 
 exports[`pre-tick equivalence - applyMiningCryptos halving 1: cryptoEarned cut in half 1`] = `
 {
+  "minted": {
+    "amount": 0.0014,
+    "cryptoId": "btc",
+  },
   "updatedCryptos": [
     {
       "id": "btc",
@@ -3447,6 +3455,10 @@ exports[`pre-tick equivalence - applyMiningCryptos halving 4: cryptoEarned reduc
 
 exports[`pre-tick equivalence - applyMiningCryptos mining ETH (lower multiplier in calculateMiningEarnings) 1`] = `
 {
+  "minted": {
+    "amount": 0.048,
+    "cryptoId": "eth",
+  },
   "updatedCryptos": [
     {
       "id": "btc",
@@ -3485,6 +3497,10 @@ exports[`pre-tick equivalence - applyMiningCryptos no warehouse: returns prevCry
 
 exports[`pre-tick equivalence - applyMiningCryptos warehouse with basic miners: BTC owned bumps up 1`] = `
 {
+  "minted": {
+    "amount": 0.0018,
+    "cryptoId": "btc",
+  },
   "updatedCryptos": [
     {
       "id": "btc",
@@ -3500,6 +3516,10 @@ exports[`pre-tick equivalence - applyMiningCryptos warehouse with basic miners: 
 
 exports[`pre-tick equivalence - applyMiningCryptos warehouse with industrial miners: significant BTC bump 1`] = `
 {
+  "minted": {
+    "amount": 0.0885,
+    "cryptoId": "btc",
+  },
   "updatedCryptos": [
     {
       "id": "btc",
@@ -4884,8 +4904,8 @@ exports[`pre-tick equivalence - applyVehiclesForWeek applies reputation nudge wh
     "gems": 0,
     "happiness": 100,
     "health": 100,
-    "money": 99762,
-    "reputation": 31,
+    "money": 99800,
+    "reputation": 30,
   },
   "notifications": [],
   "vehicles": [
@@ -4894,7 +4914,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek applies reputation nudge wh
       "condition": 99,
       "fuelCapacity": 80,
       "fuelEfficiency": 12,
-      "fuelLevel": 60,
+      "fuelLevel": 53.75,
       "id": "lambo",
       "maxSpeed": 320,
       "mileage": 1200,
@@ -4921,7 +4941,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles a single owned car 
     "gems": 0,
     "happiness": 100,
     "health": 100,
-    "money": 9942,
+    "money": 9950,
     "reputation": 50,
   },
   "notifications": [],
@@ -4931,7 +4951,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles a single owned car 
       "condition": 89,
       "fuelCapacity": 50,
       "fuelEfficiency": 30,
-      "fuelLevel": 80,
+      "fuelLevel": 73.75,
       "id": "car1",
       "maxSpeed": 120,
       "mileage": 20200,
@@ -4974,7 +4994,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles insured vehicle acc
     "gems": 0,
     "happiness": 100,
     "health": 82,
-    "money": 49930,
+    "money": 49940,
     "reputation": 50,
   },
   "notifications": [
@@ -4990,7 +5010,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles insured vehicle acc
       "condition": 0,
       "fuelCapacity": 50,
       "fuelEfficiency": 25,
-      "fuelLevel": 70,
+      "fuelLevel": 63.75,
       "id": "insuredCar",
       "insurance": {
         "active": true,
@@ -5024,7 +5044,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles low-condition vehic
     "gems": 0,
     "happiness": 100,
     "health": 80,
-    "money": 4910,
+    "money": 4920,
     "reputation": 50,
   },
   "notifications": [],
@@ -5034,7 +5054,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles low-condition vehic
       "condition": 24,
       "fuelCapacity": 40,
       "fuelEfficiency": 15,
-      "fuelLevel": 20,
+      "fuelLevel": 13.75,
       "id": "beater",
       "maxSpeed": 80,
       "mileage": 250200,
@@ -5114,7 +5134,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek skips reputation nudge when
     "gems": 0,
     "happiness": 100,
     "health": 100,
-    "money": 99767,
+    "money": 99800,
     "reputation": 80,
   },
   "notifications": [],
@@ -5124,7 +5144,7 @@ exports[`pre-tick equivalence - applyVehiclesForWeek skips reputation nudge when
       "condition": 99,
       "fuelCapacity": 70,
       "fuelEfficiency": 14,
-      "fuelLevel": 60,
+      "fuelLevel": 53.75,
       "id": "lambo2",
       "maxSpeed": 310,
       "mileage": 700,
@@ -5758,7 +5778,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick earlyCareer 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 13,
       },
       "eth": {
         "bidAskSpread": 0.002,
@@ -5774,7 +5794,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick earlyCareer 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 3,
       },
       "link": {
         "bidAskSpread": 0.002,
@@ -6010,7 +6030,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick freshGame 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 2,
       },
       "dot": {
         "bidAskSpread": 0.002,
@@ -6090,7 +6110,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick freshGame 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 37,
       },
       "xrp": {
         "bidAskSpread": 0.002,
@@ -6201,12 +6221,12 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
       "symbol": "XRP",
     },
     {
-      "change": 0.0018124186499214323,
-      "changePercent": 0.47695227629511383,
+      "change": 0.00550294196232326,
+      "changePercent": 1.4481426216640159,
       "id": "ada",
       "name": "Cardano",
       "owned": 0,
-      "price": 0.38181241864992144,
+      "price": 0.38550294196232326,
       "symbol": "ADA",
     },
     {
@@ -6249,7 +6269,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
   "market": {
     "coinMarkets": {
       "ada": {
-        "bidAskSpread": 0.002,
+        "bidAskSpread": 0.004,
         "cryptoId": "ada",
         "priceHistory": [
           {
@@ -6257,11 +6277,11 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
             "weeksLived": 0,
           },
           {
-            "price": 0.38181241864992144,
+            "price": 0.38550294196232326,
             "weeksLived": 181,
           },
         ],
-        "regime": "stable",
+        "regime": "bull",
         "regimeWeeksRemaining": 15,
       },
       "btc": {
@@ -6374,7 +6394,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 7,
       },
     },
     "costBasis": {},
@@ -6764,12 +6784,12 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
       "symbol": "DOT",
     },
     {
-      "change": -0.003660009480283777,
-      "changePercent": -0.4305893506216208,
+      "change": -0.00504752133063846,
+      "changePercent": -0.5938260388986424,
       "id": "matic",
       "name": "Polygon",
       "owned": 0,
-      "price": 0.8463399905197162,
+      "price": 0.8449524786693615,
       "symbol": "MATIC",
     },
     {
@@ -6865,7 +6885,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
         "regimeWeeksRemaining": 15,
       },
       "matic": {
-        "bidAskSpread": 0.002,
+        "bidAskSpread": 0.004,
         "cryptoId": "matic",
         "priceHistory": [
           {
@@ -6873,12 +6893,12 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
             "weeksLived": 0,
           },
           {
-            "price": 0.8463399905197162,
+            "price": 0.8449524786693615,
             "weeksLived": 801,
           },
         ],
-        "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regime": "bull",
+        "regimeWeeksRemaining": 5,
       },
       "sol": {
         "bidAskSpread": 0.002,
@@ -6894,7 +6914,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 13,
       },
       "xrp": {
         "bidAskSpread": 0.002,
@@ -6910,7 +6930,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
           },
         ],
         "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regimeWeeksRemaining": 7,
       },
     },
     "costBasis": {},
@@ -7005,12 +7025,12 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
       "symbol": "XRP",
     },
     {
-      "change": 0.0016888402792390456,
-      "changePercent": 0.4444316524313278,
+      "change": 0.0013721006980976225,
+      "changePercent": 0.3610791310783217,
       "id": "ada",
       "name": "Cardano",
       "owned": 0,
-      "price": 0.38168884027923905,
+      "price": 0.3813721006980976,
       "symbol": "ADA",
     },
     {
@@ -7053,7 +7073,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
   "market": {
     "coinMarkets": {
       "ada": {
-        "bidAskSpread": 0.002,
+        "bidAskSpread": 0.006,
         "cryptoId": "ada",
         "priceHistory": [
           {
@@ -7061,12 +7081,12 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
             "weeksLived": 0,
           },
           {
-            "price": 0.38168884027923905,
+            "price": 0.3813721006980976,
             "weeksLived": 1501,
           },
         ],
-        "regime": "stable",
-        "regimeWeeksRemaining": 15,
+        "regime": "bear",
+        "regimeWeeksRemaining": 5,
       },
       "btc": {
         "bidAskSpread": 0.002,

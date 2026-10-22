@@ -370,6 +370,14 @@ describeSim('Economy strategy simulation (manual soak)', () => {
     expect(last(byName['worker (software L0, $1.1k/wk)']).netWorth).toBeGreaterThan(
       last(byName['idle (no job, no assets)']).netWorth
     );
+    // ECO-11 (owner decision 2026-10-22): buy-and-hold dividend stocks must not
+    // out-earn building companies. Dividends used to be paid on top of the
+    // full price drift, and investor (+$2.15M) beat tycoon (+$1.76M); with the
+    // yield taken off the drift the investor measures +$1.60M.
+    const gain = (r: RunResult) => last(r).netWorth - r.rows[0].netWorth;
+    expect(gain(byName['investor (worker + $500k stocks)'])).toBeLessThan(
+      gain(byName['tycoon (worker + 2 companies)'])
+    );
     // No archetype's net worth may go non-finite or catastrophically negative.
     for (const r of results) {
       expect(last(r).netWorth).toBeGreaterThan(-1_000_000);

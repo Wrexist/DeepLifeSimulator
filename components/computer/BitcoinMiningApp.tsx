@@ -63,6 +63,8 @@ import { MINER_REPAIR_COSTS } from '@/contexts/game/actions/weekly/applyMiningWa
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { estimateWeeklyMining, MINING_USD_CAP } from '@/lib/crypto/estimateWeeklyMining';
 import { minerDurabilityYieldFactor, MINER_FULL_YIELD_DURABILITY } from '@/lib/crypto/miningEarnings';
+import { managementLevels, passiveIncomeEfficiency } from '@/lib/economy/passiveIncome';
+import { netWorth } from '@/lib/progress/achievements';
 import {
   repairRig,
   setAutoRepair,
@@ -289,6 +291,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const btcEstimateUsd = useMemo(
     () => estimateWeeklyMining(warehouseForEstimate, cryptos, 'btc', halvingCount).usdPerWeek,
     [warehouseForEstimate, gameState.cryptos, halvingCount]
+  );
+  // ECO-4: the tick scales minted coins by the same net-worth soft cap every
+  // other passive stream pays, so say so on the hero once it bites.
+  const miningKeptPct = useMemo(
+    () => Math.round(passiveIncomeEfficiency(netWorth(gameState), managementLevels(gameState.companies)) * 100),
+    [gameState]
   );
   const vsBtcPct =
     mineTargetId !== 'btc' && btcEstimateUsd > 0
@@ -647,11 +655,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             so this tab intentionally carries NO Recipe B hero (one focal accent). */}
         <EconomyEventBanner context="crypto" />
         {selectedCoinMarket && (
-          <RegimeBanner
-            regime={selectedCoinMarket.regime}
-            weeksRemaining={selectedCoinMarket.regimeWeeksRemaining}
-            darkMode={darkMode}
-          />
+          <RegimeBanner regime={selectedCoinMarket.regime} darkMode={darkMode} />
         )}
 
         <View style={{ gap: responsiveSpacing.sm }}>
@@ -762,6 +766,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 label={`Power ${formatMoneyCompact(mineEstimate.electricityUsd)}/wk`}
                 icon={<Zap size={scale(11)} color={theme.textMuted} />}
               />
+              {miningKeptPct < 100 && <Chip label={`Wealth cap: ${miningKeptPct}% kept`} />}
               <Chip
                 label={totalMiners > 0 ? `${fleetBand.label} ${Math.round(fleetHealth)}%` : 'No rigs'}
                 tint={totalMiners > 0 ? fleetBand.color : undefined}
@@ -1659,7 +1664,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </HeroCard>
 
         {cm && (
-          <RegimeBanner regime={cm.regime} weeksRemaining={cm.regimeWeeksRemaining} darkMode={darkMode} />
+          <RegimeBanner regime={cm.regime} darkMode={darkMode} />
         )}
 
         {/* The three numbers a position is judged on. The other three (spread,

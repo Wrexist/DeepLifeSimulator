@@ -31,6 +31,26 @@ import type { GameState } from '@/contexts/game/types';
 import type { CareerRequirements } from '@/lib/types/requirements';
 
 import { hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
+import { vehicleGrantedReputation } from '@/lib/vehicles/vehicles';
+
+/**
+ * The reputation a career gate reads: the player's reputation MINUS what their
+ * garage bought (ECO-9, owner decision 2026-10-22).
+ *
+ * Every car grants its `reputationBonus` on purchase, and they stack: a $55k
+ * Sports Coupe (+15) and a $65k Muscle Car (+18) took a nobody to 33, past the
+ * Celebrity bar (30) and onto a $4,600/wk ladder with no degree. Status goods
+ * still move the HUD number; they just cannot buy a career that asks you to be
+ * known. Exactly what a sale would take back is subtracted
+ * (`vehicleReputationTakeBack`), so selling the car changes nothing here.
+ */
+export function careerGateReputation(
+  gameState: { stats?: { reputation?: number }; vehicles?: GameState['vehicles'] | null } | null | undefined,
+): number {
+  const raw = gameState?.stats?.reputation;
+  const reputation = typeof raw === 'number' && isFinite(raw) ? raw : 0;
+  return Math.max(0, reputation - vehicleGrantedReputation(gameState?.vehicles));
+}
 
 export interface CareerRequirementCheck {
   /** True when every ENFORCED requirement is satisfied. */
@@ -41,8 +61,12 @@ export interface CareerRequirementCheck {
   missingItems: string[];
   /** The fitness bar, when it is not met. Undefined when it is (or is lifted). */
   fitnessShortfall?: { required: number; actual: number };
-  /** The reputation bar, when it is not met (blocking, waived by prestige). */
-  reputationShortfall?: { required: number; actual: number };
+  /**
+   * The reputation bar, when it is not met (blocking, waived by prestige).
+   * `actual` is `careerGateReputation`; `fromVehicles` is the part of the HUD
+   * figure the gate does not count.
+   */
+  reputationShortfall?: { required: number; actual: number; fromVehicles: number };
   /** True when `early_career_access` waived the block. */
   waivedByPrestige: boolean;
 }
@@ -64,7 +88,7 @@ export function checkCareerRequirements(
   const missingEducation: string[] = [];
   const missingItems: string[] = [];
   let fitnessShortfall: { required: number; actual: number } | undefined;
-  let reputationShortfall: { required: number; actual: number } | undefined;
+  let reputationShortfall: { required: number; actual: number; fromVehicles: number } | undefined;
 
   if (!waivedByPrestige) {
     if ('education' in req && req.education && req.education.length > 0) {
@@ -101,8 +125,9 @@ export function checkCareerRequirements(
     }
 
     if ('reputation' in req && typeof req.reputation === 'number' && req.reputation > 0) {
-      const actual = gameState?.stats?.reputation ?? 0;
-      if (actual < req.reputation) reputationShortfall = { required: req.reputation, actual };
+      const actual = careerGateReputation(gameState);
+      const fromVehicles = Math.max(0, (gameState?.stats?.reputation ?? 0) - actual);
+      if (actual < req.reputation) reputationShortfall = { required: req.reputation, actual, fromVehicles };
     }
   }
 

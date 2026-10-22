@@ -1,4 +1,5 @@
 import { uiPalette, colors } from '@/lib/config/theme';
+import { WORDMARK } from '@/lib/config/brand';
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -260,12 +261,13 @@ export default function Index() {
         <View style={loadingStyles.spacerTop} />
 
         <View style={loadingStyles.hero}>
-          <Text style={loadingStyles.eyebrow}>LIVE A THOUSAND LIVES</Text>
+          {/* ONB-13: one wordmark, shared with the main menu (lib/config/brand.ts). */}
+          <Text style={loadingStyles.eyebrow}>{WORDMARK.tagline}</Text>
           <Text style={loadingStyles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-            DEEP LIFE
+            {WORDMARK.top}
           </Text>
           <Text style={loadingStyles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-            SIMULATOR
+            {WORDMARK.bottom}
           </Text>
         </View>
 
