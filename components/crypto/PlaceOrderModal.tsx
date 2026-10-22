@@ -4,6 +4,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { CAPITAL_GAINS_TAX_RATE } from '@/lib/economy/taxLedger';
 import { X } from 'lucide-react-native';
 import { Crypto, CryptoOrderSide, CryptoOrderType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -149,7 +150,7 @@ export default function PlaceOrderModal({ visible, coin, cash, reservedCash = 0,
             )}
             {side === 'sell' && estimatedUSD > 0 && (
               <Text style={[styles.estimate, { color: theme.textMuted }]}>
-                ≈ {formatPrice(estimatedUSD)} at mid (excludes spread + slippage)
+                ≈ {formatPrice(estimatedUSD)} at mid (excludes spread, slippage and up to {Math.round(CAPITAL_GAINS_TAX_RATE * 100)}% tax on any gain)
               </Text>
             )}
             {amountText.trim() !== '' && parseAmount(amountText) === null && (

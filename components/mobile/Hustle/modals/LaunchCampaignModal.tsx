@@ -16,7 +16,7 @@ import { useTheme } from '@/hooks/useTheme';
 
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { launchCampaign, cancelCampaign, CAMPAIGN_ENERGY_COST } from '@/contexts/game/actions/HustleActions';
-import { campaignCostFloor, projectCampaignROI } from '@/lib/business/hustleLogic';
+import { brandLiftForCampaign, campaignCostFloor, CAMPAIGN_FULL_LIFT_WEEKS, projectCampaignROI } from '@/lib/business/hustleLogic';
 import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import { parseAmount } from '@/utils/parseAmount';
@@ -76,8 +76,9 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
   const floor = selectedKind ? campaignCostFloor(selectedKind) : 0;
   // Energy gates alongside cash (2026-08-24) - the disabled button and the
   // action's own refusal must agree on both.
+  const kindRunning = selectedKind != null && active.some((c) => c.active !== false && c.kind === selectedKind);
   const canLaunch =
-    !pendingId && Number.isSafeInteger(durationNum) && durationNum >= 1 &&
+    !pendingId && !kindRunning && Number.isSafeInteger(durationNum) && durationNum >= 1 &&
     selectedKind != null &&
     spendNum >= floor &&
     (gameState.stats?.money ?? 0) >= spendNum &&
@@ -194,6 +195,13 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                 </View>
                 <Text style={[styles.composerROI, { color: projectedROI > 1 ? HUSTLE_COLORS.success : HUSTLE_COLORS.warning }]}>
                   Projected ROI: {projectedROI > 0 ? `${projectedROI}×` : 'Below cost floor'} · {CAMPAIGN_ENERGY_COST} energy
+                </Text>
+                <Text style={[styles.composerLabel, { color: kindRunning ? HUSTLE_COLORS.warning : theme.textMuted }]}>
+                  {kindRunning
+                    ? 'A campaign of this type is already running. Cancel it or wait for it to end.'
+                    : selectedKind
+                      ? `Brand +${brandLiftForCampaign(selectedKind, durationNum)} at launch. Full lift from ${CAMPAIGN_FULL_LIFT_WEEKS} weeks.`
+                      : null}
                 </Text>
                 <Pressable
                   onPress={handleLaunch}
