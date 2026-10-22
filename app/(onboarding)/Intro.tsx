@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PRODUCT_NAME, WORDMARK } from '@/lib/config/brand';
 import { AccessibilityInfo, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,9 +65,9 @@ export default function Intro() {
   return <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
     <View style={styles.header}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={back} style={styles.quiet}><ArrowLeft color={uiPalette.muted} size={23} /></TouchableOpacity>
-      <View style={styles.brand} accessible accessibilityLabel="DeepLife Simulator">
+      <View style={styles.brand} accessible accessibilityLabel={PRODUCT_NAME}>
         <Image source={require('@/assets/images/icon.png')} style={styles.logo} accessibilityIgnoresInvertColors />
-        <Text style={styles.brandText}>DEEP LIFE</Text>
+        <Text style={styles.brandText}>{WORDMARK.top}</Text>
       </View>
       <TouchableOpacity accessibilityRole="button" onPress={finish} style={styles.quiet}><Text style={styles.muted}>{text('skip')}</Text></TouchableOpacity>
     </View>

@@ -1,6 +1,7 @@
 import LifeLine from '@/components/ui/LifeLine';
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { uiPalette, colors } from '@/lib/config/theme';
+import { WORDMARK, WORDMARK_ONE_LINE } from '@/lib/config/brand';
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
@@ -832,16 +833,17 @@ export default function MainMenu() {
           <View style={styles.hero}>
             <View style={styles.brandIllustration} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><LifeLine /></View>
             <HeroLine index={0} reduced={reduced}>
-              <Text style={styles.eyebrow}>ONE WEEK AT A TIME</Text>
+              {/* ONB-13: the same wordmark the boot screen hands off from. */}
+              <Text style={styles.eyebrow}>{WORDMARK.tagline}</Text>
             </HeroLine>
             <HeroLine index={1} reduced={reduced}>
               <Text style={styles.brandTop} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                DEEP LIFE
+                {WORDMARK.top}
               </Text>
             </HeroLine>
             <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                SIMULATOR
+                {WORDMARK.bottom}
               </Text>
             </HeroLine>
           </View>
@@ -945,7 +947,7 @@ export default function MainMenu() {
           {/* Grounds the bottom edge so the lower margin reads intentional. */}
           <RevealItem index={hasSave ? 4 : 3} reduced={reduced}>
             <Text style={styles.footerCaption}>
-              {APP_VERSION ? `v${APP_VERSION}` : 'DEEP LIFE SIMULATOR'}
+              {APP_VERSION ? `v${APP_VERSION}` : WORDMARK_ONE_LINE}
             </Text>
           </RevealItem>
         </View>
