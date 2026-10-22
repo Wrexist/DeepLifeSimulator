@@ -5,6 +5,11 @@ import { trackBudgetSpend } from '@/lib/banking/operations';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats, applyStatsDelta } from './StatsActions';
 import { DESTINATIONS } from '@/lib/travel/destinations';
+import {
+  businessOpportunityCost,
+  businessOpportunityWeeklyIncome,
+  businessOpportunityWeeklyIncomeFor,
+} from '@/lib/travel/businessOpportunity';
 import { quoteTrip, buildTripReturnSummary, isTripReady } from '@/lib/travel/operations';
 import { TravelEventDef } from '@/lib/travel/events';
 import { quoteActivity } from '@/lib/travel/activities';
@@ -283,9 +288,9 @@ export const unlockBusinessOpportunity = (
   }
 
   const opportunityId = `business_${destinationId}`;
-  const MAX_BUSINESS_OPPORTUNITY_WEEKLY_INCOME = 2000;
-  const rawIncome = destination.cost * 0.05;
-  const baseIncome = Math.min(MAX_BUSINESS_OPPORTUNITY_WEEKLY_INCOME, rawIncome);
+  // LIFE-15: 20%/yr on the stake, from the one definition the payout reads.
+  const stake = businessOpportunityCost(destination.cost);
+  const baseIncome = businessOpportunityWeeklyIncomeFor(stake);
 
   setGameState((prev) => ({
     ...prev,
@@ -303,7 +308,7 @@ export const unlockBusinessOpportunity = (
           destinationId,
           name: `${destination.name} Business Opportunity`,
           description: `Invest in a business opportunity in ${destination.name}`,
-          cost: destination.cost * 2,
+          cost: stake,
           weeklyIncome: baseIncome,
           unlocked: true,
         },
@@ -423,7 +428,7 @@ export const investInBusinessOpportunity = (
   log.info(`Invested in business opportunity: ${opportunity.name}`);
   return {
     success: true,
-    message: `Successfully invested $${opportunity.cost.toLocaleString('en-US')} in ${opportunity.name}! You will earn $${opportunity.weeklyIncome.toLocaleString('en-US')} per week.`,
+    message: `Successfully invested $${opportunity.cost.toLocaleString('en-US')} in ${opportunity.name}! You will earn $${businessOpportunityWeeklyIncome(opportunity).toLocaleString('en-US')} per week.`,
   };
 };
 

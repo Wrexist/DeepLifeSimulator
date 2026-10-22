@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/game/types';
+import { businessOpportunityWeeklyIncome } from '@/lib/travel/businessOpportunity';
 import { getStockInfo } from './stockMarket';
 import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 import { getUpgradeTier, getUpgradeRentBonus, getUpgradeUpkeepBonus } from '@/lib/realEstate/housing';
@@ -374,7 +375,9 @@ export function calcWeeklyPassiveIncome(
     Object.values(state.travel.businessOpportunities).forEach(opp => {
       if (!opp) return; // Skip invalid opportunities
       if (opp.invested && opp.unlocked) {
-        const weeklyIncome = typeof opp.weeklyIncome === 'number' && isFinite(opp.weeklyIncome) && opp.weeklyIncome >= 0 ? opp.weeklyIncome : 0;
+        // LIFE-15: derived from the stake, not the by-value `weeklyIncome`
+        // copy written at unlock (which carried the old ~130%/yr rate).
+        const weeklyIncome = businessOpportunityWeeklyIncome(opp);
         if (weeklyIncome > 0) {
           businessOpportunitiesIncome += Math.round(weeklyIncome);
         }
