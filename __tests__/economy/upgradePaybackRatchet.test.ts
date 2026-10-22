@@ -47,7 +47,10 @@ describe('company upgrade payback band', () => {
       ai: 2200,
       restaurant: 2600,
       realestate: 3200,
-      bank: 4000,
+      // v57 (ECO-10, owner decision): the Bank moved from $2M / $4,000 to
+      // $400k / $5,500 - its founding deal was the one that was broken (10%/yr).
+      // The other four keep their price; companyYieldLadder.test.ts pins why.
+      bank: 5500,
     });
   });
 });
