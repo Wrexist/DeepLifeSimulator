@@ -13,7 +13,14 @@ import type { EventTemplate } from './engine';
 import { ADULTHOOD_AGE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { childrenAwaitingMilestone, chosenCompanyOf } from './socialCircle';
+import { payloadRoll } from './seededPayload';
+import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import type { GameState, Relationship } from '@/contexts/game/types';
+
+/** Chance an ignored `lawsuit_threat` really was frivolous and simply goes away. */
+export const LAWSUIT_IGNORE_SAFE_CHANCE = 0.6;
+/** The default judgment an ignored lawsuit ends in when it was not frivolous. */
+export const LAWSUIT_DEFAULT_JUDGMENT_USD = 10000;
 
 // ---------------------------------------------------------------------------
 // Romantic relationship events
@@ -469,15 +476,25 @@ const burnout: EventTemplate = {
   // With ||, 0 was silently treated as 100, making the burnout event NEVER
   // fire on truly burned-out players - the exact opposite of intent.
   condition: state => (state.stats?.energy ?? 100) < 30 && !!state.currentJob,
-  generate: () => ({
-    id: 'burnout',
-    description: "You've been pushing too hard. Exhaustion, cynicism, and a sense of dread about work are setting in.",
-    choices: [
-      { id: 'vacation', text: 'Take a week off', effects: { stats: { energy: 30, happiness: 15, health: 5 } } },
-      { id: 'reduce', text: 'Set boundaries at work', effects: { stats: { energy: 15, happiness: 5 } } },
-      { id: 'push', text: 'Power through', effects: { stats: { energy: -10, health: -10, happiness: -10 } } },
-    ],
-  }),
+  generate: (state) => {
+    // EVT-18: the week off was free, so it beat both other choices. It is
+    // unpaid leave now: it costs exactly the week's pay the job would credit.
+    const weekPay = paidWeeklyCareerSalary(state).total;
+    return {
+      id: 'burnout',
+      description: "You've been pushing too hard. Exhaustion, cynicism, and a sense of dread about work are setting in.",
+      choices: [
+        weekPay > 0
+          ? { id: 'vacation', text: `Take a week off unpaid (-$${weekPay.toLocaleString('en-US')})`, effects: { money: -weekPay, stats: { energy: 30, happiness: 15, health: 5 } } }
+          // No pay to forgo, so the absence is what it costs: the boss notices.
+          : { id: 'vacation', text: 'Take a week off (your boss will notice)', effects: { stats: { energy: 30, happiness: 15, health: 5, reputation: -5 } } },
+        { id: 'reduce', text: 'Set boundaries at work', effects: { stats: { energy: 15, happiness: 5 } } },
+        // Was dominated by "Set boundaries" on every axis; grinding through
+        // is at least noticed.
+        { id: 'push', text: 'Power through', effects: { stats: { energy: -10, health: -10, happiness: -10, reputation: 5 } } },
+      ],
+    };
+  },
 };
 
 const loneliness: EventTemplate = {
@@ -586,15 +603,29 @@ const lawsuitThreat: EventTemplate = {
   category: 'economy',
   weight: 0.1,
   condition: state => (state.stats?.money || 0) + (state.bankSavings || 0) > 50000,
-  generate: () => ({
-    id: 'lawsuit_threat',
-    description: 'You receive a letter threatening a frivolous lawsuit.',
-    choices: [
-      { id: 'lawyer', text: 'Hire a lawyer to handle it ($2,000)', effects: { money: -2000, stats: { happiness: -5 } } },
-      { id: 'settle', text: 'Settle out of court ($5,000)', effects: { money: -5000, stats: { happiness: -3 } } },
-      { id: 'ignore', text: 'Ignore it and hope it goes away', effects: { stats: { happiness: -10 } } },
-    ],
-  }),
+  generate: (state) => {
+    // EVT-18: ignoring it used to cost nothing but 10 happiness, which made the
+    // lawyer and the settlement pointless. Ignored, it is now a seeded gamble:
+    // most letters are bluffs, but some end in a default judgment.
+    const goesAway = payloadRoll(state, 'lawsuit_threat')('ignore') < LAWSUIT_IGNORE_SAFE_CHANCE;
+    return {
+      id: 'lawsuit_threat',
+      description: 'You receive a letter threatening a frivolous lawsuit.',
+      choices: [
+        { id: 'lawyer', text: 'Hire a lawyer to handle it ($2,000)', effects: { money: -2000, stats: { happiness: -5 } } },
+        { id: 'settle', text: 'Settle out of court ($5,000)', effects: { money: -5000, stats: { happiness: -3 } } },
+        {
+          id: 'ignore',
+          text: 'Ignore it and hope it goes away',
+          outcomeHidden: true,
+          stake: LAWSUIT_DEFAULT_JUDGMENT_USD,
+          effects: goesAway
+            ? { stats: { happiness: -5 } }
+            : { money: -LAWSUIT_DEFAULT_JUDGMENT_USD, stats: { happiness: -10 } },
+        },
+      ],
+    };
+  },
 };
 
 // ---------------------------------------------------------------------------

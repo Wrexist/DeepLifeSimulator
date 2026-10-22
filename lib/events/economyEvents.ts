@@ -200,10 +200,13 @@ export const economicRecession: EventTemplate = {
       choices: [
         {
           id: 'prepare',
-          text: 'Prepare for tough times (save money, reduce expenses)',
+          text: 'Tighten your belt (cut spending this month)',
+          // EVT-18: this cost $50 and 5 happiness for no protection at all, so
+          // "Continue as normal" beat it. Belt-tightening now does what it
+          // says: a month of cut spending keeps $150, at the cost of comfort.
           effects: {
             stats: { happiness: -5 },
-            money: -50, // Emergency fund
+            money: 150,
           },
         },
         {

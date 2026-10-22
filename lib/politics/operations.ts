@@ -166,6 +166,39 @@ export function applySuppression(
 }
 
 /**
+ * A legal team made a scandal go away (the `political_scandal` event's won
+ * legal gamble, EVT-15): the newest ACTIVE scandal that is not career-ending
+ * ends now, as `image-restored`. A career-ending scandal is beyond a legal
+ * team. Returns `politics` unchanged (same object) when nothing qualifies.
+ */
+export function clearScandalByLegalTeam(politics: PoliticsState): PoliticsState {
+  const list = politics.scandals ?? [];
+  let idx = -1;
+  for (let i = 0; i < list.length; i++) {
+    const s = list[i];
+    if (!s || !s.active || s.severity === 'career-ending') continue;
+    if (idx === -1 || safe(s.startedWeek) >= safe(list[idx].startedWeek)) idx = i;
+  }
+  if (idx === -1) return politics;
+  const updated = list.slice();
+  updated[idx] = { ...updated[idx], active: false, weeksRemaining: 0, resolution: 'image-restored' };
+  return { ...politics, scandals: updated };
+}
+
+/**
+ * Add dirty dollars to the PAC's lifetime ledger - the corruption currency
+ * `scandalProbability` reads (CLAUDE.md v47). Used by a bribe taken through an
+ * event (`lobbyist_offer`, EVT-15): the cash goes to the player's wallet, the
+ * heat goes here, and only `lifetimeDirtyUSD` moves - no PAC money is created.
+ */
+export function addLifetimeDirtyMoney(politics: PoliticsState, usd: number): PoliticsState {
+  const amount = Math.max(0, safe(usd));
+  if (amount <= 0) return politics;
+  const pac = ensurePAC(politics.pac);
+  return { ...politics, pac: { ...pac, lifetimeDirtyUSD: safe(pac.lifetimeDirtyUSD) + amount } };
+}
+
+/**
  * Roll for a fresh scandal this week given the drivers. Caller passes seeded rolls.
  * Returns the new state (or null if no scandal fired) and the created scandal.
  */

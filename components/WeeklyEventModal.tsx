@@ -31,6 +31,8 @@ const SPECIAL_EFFECT_LABELS: Record<EventSpecial | '', { text: string; positive:
  add_career_warning: { text: 'Formal warning at work', positive: false },
  lose_vehicle: { text: 'The vehicle is gone', positive: false },
  damage_vehicle: { text: 'The vehicle gets worse', positive: false },
+ invest_in_company: { text: 'Capital invested in your company', positive: true },
+ clear_political_scandal: { text: 'Scandal cleared', positive: true },
 };
 
 /** Net worth for the money-preview scaling; a throw must not blank the modal. */
