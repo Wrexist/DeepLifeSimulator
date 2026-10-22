@@ -20,6 +20,13 @@ jest.mock('@/lib/ads/rewardedAd', () => {
     rewardedAdReady: () => mockReady(),
   };
 });
+// The provider's default life is at played week 0, below the MON-7 gate
+// (pinned in adOrbWeekGate.test.tsx). This suite is about the no-fill
+// recheck, so the week gate is open here.
+jest.mock('@/lib/ads/orbGates', () => {
+  const actual = jest.requireActual('@/lib/ads/orbGates');
+  return { ...actual, rewardOrbUnlocked: () => true };
+});
 jest.mock('@/lib/ads/noFillCourtesy', () => {
   const actual = jest.requireActual('@/lib/ads/noFillCourtesy');
   return { ...actual, noFillOnCooldown: () => true };

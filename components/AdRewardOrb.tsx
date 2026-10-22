@@ -9,8 +9,12 @@ import { uiPalette } from '@/lib/config/theme';
  *   • vitality - a full refill of Health, Happiness and Energy (+100 each).
  *
  * Tapping the orb opens a clean rewarded-ad sheet; watching the ad grants the
- * reward. When the player owns the Remove Ads IAP (or DeepLife+), the orb never
- * appears at all - see `areAdsRemoved`.
+ * reward. When the player owns the Remove Ads IAP (or DeepLife+), the orb still
+ * appears at the same cadence and caps, labelled as an ad-free perk, and the
+ * reward is granted directly with no ad (MON-5, `lib/ads/orbGates.ts`).
+ *
+ * It first appears only once `REWARD_ORB_MIN_PLAYED_WEEKS` of THIS life have
+ * been played (MON-7), never in a brand-new player's first minutes.
  *
  * Self-contained: owns its own appear/hide scheduling, animations, reward math,
  * and the ad sheet. Mount once (e.g. on the home screen).
@@ -38,6 +42,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
 import { noFillOnCooldown, stampNoFillGrant } from '@/lib/ads/noFillCourtesy';
+import { AD_FREE_PERK_LABEL, rewardOrbUnlocked } from '@/lib/ads/orbGates';
 
 const LinearGradient = Gradient;
 const MONEY_GRADIENT = ['#059669', '#34D399'] as const;
@@ -71,6 +76,8 @@ const VISIBLE_MS = 22000; // orb auto-hides if ignored
 const ORB_COLLAPSE_MS = 3000;
 // While only a real ad may pay the orb, how often to look for a loaded one.
 const AD_NOT_READY_RECHECK_MS = 30000;
+// Before the reward orb unlocks in this life (MON-7), how often to look again.
+const ORB_LOCKED_RECHECK_MS = 60000;
 
 function rand([lo, hi]: [number, number]) {
   return lo + Math.random() * (hi - lo);
@@ -192,9 +199,10 @@ function AdRewardOrb() {
   // claiming a reward that was not paid.
   const [claimBlocked, setClaimBlocked] = useState(false);
 
-  // Hard off-switch: a player who paid to remove ads never sees the orb.
-  // Selected as a BOOLEAN, so buying Remove Ads still re-renders immediately
-  // while ordinary play does not.
+  // MON-5: a player who paid to remove ads keeps the orb as an ad-free perk -
+  // same cadence, same caps, granted directly with no ad. This only changes
+  // the copy. Selected as a BOOLEAN, so buying Remove Ads still re-renders
+  // immediately while ordinary play does not.
   const adsRemoved = useGameSelector((s) => areAdsRemoved(s));
 
   const slideX = useRef(new Animated.Value(-160)).current;
@@ -216,9 +224,7 @@ function AdRewardOrb() {
   const busyRef = useRef(false);
   // Resolves once the sheet Modal has finished its NATIVE dismissal (iOS fires
   // Modal.onDismiss; Android has no such callback), with a timer fallback so a
-  // missed callback can never strand the flow mid-watch. Declared here (above the
-  // adsRemoved effect) so that effect can resolve a pending waiter if Remove-Ads
-  // lands mid-watch.
+  // missed callback can never strand the flow mid-watch.
   const sheetDismissResolver = useRef<(() => void) | null>(null);
   // Latest game state, so a timer that fires later computes the reward off the
   // player's CURRENT wealth (not the value captured when it was scheduled).
@@ -289,6 +295,12 @@ function AdRewardOrb() {
       // for the rest of the session - and on every launch until the 52-week
       // cooldown ran out. Now it waits for a loaded ad and looks again.
       const snapshot = getGameState();
+      // MON-7: no orb until REWARD_ORB_MIN_PLAYED_WEEKS of THIS life are
+      // played. Look again later rather than going quiet for the session.
+      if (!rewardOrbUnlocked(snapshot)) {
+        addTimer(spawn, ORB_LOCKED_RECHECK_MS);
+        return;
+      }
       if (noFillOnCooldown(snapshot) && adsAvailable(areAdsRemoved(snapshot))) {
         const gen = scheduleGen.current;
         void rewardedAdReady().then((ready) => {
@@ -318,31 +330,14 @@ function AdRewardOrb() {
     return () => clearTimeout(t);
   }, [visibleOrb]);
 
-  // First appearance after mount - but never once the player has removed ads.
+  // First appearance after mount. The week gate (MON-7) is checked when the
+  // timer fires, in `spawn`. Ads-removed players keep the orb (MON-5); if the
+  // entitlement lands mid-watch, `handleWatch` re-reads it after the sheet's
+  // dismissal and grants directly, so nothing here needs to retract.
   useEffect(() => {
-    if (adsRemoved) { clearTimers(); return; }
     scheduleNext(rand(FIRST_DELAY));
     return clearTimers;
-  }, [scheduleNext, adsRemoved]);
-
-  // If the Remove Ads entitlement lands mid-session, retract immediately.
-  useEffect(() => {
-    if (!adsRemoved) return;
-    clearTimers();
-    // Remove-Ads may have landed DURING an in-flight watch (while awaiting
-    // waitForSheetDismissal). clearTimers just cancelled that dismissal fallback,
-    // so resolve any pending waiter here or the flow strands with busyRef stuck.
-    // Once resolved it continues into runRewardedAd, which re-reads the fresh
-    // entitlement and direct-grants (no ad). Only in THIS effect - never in the
-    // unmount cleanup, where resolving could fire continuations on a dead
-    // component (and a true-unmount orphan is harmless).
-    sheetDismissResolver.current?.();
-    pulseLoop.current?.stop();
-    if (phase !== 'hidden') {
-      setPhase('hidden');
-      slideX.setValue(-160);
-    }
-  }, [adsRemoved, phase, slideX]);
+  }, [scheduleNext]);
 
   // When the orb becomes visible, animate it in + start the auto-hide timer.
   useEffect(() => {
@@ -446,8 +441,7 @@ function AdRewardOrb() {
     haptic.success();
   }, [kind, reward, setGameState, getGameState]);
 
-  // (sheetDismissResolver is declared above, near the other refs, so the
-  // adsRemoved effect can resolve a pending waiter.)
+  // (sheetDismissResolver is declared above, near the other refs.)
   const handleSheetDismissed = useCallback(() => {
     sheetDismissResolver.current?.();
     sheetDismissResolver.current = null;
@@ -544,32 +538,45 @@ function AdRewardOrb() {
     scheduleNext(rand(REPEAT_DELAY));
   }, [scheduleNext, slideX]);
 
-  if (adsRemoved || phase === 'hidden') return null;
+  if (phase === 'hidden') return null;
 
   // ── Per-kind presentation ──────────────────────────────────────────────────
   const isCash = kind === 'cash';
   const gradient = (isCash ? MONEY_GRADIENT : VITALITY_GRADIENT) as unknown as string[];
   const OrbIcon = isCash ? Gift : Sparkles;
   const orbAmount = isCash ? `+${formatMoney(reward)}` : 'Full refill';
-  const orbA11y = isCash
-    ? `Watch an ad to earn ${formatMoney(reward)}`
-    : 'Watch an ad to refill health, happiness and energy';
+  // MON-5: an ad-free player claims directly, so no copy may mention an ad.
+  const orbSubLabel = adsRemoved ? AD_FREE_PERK_LABEL : 'Watch ad';
+  const ctaLabel = adsRemoved ? 'Claim' : 'Watch ad';
+  const orbA11y = adsRemoved
+    ? isCash
+      ? `${AD_FREE_PERK_LABEL}: collect ${formatMoney(reward)}`
+      : `${AD_FREE_PERK_LABEL}: refill health, happiness and energy`
+    : isCash
+      ? `Watch an ad to earn ${formatMoney(reward)}`
+      : 'Watch an ad to refill health, happiness and energy';
   // `claimBlocked` wins over `granted`: the copy must never announce money that
   // was not paid. It is only ever set on the cash path.
   const sheetTitle = claimBlocked
     ? 'Already collected this week'
     : granted
       ? 'Reward added!'
-      : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
+      : adsRemoved
+        ? `${AD_FREE_PERK_LABEL} → ${isCash ? 'cash' : 'vitality'}`
+        : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
   const sheetSubtitle = claimBlocked
     ? "You've already taken a cash orb this game week - nothing was charged. Live another week and it's back."
     : granted
       ? isCash
         ? `${formatMoney(reward)} was added to your wallet.`
         : 'Health, Happiness and Energy topped up to full.'
-      : isCash
-        ? 'Watch a short video ad to collect a cash bonus.'
-        : 'Watch a short video ad to refill Health, Happiness and Energy.';
+      : adsRemoved
+        ? isCash
+          ? 'You removed ads, so this one is on us: collect a cash bonus, no video.'
+          : 'You removed ads, so this one is on us: refill Health, Happiness and Energy, no video.'
+        : isCash
+          ? 'Watch a short video ad to collect a cash bonus.'
+          : 'Watch a short video ad to refill Health, Happiness and Energy.';
   const GrantedIcon = isCash ? DollarSign : Sparkles;
 
   return (
@@ -599,7 +606,7 @@ function AdRewardOrb() {
               {orbCollapsed ? null : (
                 <View style={styles.orbLabel}>
                   <Text style={styles.orbAmount} numberOfLines={1}>{orbAmount}</Text>
-                  <Text style={styles.orbSub} numberOfLines={1}>Watch ad</Text>
+                  <Text style={styles.orbSub} numberOfLines={1}>{orbSubLabel}</Text>
                 </View>
               )}
               <Pressable onPress={dismissOrb} hitSlop={hitSlopToMinTarget(scale(18))} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.orbClose}>
@@ -673,9 +680,9 @@ function AdRewardOrb() {
             )}
 
             {!granted && !claimBlocked ? (
-              <Pressable onPress={handleWatch} accessibilityRole="button" accessibilityLabel="Watch ad" style={styles.cta}>
+              <Pressable onPress={handleWatch} accessibilityRole="button" accessibilityLabel={ctaLabel} style={styles.cta}>
                 <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
-                  <Text style={styles.ctaText}>Watch ad ▶</Text>
+                  <Text style={styles.ctaText}>{`${ctaLabel} ▶`}</Text>
                 </LinearGradient>
               </Pressable>
             ) : (
@@ -687,8 +694,10 @@ function AdRewardOrb() {
             )}
 
             {/* Ad-watchers are the prime audience for going ad-free - upsell
-                DeepLife+ right here. Self-hides for members. */}
-            <DeepLifePlusUpsell variant="inline" surface="ad_boost" />
+                DeepLife+ right here. Self-hides for members, and not shown to
+                a player who already removed ads (an ad-free pitch on their
+                ad-free perk would be noise). */}
+            {adsRemoved ? null : <DeepLifePlusUpsell variant="inline" surface="ad_boost" />}
           </View>
         </View>
       </Modal>

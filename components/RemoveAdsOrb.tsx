@@ -5,7 +5,8 @@ import { uiPalette } from '@/lib/config/theme';
  * motion, but it opens the shop (where Remove Ads leads the Featured row)
  * instead of playing a rewarded video. It does not open a payment sheet.
  *
- * GATING. It never appears once ads are removed (the entitlement can land
+ * GATING. It never appears before the banner grace has ended in this life
+ * (MON-7: there must be an ad to remove), never once ads are removed (the entitlement can land
  * mid-session), and never in a build where IAP is disabled - offering a product
  * that cannot be bought is a dead tap. It holds back during blocking moments
  * (death/wedding/jail/life moment) exactly like the reward orb.
@@ -23,6 +24,7 @@ import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useInterruptionState } from '@/contexts/InterruptionContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
+import { removeAdsOrbUnlocked } from '@/lib/ads/orbGates';
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { scale, fontScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
@@ -43,10 +45,13 @@ function rand([lo, hi]: [number, number]) {
  * without mounting the timer-driven component.
  */
 export function shouldOfferRemoveAds(
-  state: Pick<GameState, 'settings'> | null | undefined,
+  state: Pick<GameState, 'settings' | 'weeksLived' | 'lifeStartWeek'> | null | undefined,
   iapEnabled: boolean,
 ): boolean {
   if (!iapEnabled) return false;
+  // MON-7: never sell the removal of ads a player has not met yet. Banners
+  // start after BANNER_GRACE_WEEKS of this life; this orb waits past that.
+  if (!removeAdsOrbUnlocked(state)) return false;
   return !areAdsRemoved(state);
 }
 
