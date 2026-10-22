@@ -28,6 +28,8 @@ import {
   simulateWeek,
   weeklyLogDriftFor,
   expectedAnnualReturnFor,
+  expectedTotalReturnFor,
+  DEFAULT_PRICES,
 } from '../stockMarket';
 
 /** One game year. Matches WEEKS_PER_YEAR without importing the game config. */
@@ -47,6 +49,25 @@ function buyAndHoldMultiples(years: number, lifeSalt?: string): number[] {
 }
 
 const median = (sorted: number[]): number => sorted[Math.floor(sorted.length / 2)];
+
+/**
+ * Like `buyAndHoldMultiples`, but for a holder who KEEPS the dividends: the
+ * price multiple times (1 + catalogue yield) to the power of the years held.
+ * Since ECO-11 a payer's yield comes off its price drift, so a 6.1% PFE is
+ * meant to drift sideways on price while paying out; asking "is holding this a
+ * loss" of the price alone would count the payout as lost money.
+ */
+function totalReturnMultiples(years: number, lifeSalt?: string): number[] {
+  resetStockPrices();
+  const start = getStockPricesSnapshot();
+  for (let week = 1; week <= years * WEEKS_PER_YEAR; week++) {
+    simulateWeek(undefined, week, lifeSalt);
+  }
+  const end = getStockPricesSnapshot();
+  return Object.keys(start)
+    .map((symbol) => (end[symbol].price / start[symbol].price) * Math.pow(1 + start[symbol].dividendYield, years))
+    .sort((a, b) => a - b);
+}
 
 /**
  * What a DIVERSIFIED holder actually ends up with — equal weight across the
@@ -134,6 +155,21 @@ describe('long-run stock market drift', () => {
     expect(expectedAnnualReturnFor(0.08)).toBeLessThan(0.14);
   });
 
+  it('ECO-11: a dividend payer trades price growth for income at the same total expectation', () => {
+    // Dividends used to be paid on top of the full drift, so PFE (6.1%) expected
+    // ~15%/yr against ~9% for a non-payer of the same volatility and the
+    // buy-and-hold investor out-earned the company-building tycoon. The yield
+    // now comes off the price drift; price + yield is flat across a vol tier.
+    const flat = expectedTotalReturnFor(0.04, 0);
+    for (const { dividendYield } of Object.values(DEFAULT_PRICES)) {
+      expect(Math.abs(expectedTotalReturnFor(0.04, dividendYield) - flat)).toBeLessThan(0.005);
+      if (dividendYield > 0) {
+        expect(expectedAnnualReturnFor(0.04, false, dividendYield)).toBeLessThan(expectedAnnualReturnFor(0.04));
+      }
+    }
+    expect(weeklyLogDriftFor(0.04, false, 0.061)).toBeLessThan(weeklyLogDriftFor(0.04));
+  });
+
   it('subtracts the log-normal convexity so the stated drift is the expectation, not the median', () => {
     // exp(μ + σ²/2) per week is the arithmetic expectation of a log-normal
     // step; without the correction the risk premium is paid twice - once as
@@ -157,7 +193,8 @@ describe('long-run stock market drift', () => {
   });
 
   it('leaves most of the board up over a full life, not most of it down', () => {
-    const multiples = buyAndHoldMultiples(60);
+    // Total return (dividends kept), not price: see `totalReturnMultiples`.
+    const multiples = totalReturnMultiples(60);
     const winners = multiples.filter((x) => x > 1).length;
 
     // Pre-fix: 5 winners out of 25. A market where the base rate of holding an
