@@ -1,4 +1,5 @@
 import { ImageSourcePropType } from 'react-native';
+import { describePerkDecayShield } from '@/lib/economy/perkDecayShield';
 
 export interface Perk {
   id: string;
@@ -55,8 +56,10 @@ const perkList: Perk[] = [
   {
     id: 'iron_will',
     title: 'Iron Will',
-    description:
-      'Feel unstoppable from day one with +20 health and +5 energy.',
+    // ONB-2: every life starts at full health, so the boost alone was clamped
+    // to nothing. The shield sentence is generated from the table the tick
+    // reads (lib/economy/perkDecayShield.ts).
+    description: `${describePerkDecayShield('iron_will')} +20 health and +5 energy at the start, up to 100.`,
     requirement: 'Reach 100 fitness.',
     effects: { statBoosts: { health: 20, energy: 5 } },
     unlock: { type: 'achievement', achievementId: 'fitness_deity' },
@@ -112,8 +115,7 @@ const perkList: Perk[] = [
   {
     id: 'longevity',
     title: 'Longevity',
-    description:
-      'Kick off life with +20 health to fuel wild adventures.',
+    description: `${describePerkDecayShield('longevity')} +20 starting health, up to 100.`,
     requirement: 'Live to age 100.',
     effects: { statBoosts: { health: 20 } },
     unlock: { type: 'achievement', achievementId: 'longevity_100' },
@@ -123,7 +125,7 @@ const perkList: Perk[] = [
   {
     id: 'optimist',
     title: 'Optimist',
-    description: 'Begin each life with +15 happiness and an infectious grin.',
+    description: `${describePerkDecayShield('optimist')} +15 starting happiness, up to 100.`,
     requirement: 'Maintain an average happiness of 80 throughout your life.',
     effects: { statBoosts: { happiness: 15 } },
     unlock: { type: 'achievement', achievementId: 'joyful_life' },
@@ -239,7 +241,7 @@ const perkList: Perk[] = [
   {
     id: 'inner_peace',
     title: 'Inner Peace',
-    description: 'Stay zen from birth with +20 happiness and +5 health.',
+    description: `${describePerkDecayShield('inner_peace')} +20 happiness and +5 health at the start, up to 100.`,
     requirement: 'Have health, fitness, and happiness all above 90.',
     effects: { statBoosts: { happiness: 20, health: 5 } },
     unlock: { type: 'achievement', achievementId: 'health_peak_condition' },

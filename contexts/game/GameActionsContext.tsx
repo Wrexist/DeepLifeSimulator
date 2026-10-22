@@ -40,6 +40,7 @@ import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
+import { perkDecayFactors } from '@/lib/economy/perkDecayShield';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { getSlotStorageGeneration, isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
@@ -1005,7 +1006,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Mindset: a Workaholic's health and a Perfectionist's (or a restless
  // Adventurer's) happiness wear down faster - the same factors Home's vitals
  // projection applies (lib/economy/vitalDrift.ts).
- newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay);
+ // ONB-2: Longevity / Iron Will / Inner Peace / Optimist shield a vital's
+ // natural decay for the first weeks of the life - the same factors Home's
+ // projection reads (lib/economy/perkDecayShield.ts).
+ const perkShield = perkDecayFactors(prevState);
+ newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay * perkShield.health);
 
  // GL-3: the healthcare half of enacted policy. `PoliticalApp` has always
  // rendered "Health / week +N" for it; nothing ever added the health. Applied
@@ -1016,7 +1021,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (healthcarePolicy.weeklyHealthBonus > 0) {
  newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
  }
- newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay);
+ newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay * perkShield.happiness);
  // The baseline for the single diminishing-returns application at the end of
  // this updater (Program 14): happiness AFTER natural decay, not before it.
  //

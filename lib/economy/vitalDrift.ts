@@ -48,6 +48,7 @@ import { netWorth } from '@/lib/progress/achievements';
 import { STAT_DECAY_BASE_RATE, graceRampFactor, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { mindsetEffects } from '@/lib/mindset/effects';
+import { perkDecayFactors } from '@/lib/economy/perkDecayShield';
 import { countStressfulEducations, educationStressPenalties } from '@/lib/education/educationStress';
 import { dietPlanWeeklyCost } from '@/lib/economy/dietPlanCost';
 
@@ -166,11 +167,13 @@ export function projectWeeklyVitalDrift(state: GameState | null | undefined): Vi
   const happinessMul = state.goldUpgrades?.happiness_boost ? 0.5 : 1;
   // The Mindset's decay factors - the same `mindsetEffects` the tick applies.
   const mindset = mindsetEffects(state);
+  // ONB-2 perk decay shields - the same factors the tick applies.
+  const shield = perkDecayFactors(state);
   causes.push({
     id: 'decay',
     label: mindset.restless ? 'Natural decay (restless)' : 'Natural decay',
-    health: -Math.round(rate * 0.6 * mindset.healthDecay),
-    happiness: -Math.round(rate * 0.8 * happinessMul * mindset.happinessDecay),
+    health: -Math.round(rate * 0.6 * mindset.healthDecay * shield.health),
+    happiness: -Math.round(rate * 0.8 * happinessMul * mindset.happinessDecay * shield.happiness),
     energy: 0,
   });
 
