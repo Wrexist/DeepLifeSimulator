@@ -98,7 +98,9 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  // No ad to show. The day's gems were credited before this popup opened, so
  // nothing is lost - bring the popup back with the plain Claim.
  claimInProgressRef.current = false;
- setAdNote('No ad is available right now. Your daily gems are already in your wallet.');
+ setAdNote(outcome === 'dismissed'
+ ? 'The ad closed before the bonus was earned. Your daily gems are already in your wallet.'
+ : 'No ad is available right now. Your daily gems are already in your wallet.');
  setHiddenForAd(false);
  };
 

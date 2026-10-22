@@ -64,7 +64,7 @@ export default function Intro() {
   return <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
     <View style={styles.header}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={back} style={styles.quiet}><ArrowLeft color={uiPalette.muted} size={23} /></TouchableOpacity>
-      <View style={styles.brand} accessible accessibilityLabel="Deep Life Simulator">
+      <View style={styles.brand} accessible accessibilityLabel="DeepLife Simulator">
         <Image source={require('@/assets/images/icon.png')} style={styles.logo} accessibilityIgnoresInvertColors />
         <Text style={styles.brandText}>DEEP LIFE</Text>
       </View>

@@ -2,7 +2,8 @@ import { ImageSourcePropType } from 'react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { financialIndependence } from '@/lib/statistics/fireTracker';
-import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { weeksInThisLife, earnedThisLife, getAge } from '@/lib/progress/lifeChapters';
+import { chosenCompanyOf } from '@/lib/events/socialCircle';
 import { isLuxuryLifeComplete, getOwnedLuxuryCount, getTotalLuxuryValue } from '@/lib/luxury';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.webp');
@@ -74,6 +75,13 @@ const prestigePointsEarnedByPrestiging = (gs: GameState): number => {
   return total;
 };
 
+/**
+ * The vaccines a player can receive - the ids `ItemActionsContext` appends to
+ * `gs.vaccinations` (its `flu_shot` / `pneumonia_vaccine` branch). Exported so
+ * a test can pin it against the clinic's activity list.
+ */
+export const VACCINE_IDS = ['flu_shot', 'pneumonia_vaccine'] as const;
+
 export const achievements: Achievement[] = [
   // ── Beginner Achievements ─────────────────────────────────────────────
   // Designed to fire in the first 10 weeks so new players get early dopamine hits.
@@ -89,24 +97,30 @@ export const achievements: Achievement[] = [
   {
     id: 'beginner_triple_digits',
     title: 'Triple Digits',
-    description: 'Have $100 in cash.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 100 },
+    // EARNED this life, not the cash balance: a balance is satisfied by the
+    // starting cash of most scenarios (and by a loan) before the first action.
+    description: 'Earn $100 of your own.',
+    progressSpec: { kind: 'counter', current: gs => earnedThisLife(gs), goal: 100 },
     goldReward: 5,
     group: 'beginner',
   },
   {
     id: 'beginner_hustler',
     title: 'Hustler',
-    description: 'Have $500 in cash.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 500 },
+    // EARNED this life, not the cash balance: a balance is satisfied by the
+    // starting cash of most scenarios (and by a loan) before the first action.
+    description: 'Earn $500 of your own.',
+    progressSpec: { kind: 'counter', current: gs => earnedThisLife(gs), goal: 500 },
     goldReward: 10,
     group: 'beginner',
   },
   {
     id: 'beginner_four_figures',
     title: 'Four Figures',
-    description: 'Have $1,000 in cash.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 1_000 },
+    // EARNED this life, not the cash balance: a balance is satisfied by the
+    // starting cash of most scenarios (and by a loan) before the first action.
+    description: 'Earn $1,000 of your own.',
+    progressSpec: { kind: 'counter', current: gs => earnedThisLife(gs), goal: 1_000 },
     goldReward: 15,
     group: 'beginner',
   },
@@ -122,7 +136,10 @@ export const achievements: Achievement[] = [
     id: 'beginner_social_life',
     title: 'Social Life',
     description: 'Make your first friend or connection.',
-    progressSpec: { kind: 'counter', current: gs => gs.relationships?.length ?? 0, goal: 1 },
+    // SOC-18: counts the people the player CHOSE. Every life is seeded with
+    // Mom and Dad in `relationships`, so the raw length completed this on frame
+    // one - the pre-ticked goal Program 11 removed from `ch2_make_friend`.
+    progressSpec: { kind: 'counter', current: gs => chosenCompanyOf(gs).length, goal: 1 },
     goldReward: 10,
     group: 'beginner',
   },
@@ -208,40 +225,40 @@ export const achievements: Achievement[] = [
   },
   {
     id: 'gold_hoarder',
-    title: 'Gold Hoarder',
-          description: 'Collect 100 gems.',
+    title: 'Gem Hoarder',
+          description: 'Hold 100 gems at once.',
     progressSpec: { kind: 'counter', current: gs => gs.stats?.gems ?? 0, goal: 100 },
     goldReward: 100,
     group: 'gold',
   },
   {
     id: 'gold_collector',
-    title: 'Gold Collector',
-          description: 'Collect 500 gems.',
+    title: 'Gem Collector',
+          description: 'Hold 500 gems at once.',
     progressSpec: { kind: 'counter', current: gs => gs.stats?.gems ?? 0, goal: 500 },
     goldReward: 250,
     group: 'gold',
   },
   {
     id: 'gold_magnate',
-    title: 'Gold Magnate',
-          description: 'Collect 1,000 gems.',
+    title: 'Gem Magnate',
+          description: 'Hold 1,000 gems at once.',
     progressSpec: { kind: 'counter', current: gs => gs.stats?.gems ?? 0, goal: 1_000 },
     goldReward: 500,
     group: 'gold',
   },
   {
     id: 'gold_tycoon',
-    title: 'Gold Tycoon',
-          description: 'Collect 5,000 gems.',
+    title: 'Gem Tycoon',
+          description: 'Hold 5,000 gems at once.',
     progressSpec: { kind: 'counter', current: gs => gs.stats?.gems ?? 0, goal: 5_000 },
     goldReward: 1000,
     group: 'gold',
   },
   {
     id: 'gold_empire',
-    title: 'Gold Empire',
-          description: 'Collect 10,000 gems.',
+    title: 'Gem Empire',
+          description: 'Hold 10,000 gems at once.',
     progressSpec: { kind: 'counter', current: gs => gs.stats?.gems ?? 0, goal: 10_000 },
     goldReward: 2000,
     group: 'gold',
@@ -250,7 +267,7 @@ export const achievements: Achievement[] = [
     id: 'longevity_50',
     title: 'Midlife Milestone',
     description: 'Reach age 50.',
-    progressSpec: { kind: 'counter', current: gs => gs.date?.age ?? 0, goal: 50 },
+    progressSpec: { kind: 'counter', current: gs => getAge(gs), goal: 50 },
     goldReward: 20,
     group: 'longevity',
   },
@@ -258,7 +275,7 @@ export const achievements: Achievement[] = [
     id: 'longevity_75',
     title: 'Three Quarters',
     description: 'Reach age 75.',
-    progressSpec: { kind: 'counter', current: gs => gs.date?.age ?? 0, goal: 75 },
+    progressSpec: { kind: 'counter', current: gs => getAge(gs), goal: 75 },
     goldReward: 40,
     group: 'longevity',
   },
@@ -266,7 +283,7 @@ export const achievements: Achievement[] = [
     id: 'longevity_100',
     title: 'Centenarian',
     description: 'Reach age 100.',
-    progressSpec: { kind: 'counter', current: gs => gs.date?.age ?? 0, goal: 100 },
+    progressSpec: { kind: 'counter', current: gs => getAge(gs), goal: 100 },
     goldReward: 80,
     group: 'longevity',
   },
@@ -274,7 +291,7 @@ export const achievements: Achievement[] = [
     id: 'longevity_120',
     title: 'Legendary Life',
     description: 'Reach age 120.',
-    progressSpec: { kind: 'counter', current: gs => gs.date?.age ?? 0, goal: 120 },
+    progressSpec: { kind: 'counter', current: gs => getAge(gs), goal: 120 },
     goldReward: 120,
     group: 'longevity',
   },
@@ -282,7 +299,7 @@ export const achievements: Achievement[] = [
     id: 'longevity_150',
     title: 'Immortal',
     description: 'Reach age 150.',
-    progressSpec: { kind: 'counter', current: gs => gs.date?.age ?? 0, goal: 150 },
+    progressSpec: { kind: 'counter', current: gs => getAge(gs), goal: 150 },
     goldReward: 200,
     group: 'longevity',
   },
@@ -607,7 +624,7 @@ export const achievements: Achievement[] = [
     title: 'Professor',
     // 11 programmes exist (`EDUCATION_PROGRAMS`); the old goal of 20 could
     // never be met. Every programme is the top of what exists.
-    description: 'Complete every education programme (11).',
+    description: 'Complete every education program (11).',
     progressSpec: {
       kind: 'counter',
       current: gs => gs.educations?.filter((e: any) => e.completed).length ?? 0,
@@ -815,7 +832,7 @@ export const achievements: Achievement[] = [
   {
     id: 'social_dating_first_match',
     title: 'First Match',
-    description: 'Get your first match on the dating app',
+    description: 'Get your first match on Spark',
     progressSpec: { kind: 'counter', current: gs => gs.datingMatches?.length ?? 0, goal: 1 },
     goldReward: 10,
     group: 'social',
@@ -823,7 +840,7 @@ export const achievements: Achievement[] = [
   {
     id: 'social_dating_casanova',
     title: 'Casanova',
-    description: 'Get 25 matches on the dating app',
+    description: 'Get 25 matches on Spark',
     progressSpec: { kind: 'counter', current: gs => gs.datingMatches?.length ?? 0, goal: 25 },
     goldReward: 75,
     group: 'social',
@@ -831,7 +848,7 @@ export const achievements: Achievement[] = [
   {
     id: 'social_media_first_post',
     title: 'First Post',
-    description: 'Create your first social media post',
+    description: 'Create your first post on Pulse',
     progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.totalPosts ?? 0, goal: 1 },
     goldReward: 5,
     group: 'social',
@@ -871,7 +888,7 @@ export const achievements: Achievement[] = [
   {
     id: 'social_media_posts_milestone',
     title: 'Content Creator',
-    description: 'Create 100 social media posts',
+    description: 'Create 100 posts on Pulse',
     progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.totalPosts ?? 0, goal: 100 },
     goldReward: 100,
     group: 'social',
@@ -999,11 +1016,14 @@ export const achievements: Achievement[] = [
   {
     id: 'health_vaccinated',
     title: 'Fully Vaccinated',
-    description: 'Get 5 vaccinations.',
+    // Every vaccine the clinic offers. The goal was 5 while only two exist
+    // (`flu_shot`, `pneumonia_vaccine`, deduped by id), so the bar stopped at
+    // 2/5 forever. Derived, so adding a vaccine raises it.
+    description: `Get all ${VACCINE_IDS.length} vaccinations.`,
     progressSpec: {
       kind: 'counter',
-      current: gs => gs.vaccinations?.length ?? 0,
-      goal: 5,
+      current: gs => (gs.vaccinations ?? []).filter((id: string) => (VACCINE_IDS as readonly string[]).includes(id)).length,
+      goal: VACCINE_IDS.length,
     },
     goldReward: 40,
     group: 'health',
@@ -1040,7 +1060,7 @@ export const achievements: Achievement[] = [
     description: 'Reach age 80 with health above 70.',
     progressSpec: {
       kind: 'boolean',
-      met: gs => (gs.date?.age ?? 0) >= 80 && (gs.stats?.health ?? 0) > 70,
+      met: gs => getAge(gs) >= 80 && (gs.stats?.health ?? 0) > 70,
     },
     goldReward: 100,
     group: 'health',

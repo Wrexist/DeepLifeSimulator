@@ -2,6 +2,7 @@
  * Mining Actions
  * Enhanced mining system with upgrades, pools, staking, and more
  */
+import { countOf } from '@/utils/grammar';
 import { Dispatch, SetStateAction } from 'react';
 import { GameState, Warehouse, MinerUpgrade, MiningPool, StakingPosition } from '../types';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -442,7 +443,7 @@ export function stakeCrypto(
     };
   });
 
-  return { success: true, message: `Staked ${amount.toFixed(6)} ${crypto.symbol} for ${lockWeeks} week(s)` };
+  return { success: true, message: `Staked ${amount.toFixed(6)} ${crypto.symbol} for ${countOf(lockWeeks, 'week')}` };
 }
 
 /**

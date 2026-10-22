@@ -169,8 +169,10 @@ export function applyScheduledWedding(
         `The wedding to ${rel.name} could not go ahead - the venue needed the remaining ` +
         `$${remainingBalance.toLocaleString('en-US')} and you had $${Math.max(0, Math.floor(ctx.newStats.money)).toLocaleString('en-US')}. ` +
         `It is rebooked for 4 weeks' time. The plan is cancelled and the deposit lost if it ` +
-        `still cannot go ahead a year after the original date - you can call off the engagement ` +
-        `or re-plan a cheaper wedding before then.`,
+        // SOC-13: this used to offer "re-plan a cheaper wedding", which no
+        // screen allows while a plan is booked. Name only the real way out.
+        `still cannot go ahead a year after the original date. Until then, the only way to ` +
+        `clear the date is to call off the engagement, which loses the deposit too.`,
     });
     return {
       rel: {

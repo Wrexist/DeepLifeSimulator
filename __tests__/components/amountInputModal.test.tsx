@@ -61,3 +61,15 @@ it('Max keeps fractional dollars when withdrawing interest', () => {
   expect(confirm).toHaveBeenCalledWith(0.75);
   act(() => renderer.unmount());
 });
+
+it('renders the caller presets as chips and hides unaffordable ones (APP-6)', () => {
+  const confirm = jest.fn();
+  let renderer!: TestRenderer.ReactTestRenderer;
+  act(() => { renderer = TestRenderer.create(<AmountInputModal visible title="Save" confirmLabel="Save" maxAmount={500} presets={[100, 250, 900]} darkMode onConfirm={confirm} onClose={() => {}} />); });
+  const buttons = () => renderer.root.findAllByType(TouchableOpacity);
+  expect(buttons().some(n => n.props.accessibilityLabel === 'Use $900')).toBe(false);
+  act(() => buttons().find(n => n.props.accessibilityLabel === 'Use $250')!.props.onPress());
+  act(() => buttons().find(n => /^Save \$/.test(n.props.accessibilityLabel ?? ''))!.props.onPress());
+  expect(confirm).toHaveBeenCalledWith(250);
+  act(() => renderer.unmount());
+});

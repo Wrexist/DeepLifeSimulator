@@ -9,6 +9,7 @@ import { uiPalette } from '@/lib/config/theme';
  *
  * Tapping opens the ScandalRecoveryModal (provided by the caller).
  */
+import { countOf } from '@/utils/grammar';
 import React, { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
@@ -48,7 +49,7 @@ export default function ScandalBanner({ scandal, onPress }: ScandalBannerProps) 
         onPress();
       }}
       accessibilityRole={Platform.OS === 'ios' ? 'alert' : 'button'}
-      accessibilityLabel={`Active scandal, severity ${severity} out of 100, ${scandal.weeksRemaining} weeks remaining. Tap to respond.`}
+      accessibilityLabel={`Active scandal, severity ${severity} out of 100, ${countOf(scandal.weeksRemaining, 'week')} remaining. Tap to respond.`}
       accessibilityLiveRegion={Platform.OS === 'android' ? 'assertive' : undefined}
       style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
     >

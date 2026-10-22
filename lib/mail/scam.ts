@@ -34,7 +34,7 @@
  */
 
 import type { GameState, MailMessage } from '@/contexts/game/types';
-import { fnv1a32 } from '@/utils/seededRoll';
+import { fnv1a32, lifeSalt } from '@/utils/seededRoll';
 import { docMoney } from './format';
 import { riskMultiplier } from './security';
 import type { MailContext } from './types';
@@ -95,15 +95,21 @@ const MAX_RISK = 0.4;
  * `ctx.rand` cannot be used here for the same reason — it is seeded on the
  * current week by construction.
  */
-function scamWindowOffset(week: number): number {
+function scamWindowOffset(week: number, salt: string): number {
   const windowIndex = Math.floor(week / SCAM_WINDOW_WEEKS);
-  return fnv1a32(`mail-scam-window:${windowIndex}`) % SCAM_WINDOW_WEEKS;
+  // Keyed on the life too (`lifeSalt`): on the window index alone every life
+  // had its scam weeks on the same calendar (2026-10-21 audit, CLAUDE.md §4.3).
+  const key = salt ? `mail-scam-window:${salt}:${windowIndex}` : `mail-scam-window:${windowIndex}`;
+  return fnv1a32(key) % SCAM_WINDOW_WEEKS;
 }
 
-/** True on the one week per window when a scam may be rolled at all. */
-export function scamWindowOpen(week: number): boolean {
+/**
+ * True on the one week per window when a scam may be rolled at all.
+ * `salt` is the life (`lifeSalt(state)`); omitted, the window is the shared one.
+ */
+export function scamWindowOpen(week: number, salt = ''): boolean {
   const w = Math.max(0, Math.floor(week));
-  return w % SCAM_WINDOW_WEEKS === scamWindowOffset(w);
+  return w % SCAM_WINDOW_WEEKS === scamWindowOffset(w, salt);
 }
 
 export interface ScamRisk {
@@ -364,7 +370,7 @@ const BLUEPRINTS: ScamBlueprint[] = [
 export function generateScam(ctx: MailContext): MailMessage | null {
   // The spacing guarantee comes first: outside the window there is nothing to
   // roll, so no combination of exposure can produce back-to-back scams.
-  if (!scamWindowOpen(ctx.week)) return null;
+  if (!scamWindowOpen(ctx.week, lifeSalt(ctx.state))) return null;
 
   const risk = scamRisk(ctx.state, ctx.week);
   if (ctx.rand('scam-fire') > risk.chance) return null;

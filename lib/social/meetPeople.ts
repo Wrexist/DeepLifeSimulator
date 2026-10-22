@@ -130,13 +130,13 @@ export const MEET_VENUES: MeetVenue[] = [
   {
     id: 'building',
     label: 'in your building',
-    invitation: 'A neighbour props the door and starts a conversation.',
+    invitation: 'A neighbor props the door and starts a conversation.',
     cost: 0,
-    jobs: ['Neighbour', 'Night-shift nurse', 'Musician', 'Retail assistant', 'Retired'],
+    jobs: ['Neighbor', 'Night-shift nurse', 'Musician', 'Retail assistant', 'Retired'],
   },
   {
     id: 'street',
-    label: 'around the neighbourhood',
+    label: 'around the neighborhood',
     invitation: 'Someone you see most days at the same corner starts talking.',
     cost: 0,
     jobs: ['Street vendor', 'Courier', 'Busker', 'Mechanic', 'Barista'],

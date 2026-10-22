@@ -40,7 +40,7 @@ import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import { kicker, rhythm, tier1Title } from '@/lib/config/hierarchy';
 import { getGlassCard, getGlassButton, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
-import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
+import { isReadOnlyMirror, canCloseAccount, withLiveMirrorBalances } from '@/lib/banking/operations';
 
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
 import AccountRow, { accountPalette, accountTypeLabel, accountTypeShortLabel } from '@/components/banking/AccountRow';
@@ -130,7 +130,14 @@ function BankAppInner({ onBack }: BankAppProps) {
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
-  const banking = gameState.banking ?? initialGameState.banking!;
+  // VIS-3: the mirror accounts show live cash / savings, not last tick's copy.
+  const storedBanking = gameState.banking ?? initialGameState.banking!;
+  const liveMoney = gameState.stats?.money ?? 0;
+  const liveSavings = gameState.bankSavings ?? 0;
+  const banking = useMemo(
+    () => withLiveMirrorBalances(storedBanking, liveMoney, liveSavings),
+    [storedBanking, liveMoney, liveSavings],
+  );
 
   const [subView, setSubView] = useState<BankSubView>(null);
   const [sparkWidth, setSparkWidth] = useState(0);

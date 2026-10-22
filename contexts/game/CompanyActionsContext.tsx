@@ -33,7 +33,7 @@ interface CompanyActionsContextType {
   upgradeAutomation: () => { success: boolean; message?: string };
 
   // Family Business & R&D Competition
-  createFamilyBusiness: (companyId: string) => void;
+  createFamilyBusiness: (companyId: string) => { success: boolean; message: string };
   manageFamilyBusiness: (
     companyId: string,
     action: 'marketing' | 'branding' | 'reputation'
@@ -223,8 +223,8 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
 
   const createFamilyBusiness = useCallback((companyId: string) => {
     const latestState = getGameState();
-    if (!latestState) return;
-    createFamilyBusinessModule(latestState, setGameState, companyId, { updateMoney: updateMoneyModule });
+    if (!latestState) return { success: false, message: 'Game not ready.' };
+    return createFamilyBusinessModule(latestState, setGameState, companyId, { updateMoney: updateMoneyModule });
   }, [setGameState]);
 
   const manageFamilyBusiness = useCallback((

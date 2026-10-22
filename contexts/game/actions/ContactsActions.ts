@@ -27,6 +27,7 @@ import {
 import { logger } from '@/utils/logger';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { applyMoneyDelta } from './MoneyActions';
+import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
 import {
@@ -314,6 +315,8 @@ export function lendMoney(
 export function lendBlockedReason(state: GameState, contactId: string): string | null {
   const rel = state.relationships?.find((r) => r.id === contactId);
   if (!rel) return 'Contact not found.';
+  const minor = minorMoneyBlockedReason(rel);
+  if (minor) return minor;
   if (rel.actions?.['lendmoney'] === (state.weeksLived ?? 0)) {
     return `You already lent ${rel.name} money this week.`;
   }
@@ -352,6 +355,7 @@ function lendMoneyNow(
     if (idx === -1) return prev;
     const target = rels[idx];
     const prevWs = prev.weeksLived ?? 0;
+    if (minorMoneyBlockedReason(target)) return prev;
     if (target.actions?.['lendmoney'] === prevWs) return prev; // already lent this week
     if (openCashLoanTo(ledgerOf(prev), contactId)) return prev; // they still owe you
 
@@ -418,9 +422,23 @@ export function borrowOutcome(rel: Relationship, roll: number): { granted: boole
 }
 
 /** Why `contactId` cannot be asked for money this week, or null. For the action and the button. */
+/**
+ * SOC-17: cash runs between adults. A newborn (bond 75) said yes to a loan of
+ * $137 at even odds and then collected it as an overdue debt, which breaks the
+ * fiction and is another route that moves a child's Contacts-only bond. One
+ * predicate for both money rows, so the button and the action agree.
+ */
+function minorMoneyBlockedReason(rel: Relationship): string | null {
+  if (rel.type !== 'child') return null;
+  const age = typeof rel.age === 'number' && Number.isFinite(rel.age) ? rel.age : 0;
+  return age < 18 ? `${rel.name} is too young to handle money.` : null;
+}
+
 export function borrowBlockedReason(state: GameState, contactId: string): string | null {
   const rel = state.relationships?.find((r) => r.id === contactId);
   if (!rel) return 'Contact not found.';
+  const minor = minorMoneyBlockedReason(rel);
+  if (minor) return minor;
   if (rel.actions?.['askmoney'] === (state.weeksLived ?? 0)) return 'Already asked this week.';
   const debt = openCashDebtTo(ledgerOf(state), contactId);
   if (debt) return `You still owe ${rel.name} ${usd(debt.value)} - pay it back first.`;
@@ -840,6 +858,51 @@ export function networkFavorCooldownLeft(ledger: FavorLedger, contactId: string,
   return Math.max(0, Math.ceil(last + NETWORK_FAVOR_COOLDOWN_WEEKS - week));
 }
 
+/** Bond a gift's recipient needs before the generosity leaves them owing you one. */
+export const GOODWILL_FAVOR_MIN_BOND = 70;
+
+/**
+ * Weeks between two goodwill favours from the same person (ACT-8, 2026-10-21).
+ *
+ * A generous gift at a strong bond records an `intro` favour, and redeeming an
+ * intro mints a new friend. "One OPEN goodwill favour per contact" was the only
+ * limit, so gift -> redeem re-armed every week: an unbounded supply of new
+ * contacts from one partner. Counted from the newest goodwill favour's
+ * `createdWeek`, which the ledger keeps after redemption - no new save field,
+ * the same shape as `networkFavorCooldownLeft`.
+ */
+export const GOODWILL_FAVOR_COOLDOWN_WEEKS = NETWORK_FAVOR_COOLDOWN_WEEKS;
+
+/**
+ * The goodwill favour a gift to `contactId` earns right now, or null. Pure, so
+ * the gift handler and a test read one rule.
+ */
+export function goodwillFavorFor(state: GameState, contactId: string): Omit<Favor, 'status'> | null {
+  const rel = (state.relationships ?? []).find((r) => r && r.id === contactId);
+  if (!rel || (rel.relationshipScore ?? 0) < GOODWILL_FAVOR_MIN_BOND) return null;
+  const ledger = ledgerOf(state);
+  const week = state.weeksLived ?? 0;
+  let last = Number.NEGATIVE_INFINITY;
+  for (const f of ledger.favors ?? []) {
+    if (f.contactId !== contactId || f.direction !== 'owed-to-player') continue;
+    // Any open favour still blocks, whatever produced it.
+    if (f.status === 'open') return null;
+    if (f.id.startsWith('goodwill-') && typeof f.createdWeek === 'number' && isFinite(f.createdWeek)) {
+      last = Math.max(last, f.createdWeek);
+    }
+  }
+  if (isFinite(last) && week < last + GOODWILL_FAVOR_COOLDOWN_WEEKS) return null;
+  return {
+    id: `goodwill-${contactId}-${week}`,
+    contactId,
+    direction: 'owed-to-player',
+    kind: 'intro',
+    value: 25,
+    createdWeek: week,
+    note: `${rel.name ?? 'They'} owes you a favor after your generosity`,
+  };
+}
+
 /** Standing a network contact needs before they will owe you anything. */
 export const NETWORK_FAVOR_MIN_STRENGTH = 40;
 
@@ -1123,7 +1186,14 @@ export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect
         // A professional introduction is a working adult, not a classmate.
         age: 28 + (seed % 22),
       };
-      return { outcome: 'applied', state: { ...prev, relationships: [...(prev.relationships ?? []), introduced] } };
+      return {
+        outcome: 'applied',
+        state: {
+          ...prev,
+          relationships: [...(prev.relationships ?? []), introduced],
+          lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
+        },
+      };
     }
     default:
       return { outcome: 'noop' };
@@ -1206,9 +1276,19 @@ export function removeContact(
   if (isFamilyRelationship(rel)) {
     return { success: false, message: `${rel.name} is family - they stay in your life.` };
   }
+  // SOC-7: removing a partner was a free break up - no -20 happiness, no Spark
+  // un-promote, and it silently deleted an engagement (with its paid wedding
+  // deposit) or a pregnancy. A partner leaves through Break up.
+  if (rel.type === 'partner') {
+    return { success: false, message: `${rel.name} is your partner - break up with them instead.` };
+  }
+  // The filter re-applies both guards against `prev`, so a same-batch promotion
+  // to partner is never removed - without a reject path the outcome cannot hide.
   setGameState((prev) => ({
     ...prev,
-    relationships: (prev.relationships ?? []).filter((r) => r?.id !== contactId),
+    relationships: (prev.relationships ?? []).filter(
+      (r) => r?.id !== contactId || isFamilyRelationship(r) || r.type === 'partner'
+    ),
   }));
   log.info('Contact removed', { contactId });
   return { success: true, message: `${rel.name} is no longer part of your life.` };
@@ -1347,6 +1427,7 @@ export function resolveMeeting(
         ...(next.relationships ?? []),
         introductionToRelationship(intro, weeksInThisLife(next)),
       ],
+      lifetimeStatistics: countNewRelationship(next.lifetimeStatistics),
     },
   };
 }

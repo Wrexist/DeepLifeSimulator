@@ -260,7 +260,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const isCureActivity = CURE_IDS.has(activity.id);
     const description = isCureActivity
       ? activity.id === 'doctor'
-        ? '50% chance to cure each curable, non-critical illness. Also manages chronic conditions.'
+        ? '50% chance each week to cure each curable, non-critical illness (repeat visits in the same week get the same result). Also manages chronic conditions.'
         : activity.id === 'hospital'
           ? 'Cures curable, non-critical illnesses. Also manages chronic conditions; critical illnesses need experimental treatment.'
           : 'Cures curable critical illnesses. Does not cure chronic conditions.'

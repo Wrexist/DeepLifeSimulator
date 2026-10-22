@@ -160,7 +160,17 @@ export interface AppointmentEligibilityInput {
    * measured against that step, not the new post's nominal figure.
    */
   heldAppointmentId?: string | null;
+  /**
+   * The life has retired from work (`GameState.isRetired`). Retirement is a
+   * one-way latch - an appointment is a salaried post, so it is refused like
+   * every other job.
+   */
+  retired?: boolean;
 }
+
+/** The refusal shown when a retired life tries to take paid work again. */
+export const RETIRED_FROM_WORK_MESSAGE =
+  "You've retired - enjoy your pension. There's no going back to work.";
 
 /**
  * The reputation change taking `appointment` applies right now.
@@ -191,6 +201,7 @@ export function appointmentBlocker(
   input: AppointmentEligibilityInput,
 ): string | null {
   if (!appointment) return 'Unknown appointment.';
+  if (input.retired) return RETIRED_FROM_WORK_MESSAGE;
   const req = appointment.requirements;
   const held = Math.max(0, Math.floor(safe(input.highestOfficeHeld, 0)));
   const reputation = safe(input.reputation, 0);

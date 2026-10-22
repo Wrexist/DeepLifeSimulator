@@ -798,6 +798,53 @@ class SaveQueue {
     for (const operation of dropped) this.settleOperation(operation);
   }
 
+  /**
+   * Forget every pending write for a slot that is being deleted: queued
+   * operations in memory AND entries in the persisted journal.
+   *
+   * Deleting a slot left `save_queue_persisted` alone, and a permanently failed
+   * save stays journalled on purpose (the next launch retries it). So a life
+   * whose last save failed, deleted (or restarted) and replaced by a new life in
+   * the same slot, came back on the next launch: the replay's only regression
+   * guard compares `weeksLived`, and the old life had more. Called from
+   * `deleteSaveSlot`, which every slot-delete path goes through.
+   * 2026-10-21 audit SAVE-8.
+   *
+   * The write currently in flight is not touched - nothing can cancel storage
+   * IO already issued. Never throws.
+   */
+  async discardSlot(slot: number): Promise<void> {
+    const dropped = this.queue.filter((op) => op.slot === slot);
+    if (dropped.length > 0) {
+      this.queue = this.queue.filter((op) => op.slot !== slot);
+      for (const operation of dropped) this.settleOperation(operation);
+    }
+    try {
+      const raw = await safeGetItem('save_queue_persisted');
+      if (!raw) return;
+      const { decodePersistedSaveEnvelope, createSaveEnvelope } = await import('@/utils/saveValidation');
+      const decoded = decodePersistedSaveEnvelope(raw, { allowLegacy: false });
+      if (!decoded.valid || typeof decoded.data !== 'string') return; // replay discards it anyway
+      const ops: unknown = JSON.parse(decoded.data);
+      if (!Array.isArray(ops)) return;
+      const keep = ops.filter(
+        (op) => !(op && typeof op === 'object' && (op as { slot?: unknown }).slot === slot),
+      );
+      if (keep.length === ops.length) return;
+      if (keep.length === 0) {
+        await safeRemoveItem('save_queue_persisted');
+      } else {
+        await safeSetItem('save_queue_persisted', createSaveEnvelope(JSON.stringify(keep)));
+      }
+      this.log.info(`Dropped ${ops.length - keep.length} journalled save(s) for deleted slot ${slot}`);
+    } catch (error) {
+      this.log.warn('Could not prune the save journal for a deleted slot (non-critical)', {
+        slot,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   /** Journal the queue if a save is still pending after the grace period. */
   private schedulePersist(): void {
     if (this.persistTimer) return;
@@ -1061,7 +1108,10 @@ class SaveQueue {
         key === 'unsynced_logs' ||
         key.startsWith('cloud_sync_data') ||
         key.startsWith('leaderboard_cache') ||
-        key.startsWith('achievements_cache')
+        key.startsWith('achievements_cache') ||
+        // Write-only crash copies from older builds (ErrorBoundary no longer
+        // writes them; nothing ever read them). audit SAVE-7.
+        key.startsWith('error_backup_')
       );
       
       if (cacheKeys.length > 0) {
@@ -1091,6 +1141,10 @@ class SaveQueue {
       const cap = (n: number) => Math.max(20, Math.floor(n * k));
       const tail = (arr: any, n: number) =>
         Array.isArray(arr) && arr.length > n ? arr.slice(-n) : arr;
+      // For arrays written NEWEST-FIRST (`[item, ...prev]`): keep the head.
+      // `tail` on one of those keeps the OLDEST entries and drops the latest.
+      const head = (arr: any, n: number) =>
+        Array.isArray(arr) && arr.length > n ? arr.slice(0, n) : arr;
 
       if (pruned.lifetimeStatistics && typeof pruned.lifetimeStatistics === 'object') {
         const ls = { ...pruned.lifetimeStatistics };
@@ -1145,7 +1199,15 @@ class SaveQueue {
         bank.budgetSpend = tail(bank.budgetSpend, cap(104));
         pruned.banking = bank;
       }
-      pruned.travelHistory = tail(pruned.travelHistory, cap(100));
+      // Trip records live at `travel.travelHistory` (oldest-first, appended in
+      // TravelActions and capped there at 100). There is no top-level
+      // `travelHistory`; capping one was a no-op.
+      if (pruned.travel && typeof pruned.travel === 'object' && Array.isArray(pruned.travel.travelHistory)) {
+        pruned.travel = {
+          ...pruned.travel,
+          travelHistory: tail(pruned.travel.travelHistory, cap(100)),
+        };
+      }
       if (pruned.socialMedia && typeof pruned.socialMedia === 'object') {
         const sm = { ...pruned.socialMedia };
         sm.scandalHistory = tail(sm.scandalHistory, cap(50));
@@ -1185,8 +1247,12 @@ class SaveQueue {
       }
       if (pruned.gamingStreaming && typeof pruned.gamingStreaming === 'object') {
         const gs = { ...pruned.gamingStreaming };
-        gs.streamHistory = tail(gs.streamHistory, cap(100));
-        gs.videos = tail(gs.videos, cap(100));
+        // Both are written NEWEST-FIRST and capped at 200 in ContentActions
+        // (`[stream, ...history].slice(0, 200)`), so keep the head, at the same
+        // cap as the write site: a normal save then stores exactly what is in
+        // memory, and only the aggressive over-size pass trims (oldest first).
+        gs.streamHistory = head(gs.streamHistory, cap(200));
+        gs.videos = head(gs.videos, cap(200));
         pruned.gamingStreaming = gs;
       }
       if (pruned.hustleApp && pruned.hustleApp.companies && typeof pruned.hustleApp.companies === 'object') {

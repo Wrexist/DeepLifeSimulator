@@ -1,4 +1,5 @@
 import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadius , fontScale, scale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
+import { countOf } from '@/utils/grammar';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import PortraitSheet from '@/components/avatar/PortraitSheet';
@@ -268,7 +269,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           defaultCollapsed={!embedded}
           title="Life Stats"
           compact
-          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${weeksInThisLife(gameState)} weeks`}
+          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${countOf(weeksInThisLife(gameState), 'week')}`}
         >
         <View style={styles.statsGrid}>
           <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />

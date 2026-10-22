@@ -9,6 +9,7 @@ import {
   dismissLifeMoment,
   canAffordLifeMomentChoice,
   lifeMomentChoiceCost,
+  lifeMomentEffectLabel,
 } from '@/lib/events/lifeMomentResolution';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
@@ -172,7 +173,7 @@ export default function LifeMomentModal() {
                               ]}
                               numberOfLines={1}
                             >
-                              {effect.label}
+                              {lifeMomentEffectLabel(effect, gameState.stats?.happiness ?? 0)}
                             </Text>
                             {up ? (
                               <ArrowUp size={scale(13)} color={DIRECTION_COLOR.positive} />

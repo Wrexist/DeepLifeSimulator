@@ -444,6 +444,11 @@ export const fireNamedHire = (
 
 // ── Campaigns ────────────────────────────────────────────────────────────
 
+/** True while `companyId` has an active campaign of `kind`. */
+export function hasActiveCampaignOfKind(state: GameState, companyId: string, kind: HustleCampaignKind): boolean {
+  return (state.hustleApp?.companies?.[companyId]?.activeCampaigns ?? []).some((c) => c && c.active !== false && c.kind === kind);
+}
+
 export const launchCampaign = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   gameState: GameState,
@@ -461,6 +466,11 @@ export const launchCampaign = (
   }
   const company = gameState.companies?.find((c) => c.id === companyId);
   if (!company) return { status: 'rejected', message: 'Company not found' };
+  // One running campaign per kind per company (APP-1): stacking the same kind
+  // was how a pile of cheap launches farmed the up-front brand lift.
+  if (hasActiveCampaignOfKind(gameState, companyId, kind)) {
+    return { status: 'rejected', message: `A ${kind} campaign is already running for this company` };
+  }
 
   const upfront = spendPerWeek;
   if ((gameState.stats?.money ?? 0) < upfront) {
@@ -480,6 +490,7 @@ export const launchCampaign = (
   setGameState((prev) => {
     if (!prev.companies?.some(c => c.id === companyId)) return prev;
     if (prev.hustleApp?.companies?.[companyId]?.activeCampaigns.some(c => c.id === campaignId)) return prev;
+    if (hasActiveCampaignOfKind(prev, companyId, kind)) return prev;
     const weeksLived = prev.weeksLived ?? 0;
     const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalCampaignsRun += 1;
@@ -492,7 +503,7 @@ export const launchCampaign = (
         projectedROI,
         active: true,
       };
-      const brandLift = brandLiftForCampaign(kind);
+      const brandLift = brandLiftForCampaign(kind, durationWeeks);
       const liftedScore = Math.min(100, o.brand.score + brandLift);
       // Recorded so a cancel takes back what was GIVEN, not the nominal lift.
       campaign.brandLiftGranted = Math.max(0, liftedScore - o.brand.score);

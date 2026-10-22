@@ -43,11 +43,14 @@ const BANNER_GRACE_WEEKS = WEEKS_PER_YEAR;
  * Returns null (invisible) when:
  *  - ads are not initialized / module not loaded
  *  - the circuit breaker has tripped
- *  - the ad fails to load
+ *  - the ad fails to load (retried after BANNER_RETRY_MS)
  *  - the player is still inside `BANNER_GRACE_WEEKS`
  *
  * Never crashes - all failures result in hiding the banner.
  */
+/** How long a failed banner stays hidden before the view is remounted (MON-15). */
+const BANNER_RETRY_MS = 60_000;
+
 export default function BannerAd({ style }: BannerAdProps) {
   const [adError, setAdError] = useState(false);
   const [isReady, setIsReady] = useState(adMobService.isAvailable());
@@ -60,6 +63,17 @@ export default function BannerAd({ style }: BannerAdProps) {
     });
     return unsub;
   }, []);
+
+  // A failed load used to hide the banner for the rest of the session: the
+  // native view was unmounted, so the SDK never refreshed or retried, and
+  // nothing ever reset `adError`. One no-fill at cold start (common on a new
+  // unit) cost the whole session's banner. Retry once the backoff elapses by
+  // remounting the view. (2026-10 audit MON-15)
+  useEffect(() => {
+    if (!adError) return undefined;
+    const timer = setTimeout(() => setAdError(false), BANNER_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [adError]);
 
   // Stable handler for the quiet opt-out link (avoids re-creating the arrow on
   // every render of this always-mounted leaf).

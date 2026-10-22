@@ -25,3 +25,16 @@ export function familyPlanningBlock(state: GameState, partnerId: string): string
   }
   return null;
 }
+
+/**
+ * SOC-8: a pregnancy lives ONLY on the partner/spouse record (`isPregnant`,
+ * `pregnancyStartWeek`, `pregnancyChildName`), and the birth is resolved by the
+ * weekly tick walking the surviving records. Every path that removes the record
+ * (break up, divorce, the low-score breakup roll) therefore erased a named,
+ * announced baby without a word. Until the pregnancy can outlive the
+ * relationship, the relationship waits for the birth - this is the one copy of
+ * the reason every refusal shows.
+ */
+export function pregnancyBlocksSplitMessage(name: string): string {
+  return `${name} is expecting. Wait for the baby to arrive first.`;
+}

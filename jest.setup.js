@@ -169,6 +169,11 @@ jest.mock('expo-router', () => ({
   })),
   useFocusEffect: jest.fn(),
   usePathname: jest.fn(() => '/'),
+  // app/(tabs)/computer.tsx reads it. It was missing, so the computer screen
+  // threw on mount and its own <ErrorBoundary> rendered the crash screen,
+  // which the render harness did not recognise: "computer mounts without
+  // throwing" passed without the screen ever rendering.
+  useSegments: jest.fn(() => []),
   // Every tab screen that redirects on mount goes through
   // `hooks/useNavigationReady`, which calls this. It was MISSING here, so those
   // screens threw "useNavigationContainerRef is not a function" on their first

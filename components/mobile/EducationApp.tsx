@@ -347,7 +347,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
-      <SceneCard scene="work-study-modern" title="Back to class" subtitle="Compare tuition and entry requirements." />
+      <SceneCard scene="work-study-modern" title="Back to class" subtitle="Compare tuition and study time." />
       {/* This tab's mandatory colourful element (the event banner) is its colour
           moment, so it carries NO Recipe B hero. */}
       <EconomyEventBanner context="generic" />
@@ -953,7 +953,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
           </DetailCard>
         )}
         <DetailCard theme={theme} darkMode={darkMode}>
-          <StatTile align="left" tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-programme GPA" />
+          <StatTile align="left" tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-program GPA" />
         </DetailCard>
       </View>
 

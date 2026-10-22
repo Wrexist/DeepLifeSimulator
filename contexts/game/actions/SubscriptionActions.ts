@@ -19,6 +19,7 @@ import {
   hasDeepLifePlusEntitlement,
   weekKeysForDayKey,
 } from '@/lib/subscription/deepLifePlus';
+import { isVerifiedProSubscriptionSku } from '@/utils/iapConfig';
 
 const safeAddGems = (base: number | undefined, amount: number): number => {
   // Normalize a possibly-corrupted balance too: a finite negative/fractional
@@ -354,6 +355,41 @@ export function claimDailyGems(state: GameState, todayKey: string, nowMs?: numbe
  * DeepLife+ granted (tracked by `deepLifePlusActivated`), and NEVER strip ad-free
  * that the permanent Remove Ads IAP justifies. No-op when there is nothing owed.
  */
+/**
+ * Deactivate a Pulse Verified Pro that was granted by a DeepLife+ store
+ * subscription (its `sku` is a store subscription SKU). The in-game cash plan
+ * (`weeklyPrice`) is billed and lapsed by the weekly tick and is left alone.
+ * Returns `state` unchanged when there is nothing to revoke.
+ */
+export function revokeStoreVerifiedPro(state: GameState): GameState {
+  const sm = state.socialMedia;
+  const vp = sm?.verifiedPro;
+  if (!sm || !vp || vp.active !== true) return state;
+  if (!isVerifiedProSubscriptionSku(vp.sku)) return state;
+  if (typeof vp.weeklyPrice === 'number' && vp.weeklyPrice > 0) return state;
+  return {
+    ...state,
+    socialMedia: {
+      ...sm,
+      verifiedPro: {
+        ...vp,
+        active: false,
+        perksUnlocked: {
+          blueCheckmark: false,
+          postBoostMultiplier: 1.0,
+          analyticsUnlocked: false,
+          noAdsInFeed: false,
+          longerPosts: false,
+        },
+      },
+    },
+    // Same as cancelVerifiedPro: the blue check is derived from an ACTIVE plan.
+    userProfile: state.userProfile?.verified
+      ? { ...state.userProfile, verified: false }
+      : state.userProfile,
+  };
+}
+
 export function reconcileSubscriptionBenefits(
   state: GameState,
   plusActive: boolean,
@@ -381,6 +417,18 @@ export function reconcileSubscriptionBenefits(
   if (plusActive) {
     // applyDeepLifePlusBenefits is idempotent (welcome gems only on first activation).
     return applyDeepLifePlusBenefits(state, { welcomeGrantedElsewhere });
+  }
+
+  // A Pulse Verified Pro that a DeepLife+ STORE purchase granted ends with the
+  // subscription. Nothing else ever lapsed it: the weekly biller only touches
+  // the in-game cash plan (`weeklyPrice > 0`) and the perk gate is the bare
+  // `active` flag, so a cancelled free trial kept the blue check and the 1.25x
+  // boost for the rest of the save. Authoritative answers only - "could not
+  // ask" must not strip a paying member's perk. Runs before the
+  // `deepLifePlusActivated` early return on purpose: a non-authoritative pass
+  // may already have cleared that flag. (2026-10 audit MON-2)
+  if (entitlementCheckAuthoritative) {
+    state = revokeStoreVerifiedPro(state);
   }
 
   // A POSITIVE Remove Ads answer needs no authority check - "yes, owned" can

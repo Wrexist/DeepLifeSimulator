@@ -1263,7 +1263,7 @@ exports[`pre-tick equivalence - applyCrimeTick encounter with low money: fine ca
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $3 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $3 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1288,7 +1288,7 @@ exports[`pre-tick equivalence - applyCrimeTick encounter with zero money: fine =
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $0 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $0 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1313,7 +1313,7 @@ exports[`pre-tick equivalence - applyCrimeTick happiness floored at 0 when below
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1433,7 +1433,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel 6 → 5, encounter ch
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 2 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1477,7 +1477,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel extremely high (15 �
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 4 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 4 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -1502,7 +1502,7 @@ exports[`pre-tick equivalence - applyCrimeTick wantedLevel high (10 → 9), enco
   "notifications": [
     {
       "id": "police-encounter",
-      "message": "The police caught up with you! You've been fined $500 and sentenced to 3 week(s) in jail.",
+      "message": "The police caught up with you! You've been fined $500 and sentenced to 3 weeks in jail.",
       "title": "Police Encounter",
     },
   ],
@@ -2309,7 +2309,7 @@ exports[`pre-tick equivalence - applyEducationProgression completion with class 
   },
   "notifications": [
     {
-      "id": "education-complete",
+      "id": "education-complete-cs101",
       "message": "GPA: 2.5 - Class bonuses applied!",
       "title": "🎓 CS 101 Completed!",
     },
@@ -2412,7 +2412,7 @@ exports[`pre-tick equivalence - applyEducationProgression exam week FAIL (no stu
   },
   "notifications": [
     {
-      "id": "education-exam",
+      "id": "education-exam-exam-bio",
       "message": "D - Needs improvement.",
       "title": "📝 Exam in CS 101",
     },
@@ -2454,7 +2454,7 @@ exports[`pre-tick equivalence - applyEducationProgression exam week PASS (study 
   },
   "notifications": [
     {
-      "id": "education-exam",
+      "id": "education-exam-exam-cs",
       "message": "B - Solid effort!",
       "title": "📝 Exam in CS 101",
     },
@@ -4162,14 +4162,14 @@ exports[`pre-tick equivalence - applyPetLivingSideEffects no-op when no pets 1`]
 
 exports[`pre-tick equivalence - applyPregnancyProgression birth: money clamped at 0 when below $5000 1`] = `
 {
-  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Kai!",
+  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Liam!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
-    "name": "Kai",
+    "id": "child_100_abc_r1",
+    "name": "Liam",
     "personality": "Playful",
     "relationshipScore": 75,
     "type": "child",
@@ -4189,14 +4189,14 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: money clamped a
 
 exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyChildGender override wins over preRolls.childGender 1`] = `
 {
-  "birthMessage": "Beth gave birth to a beautiful baby boy named Kai!",
+  "birthMessage": "Beth gave birth to a beautiful baby boy named Liam!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
-    "name": "Kai",
+    "id": "child_100_abc_r1",
+    "name": "Liam",
     "personality": "Playful",
     "relationshipScore": 75,
     "type": "child",
@@ -4222,7 +4222,7 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyChildN
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
+    "id": "child_100_abc_r1",
     "name": "Alex",
     "personality": "Playful",
     "relationshipScore": 75,
@@ -4253,14 +4253,14 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyWeeks 
     "reputation": 50,
   },
   "result": {
-    "birthMessage": "Alice gave birth to a beautiful baby girl named Mia!",
+    "birthMessage": "Alice gave birth to a beautiful baby girl named Elena!",
     "newborn": {
       "age": 0,
       "birthWeeksLived": 100,
       "datesCount": 0,
       "gender": "female",
-      "id": "child_99_sfx_r1",
-      "name": "Mia",
+      "id": "child_100_sfx_r1",
+      "name": "Elena",
       "personality": "Energetic",
       "relationshipScore": 75,
       "type": "child",
@@ -4281,14 +4281,14 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyWeeks 
 
 exports[`pre-tick equivalence - applyPregnancyProgression birth: spouse (not just partner) fires the same path 1`] = `
 {
-  "birthMessage": "Diane gave birth to a beautiful baby boy named Kai!",
+  "birthMessage": "Diane gave birth to a beautiful baby boy named Liam!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
-    "name": "Kai",
+    "id": "child_100_abc_r1",
+    "name": "Liam",
     "personality": "Playful",
     "relationshipScore": 75,
     "type": "child",
@@ -4415,7 +4415,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel (score 20), week
 {
   "notifications": [
     {
-      "id": "relationship-breakup",
+      "id": "relationship-breakup-r1",
       "message": "BreakMe has ended the relationship. Your relationship score was too low (20%).",
       "title": "💔 Relationship Ended",
     },
@@ -4449,7 +4449,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel, breakup miss + 
 {
   "notifications": [
     {
-      "id": "relationship-disappointed",
+      "id": "relationship-disappointed-r1",
       "message": "Sad is disappointed with you. Your relationship is at 20%. Consider going on dates or giving gifts to improve it.",
       "title": "😔 Partner Disappointed",
     },
@@ -4973,13 +4973,13 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles insured vehicle acc
     "gems": 0,
     "happiness": 100,
     "health": 82,
-    "money": 49751,
+    "money": 49930,
     "reputation": 50,
   },
   "notifications": [
     {
       "id": "vehicle-accident-insuredCar",
-      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -8. Repair cost: $179.",
+      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -8. Repair estimate: $599 at the garage.",
       "title": "Vehicle Accident",
     },
   ],

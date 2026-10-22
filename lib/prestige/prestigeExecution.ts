@@ -31,8 +31,9 @@ import { applyDynastyTransition } from '@/lib/dynasty/transition';
 import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBonuses';
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
-import { computeInheritance } from '@/lib/legacy/inheritance';
+import { computeInheritance, isCarriedFamilyBusinessLoan } from '@/lib/legacy/inheritance';
 import { appendLifeRecord, buildLifeRecord } from '@/lib/legacy/lifeRecord';
+import { createDefaultCompanyOverlay } from '@/lib/business/hustleLogic';
 
 
 /**
@@ -278,13 +279,54 @@ function carryFamilyBusinessLoans(
   if (!Array.isArray(oldState.loans) || oldState.loans.length === 0) return;
   // Business-type loans AND any loan tied to a carried family business.
   const transferredLoans = oldState.loans.filter(loan =>
-    loan && loan.remaining > 0 && (
-      loan.type === 'business' ||
-      familyBusinessCompanyIds.some(id => loan.id?.includes(id) || loan.name?.includes('Business'))
-    )
+    isCarriedFamilyBusinessLoan(loan, familyBusinessCompanyIds)
   );
   if (transferredLoans.length > 0) {
     newState.loans = [...(newState.loans || []), ...transferredLoans.map(loan => ({ ...loan }))];
+  }
+}
+
+/**
+ * ANTI-EXPLOIT (LATE-11): a carried family business keeps its stock listing.
+ *
+ * Both builders rebuild `hustleApp` from `initialGameState`, so a carried
+ * company arrived with no overlay, the first Hustle action minted a PRIVATE
+ * default one, and `ipoListedCompanyIds` (per life, v56) was empty - so the
+ * same company could be floated again every life, and its owner was silently
+ * restored to 100% of a company that was 60% public (`companyOwnerShare`).
+ * A listed carried company now arrives public, with the kept share, and is
+ * recorded as already floated this life. The earnings clock is re-based on
+ * the new life's counter (`weeksLived` is per life). Mutates `newState`.
+ */
+function carryFamilyBusinessListings(
+  oldState: GameState,
+  newState: GameState,
+  familyBusinessCompanyIds: readonly string[],
+): void {
+  const weeksLived = newState.weeksLived ?? 0;
+  const listed: string[] = [];
+  const overlays = { ...(newState.hustleApp?.companies ?? {}) };
+  for (const id of familyBusinessCompanyIds) {
+    const oldIpo = oldState.hustleApp?.companies?.[id]?.ipo;
+    const wasListed = oldIpo?.status === 'public' || (oldState.ipoListedCompanyIds ?? []).includes(id);
+    if (!wasListed) continue;
+    listed.push(id);
+    if (oldIpo?.status === 'public') {
+      overlays[id] = {
+        ...createDefaultCompanyOverlay(id, weeksLived),
+        ipo: {
+          ...oldIpo,
+          recentEarnings: [],
+          listedWeek: weeksLived,
+          lastEarningsWeek: weeksLived,
+        },
+      };
+    }
+  }
+  if (listed.length === 0) return;
+  newState.ipoListedCompanyIds = Array.from(new Set([...(newState.ipoListedCompanyIds ?? []), ...listed]));
+  if (newState.hustleApp) {
+    newState.hustleApp = { ...newState.hustleApp, companies: overlays };
   }
 }
 
@@ -368,6 +410,7 @@ function createResetGameState(
     }
     // The debt goes with the business - same rule, same helper as the heir path.
     carryFamilyBusinessLoans(oldState, newState, carriedIds);
+    carryFamilyBusinessListings(oldState, newState, carriedIds);
   }
 
   // Legacy Pass is SEASONAL (account-level), not per-life - preserve it across
@@ -565,6 +608,15 @@ function createChildGameState(
     return createResetGameState(oldState, prestigeData);
   }
 
+  // SOC-10: the heir's age when the parent's life ENDED, captured before the
+  // simulation below ages them to 18. Reading it afterwards made every minor
+  // heir look 18 already, so no years passed and the family tree recorded them
+  // as born up to 18 years late (a newborn heir "born" when the parent was 4).
+  const ageAtHandover =
+    typeof selectedChild.age === 'number' && Number.isFinite(selectedChild.age)
+      ? Math.max(0, Math.floor(selectedChild.age))
+      : ADULTHOOD_AGE;
+
   // Simulate child to age 18 if they're younger
   if ((selectedChild.age || 0) < ADULTHOOD_AGE) {
     selectedChild = simulateChildToAge(selectedChild, oldState, ADULTHOOD_AGE);
@@ -651,12 +703,32 @@ function createChildGameState(
   }
   
   // Create FamilyMemberNode for the prestiged character
-  // Deterministic in the LIFE, not the wall clock (Program 14). This node is a
-  // permanent entry in the family tree and its id is referenced by the heir's
-  // `parents` array, so a clock-derived id meant the same dynasty replayed with
-  // different edges. The lineage plus the prestige count already identify it:
-  // a lineage passes through prestige N exactly once.
-  const prestigedCharacterId = `prestige_${oldState.lineageId ?? 'unknown'}_${prestigeData.totalPrestiges}`;
+  //
+  // An heir is ALREADY in the tree: the previous transition added them as a
+  // living child node (no `deathYear`, `parents` pointing at their parent). That
+  // node is this character, so it is completed in place rather than duplicated.
+  //
+  // Otherwise (the founder, or a tree from before this fix) a node is minted,
+  // deterministic in the LIFE, not the wall clock (Program 14), and unique per
+  // GENERATION. It used to be keyed on `prestige.totalPrestiges`, which the
+  // death -> heir flow (`continueAsChild`) never increments - so the second
+  // succession reused the first one's id, `addMember` overwrote the
+  // grandparent with the parent, and the parent's own child node ended up
+  // pointing at itself as its parent (LATE-4).
+  const currentGeneration = oldState.generationNumber || 1;
+  const existingSelf = Object.values(familyTree.members).find(
+    (m) =>
+      !!m &&
+      m.generation === currentGeneration &&
+      m.deathYear === undefined &&
+      m.finalStats === undefined &&
+      // A reset prestige keeps the generation and the tree but starts a
+      // DIFFERENT person, so the living node must also be this character.
+      m.firstName === (oldState.userProfile?.firstName || 'Player') &&
+      m.lastName === (oldState.userProfile?.lastName || 'Unknown'),
+  );
+  const prestigedCharacterId =
+    existingSelf?.id ?? `prestige_${oldState.lineageId ?? 'unknown'}_g${currentGeneration}`;
   const prestigedCharacter: FamilyMemberNode = {
     id: prestigedCharacterId,
     firstName: oldState.userProfile?.firstName || 'Player',
@@ -664,7 +736,7 @@ function createChildGameState(
     generation: oldState.generationNumber || 1,
     birthYear: birthYear,
     deathYear: currentYear, // Prestige year becomes "death" year
-    parents: [],
+    parents: existingSelf?.parents ? [...existingSelf.parents] : [],
     children: oldState.family?.children?.map(c => c.id) || [],
     spouse: oldState.family?.spouse?.id,
     traits: oldState.activeTraits || [],
@@ -702,7 +774,9 @@ function createChildGameState(
   
   // CRITICAL: Create child node in family tree with proper parent relationship
   const childAge = Math.max(ADULTHOOD_AGE, Math.floor(selectedChild.age || ADULTHOOD_AGE));
-  const childBirthYear = currentYear - childAge;
+  // Born when they were really born - from the age at the handover, not the
+  // simulated one (SOC-10).
+  const childBirthYear = currentYear - ageAtHandover;
   const childNodeId = selectedChild.id;
   
   const childNode: FamilyMemberNode = {
@@ -759,10 +833,11 @@ function createChildGameState(
     gender: selectedChild.gender || oldState.userProfile?.gender || 'male',
   };
 
-  // BUG FIX: Continue year progression instead of resetting to 2025
-  // Calculate new year based on previous year + time progression
-  // childBirthYear is already calculated above (line 365)
-  const newYear = Math.max(currentYear, childBirthYear + 18); // Ensure child is at least 18 in new year
+  // BUG FIX: Continue year progression instead of resetting to 2025.
+  // The heir takes over in the year they reach `childAge`: the same year for an
+  // adult heir, and the years the simulation lived through for a minor one
+  // (SOC-10 - this used to resolve to `currentYear` for every heir).
+  const newYear = Math.max(currentYear, childBirthYear + childAge);
 
   // Set age
   newState.date = {
@@ -792,9 +867,10 @@ function createChildGameState(
   // This includes heirloom bonuses and proper net worth calculation
   const inheritanceSummary = computeInheritance(oldState);
   
-  // CRITICAL FIX: Use inheritanceSummary.totalNetWorth instead of currentNetWorth
-  // inheritanceSummary.totalNetWorth is the correct value calculated by computeInheritance
-  // which includes cash, bank savings, real estate, companies, and debts properly
+  // inheritanceSummary.totalNetWorth is the ESTATE (`estateValue`): the
+  // canonical net worth of everything that does not pass down in kind - so
+  // stocks, crypto and vehicles count, and family businesses (carried as live
+  // companies below) are not paid a second time in cash.
   const parentNetWorth = inheritanceSummary.totalNetWorth;
   
   // Calculate child-specific inheritance with education/career bonuses
@@ -872,6 +948,7 @@ function createChildGameState(
     }
 
     carryFamilyBusinessLoans(oldState, newState, familyBusinessCompanyIds);
+    carryFamilyBusinessListings(oldState, newState, familyBusinessCompanyIds);
   }
 
   // BUG FIX: Use calculateChildStats for proper stat calculation with percentages

@@ -154,6 +154,48 @@ describe('replaying a queue from a previous session', () => {
 });
 
 /**
+ * 2026-10-21 audit SAVE-8 — deleting a slot left its journalled writes behind,
+ * so a life whose last save had failed came back on the next launch over the
+ * new life started in that slot (the replay's regression guard compares only
+ * weeksLived, and the old life had more).
+ */
+describe('deleting a slot forgets its journalled writes', () => {
+  function journalOps(): Array<{ slot: number }> {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { decodePersistedSaveEnvelope } = require('@/utils/saveValidation');
+    const raw = store.get('save_queue_persisted');
+    if (!raw) return [];
+    const decoded = decodePersistedSaveEnvelope(raw, { allowLegacy: false });
+    expect(decoded.valid).toBe(true);
+    return JSON.parse(decoded.data);
+  }
+
+  it('drops only the deleted slot\'s entries and keeps the journal signed', async () => {
+    persistQueueOf([
+      { id: 'a', slot: 1, data: played(800), timestamp: Date.now(), retryCount: 1 },
+      { id: 'b', slot: 2, data: played(300), timestamp: Date.now(), retryCount: 1 },
+    ]);
+    const { deleteSaveSlot } = await import('@/utils/saveValidation');
+
+    await deleteSaveSlot(1);
+
+    expect(journalOps().map((op) => op.slot)).toEqual([2]);
+  });
+
+  it('removes the journal when the deleted slot was all it held, so nothing replays', async () => {
+    persistQueueOf([{ id: 'a', slot: 1, data: played(800), timestamp: Date.now(), retryCount: 1 }]);
+    const { deleteSaveSlot } = await import('@/utils/saveValidation');
+
+    await deleteSaveSlot(1);
+    expect(store.has('save_queue_persisted')).toBe(false);
+
+    await saveQueue.restoreOnStartup();
+    expect(saveQueue.getStatus().queueLength).toBe(0);
+    expect(store.has('save_slot_1_A') || store.has('save_slot_1_B')).toBe(false);
+  });
+});
+
+/**
  * F-11 — the persisted queue was the one unsigned door into the signed save
  * file. Its entries are whole GameStates, and the replay hands them to
  * `performSave`, which signs whatever it is given: edit the plain-JSON blob,

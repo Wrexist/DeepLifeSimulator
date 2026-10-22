@@ -1,4 +1,6 @@
 import { uiPalette } from '@/lib/config/theme';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { countOf } from '@/utils/grammar';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -77,7 +79,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       gameAlert('Bail Posted', 'You have been released from jail!');
       if (onClose) onClose();
     } else {
-      gameAlert('Insufficient Funds', `You need $${bailCost} to post bail.`);
+      gameAlert('Not enough money', `You need ${formatMoney(bailCost)} to post bail - you have ${formatMoney(stats.money)}.`);
     }
   };
 
@@ -137,8 +139,8 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     // Check cost
     if (activity.cost && stats.money < activity.cost) {
       gameAlert(
-        'Insufficient Funds',
-        `This activity costs $${activity.cost}. You currently have $${stats.money}.`
+        'Not enough money',
+        `This activity costs ${formatMoney(activity.cost)} - you have ${formatMoney(stats.money)}.`
       );
       return;
     }
@@ -147,7 +149,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) {
       gameAlert(
         'Requirement Not Met',
-        `This activity requires at least ${activity.requiresWeeks} weeks remaining in jail. You have ${jailWeeks} weeks remaining.`
+        `This activity requires at least ${countOf(activity.requiresWeeks, 'week')} remaining in jail. You have ${countOf(jailWeeks, 'week')} remaining.`
       );
       return;
     }
@@ -157,7 +159,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     const lastUsed = activityCooldowns[activityId] || 0;
     if (currentTime - lastUsed < cooldownTime) {
       const remainingTime = Math.ceil((cooldownTime - (currentTime - lastUsed)) / 1000);
-      gameAlert('Cooldown', `Please wait ${remainingTime} second(s) before trying again.`);
+      gameAlert('Cooldown', `Please wait ${countOf(remainingTime, 'second')} before trying again.`);
       return;
     }
 
@@ -321,7 +323,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               <View style={styles.statusInfo}>
                 <View style={styles.statusItem}>
                   <Clock size={16} color={uiPalette.white} />
-                  <Text style={styles.statusText}>{jailWeeks} weeks remaining</Text>
+                  <Text style={styles.statusText}>{countOf(jailWeeks, 'week')} remaining</Text>
                 </View>
                 <View style={styles.statusItem}>
                   <DollarSign size={16} color={uiPalette.white} />
@@ -349,7 +351,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 style={styles.bailButtonGradient}
               >
                 <Text style={styles.bailButtonText}>
-                  {stats.money < bailCost ? 'Insufficient Funds' : `Pay Bail $${bailCost}`}
+                  {stats.money < bailCost ? 'Not enough money' : `Pay bail ${formatMoney(bailCost)}`}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -406,7 +408,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                     key={food.id}
                     onPress={() => {
                       if (!canAfford) {
-                        gameAlert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
+                        gameAlert('Not enough money', `You need ${formatMoney(price)} to buy ${food.name} - you have ${formatMoney(stats.money)}.`);
                         return;
                       }
                       // One pure resolution, run on the snapshot for the toast
