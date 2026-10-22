@@ -1011,9 +1011,13 @@ including the crash screen.
   The by-value half is the v54 rule: `careers[].levels[].salary` is saved and
   read by payroll, so the new ladders (therapist and vet $250 -> $1,600,
   architect $350 -> $2,200, journalist $180 -> $1,150, military to $900,
-  firefighter to $950; janitor / retail / fast food lifted to $520 / $500 /
-  $450) re-run `adoptStoredCatalogueValues` for KNOWN ids; progress and
-  unknown ids are untouched, and there is no repair mirror for that half.
+  firefighter to $950) re-run `adoptStoredCatalogueValues` for KNOWN ids;
+  progress and unknown ids are untouched, and there is no repair mirror for
+  that half. The janitor / retail / fast food ladders are deliberately NOT
+  raised: lifting them to $450-520 (the first ECO-8 cut) doubled the common
+  personas' week-250 net worth and broke `socialBoundaries`, so the chef pays
+  for its ceiling instead (health-50 bar, -2 happiness, in `jobMarket.ts`,
+  which is code, not save data).
   The six fields all default `undefined`, so no backfill and no
   `repairGameState` mirror, and absence resolves to exactly what a pre-v57
   save already does:

@@ -1506,12 +1506,14 @@ const migrations: Record<number, (state: any) => any> = {
    *
    * (1) Career ladders, the v54 rule. The 2026-10-22 ladders (therapist and
    * vet $250 -> $1,600, architect $350 -> $2,200, journalist $180 -> $1,150,
-   * military top $900, firefighter top $950, janitor/retail/fast food tops
-   * $520/$500/$450) are stored BY VALUE in `careers[].levels`, which payroll
+   * military top $900, firefighter top $950) are stored BY VALUE in `careers[].levels`, which payroll
    * reads, so without this they would reach new lives only. For KNOWN ids the
    * code's per-level `name`/`salary` is adopted; the player's `level`,
    * `progress`, `accepted` and every other progress field are untouched, and
-   * so are unknown ids. `adoptStoredCatalogueValues` also re-adopts street-job
+   * so are unknown ids. The janitor / retail / fast food ladders are unchanged
+   * since v56 (ECO-8 was solved on the chef's hiring profile, which is code,
+   * not save data), so for them the adoption is a no-op.
+   * `adoptStoredCatalogueValues` also re-adopts street-job
    * pay and item prices, which is a no-op for a save v54 already brought up to
    * date. No `repairGameState` mirror: repair restores a MISSING catalogue from
    * the current defaults, so a partial save gets the new ladders that way.

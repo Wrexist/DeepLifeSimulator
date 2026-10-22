@@ -73,8 +73,11 @@ import { Career } from '@/contexts/game/types';
  * therapist and vet $250 -> $1,600, architect $350 -> $2,200, journalist
  * $180 -> $1,150, military top $900, firefighter top $950. On the entry board
  * the chef ($805) dominated janitor ($200), retail ($250) and fast food ($230)
- * on ceiling with the same or a lower bar; those three now top at $520 / $500
- * / $450, each keeping its own trade-off against the chef (jobMarket.ts).
+ * on ceiling with the same or a lower bar. Those three ladders were lifted to
+ * $520 / $500 / $450 first, and that lifted the whole low-end economy (the
+ * common personas' week-250 net worth roughly doubled), so they are back at
+ * their old pay and the chef pays for its ceiling instead: a health-50 hiring
+ * bar and a -2 happiness toll (jobMarket.ts, ENTRY_JOB_PROFILES).
  *
  * `lib/careers/__tests__/gateSetsTheCeiling.test.ts` now covers EVERY entry
  * here, including a same-requirements dominance check. Careers are stored BY
@@ -100,11 +103,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'fast_food',
         levels: [
             { name: 'Fast Food Worker', salary: 110 },
-            { name: 'Crew Member', salary: 150 },
-            { name: 'Shift Leader', salary: 200 },
-            { name: 'Assistant Manager', salary: 270 },
-            { name: 'Restaurant Manager', salary: 350 },
-            { name: 'District Manager', salary: 450 },
+            { name: 'Crew Member', salary: 130 },
+            { name: 'Shift Leader', salary: 140 },
+            { name: 'Assistant Manager', salary: 150 },
+            { name: 'Restaurant Manager', salary: 180 },
+            { name: 'District Manager', salary: 230 },
         ],
         level: 0,
         description: 'Flip burgers in a fast-food restaurant',
@@ -117,11 +120,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'retail',
         levels: [
             { name: 'Retail Associate', salary: 110 },
-            { name: 'Senior Associate', salary: 140 },
-            { name: 'Floor Supervisor', salary: 190 },
-            { name: 'Assistant Manager', salary: 260 },
-            { name: 'Store Manager', salary: 360 },
-            { name: 'Regional Manager', salary: 500 },
+            { name: 'Senior Associate', salary: 120 },
+            { name: 'Floor Supervisor', salary: 140 },
+            { name: 'Assistant Manager', salary: 165 },
+            { name: 'Store Manager', salary: 205 },
+            { name: 'Regional Manager', salary: 250 },
         ],
         level: 0,
         description: 'Assist customers and manage inventory in retail',
@@ -134,11 +137,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'janitor',
         levels: [
             { name: 'Janitor', salary: 110 },
-            { name: 'Senior Janitor', salary: 150 },
-            { name: 'Maintenance Lead', salary: 210 },
-            { name: 'Maintenance Supervisor', salary: 290 },
-            { name: 'Facility Manager', salary: 390 },
-            { name: 'Facilities Director', salary: 520 },
+            { name: 'Senior Janitor', salary: 130 },
+            { name: 'Maintenance Lead', salary: 135 },
+            { name: 'Maintenance Supervisor', salary: 135 },
+            { name: 'Facility Manager', salary: 165 },
+            { name: 'Facilities Director', salary: 200 },
         ],
         level: 0,
         description: 'Keep buildings clean and operational',

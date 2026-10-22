@@ -13,10 +13,10 @@ import { createTestGameState } from '../helpers/createTestGameState';
 
 type AnyState = Record<string, any>;
 
-/** The ladders as v56 shipped them, for the careers v57 changes. */
+/** The ladders as v56 shipped them, for careers v57 changes. */
 const V56_LADDERS: Record<string, number[]> = {
-  janitor: [110, 130, 150, 170, 185, 200],
-  architect: [300, 440, 600, 780, 980, 1200],
+  therapist: [110, 210, 355, 505, 655, 850],
+  architect: [200, 350, 500, 700, 950, 1300],
 };
 
 function v56Save(): AnyState {
@@ -42,27 +42,39 @@ describe('v57 migration', () => {
 
   it('adopts the new ladders for known careers', () => {
     const save = v56Save();
-    const before = save.careers.find((c: AnyState) => c.id === 'janitor');
-    expect(before).toBeTruthy(); // the fixture must carry the janitor career
-    expect(before.levels.map((l: AnyState) => l.salary)).toEqual(V56_LADDERS.janitor);
+    for (const id of Object.keys(V56_LADDERS)) {
+      const before = save.careers.find((c: AnyState) => c.id === id);
+      expect(before).toBeTruthy(); // the fixture must carry the career
+      expect(before.levels.map((l: AnyState) => l.salary)).toEqual(V56_LADDERS[id]);
+    }
 
     const { state, errors } = migrate(save);
     expect(errors).toEqual([]);
     expect((state as AnyState).version).toBe(57);
     for (const id of Object.keys(V56_LADDERS)) {
       const out = (state as AnyState).careers.find((c: AnyState) => c.id === id);
-      if (!out) continue;
       const code = INITIAL_CAREERS.find((c) => c.id === id)!;
       expect(out.levels.map((l: AnyState) => l.salary)).toEqual(code.levels.map((l) => l.salary));
     }
-    const janitor = (state as AnyState).careers.find((c: AnyState) => c.id === 'janitor');
-    expect(janitor.levels[janitor.levels.length - 1].salary).toBe(520);
+    const therapist = (state as AnyState).careers.find((c: AnyState) => c.id === 'therapist');
+    expect(therapist.levels[therapist.levels.length - 1].salary).toBe(1600);
+  });
+
+  it('leaves the janitor, retail and fast-food ladders at their v56 pay (ECO-8 moved to the chef profile)', () => {
+    const save = v56Save();
+    const ladders = (s: AnyState) =>
+      ['janitor', 'retail', 'fast_food'].map((id) => s.careers.find((c: AnyState) => c.id === id).levels.map((l: AnyState) => l.salary));
+    const before = ladders(save);
+    expect(before[0]).toEqual([110, 130, 135, 135, 165, 200]);
+    expect(ladders(migrate(save).state as AnyState)).toEqual(before);
   });
 
   it('never touches progress', () => {
     const { state } = migrate(v56Save());
-    const janitor = (state as AnyState).careers.find((c: AnyState) => c.id === 'janitor');
-    expect(janitor).toMatchObject({ level: 3, progress: 44, accepted: true });
+    for (const id of Object.keys(V56_LADDERS)) {
+      const career = (state as AnyState).careers.find((c: AnyState) => c.id === id);
+      expect(career).toMatchObject({ level: 3, progress: 44, accepted: true });
+    }
   });
 
   it('writes none of the six carve-outs', () => {
