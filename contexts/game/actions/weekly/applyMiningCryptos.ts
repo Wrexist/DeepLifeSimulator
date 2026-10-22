@@ -79,10 +79,27 @@ export interface MiningCryptosInput {
    * Defaults to 0 (pre-degradation durability) when omitted.
    */
   minerDegradationRoll?: number;
+  /**
+   * The net-worth passive-income soft cap (`passiveIncomeEfficiency`), 0-1.
+   *
+   * ECO-4 (owner decision 2026-10-22). Warehouse output is paid in crypto and
+   * deliberately kept out of `calcWeeklyPassiveIncome` (it would double-pay),
+   * so the soft cap that slows every other passive stream above $10M net
+   * worth never touched it: at $100M a company kept 39% of its income and a
+   * giga rig 100%. The caller passes the SAME factor companies get, and it
+   * scales the minted coins after the power bill. Defaults to 1 (no cap).
+   */
+  passiveEfficiency?: number;
 }
 
 export interface MiningCryptosResult {
   updatedCryptos: Crypto[];
+  /**
+   * Coins minted into the selected crypto this week (after every cut), so the
+   * caller can book them at a ZERO cost basis (`recordMintedCoins`). Absent
+   * when nothing was minted.
+   */
+  minted?: { cryptoId: string; amount: number };
 }
 
 export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResult {
@@ -174,6 +191,18 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
     result.cryptoEarned = Number.isFinite(net) ? Math.max(0, net) : 0;
   }
 
+  // ECO-4: the same net-worth soft cap every other passive stream pays.
+  const efficiency = input.passiveEfficiency;
+  if (
+    result.cryptoEarned > 0 &&
+    typeof efficiency === 'number' &&
+    Number.isFinite(efficiency) &&
+    efficiency >= 0 &&
+    efficiency < 1
+  ) {
+    result.cryptoEarned *= efficiency;
+  }
+
   if (result.cryptoEarned > 0) {
     // Add crypto to balance.
     let updatedCryptos = input.prevCryptos.map((crypto) => {
@@ -199,7 +228,7 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
       });
     }
 
-    return { updatedCryptos };
+    return { updatedCryptos, minted: { cryptoId: selectedCryptoId, amount: result.cryptoEarned } };
   }
 
   // Still deduct auto-repair even if no mining earnings.

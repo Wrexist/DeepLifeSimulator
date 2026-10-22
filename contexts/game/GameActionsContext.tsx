@@ -38,7 +38,7 @@ import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
-import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
+import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary, managementLevels, passiveIncomeEfficiency } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
@@ -67,6 +67,7 @@ import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from
 import { updateStats as updateStatsAction, applyStatsDelta } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
+import { recordMintedCoins } from '@/lib/crypto/operations';
 import { runDarkWebWeeklyTick } from '@/lib/darkweb/weeklyTick';
 import { runPoliticsWeeklyTick } from '@/lib/politics/weeklyTick';
 import { applyOfficeExit } from '@/lib/politics/operations';
@@ -1934,14 +1935,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // into ./actions/weekly/applyMiningCryptos.ts. Same 8-tier miner catalog,
  // same calculateMiningEarnings call, same BTC halving, same auto-repair
  // deduction (both earning-path and zero-earning-path).
- const updatedCryptos = guardTick('miningCryptos', () => applyMiningCryptos({
+ const miningResult = guardTick('miningCryptos', () => applyMiningCryptos({
    prevWarehouse: prevState.warehouse,
    prevCryptos: prevState.cryptos || [],
    halvingCount: prevState.cryptoMarket?.halvingCount ?? 0,
    // Charge auto-repair on POST-degradation durability (same roll the warehouse
    // pass uses) so a miner crossing below 50% this tick isn't repaired for $0.
    minerDegradationRoll: preRolls.minerDegradation,
- }).updatedCryptos, prevState.cryptos || []);
+   // ECO-4: the same net-worth soft cap calcWeeklyPassiveIncome applies to
+   // companies and rent, from the same pre-tick net worth.
+   passiveEfficiency: passiveIncomeEfficiency(netWorth, managementLevels(prevState.companies)),
+ }), { updatedCryptos: prevState.cryptos || [] });
+ const updatedCryptos = miningResult.updatedCryptos;
+ // Booked at a zero cost basis on the crypto market below (ECO-4).
+ const mintedThisWeek = miningResult.minted;
 
  // R7 Phase 2 step 2.6-ii-B: warehouse update extracted into
  // ./actions/weekly/applyMiningWarehouse.ts. Same difficulty / durability /
@@ -2761,8 +2768,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Capital gains collected this tick, for the year-to-date tax ledger below.
  let cryptoCapitalGainsTax = 0;
  try {
+ const marketBeforeTick = prevState.cryptoMarket ?? initialGameState.cryptoMarket!;
  const cryptoTick = runCryptoWeeklyTick({
- market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
+ // ECO-4: this week's minted coins join the cost basis at $0, so a later
+ // sale realises the mined value as a taxable gain.
+ market: mintedThisWeek
+   ? recordMintedCoins(marketBeforeTick, mintedThisWeek.cryptoId, mintedThisWeek.amount)
+   : marketBeforeTick,
  cryptos: updatedCryptos,
  banking: prevState.banking ?? initialGameState.banking!,
  cashIn: newStats.money,

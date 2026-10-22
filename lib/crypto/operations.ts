@@ -73,6 +73,27 @@ function recordBuy(
   };
 }
 
+/**
+ * Book coins minted by the warehouse at a ZERO cost basis (ECO-4).
+ *
+ * Minted coins used to be added to `owned` and nowhere else, so the per-coin
+ * basis (`totalCost / totalShares`) ignored them: a sale drew down the
+ * PURCHASED basis first and deferred the gain, so a player who had bought one
+ * coin and mined ninety-nine could sell a large slice almost tax-free that
+ * year. Adding the coins to `totalShares` at no cost blends them in, so every
+ * sale realises its fair share of the mined value as a gain and pays the
+ * capital-gains tax on it.
+ */
+export function recordMintedCoins(
+  market: CryptoMarketState,
+  cryptoId: string,
+  coinsMinted: number
+): CryptoMarketState {
+  const amount = safe(coinsMinted);
+  if (!(amount > 0)) return market;
+  return recordBuy(market, cryptoId, 0, amount);
+}
+
 function recordSell(
   market: CryptoMarketState,
   cryptoId: string,
