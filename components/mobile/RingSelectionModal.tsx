@@ -20,6 +20,7 @@ import {
 } from '@/lib/dating/engagementRings';
 import { scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 
 const LinearGradient = Gradient;
 
@@ -71,7 +72,7 @@ export default function RingSelectionModal({
               <Gem size={22} color="#8B5CF6" />
               <Text style={[styles.title, darkMode && styles.textDark]}>Choose a Ring</Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <TouchableOpacity onPress={onClose} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(24)}>
               <X size={24} color={darkMode ? uiPalette.paper : uiPalette.navy} />
             </TouchableOpacity>
           </View>

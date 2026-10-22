@@ -119,10 +119,9 @@ export default function GymCard() {
         },
       };
     });
-    // Persist the session - deferred one macrotask so the save captures the
-    // post-commit state (repo convention). Untracked on purpose: the save must
-    // survive even if the screen unmounts right after the tap.
-    setTimeout(() => { void saveGame?.(); }, 0);
+    // Persist the session. SaveGame waits for the pending commit itself (waitForPendingCommit),
+    // so an inline call saves the post-commit state.
+    void saveGame?.();
     // Effort → reward feedback, matching the food/buy paths on the Market. When
     // stats are already capped the session still counts - it keeps the routine up.
     // The toast names every stat the updater grants, at its clamped size (the

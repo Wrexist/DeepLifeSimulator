@@ -209,9 +209,8 @@ function TopStatsBarComponent() {
  // Persist the grant AND the weekly marker. Without this the whole tick lives
  // only in memory until the 2-minute autosave, so a force-kill loses the
  // marker and re-arms the action for the same game week - the exact bypass
- // this gate exists to close. Deferred a macrotask because saveGame reads
- // gameStateRef.current, which is synced post-commit.
- setTimeout(() => { void saveGame?.(false); }, 0);
+ // this gate exists to close. Inline: saveGame waits for the pending commit itself (waitForPendingCommit).
+ void saveGame?.(false);
  };
 
  const s = stats ?? { money: 0, energy: 0 };
@@ -652,6 +651,7 @@ function TopStatsBarComponent() {
  accessibilityLabel={ACCESSIBILITY_HINTS.GAME_ELEMENTS.MONEY}
  accessibilityRole="button"
  accessibilityHint="Tap to see your cash, savings and investments"
+ style={styles.moneyChipTarget}
  >
  <View
  style={[

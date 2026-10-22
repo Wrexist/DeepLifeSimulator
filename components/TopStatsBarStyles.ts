@@ -240,11 +240,19 @@ export const styles = StyleSheet.create({
  flexShrink: 1, // Allow text to shrink if needed
  },
  // Sibling hit areas share one visual pill; neither intercepts the other's tap.
+ // The gem group does NOT shrink: squeezed by the 44pt '+' target beside it,
+ // a two-digit balance rendered as '2..' (VIS-6). The money chip's button
+ // (`moneyChipTarget`) gives way first instead; the count is already compact
+ // (K/M/B) in `formatGems`, so it never needs more than a few characters.
  gemChipGroup: {
  flexDirection: 'row',
  alignItems: 'center',
- flexShrink: 1,
+ flexShrink: 0,
  minHeight: 44,
+ },
+ moneyChipTarget: {
+ flexShrink: 1,
+ minWidth: 0,
  },
  gemChipBackground: {
  position: 'absolute',
@@ -258,7 +266,7 @@ export const styles = StyleSheet.create({
  minWidth: 44,
  minHeight: 44,
  justifyContent: 'center',
- flexShrink: 1,
+ flexShrink: 0,
  },
  gemBalanceContent: {
  flexDirection: 'row',
@@ -283,7 +291,7 @@ export const styles = StyleSheet.create({
  backgroundColor: 'rgba(255,255,255,0.25)',
  flexShrink: 0,
  },
- gemNumberContainer: { flexShrink: 1, justifyContent: 'center', alignItems: 'center' },
+ gemNumberContainer: { flexShrink: 0, minWidth: scale(14), justifyContent: 'center', alignItems: 'center' },
  gemNumber: { lineHeight: undefined, includeFontPadding: false, textAlign: 'center', textAlignVertical: 'center', fontVariant: ['tabular-nums'] },
 
  // Right side

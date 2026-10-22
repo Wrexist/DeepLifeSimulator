@@ -29,6 +29,8 @@ import YearEndBreak from '@/components/YearEndBreak';
 import RemoveAdsOrb from '@/components/RemoveAdsOrb';
 import InAppReviewPrompt from '@/components/InAppReviewPrompt';
 import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
+import { isPristineUnstartedState } from '@/utils/saveValidation';
+import { logger } from '@/utils/logger';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
@@ -116,7 +118,9 @@ function EventInboxPill({ count, bottom, onPress, compact = false }: EventInboxP
           minWidth: 44,
           justifyContent: 'center',
           borderRadius: scale(999),
-          backgroundColor: 'rgba(15, 23, 42, 0.92)',
+          // Opaque: at 0.92 the card text it floats over ghosted through the
+          // label ("Re[tir]ement", VIS-8).
+          backgroundColor: uiPalette.navy,
           borderWidth: 1,
           borderColor: 'rgba(96, 165, 250, 0.5)',
         }}
@@ -160,6 +164,23 @@ export default function TabLayout() {
   useEffect(() => {
     resumeLifeAutosave();
   }, []);
+
+  // VIS-1: the game tabs must never run on the provider's template state.
+  // The state lives in a provider inside the ROOT route, so anything that
+  // re-mounts the root (on web, React Navigation's `resetRoot` on a
+  // browser Back/Forward to a history entry it did not create; on native, a
+  // root reset from a deep link or a router reset) brings the provider back
+  // up on `initialGameState` while the router stays on the tabs. The player
+  // then saw a stranger ('Player', 18, $200) and could play weeks that the
+  // pristine-state save guard silently never persisted. Bounce to the main
+  // menu instead, where Continue loads the real save. A real life always has
+  // a scenario or a name, so this never fires mid-game.
+  const isTemplateState = useGameSelector((s) => isPristineUnstartedState(s));
+  useEffect(() => {
+    if (!isTemplateState) return;
+    logger.warn('[TabLayout] Tabs mounted on the unstarted template state - returning to the main menu');
+    router.replace('/(onboarding)/MainMenu');
+  }, [isTemplateState, router]);
 
   const isInPrison = jailWeeks > 0;
   // Hide the floating tab bar while an in-phone app runs full-screen.
@@ -271,7 +292,10 @@ export default function TabLayout() {
           // ~scale(10) is shaved off the inset (24pt clearance on a notched
           // iPhone - plenty), and the base height drops scale(70) → scale(56).
           paddingBottom: Math.max(scale(8), (insets.bottom || 0) - scale(10)),
-          height: scale(56) + Math.max(scale(8), (insets.bottom || 0) - scale(10)),
+          // The 24pt icon and the 10pt label do NOT scale, so the row they sit
+          // in must not shrink below 56 either: at 320pt scale(56) is ~48 and
+          // the labels lost their bottom half (VIS-5).
+          height: Math.max(56, scale(56)) + Math.max(scale(8), (insets.bottom || 0) - scale(10)),
         },
         tabBarBackground: () => (
           <View style={{
@@ -396,11 +420,14 @@ export default function TabLayout() {
         already earned & waiting + long cooldown). */}
     <PremiumPassPromo />
     {/* Non-blocking event inbox pill - tap to review decisions on your own time. */}
-    {showEventPill ? (
+    {/* Not inside a full-screen app: those have their own bottom nav, and the
+        compact pill sat on Spark's Profile tab and the Stocks star buttons
+        (VIS-8). The decisions wait - the pill is back the moment the app
+        closes. */}
+    {showEventPill && !fullscreenApp ? (
       <EventInboxPill
         count={pendingEventCount}
-        compact={fullscreenApp}
-        bottom={fullscreenApp ? insets.bottom + scale(12) : scale(88) + insets.bottom}
+        bottom={scale(88) + insets.bottom}
         onPress={() => setEventInboxOpen(true)}
       />
     ) : null}
