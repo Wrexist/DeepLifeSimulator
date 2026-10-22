@@ -94,6 +94,9 @@ export const USER_PREFERENCE_SETTINGS_KEYS = [
   'hapticFeedback',
   'notificationsEnabled',
   'darkMode',
+  // The notification panel's category toggles (CMP-4, v57) - a device
+  // preference like the four above, not a fact about the character.
+  'notificationPrefs',
 ] as const;
 
 /**

@@ -505,6 +505,13 @@ export function rewindToCheckpoint(
     // Preserve cross-life data from current state
     restored.ribbonCollection = currentState.ribbonCollection;
     restored.discoveredSecrets = currentState.discoveredSecrets;
+    // The ribbon's once-per-life guard travels with the collection it guards
+    // (LATE-13, v57): a snapshot from before the death has no marker, so
+    // restoring it would let the same life's next death pay the capstone and
+    // add a ribbon a second time.
+    if (currentState.deathRibbonPaidForLife !== undefined) {
+      restored.deathRibbonPaidForLife = currentState.deathRibbonPaidForLife;
+    }
     // Keep the checkpoints up to the restored point - not the abandoned
     // timeline's later ones. Those are the "from the future" checkpoints the
     // sidecar load filter (`filterCheckpointsForState`) already drops on the

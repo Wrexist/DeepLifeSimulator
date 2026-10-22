@@ -58,6 +58,62 @@ const PROTECTED_BACKUP_REASONS: ReadonlySet<string> = new Set<string>([
   'delete_save',
 ]);
 
+/**
+ * Protected backups kept per REASON per slot (SAVE-4). "Regardless of count"
+ * above was literal: rotation never touched a protected backup, so every
+ * overwrite, prestige and restore added one forever and the slot's backup
+ * footprint grew without bound - straight into the storage quota whose
+ * cleanup then did the opposite and deleted ALL of them but the newest one.
+ * Both paths now share `backupsToEvict`: the newest three of each protected
+ * reason always survive, the rest go.
+ */
+export const KEEP_PROTECTED_PER_REASON = 3;
+
+/**
+ * Which of one slot's backups to delete. Pure; the ONE retention policy for
+ * normal rotation and for quota cleanup (SAVE-4).
+ *
+ *   - Protected reasons: the newest `KEEP_PROTECTED_PER_REASON` of EACH reason
+ *     survive in both modes.
+ *   - Rotatable, `'rotate'`: the newest `KEEP_NEWEST_BACKUPS`, plus the newest
+ *     survivor in each generational age band.
+ *   - Rotatable, `'quota'`: only the newest one - storage is short, and the
+ *     autosave ring is the cheapest thing to give back.
+ *
+ * Order-independent: sorts by timestamp itself rather than trusting the caller.
+ */
+export function backupsToEvict(
+  backups: readonly Pick<BackupMetadata, 'id' | 'timestamp' | 'reason'>[],
+  now: number,
+  mode: 'rotate' | 'quota',
+): string[] {
+  const newestFirst = [...backups].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+  const keep = new Set<string>();
+
+  const keptPerReason = new Map<string, number>();
+  for (const b of newestFirst) {
+    if (!PROTECTED_BACKUP_REASONS.has(b.reason)) continue;
+    const n = keptPerReason.get(b.reason) ?? 0;
+    if (n < KEEP_PROTECTED_PER_REASON) {
+      keep.add(b.id);
+      keptPerReason.set(b.reason, n + 1);
+    }
+  }
+
+  const rotatable = newestFirst.filter((b) => !PROTECTED_BACKUP_REASONS.has(b.reason));
+  if (mode === 'quota') {
+    if (rotatable[0]) keep.add(rotatable[0].id);
+  } else {
+    for (const b of rotatable.slice(0, KEEP_NEWEST_BACKUPS)) keep.add(b.id);
+    for (const minAgeMs of GENERATIONAL_BACKUP_BANDS) {
+      const survivor = rotatable.find((b) => now - b.timestamp >= minAgeMs);
+      if (survivor) keep.add(survivor.id);
+    }
+  }
+
+  return newestFirst.filter((b) => !keep.has(b.id)).map((b) => b.id);
+}
+
 export interface BackupGameInfo {
   characterName: string;
   age: number;
@@ -602,16 +658,15 @@ export async function createBackup(
       logger.warn(`Storage quota exceeded when creating backup for slot ${slot}. Attempting cleanup...`);
       
       try {
-        // Clean up old backups more aggressively (keep only 1 most recent)
+        // Clean up old backups more aggressively - the quota policy keeps the
+        // newest rotatable backup and the newest few of each PROTECTED reason
+        // (SAVE-4). It used to keep only the single newest backup of any kind,
+        // which deleted the pre-prestige / pre-overwrite copies first.
         const backups = await listBackups(slot);
-        if (backups.length > 1) {
-          const toDelete = backups.slice(1); // Keep only the most recent
-          const keysToDelete = toDelete.map(b => b.id);
-          
-          if (keysToDelete.length > 0) {
-            await safeMultiRemove(keysToDelete);
-            logger.info(`Cleaned up ${keysToDelete.length} old backups for slot ${slot} due to quota`);
-          }
+        const keysToDelete = backupsToEvict(backups, Date.now(), 'quota');
+        if (keysToDelete.length > 0) {
+          await safeMultiRemove(keysToDelete);
+          logger.info(`Cleaned up ${keysToDelete.length} old backups for slot ${slot} due to quota`);
         }
         
         // Also clean up old backups from other slots if needed
@@ -639,16 +694,14 @@ export async function createBackup(
             }
           }
           
-          // Clean up old backups from all slots (keep only 1 per slot)
+          // Clean up old backups from all slots, same quota policy per slot.
           let totalCleaned = 0;
+          const cleanupNow = Date.now();
           for (const [_slotNum, slotBackups] of Object.entries(backupsBySlot)) {
-            if (slotBackups.length > 1) {
-              const sorted = slotBackups.sort((a, b) => b.timestamp - a.timestamp);
-              const toDelete = sorted.slice(1).map(b => b.id);
-              if (toDelete.length > 0) {
-                await safeMultiRemove(toDelete);
-                totalCleaned += toDelete.length;
-              }
+            const toDelete = backupsToEvict(slotBackups, cleanupNow, 'quota');
+            if (toDelete.length > 0) {
+              await safeMultiRemove(toDelete);
+              totalCleaned += toDelete.length;
             }
           }
           
@@ -997,27 +1050,15 @@ export async function snapshotOutgoingSave(
  */
 async function rotateBackups(slot: number) {
   try {
-    const backups = await listBackups(slot); // newest first
-
-    // Protected reasons are exempt entirely - they exist precisely because
-    // something destructive was about to happen.
-    const rotatable = backups.filter((b) => !PROTECTED_BACKUP_REASONS.has(b.reason));
+    const backups = await listBackups(slot);
 
     // Generational retention over the rotatable ones: the newest few, plus the
     // newest survivor in each older age band. A flat newest-5 spanned roughly
     // ten minutes of play on the 2-minute autosave, so a player who noticed the
     // problem an hour later had nothing left that predated it. This keeps the
     // count bounded while guaranteeing something older than the current session.
-    const keep = new Set<string>();
-    for (const b of rotatable.slice(0, KEEP_NEWEST_BACKUPS)) keep.add(b.id);
-
-    const now = Date.now();
-    for (const minAgeMs of GENERATIONAL_BACKUP_BANDS) {
-      const survivor = rotatable.find((b) => now - b.timestamp >= minAgeMs);
-      if (survivor) keep.add(survivor.id);
-    }
-
-    const keysToDelete = rotatable.filter((b) => !keep.has(b.id)).map((b) => b.id);
+    // Protected reasons keep their newest few each (see backupsToEvict).
+    const keysToDelete = backupsToEvict(backups, Date.now(), 'rotate');
     if (keysToDelete.length > 0) {
       await safeMultiRemove(keysToDelete);
       logger.info(`Removed ${keysToDelete.length} old backups for slot ${slot}`);

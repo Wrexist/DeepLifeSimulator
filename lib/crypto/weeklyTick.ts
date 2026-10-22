@@ -33,6 +33,7 @@ import {
   bidAskSpreadForRegime,
 } from './orderBook';
 import { processOpenOrders, recordPriceTick, recordDCAExecution } from './operations';
+import { priorWeekVolume, recordWeekVolume } from '@/lib/markets/orderBook';
 import {
   CAPITAL_GAINS_TAX_RATE,
   TAX_YEAR_WEEKS,
@@ -310,8 +311,11 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       continue;
     }
     const regime = market.coinMarkets?.[rule.cryptoId]?.regime ?? 'stable';
-    const fillPrice = marketFillPrice(coin.price, 'buy', rule.amount, regime);
+    // DCA buys count toward the coin's weekly volume like any other (ECO-2).
+    const priorVolume = priorWeekVolume(market.weekVolume, rule.cryptoId, input.currentWeek);
+    const fillPrice = marketFillPrice(coin.price, 'buy', rule.amount, regime, priorVolume);
     const coinsBought = rule.amount / fillPrice;
+    market = { ...market, weekVolume: recordWeekVolume(market.weekVolume, rule.cryptoId, input.currentWeek, rule.amount) };
 
     cashDelta -= rule.amount;
     const accounts = [...banking.accounts];

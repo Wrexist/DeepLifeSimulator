@@ -212,3 +212,107 @@ describe('presentation helpers', () => {
     expect(careerCeiling({ levels: [] })).toBe(0);
   });
 });
+
+describe('no entry job is a trap (ECO-8, 2026-10-22)', () => {
+  // The chef ($805 ceiling, no bar, steady, -1 happiness) beat janitor ($200),
+  // retail ($250) and fast food ($230) on ceiling with the same or a lower
+  // bar, so whether a new life was stuck on a $200 ceiling came down to which
+  // four cards the week-1 board dealt.
+  //
+  // The first fix lifted the three cheap ladders to $450-$520. That removed
+  // the domination by raising the floor of the whole economy: the common
+  // personas (who take whatever the board offers, usually the janitor) went
+  // from $44k to $82k net worth at week 250, and over-investing in people
+  // stopped being a way to go broke (socialBoundaries). So the three ladders
+  // keep their pay and the CHEF pays for its ceiling instead: a health-50 bar
+  // and a -2 happiness toll.
+  type Profile = (typeof ENTRY_JOB_PROFILES)[number];
+  const careerOf = (id: string) => INITIAL_CAREERS.find((c) => c.id === id);
+  const ceilingOf = (id: string) => careerCeiling(careerOf(id));
+  const tenureOf = (id: string) => (careerOf(id)?.levels ?? []).reduce((sum, l) => sum + (l.experienceRequired ?? 0), 0);
+  const PACE = { slow: 0, steady: 1, fast: 2 } as const;
+  const STATS = ['fitness', 'reputation', 'health'] as const;
+  const bar = (p: Profile, k: (typeof STATS)[number]) => p.hiringBar[k] ?? 0;
+  const toll = (p: Profile, k: 'energy' | 'health' | 'happiness') => p.weeklyToll[k] ?? 0;
+  const profile = (id: string) => ENTRY_JOB_PROFILES.find((p) => p.careerId === id)!;
+
+  /** True when `a` is at least as good as `b` on every axis. */
+  const weaklyDominates = (a: Profile, b: Profile) =>
+    ceilingOf(a.careerId) >= ceilingOf(b.careerId) &&
+    PACE[a.growth] >= PACE[b.growth] &&
+    tenureOf(a.careerId) <= tenureOf(b.careerId) &&
+    STATS.every((k) => bar(a, k) <= bar(b, k)) &&
+    (['energy', 'health', 'happiness'] as const).every((k) => toll(a, k) >= toll(b, k));
+
+  it('no entry profile is at least as good as another on ceiling, pace, bar and toll at once', () => {
+    const traps: string[] = [];
+    for (const a of ENTRY_JOB_PROFILES) {
+      for (const b of ENTRY_JOB_PROFILES) {
+        if (a.careerId !== b.careerId && weaklyDominates(a, b)) traps.push(`${a.careerId} >= ${b.careerId}`);
+      }
+    }
+    expect(traps).toEqual([]);
+  });
+
+  /**
+   * The strict check above was blind to the very case the audit found: the old
+   * chef was a point of happiness worse than the janitor and two energy worse
+   * than retail, so it never weakly dominated either of them while paying 3-4x
+   * as much. A ceiling at least DOUBLE another job's has to be paid for on an
+   * axis that matters: a higher hiring bar, a slower pace, more tenure, or a
+   * happiness toll at least 2 points heavier. Energy is left out on purpose: a
+   * couple of points of a weekly budget does not offset a 3x ceiling.
+   */
+  const unpaidCeiling = (a: Profile, b: Profile) =>
+    ceilingOf(a.careerId) >= 2 * ceilingOf(b.careerId) &&
+    !STATS.some((k) => bar(a, k) > bar(b, k)) &&
+    PACE[a.growth] >= PACE[b.growth] &&
+    tenureOf(a.careerId) <= tenureOf(b.careerId) &&
+    toll(a, 'happiness') > toll(b, 'happiness') - 2;
+
+  /**
+   * Known and NOT fixed here: the farmer ($790, no bar, slow, -18 energy) over
+   * the janitor ($200, health 40, slow, -15 energy). Same shape as the chef
+   * case; the audit did not name it and the owner decision covers the chef
+   * only, so it is listed rather than hidden. The test fails if it is fixed
+   * without removing it from this list, or if any other pair appears.
+   */
+  const KNOWN_UNPAID = ['farmer >= janitor'];
+
+  it('a ceiling at least double another job\'s is paid for in bar, pace, tenure or happiness', () => {
+    const unpaid: string[] = [];
+    for (const a of ENTRY_JOB_PROFILES) {
+      for (const b of ENTRY_JOB_PROFILES) {
+        if (a.careerId !== b.careerId && unpaidCeiling(a, b)) unpaid.push(`${a.careerId} >= ${b.careerId}`);
+      }
+    }
+    expect(unpaid).toEqual(KNOWN_UNPAID);
+  });
+
+  it('would have caught the old chef (no bar, -1 happiness) against all three', () => {
+    const oldChef: Profile = { ...profile('chef'), hiringBar: {}, weeklyToll: { energy: -14, happiness: -1 } };
+    expect(unpaidCeiling(oldChef, profile('janitor'))).toBe(true);
+    expect(unpaidCeiling(oldChef, profile('retail'))).toBe(true);
+    // Fast food is the FAST ladder: its pace was always its answer.
+    expect(unpaidCeiling(oldChef, profile('fast_food'))).toBe(false);
+    for (const id of ['janitor', 'retail', 'fast_food']) {
+      expect(unpaidCeiling(profile('chef'), profile(id))).toBe(false);
+    }
+  });
+
+  it('the chef pays for its ceiling with a health-50 bar and a -2 happiness toll', () => {
+    expect(profile('chef').hiringBar).toEqual({ health: 50 });
+    expect(profile('chef').weeklyToll).toEqual({ energy: -14, happiness: -2 });
+    // A fresh character (health 100) still walks in: it is a bar a neglected
+    // life falls below, not a gate in front of day one.
+    expect(evaluateHiring(profile('chef'), freshState()).eligible).toBe(true);
+    expect(evaluateHiring(profile('chef'), freshState({ health: 49 })).eligible).toBe(false);
+  });
+
+  it('the three cheap ladders keep their pay - the fix did not lift the low-end economy', () => {
+    const ladder = (id: string) => careerOf(id)!.levels.map((l) => l.salary);
+    expect(ladder('janitor')).toEqual([110, 130, 135, 135, 165, 200]);
+    expect(ladder('retail')).toEqual([110, 120, 140, 165, 205, 250]);
+    expect(ladder('fast_food')).toEqual([110, 130, 140, 150, 180, 230]);
+  });
+});

@@ -28,6 +28,8 @@
  * wrappers keep their original public signatures.
  */
 
+import type { WeeklyTradedVolume } from '@/contexts/game/types';
+
 const safe = (n: number, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 
@@ -80,17 +82,88 @@ export function marketFillPriceFor(
   side: MarketSide,
   notionalUSD: number,
   spread: number,
-  { liquidityCeiling, slippageCoefficient }: OrderBookLiquidity
+  liquidity: OrderBookLiquidity,
+  /**
+   * Notional already traded in this symbol THIS game week (ECO-2, v57). See
+   * {@link slippageFraction}. Omitted = 0, which is exactly the old per-order
+   * price.
+   */
+  priorWeekVolumeUSD = 0,
 ): number {
   const mid = Math.max(0.0001, safe(midPrice, 1));
   const notional = Math.max(0, safe(notionalUSD));
-  // Slippage starts at 0 below the ceiling, then grows linearly with size/ceiling.
-  const slippage = Math.max(0, notional / liquidityCeiling - 1) * slippageCoefficient;
+  const slippage = slippageFraction(notional, priorWeekVolumeUSD, liquidity);
   const halfSpread = spread / 2;
   if (side === 'buy') {
     return mid * (1 + halfSpread + slippage);
   }
   return mid * (1 - halfSpread - slippage);
+}
+
+/**
+ * Total slippage paid, in USD per USD of mid, for `volume` traded in one week:
+ * `volume x max(0, volume / ceiling - 1) x coefficient`. For a single order
+ * this is the historical per-order charge exactly; the point of writing it as
+ * a total is that it is PATH-INDEPENDENT.
+ */
+function weeklySlippageCost(volumeUSD: number, { liquidityCeiling, slippageCoefficient }: OrderBookLiquidity): number {
+  const v = Math.max(0, safe(volumeUSD));
+  return v * Math.max(0, v / liquidityCeiling - 1) * slippageCoefficient;
+}
+
+/**
+ * The slippage fraction this order pays, given what was already traded in the
+ * same symbol this game week (ECO-2, v57).
+ *
+ * Slippage used to be charged per ORDER (`max(0, notional / ceiling - 1) x
+ * coef`), so ten $250k crypto buys in one week paid 0% where one $2.5M buy paid
+ * 9%: a few extra taps removed the only size brake on the market. Now the
+ * order pays the difference in the week's TOTAL cost, `cost(prior + n) -
+ * cost(prior)`, averaged over its own notional. The week's slippage therefore
+ * depends only on how much was traded, never on how it was split, and with
+ * nothing traded yet (`prior = 0`) the price is identical to the old one.
+ */
+export function slippageFraction(
+  notionalUSD: number,
+  priorWeekVolumeUSD: number,
+  liquidity: OrderBookLiquidity,
+): number {
+  const n = Math.max(0, safe(notionalUSD));
+  if (n <= 0) return 0;
+  const prior = Math.max(0, safe(priorWeekVolumeUSD));
+  return (weeklySlippageCost(prior + n, liquidity) - weeklySlippageCost(prior, liquidity)) / n;
+}
+
+/**
+ * Notional already traded in `key` during game week `weeksLived`. A record
+ * stamped with any other week reads as 0, so the volume "resets" the moment
+ * `weeksLived` advances without the tick having to clear anything.
+ */
+export function priorWeekVolume(
+  record: WeeklyTradedVolume | undefined | null,
+  key: string,
+  weeksLived: number,
+): number {
+  if (!record || typeof record !== 'object' || record.weeksLived !== weeksLived) return 0;
+  const v = record.bySymbol?.[key];
+  return typeof v === 'number' && isFinite(v) && v > 0 ? v : 0;
+}
+
+/**
+ * The record after `notionalUSD` more traded in `key` this week. A record from
+ * an earlier week is replaced, not added to. Pure; returns a new object.
+ */
+export function recordWeekVolume(
+  record: WeeklyTradedVolume | undefined | null,
+  key: string,
+  weeksLived: number,
+  notionalUSD: number,
+): WeeklyTradedVolume {
+  const sameWeek = !!record && record.weeksLived === weeksLived && !!record.bySymbol;
+  const bySymbol = sameWeek ? { ...record!.bySymbol } : {};
+  const add = Math.max(0, safe(notionalUSD));
+  bySymbol[key] = priorWeekVolume(record, key, weeksLived) + add;
+  return { weeksLived, bySymbol };
 }
 
 /**

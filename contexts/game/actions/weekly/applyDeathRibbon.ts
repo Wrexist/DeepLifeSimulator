@@ -30,6 +30,7 @@ import type { GameState, GameStats } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { classifyLife, addRibbonToCollection } from '@/lib/legacy/ribbonSystem';
 import { capstoneLegacyBonus } from '@/lib/legacy/lifeCapstone';
+import { lifeSalt } from '@/utils/seededRoll';
 
 export interface DeathRibbonInput {
   prevState: GameState;
@@ -41,7 +42,11 @@ export interface DeathRibbonInput {
 
 export interface DeathRibbonResult {
   /** Partial fragment for the state-merge object. Empty when no fire. */
-  partial: { ribbonCollection?: GameState['ribbonCollection'] };
+  partial: {
+    ribbonCollection?: GameState['ribbonCollection'];
+    /** v57: the life this payout was made for (`lifeSalt`). See LATE-13 below. */
+    deathRibbonPaidForLife?: string;
+  };
   /**
    * MP13: legacy points a completed non-wealth path (capstone) pays into the
    * next life. 0 unless this tick is the death tick. Added to `legacyPoints`
@@ -52,6 +57,17 @@ export interface DeathRibbonResult {
 
 export function applyDeathRibbon(input: DeathRibbonInput): DeathRibbonResult {
   if (!input.newShowDeathPopup || input.prevState.showDeathPopup) {
+    return { partial: {}, legacyBonus: 0 };
+  }
+  // LATE-13 (v57): ONE ribbon and ONE capstone payout per life. A revive
+  // (`reviveCharacter` / `reviveWithPack`) clears the death popup but keeps
+  // `legacyPoints` and the ribbon collection, so the rising edge above fired
+  // again at the same life's next death: the capstone paid twice and the
+  // ribbon history gained a second entry for one life. The life is identified
+  // by `lifeSalt` (`lineageId:generationNumber`), which a new life, a prestige
+  // reset and an heir all change and a revive does not.
+  const life = lifeSalt(input.prevState);
+  if (input.prevState.deathRibbonPaidForLife === life) {
     return { partial: {}, legacyBonus: 0 };
   }
   try {
@@ -71,7 +87,7 @@ export function applyDeathRibbon(input: DeathRibbonInput): DeathRibbonResult {
     logger.info(
       `[RIBBON] Life classified as: ${ribbon.name} (${ribbon.emoji}); capstone legacy +${legacyBonus}`,
     );
-    return { partial: { ribbonCollection: updatedCollection }, legacyBonus };
+    return { partial: { ribbonCollection: updatedCollection, deathRibbonPaidForLife: life }, legacyBonus };
   } catch (ribbonErr) {
     logger.error('[RIBBON] Classification failed:', ribbonErr);
     return { partial: {}, legacyBonus: 0 };

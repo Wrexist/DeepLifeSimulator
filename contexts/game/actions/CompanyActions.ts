@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { GameState, Company } from '../types';
-import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from '../companyUpgradeCatalog';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME, COMPANY_FOUNDING_COST } from '../companyUpgradeCatalog';
 import {
   isPrestigeFeatureUnlocked,
   prestigeUnlockRequirement,
@@ -43,13 +43,7 @@ export const createCompany = (
     return { success: false, message: "You can't start a company from a jail cell." };
   }
 
-  const companyCosts = {
-    factory: 50000,
-    ai: 90000,
-    restaurant: 130000,
-    realestate: 200000,
-    bank: 2000000,
-  } as const;
+  const companyCosts = COMPANY_FOUNDING_COST;
 
   const baseCost = companyCosts[companyType as keyof typeof companyCosts];
   if (!baseCost) {

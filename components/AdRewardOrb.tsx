@@ -31,7 +31,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
-import { updateStats } from '@/contexts/game/actions/StatsActions';
+import { applyStatsDelta } from '@/contexts/game/actions/StatsActions';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant, rewardedAdReady } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -156,6 +156,50 @@ export function applyAdCashGrant(prev: GameState, reward: number): GameState {
   };
 }
 
+/**
+ * Has the VITALITY orb already been claimed for the game week `state` is in?
+ * (MON-4, v57.) The cash twin above, for the same two jobs: the outer guard in
+ * `grant`, and the spawner's refusal to offer an orb that cannot be redeemed.
+ */
+export function vitalityGrantClaimed(
+  state: Pick<GameState, 'settings' | 'weeksLived'> | null | undefined
+): boolean {
+  const week =
+    typeof state?.weeksLived === 'number' && Number.isFinite(state.weeksLived)
+      ? state.weeksLived
+      : 0;
+  return state?.settings?.lastAdVitalityGrantWeek === week;
+}
+
+/**
+ * Refill Health / Happiness / Energy AND stamp the week marker in ONE updater
+ * (§4.4, MON-4).
+ *
+ * The vitality orb was ungated on the theory that it "cannot be banked or
+ * compounded". It did not need to be: orbs respawn every 6-10 real minutes, so
+ * a player sitting on one game week could refill all three vitals as often as
+ * they liked - the whole decay, burnout and happiness economy switched off by
+ * watching ads. Now one refill per game week, like the cash orb (v35).
+ *
+ * The refill goes through `applyStatsDelta`, which applies `scaledHappinessGain`
+ * - the orb's +100 happiness is worth what any other gain is at that level.
+ * Returns `prev` unchanged when the week is already claimed.
+ */
+export function applyAdVitalityGrant(prev: GameState): GameState {
+  const week =
+    typeof prev.weeksLived === 'number' && Number.isFinite(prev.weeksLived) ? prev.weeksLived : 0;
+  if (prev.settings?.lastAdVitalityGrantWeek === week) return prev;
+  return {
+    ...prev,
+    ...applyStatsDelta(prev, {
+      health: VITALITY_BOOST,
+      happiness: VITALITY_BOOST,
+      energy: VITALITY_BOOST,
+    }),
+    settings: { ...prev.settings, lastAdVitalityGrantWeek: week },
+  };
+}
+
 function AdRewardOrb() {
   /**
    * PERF-7: this component is mounted in the tab-tree root for the entire
@@ -271,13 +315,19 @@ function AdRewardOrb() {
     clearTimers();
     const offer = () => {
       const snapshot = getGameState();
-      // Never OFFER a cash orb the player cannot redeem. The cash reward is
-      // gated to one per game week, and the spawner used to ignore that: orbs
-      // respawn every 6-10 minutes, so the second cash orb of a week showed
-      // "Reward added! $X was added to your wallet" for a $0 grant. Vitality is
-      // deliberately ungated, so it is always a redeemable substitute.
-      const claimed = cashGrantClaimed(snapshot);
-      const nextKind = claimed ? 'vitality' : pickKind();
+      // Never OFFER an orb the player cannot redeem. Both rewards are gated to
+      // one per game week (cash v35, vitality v57), and the spawner used to
+      // ignore that: orbs respawn every 6-10 minutes, so the second cash orb of
+      // a week showed "Reward added!" for a $0 grant. Offer whichever kind is
+      // still open; with both taken, stay quiet and look again later - the
+      // player has to live a week before either comes back.
+      const cashTaken = cashGrantClaimed(snapshot);
+      const vitalityTaken = vitalityGrantClaimed(snapshot);
+      if (cashTaken && vitalityTaken) {
+        addTimer(spawn, rand(REPEAT_DELAY));
+        return;
+      }
+      const nextKind: RewardKind = cashTaken ? 'vitality' : vitalityTaken ? 'cash' : pickKind();
       setKind(nextKind);
       setReward(nextKind === 'cash' ? computeReward(snapshot) : 0);
       setGranted(false);
@@ -409,8 +459,7 @@ function AdRewardOrb() {
       // so tapping every orb compounded net worth ~1.5% each time and doubled
       // it roughly every 2.2 hours of REAL time, invisible to the tax brackets
       // and the net-worth soft cap. One cash grant per game week turns it from
-      // a faucet into a top-up. Vitality orbs are deliberately ungated: they
-      // cannot be banked or compounded.
+      // a faucet into a top-up. Vitality has the same gate since v57 (MON-4).
       //
       // OUTER guard, mirroring the inner `return prev` inside
       // `applyAdCashGrant` - read from the provider's LIVE snapshot, so no
@@ -429,12 +478,15 @@ function AdRewardOrb() {
       // (§4.4), so two taps in one React batch cannot pay twice.
       setGameState(prev => applyAdCashGrant(prev, reward));
     } else {
+      // Same outer guard / inner `return prev` pair as cash (MON-4).
+      if (vitalityGrantClaimed(getGameState())) {
+        setGranted(false);
+        setClaimBlocked(true);
+        haptic.error();
+        return;
+      }
       // +100 to each caps Health/Happiness/Energy at 100 - a full vitality refill.
-      updateStats(setGameState, {
-        health: VITALITY_BOOST,
-        happiness: VITALITY_BOOST,
-        energy: VITALITY_BOOST,
-      });
+      setGameState(prev => applyAdVitalityGrant(prev));
     }
     setClaimBlocked(false);
     setGranted(true);
@@ -556,7 +608,7 @@ function AdRewardOrb() {
       ? `Watch an ad to earn ${formatMoney(reward)}`
       : 'Watch an ad to refill health, happiness and energy';
   // `claimBlocked` wins over `granted`: the copy must never announce money that
-  // was not paid. It is only ever set on the cash path.
+  // was not paid.
   const sheetTitle = claimBlocked
     ? 'Already collected this week'
     : granted
@@ -565,7 +617,9 @@ function AdRewardOrb() {
         ? `${AD_FREE_PERK_LABEL} → ${isCash ? 'cash' : 'vitality'}`
         : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
   const sheetSubtitle = claimBlocked
-    ? "You've already taken a cash orb this game week - nothing was charged. Live another week and it's back."
+    ? isCash
+      ? "You've already taken a cash orb this game week - nothing was charged. Live another week and it's back."
+      : "You've already had a refill this game week - nothing was charged. Live another week and it's back."
     : granted
       ? isCash
         ? `${formatMoney(reward)} was added to your wallet.`
@@ -573,10 +627,10 @@ function AdRewardOrb() {
       : adsRemoved
         ? isCash
           ? 'You removed ads, so this one is on us: collect a cash bonus, no video.'
-          : 'You removed ads, so this one is on us: refill Health, Happiness and Energy, no video.'
+          : 'You removed ads, so this one is on us: refill Health, Happiness and Energy, no video. One refill per game week.'
         : isCash
           ? 'Watch a short video ad to collect a cash bonus.'
-          : 'Watch a short video ad to refill Health, Happiness and Energy.';
+          : 'Watch a short video ad to refill Health, Happiness and Energy. One refill per game week.';
   const GrantedIcon = isCash ? DollarSign : Sparkles;
 
   return (

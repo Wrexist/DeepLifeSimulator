@@ -110,8 +110,17 @@ export const ENTRY_JOB_PROFILES: readonly EntryJobProfile[] = [
     careerId: 'chef',
     vibe: 'Prep, service, clean, repeat. The burns stop hurting eventually.',
     path: 'Line cook → sous → head chef',
-    hiringBar: {},
-    weeklyToll: { energy: -14, happiness: -1 },
+    // THE KITCHEN (ECO-8, 2026-10-22). The best ceiling a fresh character can
+    // reach without waiting years ($805) used to come with no bar and a -1
+    // happiness toll, so it beat janitor ($200), retail ($250) and fast food
+    // ($230) on ceiling with the same or a lower bar: which of those a new
+    // life got stuck on came down to the week-1 board. The ceiling is now paid
+    // for: a health-50 bar (twelve-hour shifts on your feet - the highest on
+    // the free side of the board after the truck) and a -2 happiness toll,
+    // the burns and the service rush. The three cheaper ladders keep their
+    // pay; they win on bar, toll or pace instead.
+    hiringBar: { health: 50 },
+    weeklyToll: { energy: -14, happiness: -2 },
     growth: 'steady',
   },
   {
@@ -120,7 +129,7 @@ export const ENTRY_JOB_PROFILES: readonly EntryJobProfile[] = [
     path: 'Crew → shift lead → district manager',
     hiringBar: {},
     weeklyToll: { energy: -12, happiness: -3 },
-    // The FAST ladder, and the tier's lowest ceiling ($230). Promotions come
+    // The FAST ladder, and one of the tier's lowest ceilings ($230). Promotions come
     // quickly because the whole ladder is short - the opposite bet to the
     // musician, who climbs slowest to the highest ceiling. Before 2026-08-25
     // the musician held 'fast' AND the top ceiling, so no other pace was worth

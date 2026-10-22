@@ -22,6 +22,7 @@ import {
   marketFillPrice,
   stopOrderShouldTrigger,
 } from './orderBook';
+import { priorWeekVolume, recordWeekVolume } from '@/lib/markets/orderBook';
 
 const ORDER_HISTORY_CAP = 50;
 const PRICE_HISTORY_CAP = 100;
@@ -218,10 +219,17 @@ export function executeMarketOrder(
     reason: input.reason ?? 'manual',
   };
 
-  const fill = fillMarketOrder(draftOrder, mid, regime, costBasisPerCoin);
+  // ECO-2 (v57): slippage on the week's cumulative volume in this coin, so a
+  // big trade split into ceiling-sized chunks pays what the whole trade would.
+  const tradedNotional = input.side === 'buy' ? amount : amount * mid;
+  const priorVolume = priorWeekVolume(market.weekVolume, input.cryptoId, input.placedWeek);
+  const fill = fillMarketOrder(draftOrder, mid, regime, costBasisPerCoin, priorVolume);
   if (!fill.filled) return { error: 'Fill failed' };
 
-  let nextMarket: CryptoMarketState = market;
+  let nextMarket: CryptoMarketState = {
+    ...market,
+    weekVolume: recordWeekVolume(market.weekVolume, input.cryptoId, input.placedWeek, tradedNotional),
+  };
   let realizedGain = 0;
   if (input.side === 'buy') {
     nextMarket = recordBuy(nextMarket, input.cryptoId, fill.notionalUSD, fill.coinAmount);
@@ -310,8 +318,13 @@ export function processOpenOrders(
       continue;
     }
 
-    // Execute as a market order against the current mid.
-    const fillPrice = marketFillPrice(mid, order.side, order.amount * (order.side === 'buy' ? 1 : mid), regime);
+    // Execute as a market order against the current mid, on the week's
+    // cumulative volume in this coin (ECO-2) so splitting a resting order into
+    // many small ones does not dodge the slippage either.
+    const tradedNotional = order.amount * (order.side === 'buy' ? 1 : mid);
+    const priorVolume = priorWeekVolume(next.weekVolume, order.cryptoId, currentWeek);
+    const fillPrice = marketFillPrice(mid, order.side, tradedNotional, regime, priorVolume);
+    next = { ...next, weekVolume: recordWeekVolume(next.weekVolume, order.cryptoId, currentWeek, tradedNotional) };
     const coinAmount = order.side === 'buy' ? order.amount / fillPrice : order.amount;
     const notionalUSD = order.side === 'buy' ? order.amount : order.amount * fillPrice;
     // Track the running cash budget: buys consume cash, sells add proceeds.

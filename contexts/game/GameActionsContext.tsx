@@ -3174,6 +3174,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  currentWeek: nextWeeksLived,
  // Gate buy-order fills on actual cash (anti free-fill exploit).
  cashIn: newStats.money,
+ // ECO-2 (v57): resting-order fills pay slippage on the week's volume.
+ weekVolume: prevState.stocks?.weekVolume,
  // Macro teeth: a recession/crash/boom now drives a broad-market drift on
  // equities (crypto already reacts via forced regimes).
  economyState: prevState.economy?.economyEvents?.currentState,
@@ -3670,6 +3672,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  openOrders: stocksTickResult.openOrders,
  orderHistory: stocksTickResult.orderHistory,
  sectorSnapshots: stocksTickResult.sectorSnapshots,
+ weekVolume: stocksTickResult.weekVolume,
  totalDividends: (prevState.stocks?.totalDividends ?? 0) + stocksTickResult.dividendsUSD,
  // Honor the field's "resets at year boundary" contract (was accumulate-forever,
  // converging on lifetime totalDividends). Zeroes on the 52-week boundary,
@@ -5496,6 +5499,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // because of them.
  logger.warn('[LOAD_GAME] Checkpoint sidecar reattach failed (non-critical):', { error: sidecarError });
  }
+ // VIS-27: a slot payload WITHOUT `checkpoints` is the normal shape (the save
+ // queue strips them), not corruption. When no sidecar supplied any, the
+ // answer is "no checkpoints" - say so here so repairGameState does not log
+ // "Created missing checkpoints array" as a corruption repair on every load.
+ if (parsed && typeof parsed === 'object' && parsed.checkpoints === undefined) {
+ parsed.checkpoints = [];
+ }
 
  // A-4: Run version migrations BEFORE repair (migrations handle renames/restructures,
  // repair fills remaining defaults)
@@ -5685,7 +5695,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  childIds: childRelationships.map(c => c.id),
  });
  } else {
- logger.warn('[LOAD_GAME] No child found in relationships array', {
+ // A childless life is the common case, not a warning (VIS-27).
+ logger.debug('[LOAD_GAME] No child found in relationships array', {
  relationshipsCount: safeState.relationships?.length || 0,
  relationshipTypes: safeState.relationships?.map(r => r.type) || [],
  });

@@ -34,6 +34,7 @@ import {
   deleteSaveSlot,
   readSaveSlot,
   decodePersistedSaveEnvelope,
+  repairGameState,
 } from '@/utils/saveValidation';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
@@ -181,6 +182,10 @@ describe('load-side: the loadGame reattach seam', () => {
         );
       }
     }
+    // VIS-27: no sidecar entries -> "no checkpoints", set before repair runs.
+    if (parsed && typeof parsed === 'object' && parsed.checkpoints === undefined) {
+      parsed.checkpoints = [];
+    }
     return parsed;
   }
 
@@ -205,6 +210,14 @@ describe('load-side: the loadGame reattach seam', () => {
 
     await reattach(parsed, 2);
     expect(parsed.checkpoints).toEqual(inline);
+  });
+
+  it('a stripped payload with no sidecar loads as [] so repair has nothing to report (VIS-27)', async () => {
+    const parsed: Record<string, unknown> = { weeksLived: 60 };
+    await reattach(parsed, 7);
+    expect(parsed.checkpoints).toEqual([]);
+    const { repairs } = repairGameState(parsed);
+    expect(repairs).not.toContain('Created missing checkpoints array');
   });
 
   it('an empty-array inline value also blocks the sidecar (undefined is the only trigger)', async () => {

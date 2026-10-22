@@ -10,6 +10,7 @@ import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { executeMarket, placeOrder as placeOrderPure, cancelOrder as cancelOrderPure } from '@/lib/stocks/operations';
+import { priorWeekVolume, recordWeekVolume } from '@/lib/markets/orderBook';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 import { STOCK_CAPITAL_GAINS_TAX_RATE } from '@/lib/stocks/weeklyTick';
 
@@ -98,7 +99,10 @@ export function resolveBuyStockMarket(prev: GameState, symbol: string, amountUSD
     log.warn(`Buy rejected: amount=${amountUSD}, grossCost=${grossCost}, cash=${cash}`);
     return prev;
   }
-  const result = executeMarket(symbol, 'buy', amountUSD, midPrice, prev.weeksLived);
+  // ECO-2 (v57): slippage on this symbol's volume for the whole game week.
+  const volumeKey = symbol.toUpperCase();
+  const priorVolume = priorWeekVolume(prev.stocks?.weekVolume, volumeKey, prev.weeksLived);
+  const result = executeMarket(symbol, 'buy', amountUSD, midPrice, prev.weeksLived, priorVolume);
   if ('error' in result) {
     log.warn(`Buy failed: ${result.error}`);
     return prev;
@@ -125,7 +129,12 @@ export function resolveBuyStockMarket(prev: GameState, symbol: string, amountUSD
   return {
     ...prev,
     ...spend,
-    stocks: { ...stocks, holdings: newHoldings, orderHistory: newHistory },
+    stocks: {
+      ...stocks,
+      holdings: newHoldings,
+      orderHistory: newHistory,
+      weekVolume: recordWeekVolume(stocks.weekVolume, volumeKey, prev.weeksLived, amountUSD),
+    },
   };
 }
 
@@ -172,7 +181,9 @@ export function resolveSellStockMarket(prev: GameState, symbol: string, shares: 
     log.warn(`Sell rejected: have ${existing?.shares ?? 0}, want ${shares}`);
     return prev;
   }
-  const result = executeMarket(symbol, 'sell', shares, midPrice, prev.weeksLived);
+  const volumeKey = symbol.toUpperCase();
+  const priorVolume = priorWeekVolume(stocks.weekVolume, volumeKey, prev.weeksLived);
+  const result = executeMarket(symbol, 'sell', shares, midPrice, prev.weeksLived, priorVolume);
   if ('error' in result) {
     log.warn(`Sell failed: ${result.error}`);
     return prev;
@@ -229,6 +240,7 @@ export function resolveSellStockMarket(prev: GameState, symbol: string, shares: 
       holdings: newHoldings,
       realizedGains: (stocks.realizedGains ?? 0) + realizedGain,
       orderHistory: newHistory,
+      weekVolume: recordWeekVolume(stocks.weekVolume, volumeKey, prev.weeksLived, shares * midPrice),
     },
   };
 }

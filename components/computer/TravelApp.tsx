@@ -198,6 +198,7 @@ function benefitDescriptors(
   if (energy) out.push({ Icon: Zap, color: accent.warning, value: `${energy > 0 ? '+' : ''}${energy}`, key: 'en' });
   if (core) return out;
   if (b.reputation) out.push({ Icon: Star, color: accent.gold, value: `+${b.reputation} rep`, key: 'rep' });
+  if (b.partnerHappiness) out.push({ Icon: Heart, color: accent.danger, value: `+${b.partnerHappiness} with partner`, key: 'partner' });
   return out;
 }
 

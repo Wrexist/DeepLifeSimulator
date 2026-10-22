@@ -112,6 +112,33 @@ export interface NotificationContext {
   };
 }
 
+/** The four category toggles a player can switch off in the notification panel. */
+export type NotificationPrefKey = 'showTips' | 'showMilestones' | 'showWarnings' | 'showSuggestions';
+
+/**
+ * The player's notification categories, read from the SAVE (CMP-4, v57).
+ *
+ * The panel's toggles used to live in component `useState`: they reset to "all
+ * on" every time the panel closed, and the weekly ticker - the only place a
+ * notification surfaces on its own - hard-coded all four on and never saw them.
+ * Switching warnings off therefore did nothing at all. `settings.notificationPrefs`
+ * is a carve-out: absent, or any key absent, means ON, which is what every
+ * save written before v57 showed.
+ */
+export function resolveNotificationPrefs(
+  settings: { notificationPrefs?: Partial<Record<NotificationPrefKey, boolean>> } | null | undefined,
+): NotificationContext['userPreferences'] {
+  const stored = settings?.notificationPrefs;
+  const on = (key: NotificationPrefKey) => !(stored && typeof stored === 'object' && stored[key] === false);
+  return {
+    showTips: on('showTips'),
+    showMilestones: on('showMilestones'),
+    showWarnings: on('showWarnings'),
+    showSuggestions: on('showSuggestions'),
+    notificationFrequency: 'medium',
+  };
+}
+
 class SmartNotificationSystem {
   private static instance: SmartNotificationSystem;
   private notifications: SmartNotification[] = [];

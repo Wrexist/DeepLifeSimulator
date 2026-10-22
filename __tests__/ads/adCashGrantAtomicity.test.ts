@@ -149,6 +149,10 @@ describe('the spawner never offers what the gate will refuse', () => {
     );
     const spawner = src.slice(src.indexOf('const scheduleNext'), src.indexOf('// First appearance'));
     expect(spawner).toMatch(/cashGrantClaimed\(snapshot\)/);
-    expect(spawner).toMatch(/claimed \? 'vitality' : pickKind\(\)/);
+    // v57 (MON-4): vitality is gated too, so the kind is decided from BOTH
+    // markers and a week with both taken offers nothing.
+    expect(spawner).toMatch(/vitalityGrantClaimed\(snapshot\)/);
+    expect(spawner).toMatch(/cashTaken \? 'vitality' : vitalityTaken \? 'cash' : pickKind\(\)/);
+    expect(spawner).toMatch(/if \(cashTaken && vitalityTaken\)/);
   });
 });

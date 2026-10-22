@@ -667,7 +667,12 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // Ensure required arrays exist
   // `goals` joins this table (concrete `[]` default in initialState) - see the
   // week/day block above for why these long-lived fields are getting mirrors now.
-  const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'loans', 'goals'];
+  // `loans` LEFT this table in v57 (VIS-27): it is optional on GameState, has no
+  // initialState default, and every reader already treats an absent key as "no
+  // loans" - so "creating" it repaired nothing and logged a corruption repair on
+  // every single load, burying real ones. (Its numeric scan below still runs
+  // whenever the array exists.)
+  const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'goals'];
   for (const field of requiredArrays) {
     if (!Array.isArray(s[field])) {
       s[field] = [];
