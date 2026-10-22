@@ -5403,6 +5403,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // because of them.
  logger.warn('[LOAD_GAME] Checkpoint sidecar reattach failed (non-critical):', { error: sidecarError });
  }
+ // VIS-27: a slot payload WITHOUT `checkpoints` is the normal shape (the save
+ // queue strips them), not corruption. When no sidecar supplied any, the
+ // answer is "no checkpoints" - say so here so repairGameState does not log
+ // "Created missing checkpoints array" as a corruption repair on every load.
+ if (parsed && typeof parsed === 'object' && parsed.checkpoints === undefined) {
+ parsed.checkpoints = [];
+ }
 
  // A-4: Run version migrations BEFORE repair (migrations handle renames/restructures,
  // repair fills remaining defaults)
@@ -5592,7 +5599,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  childIds: childRelationships.map(c => c.id),
  });
  } else {
- logger.warn('[LOAD_GAME] No child found in relationships array', {
+ // A childless life is the common case, not a warning (VIS-27).
+ logger.debug('[LOAD_GAME] No child found in relationships array', {
  relationshipsCount: safeState.relationships?.length || 0,
  relationshipTypes: safeState.relationships?.map(r => r.type) || [],
  });
