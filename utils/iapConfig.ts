@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { GEM_UPGRADES } from '@/lib/config/gemUpgrades';
 
 // IAP Product IDs - These must match exactly with your App Store/Google Play Console
 export const IAP_PRODUCTS = {
@@ -311,17 +312,22 @@ export const PRODUCT_CONFIGS = {
   
   [IAP_PRODUCTS.LIFETIME_PREMIUM]: {
     name: 'Lifetime Premium',
-    description: 'All future updates + exclusive content + no ads',
+    // Every line is something `lifetimePremium` actually unlocks: it is the
+    // DeepLife+ entitlement (hasDeepLifePlusEntitlement) without the renewal.
+    // It used to promise "all future updates" (free for everyone), "early
+    // access" (no such mechanism exists) and "exclusive content", and named
+    // none of the real benefits. (2026-10 audit MON-14)
+    description: 'Everything in DeepLife+, forever: no ads, 250 daily gems, +25% career income',
     lifetimePremium: true,
     price: '$79.99',
     popular: false,
     bestValue: false,
     features: [
-      'All future updates',
-      'Exclusive content',
       'No advertisements',
-      'Premium support',
-      'Early access to features',
+      '250-gem daily drop',
+      '+25% career income',
+      'Legacy Pass premium track',
+      '20% off gem upgrades',
     ],
   },
   
@@ -582,6 +588,16 @@ export const isSubscriptionProduct = (productId: string): boolean => {
   return getAllSubscriptionIds().includes(productId);
 };
 
+/**
+ * True for a DeepLife+ subscription SKU, including the legacy dot-form ones.
+ * Pulse Verified Pro granted by a STORE subscription carries one of these as
+ * its `sku`; the in-game cash subscription does not (it carries `weeklyPrice`).
+ */
+export function isVerifiedProSubscriptionSku(productId: unknown): productId is string {
+  return typeof productId === 'string' &&
+    (isSubscriptionProduct(productId) || /^deeplife\.premium\.(monthly|yearly)$/i.test(productId));
+}
+
 // Helper function to check if product is popular
 export const isPopularProduct = (productId: string) => {
   const config = getProductConfig(productId);
@@ -709,7 +725,7 @@ export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
     contents: ['3,500 Gems', '3 Youth Pills', 'Money Multiplier (+50% earnings)'],
   },
   [IAP_PRODUCTS.GEMS_ULTIMATE]: {
-    contents: ['12,000 Gems', '10 Youth Pills', 'All 7 permanent upgrades'],
+    contents: ['12,000 Gems', '10 Youth Pills', `All ${GEM_UPGRADES.length} permanent upgrades`],
   },
   [IAP_PRODUCTS.GEMS_MEGA]: {
     contents: ['40,000 Gems', 'Unlimited Youth Pills', 'Everything unlocked'],
@@ -720,7 +736,7 @@ export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
     contents: ['Removes banner + interstitial ads', 'Permanent, one-time purchase'],
   },
   [IAP_PRODUCTS.LIFETIME_PREMIUM]: {
-    contents: ['No ads, forever', 'All future updates', 'Exclusive content'],
+    contents: ['No ads, forever', '250-gem daily drop', '+25% career income', 'Legacy Pass premium'],
   },
   // Perk bundle — the four perks it unlocks (cheaper than buying each at $1.99).
   [IAP_PRODUCTS.UNLOCK_ALL_PERKS]: {

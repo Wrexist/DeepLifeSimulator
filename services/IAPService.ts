@@ -9,6 +9,7 @@ import {
   isConsumableProduct,
   hasPermanentEntitlements,
   isSubscriptionProduct,
+  isVerifiedProSubscriptionSku,
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { track } from '@/lib/analytics';
@@ -20,7 +21,7 @@ import { purchaseOfferMeasurement } from '@/lib/analytics/purchaseMeasurement';
 import { revenueCatService } from '@/services/RevenueCatService';
 import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { PURSUITS, XP_PER_LEVEL, MAX_PURSUIT_LEVEL, levelFromXp } from '@/lib/pursuits/pursuitMastery';
-import { readPendingRcGrant, writePendingRcGrant, clearPendingRcGrant, resolvePendingReceipt, purchaseLife, matchesPurchaseTarget, type PurchaseTarget, type PendingRcGrant } from '@/utils/revenueCatRecovery';
+import { readPendingRcGrant, writePendingRcGrant, clearPendingRcGrant, resolvePendingReceipt, isPendingGrantExpired, purchaseLife, matchesPurchaseTarget, type PurchaseTarget, type PendingRcGrant } from '@/utils/revenueCatRecovery';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
@@ -393,11 +394,6 @@ export function nativeRestoreLedgerId(productId: string, storeTransactionId: str
   return isConsumableProduct(productId) ? `native_restore:${productId}` : storeTransactionId;
 }
 
-/** True for a DeepLife+ subscription SKU, including the legacy dot-form ones. */
-function isVerifiedProSubscriptionSku(productId: unknown): productId is string {
-  return typeof productId === 'string' &&
-    (isSubscriptionProduct(productId) || /^deeplife\.premium\.(monthly|yearly)$/i.test(productId));
-}
 
 /**
  * Pulse Verified Pro fulfilment for a DeepLife+ subscription purchase (v13+).
@@ -498,7 +494,15 @@ export class IAPService {
     const receipts = await revenueCatService.getRecoveryReceiptSnapshot();
     if (!receipts) return false;
     const transactionId = resolvePendingReceipt(pending, receipts);
-    if (!transactionId) return false;
+    if (!transactionId) {
+      // An intent that never produced a receipt must not block every future
+      // purchase on the install forever (MON-1). Clearing it grants nothing.
+      if (isPendingGrantExpired(pending, receipts)) {
+        logger.info('[IAP] Expiring a pending purchase intent that never produced a receipt', { productId: pending.productId });
+        await clearPendingRcGrant();
+      }
+      return false;
+    }
     if (await this.isTransactionProcessed(transactionId)) {
       await clearPendingRcGrant();
       return true;
@@ -528,9 +532,14 @@ export class IAPService {
         if (old) {
           const recovered = await this.recoverRcIntent(old);
           // Never issue a new charge on a tap that recovered the previous purchase.
-          return recovered
-            ? { success: false, message: 'Your previous purchase was recovered. No new purchase was made. Tap the item again if you want to buy it.' }
-            : { success: false, message: unresolved };
+          if (recovered) {
+            return { success: false, message: 'Your previous purchase was recovered. No new purchase was made. Tap the item again if you want to buy it.' };
+          }
+          // Expired and cleared above: still no new charge on this tap.
+          if (!(await readPendingRcGrant())) {
+            return { success: false, message: 'An earlier purchase that never completed has been cleared. You were not charged for it. Tap the item again to buy.' };
+          }
+          return { success: false, message: unresolved };
         }
         const context = this.purchaseContext?.();
         const life = context && purchaseLife(context.state);
@@ -563,8 +572,20 @@ export class IAPService {
           await clearPendingRcGrant();
           return { success: false, cancelled: result.cancelled, message: result.message || 'Purchase was cancelled' };
         }
+        // A pending payment may still charge: keep the intent (it expires on
+        // its own if no receipt ever arrives - see PENDING_RC_GRANT_TTL_MS).
+        if (!result.success && result.paymentPending) {
+          return { success: false, message: result.message || 'Your payment is pending approval. It will be added once the store confirms it.' };
+        }
         // Network errors and missing receipts are UNKNOWN, not proof of no charge.
         if (!result.success) return { success: false, message: unresolved };
+        // Re-buying an owned non-consumable on iOS "succeeds" with the ORIGINAL
+        // transaction, which is already in the baseline: no new charge, so the
+        // intent can never resolve. Discard it and point at Restore. (MON-1)
+        if (typeof result.transactionId === 'string' && pending.baseline.includes(result.transactionId)) {
+          await clearPendingRcGrant();
+          return { success: false, message: 'You already own this. Tap Restore Purchases to apply it to this save.' };
+        }
         if (typeof result.transactionId === 'string' && result.transactionId.trim()) {
           pending.transactionId = result.transactionId;
           await writePendingRcGrant(pending);

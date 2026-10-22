@@ -104,7 +104,7 @@ function injectEvent(event: {
   description?: string;
   category?: string;
   relationId?: string;
-  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string; vehicleId?: string }[];
+  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string; vehicleId?: string; vehicleConditionLoss?: number }[];
 }) {
   act(() => captured!.setGameState(prev => ({
     ...prev,
@@ -435,6 +435,36 @@ describe('Random event resolution audit', () => {
     expect(s.activeVehicleId).toBe('sedan');
     expect(s.loans?.find(l => l.id === 'auto-1')).toMatchObject({ remaining: 30_000, vehicleId: undefined });
     expect(s.stats.money).toBe(moneyBefore + 40_000);
+  });
+
+  it('resolveEvent: damage_vehicle lowers the named car\'s condition, floored at 0 (vehicle_breakdown "wait and see")', () => {
+    mounted = mountGame();
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      vehicles: [
+        { id: 'sedan', name: 'Sedan', price: 20_000, owned: true, condition: 40 } as never,
+        { id: 'bike', name: 'Bike', price: 2_000, owned: true, condition: 10 } as never,
+      ],
+      activeVehicleId: 'sedan',
+    })));
+    injectEvent({
+      id: 'vehicle_breakdown',
+      choices: [{ id: 'delay', effects: {}, special: 'damage_vehicle', vehicleId: 'sedan', vehicleConditionLoss: 15 }],
+    });
+    act(() => captured!.game.resolveEvent('vehicle_breakdown', 'delay'));
+    let s = captured!.state;
+    expect(s.vehicles?.find(v => v.id === 'sedan')?.condition).toBe(25);
+    expect(s.vehicles?.find(v => v.id === 'bike')?.condition).toBe(10);
+    expect(s.activeVehicleId).toBe('sedan');
+
+    // A second event id: the duplicate-call guard refuses the same id twice in one week.
+    injectEvent({
+      id: 'vehicle_breakdown_again',
+      choices: [{ id: 'delay', effects: {}, special: 'damage_vehicle', vehicleId: 'bike', vehicleConditionLoss: 15 }],
+    });
+    act(() => captured!.game.resolveEvent('vehicle_breakdown_again', 'delay'));
+    s = captured!.state;
+    expect(s.vehicles?.find(v => v.id === 'bike')?.condition).toBe(0);
   });
 
   it('resolveEvent: grant_free_education adds reputation', () => {

@@ -133,7 +133,7 @@ import {
   applyPetLivingSideEffects,
   PET_WEEKLY_FOOD_COST,
 } from './actions/weekly/applyPets';
-import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
+import { applyVehiclesForWeek, settleTotaledVehicles } from './actions/weekly/applyVehicles';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
@@ -3359,6 +3359,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowDeathPopup,
  });
 
+ // A car the accident roll totaled: move the active car off the wreck and
+ // unlink its auto loan (the debt stays). Same refs when nothing was totaled.
+ const totalLossSettlement = settleTotaledVehicles(
+   prevState.vehicles, updatedVehicles, prevState.activeVehicleId, bankingTick.loansWithTrackers);
+
  let nextState: GameState = {
  ...prevState,
  // Legacy achievements array with `luxury_life` un-orphaned (same ref unless it
@@ -3372,7 +3377,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  week: nextWeek,
  weeksLived: nextWeeksLived,
  bankSavings: newBankSavings,
- loans: bankingTick.loansWithTrackers,
+ loans: totalLossSettlement.loans ?? bankingTick.loansWithTrackers,
+ activeVehicleId: totalLossSettlement.activeVehicleId,
  banking: nextBankingSlice,
  // v22 Wave A: memberships payout + level/perkTier recompute; favor expiry.
  gamingStreaming: nextGamingStreaming,
@@ -4374,6 +4380,23 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
          l.vehicleId === lostId ? { ...l, vehicleId: undefined } : l);
      }
      logger.info('Vehicle lost to an event:', { vehicleId: lostId });
+   }
+ }
+
+ // A vehicle the event damaged (a breakdown left unrepaired). Condition only,
+ // floored at 0; the car stays in the garage.
+ if (choice.special === 'damage_vehicle' && 'vehicleId' in choice && typeof choice.vehicleId === 'string') {
+   const damagedId = choice.vehicleId;
+   const loss = typeof choice.vehicleConditionLoss === 'number' && Number.isFinite(choice.vehicleConditionLoss)
+     ? Math.max(0, choice.vehicleConditionLoss)
+     : 0;
+   const garage = updatedVehicles || [];
+   if (loss > 0 && garage.some(v => v.id === damagedId)) {
+     updatedVehicles = garage.map(v => {
+       if (v.id !== damagedId) return v;
+       const current = typeof v.condition === 'number' && Number.isFinite(v.condition) ? v.condition : 100;
+       return { ...v, condition: Math.max(0, current - loss) };
+     });
    }
  }
 

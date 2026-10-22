@@ -23,21 +23,24 @@
  * child_graduation, child_asks_money, empty_nest.
  */
 import type { EventTemplate, WeeklyEvent } from './engine';
+import { payloadRoll, pickSeeded } from './seededPayload';
+import { childrenAwaitingMilestone } from './socialCircle';
 import type { GameState, ChildInfo } from '@/contexts/game/types';
 
 /** Children within an inclusive age band. */
 const childrenInBand = (state: GameState, min: number, max: number): ChildInfo[] =>
   (state.family?.children ?? []).filter(c => typeof c.age === 'number' && c.age >= min && c.age <= max);
 
-/** Deterministic pick keyed on the week so a given week is stable across resumes. */
-const seededPick = <T>(items: T[], seed: number): T | undefined => {
+/**
+ * Deterministic pick keyed on the LIFE and the week (`payloadRoll`), so a given
+ * week is stable across resumes but two lives do not name the same child. This
+ * was a week-only `Math.sin` hash - identical in every life and not bit-exact
+ * across Hermes and V8 (CLAUDE.md §4.3).
+ */
+const seededPick = <T,>(items: T[], state: GameState, salt: number): T | undefined => {
   if (items.length === 0) return undefined;
-  const x = Math.sin(seed) * 10000;
-  const roll = x - Math.floor(x);
-  return items[Math.min(items.length - 1, Math.floor(roll * items.length))];
+  return pickSeeded(items, payloadRoll(state, `parent-pick-${salt}`), 'child');
 };
-
-const seedFor = (state: GameState, salt: number): number => (state.weeksLived || 0) * 100 + salt;
 
 /** Trivial fallback so generate() always returns a valid event (never crashes). */
 const noopEvent = (id: string): WeeklyEvent => ({
@@ -50,9 +53,10 @@ const firstSteps: EventTemplate = {
   id: 'parent_first_steps',
   category: 'relationship',
   weight: 0.2,
-  condition: state => childrenInBand(state, 0, 2).length > 0,
+  // Once per child: a toddler takes their first steps once (socialCircle.ts).
+  condition: state => childrenAwaitingMilestone(state, 'parent_first_steps', childrenInBand(state, 0, 2)).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 0, 2), seedFor(state, 1));
+    const child = seededPick(childrenAwaitingMilestone(state, 'parent_first_steps', childrenInBand(state, 0, 2)), state, 1);
     if (!child) return noopEvent('parent_first_steps');
     return {
       id: 'parent_first_steps',
@@ -70,9 +74,10 @@ const toothFairy: EventTemplate = {
   id: 'parent_tooth_fairy',
   category: 'relationship',
   weight: 0.2,
-  condition: state => childrenInBand(state, 4, 8).length > 0,
+  // Once per child: it is their FIRST tooth (socialCircle.ts).
+  condition: state => childrenAwaitingMilestone(state, 'parent_tooth_fairy', childrenInBand(state, 4, 8)).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 4, 8), seedFor(state, 2));
+    const child = seededPick(childrenAwaitingMilestone(state, 'parent_tooth_fairy', childrenInBand(state, 4, 8)), state, 2);
     if (!child) return noopEvent('parent_tooth_fairy');
     return {
       id: 'parent_tooth_fairy',
@@ -92,7 +97,7 @@ const schoolPlay: EventTemplate = {
   weight: 0.22,
   condition: state => childrenInBand(state, 5, 12).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 5, 12), seedFor(state, 3));
+    const child = seededPick(childrenInBand(state, 5, 12), state, 3);
     if (!child) return noopEvent('parent_school_play');
     return {
       id: 'parent_school_play',
@@ -113,7 +118,7 @@ const teacherConference: EventTemplate = {
   weight: 0.2,
   condition: state => childrenInBand(state, 6, 17).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 6, 17), seedFor(state, 4));
+    const child = seededPick(childrenInBand(state, 6, 17), state, 4);
     if (!child) return noopEvent('parent_teacher_conference');
     return {
       id: 'parent_teacher_conference',
@@ -134,7 +139,7 @@ const bondingDay: EventTemplate = {
   weight: 0.2,
   condition: state => childrenInBand(state, 3, 12).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 3, 12), seedFor(state, 5));
+    const child = seededPick(childrenInBand(state, 3, 12), state, 5);
     if (!child) return noopEvent('parent_bonding_day');
     return {
       id: 'parent_bonding_day',
@@ -155,7 +160,7 @@ const teenCurfew: EventTemplate = {
   weight: 0.22,
   condition: state => childrenInBand(state, 13, 17).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 13, 17), seedFor(state, 6));
+    const child = seededPick(childrenInBand(state, 13, 17), state, 6);
     if (!child) return noopEvent('parent_teen_curfew');
     return {
       id: 'parent_teen_curfew',
@@ -176,7 +181,7 @@ const proudMilestone: EventTemplate = {
   weight: 0.2,
   condition: state => childrenInBand(state, 10, 18).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 10, 18), seedFor(state, 7));
+    const child = seededPick(childrenInBand(state, 10, 18), state, 7);
     if (!child) return noopEvent('parent_proud_milestone');
     return {
       id: 'parent_proud_milestone',
@@ -196,7 +201,7 @@ const grownChildVisit: EventTemplate = {
   weight: 0.2,
   condition: state => childrenInBand(state, 18, 200).length > 0,
   generate: state => {
-    const child = seededPick(childrenInBand(state, 18, 200), seedFor(state, 8));
+    const child = seededPick(childrenInBand(state, 18, 200), state, 8);
     if (!child) return noopEvent('parent_grown_child_visit');
     return {
       id: 'parent_grown_child_visit',

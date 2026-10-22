@@ -2,8 +2,8 @@ import { uiPalette } from '@/lib/config/theme';
 /**
  * RemoveAdsOrb - a small circular OFFER that drifts in from the LEFT edge and
  * sells the Remove Ads IAP. Sibling of `AdRewardOrb`: same footprint and
- * motion, but it deep-links to the shop's Remove Ads purchase instead of
- * playing a rewarded video.
+ * motion, but it opens the shop (where Remove Ads leads the Featured row)
+ * instead of playing a rewarded video. It does not open a payment sheet.
  *
  * GATING. It never appears once ads are removed (the entitlement can land
  * mid-session), and never in a build where IAP is disabled - offering a product
@@ -21,9 +21,9 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { X, Ban } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGemStore } from '@/contexts/GemStoreContext';
+import { useInterruptionState } from '@/contexts/InterruptionContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
-import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { scale, fontScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 import type { GameState } from '@/contexts/game/types';
@@ -55,12 +55,19 @@ export default function RemoveAdsOrb() {
 
   // Selects one boolean, so this only re-renders when the gate flips.
   const allowed = useGameSelector((s) => shouldOfferRemoveAds(s, FEATURE_FLAGS.iap));
-  const blocked = useGameSelector((s) => !!(
+  const blockingMoment = useGameSelector((s) => !!(
     s?.showDeathPopup ||
     s?.showWeddingPopup ||
     (s?.jailWeeks ?? 0) > 0 ||
     s?.lifeMoments?.pendingMoment
   ));
+  // Defer to the shared interruption queue: while ANY queued surface holds the
+  // slot (the reward orb, a promo, the daily reward, the weekly event) this
+  // sales prompt stays out of the way and retries shortly. It reads the queue
+  // rather than claiming it, so it never spends the week's interruption budget
+  // or pushes a real reward to a later week. (2026-10 audit MON-20)
+  const { activeId: queueHolder } = useInterruptionState();
+  const blocked = blockingMoment || queueHolder !== null;
 
   const [visible, setVisible] = useState(false);
   const slideX = useRef(new Animated.Value(-160)).current;
@@ -124,7 +131,12 @@ export default function RemoveAdsOrb() {
     clearTimers();
     haptic.medium();
     hide();
-    openStore('store', { purchaseProductId: IAP_PRODUCTS.REMOVE_ADS });
+    // Open the store on the tab whose Featured row leads with Remove Ads - NOT
+    // straight into the purchase sheet. The orb drifts over gameplay, so a tap
+    // on it can be accidental; an accidental tap must land on a product card,
+    // never on a StoreKit / Play payment sheet. Auto-purchase stays reserved for
+    // explicit Buy rows (the death screen's Revival row). (2026-10 audit MON-6)
+    openStore('store');
   }, [blocked, clearTimers, hide, openStore]);
 
   const dismiss = useCallback(() => {
@@ -142,7 +154,7 @@ export default function RemoveAdsOrb() {
       <Pressable
         onPress={openOffer}
         accessibilityRole="button"
-        accessibilityLabel="Remove ads, open the shop"
+        accessibilityLabel="Remove ads offer, opens the shop"
         style={styles.orb}
       >
         <View style={styles.orbCircle}>

@@ -52,6 +52,10 @@ const fitness = (s: GameState): number => s.stats?.fitness ?? 0;
 const criminalLevel = (s: GameState): number => s.criminalLevel ?? 0;
 const criminalXp = (s: GameState): number => s.criminalXp ?? 0;
 const streetJobs = (s: GameState): number => s.streetJobsCompleted ?? 0;
+/** Criminal level every life starts at (`initialGameState.criminalLevel`). */
+const STARTING_CRIMINAL_LEVEL = 1;
+const firstScore = (s: GameState): boolean =>
+  criminalXp(s) > 0 || streetJobs(s) > 0 || criminalLevel(s) > STARTING_CRIMINAL_LEVEL;
 
 const careerById = (s: GameState, id: string): any =>
   s.careers?.find((c: any) => c?.id === id);
@@ -359,9 +363,12 @@ export const LIFE_AMBITIONS: LifeAmbition[] = [
         id: 'cr_first_job',
         title: 'First Score',
         description: 'Pull off your first street job or crime.',
-        checkComplete: (s) => criminalXp(s) > 0 || streetJobs(s) > 0 || criminalLevel(s) > 0,
-        checkProgress: (s) =>
-          criminalXp(s) > 0 || streetJobs(s) > 0 || criminalLevel(s) > 0 ? 1 : 0,
+        // Every life STARTS at criminal level 1 (initialGameState), so the old
+        // `criminalLevel > 0` term completed - and, via
+        // reconcileReachedMilestones, permanently locked in - this milestone
+        // before the first crime. Only progress past the starting level counts.
+        checkComplete: (s) => firstScore(s),
+        checkProgress: (s) => (firstScore(s) ? 1 : 0),
       },
       {
         id: 'cr_made',
