@@ -85,15 +85,19 @@ describe('the gate exists and is on the game week', () => {
     expect(ORB_SOURCE).toMatch(/claimBlocked[\s\S]{0,80}Already collected this week/);
   });
 
-  it('leaves the VITALITY reward ungated', () => {
-    // Vitality cannot be banked or compounded — it caps at 100 — so rate
-    // limiting it would only make the orb feel stingy for no balance gain.
+  it('gates the VITALITY reward on its OWN marker, never the cash one (v57, MON-4)', () => {
+    // Vitality was ungated until v57 on the theory that it caps at 100 and
+    // cannot be banked. It did not need banking: a refill every 6-10 real
+    // minutes on one game week switched the whole decay economy off. It now
+    // has its own weekly marker - and must not spend the cash orb's.
     const grantBlock = ORB_SOURCE.slice(
       ORB_SOURCE.indexOf('const grant = useCallback'),
       ORB_SOURCE.indexOf('const handleSheetDismissed')
     );
     const vitalityHalf = grantBlock.slice(grantBlock.indexOf('} else {'));
     expect(vitalityHalf).not.toMatch(/lastAdCashGrantWeek/);
+    expect(vitalityHalf).toMatch(/if \(vitalityGrantClaimed\(getGameState\(\)\)\)/);
+    expect(vitalityHalf).toMatch(/setGameState\(prev => applyAdVitalityGrant\(prev\)\)/);
   });
 });
 
