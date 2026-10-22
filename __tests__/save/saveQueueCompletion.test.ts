@@ -97,7 +97,9 @@ describe('queueSave resolves on completion, not on enqueue', () => {
     await settleEventLoop();
     releaseWrite?.();
 
-    await expect(pending).resolves.toBeUndefined();
+    // `true`: the write landed (PERF-1 - `saveGame` only treats a state as
+    // persisted on this, since a permanent failure also resolves).
+    await expect(pending).resolves.toBe(true);
     expect(doubleBufferSave).toHaveBeenCalledTimes(1);
   });
 
@@ -155,6 +157,23 @@ describe('queueSave resolves on completion, not on enqueue', () => {
     takeRelease()?.();
     await Promise.all([first, second]);
     expect(secondResolved).toBe(true);
+  });
+
+  it('resolves false for an operation that never reached disk (PERF-1)', async () => {
+    // `saveGame` records a state as persisted - and then skips re-saving it -
+    // only on `true`. An operation dropped before its write must say so.
+    const first = queueSave(1, state);
+    await settleEventLoop();
+    const second = queueSave(1, { ...state, weeksLived: 121 });
+    await settleEventLoop();
+    expect(writeStarted).toBe(1);
+
+    saveQueue.clearQueue();
+    await expect(second).resolves.toBe(false);
+
+    takeRelease()?.();
+    await expect(first).resolves.toBe(true);
+    expect(writeStarted).toBe(1);
   });
 
   it('keeps a running drain observed after clearQueue (F-12)', async () => {
