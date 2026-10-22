@@ -215,8 +215,20 @@ export function updateJobStats(
 export function trackNewRelationship(stats: LifetimeStatistics): LifetimeStatistics {
   return {
     ...stats,
-    totalRelationships: stats.totalRelationships + 1,
+    totalRelationships: (stats.totalRelationships ?? 0) + 1,
   };
+}
+
+/**
+ * `lifetimeStatistics` after somebody new entered the life through one of the
+ * relationship DOORS (Spark promotion, the `intro` favour, `meetSomeone` -
+ * CLAUDE.md §4.8). The weekly tick only counts growth WITHIN a tick, which is
+ * births; these doors run between ticks, so without this the lifetime count
+ * (and "Social Network - form 25 relationships") only ever moved for babies.
+ * Call it in the same updater that appends the relationship.
+ */
+export function countNewRelationship(stats: LifetimeStatistics | undefined): LifetimeStatistics {
+  return trackNewRelationship(stats ?? getDefaultStatistics());
 }
 
 /**
