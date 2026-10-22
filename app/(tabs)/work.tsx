@@ -957,6 +957,11 @@ function WorkScreenContent() {
         (sum: number, n) => sum + (typeof n === 'number' ? n : 0),
         0,
     );
+    // The card to highlight in each street list: the first one the player can
+    // take right now. Found ONCE per render - it was re-found inside `.map`,
+    // once per card (PERF-10). After `streetJobsThisWeek`, which the lock reads.
+    const firstOpenLegalJobId = legalStreetJobs.find((j) => !streetJobLocked(j))?.id;
+    const firstOpenCrimeJobId = criminalStreetJobs.find((j) => !streetJobLocked(j))?.id;
 
     // Persistent "Current Job" summary so employment state is always visible,
     // not buried inside the Career tab.
@@ -1184,7 +1189,7 @@ function WorkScreenContent() {
                                         }}
                                     />
                                     {legalStreetJobs.length > 0 ? (
-                                        legalStreetJobs.map((job) => renderJobCard(job, job.id === legalStreetJobs.find((j) => !streetJobLocked(j))?.id))
+                                        legalStreetJobs.map((job) => renderJobCard(job, job.id === firstOpenLegalJobId))
                                     ) : (
                                         <EmptyState
                                             compact
@@ -1343,7 +1348,7 @@ function WorkScreenContent() {
                                         summary={`${criminalStreetJobs.length} available · ${streetJobsThisWeek}/${MAX_TOTAL_STREET_JOBS_PER_WEEK} this week`}
                                     >
                                     {criminalStreetJobs.length > 0 ? (
-                                        criminalStreetJobs.map((job) => renderJobCard(job, job.id === criminalStreetJobs.find((j) => !streetJobLocked(j))?.id))
+                                        criminalStreetJobs.map((job) => renderJobCard(job, job.id === firstOpenCrimeJobId))
                                     ) : (
                                         <EmptyState
                                             compact

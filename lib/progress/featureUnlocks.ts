@@ -262,16 +262,37 @@ const num = (v: unknown): number =>
  * missing feature is a bug nobody reports.
  */
 export function isFeatureUnlocked(state: GameState | undefined | null, id: string): boolean {
+  return isFeatureUnlockedAtTier(unlockTier(state), id);
+}
+
+/**
+ * `isFeatureUnlocked` for a tier the caller already holds. Lock state is a
+ * function of the tier alone, so a screen that decorates many features can
+ * select `unlockTier` once (a number - it re-renders only when the tier moves)
+ * instead of subscribing to the whole state. PERF-4: the app launcher.
+ */
+export function isFeatureUnlockedAtTier(tier: UnlockTier, id: string): boolean {
   const feature = BY_ID.get(id);
   if (!feature) return true;
-  return unlockTier(state) >= feature.tier;
+  return tier >= feature.tier;
 }
 
 /** What the padlock should say. Empty string when it is already unlocked. */
 export function unlockRequirement(state: GameState | undefined | null, id: string): string {
+  return unlockRequirementAtTier(unlockTier(state), id);
+}
+
+/** `unlockRequirement` for a tier the caller already holds. */
+export function unlockRequirementAtTier(tier: UnlockTier, id: string): string {
   const feature = BY_ID.get(id);
-  if (!feature || isFeatureUnlocked(state, id)) return '';
+  if (!feature || isFeatureUnlockedAtTier(tier, id)) return '';
   return feature.requirement;
+}
+
+/** The two-word lock tag (`UnlockGuide.short`), which depends only on the feature. */
+export function unlockShortLabel(id: string): string | undefined {
+  const feature = BY_ID.get(id);
+  return feature ? `Chapter ${feature.tier}` : undefined;
 }
 
 /** Everything at a given tier — used to tell the player what they just earned. */
@@ -492,7 +513,7 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     requirement: feature.requirement,
     progress,
     details,
-    short: `Chapter ${tier}`,
+    short: unlockShortLabel(id) ?? `Chapter ${tier}`,
     routes,
     nextGoals: remainingGoals.map((g) => g.trim().replace(/^- /, '')),
   };

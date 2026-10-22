@@ -71,19 +71,31 @@ const normalizeLog = (state: RngStateView): RngCommitLog => {
     });
   }
 
+  // PERF-6: linear. This used to dedupe with `arr.indexOf` inside `filter` and
+  // rebuild missing keys with `includes` inside a loop - two O(n^2) passes on
+  // EVERY roll read and commit, ~2ms in V8 at the 1,024-entry cap (a street
+  // job reads twice and commits once). A Set gives the same result in the same
+  // order: first occurrence of each key wins, then any entry missing from the
+  // stored order is appended in `Object.keys` order.
   const rawOrder = state.rngCommitLog?.order;
-  const sanitizedOrder = Array.isArray(rawOrder)
-    ? rawOrder
-        .map(normalizeKey)
-        .filter((key, index, arr) => key.length > 0 && arr.indexOf(key) === index && key in sanitizedEntries)
-    : [];
-
-  // Rebuild order for any entries that were missing from the stored order.
-  Object.keys(sanitizedEntries).forEach(key => {
-    if (!sanitizedOrder.includes(key)) {
+  const sanitizedOrder: string[] = [];
+  const seen = new Set<string>();
+  if (Array.isArray(rawOrder)) {
+    for (const rawKey of rawOrder) {
+      const key = normalizeKey(rawKey);
+      if (key.length === 0 || seen.has(key) || !(key in sanitizedEntries)) continue;
+      seen.add(key);
       sanitizedOrder.push(key);
     }
-  });
+  }
+
+  // Rebuild order for any entries that were missing from the stored order.
+  for (const key of Object.keys(sanitizedEntries)) {
+    if (!seen.has(key)) {
+      seen.add(key);
+      sanitizedOrder.push(key);
+    }
+  }
 
   const rawSequence = state.rngCommitLog?.sequence;
   const sequence = typeof rawSequence === 'number' && isFinite(rawSequence)
@@ -104,18 +116,40 @@ const normalizeLog = (state: RngStateView): RngCommitLog => {
   };
 };
 
+const isValidRoll = (value: unknown): value is number =>
+  typeof value === 'number' && isFinite(value) && value > 0 && value < 1;
+
+/**
+ * The committed roll for an already-normalized key, exactly as
+ * `normalizeLog(state).entries[key]` would report it - without building the
+ * whole sanitized log. PERF-6: reads (`getDeterministicRoll`,
+ * `isRollCommitted`) only ever need one entry, and they used to rebuild the
+ * entries object AND the order array to look it up. Same rule as the sanitize
+ * pass: a stored key that trims to `key` counts, and when several do, the one
+ * `Object.entries` visits last wins.
+ */
+const lookupCommittedRoll = (state: RngStateView, key: string): number | undefined => {
+  const rawEntries = state.rngCommitLog?.entries;
+  if (!rawEntries || typeof rawEntries !== 'object') return undefined;
+  let found: number | undefined;
+  for (const [storedKey, value] of Object.entries(rawEntries)) {
+    if (storedKey !== key && (storedKey.length <= key.length || storedKey.trim() !== key)) continue;
+    if (isValidRoll(value)) found = value;
+  }
+  return found;
+};
+
 export const getDeterministicRoll = (state: RngStateView, rollKey: string): number => {
   const key = normalizeKey(rollKey);
   if (!key) {
     return deriveRoll(deriveSeed(state), 'fallback-roll-key');
   }
 
-  const log = normalizeLog(state);
-  const existingRoll = log.entries[key];
+  const existingRoll = lookupCommittedRoll(state, key);
   if (typeof existingRoll === 'number') {
     return existingRoll;
   }
-  return deriveRoll(log.seed, key);
+  return deriveRoll(deriveSeed(state), key);
 };
 
 const pruneLog = (log: RngCommitLog): RngCommitLog => {
@@ -143,7 +177,7 @@ const pruneLog = (log: RngCommitLog): RngCommitLog => {
  */
 export const isRollCommitted = (state: RngStateView, rollKey: string): boolean => {
   const key = normalizeKey(rollKey);
-  return !!key && typeof normalizeLog(state).entries[key] === 'number';
+  return !!key && typeof lookupCommittedRoll(state, key) === 'number';
 };
 
 export const commitDeterministicRoll = (

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 import ErrorBoundary from '@/components/ErrorBoundary';
 // The launcher grid, sub-app host and app catalog live in components/launcher.
@@ -36,7 +36,9 @@ export function ComputerScreenContent({
   initialApp?: string;
   onInitialAppConsumed?: () => void;
 }) {
-  const { gameState } = useGame();
+  // PERF-4: the two facts this screen reads, as primitives - not the whole state.
+  const jailWeeks = useGameSelector((s) => s.jailWeeks);
+  const ownsComputer = useGameSelector((s) => !!(s.items || []).find((item) => item.id === 'computer')?.owned);
   const router = useRouter();
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
@@ -52,12 +54,10 @@ export function ComputerScreenContent({
   // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
     if (embedded || !navReady) return;
-    if (gameState.jailWeeks > 0) {
+    if (jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [embedded, navReady, gameState.jailWeeks, router]);
-
-  const ownsComputer = (gameState.items || []).find((item) => item.id === 'computer')?.owned;
+  }, [embedded, navReady, jailWeeks, router]);
 
   // Redirect away from computer screen if computer is sold. Embedded, the Apps
   // tab already falls back to the phone launcher when the computer is gone, so

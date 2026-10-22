@@ -42,7 +42,7 @@ import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeekl
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
-import { isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
+import { getSlotStorageGeneration, isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
@@ -325,6 +325,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setSaveCommitSeq(seq);
  }), []);
 
+ // PERF-1: what the last successful save put on disk. `setGameState` returns
+ // the SAME object for a no-op update (GameStateContext's identity
+ // short-circuit) and a new one for every real change, so reference equality
+ // on the state object is an exact "nothing changed" test - no hashing, no
+ // serialization. The 2-minute autosave on an idle menu, and the saves queued
+ // behind one another on a busy turn (an action's save, then Next Week's, then
+ // the timer) all used to re-validate, re-serialize, re-sign, write and read
+ // back identical bytes. `generation` is the slot-storage counter AFTER that
+ // write: any other writer (IAP grant, backup restore, cloud restore, slot
+ // delete) bumps it, so a skip can never leave a slot holding bytes some other
+ // path put there. Forced saves never skip - they are the durability calls.
+ const lastPersistedRef = useRef<{ slot: number; state: GameState; generation: number } | null>(null);
+
  // Save & Load Actions - MOVED BEFORE nextWeek TO FIX HOISTING
  const saveGame = useCallback(async (force: boolean = false): Promise<boolean> => {
  // Wait for the commit that carries whatever the caller dispatched before
@@ -372,6 +385,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (getSelectedSlot() !== currentSlot || isLifeAutosaveSuspended()) return false;
  currentState = gameStateRef.current;
  if (!currentState || isPristineUnstartedState(currentState)) return false;
+ // PERF-1: this exact state object is already on disk in this slot and
+ // nothing has written any slot since - the save would rewrite the same
+ // bytes. Still `true`: the state the caller asked to persist IS persisted.
+ const lastPersisted = lastPersistedRef.current;
+ if (
+ !force
+ && lastPersisted !== null
+ && lastPersisted.slot === currentSlot
+ && lastPersisted.state === currentState
+ && lastPersisted.generation === getSlotStorageGeneration()
+ ) {
+ logger.debug('Skipping save: state unchanged since the last save of this slot');
+ return true;
+ }
  // CRITICAL: Validate state before saving to prevent saving corrupted state.
  // R2-F: autoFix=false. The repair branch below runs explicitly when validation
  // fails, so the eager clone inside autoFix=true was a 30-80ms hitch on every
@@ -484,15 +511,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
 
  // Use save queue (handles atomic save, retries, quota)
+ // Only a write of the UNREPAIRED object can vouch for it: when a repair ran,
+ // the object on disk differs from `currentState`, and the next save must go.
+ let persisted: boolean;
  if (force) {
  // C-1 (R8): saveGame already holds saveLoadMutex (acquired at the top of this
  // function). Tell forceSave NOT to re-acquire it - the mutex is non-reentrant,
  // so a nested acquire self-deadlocks until the 30s watchdog and then
  // double-releases, corrupting concurrent slot writes (this fires on every IAP).
+ // forceSave rejects on failure, so reaching the next line means it landed.
  await forceSave(slotToUse, gameData, false);
+ persisted = true;
  } else {
- await queueSave(slotToUse, gameData);
+ // `true` only when the write landed; a permanent failure settles `false`
+ // (and a mocked queue resolves undefined), and neither may arm the skip.
+ persisted = (await queueSave(slotToUse, gameData)) === true;
  }
+ lastPersistedRef.current = persisted && stateToPersist === currentState
+ ? { slot: slotToUse, state: currentState, generation: getSlotStorageGeneration() }
+ : null;
 
  logger.info('Game save queued successfully', { slot: slotToUse });
 
