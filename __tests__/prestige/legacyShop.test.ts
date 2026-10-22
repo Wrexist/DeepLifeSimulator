@@ -45,6 +45,7 @@ import {
   purchaseLegacyUpgrade,
   heirStartingBonuses,
 } from '@/lib/legacy/legacyShop';
+import { legacyPointsForPlayedWeeks } from '@/lib/legacy/legacyAccrual';
 import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { CURRENT_STATE_VERSION, runMigrations } from '@/utils/saveMigrations';
 import { repairGameState } from '@/utils/saveValidation';
@@ -168,8 +169,11 @@ describe('C-11 - the upgrades are head starts, not multipliers', () => {
 
   it('the whole tree costs more than one long life can earn', () => {
     // The other half of the same intent: buying out the tree must NOT be the
-    // default outcome. ~5,050 points is the yield of a 1,000-week life.
+    // default outcome. ~5,050 points was the yield of a 1,000-week life under
+    // the old quadratic accrual; since LATE-1 an 18 -> 80 life earns ~644, and
+    // `legacyAccrual.test.ts` pins that. Both bounds must hold.
     expect(totalLegacyTreeCost()).toBeGreaterThan(5_050);
+    expect(totalLegacyTreeCost()).toBeGreaterThan(legacyPointsForPlayedWeeks((80 - 18) * 52, 0));
   });
 
   it('the bonuses sum correctly across owned ids', () => {

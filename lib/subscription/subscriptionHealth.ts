@@ -165,10 +165,12 @@ export function readSubscriptionHealth(
  * paywall is exactly the bait-shape App Review guideline 2.3.1 is about.
  *
  * `null` (health never observed this session, or RevenueCat disabled) reads as
- * plausible: the overwhelmingly common case with no observation is a player
- * who has never subscribed, and the paywall still resolves the REAL claim
- * before any purchase. Any phase other than `none` is evidence of a current or
- * prior subscription - no trial to promise.
+ * plausible HERE, but entry points no longer rely on that: since MON-10
+ * (2026-10-22) they go through `entryPointTrialDays`
+ * (lib/subscription/entryPointTrial.ts), which shows "PREMIUM" while health is
+ * unknown and drops the trial when the store product reports no intro offer.
+ * Any phase other than `none` is evidence of a current or prior subscription -
+ * no trial to promise.
  */
 export function trialClaimPlausible(health: SubscriptionHealth | null): boolean {
   return health == null || health.phase === 'none';

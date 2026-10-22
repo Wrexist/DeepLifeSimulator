@@ -66,8 +66,10 @@ describe('modals that raise gameAlert nest their own AlertHost', () => {
 
   it('finds the surfaces to check (a scan returning nothing would pass vacuously)', () => {
     // Guards against a refactor that moves the UI out from under these roots
-    // and turns this whole suite into a no-op.
-    expect(surfaces.length).toBeGreaterThanOrEqual(16);
+    // and turns this whole suite into a no-op. 15, not 16: TAB-3 removed the
+    // Life tab's Stats lock, which was app/(tabs)/life.tsx's only gameAlert -
+    // the file still nests its host for FamilyTab, it simply raises nothing.
+    expect(surfaces.length).toBeGreaterThanOrEqual(15);
   });
 
   it.each(surfaces)('%s nests an <AlertHost /> inside its Modal', (rel) => {

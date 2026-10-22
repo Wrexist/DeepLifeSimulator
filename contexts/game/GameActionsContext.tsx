@@ -40,6 +40,7 @@ import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary, managementLevels, passiveIncomeEfficiency } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
+import { perkDecayFactors } from '@/lib/economy/perkDecayShield';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { getSlotStorageGeneration, isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
@@ -149,6 +150,7 @@ import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
 import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
 import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
+import { legacyPointsEarnedThisWeek } from '@/lib/legacy/legacyAccrual';
 import { guardTick } from './actions/weekly/guardTick';
 import { mindsetEffects } from '@/lib/mindset/effects';
 import { applyResearchWeek } from './actions/RDActions';
@@ -1006,7 +1008,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Mindset: a Workaholic's health and a Perfectionist's (or a restless
  // Adventurer's) happiness wear down faster - the same factors Home's vitals
  // projection applies (lib/economy/vitalDrift.ts).
- newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay);
+ // ONB-2: Longevity / Iron Will / Inner Peace / Optimist shield a vital's
+ // natural decay for the first weeks of the life - the same factors Home's
+ // projection reads (lib/economy/perkDecayShield.ts).
+ const perkShield = perkDecayFactors(prevState);
+ newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6 * mindsetMods.healthDecay * perkShield.health);
 
  // GL-3: the healthcare half of enacted policy. `PoliticalApp` has always
  // rendered "Health / week +N" for it; nothing ever added the health. Applied
@@ -1017,7 +1023,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (healthcarePolicy.weeklyHealthBonus > 0) {
  newStats.health = (newStats.health || 0) + healthcarePolicy.weeklyHealthBonus;
  }
- newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay);
+ newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul * mindsetMods.happinessDecay * perkShield.happiness);
  // The baseline for the single diminishing-returns application at the end of
  // this updater (Program 14): happiness AFTER natural decay, not before it.
  //
@@ -2377,10 +2383,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // so this accrual must only ever ADD. An earlier revision of this comment
  // said "nothing reads this"; that was true before v29 and cost a later
  // audit a false finding - hence the correction.
+ //
+ // LATE-1 (owner decision 2026-10-22): a FLAT grant on every 10th PLAYED
+ // week of this life (`weeksSinceLifeStart`), +2 plus +1 per prestige level.
+ // It used to be `floor(weeksLived/10) + prestigeLevel*2` on the ABSOLUTE
+ // counter - quadratic, so one 18->65 life earned 29,890 LP against a 9,160 LP
+ // tree. The rule lives in `lib/legacy/legacyAccrual.ts`.
  let newLegacyPoints = prevState.legacyPoints || 0;
- if ((nextWeeksLived || 0) > 0 && (nextWeeksLived || 0) % 10 === 0) {
- const pointsEarned = Math.floor((nextWeeksLived || 0) / 10) +
- (prevState.prestige?.prestigeLevel || 0) * 2;
+ const pointsEarned = legacyPointsEarnedThisWeek(
+ weeksSinceLifeStart(nextWeeksLived, prevState.lifeStartWeek),
+ prevState.prestige?.prestigeLevel,
+ );
+ if (pointsEarned > 0) {
  newLegacyPoints += pointsEarned;
  logger.info(`[ENGAGEMENT] Legacy Points earned: +${pointsEarned} (total: ${newLegacyPoints})`);
  }

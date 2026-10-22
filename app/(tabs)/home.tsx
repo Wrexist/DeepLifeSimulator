@@ -6,7 +6,7 @@ import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { ChevronRight, Trophy, ChevronDown, ChevronUp, Lock } from 'lucide-react-native';
+import { ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -59,10 +59,8 @@ import { DISCORD_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney, DAILY_LOGIN_REWARDS, LOGIN_STREAK_GRACE_HOURS } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { applyWelcomeBackBonus, welcomeBackClaimed, refreshSessionClock } from '@/utils/welcomeBackBonus';
-import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
-import { gameAlert } from '@/utils/gameAlert';
 import SectionGroup from '@/components/ui/SectionGroup';
 import { rhythm } from '@/lib/config/hierarchy';
 
@@ -154,17 +152,8 @@ function HomeScreenContent() {
   // celebration/reward popup below defers to them.
   const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
 
-  // The Progress screen is `href: null` (never a tab button), so this card is
-  // its front door - and must apply the same tier gate the Life tab's Stats
-  // segment does. See the card below.
-  //
-  // Evaluated on the FULL state, as scalars. `gameState` above is a projected
-  // slice: unlockTier reads lifetimeStatistics and loans (via wealthMark),
-  // which the slice omits, so on the slice this gate disagreed with the Life
-  // tab's Stats segment (TAB-2).
-  const progressLocked = useGameSelector((s) => !isFeatureUnlocked(s, 'tab:progression'));
-  const progressLockReason = useGameSelector((s) => unlockRequirement(s, 'tab:progression'));
-  // Same reason: isPrestigeAvailable reads net worth, i.e. property,
+  // Evaluated on the FULL state, as a scalar. `gameState` above is a projected
+  // slice, and isPrestigeAvailable reads net worth, i.e. property,
   // companies, stocks, vehicles, crypto, loans and luxury - none of which the
   // slice carries, so wealth held in assets never earned the Prestige lead
   // here while Profile said "Ready to prestige".
@@ -802,49 +791,27 @@ function HomeScreenContent() {
         </FadeInUp>
         </SectionGroup>
 
-        {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
-            skill tree, lifetime stats) was hidden from the tab bar with no
-            other entry point - this card is its front door. Always visible. */}
+        {/* NAV: a shortcut to the Profile tab (prestige, Legacy Pass, life
+            story, skill tree, lifetime stats). TAB-3 (owner decision
+            2026-10-22): Profile is the one canonical door and the one name;
+            it is a tab-bar button and is not tier-gated, so this card is not
+            either. It used to route to a gated Life -> Stats segment while
+            the tab bar opened the same screen in week 1. */}
         <FadeInUp delay={110}>
           <TouchableOpacity
-            onPress={() => {
-              // Respect the SAME gate the Life tab enforces on its Stats
-              // segment. This card used to push straight through, so a week-1
-              // player was told "locked" in one place and handed the whole
-              // screen in another - which reads as a broken gate and silently
-              // defeated progressive disclosure for its one tier-gated surface.
-              // Shown-but-locked rather than hidden: the destination stays
-              // discoverable, and the requirement is stated.
-              if (progressLocked) {
-                gameAlert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
-                return;
-              }
-              // Canonical door: Progress lives on the Life shell's Stats
-              // segment. Pushing the hidden `/(tabs)/progression` route
-              // rendered a second, un-chromed copy with no tab highlighted.
-              router.push({ pathname: '/(tabs)/life', params: { segment: 'stats', ts: String(Date.now()) } });
-            }}
+            onPress={() => router.push('/(tabs)/progression')}
             activeOpacity={0.85}
             style={styles.progressLinkCard}
             accessibilityRole="button"
-            accessibilityLabel={progressLocked ? 'Your Progress, locked' : 'Your Progress'}
-            // Not `disabled`: the card still answers a tap (it explains the
-            // lock), and VoiceOver announced a dimmed control that responded.
-            accessibilityHint={progressLocked ? (progressLockReason || 'Keep playing to unlock this.') : undefined}
+            accessibilityLabel="Profile"
           >
             <View style={styles.progressLinkIcon}>
-              {progressLocked ? (
-                <Lock size={scale(18)} color={uiPalette.muted} />
-              ) : (
-                <Trophy size={scale(20)} color="#F59E0B" />
-              )}
+              <Trophy size={scale(20)} color="#F59E0B" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.progressLinkTitle}>Your Progress</Text>
+              <Text style={styles.progressLinkTitle}>Profile</Text>
               <Text style={styles.progressLinkSub}>
-                {progressLocked
-                  ? progressLockReason || 'Keep playing to unlock this.'
-                  : 'Prestige, Legacy Pass, life story & lifetime stats'}
+                Prestige, Legacy Pass, life story & lifetime stats
               </Text>
             </View>
             <ChevronRight size={scale(18)} color={uiPalette.muted} />

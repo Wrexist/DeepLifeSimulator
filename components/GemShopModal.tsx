@@ -28,6 +28,7 @@ import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/i
 // One art map, shared with the Offer Center. These paths used to be inlined
 // here, which was fine while this was the only surface that rendered a product.
 import { IAP_ART } from '@/utils/iapArt';
+import { isPremiumCreditCardListed } from '@/lib/banking/cardPaymentRail';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
 import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
@@ -853,14 +854,21 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
   // "everything unlocked" also grants all four, so its owners see Owned here.
   // No dedicated art yet - ShopItemCard renders without a picture rather than
   // borrowing a misleading one (see utils/iapArt.ts).
+  //
+  // ECO-5: the Premium Credit Card is listed only as an already-owned row
+  // until purchases can be paid by card (`lib/banking/cardPaymentRail.ts`) -
+  // before that its cashback floor buys nothing, so it is not on sale here.
+  const ownsPremiumCard = settings?.premiumCreditCard === true;
   const bankingItems = [
-    {
-      id: IAP_PRODUCTS.PREMIUM_CREDIT_CARD,
-      accent: 'perks' as ShopAccent,
-      image: IAP_ART[IAP_PRODUCTS.PREMIUM_CREDIT_CARD],
-      title: 'Premium Credit Card',
-      owned: settings?.premiumCreditCard === true,
-    },
+    ...(isPremiumCreditCardListed(ownsPremiumCard)
+      ? [{
+        id: IAP_PRODUCTS.PREMIUM_CREDIT_CARD,
+        accent: 'perks' as ShopAccent,
+        image: IAP_ART[IAP_PRODUCTS.PREMIUM_CREDIT_CARD],
+        title: 'Premium Credit Card',
+        owned: ownsPremiumCard,
+      }]
+      : []),
     {
       id: IAP_PRODUCTS.FINANCIAL_PLANNING,
       accent: 'perks' as ShopAccent,

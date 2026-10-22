@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PRODUCT_NAME, WORDMARK } from '@/lib/config/brand';
 import { AccessibilityInfo, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, ArrowRight, Briefcase, Check, Circle, Heart, Store } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Briefcase, Heart, Store } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -10,13 +11,16 @@ import { uiPalette } from '@/lib/config/theme';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { isValidSlotNumber } from '@/src/features/onboarding/slotSafety';
+import { markIntroSeen } from '@/src/features/onboarding/introSeen';
 
 const directions = ['career', 'business', 'people'] as const;
 const icons = [Briefcase, Store, Heart];
 const office = require('@/assets/images/scenes/work-office-modern.webp');
-const contacts = require('@/assets/images/scenes/contacts-modern.webp');
 
-/** A read-only introduction. Scenario, slot and all save writes retain their existing owners. */
+/**
+ * A read-only introduction, shown once per device (ONB-10). Its beats are
+ * non-interactive. Scenario, slot and all save writes retain their existing owners.
+ */
 export default function Intro() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -24,15 +28,13 @@ export default function Intro() {
   const { t } = useTranslation();
   const { state: onboarding } = useOnboarding();
   const [chapter, setChapter] = useState(0);
-  const [direction, setDirection] = useState<typeof directions[number]>('career');
-  const [moment, setMoment] = useState(0);
-  const [legacy, setLegacy] = useState<'family' | 'future'>('family');
   const scroll = useRef<ScrollView>(null);
   const opacity = useRef(new Animated.Value(1)).current;
   const leaving = useRef(false);
   const text = (key: string) => t(`intro.${key}`);
   const heading = text(`chapter${chapter}.title`);
-  const art = direction === 'people' ? contacts : office;
+  // ONB-10: once shown on this device, New Game skips straight to Scenarios.
+  useEffect(() => { void markIntroSeen(); }, []);
   const finish = () => {
     if (leaving.current) return;
     leaving.current = true;
@@ -64,9 +66,9 @@ export default function Intro() {
   return <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
     <View style={styles.header}>
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={back} style={styles.quiet}><ArrowLeft color={uiPalette.muted} size={23} /></TouchableOpacity>
-      <View style={styles.brand} accessible accessibilityLabel="DeepLife Simulator">
+      <View style={styles.brand} accessible accessibilityLabel={PRODUCT_NAME}>
         <Image source={require('@/assets/images/icon.png')} style={styles.logo} accessibilityIgnoresInvertColors />
-        <Text style={styles.brandText}>DEEP LIFE</Text>
+        <Text style={styles.brandText}>{WORDMARK.top}</Text>
       </View>
       <TouchableOpacity accessibilityRole="button" onPress={finish} style={styles.quiet}><Text style={styles.muted}>{text('skip')}</Text></TouchableOpacity>
     </View>
@@ -78,28 +80,34 @@ export default function Intro() {
         <Text style={styles.eyebrow}>{text(`chapter${chapter}.label`)}</Text>
         <Text accessibilityRole="header" style={styles.title}>{heading}</Text>
         <Text style={styles.intro}>{text(`chapter${chapter}.body`)}</Text>
+        {/* ONB-10: the beats are read-only. The old direction / legacy pickers
+            and the "see what happens next" stepper looked like choices, but
+            nothing ever read the answer, so each beat now simply shows what
+            it describes. The real choice is the Scenarios screen next. */}
         {chapter === 0 && <>
           <View style={styles.hero}>
-            <Image source={art} resizeMode="contain" style={styles.art} accessible={false} />
-            <View style={styles.note}><Text style={styles.eyebrow}>{text('nextChapter')}</Text><Text style={styles.noteText}>{text(`${direction}.headline`)}</Text></View>
+            <Image source={office} resizeMode="contain" style={styles.art} accessible={false} />
           </View>
           <Text style={styles.eyebrow}>{text('choose')}</Text>
-          <View style={styles.options}>{directions.map((id, i) => {
-            const Icon = icons[i]; const selected = direction === id;
-            return <TouchableOpacity key={id} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => { setDirection(id); setMoment(0); }} style={[styles.option, selected && styles.selected]}>
-              {selected ? <Check size={22} color={'#71E2C4'} /> : <Icon size={22} color={uiPalette.muted} />}
-              <Text style={styles.optionText}>{text(`${id}.label`)}</Text>
-            </TouchableOpacity>;
-          })}</View>
-          <Text accessibilityLiveRegion="polite" style={styles.detail}>{text(`${direction}.detail`)}</Text>
+          {directions.map((id, i) => {
+            const Icon = icons[i];
+            return <View key={id} style={styles.row}>
+              <Icon size={22} color={uiPalette.muted} />
+              <View style={styles.rowText}>
+                <Text style={styles.noteText}>{text(`${id}.label`)}</Text>
+                <Text style={styles.rowDetail}>{text(`${id}.detail`)}</Text>
+              </View>
+            </View>;
+          })}
         </>}
         {chapter === 1 && <>
           <View style={styles.story}>
             <Text style={styles.eyebrow}>{text('illustrative')}</Text>
-            <Image source={art} resizeMode="contain" style={styles.storyArt} accessible={false} />
-            <View style={styles.progress}>{[0, 1, 2].map(i => <View key={i} style={[styles.segment, i <= moment && styles.segmentActive]} />)}</View>
-            <View accessibilityLiveRegion="polite"><Text style={styles.eventTitle}>{text(`${direction}.moment${moment}`)}</Text><Text style={styles.detail}>{text(`${direction}.body${moment}`)}</Text></View>
-            <TouchableOpacity accessibilityRole="button" onPress={() => setMoment((moment + 1) % 3)} style={[styles.secondary, styles.selected]}><Text style={styles.optionText}>{text(moment === 2 ? 'replay' : 'reveal')}</Text></TouchableOpacity>
+            <Image source={office} resizeMode="contain" style={styles.storyArt} accessible={false} />
+            {[0, 1, 2].map(i => <View key={i} style={styles.beat}>
+              <Text style={styles.eventTitle}>{text(`career.moment${i}`)}</Text>
+              <Text style={styles.rowDetail}>{text(`career.body${i}`)}</Text>
+            </View>)}
           </View>
           <Text style={styles.detail}>{text('tradeoffs')}</Text>
         </>}
@@ -108,8 +116,16 @@ export default function Intro() {
             <View style={styles.person}><View style={styles.portraitFrame}><Image source={require('@/assets/images/portraits/river.webp')} style={styles.portrait} accessible={false} /></View><Text style={styles.optionText}>{text('generation')}</Text></View>
             <View style={[styles.person, styles.heir]}><View style={styles.portraitFrame}><Image source={require('@/assets/images/portraits/dawn.webp')} style={styles.portrait} accessible={false} /></View><Text style={styles.optionText}>{text('heir')}</Text></View>
           </View>
-          <View style={styles.options}>{(['family', 'future'] as const).map(id => <TouchableOpacity key={id} accessibilityRole="button" accessibilityState={{ selected: legacy === id }} onPress={() => setLegacy(id)} style={[styles.option, legacy === id && styles.selected]}>{legacy === id ? <Check size={22} color={'#71E2C4'} /> : <Circle size={22} color={uiPalette.muted} />}<Text style={styles.optionText}>{text(`${id}Label`)}</Text></TouchableOpacity>)}</View>
-          <Text accessibilityLiveRegion="polite" style={styles.detail}>{text(`${legacy}Body`)}</Text>
+          {(['family', 'future'] as const).map((id) => {
+            const Icon = id === 'family' ? Heart : Store;
+            return <View key={id} style={styles.row}>
+              <Icon size={22} color={uiPalette.muted} />
+              <View style={styles.rowText}>
+                <Text style={styles.noteText}>{text(`${id}Label`)}</Text>
+                <Text style={styles.rowDetail}>{text(`${id}Body`)}</Text>
+              </View>
+            </View>;
+          })}
         </>}
         <TouchableOpacity accessibilityRole="button" onPress={() => chapter === 2 ? finish() : setChapter(chapter + 1)} style={styles.primary}>
           <Text style={styles.primaryText}>{text(`chapter${chapter}.action`)}</Text><ArrowRight size={22} color={uiPalette.navy} />
@@ -137,19 +153,17 @@ const styles = StyleSheet.create({
   intro: { fontSize: fontScale(16), lineHeight: fontScale(24), color: uiPalette.muted, marginTop: 12 },
   hero: { marginVertical: 18 },
   art: { width: '100%', height: 150 },
-  // Full width, like every other card in the flow. It was a half-width card
-  // tucked under the art, which read as a layout slip (tester pass, 2026-10-10).
-  note: { backgroundColor: uiPalette.surface, borderColor: uiPalette.raised, borderWidth: 1, padding: 14, borderRadius: responsiveBorderRadius.lg, marginTop: 8 },
   noteText: { fontSize: fontScale(15), fontWeight: '600', color: uiPalette.paper },
-  options: { flexDirection: 'row', gap: 8 },
-  option: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', padding: 10, gap: 8, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, backgroundColor: uiPalette.surface },
-  selected: { borderColor: '#71E2C4', backgroundColor: '#12383C' },
+  // ONB-10: read-only rows (icon + label + one line), not selectable tiles.
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, marginBottom: 8, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, backgroundColor: uiPalette.surface },
+  rowText: { flex: 1, gap: 4 },
+  rowDetail: { fontSize: fontScale(14), lineHeight: fontScale(21), color: uiPalette.muted },
+  beat: { marginTop: 14, gap: 4 },
   optionText: { fontSize: fontScale(13), fontWeight: '600', color: uiPalette.paper, textAlign: 'center' },
   detail: { fontSize: fontScale(15), lineHeight: fontScale(23), color: uiPalette.muted, marginVertical: 14 },
   story: { backgroundColor: uiPalette.surface, padding: 18, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, marginTop: 24 },
   storyArt: { width: '100%', height: 145 },
   eventTitle: { fontSize: fontScale(20), fontWeight: '600', color: uiPalette.paper },
-  secondary: { minHeight: 48, padding: 14, borderRadius: responsiveBorderRadius.md, borderWidth: 1, justifyContent: 'center' },
   people: { flexDirection: 'row', gap: 20, alignItems: 'flex-start', marginVertical: 24 },
   person: { flex: 1, backgroundColor: uiPalette.surface, padding: 9, borderRadius: responsiveBorderRadius.lg, borderWidth: 1, borderColor: uiPalette.raised, gap: 12 },
   // Not the selection colour: this card is the NEXT generation, not a choice,

@@ -7,7 +7,7 @@ import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useGameSettings } from '@/contexts/game';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { BANNER_GRACE_WEEKS } from '@/lib/ads/orbGates';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { getThemeColors } from '@/lib/config/theme';
@@ -36,7 +36,8 @@ interface BannerAdProps {
  * that the FIRST session is clean, and a first session is nowhere near 52
  * weeks of play.
  */
-const BANNER_GRACE_WEEKS = WEEKS_PER_YEAR;
+// The constant lives in lib/ads/orbGates.ts (`BANNER_GRACE_WEEKS = WEEKS_PER_YEAR`)
+// so the Remove Ads orb can wait past it too (MON-7).
 
 /**
  * BannerAd - renders a Google AdMob banner when the ad SDK is available.

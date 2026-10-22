@@ -1,14 +1,13 @@
 export default {
     intro: {
         skip: 'Skip', progress: 'Introduction chapters', nextChapter: 'YOUR NEXT CHAPTER',
-        choose: 'WHAT DRAWS YOU IN?', illustrative: 'AN ILLUSTRATIVE STORY',
-        reveal: 'See what happens next', replay: 'Replay this glimpse',
+        choose: 'THREE WAYS TO BEGIN', illustrative: 'AN ILLUSTRATIVE STORY',
         tradeoffs: 'A life has trade-offs. Money, health, time and relationships all need your attention.',
         generation: 'A life you build', heir: 'A new beginning',
         familyLabel: 'The people in your life', futureLabel: 'A foundation for the future',
         familyBody: 'The people you meet become part of your life. Build relationships, start a family and discover the next generation.',
         futureBody: 'The home, wealth and opportunities you build can shape what comes next. Continue as an heir and begin another life.',
-        footnote: 'Explore any direction. Choose your actual starting life next.',
+        footnote: 'You choose your actual starting life next.',
         chapter0: { label: '01 / MAKE IT YOURS', title: 'A whole life.\nYours to shape.', body: 'The career. The people. The risks you take. Where would you begin?', action: 'See your life unfold' },
         chapter1: { label: '02 / ONE WEEK CHANGES THINGS', title: 'Small moves.\nA different future.', body: 'Make a choice. Live a week. See what life brings back.', action: 'Look beyond one lifetime' },
         chapter2: { label: '03 / MORE THAN ONE LIFETIME', title: 'Make a life.\nLeave a legacy.', body: 'Your story can carry on through an heir. What would you want to leave behind?', action: 'Choose my starting life' },

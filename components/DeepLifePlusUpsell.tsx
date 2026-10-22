@@ -18,8 +18,7 @@ import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS } from '@/lib/subscription/deepLifePlus';
-import { useTrialClaimPlausible } from '@/hooks/useTrialClaimPlausible';
+import { useEntryPointTrialDays } from '@/hooks/useEntryPointTrialDays';
 import { scale, fontScale } from '@/utils/scaling';
 
 // Bespoke banner art: a glowing gold crown anchored left over a dark navy field,
@@ -59,10 +58,11 @@ interface Props {
 export default function DeepLifePlusUpsell({ variant = 'banner', surface, style }: Props) {
   const { active, open, present, close } = useDeepLifePlusUpsell(surface);
   const reducedMotion = useReducedMotion();
-  // False once this session has observed a current/prior subscription - a
-  // lapsed member has burned the intro offer, so advertising "N-DAY FREE"
-  // here would promise a trial the paywall immediately withdraws.
-  const trialPlausible = useTrialClaimPlausible();
+  // MON-10: 0 (show "PREMIUM") while subscription health is unknown, once a
+  // current/prior subscription is observed (the intro offer is used), and when
+  // the loaded store product reports no intro offer. Never inferred from the
+  // configured constant alone.
+  const trialDays = useEntryPointTrialDays();
   const pulse = useRef(new Animated.Value(0)).current;     // glow halo breathe
   const breathe = useRef(new Animated.Value(0)).current;   // coin scale breathe
   const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
@@ -115,8 +115,8 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   // Never upsell an existing member (unless the QA force flag is on).
   if (memberHidden) return null;
 
-  const showTrial = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0 && trialPlausible;
-  const trialText = showTrial ? `${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-DAY FREE` : 'PREMIUM';
+  const showTrial = trialDays > 0;
+  const trialText = showTrial ? `${trialDays}-DAY FREE` : 'PREMIUM';
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.75] });
   const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.25] });
   const breatheScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
@@ -142,7 +142,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
           activeOpacity={0.85}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel={`Open DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''}`}
+          accessibilityLabel={`Open DeepLife Plus${showTrial ? `, ${trialDays}-day free trial` : ''}`}
           style={[styles.badgeWrap, style]}
         >
           {/* A flat `backgroundColor` circle was fine behind the old GOLD coin -
@@ -211,7 +211,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
         onPress={present}
         activeOpacity={0.9}
         accessibilityRole="button"
-        accessibilityLabel={`DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''} - ad-free plus exclusive perks`}
+        accessibilityLabel={`DeepLife Plus${showTrial ? `, ${trialDays}-day free trial` : ''} - ad-free plus exclusive perks`}
         style={[styles.banner, style]}
       >
         <ImageBackground
@@ -239,7 +239,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
               </View>
             </View>
             <Text style={styles.bannerSub} numberOfLines={2}>
-              Ad-free · +25% career income · daily gems{showTrial ? ' - free for a week' : ''}
+              Ad-free · +25% career income · daily gems{showTrial ? ` - ${trialDays} days free` : ''}
             </Text>
           </View>
 

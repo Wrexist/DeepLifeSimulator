@@ -705,41 +705,31 @@ describe('the device surfaces are gated on OWNERSHIP, not on a chapter', () => {
   });
 });
 
-describe("Life's Stats segment is the one gated surface outside the grids", () => {
+describe('TAB-3: the Profile tab is not gated, and Life has no Stats segment', () => {
+  // Owner decision 2026-10-22. The Stats segment was a tier-1 gated copy of
+  // the Profile screen, while the Profile tab-bar button opened the same
+  // screen in week one, so the gate read as broken. It is gone; Profile is
+  // the one door and is ungated. `__tests__/startup/profileTabOneDoor.test.ts`
+  // pins the routing; this pins the table.
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const LIFE = fs.readFileSync(
     path.join(__dirname, '..', '..', 'app/(tabs)/life.tsx'), 'utf8',
   );
 
-  it('it reads the same table everything else reads', () => {
-    expect(LIFE).toMatch(/isFeatureUnlocked\(\w+, 'tab:progression'\)/);
-    expect(LIFE).toMatch(/unlockRequirement\(\w+, 'tab:progression'\)/);
-    expect(LIFE).toMatch(/locked: statsLocked, lockReason: statsReason/);
+  it('the Life tab no longer reads the progression gate', () => {
+    expect(LIFE).not.toMatch(/'tab:progression'/);
+    expect(LIFE).not.toMatch(/key: 'stats'/);
   });
 
-  it('and explains itself on tap rather than dying quietly', () => {
-    expect(LIFE).toMatch(/onLockedPress=\{\([\s\S]{0,120}gameAlert\('Stats', reason/);
-  });
-
-  it('a fresh player cannot reach it; a chapter-1 player can', () => {
+  it('a fresh player can open Profile; it states no requirement', () => {
     const fresh = createTestGameState({
       weeksLived: 1, completedChapters: [], currentJob: undefined,
       stats: { ...createTestGameState().stats, money: 0 },
       bankSavings: 0,
     });
-    // Deliberately identical to `fresh` EXCEPT the chapter flag - otherwise a
-    // weeksLived of 6 alone clears the milestone fallback and this would pass
-    // without the chapter signal ever being read.
-    const settled = createTestGameState({
-      weeksLived: 1, completedChapters: ['ch1_fresh_start'], currentJob: undefined,
-      stats: { ...createTestGameState().stats, money: 0 },
-      bankSavings: 0,
-    });
-
-    expect(isFeatureUnlocked(fresh, 'tab:progression')).toBe(false);
-    expect(unlockRequirement(fresh, 'tab:progression')).toBe('Finish Chapter 1: Fresh Start');
-    expect(isFeatureUnlocked(settled, 'tab:progression')).toBe(true);
+    expect(isFeatureUnlocked(fresh, 'tab:progression')).toBe(true);
+    expect(unlockRequirement(fresh, 'tab:progression')).toBe('');
   });
 
   it('Health and Market are NEVER gated (the control)', () => {
@@ -789,10 +779,11 @@ describe('a fresh life is tier 0 whatever age it starts at', () => {
 
   it('the deep end really is padlocked for an age-25 start', () => {
     const state = freshAtAge(25);
-    for (const id of ['app:onion', 'app:political', 'app:luxury', 'tab:progression']) {
+    // `app:contacts` is the tier-1 probe since TAB-3 made Profile ungated.
+    for (const id of ['app:onion', 'app:political', 'app:luxury', 'app:contacts']) {
       expect(`${id}: ${isFeatureUnlocked(state, id)}`).toBe(`${id}: false`);
     }
-    expect(unlockRequirement(state, 'tab:progression'))
+    expect(unlockRequirement(state, 'app:contacts'))
       .toBe('Finish Chapter 1: Fresh Start');
   });
 

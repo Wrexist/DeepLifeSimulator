@@ -30,6 +30,7 @@ import {
   getLegacyUpgrade,
 } from '@/lib/legacy/legacyShop';
 import { getAllContractProgress, getClaimableContracts } from '@/lib/legacy/contracts';
+import { describeLegacyAccrual } from '@/lib/legacy/legacyAccrual';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import DynastyBoard from '@/components/prestige/DynastyBoard';
 import { scale, fontScale } from '@/utils/scaling';
@@ -347,9 +348,10 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       shipped in MoneyActionsContext with no screen calling it,
                       so the entire shop was unreachable in the app. */}
                   <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', marginBottom: scale(10) }]}>
+                    {/* LATE-1: the rate comes from the same helper the tick uses. */}
                     {legacyAvailable > 0
-                      ? `${legacyAvailable.toLocaleString('en-US')} legacy points to spend on your heir's starting position.`
-                      : 'Legacy points accrue as you live. Spend them here on the next generation.'}
+                      ? `${legacyAvailable.toLocaleString('en-US')} legacy points to spend on your heir's starting position. You earn ${describeLegacyAccrual(gameState?.prestige?.prestigeLevel)}.`
+                      : `You earn ${describeLegacyAccrual(gameState?.prestige?.prestigeLevel)}. Spend them here on the next generation.`}
                   </Text>
 
                   {/* Prestige tiers 2-5 - the Vault, the Endowment, Trials and

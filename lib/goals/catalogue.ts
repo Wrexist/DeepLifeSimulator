@@ -313,7 +313,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Reach a fortune',
     rationale: 'The number that decides how the story is remembered.',
-    route: '/(tabs)/life?segment=stats',
+    route: '/(tabs)/progression',
     isEligible: (s) => netWorth(s) < NET_WORTH_RUNGS[NET_WORTH_RUNGS.length - 1],
     measure: (s) => ({ current: netWorth(s), target: activeNetWorthRung(s) }),
     priority: () => 60,
@@ -337,7 +337,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Leave a dynasty',
     rationale: 'Prestige carries your legacy into the next life instead of ending it.',
-    route: '/(tabs)/life?segment=stats',
+    route: '/(tabs)/progression',
     // Only once the player is genuinely in range - offering prestige to a
     // week-3 character is noise, and the repo already holds the preview card
     // back on the same principle.
@@ -405,7 +405,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Fulfil the Legacy Contracts',
     rationale: 'Goals that span lives - the longest game the dynasty plays.',
-    route: '/(tabs)/life?segment=stats',
+    route: '/(tabs)/progression',
     // Only once the multi-life game has begun; offering contracts to a first
     // life that has never prestiged is noise.
     isEligible: (s) => {

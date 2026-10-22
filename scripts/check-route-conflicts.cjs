@@ -119,7 +119,7 @@ function main() {
 
   // ── One door per room ─────────────────────────────────────────────────────
   //
-  // market/health/progression/mobile/computer are `href: null` routes merged
+  // market/health/mobile/computer are `href: null` routes merged
   // into the Life shell and the Apps tab. Pushing one by name still WORKS -
   // expo-router renders it - but produces a second, differently-chromed copy
   // of the screen with no tab highlighted (2026-09-01 UI audit, navigation
@@ -127,10 +127,14 @@ function main() {
   // `/(tabs)/apps?app=…`. This sweep fails on any literal push target for a
   // hidden route outside the app/(tabs) directory itself (where the
   // Tabs.Screen declarations legitimately name them).
+  //
+  // `progression` is NOT on this list: it is the visible Profile tab-bar
+  // button (hidden only in prison), so its own route IS its one door. TAB-3
+  // (2026-10-22) removed the Life tab's Stats copy of it, which was the reason
+  // pushes used to be redirected to `/(tabs)/life?segment=stats`.
   const HIDDEN_ROUTE_LITERALS = [
     "'/(tabs)/market'",
     "'/(tabs)/health'",
-    "'/(tabs)/progression'",
     "'/(tabs)/mobile'",
     "'/(tabs)/computer'",
   ];

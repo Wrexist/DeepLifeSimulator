@@ -21,7 +21,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
 import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
-import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
+import { getScenario, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { projectScenarioState } from '@/lib/scenarios/progress';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE, computeWeeksLived } from '@/lib/config/gameConstants';
@@ -160,7 +160,7 @@ export function executePrestige(
   const isFirstPrestige = prestigeData.totalPrestiges === 0;
 
   if (isFirstPrestige) {
-    // Check all challenge scenarios and award gems for completed ones.
+    // Award the chosen challenge scenario's gems if it was completed.
     //
     // The projection is SHARED with the live ScenarioChallengeCard
     // (`projectScenarioState`, lib/scenarios/progress.ts) so what the card
@@ -171,12 +171,18 @@ export function executePrestige(
     // (the deprecated catalogue's `completed` flag has no writer), and
     // bankSavings uses `nonMirrorDeposits` (R4 — a raw account sum
     // double-counted the two mirror accounts).
-    const scenarioState = projectScenarioState(gameState);
-    SCENARIOS.forEach(scenario => {
-      if (isScenarioCompleted(scenario.id, scenarioState)) {
-        gemsToAward += scenario.rewards?.gems || 0;
-      }
-    });
+    //
+    // ONLY the challenge this life actually chose pays (LIFE-3, owner decision
+    // 2026-10-22). This used to walk every SCENARIOS entry and pay each one
+    // whose conditions happened to hold, so a life-path player who never
+    // picked a challenge collected hundreds of premium gems for runs they had
+    // not started, and the challenge picker did not decide what paid. The
+    // chosen run is `scenarioId` (`challengeScenarioId` has no writer); a
+    // life-path id is not in the challenge catalogue, so it pays nothing.
+    const chosen = gameState.scenarioId ? getScenario(gameState.scenarioId) : undefined;
+    if (chosen && isScenarioCompleted(chosen.id, projectScenarioState(gameState))) {
+      gemsToAward += chosen.rewards?.gems || 0;
+    }
   }
 
   // Create new game state based on path
