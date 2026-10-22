@@ -2309,7 +2309,7 @@ exports[`pre-tick equivalence - applyEducationProgression completion with class 
   },
   "notifications": [
     {
-      "id": "education-complete",
+      "id": "education-complete-cs101",
       "message": "GPA: 2.5 - Class bonuses applied!",
       "title": "🎓 CS 101 Completed!",
     },
@@ -2412,7 +2412,7 @@ exports[`pre-tick equivalence - applyEducationProgression exam week FAIL (no stu
   },
   "notifications": [
     {
-      "id": "education-exam",
+      "id": "education-exam-exam-bio",
       "message": "D - Needs improvement.",
       "title": "📝 Exam in CS 101",
     },
@@ -2454,7 +2454,7 @@ exports[`pre-tick equivalence - applyEducationProgression exam week PASS (study 
   },
   "notifications": [
     {
-      "id": "education-exam",
+      "id": "education-exam-exam-cs",
       "message": "B - Solid effort!",
       "title": "📝 Exam in CS 101",
     },
@@ -4162,14 +4162,14 @@ exports[`pre-tick equivalence - applyPetLivingSideEffects no-op when no pets 1`]
 
 exports[`pre-tick equivalence - applyPregnancyProgression birth: money clamped at 0 when below $5000 1`] = `
 {
-  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Kai!",
+  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Liam!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
-    "name": "Kai",
+    "id": "child_100_abc_r1",
+    "name": "Liam",
     "personality": "Playful",
     "relationshipScore": 75,
     "type": "child",
@@ -4189,14 +4189,14 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: money clamped a
 
 exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyChildGender override wins over preRolls.childGender 1`] = `
 {
-  "birthMessage": "Beth gave birth to a beautiful baby boy named Kai!",
+  "birthMessage": "Beth gave birth to a beautiful baby boy named Liam!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
-    "name": "Kai",
+    "id": "child_100_abc_r1",
+    "name": "Liam",
     "personality": "Playful",
     "relationshipScore": 75,
     "type": "child",
@@ -4222,7 +4222,7 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyChildN
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
+    "id": "child_100_abc_r1",
     "name": "Alex",
     "personality": "Playful",
     "relationshipScore": 75,
@@ -4253,14 +4253,14 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyWeeks 
     "reputation": 50,
   },
   "result": {
-    "birthMessage": "Alice gave birth to a beautiful baby girl named Mia!",
+    "birthMessage": "Alice gave birth to a beautiful baby girl named Elena!",
     "newborn": {
       "age": 0,
       "birthWeeksLived": 100,
       "datesCount": 0,
       "gender": "female",
-      "id": "child_99_sfx_r1",
-      "name": "Mia",
+      "id": "child_100_sfx_r1",
+      "name": "Elena",
       "personality": "Energetic",
       "relationshipScore": 75,
       "type": "child",
@@ -4281,14 +4281,14 @@ exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyWeeks 
 
 exports[`pre-tick equivalence - applyPregnancyProgression birth: spouse (not just partner) fires the same path 1`] = `
 {
-  "birthMessage": "Diane gave birth to a beautiful baby boy named Kai!",
+  "birthMessage": "Diane gave birth to a beautiful baby boy named Liam!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
-    "id": "child_1234567890_abc_r1",
-    "name": "Kai",
+    "id": "child_100_abc_r1",
+    "name": "Liam",
     "personality": "Playful",
     "relationshipScore": 75,
     "type": "child",
@@ -4415,7 +4415,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel (score 20), week
 {
   "notifications": [
     {
-      "id": "relationship-breakup",
+      "id": "relationship-breakup-r1",
       "message": "BreakMe has ended the relationship. Your relationship score was too low (20%).",
       "title": "💔 Relationship Ended",
     },
@@ -4449,7 +4449,7 @@ exports[`pre-tick equivalence - applyRelationshipHealth low rel, breakup miss + 
 {
   "notifications": [
     {
-      "id": "relationship-disappointed",
+      "id": "relationship-disappointed-r1",
       "message": "Sad is disappointed with you. Your relationship is at 20%. Consider going on dates or giving gifts to improve it.",
       "title": "😔 Partner Disappointed",
     },

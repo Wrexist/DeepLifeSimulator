@@ -194,7 +194,7 @@ import {
 } from './actions/weekly/applyRelationshipHealth';
 import { applyAnniversaries, type AnniversaryResult } from './actions/weekly/applyAnniversaries';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
-import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
+import { applyWeeklyEvents, dedupePendingEventsById } from './actions/weekly/applyWeeklyEvents';
 import { resolveFamilySpouse } from './actions/weekly/resolveFamilySpouse';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
 import { applyLifeMoment } from './actions/weekly/applyLifeMoment';
@@ -659,6 +659,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    logger.info('[WEEK PROGRESSION] No persisted market on this save - opened the board on catalogue prices');
  }
 
+ // The module-global board, captured on both sides of this week's walk. The
+ // updater below adjusts the board in place (sector tilt + macro drift), and
+ // React may run that updater more than once (StrictMode, a rebased render) or
+ // not commit it at all (the death guard, the outer catch). Every run therefore
+ // starts from `boardAfterWalk`, so a second run cannot apply the tilt twice or
+ // compute fills off already-moved prices, and a run that does not advance the
+ // week puts back `boardBeforeWalk`, so a retry does not walk the market twice.
+ const boardBeforeWalk = getStockPricesSnapshot();
+
  // CRITICAL: Simulate stock market price changes for the week
  // ANTI-EXPLOIT: Pass weeksLived so seeded PRNG produces deterministic prices per week
  // This prevents save/reload manipulation of stock prices
@@ -692,6 +701,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[WEEK PROGRESSION] Stock market simulation failed:', simError);
  // Continue progression even if stock sim fails
  }
+ const boardAfterWalk = getStockPricesSnapshot();
 
  // CRITICAL: Get updated stock prices after simulation.
  // R3-A: `getStockInfo` is now an ES import at top of file.
@@ -741,12 +751,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // stays because the staleness it closes is a property of the ref, not of that
  // feature. Any caller that ticks twice before React commits hits it.
  if (prevState.showDeathPopup) {
+   // The week does not advance, so neither does the market.
+   restoreStockPrices(boardBeforeWalk);
    postTickState = prevState;
    return prevState;
  }
  // CRITICAL: Wrap entire state update in try-catch to prevent silent failures
  try {
  tickProfiler.beginTick();
+ // Idempotent board: see `boardAfterWalk` above.
+ restoreStockPrices(boardAfterWalk);
 
  // DECAY INPUTS ARE RE-DERIVED HERE, FROM `prevState`.
  //
@@ -978,7 +992,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const happinessAfterDecay = newStats.happiness ?? 0;
 
  // Fitness decay: increases the longer you don't visit the gym
- const lastGymVisitWeek = prevState.lastGymVisitWeek || 0;
+ // Measured from the later of the last visit and the start of THIS life.
+ // `weeksLived` is seeded from the starting age (CLAUDE.md §4.2), and nothing
+ // stamps `lastGymVisitWeek` at birth, so reading the raw counter against an
+ // unset visit gave every age-20+ start (and every heir) the 9+-weeks-away x4
+ // rate from its very first tick.
+ const lastGymVisitWeek = Math.max(prevState.lastGymVisitWeek || 0, prevState.lifeStartWeek ?? 0);
  const weeksSinceLastGym = nextWeeksLived - lastGymVisitWeek;
 
  // Base natural aging decay
@@ -1296,16 +1315,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // variance) was the last weekly subsystem still fed a live `() => Math.random()`,
  // unlike every sibling (crypto/darkweb/politics/stocks pass the seeded weeklyRoll).
  // That made tenant arrivals/departures and rent variance resume-unsafe and
- // inconsistent under React 19 StrictMode double-invoke. Pass the same seeded,
- // per-key `makeWeeklyRoll(nextWeeksLived)` stream the siblings use - the module
- // already namespaces its own keys, so outcomes are now reproducible from the save.
+ // inconsistent under React 19 StrictMode double-invoke. It takes the LIFE-salted
+ // stream (`makeLifeRoll`, CLAUDE.md §4.3): tenant churn is keyed on catalogue
+ // property ids, which every life shares, so a week-only stream gave every
+ // landlord of the same building the same tenants in week N.
  //
  // R7 step 2.5a: `weeklyCtx` was further hoisted to the diet block above
  // so all reducers (diet, rent, disease, pet, vehicle) share one instance.
  const rentAndHousingResult = guardTick('rentAndHousing', () => applyRentAndHousing(
    prevState.realEstate,
    nextWeeksLived,
-   makeWeeklyRoll(nextWeeksLived),
+   makeLifeRoll(prevState, nextWeeksLived),
    weeklyCtx,
    prevState.realEstateActivity,
    unlockedBonuses,
@@ -1568,68 +1588,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // family.spouse below (same as executeWedding in DatingActions.ts).
  let newWeddingSpouse: Relationship | null = null;
 
- // Health tracking
- if (newStats.health <= 0) {
- newHealthZeroWeeks = (newHealthZeroWeeks || 0) + 1;
- // No zero-stat popup on week advance anymore - the health warning is
- // surfaced passively in the player card (IdentityCard "Health Issues")
- // instead of interrupting the Next Week flow. Death tracking continues.
-
- // Death after 4 weeks at zero
- if (newHealthZeroWeeks >= ZERO_STAT_DEATH_WEEKS) {
- newShowDeathPopup = true;
- newDeathReason = 'health';
- // CRITICAL: Hide zero stat popup when death occurs
- newShowZeroStatPopup = false;
- newZeroStatType = undefined;
- deathTriggered = true; // Mark that death was triggered
- // NB: haptic fires once post-updater (see deathTriggered block) - calling it
- // here would double-buzz under React 19 StrictMode / discarded renders.
- logger.warn(`[DEATH] Character died from health reaching 0 for ${newHealthZeroWeeks} weeks`);
- }
- } else {
- // Reset counter if health is above 0
- if (newHealthZeroWeeks > 0) {
- newHealthZeroWeeks = 0;
- // Only hide popup if it was for health
- if (newZeroStatType === 'health') {
- newShowZeroStatPopup = false;
- newZeroStatType = undefined;
- }
- }
- }
-
- // Happiness tracking
- if (newStats.happiness <= 0) {
- newHappinessZeroWeeks = (newHappinessZeroWeeks || 0) + 1;
- // No zero-stat popup on week advance anymore - surfaced passively in the
- // player card (IdentityCard "Health Issues") instead. Death tracking continues.
-
- // Death after 4 weeks at zero
- if (newHappinessZeroWeeks >= ZERO_STAT_DEATH_WEEKS) {
- newShowDeathPopup = true;
- newDeathReason = 'happiness';
- // CRITICAL: Hide zero stat popup when death occurs
- newShowZeroStatPopup = false;
- newZeroStatType = undefined;
- deathTriggered = true; // Mark that death was triggered
- // haptic fires once post-updater (see deathTriggered block) to avoid double-buzz.
- logger.warn(`[DEATH] Character died from happiness reaching 0 for ${newHappinessZeroWeeks} weeks`);
- }
- } else {
- // Reset counter if happiness is above 0
- if (newHappinessZeroWeeks > 0) {
- newHappinessZeroWeeks = 0;
- // Only hide popup if it was for happiness
- if (newZeroStatType === 'happiness') {
- newShowZeroStatPopup = false;
- newZeroStatType = undefined;
- }
- }
- }
-
-
-
+ // Zero-stat death tracking is decided at the END of the tick, on the week's
+ // FINAL health and happiness - see the zero-stat block just before
+ // `applyDeathRibbon` below.
 
  // Natural death from old age - escalating per-week chance past the
  // LONGEVITY PIVOT, capped near-certain ~40 years past it. The pivot
@@ -1715,33 +1676,43 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  try {
 
+ // The per-relationship transforms COMPOSE: each one hands its result to the
+ // next, ending in applyRelationshipHealth. They used to early-return, so a
+ // pregnant partner skipped the scheduled-wedding gate (whose exact-week
+ // equality then never matched again, leaving the plan stuck for a year), and
+ // children, pregnant partners and wedding weeks all skipped the health pass -
+ // the child neglect branch below was unreachable for its whole life.
+ let current: Relationship = rel;
+
  // R7 Phase 2 step 2.6-iii-D: pregnancy progression + birth extracted to
  // applyPregnancyProgression. Same birth math (5000 cost, +30 happiness,
  // +15 relationship), same late/mid pregnancy stat ramps, same childId
  // format and personality array.
- const pregResult = applyPregnancyProgression(rel, weeklyCtx);
+ const pregResult = applyPregnancyProgression(current, weeklyCtx);
  if (pregResult) {
  if (pregResult.newborn) {
  newBornChildren.push(pregResult.newborn);
  newShowBirthPopup = true;
  birthMessage = pregResult.birthMessage || '';
  }
- return pregResult.rel;
+ current = pregResult.rel;
  }
+ // Still pregnant after this week (not the birth week): a breakup roll is held
+ // until the birth, so an unborn child is never silently dropped with its parent.
+ const stillPregnant = !!(pregResult && !pregResult.newborn);
 
  // A wedding scheduled to land while the player is incarcerated is deferred one
  // week (it re-triggers the first week after release). The engagement state
  // (weddingPlanned) is preserved intact - no charge, no spouse promotion, no
  // expiry - so there is zero softlock risk: pushing scheduledWeek to next week
  // keeps it clear of both the 1-year expiry and the stale-cleanup window.
- if (isJailed && rel.weddingPlanned && rel.weddingPlanned.scheduledWeek === nextWeeksLived) {
- return { ...rel, weddingPlanned: { ...rel.weddingPlanned, scheduledWeek: nextWeeksLived + 1 } };
- }
-
+ if (isJailed && current.weddingPlanned && current.weddingPlanned.scheduledWeek === nextWeeksLived) {
+ current = { ...current, weddingPlanned: { ...current.weddingPlanned, scheduledWeek: nextWeeksLived + 1 } };
+ } else {
  // R7 Phase 2 step 2.6-iii-C: scheduled wedding extracted to
  // applyScheduledWedding. Same execute/postpone/expire/stale gates,
  // same anti-exploit math, same logger messages.
- const weddingResult = applyScheduledWedding(rel, weeklyCtx);
+ const weddingResult = applyScheduledWedding(current, weeklyCtx);
  if (weddingResult) {
  if (weddingResult.weddingPopup) {
  newShowWeddingPopup = true;
@@ -1750,14 +1721,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (weddingResult.familySpouse) {
  newWeddingSpouse = weddingResult.familySpouse;
  }
- return weddingResult.rel;
+ current = weddingResult.rel;
+ }
  }
 
  // R7 Phase 2 step 2.6-iii-B: child aging extracted to applyChildAging.
- if (rel.type === 'child') {
+ if (current.type === 'child') {
  // weeksLivedNow seeds the deterministic grandchild-birth roll - same save,
  // same week, same outcome, so a reload cannot be used to reroll a birth.
- return applyChildAging(rel, weeksLivedNow);
+ current = applyChildAging(current, weeksLivedNow);
  }
 
  // R7 Phase 2 step 2.6-iii-E: relationship health extracted to
@@ -1765,7 +1737,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // gates, same rolls, same notifications. happinessPenalty is accumulated
  // here (matching the legacy closure-variable pattern) and applied to
  // newStats AFTER the .map() below.
- const healthResult = applyRelationshipHealth(rel, relIdx, weeklyCtx);
+ const healthResult = applyRelationshipHealth(current, relIdx, weeklyCtx, { holdBreakup: stillPregnant });
  if (healthResult.happinessPenalty !== 0) {
   // The standing neglect drag is capped ACROSS all relationships, separately
   // from the one-off breakup / disappointed / drift hits. Without the split, a
@@ -2054,6 +2026,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Safety cap so a malformed queue can never grow without bound.
  updatedPendingChainedEvents = stillPending.length > 100 ? stillPending.slice(-100): stillPending;
  }
+
+ // Cliffhanger resolutions and follow-ups are appended AFTER applyWeeklyEvents'
+ // duplicate guard, so hold them to the same rule: one queued copy per id.
+ updatedPendingEvents = dedupePendingEventsById(updatedPendingEvents);
 
  // Weekly events now use a NON-BLOCKING inbox instead of an interrupting
  // auto-pop modal (that was the original complaint that got them disabled).
@@ -2729,6 +2705,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // One seeded roll source for all subsystem ticks this week. Namespaced keys
  // (crypto.* / darkweb.* / politics.* / stock.*) keep the draws independent.
  const weeklyRoll = makeWeeklyRoll(nextWeeksLived);
+ // The LIFE-salted stream (CLAUDE.md §4.3) for ticks whose draws decide
+ // something about this life: dark-web raids, jail time, BTC seizure and partner
+ // discovery; political scandals and re-election. On the week-only stream every
+ // life with the same heat/approval drew the same outcome in week N, so a repeat
+ // player could learn which weeks a raid or an election loss fires. Only the
+ // stock sector regimes (the shared world) stay on `weeklyRoll`.
+ const lifeWeeklyRoll = makeLifeRoll(prevState, nextWeeksLived);
  // Crypto tick wrapped like the other subsystem ticks (banking/stocks/politics):
  // an unguarded throw here aborts the whole nextWeek updater and soft-locks
  // "Next Week". The tick self-guards missing top-level slices, but a
@@ -3032,7 +3015,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  darkWeb: prevState.darkWeb ?? initialGameState.darkWeb!,
  currentWeek: nextWeeksLived,
  relationships: processedRelationships,
- rollFor: weeklyRoll,
+ rollFor: lifeWeeklyRoll,
  inJail: (prevState.jailWeeks ?? 0) > 0,
  });
  } catch (dwErr) {
@@ -3280,7 +3263,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  karma: prevState.karma?.score ?? 0,
  contentiousPolicies: (prevState.politics?.policiesEnacted ?? []).length,
  currentWeek: nextWeeksLived,
- rollFor: weeklyRoll,
+ rollFor: lifeWeeklyRoll,
  });
  for (const note of politicsTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -3349,6 +3332,62 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
+ // ZERO-STAT DEATH, decided on the week's FINAL stats.
+ //
+ // These counters used to be incremented and judged mid-tick, right after
+ // decay, before relationships (breakup -25), police (-15), diseases,
+ // accidents, pets, housing and savings goals had moved health and happiness.
+ // So a week that ENDED at 0 (a disease on top of decay) did not count, and a
+ // character on a fourth zero week died even when pets or a new home lifted
+ // the week's final value back above 0 - death timing disagreed with the HUD,
+ // which warns at <= 0. One evaluation, on the values the player will see.
+ //
+ // Priority is unchanged: health is judged before happiness, and a zero-stat
+ // death names its stat even when old age or a disease also struck this week.
+ if (newStats.health <= 0) {
+ newHealthZeroWeeks = (newHealthZeroWeeks || 0) + 1;
+ // No zero-stat popup on week advance anymore - the health warning is
+ // surfaced passively in the player card (IdentityCard "Health Issues")
+ // instead of interrupting the Next Week flow. Death tracking continues.
+ if (newHealthZeroWeeks >= ZERO_STAT_DEATH_WEEKS) {
+ newShowDeathPopup = true;
+ newDeathReason = 'health';
+ // CRITICAL: Hide zero stat popup when death occurs
+ newShowZeroStatPopup = false;
+ newZeroStatType = undefined;
+ deathTriggered = true;
+ // NB: haptic fires once post-updater (see deathTriggered block) - calling it
+ // here would double-buzz under React 19 StrictMode / discarded renders.
+ logger.warn(`[DEATH] Character died from health reaching 0 for ${newHealthZeroWeeks} weeks`);
+ }
+ } else if (newHealthZeroWeeks > 0) {
+ newHealthZeroWeeks = 0;
+ // Only hide popup if it was for health
+ if (newZeroStatType === 'health') {
+ newShowZeroStatPopup = false;
+ newZeroStatType = undefined;
+ }
+ }
+
+ if (newStats.happiness <= 0) {
+ newHappinessZeroWeeks = (newHappinessZeroWeeks || 0) + 1;
+ if (newHappinessZeroWeeks >= ZERO_STAT_DEATH_WEEKS) {
+ newShowDeathPopup = true;
+ newDeathReason = 'happiness';
+ newShowZeroStatPopup = false;
+ newZeroStatType = undefined;
+ deathTriggered = true;
+ // haptic fires once post-updater (see deathTriggered block) to avoid double-buzz.
+ logger.warn(`[DEATH] Character died from happiness reaching 0 for ${newHappinessZeroWeeks} weeks`);
+ }
+ } else if (newHappinessZeroWeeks > 0) {
+ newHappinessZeroWeeks = 0;
+ if (newZeroStatType === 'happiness') {
+ newShowZeroStatPopup = false;
+ newZeroStatType = undefined;
+ }
+ }
+
  // R7 Phase 2 step 2.8-B / MP13: classify the completed life (ribbon) and pay
  // any non-wealth capstone legacy bonus. Hoisted so `legacyPoints` below can
  // include the bonus - that field is assigned after the partial is spread.
@@ -3410,13 +3449,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    : (isFinite(prevState.stats?.money) ? Math.min(MONEY_CEILING, Math.max(0, prevState.stats.money)): 0),
  reputation: isFinite(pulseRepAdjusted) ? pulseRepAdjusted: (isFinite(newStats.reputation) ? newStats.reputation: 50),
  },
- // Death warning system tracking. The counters are decided mid-tick (before
- // the longevity roll), and pets, housing, relationships and savings goals
- // still add health/happiness after that point - so a week that ENDED above
- // zero counted toward a zero-stat death while the HUD (which warns only at
- // <= 0) showed nothing. A week only counts if it ended at zero.
- healthZeroWeeks: !deathTriggered && newStats.health > 0 ? 0 : newHealthZeroWeeks,
- happinessZeroWeeks: !deathTriggered && newStats.happiness > 0 ? 0 : newHappinessZeroWeeks,
+ // Death warning system tracking - decided on the week's FINAL stats (see the
+ // zero-stat block above `applyDeathRibbon`), so a week only counts if it
+ // ended at zero, and every week that ended at zero counts.
+ healthZeroWeeks: newHealthZeroWeeks,
+ happinessZeroWeeks: newHappinessZeroWeeks,
  // Achievement-counter accumulators that the achievement system
  // reads via gs.healthWeeks (consecutive weeks at 90+ health,
  // reset when health dips below) and gs.totalHappiness (running
@@ -3721,34 +3758,37 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  )
  ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass
 : prevState.legacyPass,
- // R7 Phase 2 step 2.8-C: auto checkpoint extracted into
- // ./actions/weekly/applyAutoCheckpoint.ts. Year-boundary gate only now
- // (with `Age <N>` label) - the pre-death snapshot was removed, so this no
- // longer needs to know whether the player died this tick.
-...applyAutoCheckpoint({
-   prevState,
-   newStats,
-   nextWeeksLived,
-   // A week actually worked - held a job, not retired, not in a cell. Feeds the
-   // `career` activity-commitment level (see the growth block there).
-   workedThisWeek: Boolean(newCurrentJob) && !prevState.isRetired && !((prevState.jailWeeks ?? 0) > 0),
- }).partial,
  };
 
  // #6: a character who dies this week must not pocket the week's income.
  // Revert money to the pre-tick value so the persisted/displayed final state
  // (and the death popup's net worth) doesn't include a free final paycheck.
+ //
+ // Only the INCOME is taken back, net of the tax it paid. This used to restore
+ // the whole pre-tick wallet while `nextState` kept everything that wallet had
+ // already funded this week - savings-goal sweeps, loan and arrears payments,
+ // filled buy orders, upkeep - so a predictable death minted up to a week of
+ // transfers into the inheritance ($20k cash + a $15k goal sweep came out as
+ // $20k cash AND a $15k goal). Subtracting the net income from the FINAL wallet
+ // keeps every other movement paired with the cash that paid for it.
  if (newShowDeathPopup) {
+ const netWeekIncome = Math.max(0, recapIncome - incomeTax);
+ const finalMoney = nextState.stats.money;
+ const revertedMoney = Number.isFinite(finalMoney) && Number.isFinite(netWeekIncome)
+   ? Math.max(0, Math.round(finalMoney - netWeekIncome))
+   : (typeof prevState.stats?.money === 'number' ? Math.min(prevState.stats.money, finalMoney) : finalMoney);
  nextState.stats = {
 ...nextState.stats,
- money: typeof prevState.stats?.money === 'number' ? prevState.stats.money: nextState.stats.money,
+ money: revertedMoney,
  };
- // The week's money was reverted (no final paycheck on death), so the result
- // sheet must not advertise income/expenses it never actually applied. Mutating
- // the same `weekResult` object the return uses keeps the sheet honest.
+ // The week's income was taken back (no final paycheck on death), so the
+ // result sheet must not advertise income it never kept. Mutating the same
+ // `weekResult` object the return uses keeps the sheet honest; what did move
+ // (bills, transfers) is reported as the net change.
+ const deathNetChange = Math.round(revertedMoney - currentMoney);
  weekResult.incomeEarned = 0;
- weekResult.expensesPaid = 0;
- weekResult.netChange = 0;
+ weekResult.expensesPaid = Math.max(0, -deathNetChange);
+ weekResult.netChange = deathNetChange;
  weekResult.luckyBonus = undefined;
  weekResult.streakBonus = undefined;
  }
@@ -3850,6 +3890,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // change (which also occurs when loading a different save).
  nextState = guardTick('research', () => applyResearchWeek(nextState), nextState);
 
+ // R7 Phase 2 step 2.8-C: auto checkpoint extracted into
+ // ./actions/weekly/applyAutoCheckpoint.ts. Year-boundary gate only now
+ // (with `Age <N>` label) - the pre-death snapshot was removed, so this no
+ // longer needs to know whether the player died this tick.
+ //
+ // Runs LAST, on the fully assembled `nextState`, so a year checkpoint is a
+ // state the game was actually in. It used to sit inside the object literal
+ // above and snapshot post-tick stats over pre-tick holdings/loans/banking, so
+ // rewinding to it could duplicate a filled sell order or undo a payment.
+ // The module guards itself and always returns at least the checkpoints.
+ const autoCheckpointState: GameState = nextState;
+ nextState = {
+   ...autoCheckpointState,
+   ...applyAutoCheckpoint({
+     prevState,
+     newStats,
+     nextWeeksLived,
+     // A week actually worked - held a job, not retired, not in a cell. Feeds the
+     // `career` activity-commitment level (see the growth block there).
+     workedThisWeek: Boolean(newCurrentJob) && !prevState.isRetired && !((prevState.jailWeeks ?? 0) > 0),
+     postTickState: autoCheckpointState,
+   }).partial,
+ };
+
  // PERF (freeze fix): expose the computed state to the post-update code below.
  postTickState = nextState;
  return nextState;
@@ -3857,6 +3921,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // CRITICAL: If state update fails, log error and return previous state
  tickFailure.error = error instanceof Error ? error: new Error(String(error));
  logger.error('[WEEK PROGRESSION] Error in setGameState callback:', tickFailure.error);
+ // The week did not advance: undo this tick's market walk and tilt too.
+ try { restoreStockPrices(boardBeforeWalk); } catch { /* board restore is best-effort */ }
         // CR: close the profiling window on the error path too (idempotent via the started flag).
         tickProfiler.endTick();
  // Return previous state unchanged to prevent corruption
