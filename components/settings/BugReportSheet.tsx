@@ -110,7 +110,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
               diagnostic details automatically so we can fix it fast - no personal data.
             </Text>
 
-            <TextInput
+            <TextInput accessibilityLabel="Describe the problem"
               style={styles.input}
               placeholder="What happened? What were you doing?"
               placeholderTextColor={uiPalette.muted}

@@ -172,7 +172,18 @@ function LiveEventsCard(): React.ReactElement | null {
             onPress={() => onOpen(event)}
             style={[styles.event, state === 'claimed' && styles.eventDone]}
             accessibilityRole="button"
-            accessibilityLabel={`${definition.title}. ${met} of ${objectives.length} done.`}
+            accessibilityLabel={`${definition.title}. ${met} of ${objectives.length} done.${
+              state === 'claimable' ? ` ${rewardLabel(event)} ready to collect.` : state === 'claimed' ? ' Collected.' : ''
+            }`}
+            // The Collect button is drawn inside this row, and an accessible
+            // row hides its descendants from VoiceOver - so the reward is also
+            // offered as a custom action on the row itself.
+            accessibilityActions={
+              state === 'claimable' ? [{ name: 'collect', label: `Collect ${rewardLabel(event)}` }] : undefined
+            }
+            onAccessibilityAction={(e) => {
+              if (e.nativeEvent.actionName === 'collect' && state === 'claimable') onClaim(event);
+            }}
           >
             <View style={styles.eventHeader}>
               <Text style={styles.emoji}>{definition.emoji || '✨'}</Text>

@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors } from '@/lib/config/theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -353,7 +353,8 @@ const loadingStyles = StyleSheet.create({
   bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
   message: { color: uiPalette.muted, fontSize: 13, fontWeight: '500', marginTop: 14, textAlign: 'center' },
   footer: {
-    color: 'rgba(148, 163, 184, 0.45)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 3,

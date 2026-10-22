@@ -240,7 +240,7 @@ function DiscoveryModal({
             <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>
               Discovery Center
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(scale(20))}>
+            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton} hitSlop={hitSlopToMinTarget(scale(28))} {...CLOSE_BUTTON_A11Y}>
               <X size={scale(20)} color={darkMode ? uiPalette.muted : uiPalette.lightMuted} />
             </TouchableOpacity>
           </View>

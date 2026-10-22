@@ -570,7 +570,7 @@ export default function WeeklyEventModal() {
  disabled={disabled}
  activeOpacity={0.85}
  accessibilityRole="button"
- accessibilityLabel={note ? `${choice.text || 'Continue'}. ${note}` : (choice.text || 'Continue')}
+ accessibilityLabel={choiceAccessibilityLabel(choice, enhancedChoice, note)}
  accessibilityState={{ disabled }}
  >
  {/* Every choice gets the same treatment. The first one used to be a
@@ -589,6 +589,30 @@ export default function WeeklyEventModal() {
  </View>
  </Modal>
  );
+}
+
+/**
+ * What a screen reader hears for a choice. An explicit label replaces the
+ * button's child text, so it must carry everything the button SHOWS - the
+ * gain/loss tradeoffs and impact tag included - or a VoiceOver player picks
+ * on the title alone while a sighted one sees the consequences.
+ */
+function choiceAccessibilityLabel(
+ choice: { text?: string },
+ enhancedChoice: EnhancedEventChoice,
+ note?: string,
+): string {
+ const parts = [choice.text || 'Continue'];
+ if (note) parts.push(note);
+ const gains = enhancedChoice.tradeoffs?.gain ?? [];
+ const losses = enhancedChoice.tradeoffs?.lose ?? [];
+ if (gains.length > 0) parts.push(`You gain ${gains.map((g) => g.label).join(', ')}`);
+ if (losses.length > 0) parts.push(`You lose ${losses.map((l) => l.label).join(', ')}`);
+ if (enhancedChoice.emotionalImpact) {
+ const impact = enhancedChoice.emotionalImpact === 'high' ? 'High' : enhancedChoice.emotionalImpact === 'medium' ? 'Medium' : 'Low';
+ parts.push(`${impact} impact`);
+ }
+ return parts.join('. ');
 }
 
 /**

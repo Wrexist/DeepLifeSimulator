@@ -181,7 +181,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
       />
 
       {/* Body input */}
-      <TextInput
+      <TextInput accessibilityLabel="Post text"
         value={content}
         onChangeText={(v) => { setContent(v); if (error) setError(null); }}
         placeholder={proActive ? "What's happening? (500 chars)" : "What's happening?"}
@@ -193,7 +193,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
       />
 
       {/* Hashtags input */}
-      <TextInput
+      <TextInput accessibilityLabel="Tags"
         value={hashtagsRaw}
         onChangeText={setHashtagsRaw}
         placeholder="#tags (space- or comma-separated, max 5)"

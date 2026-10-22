@@ -35,6 +35,17 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
       style={[styles.container, darkMode && styles.containerDark]}
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      // Info and Shop are drawn inside this card, which hides them from
+      // VoiceOver; expose them as custom actions on the card.
+      accessibilityActions={[
+        ...(onInfoPress ? [{ name: 'info', label: 'Prestige info' }] : []),
+        ...(onShopPress ? [{ name: 'shop', label: 'Prestige shop' }] : []),
+      ]}
+      onAccessibilityAction={(e) => {
+        if (e.nativeEvent.actionName === 'info') onInfoPress?.();
+        else if (e.nativeEvent.actionName === 'shop') onShopPress?.();
+      }}
     >
       <LinearGradient
         colors={
@@ -64,6 +75,8 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
             {onInfoPress && (
               <TouchableOpacity
                 style={styles.infoButton}
+                accessibilityRole="button"
+                accessibilityLabel="Prestige info"
                 onPress={e => {
                   e.stopPropagation();
                   onInfoPress();
@@ -83,6 +96,8 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
             {onShopPress && (
               <TouchableOpacity
                 style={styles.shopButton}
+                accessibilityRole="button"
+                accessibilityLabel="Prestige shop"
                 onPress={e => {
                   e.stopPropagation();
                   onShopPress();

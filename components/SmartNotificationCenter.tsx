@@ -225,10 +225,10 @@ export default function SmartNotificationCenter({
                       setShowSettings(!showSettings);
                     }}
                     style={styles.headerButton}
+                    hitSlop={hitSlopToMinTarget(36)}
                     accessibilityRole="button"
                     accessibilityLabel="Notification preferences"
                     accessibilityState={{ expanded: showSettings }}
-                    hitSlop={hitSlopToMinTarget(20)}
                   >
                     <Settings size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
@@ -239,8 +239,8 @@ export default function SmartNotificationCenter({
                       onClose();
                     }}
                     style={styles.headerButton}
+                    hitSlop={hitSlopToMinTarget(36)}
                     {...CLOSE_BUTTON_A11Y}
-                    hitSlop={hitSlopToMinTarget(20)}
                   >
                     <X size={20} color={gameState.settings.darkMode ? uiPalette.white : uiPalette.slate} />
                   </TouchableOpacity>
@@ -260,7 +260,7 @@ export default function SmartNotificationCenter({
                       style={styles.settingItem}
                       accessibilityRole="switch"
                       accessibilityLabel="Show Tips"
-                      accessibilityState={{ checked: notificationPreferences.showTips }}
+                      accessibilityState={{ checked: !!notificationPreferences.showTips }}
                     >
                       <View style={styles.settingInfo}>
                         <Lightbulb size={20} color="#F59E0B" />
@@ -280,7 +280,7 @@ export default function SmartNotificationCenter({
                       style={styles.settingItem}
                       accessibilityRole="switch"
                       accessibilityLabel="Show Milestones"
-                      accessibilityState={{ checked: notificationPreferences.showMilestones }}
+                      accessibilityState={{ checked: !!notificationPreferences.showMilestones }}
                     >
                       <View style={styles.settingInfo}>
                         <Calendar size={20} color="#3B82F6" />
@@ -300,7 +300,7 @@ export default function SmartNotificationCenter({
                       style={styles.settingItem}
                       accessibilityRole="switch"
                       accessibilityLabel="Show Warnings"
-                      accessibilityState={{ checked: notificationPreferences.showWarnings }}
+                      accessibilityState={{ checked: !!notificationPreferences.showWarnings }}
                     >
                       <View style={styles.settingInfo}>
                         <AlertCircle size={20} color="#F59E0B" />
@@ -320,7 +320,7 @@ export default function SmartNotificationCenter({
                       style={styles.settingItem}
                       accessibilityRole="switch"
                       accessibilityLabel="Show Suggestions"
-                      accessibilityState={{ checked: notificationPreferences.showSuggestions }}
+                      accessibilityState={{ checked: !!notificationPreferences.showSuggestions }}
                     >
                       <View style={styles.settingInfo}>
                         <MessageSquare size={20} color="#06B6D4" />

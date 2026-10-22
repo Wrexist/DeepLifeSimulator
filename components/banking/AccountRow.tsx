@@ -334,7 +334,7 @@ export default function AccountRow({
     <View
       style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
     >
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={onPress ? 0.7 : 1}
         onPress={onPress}
         disabled={!onPress}
@@ -375,7 +375,7 @@ export default function AccountRow({
       {showActions && (
         <View style={styles.actionsRow}>
           {onPress && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               onPress={onPress}
               style={[getGlassButton(darkMode), styles.actionBtn]}
             >
@@ -383,7 +383,7 @@ export default function AccountRow({
             </TouchableOpacity>
           )}
           {onWithdraw && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               onPress={onWithdraw}
               disabled={isLocked}
               style={[getGlassButton(darkMode), styles.actionBtn, isLocked && styles.actionDisabled]}
@@ -392,7 +392,7 @@ export default function AccountRow({
             </TouchableOpacity>
           )}
           {closeAction && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               onPress={closeAction}
               disabled={isLocked}
               style={[getGlassButton(darkMode), styles.actionBtn, isLocked && styles.actionDisabled]}

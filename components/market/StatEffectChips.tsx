@@ -18,6 +18,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Dumbbell, Heart, Smile, Zap } from 'lucide-react-native';
 import { fontScale, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { useTranslation } from '@/hooks/useTranslation';
+import { colors } from '@/lib/config/theme';
 
 export type StatEffectKey = 'health' | 'energy' | 'happiness' | 'fitness';
 
@@ -29,6 +30,8 @@ export interface StatEffect {
 
 interface StatMeta {
   color: string;
+  /** Label colour on a dark card (lighter tint of `color`, >= 4.5:1). */
+  textDark: string;
   labelKey: string;
   fallback: string;
   icon: React.ComponentType<{ size?: number; color?: string }>;
@@ -37,10 +40,13 @@ interface StatMeta {
 // Colors are the HUD's per-stat identity, not a second palette: health and
 // energy match the gradient heads in TopStatsBar, happiness matches its bar.
 const STAT_META: Record<StatEffectKey, StatMeta> = {
-  health: { color: '#EF4444', labelKey: 'game.health', fallback: 'Health', icon: Heart },
-  energy: { color: '#3B82F6', labelKey: 'game.energy', fallback: 'Energy', icon: Zap },
-  happiness: { color: '#F59E0B', labelKey: 'game.happiness', fallback: 'Happiness', icon: Smile },
-  fitness: { color: '#A855F7', labelKey: 'game.fitness', fallback: 'Fitness', icon: Dumbbell },
+  // `textDark` is the lighter tint of the same hue for the chip LABEL on a dark
+  // card: the saturated identity colour on its own 16% tint measured 3.9-4.2:1
+  // at 11pt (fitness/energy/health). Icon and border keep the identity colour.
+  health: { color: '#EF4444', textDark: '#F87171', labelKey: 'game.health', fallback: 'Health', icon: Heart },
+  energy: { color: '#3B82F6', textDark: '#60A5FA', labelKey: 'game.energy', fallback: 'Energy', icon: Zap },
+  happiness: { color: '#F59E0B', textDark: '#F59E0B', labelKey: 'game.happiness', fallback: 'Happiness', icon: Smile },
+  fitness: { color: '#A855F7', textDark: '#C084FC', labelKey: 'game.fitness', fallback: 'Fitness', icon: Dumbbell },
 };
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -92,7 +98,7 @@ export default function StatEffectChips({ effects, darkMode = false, caption }: 
               accessibilityLabel={`${sign}${effect.value} ${label}`}
             >
               <Icon size={scale(11)} color={meta.color} />
-              <Text style={[styles.chipText, { color: meta.color }]} numberOfLines={1}>
+              <Text style={[styles.chipText, { color: darkMode ? meta.textDark : meta.color }]} numberOfLines={1}>
                 {sign}{effect.value} {label}
               </Text>
             </View>
@@ -115,7 +121,8 @@ const styles = StyleSheet.create({
     letterSpacing: fontScale(0.5),
   },
   captionDark: {
-    color: 'rgba(226, 232, 240, 0.45)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
   },
   captionLight: {
     color: 'rgba(51, 65, 85, 0.55)',

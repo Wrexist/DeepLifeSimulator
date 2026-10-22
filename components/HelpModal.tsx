@@ -820,7 +820,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
             </TouchableOpacity>
           </View>
 
-          <TextInput
+          <TextInput accessibilityLabel="Search help"
             style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
             placeholder="Search..."
             placeholderTextColor={settings.darkMode ? uiPalette.muted : uiPalette.lightMuted}

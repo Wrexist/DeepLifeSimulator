@@ -207,7 +207,7 @@ function Field({
       </View>
       <View style={[styles.inputWrap, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}>
         {prefix ? <Text style={[styles.prefix, { color: theme.textSecondary }]}>{prefix}</Text> : null}
-        <TextInput
+        <TextInput accessibilityLabel={label}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}

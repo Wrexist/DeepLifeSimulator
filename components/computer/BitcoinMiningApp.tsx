@@ -877,7 +877,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
               activeOpacity={0.85}
               onPress={() => setSubView({ kind: 'rig', tierId: tier.id })}
               accessibilityRole="button"
-              accessibilityLabel={`View ${tier.label} rig details`}
+              accessibilityLabel={`View ${tier.label} rig details. ${owned} owned.`}
+              // The Buy button is drawn inside this row; an accessible row hides
+              // it from VoiceOver, so buying is also a custom action here.
+              accessibilityActions={buyDisabled ? undefined : [{ name: 'buy', label: `Buy ${tier.label} miner for ${formatMoneyCompact(price)}` }]}
+              onAccessibilityAction={(e) => {
+                if (e.nativeEvent.actionName === 'buy' && !buyDisabled) handleBuyMiner(tier.id);
+              }}
               style={[getGlassCard(darkMode, 6), styles.rigCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
               <View style={styles.rigHeader}>

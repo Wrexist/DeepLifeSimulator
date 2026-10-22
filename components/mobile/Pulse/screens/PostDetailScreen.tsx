@@ -219,7 +219,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
 
         {/* Sticky composer */}
         <View style={[styles.composer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-          <TextInput
+          <TextInput accessibilityLabel="Comment"
             value={draft}
             onChangeText={(v) => { setDraft(v); if (error) setError(null); }}
             placeholder="Add a comment…"

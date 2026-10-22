@@ -1,4 +1,4 @@
-import { uiPalette } from '@/lib/config/theme';
+import { uiPalette, colors } from '@/lib/config/theme';
 import { tier1Value } from '@/lib/config/hierarchy';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Platform } from 'react-native';
@@ -1396,7 +1396,8 @@ const styles = StyleSheet.create({
   footnote: {
     fontSize: fontScale(11),
     fontWeight: '500',
-    color: 'rgba(226, 232, 240, 0.45)',
+    // Was a low-alpha gray at ~2.4-3.9:1; the token passes AA on dark cards.
+    color: colors.dark.textMuted,
     lineHeight: fontScale(16),
     marginTop: verticalScale(4),
     marginBottom: verticalScale(10),

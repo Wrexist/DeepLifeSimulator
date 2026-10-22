@@ -24,6 +24,8 @@ import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant, rewardedAdReady } from '@/lib/ads/rewardedAd';
@@ -199,6 +201,16 @@ function AdRewardOrb() {
   const pulse = useRef(new Animated.Value(1)).current;
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+  // Reduce Motion: no endless pulse. Read through a ref so the orb's
+  // lifecycle effect (which owns its timers) does not re-run on a toggle.
+  const reducedMotion = useReducedMotion();
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
+  useEffect(() => {
+    if (!reducedMotion) return;
+    pulseLoop.current?.stop();
+    pulse.setValue(1);
+  }, [reducedMotion, pulse]);
   // Re-entrancy guard: blocks a rapid second tap from granting twice before the
   // sheet flips to the "granted" state (the direct-grant path is synchronous).
   const busyRef = useRef(false);
@@ -346,13 +358,15 @@ function AdRewardOrb() {
     // still gives feedback (see openAd) - that one is player-initiated.
     slideX.setValue(-160);
     Animated.spring(slideX, { toValue: 0, useNativeDriver: true, damping: 14, stiffness: 140 }).start();
-    pulseLoop.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.08, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    pulseLoop.current.start();
+    if (!reducedMotionRef.current) {
+      pulseLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.08, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        ]),
+      );
+      pulseLoop.current.start();
+    }
     addTimer(() => {
       // Auto-hide if ignored, then schedule the next one.
       hideOrb();
@@ -571,6 +585,12 @@ function AdRewardOrb() {
               onPress={openAd}
               accessibilityRole="button"
               accessibilityLabel={orbA11y}
+              // Dismiss is drawn inside the orb, which hides it from VoiceOver;
+              // expose it as a custom action on the orb itself.
+              accessibilityActions={[{ name: 'dismiss', label: 'Dismiss' }]}
+              onAccessibilityAction={(e) => {
+                if (e.nativeEvent.actionName === 'dismiss') dismissOrb();
+              }}
               style={[styles.orb, isCash ? styles.orbCash : styles.orbVitality, orbCollapsed && styles.orbCollapsed]}
             >
               <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.orbCircle}>
@@ -582,7 +602,7 @@ function AdRewardOrb() {
                   <Text style={styles.orbSub} numberOfLines={1}>Watch ad</Text>
                 </View>
               )}
-              <Pressable onPress={dismissOrb} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.orbClose}>
+              <Pressable onPress={dismissOrb} hitSlop={hitSlopToMinTarget(scale(18))} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.orbClose}>
                 <X size={scale(12)} color="rgba(255,255,255,0.85)" />
               </Pressable>
             </Pressable>

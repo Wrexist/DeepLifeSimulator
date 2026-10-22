@@ -421,7 +421,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                 <Text style={[styles.sectionTitle, styles.pathSectionTitle]}>Choose Your Path</Text>
 
                 {/* Reset Path */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[
                     styles.pathCard,
                     selectedPath === 'reset' && styles.pathCardSelected,
@@ -513,6 +513,13 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                   onPress={() => children.length > 0 && setSelectedPath('child')}
                   activeOpacity={children.length > 0 ? 0.8 : 1}
                   disabled={children.length === 0}
+                  // With children, the per-child heir buttons live INSIDE this
+                  // card, and an accessible card hides them from VoiceOver - so
+                  // the card steps out of the tree and each child is its own
+                  // button (picking one also picks this path).
+                  accessible={children.length === 0}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: children.length === 0, selected: selectedPath === 'child' }}
                 >
                   <View style={[
                     styles.pathCardInner,
@@ -598,6 +605,9 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                                   setSelectedChildId(child.id);
                                 }}
                                 activeOpacity={0.8}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Continue as ${child.name}, age ${childAge}`}
+                                accessibilityState={{ selected: isSelected }}
                               >
                                 <View style={styles.childImage}>
                                   <CharacterAvatar
@@ -696,7 +706,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                     <Text style={styles.keepItem}>Family tree and lineage</Text>
                   </View>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.lifeStoryButton}
                   onPress={() => setShowLifeStory(true)}
                   activeOpacity={0.7}
@@ -717,7 +727,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
             {/* Action Buttons */}
             {pendingSave && <Text accessibilityRole="alert" style={styles.subtitle}>Your new life needs saving. Retry without resetting again.</Text>}
             <View style={styles.actions}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.cancelButton}
                 disabled={saving || !!pendingSave}
                 onPress={showConfirmation ? () => setShowConfirmation(false) : onClose}

@@ -55,9 +55,14 @@ import usePressableScale from '@/hooks/usePressableScale';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
+import { actionColors } from '@/lib/config/theme';
 // Rarely-opened modals - lazy-loaded and only mounted when open, so they no
 // longer sit permanently mounted with visible={false} (which kept their trees
 // built on every TopStatsBar render).
+// HUD quick-action pills draw ~24pt tall (xs padding around a 16pt icon).
+const QUICK_ACTION_SLOP = hitSlopToMinTarget(scale(24)).top;
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
 // GemShopModal is no longer mounted here - the app-level GemStoreProvider
 // (contexts/AppProviders.tsx) owns the single mount. This bar deep-links into
@@ -551,8 +556,21 @@ function TopStatsBarComponent() {
  }
  }}
  activeOpacity={0.7}
- accessibilityLabel={accessibilityProps.accessibilityLabel}
+ // The number is IN the label: an explicit label overrides the child
+ // Text and the ProgressRing's accessibilityValue (a child of an
+ // accessible element is hidden on iOS), so "Health level, button"
+ // never told a VoiceOver player their health.
+ accessibilityLabel={`${statLabel} ${Math.round(value)} of ${max}${key === 'health' && hasDiseases ? `, ${diseases.length} active disease${diseases.length !== 1 ? 's' : ''}` : ''}`}
+ accessibilityValue={accessibilityProps.accessibilityValue}
  accessibilityRole="button"
+ // The disease badge is drawn inside this ring, so on iOS the ring
+ // hides it from VoiceOver. Expose it as a custom action instead.
+ accessibilityActions={key === 'health' && hasDiseases ? [{ name: 'diseases', label: 'View disease details' }] : undefined}
+ onAccessibilityAction={(event) => {
+ if (event.nativeEvent.actionName === 'diseases') {
+ setGameState(prev => ({ ...prev, showSicknessModal: true }));
+ }
+ }}
  accessibilityHint={
  key ==='energy'?`${accessibilityProps.accessibilityHint}. Tap to see energy breakdown. Long press to see quick actions.`: key ==='happiness'?`${accessibilityProps.accessibilityHint}. Tap to see happiness breakdown. Long press to see quick actions.`: key ==='health'?`${accessibilityProps.accessibilityHint}. Tap to see health breakdown. Long press to see quick actions.`:`${accessibilityProps.accessibilityHint}. Long press to see quick actions.`}
  >
@@ -586,7 +604,7 @@ function TopStatsBarComponent() {
  }));
  }}
  activeOpacity={0.7}
- hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+ hitSlop={hitSlopToMinTarget(scale(15))}
  accessibilityLabel={`${diseases.length} active disease${diseases.length!== 1 ?'s': ''}`}
  accessibilityRole="button"accessibilityHint="Tap to view disease details"
  >
@@ -629,6 +647,8 @@ function TopStatsBarComponent() {
  style={[styles.quickActionButton, used && { opacity: 0.45 }]}
  onPress={action.action}
  activeOpacity={0.7}
+ // ~24pt tall as drawn; vertical slop reaches 44pt (A11Y-14).
+ hitSlop={{ top: QUICK_ACTION_SLOP, bottom: QUICK_ACTION_SLOP }}
  accessibilityLabel={used ? `${action.label}, used this week` : action.label}
  accessibilityRole="button"
  accessibilityHint={used ? 'Available again next week' : `Quick action to improve ${statLabel.toLowerCase()}`}
@@ -656,7 +676,7 @@ function TopStatsBarComponent() {
  setOpenModal('moneyBreakdown');
  }}
  activeOpacity={0.7}
- accessibilityLabel={ACCESSIBILITY_HINTS.GAME_ELEMENTS.MONEY}
+ accessibilityLabel={`Cash: ${formatMoney(stats?.money ?? 0)}`}
  accessibilityRole="button"
  accessibilityHint="Tap to see your cash, savings and investments"
  style={styles.moneyChipTarget}
@@ -895,6 +915,16 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  ? scale(90)
 : (isVerySmallDevice ? scale(75): scale(85));
 
+ const monthLabel = (() => {
+ if (!date?.month) return 'Unknown';
+ const monthNum = typeof date.month === 'number'? date.month: parseInt(String(date.month), 10);
+ if (isNaN(monthNum)) return String(date.month).replace(/\s*Week\s*\d+/i,'').replace(/\d+/g, '').trim() || 'Unknown';
+ // Convert month number to month name (1-12)
+ const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+ return monthNames[Math.max(0, Math.min(11, monthNum - 1))] || 'Unknown';
+ })();
+ const currentWeekOfMonth = Math.min(4, Math.max(1, Math.floor(date?.week ?? 1)));
+
  // Calculate responsive margin for right section
  const rightSectionMargin = isVerySmallDevice
  ? responsiveSpacing.sm // Smaller margin on very small devices
@@ -917,6 +947,10 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  minHeight: dateBoxMinHeight,
  }
  ] as any}
+ // One announcement for the whole box: the week-of-month dots are the
+ // only place the week is shown, and they have no text to read.
+ accessible
+ accessibilityLabel={`${monthLabel} ${Math.floor(date?.year || 2025)}, week ${currentWeekOfMonth} of 4, age ${Math.floor(date?.age || 0)}`}
  >
  <View style={styles.dateInner}>
  <View style={styles.dateHeader}>
@@ -943,14 +977,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  adjustsFontSizeToFit={true}
  minimumFontScale={0.7}
  >
- {(() => {
- if (!date?.month) return 'Unknown';
- const monthNum = typeof date.month === 'number'? date.month: parseInt(String(date.month), 10);
- if (isNaN(monthNum)) return String(date.month).replace(/\s*Week\s*\d+/i,'').replace(/\d+/g, '').trim() || 'Unknown';
- // Convert month number to month name (1-12)
- const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
- return monthNames[Math.max(0, Math.min(11, monthNum - 1))] || 'Unknown';
- })()}
+ {monthLabel}
  </Text>
  <Text maxFontSizeMultiplier={1.3} style={[
  styles.ageText,
@@ -961,9 +988,8 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  ]}>Age {Math.floor(date?.age || 0)}</Text>
  <View style={styles.weekDots}>
  {[1, 2, 3, 4].map((w, idx) => {
- const currentWeek = Math.min(4, Math.max(1, Math.floor(date?.week ?? 1)));
- const isCurrent = w === currentWeek;
- const isPast = w < currentWeek;
+ const isCurrent = w === currentWeekOfMonth;
+ const isPast = w < currentWeekOfMonth;
  return (
  <Animated.View
  key={w}
@@ -1036,6 +1062,9 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  onPressOut={onPressOut}
  activeOpacity={0.7}
  disabled={isAdvancingWeek}
+ // Drawn at scale(40) to match the date box; the slop brings the
+ // primary action's target to 44pt without moving the layout.
+ hitSlop={hitSlopToMinTarget(scale(40))}
  accessibilityLabel={isAdvancingWeek ? 'Advancing to next week' : 'Advance to next week'}
  accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek, busy: isAdvancingWeek }}
  >
@@ -1044,7 +1073,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
      circle - the audit's clearest "primary action buried" finding. A word
      plus the arrow, sized to the date box above it, at the same corner it
      has always lived in. Flat fill (the gradient said nothing). */}
- <View style={[styles.nextWeekButton, { width: actionWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
+ <View style={[styles.nextWeekButton, { width: actionWidth, backgroundColor: isAdvancingWeek ? '#64748B' : actionColors.success }]}>
  {/* The arrow yields before the word does. The box is capped by the right
      column while the label scales with the device, so on a 360pt phone AND
      on a Pro Max the two do not fit together (and react-native-web ignores

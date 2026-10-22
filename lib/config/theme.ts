@@ -93,7 +93,11 @@ export const colors = {
     // nearly invisible. light300/light400 pass WCAG AA (~9.4:1 / ~5.9:1)
     // while keeping the secondary > muted hierarchy.
     textSecondary: palette.light300,
-    textMuted: palette.light400,
+    // A step lighter than light400 (#94A3B8), which measured 4.49:1 on
+    // surfaceElevated (dark700) and 4.26:1 on surfaceSelected - just under AA.
+    // #A3B1C6 is 5.3:1 / 5.0:1 there and 7.4:1 on dark800, still below
+    // textSecondary so the hierarchy holds.
+    textMuted: '#A3B1C6',
     overlay: 'rgba(0, 0, 0, 0.6)',
     glassBg: 'rgba(15, 23, 42, 0.3)',
     glassBorder: 'rgba(255, 255, 255, 0.15)',

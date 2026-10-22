@@ -201,7 +201,7 @@ export default function ManagePropertyModal({
 
               <View style={styles.chipRow}>
                 {(['longTerm', 'airbnb', ...(allowCommercial ? ['commercial' as RentMode] : [])] as RentMode[]).map((m) => (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={m}
                     onPress={() => setChosenMode(m)}
                     style={[
@@ -246,7 +246,7 @@ export default function ManagePropertyModal({
               )}
 
               <View style={styles.btnRow}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   disabled={rent <= 0}
                   onPress={() => onSetRentMode(chosenMode, rent)}
                   style={[styles.btn, { backgroundColor: rent > 0 ? accent.info : theme.border }]}
@@ -254,7 +254,7 @@ export default function ManagePropertyModal({
                   <Text style={styles.btnText}>Rent out</Text>
                 </TouchableOpacity>
                 {property.status === 'rented' && (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     onPress={onStopRenting}
                     style={[styles.btn, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}
                   >
@@ -297,7 +297,7 @@ export default function ManagePropertyModal({
               <Text style={[styles.helpText, { color: theme.textMuted }]}>
                 Restore condition to 100%. Cost scales with property value and how much damage there is.
               </Text>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 disabled={maintCost === 0 || availableCash < maintCost}
                 onPress={onMaintain}
                 style={[
@@ -326,7 +326,7 @@ export default function ManagePropertyModal({
 
                 {/* Upgrade tier */}
                 {onUpgrade && (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     disabled={!nextTier || availableCash < nextTierCost}
                     onPress={onUpgrade}
                     style={[
@@ -356,7 +356,7 @@ export default function ManagePropertyModal({
                     {availableRooms.map((r) => {
                       const affordable = availableCash >= r.cost;
                       return (
-                        <TouchableOpacity
+                        <TouchableOpacity accessibilityRole="button"
                           key={r.id}
                           disabled={!affordable}
                           onPress={() => onAddRoom(r.id)}
@@ -381,7 +381,7 @@ export default function ManagePropertyModal({
                     {availableDecor.map((d) => {
                       const affordable = availableCash >= d.cost;
                       return (
-                        <TouchableOpacity
+                        <TouchableOpacity accessibilityRole="button"
                           key={d.id}
                           disabled={!affordable}
                           onPress={() => onInstallDecor(d.id)}
@@ -416,7 +416,7 @@ export default function ManagePropertyModal({
                 <Text style={[styles.helpText, { color: theme.textMuted }]}>
                   Use this commercial property to launder dark-web BTC. Each active front cuts mixer fees and shortens delays.
                 </Text>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   onPress={onToggleLaunderingFront}
                   style={[styles.btn, { backgroundColor: property.launderingFront ? accent.danger : accent.purple }]}
                 >
@@ -436,7 +436,7 @@ export default function ManagePropertyModal({
                 Sells at market value. {percent(SALE_CLOSING_COST_RATE)} closing costs and {percent(PROPERTY_GAINS_TAX_RATE)} tax
                 on any gain come out first, then any mortgage is paid off. You would receive {dollars(sale.proceeds)}.
               </Text>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 onPress={() => {
                   gameAlert(
                     'Sell property?',
