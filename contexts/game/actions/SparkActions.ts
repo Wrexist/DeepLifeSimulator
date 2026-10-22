@@ -32,6 +32,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyStatsDelta } from './StatsActions';
 import { applyMoneyDelta } from './MoneyActions';
+import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { makeLifeRoll } from '@/utils/seededRoll';
 import {
   rollMatch,
@@ -647,6 +648,7 @@ export function resolveMatchPromotion(
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
+      lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
     },
   };
 }
@@ -810,6 +812,7 @@ export const promoteMatchToFriend = (
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
+      lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
     };
   });
 

@@ -4973,13 +4973,13 @@ exports[`pre-tick equivalence - applyVehiclesForWeek handles insured vehicle acc
     "gems": 0,
     "happiness": 100,
     "health": 82,
-    "money": 49751,
+    "money": 49930,
     "reputation": 50,
   },
   "notifications": [
     {
       "id": "vehicle-accident-insuredCar",
-      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -8. Repair cost: $179.",
+      "message": "Your InsuredCar was in a moderate accident! Condition: -30%, Health: -8. Repair estimate: $599 at the garage.",
       "title": "Vehicle Accident",
     },
   ],

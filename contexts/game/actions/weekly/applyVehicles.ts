@@ -15,9 +15,10 @@
  * also uses). Pre-roll arrays are kept for StrictMode determinism.
  *
  * Side effects (mutations of `ctx`):
- *   - `ctx.newStats.money`     — weekly cost + repair out-of-pocket
+ *   - `ctx.newStats.money`     — weekly running cost
  *   - `ctx.newStats.health`    — accident health loss (insurance-reduced)
- *   - `ctx.newStats.reputation` — gentle nudge from owned-vehicle rep
+ *   - `ctx.newStats.reputation` — gentle nudge from owned-vehicle rep, and the
+ *                                 take-back on a total loss
  *   - `ctx.notifications`      — accident push (incl. total-loss)
  *
  * Reads from `ctx`:
@@ -29,15 +30,15 @@
  * full fuel at the passive accident rate). The active vehicle pays full fuel
  * and carries the on-the-road accident premium; idle vehicles pay 25% fuel
  * (`lib/vehicles/runningCosts.ts` — shared with the expense panel and budget
- * mirror). On a total loss of the active vehicle the caller's
- * `activeVehicleId` may point at the removed id; every consumer resolves it
- * via `.find()`/`=== id` and is null-safe.
+ * mirror). A total loss takes back the reputation the car's purchase
+ * granted (as a sale does), and the orchestrator runs `settleTotaledVehicles`
+ * to move `activeVehicleId` off the wreck and unlink its auto loan.
  *
  * Returns the updated `Vehicle[]` (totaled vehicles removed). The caller writes
  * this back into the GameState (`vehicles: updatedVehicles`).
  */
 
-import type { Vehicle } from '@/contexts/game/types';
+import type { Loan, Vehicle } from '@/contexts/game/types';
 import {
   VEHICLE_WEEKLY_MILEAGE,
   VEHICLE_WEEKLY_CONDITION_DECAY,
@@ -49,6 +50,8 @@ import {
   type AccidentSeverity,
 } from '@/lib/vehicles/accidents';
 import { vehicleWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
+import { calculateRepairCostAfterInsurance } from '@/lib/vehicles/vehicles';
+import { reputationAfterVehicleSale, vehicleReputationTakeBack } from '../VehicleActions';
 import type { WeekContext } from './weekContext';
 import { chargeOrDefer } from './chargeOrDefer';
 
@@ -140,7 +143,13 @@ export function applyVehiclesForWeek(
       if (severity === 'total') {
         // Total loss - remove the vehicle (return null → filtered below). No
         // out-of-pocket repair: a totaled car isn't repaired. Mirrors
-        // processAccident's total-loss removal path.
+        // processAccident's total-loss removal path. The car's status goes
+        // with it, exactly as a sale takes it back - otherwise the reputation
+        // its purchase granted outlived the car.
+        ctx.newStats.reputation = reputationAfterVehicleSale(
+          ctx.newStats.reputation,
+          vehicleReputationTakeBack(v),
+        );
         ctx.notifications.push({
           id: `vehicle-accident-${v.id}`,
           message: `Your ${v.name} was totaled in an accident - it's a total loss. Health: -${healthLoss}.`,
@@ -151,18 +160,17 @@ export function applyVehiclesForWeek(
 
       v.condition = Math.max(0, v.condition - damage);
 
-      // Repair cost (partially covered by insurance). Guard v.price: a corrupt
-      // non-finite price would make repairCost NaN and poison money for the rest
-      // of the tick (Math.max(0, money - NaN) === NaN defeats the later guard).
-      const safePrice = typeof v.price === 'number' && isFinite(v.price) ? v.price : 0;
-      const repairCost = Math.floor(safePrice * damage * 0.001);
-      const outOfPocket = Math.floor(repairCost * (1 - coveragePercent / 100));
-      // An accident bill you cannot pay is still owed.
-      chargeOrDefer(ctx, outOfPocket);
+      // No automatic bill. This used to charge `price * damage * 0.001` here
+      // AND leave the condition lowered, so `repairVehicle` billed the same
+      // damage a second time (`calculateRepairCost` is the same formula). The
+      // damage is now billed once, when the player repairs it - with the
+      // insurance discount `repairVehicle` already applies. Leaving it
+      // unrepaired has its own cost: lower resale and higher accident odds.
+      const repairQuote = calculateRepairCostAfterInsurance(v);
 
       ctx.notifications.push({
         id: `vehicle-accident-${v.id}`,
-        message: `Your ${v.name} was in a ${severity} accident! Condition: -${damage}%, Health: -${healthLoss}. Repair cost: $${outOfPocket.toLocaleString('en-US')}.`,
+        message: `Your ${v.name} was in a ${severity} accident! Condition: -${damage}%, Health: -${healthLoss}. Repair estimate: $${repairQuote.toLocaleString('en-US')} at the garage.`,
         title: 'Vehicle Accident',
       });
     }
@@ -182,4 +190,37 @@ export function applyVehiclesForWeek(
   }
 
   return updatedVehicles;
+}
+
+/**
+ * Settle the vehicles the weekly accident roll totaled: the ids that went into
+ * `applyVehiclesForWeek` and did not come out (a total loss is its only removal
+ * path). Mirrors `sellVehicle` and the `lose_vehicle` event:
+ *  - `activeVehicleId` moves to another owned vehicle (or clears) rather than
+ *    pointing at a wreck;
+ *  - an auto loan on the wreck stays owed but loses its `vehicleId` link.
+ *    Vehicle ids are TEMPLATE ids, so a kept link would let the next purchase
+ *    of the same model match - and pay down - the stale loan.
+ * Returns the inputs by reference when nothing was totaled.
+ */
+export function settleTotaledVehicles(
+  prevVehicles: Vehicle[] | undefined | null,
+  updatedVehicles: Vehicle[],
+  activeVehicleId: string | undefined,
+  loans: Loan[] | undefined,
+): { activeVehicleId: string | undefined; loans: Loan[] | undefined; totaledIds: string[] } {
+  const remaining = new Set(updatedVehicles.map((v) => v.id));
+  const totaledIds = (prevVehicles || [])
+    .filter((v): v is Vehicle => !!v && !remaining.has(v.id))
+    .map((v) => v.id);
+  if (totaledIds.length === 0) return { activeVehicleId, loans, totaledIds };
+
+  const totaled = new Set(totaledIds);
+  const nextActive = activeVehicleId != null && totaled.has(activeVehicleId)
+    ? updatedVehicles.find((v) => v.owned)?.id
+    : activeVehicleId;
+  const nextLoans = loans && loans.some((l) => l.vehicleId != null && totaled.has(l.vehicleId))
+    ? loans.map((l) => (l.vehicleId != null && totaled.has(l.vehicleId) ? { ...l, vehicleId: undefined } : l))
+    : loans;
+  return { activeVehicleId: nextActive, loans: nextLoans, totaledIds };
 }

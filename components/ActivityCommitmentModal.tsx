@@ -110,9 +110,25 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
     onClose();
   };
 
+  // Preview the PENDING picks, not the saved ones. Reading the saved state
+  // showed "+0% progress, -0% energy cost" for exactly the area being chosen
+  // (it is not committed yet), so the player could not compare options before
+  // the 4-week lock. Commitment levels stay the saved ones - they are earned.
+  const previewState = useMemo(
+    () => ({
+      ...gameState,
+      activityCommitments: {
+        ...gameState.activityCommitments,
+        primary: selectedPrimary,
+        secondary: selectedSecondary,
+      },
+    }),
+    [gameState, selectedPrimary, selectedSecondary],
+  );
+
   const getAreaBonuses = (area: CommitmentArea) => {
-    const bonuses = getCommitmentBonuses(gameState, area);
-    const penalties = getCommitmentPenalties(gameState, area);
+    const bonuses = getCommitmentBonuses(previewState, area);
+    const penalties = getCommitmentPenalties(previewState, area);
     return { bonuses, penalties };
   };
 

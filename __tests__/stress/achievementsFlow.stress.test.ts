@@ -409,13 +409,16 @@ describe('Achievement / Progress audit', () => {
   });
 
   // ── ACCESSORS PRODUCE EXPECTED VALUES ──────────────────────────────────
-  it('Counter accessor: beginner_triple_digits goal = 100 fires when money >= 100', () => {
+  it('Counter accessor: beginner_triple_digits goal = 100 fires when $100 has been EARNED', () => {
+    // Money earned this life, not the cash balance (a starting balance used to
+    // complete it before the first action).
     const a = achievements.find(x => x.id === 'beginner_triple_digits')!;
     expect(a.progressSpec.kind).toBe('counter');
     const state = freshState();
-    state.stats.money = 99;
+    state.stats.money = 10_000;
+    state.lifetimeStatistics = { ...state.lifetimeStatistics!, totalMoneyEarned: 99 };
     expect((a.progressSpec as { current: (gs: GameState) => number; goal: number }).current(state)).toBe(99);
-    state.stats.money = 100;
+    state.lifetimeStatistics = { ...state.lifetimeStatistics!, totalMoneyEarned: 100 };
     expect((a.progressSpec as { current: (gs: GameState) => number; goal: number }).current(state)).toBe(100);
   });
 
