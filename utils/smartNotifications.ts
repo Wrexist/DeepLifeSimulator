@@ -2,6 +2,23 @@ import { GameState } from '@/contexts/game/types';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { showAchievementToast } from './achievementToast';
 import { FeedbackSystem } from './feedbackSystem';
+import { friendsOf } from '@/lib/events/socialCircle';
+
+/**
+ * Net worth rose at least 10% (and $1,000) between the two latest
+ * `netWorthHistory` samples, and the latest sample was taken this week - the
+ * only weeks on which "grown significantly" is a reading of the save rather
+ * than a guess. The samples are written every 10 weeks by the tick.
+ */
+export function wealthGrewRecently(state: GameState): boolean {
+  const history = state.lifetimeStatistics?.netWorthHistory;
+  if (!Array.isArray(history) || history.length < 2) return false;
+  const latest = history[history.length - 1];
+  const before = history[history.length - 2];
+  if (!latest || !before || latest.week !== (state.weeksLived || 0)) return false;
+  const gain = latest.value - before.value;
+  return gain >= 1000 && gain >= Math.abs(before.value) * 0.1;
+}
 
 export interface SmartNotification {
   id: string;
@@ -65,6 +82,15 @@ export interface SmartNotification {
      * daily reward. Program 6.
      */
     minWeeksInLife?: number;
+    /** At least one relationship of type `friend` (not the seeded parents). */
+    hasFriend?: boolean;
+    /** Any income has been earned this life (`lifetimeStatistics.totalMoneyEarned`). */
+    hasEarnedIncome?: boolean;
+    /**
+     * Net worth rose at least 10% (and $1,000) between the two latest
+     * `netWorthHistory` samples, and the latest was taken this week.
+     */
+    wealthGrewRecently?: boolean;
   };
   cooldown?: number; // hours between notifications
   lastShown?: number;
@@ -115,7 +141,9 @@ class SmartNotificationSystem {
         priority: 'medium',
         category: 'wealth',
         icon: '💰',
-        conditions: { minMoney: 100 },
+        // Earned, not held: every life starts with cash, so `minMoney` alone
+        // congratulated a player who had earned nothing (2026-10-21 audit).
+        conditions: { hasEarnedIncome: true },
         showOnce: true,
       },
       {
@@ -148,7 +176,8 @@ class SmartNotificationSystem {
         priority: 'medium',
         category: 'social',
         icon: '👥',
-        conditions: { minAge: 18 },
+        // A real friend, not just being 18 (2026-10-21 audit).
+        conditions: { hasFriend: true },
         showOnce: true,
       },
       {
@@ -418,10 +447,12 @@ class SmartNotificationSystem {
         id: 'wealth_growth',
         type: 'celebration',
         title: '📈 Wealth Growth!',
-        message: 'Excellent! Your wealth has grown significantly this week. You\'re on the right track!',
+        message: 'Excellent! Your net worth has grown significantly over the last ten weeks. You\'re on the right track!',
         priority: 'medium',
         category: 'wealth',
         icon: '📈',
+        // It had no condition at all, so it congratulated every life every week.
+        conditions: { wealthGrewRecently: true },
         cooldown: 168,
       },
 
@@ -586,8 +617,21 @@ class SmartNotificationSystem {
         case 'hasCrypto':
           if ((gameState.cryptos?.some(c => c.owned > 0) || false) !== (value as boolean)) return false;
           break;
-        case 'hasDebt':
-          if ((gameState.stats.money < 0) !== (value as boolean)) return false;
+        case 'hasDebt': {
+          // Cash is clamped at 0 everywhere, so `money < 0` alone never fired.
+          // Unpaid bills are the arrears bucket (v31 `overdueBalance`).
+          const inDebt = gameState.stats.money < 0 || (gameState.overdueBalance ?? 0) > 0;
+          if (inDebt !== (value as boolean)) return false;
+          break;
+        }
+        case 'hasFriend':
+          if ((friendsOf(gameState).length > 0) !== (value as boolean)) return false;
+          break;
+        case 'hasEarnedIncome':
+          if (((gameState.lifetimeStatistics?.totalMoneyEarned ?? 0) > 0) !== (value as boolean)) return false;
+          break;
+        case 'wealthGrewRecently':
+          if (wealthGrewRecently(gameState) !== (value as boolean)) return false;
           break;
         case 'isInJail':
           if ((gameState.jailWeeks > 0) !== (value as boolean)) return false;
@@ -644,8 +688,15 @@ class SmartNotificationSystem {
    */
   public earnedShowOnceIds(context: NotificationContext): string[] {
     const now = Date.now();
+    // The FULL eligibility test, conditions included. Checking only the
+    // age/money ranges seeded 'married' and 'first_child' into every legacy
+    // save - unmarried and childless ones too - and suppressed those moments
+    // forever (2026-10-21 audit).
     return this.notifications
-      .filter((n) => n.showOnce && this.shouldShowNotification(n, context, now))
+      .filter((n) =>
+        n.showOnce &&
+        this.shouldShowNotification(n, context, now) &&
+        (!n.conditions || this.checkConditions(n.conditions, context.gameState)))
       .map((n) => n.id);
   }
 

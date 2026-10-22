@@ -127,7 +127,8 @@ export const FOLLOW_UP_EVENTS = {
     id: 'friend_job_offer',
     description: 'Your old friend reached out again - their company has an opening they think would be perfect for you!',
     choices: [
-      { id: 'interview', text: 'Schedule an interview', effects: { stats: { happiness: 10, reputation: 5 } } },
+      // No job is created by this choice; the copy says what it does.
+      { id: 'interview', text: 'Grab coffee and hear them out', effects: { stats: { happiness: 10, reputation: 5 } } },
       { id: 'decline', text: 'Decline politely', effects: {} },
     ],
   },

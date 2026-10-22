@@ -12,6 +12,16 @@ import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { getAge as canonicalAge, weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { ADULTHOOD_AGE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
+/**
+ * Weeks since birth. `weeksLived` is NOT that: it counts from the 18th
+ * birthday ((age - 18) * 52 at the start of a life, CLAUDE.md §4.2), so the
+ * palindrome secret told an age-25 character they had been alive ~400 weeks.
+ */
+function weeksAlive(state: GameState): number {
+  return Math.max(0, (state.weeksLived ?? 0) + ADULTHOOD_AGE * WEEKS_PER_YEAR);
+}
 
 /**
  * Net worth, from the CANONICAL implementation. This was a byte-identical copy
@@ -222,7 +232,7 @@ const unluckyThirteen: EventTemplate = {
  generate: () => ({
  id: 'secret_unlucky_13',
  description:
- " Today feels... ominous. A black cat crosses your path. You walk under a ladder. You break a mirror. All in one day.",
+ "Today feels... ominous. A black cat crosses your path. You walk under a ladder. You break a mirror. All in one day.",
  choices: [
  {
  id: 'superstitious',
@@ -250,7 +260,7 @@ const exactlyBroke: EventTemplate = {
  generate: () => ({
  id: 'secret_exactly_broke',
  description:
- " You have exactly $1 to your name. A coin lands heads-up in front of you. Is this a sign?",
+ "You have exactly $1 to your name. A coin lands heads-up in front of you. Is this a sign?",
  choices: [
  {
  id: 'pick_up',
@@ -279,7 +289,7 @@ const achievementHunter: EventTemplate = {
  const count = getAchievementCount(state);
  return {
  id: 'secret_achievement_hunter',
- description: ` With ${count} achievements unlocked, you've attracted the attention of a secret society of overachievers. They invite you to join their exclusive club.`,
+ description: `With ${count} achievements unlocked, you've attracted the attention of a secret society of overachievers. They invite you to join their exclusive club.`,
  choices: [
  {
  id: 'join',
@@ -305,13 +315,12 @@ const palindromeAge: EventTemplate = {
  weight: 100,
  oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
- const wl = s.weeksLived ?? 0;
- const str = String(wl);
+ const str = String(weeksAlive(s));
  return str.length >= 3 && str === str.split('').reverse().join('');
  },
  generate: (state) => ({
  id: 'secret_palindrome',
- description: ` You've been alive for exactly ${state.weeksLived} weeks - a palindrome number! A math professor stops you on the street to congratulate you.`,
+ description: `You've been alive for exactly ${weeksAlive(state)} weeks - a palindrome number! A math professor stops you on the street to congratulate you.`,
  choices: [
  {
  id: 'celebrate',
@@ -378,7 +387,7 @@ const fullCircle: EventTemplate = {
  const lastAge = lastLife?.ageAtDeath ?? 0;
  return {
  id: 'secret_full_circle',
- description: ` You just turned ${lastAge} - the exact age you died in your previous life. A chill runs down your spine. Déjà vu hits hard.`,
+ description: `You just turned ${lastAge} - the exact age you died in your previous life. A chill runs down your spine. Déjà vu hits hard.`,
  choices: [
  {
  id: 'determined',
