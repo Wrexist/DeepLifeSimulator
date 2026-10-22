@@ -480,6 +480,79 @@ const CARVE_OUTS: CarveOut[] = [
     value: 3,
     build: () => campaignState(),
   },
+  {
+    version: 57,
+    path: 'ageOffsetWeeks',
+    // The weeks a Youth Pill took off. Erased on load, the character would
+    // jump straight back to their true age (CMP-11).
+    value: 1_040,
+    build: () => ({ ...base(), ageOffsetWeeks: 1_040 }),
+  },
+  {
+    version: 57,
+    path: 'settings.notificationPrefs',
+    // The panel's category toggles. Erased on load, every category the
+    // player switched off comes back on (CMP-4).
+    value: { showTips: false, showMilestones: true, showWarnings: false, showSuggestions: true },
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        settings: {
+          ...b.settings,
+          notificationPrefs: { showTips: false, showMilestones: true, showWarnings: false, showSuggestions: true },
+        },
+      };
+    },
+  },
+  {
+    version: 57,
+    path: 'cryptoMarket.weekVolume',
+    // This week's traded notional. Erased on load, a save-and-reload between
+    // orders would reset the week's volume and split orders would skip
+    // slippage again (ECO-2).
+    value: { weeksLived: 3_700, bySymbol: { btc: 2_000_000 } },
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        cryptoMarket: { ...(b.cryptoMarket as NonNullable<GameState['cryptoMarket']>), weekVolume: { weeksLived: 3_700, bySymbol: { btc: 2_000_000 } } },
+      };
+    },
+  },
+  {
+    version: 57,
+    path: 'stocks.weekVolume',
+    // The stock twin of the row above (ECO-2).
+    value: { weeksLived: 3_700, bySymbol: { AAPL: 5_000_000 } },
+    build: () => {
+      const b = base();
+      return {
+        ...b,
+        stocks: { ...(b.stocks as NonNullable<GameState['stocks']>), weekVolume: { weeksLived: 3_700, bySymbol: { AAPL: 5_000_000 } } },
+      };
+    },
+  },
+  {
+    version: 57,
+    path: 'deathRibbonPaidForLife',
+    // The life whose death ribbon was paid. Erased on load, a reload past the
+    // death tick would pay the ribbon again (LATE-13).
+    value: 'lineage-x:1',
+    build: () => ({ ...base(), deathRibbonPaidForLife: 'lineage-x:1' }),
+  },
+  {
+    version: 57,
+    path: 'settings.lastAdVitalityGrantWeek',
+    // The week the vitality orb was last taken. Erased on load, a relaunch
+    // would re-arm the refill inside the same game week (MON-4) - the v28
+    // restart-farm shape.
+    value: 3_700,
+    build: () => {
+      const b = base();
+      return { ...b, settings: { ...b.settings, lastAdVitalityGrantWeek: 3_700 } };
+    },
+  },
 ];
 
 /** A factory founded at `week` - the v56 rows' company. */
@@ -591,8 +664,12 @@ describe('the §7 carve-out fields survive the load merge', () => {
     // carve-outs where each branch had one. 27 with v52 `adsRemovedHeldForPlus`,
     // 28 with v55 `Vehicle.reputationGranted`, 32 with v56 `Company.foundedWeek`,
     // `ipoListedCompanyIds`, `VehicleInsurance.conditionAtPurchase` and
-    // `HustleCampaign.brandLiftGranted`.
-    expect(CARVE_OUTS).toHaveLength(32);
+    // `HustleCampaign.brandLiftGranted`. 38 with v57's six: `ageOffsetWeeks`,
+    // `settings.notificationPrefs`, `cryptoMarket.weekVolume`,
+    // `stocks.weekVolume`, `deathRibbonPaidForLife` and
+    // `settings.lastAdVitalityGrantWeek`. (v57 ALSO reprices the stored career
+    // ladders, the v54 shape, but it is not a NON_FIELD bump: it adds fields.)
+    expect(CARVE_OUTS).toHaveLength(38);
     // Bumps that add NO field, so they have no row here: v53 reprices the
     // stored diet catalogue; v54 reprices careers/street jobs/items and mints
     // `lineageId`. Declared, so an undeclared new field still fails.
@@ -685,6 +762,24 @@ describe('a full save → envelope → load → migrate → repair round trip', 
       createTestGameState({ settings: { lastNoFillGrantWeek: 3_777 }, version: STATE_VERSION }),
     );
     expect(out.settings.lastNoFillGrantWeek).toBe(3_777);
+  });
+
+  it('keeps the v57 carve-outs through the real storage layer (age offset, prefs, orb, ribbon)', async () => {
+    const s = createTestGameState({ version: STATE_VERSION });
+    const out = await roundTrip({
+      ...s,
+      ageOffsetWeeks: 520,
+      deathRibbonPaidForLife: 'lineage-y:2',
+      settings: {
+        ...s.settings,
+        lastAdVitalityGrantWeek: 3_701,
+        notificationPrefs: { showWarnings: false },
+      },
+    });
+    expect(out.ageOffsetWeeks).toBe(520);
+    expect(out.deathRibbonPaidForLife).toBe('lineage-y:2');
+    expect(out.settings.lastAdVitalityGrantWeek).toBe(3_701);
+    expect(out.settings.notificationPrefs).toEqual({ showWarnings: false });
   });
 
   it('keeps lifeStartWeek (v43) - the baseline `weeksInThisLife` reads', async () => {

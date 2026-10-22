@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 56`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 57`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -542,7 +542,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 56`** — single source of truth in
+- **Canonical `STATE_VERSION = 57`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -1006,6 +1006,37 @@ including the crash screen.
   something the player legitimately had. `ipoListedCompanyIds` is per life
   because prestige and heirs rebuild from `initialGameState`; it must not move
   into `hustleApp.lifetimeStats`, which carries across prestige.
+- **v57 adds six CARVE-OUTS and reprices the stored career ladders** (owner
+  decisions, 2026-10-22). One bump, two halves - the v55 shape.
+  The by-value half is the v54 rule: `careers[].levels[].salary` is saved and
+  read by payroll, so the new ladders (therapist and vet $250 -> $1,600,
+  architect $350 -> $2,200, journalist $180 -> $1,150, military to $900,
+  firefighter to $950; janitor / retail / fast food lifted to $520 / $500 /
+  $450) re-run `adoptStoredCatalogueValues` for KNOWN ids; progress and
+  unknown ids are untouched, and there is no repair mirror for that half.
+  The six fields all default `undefined`, so no backfill and no
+  `repairGameState` mirror, and absence resolves to exactly what a pre-v57
+  save already does:
+  `ageOffsetWeeks` (CMP-11 - the weeks a Youth Pill took off; `getAge`
+  subtracts it, absent = 0; writing a value would age or de-age a character),
+  `settings.notificationPrefs` (CMP-4 - the panel's category toggles, read by
+  the ticker through `resolveNotificationPrefs`; absent or any key absent =
+  ON; it is a device preference, so it is in `USER_PREFERENCE_SETTINGS_KEYS`),
+  `cryptoMarket.weekVolume` / `stocks.weekVolume` (ECO-2 - this game week's
+  traded notional per symbol, keyed on `weeksLived`; slippage is charged on
+  the WEEK's volume, path-independently, so splitting an order no longer
+  avoids it; a record from another week reads 0, so absent = nothing traded),
+  `deathRibbonPaidForLife` (LATE-13 - the `lifeSalt` whose death ribbon was
+  paid; rewind carries the LIVE value like `ribbonCollection`, so rewinding
+  past the death cannot pay it twice; stamping one would deny a life its
+  ribbon) and `settings.lastAdVitalityGrantWeek` (MON-4 - the vitality orb is
+  one refill per game week, gated and stamped in ONE updater (§4.4), refill
+  through `applyStatsDelta` so the happiness half is scaled; the v35 cash
+  reasoning - stamping the week would deny an existing player their next
+  refill). Same release, no schema: `loans` left `repairGameState`'s
+  required-array table (optional, no default, every reader guards it - it
+  logged a "corruption" repair on every load), and `loadGame` defaults an
+  absent `checkpoints` to `[]` after the sidecar step for the same reason.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

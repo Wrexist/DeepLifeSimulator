@@ -1500,6 +1500,45 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 56;
     return state;
   },
+  /**
+   * v57 - the owner-decision bump (audit 2026-10-21). One real change and six
+   * carve-outs.
+   *
+   * (1) Career ladders, the v54 rule. The 2026-10-22 ladders (therapist and
+   * vet $250 -> $1,600, architect $350 -> $2,200, journalist $180 -> $1,150,
+   * military top $900, firefighter top $950, janitor/retail/fast food tops
+   * $520/$500/$450) are stored BY VALUE in `careers[].levels`, which payroll
+   * reads, so without this they would reach new lives only. For KNOWN ids the
+   * code's per-level `name`/`salary` is adopted; the player's `level`,
+   * `progress`, `accepted` and every other progress field are untouched, and
+   * so are unknown ids. `adoptStoredCatalogueValues` also re-adopts street-job
+   * pay and item prices, which is a no-op for a save v54 already brought up to
+   * date. No `repairGameState` mirror: repair restores a MISSING catalogue from
+   * the current defaults, so a partial save gets the new ladders that way.
+   *
+   * (2) CARVE-OUTS: no backfill, no `repairGameState` mirror, absence resolves
+   * to the old behaviour or to the honest empty answer:
+   *   - `ageOffsetWeeks` (CMP-11): absent = 0. Only a Youth Pill used from now
+   *     on writes it. A pill used before v57 reset `date.age` alone; writing an
+   *     offset for it would have to guess when it was taken.
+   *   - `settings.notificationPrefs` (CMP-4): absent = every kind ON, which is
+   *     what the ticker has always shown. The old toggles were never saved, so
+   *     there is nothing to carry.
+   *   - `stocks.weekVolume` / `cryptoMarket.weekVolume` (ECO-2): absent =
+   *     nothing traded this week. Stamping a volume would charge slippage on
+   *     trades never made.
+   *   - `deathRibbonPaidForLife` (LATE-13): absent = not paid for this life.
+   *     A save cannot show whether its current life already paid (a revived
+   *     death left no record), so the one double-pay a pre-v57 revive could
+   *     still collect is accepted rather than denying a first legitimate pay.
+   *   - `settings.lastAdVitalityGrantWeek` (MON-4): absent = not claimed this
+   *     week. Stamping it would refuse an existing player's next refill.
+   */
+  57: (state) => {
+    adoptStoredCatalogueValues(state);
+    state.version = 57;
+    return state;
+  },
 };
 
 /**
@@ -1539,7 +1578,7 @@ export function deriveLineageId(state: unknown): string {
   return `life_v54_${a.toString(36)}${b.toString(36)}`;
 }
 
-/** v54 (1): adopt the code catalogue's prices/pay for known ids, in place. */
+/** v54 (1) and v57 (1): adopt the code catalogue's prices/pay for known ids, in place. Idempotent. */
 function adoptStoredCatalogueValues(state: any): void {
   const levelsById = new Map<string, readonly { name: string; salary: number }[]>();
   for (const c of [...INITIAL_CAREERS, ...ADVANCED_CAREERS, POLITICAL_CAREER]) {

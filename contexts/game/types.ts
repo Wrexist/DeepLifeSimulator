@@ -1246,6 +1246,21 @@ export interface CryptoMarketState {
   halvingCount?: number;
   /** Last observed economy state — drives regime forcing. */
   lastEconomyState?: 'normal' | 'recession' | 'boom' | 'crash';
+  /**
+   * Notional traded per coin in the current game week (v57 carve-out). The
+   * crypto twin of `stocks.weekVolume`; absent = nothing traded this week.
+   */
+  weekVolume?: WeeklyTradedVolume;
+}
+
+/**
+ * USD notional traded per symbol/coin in ONE game week (v57). Keyed by the
+ * `weeksLived` it was recorded in, so a record from any other week reads as
+ * zero and there is nothing to reset on the tick.
+ */
+export interface WeeklyTradedVolume {
+  weeksLived: number;
+  bySymbol: Record<string, number>;
 }
 
 export interface UserProfile {
@@ -1992,6 +2007,34 @@ export interface GameSettings {
    */
   lastAdCashGrantWeek?: number;
   /**
+   * Game-week marker capping rewarded-ad VITALITY grants to one per game week
+   * (v57), the twin of `lastAdCashGrantWeek`. The vitality orb was deliberately
+   * ungated, so a player watching every orb refilled health, happiness and
+   * energy every 6-10 real minutes and the survival pressure the early-game
+   * balance is measured on did not exist for them.
+   *
+   * Default `undefined` — a carve-out. Stamping a week would deny an existing
+   * player their next legitimate refill.
+   */
+  lastAdVitalityGrantWeek?: number;
+  /**
+   * Which kinds of smart notification the player wants (v57). Written by the
+   * toggles in the Smart Notifications panel and read by the ticker that
+   * actually raises them; before this the toggles were local state the ticker
+   * never saw, and they reset on relaunch.
+   *
+   * Default `undefined` — a carve-out: absent (or an absent key) means ON,
+   * which is what every earlier save has been getting. Read through
+   * `resolveNotificationPrefs` (utils/smartNotifications.ts). A device
+   * preference, so it is carried across lives (`USER_PREFERENCE_SETTINGS_KEYS`).
+   */
+  notificationPrefs?: {
+    showTips?: boolean;
+    showMilestones?: boolean;
+    showWarnings?: boolean;
+    showSuggestions?: boolean;
+  };
+  /**
    * Game-week marker capping the WELCOME-BACK cash bonus to one per game week
    * (v44).
    *
@@ -2708,6 +2751,30 @@ export interface GameState {
   userProfile: UserProfile;
   currentJob?: string;
   youthPills: number;
+  /**
+   * Weeks a Youth Pill has taken off the character's age (v57). `weeksLived`
+   * is absolute and cannot move back, so the pill used to reset only the
+   * displayed `date.age` while `getAge` (pensions, Elder card, chapter age
+   * goals, the old-age events) kept reading the real counter: Home showed 18
+   * beside an Elder card offering retirement at 72. `getAge` subtracts this;
+   * the pill sets it to `weeksLived` so the character is 18 again everywhere.
+   *
+   * Default `undefined` — a carve-out: absent means 0, which is the truth for
+   * every save in which no pill has been used since v57. Per life: prestige and
+   * heirs rebuild from `initialGameState`, which has no entry.
+   */
+  ageOffsetWeeks?: number;
+  /**
+   * The life whose death ribbon and capstone Legacy Points have been paid
+   * (v57), as `lifeSalt` (`lineageId:generationNumber`). A revive keeps
+   * `legacyPoints` and the ribbon collection, so the next death of the SAME
+   * life used to pay the capstone again and append a second ribbon.
+   *
+   * Default `undefined` — a carve-out: absent = nothing paid for this life yet,
+   * the only safe reading for an earlier save. Carried from the live state on a
+   * Time Machine rewind, like the ribbon collection it guards.
+   */
+  deathRibbonPaidForLife?: string;
   showWelcomePopup: boolean;
   hasSeenJobTutorial: boolean;
   settings: GameSettings;
@@ -2939,6 +3006,14 @@ export interface GameState {
     totalDividends?: number;
     /** Dividends paid this game-year (resets at year boundary). */
     dividendsThisYear?: number;
+    /**
+     * Notional traded per symbol in the current game week (v57 carve-out).
+     * Slippage is charged on the WEEK's cumulative volume, so splitting one
+     * big order into ceiling-sized chunks no longer avoids it. Absent = nothing
+     * traded this week; a record stamped with another `weeksLived` reads as
+     * empty. See `lib/markets/orderBook.ts`.
+     */
+    weekVolume?: WeeklyTradedVolume;
   };
   /**
    * Perk flags, keyed by perk id.
