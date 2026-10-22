@@ -3,9 +3,13 @@ import path from 'path';
 import {
   applyIdentityDraftToOnboardingState,
   canContinueFromIdentityDraft,
+  identityDraftFromEditor,
   shouldGenerateInitialIdentityName,
   shouldRegenerateIdentityNameForSexChange,
 } from '@/src/features/onboarding/customizeIdentity';
+import { PORTRAIT_PRESETS } from '@/lib/avatar/portraitPresets';
+import { encodeAvatar, decodeAvatar } from '@/lib/avatar/encode';
+import { randomAvatar } from '@/lib/avatar/random';
 
 describe('Customize identity logic', () => {
   describe('shouldGenerateInitialIdentityName', () => {
@@ -177,5 +181,35 @@ describe('typed names are bounded', () => {
     const card = read('components/IdentityCard.tsx');
 
     expect(card).toMatch(/styles\.name, styles\.nameDark\]\} numberOfLines=\{1\}/);
+  });
+});
+
+describe('identityDraftFromEditor', () => {
+  const hidden = randomAvatar('female');
+  const editor = {
+    firstName: ' Ada ',
+    lastName: ' Lovelace ',
+    sex: 'female' as const,
+    sexuality: 'bi' as const,
+    artMode: 'portrait' as const,
+    portraitId: 'portrait-v1:sage' as const,
+    avatar: hidden,
+  };
+
+  it('stores the PORTRAIT face in portrait mode, so children inherit what the player saw (ONB-8)', () => {
+    const draft = identityDraftFromEditor(editor);
+    expect(draft.avatarId).toBe('portrait-v1:sage');
+    expect(decodeAvatar(draft.avatar)).toEqual(PORTRAIT_PRESETS['portrait-v1:sage']);
+  });
+
+  it('stores the custom face and no portrait id in custom mode', () => {
+    const draft = identityDraftFromEditor({ ...editor, artMode: 'custom' });
+    expect(draft.avatarId).toBeUndefined();
+    expect(draft.avatar).toBe(encodeAvatar(hidden));
+  });
+
+  it('trims names only when asked (live mirroring keeps what is typed)', () => {
+    expect(identityDraftFromEditor(editor).firstName).toBe(' Ada ');
+    expect(identityDraftFromEditor(editor, { trim: true }).firstName).toBe('Ada');
   });
 });

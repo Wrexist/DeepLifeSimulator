@@ -8,6 +8,7 @@ import { responsiveSpacing as layoutSpace, responsiveBorderRadius as layoutRadiu
 import { uiPalette , colors as themeColors } from '@/lib/config/theme';
 import React, { useState, useEffect, useMemo } from 'react';
 import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
+import { applicationBlockReason } from '@/lib/careers/applicationOdds';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
 import { paidCareerCeiling, paidWeeklyCareerSalary, paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -849,14 +850,24 @@ function WorkScreenContent() {
             lockReason = lockReqs.length > 0
                 ? `Requires - ${lockReqs.join(' · ')}`
                 : 'Locked until you meet its requirements.';
+        } else if (applicationBlockReason(gameState)) {
+            // The same employed / retired / already-pending gates the basic
+            // board enforces. Without them the application was accepted here
+            // and then never reviewed, so it read "pending" forever (TAB-1).
+            buttonText = t('work.apply');
+            locked = true;
+            lockReason = applicationBlockReason(gameState) ?? undefined;
         } else {
             buttonText = t('work.apply');
             onPress = () => {
                 // Atomic gate: re-check against prev so a same-batch double-tap can't
-                // push the same career twice (duplicate rows corrupt downstream finds).
+                // push the same career twice (duplicate rows corrupt downstream finds),
+                // and so a job / retirement / pending application that landed in
+                // the same batch still refuses it.
                 setGameState(prev => {
                     const careers = prev.careers || [];
                     if (careers.some(c => c.id === career.id)) return prev;
+                    if (applicationBlockReason(prev)) return prev;
                     return { ...prev, careers: [...careers, { ...career, applied: true }] };
                 });
                 // Defer past the commit + parent ref-sync so the new application
@@ -1017,7 +1028,10 @@ function WorkScreenContent() {
                                 <View style={local.heroRow}>
                                     <ProgressRing
                                         value={currentJobAtMax ? 100 : currentJob.progress}
-                                        size={86}
+                                        size={scale(86)}
+                                        // No orbiting sweep: at 0% it lit ~12% of the arc and
+                                        // read as progress not yet made (VIS-11), as on the HUD.
+                                        ambient={false}
                                         state={currentJobAtMax ? 'done' : 'active'}
                                         label={currentJobAtMax ? 'Fully promoted' : `Promotion progress ${currentJob.progress}%`}
                                     >
@@ -1034,7 +1048,7 @@ function WorkScreenContent() {
                                         {/* The paid figure leads the meta line: it is the number the
                                             job is about, and it used to be smaller here than on every
                                             listing below. */}
-                                        <Text style={local.heroMeta} numberOfLines={1}>
+                                        <Text style={local.heroMeta} numberOfLines={2}>
                                             {formatMoney(currentJobSalary)}/wk · Lv {currentJob.level + 1}/{currentJob.levels.length}
                                             {currentJobRaisePct > 0 ? ` · +${currentJobRaisePct}%` : ''}
                                         </Text>
@@ -1046,7 +1060,9 @@ function WorkScreenContent() {
                                                 ? 'Top of the ladder'
                                                 : currentJobCanPromote
                                                     ? 'Promotion ready'
-                                                    : currentJobGateReason ?? `${Math.max(0, 100 - currentJob.progress)}% to next level`}
+                                                    // Progress MADE, not remaining: "100% to next level"
+                                                    // at 0% read as a promotion that was due (VIS-11).
+                                                    : currentJobGateReason ?? `${Math.max(0, Math.min(100, Math.round(currentJob.progress)))}% toward Lv ${currentJob.level + 2}`}
                                         </Text>
                                     </View>
                                 </View>
@@ -1382,7 +1398,14 @@ function WorkScreenContent() {
                     importantForAccessibility="no"
                     onPress={() => setManageJobId(null)}
                 >
-                    <View style={local.sheet} accessibilityViewIsModal>
+                    {/* Claims the touch so a tap on the title or the gaps between
+                        buttons does not bubble to the backdrop and close the
+                        sheet; bottom padding clears the home indicator (TAB-11). */}
+                    <View
+                        style={[local.sheet, { paddingBottom: layoutSpace.xl + insets.bottom }]}
+                        accessibilityViewIsModal
+                        onStartShouldSetResponder={() => true}
+                    >
                         <View style={local.sheetHandle} />
                         <Text style={local.sheetTitle}>Your Job</Text>
                         <Text style={local.sheetSubtitle}>What would you like to do?</Text>

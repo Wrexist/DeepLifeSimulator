@@ -47,6 +47,7 @@ import {
   applyChallengeSelectionToOnboardingState,
   applyLifePathSelectionToOnboardingState,
   canContinueFromScenarioSelection,
+  challengeStartFromConditions,
   getInitialScenarioTab,
 } from '@/src/features/onboarding/scenariosFlow';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
@@ -93,6 +94,12 @@ const CHALLENGE_ICONS: Record<string, ImageSourcePropType> = {
 };
 
 const RECOMMENDED_SCENARIO_ID = 'food_courier';
+
+/** Challenges store 'college', life paths 'College': show one spelling. */
+const formatEducationLabel = (education: string | undefined): string => {
+  if (!education) return 'None';
+  return formatTokenLabel(education);
+};
 
 // Display-only ordering so brand-new players see the gentlest starts first.
 // (We sort a copy for rendering - the source `scenarios` array and every lookup
@@ -276,9 +283,28 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             <Text style={styles.cardDescription} numberOfLines={2}>
               {scenario.description}
             </Text>
-            <Text style={styles.goalText} numberOfLines={1}>
-              Goal: {scenario.lifeGoal}
-            </Text>
+            {/* A challenge's goal is its first win condition, which IS tracked.
+                A life path's `lifeGoal` is flavour with no tracker behind it,
+                so it reads as a theme, and its `bonus` - the only copy that
+                states what the start actually does - is shown (ONB-11). */}
+            {isChallenge ? (
+              <Text style={styles.goalText} numberOfLines={1}>
+                Goal: {scenario.lifeGoal}
+              </Text>
+            ) : (
+              <>
+                {scenario.lifeGoal && scenario.lifeGoal !== 'Any' ? (
+                  <Text style={styles.goalText} numberOfLines={1}>
+                    Theme: {scenario.lifeGoal}
+                  </Text>
+                ) : null}
+                {scenario.bonus ? (
+                  <Text style={styles.cardDescription} numberOfLines={3}>
+                    {scenario.bonus}
+                  </Text>
+                ) : null}
+              </>
+            )}
 
             <View style={styles.statsRow}>
               <View style={styles.statCell}>
@@ -291,7 +317,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
               </View>
               <View style={styles.statCell}>
                 <Text style={styles.statLabel}>Study</Text>
-                <Text style={styles.statValue}>{scenario.start.education ? formatTokenLabel(scenario.start.education) : 'None'}</Text>
+                <Text style={styles.statValue}>{formatEducationLabel(scenario.start.education)}</Text>
               </View>
               {isChallenge ? (
                 <View style={styles.statCell}>
@@ -367,19 +393,9 @@ export default function Scenarios() {
       }
 
       const difficultyKey = isChallengeDifficulty(challenge.difficulty) ? challenge.difficulty : 'medium';
-      const startingConditions =
-        challenge.startingConditions && typeof challenge.startingConditions === 'object'
-          ? challenge.startingConditions
-          : {};
       const firstCondition = Array.isArray(challenge.winConditions)
         ? challenge.winConditions.find((condition) => typeof condition?.description === 'string')
         : undefined;
-      const educationList = Array.isArray(startingConditions.education)
-        ? startingConditions.education.filter((entry): entry is string => typeof entry === 'string')
-        : [];
-      const startItems = Array.isArray(startingConditions.items)
-        ? startingConditions.items.filter((entry): entry is string => typeof entry === 'string')
-        : [];
       const challengeIcon = typeof challenge.icon === 'string' ? challenge.icon : undefined;
       const challengeId =
         typeof challenge.id === 'string' && challenge.id.trim().length > 0
@@ -394,7 +410,6 @@ export default function Scenarios() {
           ? challenge.description
           : 'Complete this challenge to earn bonus rewards.';
       const rewardGems = typeof challenge.rewards?.gems === 'number' ? challenge.rewards.gems : 0;
-      const startingEducation = educationList.length > 0 ? educationList[0] : undefined;
 
       return {
         id: challengeId,
@@ -403,13 +418,7 @@ export default function Scenarios() {
         lifeGoal: firstCondition?.description || 'Complete the challenge',
         description,
         bonus: `Rewards: ${rewardGems} gems`,
-        start: {
-          age: typeof startingConditions.age === 'number' ? startingConditions.age : 18,
-          cash: typeof startingConditions.money === 'number' ? startingConditions.money : 0,
-          education: startingEducation,
-          items: startItems,
-          traits: [],
-        },
+        start: challengeStartFromConditions(challengeId, challenge.startingConditions),
         icon: CHALLENGE_ICONS[challengeId] ?? CHALLENGE_FALLBACK_ICON,
         isChallenge: true,
         difficultyKey,

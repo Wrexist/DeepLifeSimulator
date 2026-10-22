@@ -4,6 +4,7 @@ import { Briefcase, GraduationCap, Coffee, Home, Utensils } from 'lucide-react-n
 import type { LucideIcon } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -16,11 +17,25 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
   const stats = useGameSelector((s) => s.stats, shallowEqual);
   const careers = useGameSelector((s) => s.careers);
   const currentJob = useGameSelector((s) => s.currentJob);
-  const educations = useGameSelector((s) => s.educations);
   const prestige = useGameSelector((s) => s.prestige);
-  const dietPlans = useGameSelector((s) => s.dietPlans);
   const realEstate = useGameSelector((s) => s.realEstate);
   const rental = useGameSelector((s) => s.rental, shallowEqual);
+  // Studying and the diet plan come from the shared projection, so this modal
+  // shows what the tick will apply (TAB-4 / TAB-7).
+  const projected = useGameSelector(
+    (s) => {
+      const d = projectWeeklyVitalDrift(s);
+      const education = d.causes.find((c) => c.id === 'education');
+      const diet = d.causes.find((c) => c.id === 'diet');
+      return {
+        educationEnergy: education?.energy ?? 0,
+        educationLabel: education?.label ?? 'Studying',
+        dietEnergy: diet?.energy ?? 0,
+        dietLabel: diet?.label ?? 'Diet',
+      };
+    },
+    shallowEqual,
+  );
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
@@ -56,25 +71,16 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       });
     }
 
-    // Calculate energy drain from active educations
-    const activeEducations = (educations || []).filter(edu =>
-      edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
-    );
-
-    if (activeEducations.length > 0) {
-      const numActiveEducations = activeEducations.length;
-      const baseEnergyPenalty = -7; // Base penalty per education
-      const stressMultiplier = numActiveEducations === 1 ? 1.0 :
-                               numActiveEducations === 2 ? 1.3 :
-                               1.6;
-      const totalEnergyDrain = Math.round(baseEnergyPenalty * numActiveEducations * stressMultiplier);
-
+    // Studying, from the SAME capped formula the tick applies
+    // (lib/education/educationStress via projectWeeklyVitalDrift). This used to
+    // restate it without the caps and overstate 3+ courses (TAB-4).
+    if (projected.educationEnergy < 0) {
       drains.push({
-        label: `Education (${numActiveEducations} active)`,
-        value: totalEnergyDrain,
+        label: projected.educationLabel,
+        value: projected.educationEnergy,
         icon: GraduationCap,
         color: '#F59E0B',
-        description: `Studying ${numActiveEducations > 1 ? 'multiple courses' : 'a course'} drains energy`,
+        description: `Studying costs ${Math.abs(projected.educationEnergy)} energy per week`,
       });
     }
 
@@ -95,15 +101,15 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       description: `Resting and sleeping restores ${energyRegen} energy per week${safeEnergyRegenMultiplier > 1.0 ? ` (${((safeEnergyRegenMultiplier - 1) * 100).toFixed(0)}% bonus from prestige)` : ''}`,
     });
 
-    // Add active diet plan energy gain
-    const activeDietPlan = (dietPlans || []).find(plan => plan && plan.active);
-    if (activeDietPlan && activeDietPlan.energyGain > 0) {
+    // Active diet plan, projected like the tick: a plan the player cannot
+    // afford this week is skipped (no gain), so it is not listed (TAB-7).
+    if (projected.dietEnergy > 0) {
       incomes.push({
-        label: `${activeDietPlan.name} Diet`,
-        value: activeDietPlan.energyGain,
+        label: projected.dietLabel,
+        value: projected.dietEnergy,
         icon: Utensils,
         color: '#10B981',
-        description: `Active diet plan provides ${activeDietPlan.energyGain} energy per week`,
+        description: `Active diet plan provides ${projected.dietEnergy} energy per week`,
       });
     }
 
@@ -151,7 +157,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       currentEnergy,
       projectedEnergy,
     };
-  }, [stats?.energy, currentJob, careers, educations, prestige, dietPlans, realEstate, rental]);
+  }, [stats?.energy, currentJob, careers, prestige, realEstate, rental, projected]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {

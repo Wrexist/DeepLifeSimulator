@@ -22,6 +22,23 @@ import type { DatingProfile } from './datingProfiles';
  * Boost would be a no-op for free players. Kept as a named constant so the
  * Boost action and modal copy stay in sync with the effect.
  */
+/**
+ * Which gender the Spark deck shows, or `null` for everyone.
+ *
+ * A bisexual player sees both. `seekingGender` is a single 'male' | 'female'
+ * value (the builder writes the opposite sex for 'bi'), so reading it alone
+ * made Bisexual behave exactly like Straight (ONB-7). `sexuality` is the
+ * player's own answer, so it decides; `seekingGender` narrows only for
+ * straight/gay. A save with neither shows everyone rather than an empty deck.
+ */
+export function sparkDeckGenderFilter(
+  profile: { seekingGender?: string; sexuality?: string } | undefined,
+): 'male' | 'female' | null {
+  if (profile?.sexuality === 'bi') return null;
+  const seeking = profile?.seekingGender;
+  return seeking === 'male' || seeking === 'female' ? seeking : null;
+}
+
 export const BOOST_MATCH_FLOOR = 1.5;
 
 /**

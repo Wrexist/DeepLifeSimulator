@@ -17,9 +17,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
   const stats = useGameSelector((s) => s.stats, shallowEqual);
   const careers = useGameSelector((s) => s.careers);
   const currentJob = useGameSelector((s) => s.currentJob);
-  const educations = useGameSelector((s) => s.educations);
   const diseases = useGameSelector((s) => s.diseases);
-  const dietPlans = useGameSelector((s) => s.dietPlans);
   const realEstate = useGameSelector((s) => s.realEstate);
   const rental = useGameSelector((s) => s.rental, shallowEqual);
   // Natural decay and the job toll come from the ONE projection the tick's
@@ -32,7 +30,17 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       const d = projectWeeklyVitalDrift(s);
       const decay = d.causes.find((c) => c.id === 'decay');
       const job = d.causes.find((c) => c.id === 'job');
-      return { decayHealth: decay?.health ?? 0, jobHealth: job?.health ?? 0, jobLabel: job?.label ?? '' };
+      const education = d.causes.find((c) => c.id === 'education');
+      const diet = d.causes.find((c) => c.id === 'diet');
+      return {
+        decayHealth: decay?.health ?? 0,
+        jobHealth: job?.health ?? 0,
+        jobLabel: job?.label ?? '',
+        educationHealth: education?.health ?? 0,
+        educationLabel: education?.label ?? 'Studying',
+        dietHealth: diet?.health ?? 0,
+        dietLabel: diet?.label ?? 'Diet',
+      };
     },
     shallowEqual,
   );
@@ -77,25 +85,16 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       }
     }
 
-    // Calculate health drain from active educations
-    const activeEducations = (educations || []).filter(edu =>
-      edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
-    );
-
-    if (activeEducations.length > 0) {
-      const numActiveEducations = activeEducations.length;
-      const baseHealthPenalty = -3;
-      const stressMultiplier = numActiveEducations === 1 ? 1.0 :
-                               numActiveEducations === 2 ? 1.3 :
-                               1.6;
-      const totalHealthDrain = Math.round(baseHealthPenalty * numActiveEducations * stressMultiplier);
-
+    // Studying, from the SAME capped formula the tick applies
+    // (lib/education/educationStress via projectWeeklyVitalDrift). This used to
+    // restate it without the caps and overstate 3+ courses (TAB-4).
+    if (drift.educationHealth < 0) {
       drains.push({
-        label: `Education (${numActiveEducations} active)`,
-        value: totalHealthDrain,
+        label: drift.educationLabel,
+        value: drift.educationHealth,
         icon: GraduationCap,
         color: '#F59E0B',
-        description: `Studying ${numActiveEducations > 1 ? 'multiple courses' : 'a course'} reduces health`,
+        description: `Studying costs ${Math.abs(drift.educationHealth)} health per week`,
       });
     }
 
@@ -111,15 +110,15 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       });
     }
 
-    // Add active diet plan health gain
-    const activeDietPlan = (dietPlans || []).find(plan => plan && plan.active);
-    if (activeDietPlan && activeDietPlan.healthGain > 0) {
+    // Active diet plan, projected like the tick: a plan the player cannot
+    // afford this week is skipped (no gain), so it is not listed (TAB-7).
+    if (drift.dietHealth > 0) {
       incomes.push({
-        label: `${activeDietPlan.name} Diet`,
-        value: activeDietPlan.healthGain,
+        label: drift.dietLabel,
+        value: drift.dietHealth,
         icon: Utensils,
         color: '#10B981',
-        description: `Active diet plan provides ${activeDietPlan.healthGain} health per week`,
+        description: `Active diet plan provides ${drift.dietHealth} health per week`,
       });
     }
 
@@ -197,7 +196,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       currentHealth,
       projectedHealth,
     };
-  }, [stats?.health, currentJob, careers, educations, drift, dietPlans, realEstate, rental, diseases]);
+  }, [stats?.health, currentJob, careers, drift, realEstate, rental, diseases]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {
@@ -249,7 +248,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
         text: (
           <>
             {'\u2022'} Health naturally decreases over time; wealth slows it down{'\n'}
-            {'\u2022'} Working at a career reduces health by 2 per week{'\n'}
+            {'\u2022'} Each job has its own weekly toll - see the Career line above{'\n'}
             {'\u2022'} Studying multiple educations simultaneously increases health drain{'\n'}
             {'\u2022'} Paused educations don't affect health{'\n'}
             {'\u2022'} Use health activities, food, and medical services to restore health{'\n'}
