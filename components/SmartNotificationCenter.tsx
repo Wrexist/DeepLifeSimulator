@@ -25,7 +25,8 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { SmartNotification, NotificationContext, useSmartNotifications, smartNotificationSystem } from '@/utils/smartNotifications';
+import { SmartNotification, NotificationContext, useSmartNotifications, smartNotificationSystem, resolveNotificationPrefs, type NotificationPrefKey } from '@/utils/smartNotifications';
+import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -49,13 +50,10 @@ export default function SmartNotificationCenter({
   
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | 'achievement' | 'warning' | 'tip'>('all');
   const [showSettings, setShowSettings] = useState(false);
-  const [notificationPreferences, setNotificationPreferences] = useState({
-    showTips: true,
-    showMilestones: true,
-    showWarnings: true,
-    showSuggestions: true,
-    notificationFrequency: 'medium' as 'low' | 'medium' | 'high',
-  });
+  // Read from the save, not component state (CMP-4): local state reset on
+  // every close and the weekly ticker never saw it.
+  const setGameState = useSetGameState();
+  const notificationPreferences = resolveNotificationPrefs(gameState.settings);
 
   const slideAnim = useRef(new Animated.Value(height)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -177,13 +175,27 @@ export default function SmartNotificationCenter({
     setSelectedFilter(filter);
   };
 
-  const handlePreferenceToggle = (key: keyof typeof notificationPreferences) => {
+  const handlePreferenceToggle = (key: NotificationPrefKey) => {
     buttonPress();
     haptic('light');
-    setNotificationPreferences(prev => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    // Toggle against `prev`, inside the updater, so a double tap in one batch
+    // flips twice rather than reading a stale value twice.
+    setGameState(prev => {
+      const current = resolveNotificationPrefs(prev.settings);
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          notificationPrefs: {
+            showTips: current.showTips,
+            showMilestones: current.showMilestones,
+            showWarnings: current.showWarnings,
+            showSuggestions: current.showSuggestions,
+            [key]: !current[key],
+          },
+        },
+      };
+    });
   };
 
   if (!visible) return null;

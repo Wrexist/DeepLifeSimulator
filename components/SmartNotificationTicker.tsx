@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGameSelector, useGameStateGetter, useSetGameState } from '@/contexts/game/useGameSelector';
-import { smartNotificationSystem, NotificationContext } from '@/utils/smartNotifications';
+import { smartNotificationSystem, NotificationContext, resolveNotificationPrefs } from '@/utils/smartNotifications';
 
 /**
  * Auto-surfaces the single most urgent SmartNotification after each week
@@ -64,13 +64,9 @@ export default function SmartNotificationTicker() {
           dayOfWeek: new Date().getDay(),
           season: getSeason(),
           recentActions: [],
-          userPreferences: {
-            showTips: true,
-            showMilestones: true,
-            showWarnings: true,
-            showSuggestions: true,
-            notificationFrequency: 'medium',
-          },
+          // The player's own toggles from the panel (CMP-4). They used to be
+          // hard-coded all-on here, so switching a category off did nothing.
+          userPreferences: resolveNotificationPrefs(gs.settings),
         };
         /**
          * PLAYER REPORT (BBQ, 2026-08-31): "There are too many frequent pop ups
