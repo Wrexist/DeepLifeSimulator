@@ -41,6 +41,8 @@ const DECLARED: Record<string, string> = {
     'housing, savings goals) are inside the weekly updater, whose net movement is scaled ' +
     'once after every subsystem has run.',
   'contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts': 'TICK_CHOKE_POINT (and the delta is a penalty).',
+  'contexts/game/actions/weekly/applyCommitmentStats.ts':
+    'TICK_CHOKE_POINT (and the delta is always a loss: the LIFE-13 neglect cost).',
   'contexts/game/actions/weekly/applyDietPlan.ts': 'TICK_CHOKE_POINT.',
   'contexts/game/actions/weekly/applyEducationProgression.ts': 'TICK_CHOKE_POINT.',
   'contexts/game/actions/weekly/applyEducationStress.ts': 'TICK_CHOKE_POINT (and the delta is a penalty).',

@@ -56,7 +56,7 @@ const LOW_FUEL_WARNING = 20;
 import { calculateRepairCostAfterInsurance, vehicleReputationFloor } from '@/lib/vehicles/vehicles';
 import { reputationAfterVehicleSale, vehicleReputationTakeBack } from '../VehicleActions';
 import type { WeekContext } from './weekContext';
-import { chargeOrDefer } from './chargeOrDefer';
+import { chargeBill } from './chargeOrDefer';
 
 // Deterministic condition damage per severity tier. Kept out of accidents.ts
 // (which owns the probability + injury math) because the weekly tick needs a
@@ -88,8 +88,8 @@ export function applyVehiclesForWeek(
     // and the budget mirror). Fuel is bought at the pump since LIFE-7.
     const weeklyCost = vehicleWeeklyRunningCost(v, isActive);
     // Running costs are mandatory — defer what cannot be covered rather than
-    // forgiving it. See chargeOrDefer.
-    chargeOrDefer(ctx, weeklyCost);
+    // forgiving it. See chargeOrDefer. A recurring bill, so Budgeting applies.
+    chargeBill(ctx, weeklyCost);
 
     // LIFE-7: the tank drains (a full one lasts FUEL_TANK_WEEKS of driving,
     // idle cars burn a quarter of that) and the player pays at the pump with

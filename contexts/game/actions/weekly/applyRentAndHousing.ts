@@ -34,6 +34,7 @@
  */
 
 import type { RealEstate, RealEstateActivityEntry, GameState } from '@/contexts/game/types';
+import { billAfterBudgeting } from '@/lib/skillTrees/lifeSkillEffects';
 import { portfolioPropertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import * as housingModule from '@/lib/realEstate/housing';
@@ -164,12 +165,10 @@ export function applyRentAndHousing(
   housingUpkeep += portfolioPropertyTaxWeekly(updatedRealEstate);
 
   // Life Skills: Budgeting (-5% weekly expenses) trims recurring housing costs
-  // (rent paid + upkeep). Bounded mult ≤ 1; rental INCOME is never scaled.
-  const expenseMult = ctx.lifeSkillMods?.expenseMult ?? 1;
-  if (typeof expenseMult === 'number' && isFinite(expenseMult) && expenseMult > 0 && expenseMult < 1) {
-    weeklyRent = Math.round(weeklyRent * expenseMult);
-    housingUpkeep = Math.round(housingUpkeep * expenseMult);
-  }
+  // (rent paid + upkeep), through the one rule every bill uses. Rental INCOME
+  // is never scaled.
+  weeklyRent = billAfterBudgeting(weeklyRent, ctx.lifeSkillMods?.expenseMult);
+  housingUpkeep = billAfterBudgeting(housingUpkeep, ctx.lifeSkillMods?.expenseMult);
 
   return {
     weeklyRent,

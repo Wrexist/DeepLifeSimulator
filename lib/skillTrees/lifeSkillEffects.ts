@@ -87,7 +87,7 @@ export const LIFE_SKILL_EFFECT_TEXT: Readonly<Record<LifeSkillId, string>> = {
   resilience: 'Illness recovery +25% faster',
   peak_performance: '+15% gym efficiency',
   vitality: 'Old-age risk -20%',
-  budgeting: '-5% rent and housing upkeep',
+  budgeting: '-5% weekly bills (rent, upkeep, diet, cars, pets)',
   investing: '+5% stock dividends',
   tax_strategy: '-10% income tax',
   wealth_master: '+25% passive income',
@@ -174,7 +174,12 @@ export interface LifeSkillModifiers {
   fitnessGainMult: number;
   /** Multiplies old-age death chance (lower = slower aging). */
   agingMult: number;
-  /** Multiplies recurring housing expenses (lower = cheaper). */
+  /**
+   * Multiplies recurring weekly BILLS (lower = cheaper) - housing rent and
+   * upkeep, tenancy rent, diet plan, vehicle maintenance, luxury upkeep and pet
+   * food. Never taxes, loan payments, fines or one-off costs. Apply it through
+   * `billAfterBudgeting`, the one rule both the tick and the expense panel use.
+   */
   expenseMult: number;
   /** Multiplies stock dividend income. */
   stockReturnMult: number;
@@ -415,4 +420,23 @@ export function purchaseLifeSkill(
   };
 
   return { state: nextState, purchased: true };
+}
+
+/**
+ * A recurring weekly bill after the Budgeting life skill (TICK-13, owner
+ * decision 2026-10-22). The node promised "-5% weekly expenses" and only ever
+ * discounted legacy rent and property upkeep; tenancy rent, diet, vehicles,
+ * luxury upkeep and pet food paid full price. Every recurring bill now goes
+ * through this, in the tick (`chargeBill`, the weekly bills sum) and in
+ * `calcWeeklyExpenses`, so the panel shows what the tick takes.
+ *
+ * Only a multiplier in (0, 1) applies - the skill can never make a bill dearer,
+ * and a corrupt value leaves the bill alone.
+ */
+export function billAfterBudgeting(cost: number, expenseMult: number | undefined): number {
+  if (!(typeof cost === 'number' && Number.isFinite(cost)) || cost <= 0) return 0;
+  if (typeof expenseMult === 'number' && Number.isFinite(expenseMult) && expenseMult > 0 && expenseMult < 1) {
+    return Math.round(cost * expenseMult);
+  }
+  return cost;
 }

@@ -122,7 +122,9 @@ describe('the forgiving pattern is gone from the mandatory-cost reducers', () =>
     'contexts/game/actions/weekly/applyPregnancyProgression.ts',
   ])('%s defers instead of flooring', (rel) => {
     const source = read(rel);
-    expect(source).toMatch(/chargeOrDefer\(/);
+    // `chargeBill` is `chargeOrDefer` after the Budgeting discount (TICK-13),
+    // so it defers exactly the same way.
+    expect(source).toMatch(/chargeOrDefer\(|chargeBill\(/);
     // The specific shape that forgave the debt: `money = Math.max(0, money - x)`.
     expect(source).not.toMatch(/newStats\.money\s*=\s*Math\.max\(\s*0\s*,[^)]*-\s*/);
   });

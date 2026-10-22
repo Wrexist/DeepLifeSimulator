@@ -33,6 +33,7 @@
  */
 
 import type { WeekContext } from './weekContext';
+import { billAfterBudgeting } from '@/lib/skillTrees/lifeSkillEffects';
 
 export interface ChargeResult {
   /** Dollars actually taken from cash. */
@@ -57,4 +58,13 @@ export function chargeOrDefer(ctx: WeekContext, cost: number): ChargeResult {
     ctx.deferredCharges = finite(ctx.deferredCharges) + deferred;
   }
   return { paid, deferred };
+}
+
+/**
+ * `chargeOrDefer` for a RECURRING BILL: the Budgeting life skill's discount is
+ * applied first (TICK-13). Fines, loan payments and one-off costs keep calling
+ * `chargeOrDefer` directly - the skill trims expenses, not debts.
+ */
+export function chargeBill(ctx: WeekContext, cost: number): ChargeResult {
+  return chargeOrDefer(ctx, billAfterBudgeting(finite(cost), ctx.lifeSkillMods?.expenseMult));
 }

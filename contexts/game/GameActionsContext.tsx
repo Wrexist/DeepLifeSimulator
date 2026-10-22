@@ -88,7 +88,7 @@ import { calculateActivePolicyEffects } from './actions/PoliticalActions';
 import { getPolicyById } from '@/lib/politics/policies';
 import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 
-import { getLifeSkillModifiers , applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
+import { getLifeSkillModifiers , applyRelationshipGain, billAfterBudgeting } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { companyPayrollTaxDeduction, processHustleWeeklyTick } from '@/lib/business/hustleTick';
@@ -137,6 +137,7 @@ import {
 import { applyVehiclesForWeek, settleTotaledVehicles } from './actions/weekly/applyVehicles';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
+import { applyCommitmentStats } from './actions/weekly/applyCommitmentStats';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
@@ -1491,7 +1492,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // shortfall as a debt that is paid off the top of next week's income and drags
  // the credit score while it stands. Cash still never goes negative; the
  // non-negative invariant that ~40 call sites depend on is untouched.
- const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + housingWellbeing.rent + housingUpkeep + dietWeeklyCost + educationWeeklyCost);
+ // TICK-13: the Budgeting life skill trims every recurring bill. Legacy rent
+ // and upkeep arrive already trimmed (applyRentAndHousing); the tenancy and the
+ // diet plan are trimmed here. Tax and student-loan payments are not bills.
+ const tenancyRentBill = billAfterBudgeting(housingWellbeing.rent, lifeSkillMods.expenseMult);
+ const dietBill = billAfterBudgeting(dietWeeklyCost, lifeSkillMods.expenseMult);
+ const weeklyBillsDue = Math.max(0, incomeTax + weeklyRent + tenancyRentBill + housingUpkeep + dietBill + educationWeeklyCost);
  const arrearsAvailableCash = currentMoney + totalIncome + housingRentalIncome + membershipIncome;
  // Fallback inputs, normalized to the same finite/non-negative contract
  // applyArrears enforces on its OWN inputs (`safe()`). The fallback only runs if
@@ -2209,6 +2215,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (vehErr) {
  logger.error('[VEHICLE TICK] Failed:', vehErr);
  }
+ // LIFE-13: commitment neglect costs happiness, a primary focus holds
+ // reputation up. Inside the updater, before the net happiness scaling.
+ guardTick('commitmentStats', () => applyCommitmentStats(prevState.activityCommitments, weeklyCtx), undefined);
  // Luxury & Collectibles weekly tick - upkeep (mirror-safe cash deduction from
  // newStats.money) + happiness/prestige benefit. Runs here (after the line-770
  // money overwrite, before the stat clamp and before pulseRep reads reputation)
@@ -2258,7 +2267,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // The helper applies the cost atomically (clamped to the money floor) but doesn't
  // return the magnitude - recompute the nominal here to match the legacy contract.
  // Cheap: `O(updatedPets.length)`.
- const petFoodCost = updatedPets.filter((p) => !p.isDead).length * PET_WEEKLY_FOOD_COST;
+ const petFoodCost = billAfterBudgeting(updatedPets.filter((p) => !p.isDead).length * PET_WEEKLY_FOOD_COST, lifeSkillMods.expenseMult);
  // Actual amount charged after the money floor - the recap must report what left
  // the wallet, not the nominal (= nominal whenever the player could afford it).
  petFoodCharged = Math.min(petFoodCost, moneyBeforePetFood);
@@ -2849,8 +2858,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // charged. Without it the Budget tab reported a renting player's housing spend
  // as upkeep alone - $0 for most of them - while the tick took $45-$950 a week
  // and could evict them over the arrears. Same omission the identity card had.
- { category: 'housing', amount: weeklyRent + housingWellbeing.rent + housingUpkeep },
- { category: 'food', amount: dietWeeklyCost },
+ { category: 'housing', amount: weeklyRent + tenancyRentBill + housingUpkeep },
+ { category: 'food', amount: dietBill },
  { category: 'taxes', amount: incomeTax },
  // Student-loan payments, charged by `applyEducationProgression`. There was no
  // education row at all, so tuition debt service was invisible in the budget.
@@ -2864,7 +2873,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Vehicle running costs: the SAME shared formula applyVehiclesForWeek
  // charged (active full fuel, idle 25% - lib/vehicles/runningCosts.ts),
  // not a third inline copy that drifts.
- { category: 'transport', amount: fleetWeeklyRunningCost(prevState.vehicles, prevState.activeVehicleId) },
+ { category: 'transport', amount: billAfterBudgeting(fleetWeeklyRunningCost(prevState.vehicles, prevState.activeVehicleId), lifeSkillMods.expenseMult) },
  // In-game subscription fee (Pulse Verified Pro / Spark Premium) - appended only
  // when a fee was actually charged this tick, so the spendEvents array (and thus
  // banking.budgetSpend) is byte-identical when no in-game sub is active.
