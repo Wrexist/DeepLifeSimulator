@@ -216,6 +216,20 @@ export interface TripReturnSummary {
   firstVisit: boolean;
 }
 
+/** Is there a partner or spouse to travel with? (Paris's `partnerHappiness`.) */
+export function travelsWithPartner(state: Pick<GameState, 'relationships'>): boolean {
+  return (state.relationships ?? []).some((r) => r?.type === 'partner' || r?.type === 'spouse');
+}
+
+/** The partner bonus this trip pays this player: 0 without a partner. */
+export function tripPartnerHappiness(
+  benefits: TravelDestination['benefits'] | undefined,
+  state: Pick<GameState, 'relationships'>,
+): number {
+  const bonus = safe(benefits?.partnerHappiness, 0);
+  return bonus > 0 && travelsWithPartner(state) ? bonus : 0;
+}
+
 /**
  * Build the full return-from-trip summary: roll travel events, sum benefits,
  * flag first-visit unlock. Caller wires the totals into setGameState.
@@ -244,7 +258,10 @@ export function buildTripReturnSummary(
     destination,
     events,
     totals: {
-      happinessDelta: tripHappiness(benefits, mindsetEffects(state).travelHappiness) + eventTotals.happinessDelta,
+      happinessDelta:
+        tripHappiness(benefits, mindsetEffects(state).travelHappiness) +
+        tripPartnerHappiness(benefits, state) +
+        eventTotals.happinessDelta,
       healthDelta: safe(benefits.health, 0) + eventTotals.healthDelta,
       energyDelta: safe(benefits.energy, 0) + eventTotals.energyDelta + experience.energy,
       stressDelta: safe(benefits.stress, 0),

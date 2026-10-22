@@ -15,6 +15,12 @@ export interface TravelDestination {
     intelligence?: number;
     stress?: number; // reduction
     reputation?: number; // travel broadens the mind
+    /**
+     * Extra happiness when the player travels with a partner or spouse (v57,
+     * ECO-13). Paris is the city of love; until this it was a strictly worse
+     * Rome. Applied by `buildTripReturnSummary`.
+     */
+    partnerHappiness?: number;
   };
   events?: string[]; // IDs of events that can happen
   image?: string; // Asset path or identifier
@@ -51,6 +57,7 @@ export const DESTINATIONS: TravelDestination[] = [
       energy: 10,
       intelligence: 5,
       stress: -15,
+      partnerHappiness: 8,
     },
   },
   {
@@ -98,12 +105,17 @@ export const DESTINATIONS: TravelDestination[] = [
     requirements: {
       items: ['passport'],
     },
+    // ECO-13 (v57): NYC was beaten on every stat by Paris, London and Rome,
+    // all cheaper. Its reason to go is the business one the description
+    // promises - the only sub-$5k trip that pays reputation, and the most
+    // enriching city on the list after London.
     benefits: {
       happiness: 15,
       health: -5,
-      energy: -10,
-      intelligence: 5,
+      energy: -5,
+      intelligence: 10,
       stress: 5, // It's stressful but fun?
+      reputation: 8,
     },
   },
   {
@@ -134,11 +146,13 @@ export const DESTINATIONS: TravelDestination[] = [
     requirements: {
       items: ['passport'],
     },
+    // ECO-13 (v57): +12 intelligence (was 10, below cheaper Rome's reason to
+    // go) - London is the trip for the mind.
     benefits: {
       happiness: 15,
       health: 0,
       energy: 5,
-      intelligence: 10,
+      intelligence: 12,
       stress: -10,
     },
     events: ['london_theatre', 'london_museum'],
