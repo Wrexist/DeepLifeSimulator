@@ -60,11 +60,22 @@ describe('pickJealousyAccusation', () => {
         expect(line).not.toContain('{partner}');
       }
     }
-    // A line that carries the token resolves to the supplied name.
-    const named = pickJealousyAccusation('multiple_dating', { severity: 90, roll: 0.5, partnerName: 'Riley' });
-    const generic = pickJealousyAccusation('multiple_dating', { severity: 90, roll: 0.5 });
-    expect(named).toContain('Riley');
-    expect(generic).toContain('your partner');
+  });
+
+  it('the jealous partner speaks in the first person, never naming themselves', () => {
+    // The speaker IS the partner: "Want to explain that to Riley?" (or, with
+    // the fallback, "...to your partner?") read as a third person in the scene.
+    const triggers = ['spotted_swiping', 'rumored_affair', 'multiple_dating', 'flirty_dm'] as const;
+    for (const t of triggers) {
+      for (const severity of [10, 90]) {
+        for (let i = 0; i < 20; i++) {
+          const named = pickJealousyAccusation(t, { severity, roll: i / 20, partnerName: 'Riley' });
+          const generic = pickJealousyAccusation(t, { severity, roll: i / 20 });
+          expect(named).not.toContain('Riley');
+          expect(generic).not.toContain('your partner');
+        }
+      }
+    }
   });
 
   it('uses a harsher tone band at/above the severe threshold', () => {

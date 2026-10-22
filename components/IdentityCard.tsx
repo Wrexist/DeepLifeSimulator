@@ -1264,17 +1264,17 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
                           <View style={styles.modalSubItemDetails}>
                             {vehicle.maintenance > 0 && (
                               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark, { fontSize: fontScale(13) }]}>
-                                {'  '}Weekly maintenance: {formatMoney(vehicle.maintenance)}/week
+                                {'  '}Maintenance: {formatMoney(vehicle.maintenance)}/wk
                               </Text>
                             )}
                             {vehicle.fuel > 0 && (
                               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark, { fontSize: fontScale(13) }]}>
-                                {'  '}Weekly fuel cost: {formatMoney(vehicle.fuel)}/week {gameState.activeVehicleId === vehicles.find(v => (v.name || v.id) === vehicle.name)?.id ? '(Active)' : ''}
+                                {'  '}Fuel: {formatMoney(vehicle.fuel)}/wk {gameState.activeVehicleId === vehicles.find(v => (v.name || v.id) === vehicle.name)?.id ? '(Active)' : ''}
                               </Text>
                             )}
                             {vehicle.insurance > 0 && (
                               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark, { fontSize: fontScale(13) }]}>
-                                {'  '}Monthly insurance: {formatMoney(vehicle.insurance * 4)}/month ({formatMoney(vehicle.insurance)}/week)
+                                {'  '}Insurance: {formatMoney(vehicle.insurance)}/wk
                               </Text>
                             )}
                           </View>

@@ -36,6 +36,7 @@ import { makeLifeRoll } from '@/utils/seededRoll';
 import { payloadRoll, pickSeeded } from './seededPayload';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker';
 import { PITY_THRESHOLD_WEEKLY_EVENTS } from '@/lib/randomness/randomnessConstants';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
@@ -88,7 +89,8 @@ export type EventSpecial =
   | 'add_disease'
   | 'fire_from_job'
   | 'add_career_warning'
-  | 'lose_vehicle';
+  | 'lose_vehicle'
+  | 'damage_vehicle';
 
 export interface EventChoice {
   id: string;
@@ -116,7 +118,9 @@ export interface EventChoice {
   // 2026-08-24 rather than left as a silent no-op contract; chains key off the
   // EVENT-level `chainId`/`chainStage` pair.
   diseaseId?: string; // Disease ID to add when special === 'add_disease'
-  vehicleId?: string; // Vehicle removed from the garage when special === 'lose_vehicle'
+  vehicleId?: string; // Vehicle removed ('lose_vehicle') or damaged ('damage_vehicle')
+  /** Condition points taken off `vehicleId` when special === 'damage_vehicle'. */
+  vehicleConditionLoss?: number;
   /**
    * The effects are a ROLLED outcome, decided when the event was generated.
    * The event screen previews every choice's effects, so a gamble showed its
@@ -250,10 +254,18 @@ export interface EventTemplate {
  */
 export { payloadRoll, pickSeeded } from './seededPayload';
 
+/** The car an event is about: the active vehicle, else the first one owned. */
+function eventVehicle(state: GameState): { id: string; name: string } | undefined {
+  const garage = Array.isArray(state.vehicles) ? state.vehicles : [];
+  return garage.find(v => v?.id === state.activeVehicleId) ?? garage[0];
+}
+
 const jobBonus: EventTemplate = {
   id: 'job_bonus',
   category: 'economy',
   weight: 0.3,
+  // "Your boss" - only somebody with a job has one (2026-10-21 audit).
+  condition: state => !!state.currentJob,
   generate: () => ({
     id: 'job_bonus',
     description: 'Your boss offers a bonus for extra work hours.',
@@ -276,6 +288,9 @@ const sickDay: EventTemplate = {
   id: 'sick_day',
   category: 'health',
   weight: 0.5,
+  // Both choices are about a working day: the sick day costs the day's pay and
+  // pushing through earns it. Without a job neither is true.
+  condition: state => !!state.currentJob,
   generate: () => ({
     id: 'sick_day',
     description: 'You wake up feeling ill. What do you do?',
@@ -304,6 +319,8 @@ const lotteryWin: EventTemplate = {
   id: 'lottery_win',
   category: 'economy',
   weight: 0.2,
+  // Lottery tickets are an adult purchase; 16-17 scenario starts exist.
+  condition: state => (state.date?.age ?? ADULTHOOD_AGE) >= ADULTHOOD_AGE,
   generate: () => ({
     id: 'lottery_win',
     description: 'You win $200 in a local lottery!',
@@ -347,7 +364,8 @@ const courtTrial: EventTemplate = {
   id: 'court_trial',
   category: 'general',
   weight: 0.2,
-  condition: state => state.wantedLevel > 0 || state.jailWeeks > 0,
+  // Somebody wanted and not already serving a sentence (2026-10-21 audit).
+  condition: state => (state.wantedLevel ?? 0) > 0 && !((state.jailWeeks ?? 0) > 0),
   generate: () => ({
     id: 'court_trial',
     description: 'You are summoned for a court trial.',
@@ -661,9 +679,11 @@ const carBreakdown: EventTemplate = {
   id: 'car_breakdown',
   category: 'economy',
   weight: 0.2,
-  generate: () => ({
+  // A car the player owns (2026-10-21 audit: carless lives paid to repair one).
+  condition: state => eventVehicle(state) !== undefined,
+  generate: state => ({
     id: 'car_breakdown',
-    description: 'Your car breaks down on the way to work.',
+    description: `Your ${eventVehicle(state)?.name ?? 'car'} breaks down on the way ${state.currentJob ? 'to work' : 'into town'}.`,
     choices: [
       { id: 'repair', text: 'Pay $100 for repairs', effects: { money: -100, stats: { happiness: -5 } } },
       { id: 'fix', text: 'Try to fix it yourself', effects: { money: -20, stats: { health: -5, happiness: 5 } }, followUpEventId: 'diy_fix_fails', followUpDelayWeeks: 3 },
@@ -2062,7 +2082,8 @@ const naturalDisaster: EventTemplate = {
     description: 'A severe storm has damaged your neighborhood. Some repairs are needed.',
     choices: [
       { id: 'repair', text: 'Repair immediately', effects: { money: -1500, stats: { happiness: -5 } } },
-      { id: 'wait', text: 'Wait for insurance', effects: { money: -500, stats: { happiness: -15, health: -5 } } },
+      // There is no home insurance in the game, so nothing pays out later.
+      { id: 'wait', text: 'Patch it up cheaply for now', effects: { money: -500, stats: { happiness: -15, health: -5 } } },
       { id: 'help', text: 'Help neighbors first', effects: { money: -2000, stats: { reputation: 20 } } },
     ],
   }),
@@ -2088,9 +2109,10 @@ const carAccident: EventTemplate = {
   id: 'car_accident',
   category: 'general',
   weight: 0.2,
-  generate: () => ({
+  condition: state => eventVehicle(state) !== undefined,
+  generate: state => ({
     id: 'car_accident',
-    description: "Someone hit your parked car and drove off. You have the license plate number.",
+    description: `Someone hit your parked ${eventVehicle(state)?.name ?? 'car'} and drove off. You have the license plate number.`,
     choices: [
       { id: 'police', text: 'Report to police', effects: { money: -100, stats: { reputation: 5 } } },
       { id: 'insurance', text: 'File insurance claim', effects: { money: -300, stats: { happiness: -5 } } },
@@ -2344,9 +2366,11 @@ const unexpectedPromotion: EventTemplate = {
   condition: state => Boolean(state.currentJob),
   generate: () => ({
     id: 'unexpected_promotion',
-    description: 'Your boss calls you in unexpectedly - they want to promote you!',
+    // A one-off bonus, not a promotion: nothing here moves the career level or
+    // the salary, so the copy must not promise either (2026-10-21 audit).
+    description: 'Your boss calls you in unexpectedly - your work this quarter has earned you a one-off bonus!',
     choices: [
-      { id: 'accept', text: 'Accept the promotion', effects: { money: 500, stats: { happiness: 20, reputation: 10 } } },
+      { id: 'accept', text: 'Accept the $500 bonus', effects: { money: 500, stats: { happiness: 20, reputation: 10 } } },
       { id: 'negotiate', text: 'Negotiate for more', effects: { money: 800, stats: { happiness: 15, reputation: 5 } } },
     ],
   }),
@@ -2566,9 +2590,10 @@ const carWash: EventTemplate = {
   id: 'car_wash',
   category: 'general',
   weight: 0.4,
-  generate: () => ({
+  condition: state => eventVehicle(state) !== undefined,
+  generate: state => ({
     id: 'car_wash',
-    description: 'Your car is filthy. Time for a wash?',
+    description: `Your ${eventVehicle(state)?.name ?? 'car'} is filthy. Time for a wash?`,
     choices: [
       { id: 'professional', text: 'Professional detailing', effects: { money: -100, stats: { happiness: 10 } } },
       { id: 'self', text: 'Wash it yourself', effects: { stats: { happiness: 5, energy: -10 } } },
@@ -2611,11 +2636,14 @@ const jobInterview: EventTemplate = {
   id: 'random_job_interview',
   category: 'economy',
   weight: 0.2,
+  // "Happy where I am" needs somewhere to be. The call creates no job, so the
+  // copy offers a conversation, not an interview that goes nowhere.
+  condition: state => !!state.currentJob,
   generate: () => ({
     id: 'random_job_interview',
-    description: 'A recruiter reaches out - they found your profile and want to interview you!',
+    description: 'A recruiter reaches out - they found your profile and want to tell you about a role.',
     choices: [
-      { id: 'interview', text: 'Take the interview', effects: { stats: { reputation: 10, happiness: 5 } } },
+      { id: 'interview', text: 'Take the call - nice to be wanted', effects: { stats: { reputation: 10, happiness: 5 } } },
       { id: 'decline', text: 'Happy where I am', effects: {} },
     ],
   }),
@@ -2820,6 +2848,9 @@ const vehicleTheft: EventTemplate = {
   },
 };
 
+/** Condition points a car loses when its breakdown is left unrepaired. */
+export const VEHICLE_BREAKDOWN_DELAY_DAMAGE = 15;
+
 const vehicleBreakdown: EventTemplate = {
   id: 'vehicle_breakdown',
   category: 'economy',
@@ -2839,13 +2870,19 @@ const vehicleBreakdown: EventTemplate = {
       choices: [
         {
           id: 'repair',
-          text: hasInsurance ? `Get it repaired (insurance covers ${vehicle.insurance?.coveragePercent || 0}%, pay $${coveredCost})` : `Pay $${repairCost} for repairs`,
+          // Fixes THIS breakdown and gets the car moving; it is not the
+          // garage's full service, which is what restores condition.
+          text: hasInsurance ? `Get it running again (insurance covers ${vehicle.insurance?.coveragePercent || 0}%, pay $${coveredCost})` : `Pay $${repairCost} to get it running again`,
           effects: { money: -coveredCost, stats: { happiness: -5 } }
         },
         {
           id: 'delay',
-          text: 'Wait and see (condition will worsen)',
-          effects: { stats: { happiness: -10, energy: -5 } }
+          text: `Wait and see (condition -${VEHICLE_BREAKDOWN_DELAY_DAMAGE})`,
+          effects: { stats: { happiness: -10, energy: -5 } },
+          // The copy promised the car gets worse; this is what makes it true.
+          special: 'damage_vehicle',
+          vehicleId: vehicle.id,
+          vehicleConditionLoss: VEHICLE_BREAKDOWN_DELAY_DAMAGE,
         },
       ],
     };
@@ -4319,6 +4356,23 @@ function pickWeighted<T>(entries: { item: T; weight: number }[], roll: number): 
 }
 
 /**
+ * The only pool templates that may reach a player who is serving a sentence.
+ *
+ * Nothing used to check: a jailed player went to music festivals, washed a car,
+ * took paid overtime (the job record survives the sentence, only the salary is
+ * withheld) and was invited on road trips (2026-10-21 audit). The pool is an
+ * ALLOWLIST rather than a blocklist on purpose - a new template is outside
+ * prison walls unless somebody decides otherwise. `legal_issue` is the one
+ * authored beat about the case itself.
+ */
+export const JAIL_SAFE_EVENT_IDS: ReadonlySet<string> = new Set(['legal_issue']);
+
+/** Serving a sentence this week. */
+export function isServingSentence(state: Pick<GameState, 'jailWeeks'>): boolean {
+  return (state.jailWeeks ?? 0) > 0;
+}
+
+/**
  * Roll weekly events with reduced frequency
  * 
  * KEY CHANGES (UX improvement):
@@ -4355,6 +4409,10 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     ? EVENT_MIN_GAP_EARLY
     : (weeksThisLife < 50 ? EVENT_MIN_GAP_MID : EVENT_MIN_GAP_LATE);
   const inEventCooldown = weeksSinceLastEventForGap < minEventGap;
+  // In jail, the discretionary sources (seasonal, chain starts, the pool) are
+  // closed apart from JAIL_SAFE_EVENT_IDS. Economic notices and an already
+  // running chain's next step still arrive.
+  const jailed = isServingSentence(state);
 
   if (shouldTriggerEconomicEvent(state)) {
     const newEconomicState = generateEconomicEvent(state);
@@ -4407,7 +4465,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // Check for seasonal events (they have priority after economic events).
   // Suppressed during the smoothness cooldown so seasonal flavor doesn't fire
   // back-to-back with other popups.
-  const seasonalEvents = inEventCooldown ? [] : getSeasonalEvents(state);
+  const seasonalEvents = inEventCooldown || jailed ? [] : getSeasonalEvents(state);
   if (seasonalEvents.length > 0 && events.length < MAX_EVENTS_PER_WEEK) {
     const remainingSlots = MAX_EVENTS_PER_WEEK - events.length;
     events.push(...seasonalEvents.slice(0, remainingSlots));
@@ -4450,7 +4508,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // ENGAGEMENT: Roll for starting a new event chain (if none active).
   // Gated by the smoothness cooldown - a brand-new multi-week chain shouldn't
   // kick off the same week another popup just fired.
-  if (!state.activeEventChain && !inEventCooldown && events.length < MAX_EVENTS_PER_WEEK) {
+  if (!state.activeEventChain && !inEventCooldown && !jailed && events.length < MAX_EVENTS_PER_WEEK) {
     const chainStarter = rollEventChain(state);
     if (chainStarter) {
       events.push(chainStarter);
@@ -4466,6 +4524,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const baseEventTemplates = eventTemplates.filter(template => {
     // Skip locked events
     if (consequenceState.lockedEvents.includes(template.id)) {
+      return false;
+    }
+
+    // Behind bars, only the allowlisted beats can happen.
+    if (jailed && !JAIL_SAFE_EVENT_IDS.has(template.id)) {
       return false;
     }
 
@@ -4625,8 +4688,9 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
       // generator so no template author has to remember it.
       const generated = chosen.generate(state);
       events.push(chosen.rarity ? { ...generated, rarity: chosen.rarity } : generated);
-    } else if (guaranteedEvent) {
+    } else if (guaranteedEvent && !jailed) {
       // Defensive: pity must not starve - fall back to any general event.
+      // Not in jail: the fallback would bypass the allowlist above.
       const generalEvent = baseEventTemplates.find(t => t.category === 'general');
       if (generalEvent) {
         events.push(generalEvent.generate(state));

@@ -15,7 +15,7 @@
  */
 
 import { BankingState, BudgetCategory, Loan } from '@/contexts/game/types';
-import { accrueCreditCardInterest, accrueAccountInterest, detectBudgetOverspend, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
+import { accrueCreditCardInterest, accrueAccountInterest, detectBudgetOverspend, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend, withLiveMirrorBalances } from './operations';
 import { getRateEnvironment } from './rateEnvironment';
 
 const safe = (n: number | undefined, fb = 0): number =>
@@ -147,21 +147,9 @@ function mirrorAccountsFromLegacy(
   newBankSavings: number,
   newMoney: number
 ): BankingState {
-  // Guard against a partially-migrated save where `banking` exists but
-  // `accounts` doesn't — an unguarded .map() here throws inside the weekly-tick
-  // updater and silently bricks "Next Week".
-  const accounts = (banking.accounts || []).map((acct) => {
-    if (acct.id === 'checking-default') {
-      return { ...acct, balance: Math.max(0, safe(newMoney)) };
-    }
-    if (acct.id === 'savings-default') {
-      // Don't overwrite a user-managed savings balance that already differs from legacy.
-      // Legacy bankSavings is the source of truth until Phase D removes it.
-      return { ...acct, balance: Math.max(0, safe(newBankSavings)) };
-    }
-    return acct;
-  });
-  return { ...banking, accounts };
+  // Legacy bankSavings / stats.money are the source of truth; the bank screens
+  // read the same function so they never show a stale mirror (VIS-3).
+  return withLiveMirrorBalances(banking, newMoney, newBankSavings);
 }
 
 export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBankingTickResult {

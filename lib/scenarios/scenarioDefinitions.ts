@@ -7,7 +7,7 @@
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 export interface ScenarioCondition {
-  type: 'money' | 'reputation' | 'age' | 'education' | 'career' | 'achievement' | 'relationship' | 'netWorth';
+  type: 'money' | 'reputation' | 'health' | 'age' | 'education' | 'career' | 'achievement' | 'relationship' | 'netWorth';
   operator: '>=' | '<=' | '==' | '>';
   value: number | string;
   description: string;
@@ -193,7 +193,7 @@ export const SCENARIOS: Scenario[] = [
         type: 'career',
         operator: '==',
         value: 'ceo',
-        description: 'Become a CEO',
+        description: 'Reach CEO on the corporate career ladder',
       },
       {
         type: 'money',
@@ -396,7 +396,9 @@ export const SCENARIOS: Scenario[] = [
         type: 'career',
         operator: '==',
         value: 'ceo',
-        description: 'Become CEO of your company',
+        // The condition is the corporate CEO career ladder, not owning a
+        // company — the old "of your company" copy sent players founding one.
+        description: 'Reach CEO on the corporate career ladder',
       },
     ],
     rewards: {
@@ -466,7 +468,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'balanced_life',
     name: 'Balanced Life',
-    description: 'Money isn\'t everything. Achieve excellence across health, wealth, relationships, and career.',
+    description: 'Money isn\'t everything. Save $100K while building a strong reputation and five real relationships.',
     icon: '⚖️',
     difficulty: 'hard',
     startingConditions: {
@@ -574,7 +576,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'minimalist',
     name: 'Minimalist Challenge',
-    description: 'Less is more. Reach maximum happiness with under $5,000. Prove money can\'t buy joy.',
+    description: 'Less is more. Start with $500 and win on reputation and friendships, not money. Prove money can\'t buy joy.',
     icon: '🧘',
     difficulty: 'medium',
     startingConditions: {
@@ -770,6 +772,7 @@ export const SCENARIOS: Scenario[] = [
         description: 'Rebuild your reputation to 50+',
       },
       {
+        // A NUMERIC career value counts accepted careers (see checkScenarioWin).
         type: 'career',
         operator: '>=',
         value: 1,
@@ -799,7 +802,9 @@ export const SCENARIOS: Scenario[] = [
     },
     winConditions: [
       {
-        type: 'money',
+        // Was `type: 'money'`, so "Reach 80+ health" compared $80 against a
+        // scenario that starts with $1,000: won on frame one.
+        type: 'health',
         operator: '>=',
         value: 80,
         description: 'Reach 80+ health',
@@ -909,7 +914,9 @@ export function getScenariosByDifficulty(difficulty: Scenario['difficulty']): Sc
 export function checkScenarioWin(
   scenario: Scenario,
   gameState: {
-    stats: { money: number; reputation: number };
+    /** `health` is optional so older projections still type-check; a
+     *  missing value reads as 0 and therefore fails a `health` condition. */
+    stats: { money: number; reputation: number; health?: number };
     age: number;
     education: { id: string; completed: boolean }[];
     /**
@@ -939,6 +946,9 @@ export function checkScenarioWin(
       case 'reputation':
         conditionMet = checkCondition(gameState.stats.reputation, condition.operator, condition.value as number);
         break;
+      case 'health':
+        conditionMet = checkCondition(gameState.stats.health ?? 0, condition.operator, condition.value as number);
+        break;
       case 'age':
         conditionMet = checkCondition(gameState.age, condition.operator, condition.value as number);
         break;
@@ -946,7 +956,10 @@ export function checkScenarioWin(
         const hasEducation = gameState.education.some(edu => 
           edu.id === condition.value && edu.completed
         );
-        conditionMet = condition.operator === '==' ? hasEducation : !hasEducation;
+        // Fail CLOSED on any operator but '=='. The old `: !hasEducation`
+        // branch inverted the check, so a condition authored with '>=' passed
+        // for a player who had never studied.
+        conditionMet = condition.operator === '==' && hasEducation;
         break;
       case 'career':
         // CRITICAL FIX: Handle special career checks (e.g., "president" = political career at max level)
@@ -959,13 +972,22 @@ export function checkScenarioWin(
             'level' in politicalCareer && 
             typeof politicalCareer.level === 'number' &&
             politicalCareer.level >= 5); // President is level 5 (last level, index 5)
-          conditionMet = condition.operator === '==' ? isPresident : !isPresident;
+          conditionMet = condition.operator === '==' && isPresident;
+        } else if (typeof condition.value === 'number') {
+          // A NUMBER is a count of accepted careers ("Hold a legitimate job" is
+          // `>= 1`). It used to fall into the id branch below, look up a career
+          // whose id is the number 1 (none), and — because the operator was not
+          // '==' — return `!false`: Redemption Arc's job condition was met by
+          // every player who never held a job.
+          const acceptedCount = gameState.careers.filter(career => career.accepted).length;
+          conditionMet = checkCondition(acceptedCount, condition.operator, condition.value);
         } else {
-          // Standard career check - just verify career exists and is accepted
-          const hasCareer = gameState.careers.some(career => 
+          // Standard career check - just verify career exists and is accepted.
+          // Fail CLOSED on any operator but '==' (see the education branch).
+          const hasCareer = gameState.careers.some(career =>
             career.id === condition.value && career.accepted
           );
-          conditionMet = condition.operator === '==' ? hasCareer : !hasCareer;
+          conditionMet = condition.operator === '==' && hasCareer;
         }
         break;
       case 'relationship':
@@ -983,7 +1005,7 @@ export function checkScenarioWin(
         const hasAchievement = gameState.achievements.some(ach => 
           ach.id === condition.value && ach.completed
         );
-        conditionMet = condition.operator === '==' ? hasAchievement : !hasAchievement;
+        conditionMet = condition.operator === '==' && hasAchievement;
         break;
       case 'netWorth':
         // CRITICAL FIX: Use proper net worth calculation that includes all assets
@@ -1084,7 +1106,9 @@ export function getDifficultyColor(difficulty: Scenario['difficulty']): string {
 export function isScenarioCompleted(
   scenarioId: string,
   gameState: {
-    stats: { money: number; reputation: number };
+    /** `health` is optional so older projections still type-check; a
+     *  missing value reads as 0 and therefore fails a `health` condition. */
+    stats: { money: number; reputation: number; health?: number };
     age: number;
     education: { id: string; completed: boolean }[];
     /**

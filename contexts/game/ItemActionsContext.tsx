@@ -181,15 +181,24 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       return;
     }
 
-    setGameState(prev => ({
-      ...prev,
-      cryptos: (prev.cryptos || []).map(c =>
-        c.id === 'btc' ? { ...c, owned: c.owned - hack.costBtc } : c
-      ),
-      hacks: (prev.hacks || []).map(h =>
-        h.id === hackId ? { ...h, purchased: true } : h
-      ),
-    }));
+    // Gate and grant in ONE updater, re-checked against `prev` (CLAUDE.md 4.4):
+    // the checks above read the snapshot, so a same-batch double tap passed both
+    // and charged the BTC twice for one hack.
+    setGameState(prev => {
+      const prevHack = prev.hacks?.find(h => h.id === hackId);
+      if (!prevHack || prevHack.purchased) return prev;
+      const prevBtc = prev.cryptos?.find(c => c.id === 'btc')?.owned || 0;
+      if (prevBtc < prevHack.costBtc) return prev;
+      return {
+        ...prev,
+        cryptos: (prev.cryptos || []).map(c =>
+          c.id === 'btc' ? { ...c, owned: c.owned - prevHack.costBtc } : c
+        ),
+        hacks: (prev.hacks || []).map(h =>
+          h.id === hackId ? { ...h, purchased: true } : h
+        ),
+      };
+    });
     logger.info('Hack purchased:', { hackId, name: hack.name, costBtc: hack.costBtc });
   }, [setGameState, showError]);
 
@@ -339,11 +348,22 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     // game week now gives the SAME answer rather than a fresh chance. That is
     // the intended behaviour everywhere else in this repository (every seeded
     // roll is "no save-scum reroll"), and the week is what re-arms it.
+    //
+    // Keyed on the DISEASE, not its position in the list (ACT-5, 2026-10-21).
+    // A position key handed the next disease the roll that had just cured the
+    // one before it - cure A at index 0 and B slid into index 0 - so repeat
+    // visits in one week walked a known-good roll down the whole list.
     const cureRollFor = makeLifeRoll(state, state.weeksLived || 0);
-    const curePreRolls = Array.from({ length: 10 }, (_unused, i) =>
-      cureRollFor(`cure:${activityId}:${i}`));
+    const cureRoll = (diseaseId: string) => cureRollFor(`cure:${activityId}:${diseaseId}`);
 
-    setGameState(prevState => {
+    // ACT-4 (2026-10-21): the outcome message used to be captured inside the
+    // `setGameState` updater and returned after it. React only runs an updater
+    // eagerly when nothing else is queued in the batch, so the caller often got
+    // `undefined` and showed nothing after charging for a doctor visit. The
+    // updater body is now one function, run once on the latest snapshot for
+    // the message and once inside the updater for the commit (the C-10 shape
+    // `buyFood` uses). Its cure rolls are seeded, so both runs agree.
+    const applyActivity = (prevState: GameState): GameState => {
       const activity = prevState.healthActivities?.find(a => a.id === activityId);
       if (!activity) {
         processingActivities.current.delete(activityId);
@@ -521,16 +541,13 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         // Doctor visit: 50% chance to cure each curable disease
         const diseasesToCheck = [...updatedDiseases];
         
-        diseasesToCheck.forEach((disease, diseaseIdx) => {
+        diseasesToCheck.forEach((disease) => {
           // Critical diseases need experimental treatment (matches the
           // SicknessModal guidance) - a routine doctor visit can't cure them.
           if (disease.curable && disease.severity !== 'critical') {
-            // 50% cure chance (pre-rolled for StrictMode safety). Wrap the index
-            // modulo the buffer length so a player carrying more than 10 curable
-            // diseases doesn't read `undefined` (which `< 0.5` treats as false =
-            // silent cure-immunity) - same buffer-overflow class as pet sickness.
-            const cureRoll = curePreRolls[diseaseIdx % curePreRolls.length];
-            if (cureRoll < 0.5) {
+            // 50% cure chance, seeded on the life, the week and the disease, so
+            // a double-invoked updater (StrictMode) reads the same answer.
+            if (cureRoll(disease.id) < 0.5) {
               // Disease cured
               curedDiseases.push(disease.name);
               updatedDiseases = updatedDiseases.filter(d => d.id !== disease.id);
@@ -583,7 +600,10 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           };
         } else {
           result = {
-            message: `Doctor visit completed, but no diseases were cured this time. The treatment wasn't effective.`
+            // The cure roll is seeded on the life and the WEEK, so another visit
+            // this week repeats this answer. Say so, rather than inviting a
+            // paid retry that cannot succeed.
+            message: `Doctor visit completed, but the treatment wasn't effective this week. Another visit this week won't change that - try again next week, or check into the hospital.`
           };
         }
       } else if (activityId === 'hospital') {
@@ -784,10 +804,14 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         // as the charge, so a same-batch double tap cannot count twice.
         activityCommitments: recordCommitmentActivity(prevState.activityCommitments, 'health'),
       };
-    });
+    };
 
-    return result;
-  }, [setGameState]);
+    applyActivity(state);
+    const preview = result;
+    setGameState(prevState => applyActivity(prevState));
+
+    return preview;
+  }, [setGameState, getGameState]);
 
   const dismissSicknessModal = useCallback(() => {
     setGameState(prevState => ({

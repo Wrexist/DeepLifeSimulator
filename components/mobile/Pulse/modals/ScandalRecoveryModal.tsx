@@ -67,7 +67,7 @@ export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: Sc
       if (result.success) {
         pulseHaptics.success();
         // Persist the lawsuit fee / gem spend like every sibling mutation.
-        setTimeout(() => { void saveGame?.(); }, 0);
+        void saveGame?.();
         onDismiss();
       } else {
         pulseHaptics.error();

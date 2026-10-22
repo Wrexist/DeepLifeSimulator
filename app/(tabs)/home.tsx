@@ -125,6 +125,8 @@ function HomeScreenContent() {
       // - the same inconsistency this gate exists to remove, inverted.
       completedChapters: s?.completedChapters,
       generationNumber: s?.generationNumber,
+      // Keys the contextual-tip dismissals to this life (ContextualTip).
+      lineageId: s?.lineageId,
     }),
     shallowEqual
   ) as unknown as GameState;
@@ -155,8 +157,18 @@ function HomeScreenContent() {
   // The Progress screen is `href: null` (never a tab button), so this card is
   // its front door - and must apply the same tier gate the Life tab's Stats
   // segment does. See the card below.
-  const progressLocked = !isFeatureUnlocked(gameState, 'tab:progression');
-  const progressLockReason = unlockRequirement(gameState, 'tab:progression');
+  //
+  // Evaluated on the FULL state, as scalars. `gameState` above is a projected
+  // slice: unlockTier reads lifetimeStatistics and loans (via wealthMark),
+  // which the slice omits, so on the slice this gate disagreed with the Life
+  // tab's Stats segment (TAB-2).
+  const progressLocked = useGameSelector((s) => !isFeatureUnlocked(s, 'tab:progression'));
+  const progressLockReason = useGameSelector((s) => unlockRequirement(s, 'tab:progression'));
+  // Same reason: isPrestigeAvailable reads net worth, i.e. property,
+  // companies, stocks, vehicles, crypto, loans and luxury - none of which the
+  // slice carries, so wealth held in assets never earned the Prestige lead
+  // here while Profile said "Ready to prestige".
+  const prestigeAvailable = useGameSelector((s) => isPrestigeAvailable(s));
 
   // Interruption slots. These popups used to gate on a hand-rolled chain of
   // `&&` terms that grew with every popup added - and could not see the weekly
@@ -189,7 +201,7 @@ function HomeScreenContent() {
   // the goal ladder (a vital in the CRITICAL band is not a goal, it is a countdown), and
   // otherwise the closest objective leads. Everything else on the feed is
   // tier 2 or lower and sits under `rhythm.major` of whitespace.
-  const lead: 'prestige' | 'tip' | 'goals' = isPrestigeAvailable(gameState)
+  const lead: 'prestige' | 'tip' | 'goals' = prestigeAvailable
     ? 'prestige'
     : activeTip
       ? 'tip'
@@ -668,6 +680,8 @@ function HomeScreenContent() {
         activeOpacity={0.8}
         style={styles.showMoreBtn}
         accessibilityRole="button"
+        accessibilityLabel={showGoalDetails ? 'Hide goal details' : 'Show goal details'}
+        accessibilityState={{ expanded: showGoalDetails }}
       >
         <Text style={styles.showMoreText}>
           {showGoalDetails ? 'Hide details' : 'Show details'}
@@ -813,8 +827,10 @@ function HomeScreenContent() {
             activeOpacity={0.85}
             style={styles.progressLinkCard}
             accessibilityRole="button"
-            accessibilityLabel="Your Progress"
-            accessibilityState={{ disabled: progressLocked }}
+            accessibilityLabel={progressLocked ? 'Your Progress, locked' : 'Your Progress'}
+            // Not `disabled`: the card still answers a tap (it explains the
+            // lock), and VoiceOver announced a dimmed control that responded.
+            accessibilityHint={progressLocked ? (progressLockReason || 'Keep playing to unlock this.') : undefined}
           >
             <View style={styles.progressLinkIcon}>
               {progressLocked ? (
@@ -857,6 +873,8 @@ function HomeScreenContent() {
           activeOpacity={0.8}
           style={styles.showMoreBtn}
           accessibilityRole="button"
+          accessibilityLabel={showMore ? 'Show less: discoveries and achievements' : 'Show more: discoveries and achievements'}
+          accessibilityState={{ expanded: showMore }}
         >
           <Text style={styles.showMoreText}>{showMore ? 'Show less' : 'Show more'}</Text>
           {showMore

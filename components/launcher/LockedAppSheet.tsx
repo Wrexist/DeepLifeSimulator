@@ -23,11 +23,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BookOpen, CalendarClock, Check, Lock, Monitor, TrendingUp } from 'lucide-react-native';
+import { BookOpen, CalendarClock, Circle, Lock, Monitor, TrendingUp } from 'lucide-react-native';
 import type { UnlockGuide } from '@/lib/progress/featureUnlocks';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { haptic } from '@/utils/haptics';
-import { accent, uiPalette, withAlpha } from '@/lib/config/theme';
+import { uiPalette, withAlpha } from '@/lib/config/theme';
 import { fontScale, scale } from '@/utils/scaling';
 
 const GOLD = '#FBBF24';
@@ -172,7 +172,10 @@ export default function LockedAppSheet({ app, onClose, onGoToMarket }: Props) {
                   <Text style={styles.goalsTitle}>Your next chapter goals</Text>
                   {app.guide.nextGoals.slice(0, 4).map((g) => (
                     <View key={g} style={styles.goalRow}>
-                      <Check size={scale(13)} color={accent.success} />
+                      {/* Every goal listed here is UNFINISHED (nextGoals filters
+                          completed ones out), so a green check read as done
+                          (VIS-10). A hollow circle is a to-do. */}
+                      <Circle size={scale(13)} color={uiPalette.secondary} />
                       <Text style={styles.goalText} numberOfLines={2}>{g}</Text>
                     </View>
                   ))}

@@ -9,6 +9,7 @@ import {
   dismissLifeMoment,
   canAffordLifeMomentChoice,
   lifeMomentChoiceCost,
+  lifeMomentEffectLabel,
 } from '@/lib/events/lifeMomentResolution';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
@@ -63,9 +64,14 @@ export default function LifeMomentModal() {
   // tap), so if the wallet covers none of them a plain "Not now" is offered
   // rather than a screen of disabled buttons.
   const noneAffordable = hasChoices && moment.choices.every(c => !canAffordLifeMomentChoice(c, cash));
+  // Android back mirrors the visible way out, so the same moment plays the
+  // same on both platforms (CMP-2). It dismisses only when "Not now" /
+  // "Dismiss" is on screen; while a choice is affordable it does nothing,
+  // exactly as on iOS, instead of skipping a costly moment for free.
+  const canDismiss = !hasChoices || noneAffordable;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
+    <Modal visible transparent animationType="fade" onRequestClose={canDismiss ? handleDismiss : () => undefined}>
       <View style={styles.overlay}>
         <LinearGradient
           colors={settings.darkMode ? [uiPalette.surface, uiPalette.navy] : [uiPalette.paper, uiPalette.white]}
@@ -97,7 +103,7 @@ export default function LifeMomentModal() {
             </Text>
           
             <View style={styles.choicesContainer}>
-              {(!hasChoices || noneAffordable) && (
+              {canDismiss && (
                 <TouchableOpacity
                   style={[
                     styles.choiceButton,
@@ -177,7 +183,7 @@ export default function LifeMomentModal() {
                               ]}
                               numberOfLines={1}
                             >
-                              {effect.label}
+                              {lifeMomentEffectLabel(effect, gameState.stats?.happiness ?? 0)}
                             </Text>
                             {up ? (
                               <ArrowUp size={scale(13)} color={DIRECTION_COLOR.positive} />

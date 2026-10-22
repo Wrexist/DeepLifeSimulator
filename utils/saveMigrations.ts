@@ -41,6 +41,36 @@ export function isSaveFromFutureError(error: unknown): error is SaveFromFutureEr
   return !!error && typeof error === 'object' && (error as { isSaveFromFuture?: unknown }).isSaveFromFuture === true;
 }
 
+/**
+ * Thrown by `loadGame` when the slot HAS data but none of it verifies (both
+ * buffers fail CRC32/HMAC, or the read itself throws). That used to collapse to
+ * the bare `null` an EMPTY slot returns, so Continue told the player "No save
+ * found ... start a new game" over a slot whose backups were intact and
+ * restorable. Loading a backup silently is not the answer either: an
+ * unverifiable blob can be a perfectly good save under a rotated key, and the
+ * next autosave would overwrite it with the older backup. So the load refuses,
+ * says why, and the player picks a backup in Save Slots. 2026-10-21 audit SAVE-1.
+ */
+export class SaveUnreadableError extends Error {
+  readonly isSaveUnreadable = true;
+  readonly slot: number;
+
+  constructor(slot: number, message = 'This save could not be verified.') {
+    super(message);
+    this.name = 'SaveUnreadableError';
+    this.slot = slot;
+  }
+}
+
+/** Duck-typed check — survives the dynamic import boundary and a bundle split. */
+export function isSaveUnreadableError(error: unknown): error is SaveUnreadableError {
+  return !!error && typeof error === 'object' && (error as { isSaveUnreadable?: unknown }).isSaveUnreadable === true;
+}
+
+/** The message to show a player whose save exists but cannot be read. */
+export const SAVE_UNREADABLE_MESSAGE =
+  "This save couldn't be read, but it has not been deleted. Open Save Slots and tap Restore on that slot to load an earlier backup.";
+
 /** The message to show a player whose save is from a newer build. */
 export const SAVE_FROM_FUTURE_MESSAGE =
   'This save was made by a newer version of DeepLife. Update the app to load it. Your save has not been changed.';

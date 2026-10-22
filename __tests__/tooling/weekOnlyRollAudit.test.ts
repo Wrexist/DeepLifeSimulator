@@ -100,13 +100,14 @@ const DECLARED: Record<string, [Kind, string]> = {
       'one-directional and closed after `BEGINNER_LUCK_WEEKS`.',
   ],
   'contexts/game/GameActionsContext.tsx': [
-    'NOT_LIFE_AFFECTING',
-    'the shared weekly roll stream handed to the darkweb/politics/rent ' +
-      'subsystem ticks. Those subsystems key on their own namespaces and ' +
-      'operate on holdings the life chose to acquire. The crypto tick gets the ' +
-      'same stream with every key prefixed by `marketSalt` (the life plus its ' +
-      'Time Machine rewind count), like the stock tape, so neither a new life ' +
-      'nor a rewind replays prices the player has already seen.',
+    'INTENTIONALLY_GLOBAL',
+    'the week-only stream now reaches exactly two consumers: the stock sector ' +
+      'regimes (the shared market WORLD, like `economyEvents`) and the crypto ' +
+      'tick, which prefixes every key with `marketSalt` (the life plus its Time ' +
+      'Machine rewind count). The dark-web, politics and real-estate ticks decide ' +
+      'raids, jail time, scandals, elections and tenant churn for THIS life and ' +
+      'take `makeLifeRoll` - they were wrongly declared NOT_LIFE_AFFECTING here ' +
+      'until 2026-10-21, which is how the guard passed. Pinned below.',
   ],
 };
 
@@ -164,5 +165,23 @@ describe('week-only seeded rolls are declared', () => {
       .join('\n');
     expect(code).toContain('makeLifeRoll(state, state.weeksLived || 0)');
     expect(/\bmakeWeeklyRoll\s*\(/.test(code)).toBe(false);
+  });
+
+  it('the dark-web, politics and real-estate ticks get the life-salted stream', () => {
+    // These decide jail time, BTC seizure, partner discovery, scandals,
+    // re-election and tenant churn - all about THIS life. They used to take the
+    // week-only `weeklyRoll` under a NOT_LIFE_AFFECTING declaration.
+    const src = fs.readFileSync(path.join(ROOT, 'contexts/game/GameActionsContext.tsx'), 'utf8');
+    const callArgs = (fn: string): string => {
+      const at = src.indexOf(`${fn}(`);
+      expect(at).toBeGreaterThan(-1);
+      return src.slice(at, src.indexOf('});', at));
+    };
+    expect(src).toContain('const lifeWeeklyRoll = makeLifeRoll(prevState, nextWeeksLived)');
+    expect(callArgs('runDarkWebWeeklyTick')).toContain('rollFor: lifeWeeklyRoll');
+    expect(callArgs('runPoliticsWeeklyTick')).toContain('rollFor: lifeWeeklyRoll');
+    const rent = src.slice(src.indexOf('applyRentAndHousing('), src.indexOf('weeklyCtx,', src.indexOf('applyRentAndHousing(')));
+    expect(rent).toContain('makeLifeRoll(prevState, nextWeeksLived)');
+    expect(rent).not.toMatch(/\bmakeWeeklyRoll\s*\(/);
   });
 });

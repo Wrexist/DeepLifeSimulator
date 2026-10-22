@@ -214,9 +214,8 @@ function TopStatsBarComponent() {
  // Persist the grant AND the weekly marker. Without this the whole tick lives
  // only in memory until the 2-minute autosave, so a force-kill loses the
  // marker and re-arms the action for the same game week - the exact bypass
- // this gate exists to close. Deferred a macrotask because saveGame reads
- // gameStateRef.current, which is synced post-commit.
- setTimeout(() => { void saveGame?.(false); }, 0);
+ // this gate exists to close. Inline: saveGame waits for the pending commit itself (waitForPendingCommit).
+ void saveGame?.(false);
  };
 
  const s = stats ?? { money: 0, energy: 0 };
@@ -233,12 +232,14 @@ function TopStatsBarComponent() {
  refuseWeeklyGate();
  return;
  }
- // The toast states the gain the updater will actually apply, taper included.
- const joy = (n: number) => Math.round(scaledHappinessGain(stats?.happiness ?? 0, n));
+ // The toast states the gain the updater will actually apply: taper
+ // included, and clamped at 100 - at 98 health "+7 health" applied +2.
+ const room = (current: number | undefined, n: number) => Math.max(0, Math.min(n, 100 - (current ?? 0)));
+ const joy = (n: number) => room(stats?.happiness, Math.round(scaledHappinessGain(stats?.happiness ?? 0, n)));
  switch (action) {
  case 'eat':
  if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
- apply({ money: -12, health: 7, happiness: 4 }, `Healthy meal - +7 health, +${joy(4)} happiness.`);
+ apply({ money: -12, health: 7, happiness: 4 }, `Healthy meal - +${room(stats?.health, 7)} health, +${joy(4)} happiness.`);
  break;
  case 'rest':
  // Resting at full energy used to spend the weekly slot and cost 5
@@ -252,7 +253,7 @@ function TopStatsBarComponent() {
  break;
  case 'exercise':
  if ((s.energy ?? 0) < 12) { haptic('warning'); info('Too tired to work out right now.'); return; }
- apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout - +6 fitness, +5 health.');
+ apply({ energy: -12, fitness: 6, health: 5 }, `Great workout - +${room(stats?.fitness, 6)} fitness, +${room(stats?.health, 5)} health.`);
  break;
  }
  }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
@@ -395,8 +396,8 @@ function TopStatsBarComponent() {
  // Exercise (no happiness at all) and Energy offered Eat (no energy),
  // under a hint promising "Quick action to improve <stat>".
  quickActions: [
- { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
- { icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
+ { id: 'eat', icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
+ { id: 'exercise', icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
  ],
  },
  {
@@ -406,8 +407,8 @@ function TopStatsBarComponent() {
  gradient: [STAT_IDENTITY.happiness.color, '#FBBF24'] as [string, string],
  max: 100,
  quickActions: [
- { icon: Coffee, label: 'Socialize', action: () => handleQuickAction('social') },
- { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
+ { id: 'social', icon: Coffee, label: 'Socialize', action: () => handleQuickAction('social') },
+ { id: 'eat', icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
  ],
  },
  {
@@ -417,7 +418,7 @@ function TopStatsBarComponent() {
  gradient: [STAT_IDENTITY.energy.color, '#60A5FA'] as [string, string],
  max: 100,
  quickActions: [
- { icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
+ { id: 'rest', icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
  ],
  },
  ];
@@ -576,8 +577,8 @@ function TopStatsBarComponent() {
  <View style={styles.vitalRingWrap}>
  <ProgressRing
  value={pct}
- size={40}
- strokeWidth={5}
+ size={scale(40)}
+ strokeWidth={scale(5)}
  ambient={false}
  showPill={false}
  accentColor={ringColor}
@@ -635,24 +636,30 @@ function TopStatsBarComponent() {
  {/* quick actions omitted for clarity; keep if you used them */}
  {showQuickActions === key && quickActions && (
  <View style={styles.quickActionsContainer}>
- {quickActions.map((action, index) => (
+ {quickActions.map((action, index) => {
+ // Shown as used BEFORE the tap: a spent action used to look
+ // live and only refuse once pressed (TAB-13). Still pressable,
+ // so the tap explains itself.
+ const used = settings?.quickActionWeeks?.[action.id] === weeksLived;
+ return (
  <TouchableOpacity
  key={index}
- style={styles.quickActionButton}
+ style={[styles.quickActionButton, used && { opacity: 0.45 }]}
  onPress={action.action}
  activeOpacity={0.7}
  // ~24pt tall as drawn; vertical slop reaches 44pt (A11Y-14).
  hitSlop={{ top: QUICK_ACTION_SLOP, bottom: QUICK_ACTION_SLOP }}
- accessibilityLabel={action.label}
+ accessibilityLabel={used ? `${action.label}, used this week` : action.label}
  accessibilityRole="button"
- accessibilityHint={`Quick action to improve ${statLabel.toLowerCase()}`}
+ accessibilityHint={used ? 'Available again next week' : `Quick action to improve ${statLabel.toLowerCase()}`}
  >
  <View style={[styles.quickActionGradient, { backgroundColor: '#2563EB' }]}>
  <action.icon size={16} color="#FFFFFF"/>
- <Text maxFontSizeMultiplier={1.3} style={styles.quickActionText}>{action.label}</Text>
+ <Text maxFontSizeMultiplier={1.3} style={styles.quickActionText}>{used ? `${action.label} · Used` : action.label}</Text>
  </View>
  </TouchableOpacity>
- ))}
+ );
+ })}
  </View>
  )}
  </View>
@@ -672,6 +679,7 @@ function TopStatsBarComponent() {
  accessibilityLabel={`Cash: ${formatMoney(stats?.money ?? 0)}`}
  accessibilityRole="button"
  accessibilityHint="Tap to see your cash, savings and investments"
+ style={styles.moneyChipTarget}
  >
  <View
  style={[

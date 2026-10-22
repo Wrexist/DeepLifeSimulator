@@ -137,7 +137,11 @@ export function hydrateLoadedState(
   // CRITICAL: Merge family — ensure children from both family.children and
   // relationships are preserved.
   let mergedFamily = raw.family ? { ...raw.family } : { ...initialGameState.family };
-  const mergedChildren: any[] = Array.isArray(raw.family?.children) ? [...raw.family.children] : [];
+  // Drop null/non-object holes: validateRelationshipState reads `child.id`
+  // bare, so one hole made the life unloadable and every save throw.
+  const mergedChildren: any[] = Array.isArray(raw.family?.children)
+    ? raw.family.children.filter((c: unknown) => !!c && typeof c === 'object')
+    : [];
 
   // Add any children from relationships that aren't already in family.children.
   childRelationships.forEach((childRel: any) => {

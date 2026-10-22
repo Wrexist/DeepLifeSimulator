@@ -83,7 +83,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
     }
 
     if (!canAfford) {
-      gameAlert('Insufficient Funds', `You need $${deposit.toLocaleString('en-US')} for the deposit.`);
+      gameAlert('Not enough money', `You need ${formatMoney(deposit)} for the deposit.`);
       return;
     }
 

@@ -26,6 +26,7 @@
 
 import type { DietPlan } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+import { dietPlanWeeklyCost } from '@/lib/economy/dietPlanCost';
 
 export interface DietPlanTickResult {
   /** Formatted log message, or `null` when no active diet plan. */
@@ -46,10 +47,7 @@ export function applyDietPlanForWeek(
   // while the stat gains were applied unconditionally — a broke player got free
   // health/energy/happiness forever. If unaffordable, the plan no-ops this week
   // (no gains, no charge) rather than handing out free stats.
-  const safeDailyCostPre = typeof activeDietPlan.dailyCost === 'number' && isFinite(activeDietPlan.dailyCost)
-    ? activeDietPlan.dailyCost
-    : 0;
-  const weeklyCostPre = safeDailyCostPre * 7;
+  const weeklyCostPre = dietPlanWeeklyCost(activeDietPlan);
   const currentMoneyPre = typeof ctx.newStats.money === 'number' && !isNaN(ctx.newStats.money)
     ? ctx.newStats.money
     : 0;

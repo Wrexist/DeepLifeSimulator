@@ -154,8 +154,22 @@ export function projectCampaignROI(
   return Number((e.roi * sizeDamp).toFixed(2));
 }
 
-export function brandLiftForCampaign(kind: HustleCampaignKind): number {
-  return CAMPAIGN_EFFICIENCY[kind].brandLift;
+/** A campaign must run this many weeks to earn its full brand lift. */
+export const CAMPAIGN_FULL_LIFT_WEEKS = 4;
+
+/**
+ * Brand points a launch grants. Scaled by run length (APP-1, 2026-10-21): the
+ * lift is paid up front, so a flat lift made a 1-week campaign (one week of
+ * spend, ended by the next tick) buy the same +5/+8 as a long one, and a dozen
+ * $100 guerrilla launches took brand from 50 to 100 for ~$1,200 - the W4
+ * launch-then-cancel exploit by another door. `durationWeeks` omitted = full.
+ */
+export function brandLiftForCampaign(kind: HustleCampaignKind, durationWeeks?: number): number {
+  const full = CAMPAIGN_EFFICIENCY[kind].brandLift;
+  if (durationWeeks === undefined) return full;
+  const weeks = Number.isFinite(durationWeeks) ? Math.max(0, durationWeeks) : 0;
+  const share = Math.min(1, weeks / CAMPAIGN_FULL_LIFT_WEEKS);
+  return share >= 1 ? full : Math.max(1, Math.round(full * share));
 }
 
 // Weekly realized-ROI variance band, as a multiplier on a campaign's PROJECTED

@@ -57,6 +57,20 @@ export function applyDynastyTransition(oldState: GameState, newState: GameState)
     newState.legacyContracts = { claimedIds: [...claimedIds] };
   }
 
+  // ── Milestone gem rewards ────────────────────────────────────────────────
+  // "Once-ever per milestone id", paid in gems that DO cross the boundary.
+  // The ledger did not, and every milestone re-derives from per-life state
+  // (first pet, first property, first company...), so each prestige or heir
+  // re-minted the whole board (ACT-2, 2026-10-21). A union, so it can only
+  // refuse a claim, never grant one.
+  const claimedMilestones = oldState.claimedMilestoneRewards;
+  if (Array.isArray(claimedMilestones) && claimedMilestones.length > 0) {
+    const own = Array.isArray(newState.claimedMilestoneRewards) ? newState.claimedMilestoneRewards : [];
+    newState.claimedMilestoneRewards = Array.from(
+      new Set([...own, ...claimedMilestones.filter((id): id is string => typeof id === 'string')]),
+    );
+  }
+
   // ── Dynasty stats (heirlooms, family records) ───────────────────────────
   // Lineage data, and it must never go BACKWARD across a life boundary. The
   // heir path folds the ended life in before calling here (`computeInheritance`:

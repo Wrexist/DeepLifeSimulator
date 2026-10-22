@@ -780,7 +780,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
               </Text>
               <Text style={styles.celebrationTitle}>Prestige {celebration.level}</Text>
               <Text style={styles.celebrationPoints}>
-                +{celebration.points.toLocaleString('en-US')} Prestige Points
+                +{celebration.points.toLocaleString('en-US')} prestige points
               </Text>
               <Text style={styles.celebrationBody}>
                 {celebration.heir

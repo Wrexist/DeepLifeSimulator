@@ -108,6 +108,33 @@ export const canCloseAccount = (accountId: string): boolean =>
 
 const safe = (n: number | undefined, fb = 0): number => (typeof n === 'number' && isFinite(n) ? n : fb);
 
+/**
+ * `banking` with the two mirror accounts showing the LIVE legacy balances:
+ * `checking-default` = cash, `savings-default` = `bankSavings`.
+ *
+ * The weekly tick copies these in once a week, so between ticks the stored
+ * mirror is stale - spend $5,000 and the bank still showed last week's
+ * checking balance beside a wallet that disagreed (VIS-3). The tick and the
+ * bank screens now call this one function, so the screen shows what the tick
+ * will write. Returns the same object when nothing differs.
+ */
+export function withLiveMirrorBalances(banking: BankingState, money: number, bankSavings: number): BankingState {
+  let changed = false;
+  // Guard against a partially-migrated save where `banking` exists but
+  // `accounts` doesn't - an unguarded .map() would throw inside the tick.
+  const accounts = (banking.accounts || []).map((acct) => {
+    const live = acct.id === LEGACY_CHECKING_ACCOUNT_ID
+      ? Math.max(0, safe(money))
+      : acct.id === LEGACY_SAVINGS_ACCOUNT_ID
+        ? Math.max(0, safe(bankSavings))
+        : null;
+    if (live === null || acct.balance === live) return acct;
+    changed = true;
+    return { ...acct, balance: live };
+  });
+  return changed || !banking.accounts ? { ...banking, accounts } : banking;
+}
+
 // ---------------------------------------------------------------------------
 // Account lookup helpers
 // ---------------------------------------------------------------------------

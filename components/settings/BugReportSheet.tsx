@@ -93,7 +93,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Report a Problem</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={hitSlopToMinTarget(24)} {...CLOSE_BUTTON_A11Y}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} {...CLOSE_BUTTON_A11Y} hitSlop={hitSlopToMinTarget(24)}>
               <X size={24} color={uiPalette.secondary} />
             </TouchableOpacity>
           </View>

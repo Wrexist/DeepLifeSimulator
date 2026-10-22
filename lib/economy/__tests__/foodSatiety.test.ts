@@ -9,7 +9,7 @@ import {
   satietyHint,
   FULL_STRENGTH_MEALS_PER_WEEK,
 } from '../foodSatiety';
-import { resolveFoodPurchase } from '../foodPurchase';
+import { resolveFoodPurchase, resolvePrisonFoodPurchase, prisonFoodBase } from '../foodPurchase';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('foodEffectMultiplier', () => {
@@ -101,5 +101,47 @@ describe('resolveFoodPurchase - the C-9 pure resolution', () => {
     expect(second.ok).toBe(true);
     expect(second.applied.energy).toBe(13);
     expect(second.next.weeklyFoodPurchases).toBe(4);
+  });
+});
+
+/**
+ * CMP-12: the jail canteen wrote stats directly - no satiety, no counter, no
+ * happiness curve - so in jail money converted to energy and health with no
+ * weekly cap.
+ */
+describe('resolvePrisonFoodPurchase - jail canteen uses the same curves', () => {
+  const stateWith = (money: number, eaten = 0, happiness = 40) =>
+    createTestGameState({
+      stats: { money, health: 40, energy: 10, happiness, fitness: 30, reputation: 0, gems: 0 },
+      weeklyFoodPurchases: eaten,
+      foods: [
+        { id: 'steak', name: 'Steak Dinner', price: 40, healthRestore: 20, energyRestore: 25 } as never,
+      ],
+    });
+
+  it('charges the prison price and bumps the weekly counter', () => {
+    const s = stateWith(1000);
+    const r = resolvePrisonFoodPurchase(s, 'steak');
+    expect(r.ok).toBe(true);
+    expect(r.price).toBe(prisonFoodBase({ price: 40, healthRestore: 20, energyRestore: 25 }, s.economy?.priceIndex ?? 1).price);
+    expect(r.next.stats.money).toBe(1000 - r.price);
+    expect(r.applied).toEqual({ health: 15, energy: 25, happiness: 5 });
+    expect(r.next.weeklyFoodPurchases).toBe(1);
+  });
+
+  it('a 4th meal in a week restores half, like the market', () => {
+    const r = resolvePrisonFoodPurchase(stateWith(1000, 3), 'steak');
+    expect(r.applied.energy).toBe(13);
+    expect(r.applied.health).toBe(8);
+  });
+
+  it('the happiness gain goes through the diminishing curve', () => {
+    const r = resolvePrisonFoodPurchase(stateWith(1000, 0, 95), 'steak');
+    expect(r.next.stats.happiness - 95).toBeLessThan(r.applied.happiness);
+  });
+
+  it('refuses when broke, returning the same state', () => {
+    const broke = stateWith(1);
+    expect(resolvePrisonFoodPurchase(broke, 'steak').next).toBe(broke);
   });
 });

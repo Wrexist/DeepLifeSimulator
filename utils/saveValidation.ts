@@ -979,13 +979,37 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { POLITICAL_CAREER } = require('@/lib/careers/political');
     const catalogLevelsById = new Map<string, { name: string; salary: number }[]>();
+    const catalogAnyOfById = new Map<string, string[]>();
     for (const c of [...(INITIAL_CAREERS || []), ...(ADVANCED_CAREERS || []), POLITICAL_CAREER]) {
       if (c && typeof c.id === 'string' && Array.isArray(c.levels)) {
         catalogLevelsById.set(c.id, c.levels);
       }
+      const anyOf = c?.requirements && 'educationAnyOf' in c.requirements ? c.requirements.educationAnyOf : undefined;
+      if (c && typeof c.id === 'string' && Array.isArray(anyOf) && anyOf.length > 0) {
+        catalogAnyOfById.set(c.id, anyOf);
+      }
     }
-    for (const career of s.careers as { id?: unknown; levels?: unknown; level?: unknown }[]) {
-      if (!career || typeof career.id !== 'string' || !Array.isArray(career.levels)) continue;
+    for (const career of s.careers as { id?: unknown; levels?: unknown; level?: unknown; requirements?: unknown }[]) {
+      if (!career || typeof career.id !== 'string') continue;
+      // Careers (requirements included) are stored BY VALUE, so an alternative
+      // education route added to the catalog never reached an existing save:
+      // doctor's medical_school route (2026-10-21) would have opened only for
+      // new lives. Adopt any catalog `educationAnyOf` id the save lacks. An
+      // alternative route only ever OPENS a gate, so a union is always safe.
+      const catalogAnyOf = catalogAnyOfById.get(career.id);
+      if (catalogAnyOf && career.requirements && typeof career.requirements === 'object') {
+        const req = career.requirements as { educationAnyOf?: unknown };
+        const current = Array.isArray(req.educationAnyOf)
+          ? req.educationAnyOf.filter((id): id is string => typeof id === 'string')
+          : [];
+        const missing = catalogAnyOf.filter((id) => !current.includes(id));
+        if (missing.length > 0) {
+          req.educationAnyOf = [...current, ...missing];
+          repairs.push(`Added ${missing.join(', ')} as an education route for ${career.id}`);
+          repaired = true;
+        }
+      }
+      if (!Array.isArray(career.levels)) continue;
       const catalogLevels = catalogLevelsById.get(career.id);
       if (catalogLevels && catalogLevels.length > career.levels.length) {
         career.levels = JSON.parse(JSON.stringify(catalogLevels));
@@ -1031,6 +1055,19 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
         repairs.push(`Filled missing ${key} fields from defaults`);
         repaired = true;
       }
+    }
+  }
+
+  // A null/non-object hole in family.children crashed validateRelationshipState
+  // (`child.id`) on load AND on every save, so the life could neither load nor
+  // save. Drop the holes; a non-object entry carries no child to keep.
+  if (s.family && typeof s.family === 'object' && Array.isArray(s.family.children)) {
+    const kids: unknown[] = s.family.children;
+    const kept = kids.filter((c) => !!c && typeof c === 'object');
+    if (kept.length !== kids.length) {
+      s.family = { ...s.family, children: kept };
+      repairs.push(`Removed ${kids.length - kept.length} malformed family.children entr${kids.length - kept.length === 1 ? 'y' : 'ies'}`);
+      repaired = true;
     }
   }
 
@@ -2399,6 +2436,21 @@ export async function atomicSave(
   }
 }
 
+// ─── SLOT STORAGE GENERATION ───────────────────────────────────────────
+// Bumped by every committed double-buffer write and every slot deletion, from
+// ANY caller (the save queue, a force-save, an IAP grant, a backup restore,
+// the onboarding write). `saveGame` records it beside the state object it just
+// persisted and skips a later NON-forced save only while the generation is
+// unchanged - i.e. while nothing else can have put different bytes in a slot
+// since. A counter rather than a per-slot map on purpose: a write to another
+// slot only costs one redundant save, and the coarser rule is the safer one.
+let slotStorageGeneration = 0;
+
+/** Monotonic count of slot writes/deletions this session (see above). */
+export function getSlotStorageGeneration(): number {
+  return slotStorageGeneration;
+}
+
 // ─── DOUBLE-BUFFER SAVE SYSTEM (A-1 crash fix) ─────────────────────────
 // Maintains two permanent buffers per save slot (A and B) with a pointer key.
 // Always writes to the INACTIVE buffer, then flips the pointer.
@@ -2417,6 +2469,10 @@ export async function doubleBufferSave(
   const pointerKey = `${slotKey}_active`;
   const keyA = `${slotKey}_A`;
   const keyB = `${slotKey}_B`;
+  // Counted on entry too, not only on success: a write that reports failure
+  // can still have flipped the pointer, so any ATTEMPT changes what a slot may
+  // hold. (See getSlotStorageGeneration.)
+  slotStorageGeneration++;
 
   try {
     // Step 1: Read current active pointer (default to 'A' if none exists)
@@ -2479,6 +2535,20 @@ export async function doubleBufferSave(
       };
     }
 
+    // Retire the legacy single-key save now that a verified buffer is
+    // committed. The migration in doubleBufferLoad kept it "as extra fallback
+    // until next successful save", and nothing ever removed it - so months
+    // later, if both buffers failed verification, the load quietly resurrected
+    // that months-old life, re-wrapped it into buffer A, and the next autosave
+    // made the rollback permanent. Best-effort: a failure here leaves the old
+    // behaviour, never a lost save. 2026-10-21 audit SAVE-9.
+    try {
+      await storage.removeItem(slotKey);
+    } catch (legacyRemoveError) {
+      logger.warn('[DOUBLE_BUFFER] Could not retire legacy key (non-critical)', { error: legacyRemoveError });
+    }
+
+    slotStorageGeneration++;
     return { success: true, buffer: inactiveBuffer };
   } catch (error) {
     return {
@@ -2759,7 +2829,27 @@ export async function deleteSaveSlot(
     // spellings together.
     `checkpoint_sidecar_slot_${slot}`,
   ];
-  await storage.multiRemove(keysToRemove);
+  // Bumped BEFORE the remove as well as after it: a save that read the
+  // generation while this delete was in flight must not count as current.
+  slotStorageGeneration++;
+  try {
+    await storage.multiRemove(keysToRemove);
+  } finally {
+    slotStorageGeneration++;
+  }
+
+  // Pending and journalled writes for this slot belong to the life just
+  // deleted; a startup replay would otherwise resurrect it (audit SAVE-8).
+  // Dynamic import: saveQueue imports this module. Best-effort and guarded,
+  // because a test double of saveQueue may not implement it.
+  try {
+    const { saveQueue } = await import('@/utils/saveQueue');
+    if (saveQueue && typeof saveQueue.discardSlot === 'function') {
+      await saveQueue.discardSlot(slot);
+    }
+  } catch (error) {
+    logger.warn('[deleteSaveSlot] Could not discard queued saves for slot (non-critical)', { slot, error });
+  }
 }
 
 /**

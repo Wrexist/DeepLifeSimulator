@@ -262,16 +262,37 @@ const num = (v: unknown): number =>
  * missing feature is a bug nobody reports.
  */
 export function isFeatureUnlocked(state: GameState | undefined | null, id: string): boolean {
+  return isFeatureUnlockedAtTier(unlockTier(state), id);
+}
+
+/**
+ * `isFeatureUnlocked` for a tier the caller already holds. Lock state is a
+ * function of the tier alone, so a screen that decorates many features can
+ * select `unlockTier` once (a number - it re-renders only when the tier moves)
+ * instead of subscribing to the whole state. PERF-4: the app launcher.
+ */
+export function isFeatureUnlockedAtTier(tier: UnlockTier, id: string): boolean {
   const feature = BY_ID.get(id);
   if (!feature) return true;
-  return unlockTier(state) >= feature.tier;
+  return tier >= feature.tier;
 }
 
 /** What the padlock should say. Empty string when it is already unlocked. */
 export function unlockRequirement(state: GameState | undefined | null, id: string): string {
+  return unlockRequirementAtTier(unlockTier(state), id);
+}
+
+/** `unlockRequirement` for a tier the caller already holds. */
+export function unlockRequirementAtTier(tier: UnlockTier, id: string): string {
   const feature = BY_ID.get(id);
-  if (!feature || isFeatureUnlocked(state, id)) return '';
+  if (!feature || isFeatureUnlockedAtTier(tier, id)) return '';
   return feature.requirement;
+}
+
+/** The two-word lock tag (`UnlockGuide.short`), which depends only on the feature. */
+export function unlockShortLabel(id: string): string | undefined {
+  const feature = BY_ID.get(id);
+  return feature ? `Chapter ${feature.tier}` : undefined;
 }
 
 /** Everything at a given tier — used to tell the player what they just earned. */
@@ -456,6 +477,9 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
   const wealthNeeded = TIER_WEALTH[tier];
   const wealthNow = wealthMark(state);
   const weeksNow = Math.floor(weeksInThisLife(state));
+  // Weeks PLAYED, not a week number: "You're at week 1" sat beside the HUD's
+  // week-of-month "Week 2" and read as a contradiction (VIS-10).
+  const weeksPlayedLabel = `You've played ${weeksNow} ${weeksNow === 1 ? 'week' : 'weeks'}`;
 
   const progress = active ? `Chapter ${chapterIndex + 1} of ${LIFE_CHAPTERS.length} · or reach ${formatMoney(wealthNeeded)}` : `Or reach ${formatMoney(wealthNeeded)} net worth`;
   const details = [
@@ -464,7 +488,7 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     `1. ${feature.requirement}. ${chapterLine}.`,
     ...(remainingGoals.length ? [`  Next goals (Home → Your Progress):`, ...remainingGoals] : []),
     `2. Reach ${formatMoney(wealthNeeded)} net worth (best so far: ${formatMoney(wealthNow)}).`,
-    `3. Play ${OPEN_ALL_WEEKS} weeks in this life (you're at week ${weeksNow}).`,
+    `3. Play ${OPEN_ALL_WEEKS} weeks in this life (${weeksPlayedLabel}).`,
   ].join('\n');
 
   const chapterProgress = active ? getChapterProgress(active, state) : undefined;
@@ -481,7 +505,7 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     },
     {
       label: `Play ${OPEN_ALL_WEEKS} weeks in this life`,
-      detail: `You're at week ${weeksNow}`,
+      detail: weeksPlayedLabel,
       progress: Math.min(1, weeksNow / OPEN_ALL_WEEKS),
     },
   ];
@@ -489,7 +513,7 @@ export function unlockGuide(state: GameState | undefined | null, id: string): Un
     requirement: feature.requirement,
     progress,
     details,
-    short: `Chapter ${tier}`,
+    short: unlockShortLabel(id) ?? `Chapter ${tier}`,
     routes,
     nextGoals: remainingGoals.map((g) => g.trim().replace(/^- /, '')),
   };

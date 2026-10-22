@@ -51,6 +51,7 @@ import {
   MIRRORED_ACCOUNT_IDS,
   isReadOnlyMirror,
   canCloseAccount,
+  withLiveMirrorBalances,
 } from '@/lib/banking/operations';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -151,7 +152,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
-  const banking = gameState.banking ?? initialGameState.banking!;
+  // VIS-3: the mirror accounts show live cash / savings, not last tick's copy.
+  const storedBanking = gameState.banking ?? initialGameState.banking!;
+  const liveMoney = gameState.stats?.money ?? 0;
+  const liveSavings = gameState.bankSavings ?? 0;
+  const banking = useMemo(
+    () => withLiveMirrorBalances(storedBanking, liveMoney, liveSavings),
+    [storedBanking, liveMoney, liveSavings],
+  );
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [subView, setSubView] = useState<SubView>(null);
@@ -235,6 +243,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     });
   }, [saveGame]);
 
+  // Refinance reports its outcome either way: a refusal (DTI, credit score)
+  // used to vanish into the log and look like a button that did nothing.
+  const refinance = useCallback((loanId: string, termWeeks: number) => {
+    const result = refinanceLoan(setGameState, gameState, loanId, termWeeks, weeklyIncome);
+    gameAlert(result.success ? 'Refinanced' : 'Refinance declined', result.message);
+    if (result.success) queueSave();
+  }, [setGameState, gameState, weeklyIncome, queueSave]);
+
   // Loan tap → choose Prepay or Refinance. Refinance re-prices the APR from the
   // CURRENT credit score (and adds a hard inquiry), so a player who has built
   // credit since taking the loan can cut their rate.
@@ -251,8 +267,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
               'Refinance term',
               'Re-price this loan at your current credit score. Adds a hard inquiry.',
               [
-                { text: '1 year (52 wks)', onPress: () => { refinanceLoan(setGameState, loan.id, 52); queueSave(); } },
-                { text: '2 years (104 wks)', onPress: () => { refinanceLoan(setGameState, loan.id, 104); queueSave(); } },
+                { text: '1 year (52 wks)', onPress: () => refinance(loan.id, 52) },
+                { text: '2 years (104 wks)', onPress: () => refinance(loan.id, 104) },
                 { text: 'Cancel', style: 'cancel' },
               ]
             );
@@ -261,7 +277,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         { text: 'Cancel', style: 'cancel' },
       ]
     );
-  }, [setGameState, queueSave]);
+  }, [refinance]);
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {

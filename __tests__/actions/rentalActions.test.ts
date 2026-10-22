@@ -18,6 +18,8 @@ import {
   rentHome,
   resolveEndRental,
   resolveRentHome,
+  moveOutWarning,
+  switchTierWarning,
 } from '@/contexts/game/actions/RentalActions';
 import { RENTAL_TIERS } from '@/lib/realEstate/rentals';
 import type { GameState } from '@/contexts/game/types';
@@ -210,5 +212,28 @@ describe('the listing the UI renders', () => {
       // A disabled button with no reason is a dead end for the player.
       if (!option.allowed) expect(option.reason.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('move confirmations (APP-3)', () => {
+  const renting = (over: Partial<GameState> = {}) =>
+    tenantReady(1000, { rental: { tierId: TIER.id, startedWeek: 0 }, ...over });
+
+  it('moving out names the weekly stats lost, and arrears when there are any', () => {
+    expect(moveOutWarning(tenantReady())).toBeNull();
+    const plain = moveOutWarning(renting());
+    expect(plain).toContain(TIER.name);
+    expect(plain).toContain('nowhere to live');
+    expect(plain).not.toContain('owe');
+    expect(moveOutWarning(renting({ overdueBalance: 300 }))).toContain('does not clear the $300 you owe');
+  });
+
+  it('switching tiers quotes both rents; a first signing or the same tier needs no warning', () => {
+    const other = RENTAL_TIERS[1];
+    expect(switchTierWarning(tenantReady(), other.id)).toBeNull();
+    expect(switchTierWarning(renting(), TIER.id)).toBeNull();
+    const text = switchTierWarning(renting(), other.id)!;
+    expect(text).toContain(`$${TIER.weeklyRent}`);
+    expect(text).toContain(`$${other.weeklyRent}`);
   });
 });

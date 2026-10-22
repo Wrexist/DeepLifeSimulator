@@ -143,7 +143,10 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
       case 'health':
         return { text: 'Health Failure', color: '#EF4444', icon: Heart };
       case 'happiness':
-        return { text: 'Lost Will to Live', color: '#8B5CF6', icon: Heart };
+        return { text: 'Despair', color: '#8B5CF6', icon: Heart };
+      // The tick records a natural death as 'age' (GameState.deathReason);
+      // 'old_age' was never written, so every natural death read 'Unknown'.
+      case 'age':
       case 'old_age':
         return { text: 'Old Age', color: uiPalette.lightMuted, icon: Calendar };
       case 'accident':

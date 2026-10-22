@@ -1,4 +1,5 @@
 import { familyPlanningBlock } from '@/lib/dating/familyPlanning';
+import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { uiPalette , colors, accent } from '@/lib/config/theme';
 /**
  * Family Tab - spouse / partner, children, pregnancy and the parenting loop.
@@ -82,6 +83,7 @@ import {
  canPerformParentingAction,
  applyParentingAction,
  describeRejectReason,
+ syncChildContactAfterParenting,
  MAX_PARENTING_ACTIONS_PER_WEEK,
  type ParentingAction,
  type NurtureStatKey,
@@ -249,6 +251,16 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  const partner = gameState.relationships?.find(r => r.type === 'partner');
  const spouse = gameState.family?.spouse;
+ // `family.spouse` is a SNAPSHOT taken on the wedding day and never refreshed
+ // while the marriage lasts, so dates, gifts, neglect, jealousy and a lost job
+ // never reached it. The live record in `relationships` is what the tick and
+ // every action move, so the card, the household mood and the baby gate all
+ // read it, falling back to the snapshot only if it is missing (SOC-3).
+ const spouseRelationship = useMemo(() =>
+ gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
+ [gameState.relationships, spouse?.id]
+ );
+ const liveSpouse = spouse ? (spouseRelationship ?? spouse) : undefined;
  // Whose faces the children inherit. Memoized because it is passed to every
  // child avatar, and a fresh object each render would defeat their memoization.
  const parentSources = useMemo(
@@ -283,14 +295,14 @@ function FamilyTab({ onClose }: FamilyTabProps) {
   */
  const householdMood = useMemo(() => {
  const scores: number[] = [];
- if (spouse) scores.push(spouse.relationshipScore);
+ if (liveSpouse) scores.push(liveSpouse.relationshipScore);
  else if (partner) scores.push(partner.relationshipScore);
  children.forEach(child => {
  scores.push(child.happiness ?? child.familyHappiness ?? 50);
  });
  if (scores.length === 0) return null;
  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
- }, [spouse, partner, children]);
+ }, [liveSpouse, partner, children]);
 
  /**
   * What the household ACTUALLY contributes per week.
@@ -313,13 +325,6 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  [gameState.relationships],
  );
 
- // Check pregnancy status from relationships array (has latest state).
- // Falls back to the partner relationship so engaged/cohabiting couples
- // (who never reach family.spouse) can also start a family.
- const spouseRelationship = useMemo(() =>
- gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
- [gameState.relationships, spouse?.id]
- );
  const babyTarget = spouseRelationship ?? partner ?? null;
  const isPregnant = babyTarget?.isPregnant ?? false;
  const pregnancyWeeks = isPregnant && babyTarget?.pregnancyStartWeek != null
@@ -338,10 +343,22 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  // `?app=tinder` opens the dating app itself. Without it this lands on the
  // launcher grid - and on a computer-owning save the grid opens on "Desktop
  // Apps", where Dating is not even in the visible category.
+ // The CTA follows the SAME unlock the launcher enforces. It used to send a
+ // first-session player to a Spark that was still locked behind Chapter 2 -
+ // the screen's main action dead-ended (VIS-4). While Spark is locked the
+ // tier-1 door (Contacts > meet someone, CLAUDE.md 4.8) is offered instead
+ // when it is open, and the requirement is stated either way.
+ const datingUnlocked = isFeatureUnlocked(gameState, 'app:tinder');
+ const datingLockReason = unlockRequirement(gameState, 'app:tinder');
+ const contactsUnlocked = isFeatureUnlocked(gameState, 'app:contacts');
+ const findPartnerApp = datingUnlocked ? 'tinder' : contactsUnlocked ? 'contacts' : null;
+ const findPartnerLabel = datingUnlocked ? 'Open the dating app' : 'Meet someone in Contacts';
+
  const handleFindPartner = useCallback(() => {
+ if (!findPartnerApp) return;
  onClose?.();
- router.push('/(tabs)/apps?app=tinder');
- }, [onClose, router]);
+ router.push(`/(tabs)/apps?app=${findPartnerApp}`);
+ }, [onClose, router, findPartnerApp]);
 
  const handlePropose = useCallback(() => {
  if (!partner) return;
@@ -560,7 +577,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  return (
  <View style={styles.card}>
- {renderRelationshipHeader(spouse, 'spouse', `Your spouse · ${spouse.personality}`)}
+ {renderRelationshipHeader(target, 'spouse', `Your spouse · ${target.personality}`)}
 
  {isPregnant && renderPregnancy(target)}
 
@@ -740,6 +757,8 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  ...prev.family,
  children: prevChildren.map(ch => (ch.id === childId ? outcome.child! : ch)),
  },
+ // SOC-2: parenting is contact - the child's Contacts record sees it too.
+ relationships: syncChildContactAfterParenting(prev.relationships || [], outcome.child, w),
  };
  });
  saveGame();
@@ -1083,17 +1102,19 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  <Text style={styles.emptyStateTitle}>No partner yet</Text>
  <Text style={styles.emptyStateText}>
- {ownsDevice
- ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
- : 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'}
+ {!ownsDevice
+ ? 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'
+ : datingUnlocked
+ ? 'Match on Spark, go on dates to build the bond, then move in, propose and start a family.'
+ : `The dating app unlocks later (${datingLockReason || 'keep playing'}).${contactsUnlocked ? ' Until then, meet people through Contacts.' : ''}`}
  </Text>
- {ownsDevice && (
+ {ownsDevice && findPartnerApp && (
  <TouchableOpacity
  style={styles.emptyStateCta}
  onPress={handleFindPartner}
  activeOpacity={0.85}
  accessibilityRole="button"
- accessibilityLabel="Open the dating app"
+ accessibilityLabel={findPartnerLabel}
  >
  <LinearGradient
  colors={['#EC4899', '#DB2777']}
@@ -1102,7 +1123,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  style={styles.emptyStateCtaFill}
  >
  <Search size={scale(17)} color={uiPalette.white} />
- <Text style={styles.emptyStateCtaText}>Open the dating app</Text>
+ <Text style={styles.emptyStateCtaText}>{findPartnerLabel}</Text>
  </LinearGradient>
  </TouchableOpacity>
  )}

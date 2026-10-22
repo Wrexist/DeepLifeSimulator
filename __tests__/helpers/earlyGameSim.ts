@@ -541,10 +541,10 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
         wrap(() => withdrawCashFromAccount(captured!.setGameState, LEGACY_SAVINGS_ACCOUNT_ID, amount)),
       buyStock: (symbol, amountUSD) =>
         spend('investing', () =>
-          buyStockMarket(captured!.setGameState, symbol, amountUSD, getStockInfo(symbol).price),
+          { buyStockMarket(captured!.setGameState, symbol, amountUSD, getStockInfo(symbol).price); },
         ),
       sellStock: (symbol, shares) =>
-        wrap(() => sellStockMarket(captured!.setGameState, symbol, shares, getStockInfo(symbol).price)),
+        wrap(() => { sellStockMarket(captured!.setGameState, symbol, shares, getStockInfo(symbol).price); }),
       buyProperty: (propertyId, tier, term, asResidence) =>
         spend('property', () => {
           const property = PROPERTY_CATALOG.find((p) => p.id === propertyId);

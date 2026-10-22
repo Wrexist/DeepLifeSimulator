@@ -62,6 +62,47 @@ export const LIFE_SKILL_IDS = [
 export type LifeSkillId = typeof LIFE_SKILL_IDS[number];
 
 /**
+ * What each node ACTUALLY does, in the words the Life Skills tree shows.
+ *
+ * The tree used to carry hand-written effect strings that promised mechanics
+ * the game never had - "Unlock C-suite positions", "+5 max relationships",
+ * "+10 max energy", "Skills decay -50%", "Unlock all education paths" - while
+ * `getLifeSkillModifiers` below quietly applied something else (the
+ * REINTERPRETED list at the top of this file). A player paid money and skill
+ * points for a promise and never learned what they bought: the CLAUDE.md §4.9
+ * displayed-vs-applied class. The modal now reads this table, and
+ * `__tests__/progression/lifeSkillEffectText.test.ts` checks every number here
+ * against the modifier the node applies, so the two cannot drift again.
+ */
+export const LIFE_SKILL_EFFECT_TEXT: Readonly<Record<LifeSkillId, string>> = {
+  networking: '+5% job application success',
+  leadership: '+10% promotion speed',
+  negotiation: '+15% salary',
+  executive: '+15% promotion speed, +10% salary',
+  charisma: '+10% relationship gains',
+  empathy: 'Relationship decay -25%',
+  persuasion: '+20% dating success',
+  socialMaster: '+15% relationship gains',
+  stamina: '+15% energy regeneration',
+  resilience: 'Illness recovery +25% faster',
+  peak_performance: '+15% gym efficiency',
+  vitality: 'Old-age risk -20%',
+  budgeting: '-5% rent and housing upkeep',
+  investing: '+5% stock dividends',
+  tax_strategy: '-10% income tax',
+  wealth_master: '+25% passive income',
+  quick_learner: '-10% education time',
+  critical_thinking: '+8% exam pass chance',
+  memory_palace: '+8% exam pass chance',
+  polymath: '-15% education time, +5% exam pass chance',
+};
+
+/** The effect line for a node id; unknown ids get an empty string. */
+export function lifeSkillEffectText(id: string): string {
+  return (LIFE_SKILL_EFFECT_TEXT as Record<string, string>)[id] ?? '';
+}
+
+/**
  * Skill POINTS - what the tree's "N Points" badge finally means.
  *
  * The modal showed a points total for its whole life and nothing ever spent
@@ -221,7 +262,7 @@ export function getLifeSkillModifiers(state: GameState | null | undefined): Life
 
   // ── Intellectual Growth ─────────────────────────────────────────
   if (has('quick_learner')) m.educationTimeReductionPct += 0.10; // -10% education time
-  if (has('critical_thinking')) m.examPassBonus += 0.08;         // +10% study effectiveness
+  if (has('critical_thinking')) m.examPassBonus += 0.08;         // +8 pts exam pass chance
   if (has('memory_palace')) m.examPassBonus += 0.08;             // retention (reinterpreted)
   if (has('polymath')) { m.educationTimeReductionPct += 0.15; m.examPassBonus += 0.05; } // capstone (reinterpreted)
 

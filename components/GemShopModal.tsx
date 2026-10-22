@@ -382,12 +382,10 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
         }
       }
     } catch (error) {
+      // The raw exception (a StoreKit/Play code, a JS TypeError) stays in the
+      // log; the player gets a sentence they can act on.
       logger.error('Purchase error:', error);
-      let errorMsg = 'An unexpected error occurred during purchase.';
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      gameAlert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
+      gameAlert('Purchase Failed', 'Something went wrong with the purchase. Please try again, or contact support if it keeps happening.');
     } finally {
       setPurchasingId(null);
     }
@@ -1199,7 +1197,9 @@ const styles = StyleSheet.create({
   },
   sheet: {
     height: '88%',
-    backgroundColor: 'rgba(9, 12, 22, 0.96)',
+    // Opaque: at 0.96 the HUD money and the Home cards ghosted through the
+    // tabs and the banner (VIS-9). The dimming belongs to the backdrop.
+    backgroundColor: '#090C16',
     borderTopLeftRadius: responsiveBorderRadius.xl,
     borderTopRightRadius: responsiveBorderRadius.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -1273,22 +1273,28 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
+  // Cells sized to their labels (flexBasis auto), not four equal quarters: in
+  // equal cells the longest label ('Upgrades') was wider than its quarter and,
+  // centred, ran to the right edge at 390pt - and clipped on web, where
+  // adjustsFontSizeToFit does nothing (VIS-22).
   tabRow: {
     flexDirection: 'row',
-    paddingHorizontal: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   tabBtn: {
     minHeight: 44,
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 'auto',
     paddingVertical: verticalScale(10),
     alignItems: 'center',
   },
   tabContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: scale(4),
     // Four tabs share the row; let the label give rather than overflow.
     maxWidth: '100%',
   },

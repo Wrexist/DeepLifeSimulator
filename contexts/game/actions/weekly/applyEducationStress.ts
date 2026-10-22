@@ -35,6 +35,7 @@
  */
 
 import type { Education } from '@/contexts/game/types';
+import { countStressfulEducations, educationStressPenalties } from '@/lib/education/educationStress';
 import type { WeekContext } from './weekContext';
 
 export interface EducationStressResult {
@@ -46,40 +47,18 @@ export function applyEducationStress(
   prevEducations: Education[] | undefined | null,
   ctx: WeekContext,
 ): EducationStressResult {
-  const educations = (prevEducations || []) as Education[];
-
-  // Only count non-paused, active educations for stat drain.
-  const activeEducations = educations.filter((edu) =>
-    edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0,
-  );
-  const numActiveEducations = activeEducations.length;
+  // Formula and caps live in lib/education/educationStress so the projection
+  // the screens show cannot drift from what this applies.
+  const numActiveEducations = countStressfulEducations(prevEducations);
 
   if (numActiveEducations === 0) {
     return { numActiveEducations, logMessage: null };
   }
 
-  // Apply education stat penalties (studying is stressful).
-  // Reduced penalties: each additional education adds less stress (more balanced).
-  const baseHappinessPenalty = -6; // Reduced from -8.
-  const baseHealthPenalty = -3;    // Reduced from -5.
-  const baseEnergyPenalty = -7;    // Reduced from -10.
-
-  // Reduced scaling: each additional education adds less stress.
-  // 1 education: base penalties.
-  // 2 educations: 1.3× penalties (moderately stressful).
-  // 3+ educations: 1.6× penalties (stressful but manageable).
-  const stressMultiplier =
-    numActiveEducations === 1 ? 1.0 :
-    numActiveEducations === 2 ? 1.3 :
-    1.6;
-
-  // ANTI-EXPLOIT: Cap education penalties to prevent death spiral.
-  const MAX_EDUCATION_HAPPINESS_PENALTY = -20;
-  const MAX_EDUCATION_HEALTH_PENALTY = -10;
-  const MAX_EDUCATION_ENERGY_PENALTY = -25;
-  const educationHappinessPenalty = Math.max(MAX_EDUCATION_HAPPINESS_PENALTY, Math.round(baseHappinessPenalty * numActiveEducations * stressMultiplier));
-  const educationHealthPenalty = Math.max(MAX_EDUCATION_HEALTH_PENALTY, Math.round(baseHealthPenalty * numActiveEducations * stressMultiplier));
-  const educationEnergyPenalty = Math.max(MAX_EDUCATION_ENERGY_PENALTY, Math.round(baseEnergyPenalty * numActiveEducations * stressMultiplier));
+  const penalties = educationStressPenalties(numActiveEducations);
+  const educationHappinessPenalty = penalties.happiness;
+  const educationHealthPenalty = penalties.health;
+  const educationEnergyPenalty = penalties.energy;
 
   ctx.newStats.happiness = Math.max(0, Math.min(100, ctx.newStats.happiness + educationHappinessPenalty));
   ctx.newStats.health = Math.max(0, Math.min(100, ctx.newStats.health + educationHealthPenalty));

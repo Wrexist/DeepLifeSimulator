@@ -25,12 +25,12 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
+import { SmartNotification, NotificationContext, useSmartNotifications, smartNotificationSystem } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
-import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface SmartNotificationCenterProps {
@@ -102,10 +102,16 @@ export default function SmartNotificationCenter({
     }
   }, [visible]);
 
+  // "Unread" = never shown, read from the two places a show is actually
+  // recorded: this session's history and the save's `shownNotificationIds`.
+  // It used to test `notification.lastShown`, a field nothing writes, so the
+  // tab listed everything (CMP-5).
+  const sessionShown = smartNotificationSystem.getNotificationHistory();
+  const savedShown = new Set(gameState.shownNotificationIds ?? []);
   const filteredNotifications = notifications.filter(notification => {
     switch (selectedFilter) {
       case 'unread':
-        return !notification.lastShown;
+        return !sessionShown.has(notification.id) && !savedShown.has(notification.id);
       case 'achievement':
         return notification.type === 'achievement';
       case 'warning':
@@ -253,6 +259,7 @@ export default function SmartNotificationCenter({
                       onPress={() => handlePreferenceToggle('showTips')}
                       style={styles.settingItem}
                       accessibilityRole="switch"
+                      accessibilityLabel="Show Tips"
                       accessibilityState={{ checked: !!notificationPreferences.showTips }}
                     >
                       <View style={styles.settingInfo}>
@@ -272,6 +279,7 @@ export default function SmartNotificationCenter({
                       onPress={() => handlePreferenceToggle('showMilestones')}
                       style={styles.settingItem}
                       accessibilityRole="switch"
+                      accessibilityLabel="Show Milestones"
                       accessibilityState={{ checked: !!notificationPreferences.showMilestones }}
                     >
                       <View style={styles.settingInfo}>
@@ -291,6 +299,7 @@ export default function SmartNotificationCenter({
                       onPress={() => handlePreferenceToggle('showWarnings')}
                       style={styles.settingItem}
                       accessibilityRole="switch"
+                      accessibilityLabel="Show Warnings"
                       accessibilityState={{ checked: !!notificationPreferences.showWarnings }}
                     >
                       <View style={styles.settingInfo}>
@@ -310,6 +319,7 @@ export default function SmartNotificationCenter({
                       onPress={() => handlePreferenceToggle('showSuggestions')}
                       style={styles.settingItem}
                       accessibilityRole="switch"
+                      accessibilityLabel="Show Suggestions"
                       accessibilityState={{ checked: !!notificationPreferences.showSuggestions }}
                     >
                       <View style={styles.settingInfo}>

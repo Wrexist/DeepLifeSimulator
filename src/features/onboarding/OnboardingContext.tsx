@@ -5,7 +5,7 @@ import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 import { NEW_LIFE_SLOT_UNSET } from './slotSafety';
 
-interface OnboardingState {
+export interface OnboardingState {
   /**
    * Target save slot, 1-3. `NEW_LIFE_SLOT_UNSET` (0) means the player has not
    * chosen one - which is NOT a licence to pick one for them. This used to
@@ -33,7 +33,12 @@ interface OnboardingContextType {
   clearDraft: () => Promise<void>;
 }
 
-const defaultState: OnboardingState = {
+/**
+ * The draft a fresh character-creation flow starts from. Exported so Quick
+ * Start can build its life from DEFAULTS rather than spreading a persisted
+ * draft (whose face, sex and orientation belong to an abandoned custom life).
+ */
+export const defaultOnboardingState: OnboardingState = {
   slot: NEW_LIFE_SLOT_UNSET,
   firstName: '',
   lastName: '',
@@ -72,7 +77,7 @@ const isPristineDraft = (s: OnboardingState): boolean =>
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 export const OnboardingProvider = ({ children }: { children: React.ReactNode }) => {
-  const [state, setState] = useState<OnboardingState>(defaultState);
+  const [state, setState] = useState<OnboardingState>(defaultOnboardingState);
   const hasHydratedRef = useRef(false);
   // Set the moment any screen writes to the draft. The hydration below reads
   // AsyncStorage asynchronously and lands with a WHOLE-OBJECT replace; on a
@@ -104,8 +109,8 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
             // fill in the blanks the draft knows about, but let live state win.
             setState((prev) =>
               hasLiveChoiceRef.current
-                ? { ...defaultState, ...persisted.state, ...prev }
-                : { ...defaultState, ...persisted.state },
+                ? { ...defaultOnboardingState, ...persisted.state, ...prev }
+                : { ...defaultOnboardingState, ...persisted.state },
             );
           } else if (persisted.savedAt) {
             // Stale draft - clean up.
@@ -159,7 +164,7 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
       persistTimerRef.current = null;
     }
     hasLiveChoiceRef.current = false;
-    setState(defaultState);
+    setState(defaultOnboardingState);
     try {
       await safeAsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
     } catch (error) {

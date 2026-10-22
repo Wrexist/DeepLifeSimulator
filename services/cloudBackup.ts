@@ -339,13 +339,16 @@ export async function fetchCloudRestoreCandidate(options: {
 export async function probeCloudSlot(
   slot: number,
   localWeeksLived: number
-): Promise<{ newer: boolean; remoteWeeks: number } | null> {
+): Promise<{ newer: boolean; remoteWeeks: number; remoteLifeStartWeek?: number } | null> {
   if (!isCloudBackupEnabled()) return null;
   try {
     const remote = await getCloudSyncService().downloadState(undefined, { slot, detectConflicts: false });
     if (!remote) return null;
     const remoteWeeks = typeof remote.weeksLived === 'number' ? remote.weeksLived : 0;
-    return { newer: remoteWeeks > localWeeksLived, remoteWeeks };
+    // Returned for DISPLAY only: `weeksLived` is seeded from the starting age,
+    // so a player-facing "week N" must be measured from this baseline.
+    const remoteLifeStartWeek = typeof remote.lifeStartWeek === 'number' ? remote.lifeStartWeek : undefined;
+    return { newer: remoteWeeks > localWeeksLived, remoteWeeks, remoteLifeStartWeek };
   } catch (error) {
     logger.warn('[CloudBackup] Cloud slot probe failed', { slot, error });
     return null;

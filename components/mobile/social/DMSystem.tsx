@@ -20,6 +20,8 @@ import {
  ScrollView,
  Modal,
  TextInput,
+ KeyboardAvoidingView,
+ Platform,
 } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { MS_PER_HOUR, MS_PER_DAY, MS_PER_WEEK } from '@/lib/config/gameConstants';
@@ -451,9 +453,8 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  revealedDMClues: [...(prev.revealedDMClues || []), clueId],
  };
  });
- // Defer the save past the commit + parent ref-sync so the granted money AND
- // the reveal flag both persist (a synchronous save captures the pre-grant state).
- setTimeout(() => { void saveGame(); }, 0);
+ // Persist the granted money AND the reveal flag; saveGame waits for the pending commit itself (waitForPendingCommit).
+ void saveGame();
  }
 
  setCurrentClue({
@@ -693,7 +694,14 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  if (!selectedConversation) return null;
 
  return (
- <View style={styles.messageThread}>
+ // The reply box sits at the bottom of the thread; without this the iOS
+ // keyboard covered it and the Send button (CMP-8). Same pattern as the
+ // Pulse post composer (PostDetailScreen).
+ <KeyboardAvoidingView
+ style={styles.messageThread}
+ behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+ keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+ >
  {/* Thread Header */}
  <View style={styles.threadHeader}>
  <TouchableOpacity
@@ -795,7 +803,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <Send size={scale(20)} color={messageInput.trim() ?'#3B82F6': uiPalette.muted} />
  </TouchableOpacity>
  </View>
- </View>
+ </KeyboardAvoidingView>
  );
  };
 

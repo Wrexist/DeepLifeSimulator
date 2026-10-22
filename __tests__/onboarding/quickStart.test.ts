@@ -48,7 +48,7 @@ describe('Quick Start fills in what the long flow would have', () => {
   it('applies the scenario through the SAME helper the Scenarios screen uses', () => {
     // Not a second implementation of "pick a life path". If that helper ever
     // grows a side effect, the shortcut inherits it rather than diverging.
-    expect(menuSrc).toMatch(/applyLifePathSelectionToOnboardingState\(prev, recommended\)/);
+    expect(menuSrc).toMatch(/applyLifePathSelectionToOnboardingState\(defaultOnboardingState, recommended\)/);
     const recommended = scenarios.find((s) => s.id === 'food_courier')!;
     // Deliberately NOT cast: the helper is generic over its state shape, so an
     // honestly-typed fixture makes this test fail if that contract changes,
@@ -61,6 +61,21 @@ describe('Quick Start fills in what the long flow would have', () => {
     // Clearing the challenge id matters: a leftover would start a challenge
     // run the player never chose.
     expect(applied.challengeScenarioId).toBeUndefined();
+  });
+
+  it('builds the draft from defaults, not from an abandoned custom draft (ONB-4)', () => {
+    const quick = menuSrc.slice(menuSrc.indexOf('const startQuick'));
+    const body = quick.slice(0, quick.indexOf('const startNew'));
+    expect(body).not.toMatch(/\.\.\.prev\b/);
+    expect(body).not.toMatch(/applyLifePathSelectionToOnboardingState\(prev/);
+  });
+
+  it('resolves sex once and names the character to match it (ONB-3)', () => {
+    const quick = menuSrc.slice(menuSrc.indexOf('const startQuick'));
+    const body = quick.slice(0, quick.indexOf('const startNew'));
+    expect(body).not.toMatch(/generateRandomName\('random'\)/);
+    expect(body).toMatch(/generateRandomName\(sex\)/);
+    expect(body).toMatch(/^\s*sex,$/m);
   });
 
   it('leaves ambition and perks unset rather than inventing them', () => {

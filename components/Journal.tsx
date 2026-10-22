@@ -97,9 +97,11 @@ function getCategoryFromEntry(entry: JournalEntry): JournalCategory {
 
 interface JournalProps {
   compact?: boolean;
+  /** Bottom padding for the entry list (e.g. the home-indicator inset). */
+  bottomInset?: number;
 }
 
-export default function Journal({ compact = false }: JournalProps) {
+export default function Journal({ compact = false, bottomInset }: JournalProps) {
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const entries = useGameSelector((s) => s.journal) || [];
   // `atWeek` is the ABSOLUTE weeksLived, seeded from the starting age, so an
@@ -304,8 +306,8 @@ export default function Journal({ compact = false }: JournalProps) {
             Life Journal
           </Text>
         </View>
-        <View style={styles.headerStats}>
-          <Text style={[styles.statsText, settings.darkMode && styles.textMuted]}>
+        <View style={[styles.headerStats, settings.darkMode && styles.headerStatsDark]}>
+          <Text style={[styles.statsText, settings.darkMode && styles.statsTextDark]}>
             {stats.total} entries
           </Text>
         </View>
@@ -400,6 +402,7 @@ export default function Journal({ compact = false }: JournalProps) {
       ) : (
         <FlatList
           style={styles.entriesContainer}
+          contentContainerStyle={bottomInset ? { paddingBottom: bottomInset } : undefined}
           data={filteredEntries}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
@@ -514,6 +517,14 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     color: '#6366F1',
     fontWeight: '600',
+  },
+  // Dark mode: a tinted chip with accent text. The light chip (#EEF2FF) used
+  // to stay in dark mode with slate text on it, about 2.4:1 contrast (CMP-17).
+  headerStatsDark: {
+    backgroundColor: 'rgba(167, 139, 250, 0.16)',
+  },
+  statsTextDark: {
+    color: '#C4B5FD',
   },
   searchContainer: {
     flexDirection: 'row',

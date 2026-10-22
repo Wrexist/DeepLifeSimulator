@@ -13,7 +13,7 @@ import StatStrip from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { boostPostWithGems } from '@/contexts/game/actions/PulseActions';
+import { boostPostWithGems, postBoostedThisWeek } from '@/contexts/game/actions/PulseActions';
 import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
@@ -30,21 +30,23 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
   const { theme } = useTheme();
 
   const gems = gameState.stats?.gems ?? 0;
+  const alreadyBoosted = postId ? postBoostedThisWeek(gameState, postId) : false;
   const canAfford = gems >= GEM_COST;
+  const canBuy = canAfford && !alreadyBoosted;
 
   const handleBoost = useCallback(() => {
-    if (!postId || !canAfford) return;
+    if (!postId || !canBuy) return;
     const result = boostPostWithGems(setGameState, gameState, postId, GEM_COST);
     if (result.success) {
       pulseHaptics.success();
       // Persist the gem spend like every sibling Pulse mutation - without
       // this a reload inside the 2-minute autosave window reverted it.
-      setTimeout(() => { void saveGame?.(); }, 0);
+      void saveGame?.();
       onDismiss();
     } else {
       pulseHaptics.error();
     }
-  }, [postId, canAfford, setGameState, gameState, saveGame, onDismiss]);
+  }, [postId, canBuy, setGameState, gameState, saveGame, onDismiss]);
 
   if (!visible) return null;
 
@@ -58,19 +60,19 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
       footer={
         <Pressable
           onPress={handleBoost}
-          disabled={!canAfford}
+          disabled={!canBuy}
           accessibilityRole="button"
-          accessibilityState={{ disabled: !canAfford }}
-          accessibilityLabel={canAfford ? `Spend ${GEM_COST} gems to boost` : 'Not enough gems'}
+          accessibilityState={{ disabled: !canBuy }}
+          accessibilityLabel={alreadyBoosted ? 'Already boosted this week' : canAfford ? `Spend ${GEM_COST} gems to boost` : 'Not enough gems'}
           style={[
             styles.cta,
-            { backgroundColor: canAfford ? PULSE_COLORS.accent : theme.border },
-            !canAfford && styles.ctaDisabled,
+            { backgroundColor: canBuy ? PULSE_COLORS.accent : theme.border },
+            !canBuy && styles.ctaDisabled,
           ]}
         >
           <Gem size={fontScale(16)} color={uiPalette.white} />
           <Text style={styles.ctaText}>
-            {canAfford ? `Spend ${GEM_COST} to boost` : 'Not enough gems'}
+            {alreadyBoosted ? 'Boosted this week' : canAfford ? `Spend ${GEM_COST} to boost` : 'Not enough gems'}
           </Text>
         </Pressable>
       }

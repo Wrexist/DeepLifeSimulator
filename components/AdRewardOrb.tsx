@@ -67,6 +67,8 @@ const REWARD_MAX = 500_000;
 const FIRST_DELAY: [number, number] = [45000, 75000];
 const REPEAT_DELAY: [number, number] = [360000, 600000];
 const VISIBLE_MS = 22000; // orb auto-hides if ignored
+/** How long the orb shows its label before folding down to the icon (VIS-7). */
+const ORB_COLLAPSE_MS = 3000;
 // While only a real ad may pay the orb, how often to look for a loaded one.
 const AD_NOT_READY_RECHECK_MS = 30000;
 
@@ -300,6 +302,21 @@ function AdRewardOrb() {
     };
     addTimer(spawn, delay);
   }, [getGameState]);
+
+  // The orb floats over gameplay (Home coach text, the Apps grid, Stocks'
+  // sort chip), so after a short look it folds down to its icon: still one tap
+  // to open, but ~a third of the footprint over the content (VIS-7). WHEN it
+  // appears is the monetization cadence and is not changed here.
+  const visibleOrb = phase === 'orb' && !!orbSlot;
+  const [orbCollapsed, setOrbCollapsed] = useState(false);
+  useEffect(() => {
+    if (!visibleOrb) {
+      setOrbCollapsed(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setOrbCollapsed(true), ORB_COLLAPSE_MS);
+    return () => clearTimeout(t);
+  }, [visibleOrb]);
 
   // First appearance after mount - but never once the player has removed ads.
   useEffect(() => {
@@ -574,15 +591,17 @@ function AdRewardOrb() {
               onAccessibilityAction={(e) => {
                 if (e.nativeEvent.actionName === 'dismiss') dismissOrb();
               }}
-              style={[styles.orb, isCash ? styles.orbCash : styles.orbVitality]}
+              style={[styles.orb, isCash ? styles.orbCash : styles.orbVitality, orbCollapsed && styles.orbCollapsed]}
             >
               <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.orbCircle}>
                 <OrbIcon size={scale(20)} color={uiPalette.white} strokeWidth={2.3} />
               </LinearGradient>
-              <View style={styles.orbLabel}>
-                <Text style={styles.orbAmount} numberOfLines={1}>{orbAmount}</Text>
-                <Text style={styles.orbSub} numberOfLines={1}>Watch ad</Text>
-              </View>
+              {orbCollapsed ? null : (
+                <View style={styles.orbLabel}>
+                  <Text style={styles.orbAmount} numberOfLines={1}>{orbAmount}</Text>
+                  <Text style={styles.orbSub} numberOfLines={1}>Watch ad</Text>
+                </View>
+              )}
               <Pressable onPress={dismissOrb} hitSlop={hitSlopToMinTarget(scale(18))} accessibilityRole="button" accessibilityLabel="Dismiss" style={styles.orbClose}>
                 <X size={scale(12)} color="rgba(255,255,255,0.85)" />
               </Pressable>
@@ -706,6 +725,10 @@ const styles = StyleSheet.create({
   orbVitality: {
     backgroundColor: 'rgba(76, 5, 25, 0.92)',
     borderColor: 'rgba(251, 113, 133, 0.5)',
+  },
+  orbCollapsed: {
+    gap: scale(2),
+    paddingRight: scale(4),
   },
   orbCircle: {
     width: scale(40),

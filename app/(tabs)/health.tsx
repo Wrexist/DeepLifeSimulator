@@ -27,6 +27,7 @@ import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
+import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 
 type Vital = { key: HealthDelta['stat']; label: string; value: number; color: string };
 
@@ -40,7 +41,7 @@ function VitalsSummary({ vitals }: { vitals: Vital[] }) {
       {vitals.map((v) => {
         const Icon = STAT_IDENTITY[v.key].Icon;
         return (
-          <View key={v.key} style={styles.vitalRingCell}>
+          <View key={v.key} style={styles.vitalsSummaryCell}>
             <Icon size={scale(12)} color={v.color} accessible={false} />
             <Text
               style={[styles.vitalsSummaryValue, { color: vitalState(v.value).color ?? uiPalette.line }]}
@@ -219,8 +220,10 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   // Program 4 logged and Program 5 closes.
   const vitals: (Vital & { Icon: typeof STAT_IDENTITY.health.Icon })[] = [
     { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: STAT_IDENTITY.health.color, Icon: STAT_IDENTITY.health.Icon },
-    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
+    // Same order as the HUD rings (health, happiness, energy) so a number is
+    // read in the same place on both surfaces (VIS-20).
     { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: STAT_IDENTITY.happiness.color, Icon: STAT_IDENTITY.happiness.Icon },
+    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: STAT_IDENTITY.energy.color, Icon: STAT_IDENTITY.energy.Icon },
     { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: STAT_IDENTITY.fitness.color, Icon: STAT_IDENTITY.fitness.Icon },
   ];
 
@@ -258,7 +261,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     const isCureActivity = CURE_IDS.has(activity.id);
     const description = isCureActivity
       ? activity.id === 'doctor'
-        ? '50% chance to cure each curable, non-critical illness. Also manages chronic conditions.'
+        ? '50% chance each week to cure each curable, non-critical illness (repeat visits in the same week get the same result). Also manages chronic conditions.'
         : activity.id === 'hospital'
           ? 'Cures curable, non-critical illnesses. Also manages chronic conditions; critical illnesses need experimental treatment.'
           : 'Cures curable critical illnesses. Does not cure chronic conditions.'
@@ -291,7 +294,13 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
       const activity = (gameState.healthActivities ?? []).find((a) => a.id === id);
       return activity?.name ?? id;
     });
-    const immunityNames = (gameState.diseaseImmunities ?? []).map((id) => `${id} (immune)`);
+    // Display names from the disease catalogue: the raw ids ('common_cold')
+    // used to be shown next to properly named vaccines (TAB-10).
+    const immunityNames = (gameState.diseaseImmunities ?? []).map((id) => {
+      const name = getDiseaseTemplate(id)?.name
+        ?? id.split('_').filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      return `${name} (immune)`;
+    });
     return [...vaccineNames, ...immunityNames];
   }, [gameState.vaccinations, gameState.diseaseImmunities, gameState.healthActivities]);
   const sectionDescStyle = [styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark];
@@ -519,9 +528,16 @@ const styles = StyleSheet.create({
     color: uiPalette.muted,
     letterSpacing: 0.3,
   },
+  // Each value gets a fixed-width column with a real gap: sharing the width
+  // with `flex: 1` ran the numbers together ('97 100 100 9', VIS-20).
   vitalsSummary: {
     flexDirection: 'row',
-    gap: layoutSpace.sm,
+    gap: layoutSpace.md,
+  },
+  vitalsSummaryCell: {
+    alignItems: 'center',
+    gap: layoutSpace.xs,
+    minWidth: scale(28),
   },
   vitalsSummaryValue: {
     fontSize: fontScale(13),

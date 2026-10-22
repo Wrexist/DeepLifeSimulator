@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -35,7 +35,10 @@ export function MobileScreenContent({
   initialApp?: string;
   onInitialAppConsumed?: () => void;
 }) {
-  const { gameState } = useGame();
+  // PERF-4: the three facts this screen reads, as primitives - not the whole state.
+  const jailWeeks = useGameSelector((s) => s.jailWeeks);
+  const ownsComputer = useGameSelector((s) => !!(s.items || []).find((item) => item.id === 'computer')?.owned);
+  const ownsSmartphone = useGameSelector((s) => !!(s.items ?? []).find((item) => item.id === 'smartphone')?.owned);
   const router = useRouter();
   // Redirects that run on this screen's first commit throw "Attempted to
   // navigate before mounting the Root Layout component" when this screen IS
@@ -52,10 +55,10 @@ export function MobileScreenContent({
   // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
   useEffect(() => {
     if (embedded || !navReady) return;
-    if (gameState.jailWeeks > 0) {
+    if (jailWeeks > 0) {
       router.replace('/(tabs)/work');
     }
-  }, [embedded, navReady, gameState.jailWeeks, router]);
+  }, [embedded, navReady, jailWeeks, router]);
 
   // R10-UX: once a computer is owned the layout hides the Mobile tab
   // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
@@ -65,13 +68,12 @@ export function MobileScreenContent({
   // stranding can't happen - skip the redirect to avoid fighting the parent.
   useEffect(() => {
     if (embedded || !navReady) return;
-    const ownsComputer = (gameState.items || []).find((item) => item.id === 'computer')?.owned;
     if (ownsComputer) {
       router.replace('/(tabs)/home');
     }
-  }, [embedded, navReady, gameState.items, router]);
+  }, [embedded, navReady, ownsComputer, router]);
 
-  if (!(gameState.items ?? []).find((item) => item.id === 'smartphone')?.owned) {
+  if (!ownsSmartphone) {
     return <NoDeviceState device="phone" />;
   }
 

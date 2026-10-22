@@ -222,3 +222,21 @@ export function applicationRejectionMessage(
     : 'The opening has rotated off the job board; you can apply again when it is listed.';
   return `${reason} Your odds were ${Math.round(odds.chancePct)}%; a new application here would be ${Math.round(next)}%. ${retry}`;
 }
+
+/**
+ * Why the player cannot send ANY application right now, or `null` when they
+ * can. These are the state gates `applyForJob` and the basic job board share;
+ * `applyCareerApplications` only reviews a pending application while the
+ * player holds no job and is not retired, so an application sent past one of
+ * them sat "pending" forever. The advanced-career card skipped all three
+ * (TAB-1): an employed CEO-hopeful was told "under review" and nothing ever
+ * answered.
+ */
+export function applicationBlockReason(
+  state: Pick<GameState, 'currentJob' | 'isRetired' | 'careers'>
+): string | null {
+  if (state.isRetired) return "You've retired - your pension is your income now.";
+  if (state.currentJob) return 'Quit your current job to apply.';
+  if ((state.careers ?? []).some((c) => c.applied && !c.accepted)) return 'Another application is pending.';
+  return null;
+}

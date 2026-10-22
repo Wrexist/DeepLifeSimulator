@@ -9,7 +9,7 @@ import { uiPalette } from '@/lib/config/theme';
  * it (the coach, the find-a-job CTA, and this) on one screen.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DollarSign, Heart, Sparkles, Trophy, X, Zap } from 'lucide-react-native';
@@ -17,6 +17,7 @@ import { fontScale, responsiveSpacing } from '@/utils/scaling';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
+import { safeAsyncStorage } from '@/utils/storageWrapper';
 
 export type ContextualTipType =
     | 'low_health'
@@ -103,7 +104,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
             </TouchableOpacity>
             <TouchableOpacity
                 onPress={onDismiss}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.dismissButton}
                 accessibilityRole="button"
                 accessibilityLabel="Dismiss tip"
             >
@@ -125,9 +126,80 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
  */
 const TIP_REDISPLAY_WEEKS = 12;
 
+/**
+ * Dismissals outlive the component. They used to live in `useState`, so the
+ * 12-week cooldown reset whenever Home remounted or the app relaunched and the
+ * tip the player had just closed came straight back (ONB-16). Keyed by the
+ * life (`lineageId:generation`), because the stamp is an absolute `weeksLived`
+ * and a new life's counter restarts from its own starting age. A per-device
+ * convenience, so plain storage rather than the save; losing it only means a
+ * tip can be shown once more.
+ */
+type DismissalMap = Record<string, Record<string, number>>;
+const TIP_DISMISSALS_KEY = 'contextual_tip_dismissals_v1';
+let dismissalCache: DismissalMap | null = null;
+let dismissalLoad: Promise<DismissalMap> | null = null;
+
+function loadDismissals(): Promise<DismissalMap> {
+    if (dismissalCache) return Promise.resolve(dismissalCache);
+    if (!dismissalLoad) {
+        dismissalLoad = safeAsyncStorage
+            .getItem(TIP_DISMISSALS_KEY, null)
+            .then((raw: unknown) => {
+                let parsed: unknown = null;
+                try {
+                    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                } catch {
+                    parsed = null;
+                }
+                const loaded = parsed && typeof parsed === 'object' ? (parsed as DismissalMap) : {};
+                // Merge: a dismissal made while the read was in flight wins.
+                dismissalCache = { ...loaded, ...(dismissalCache ?? {}) };
+                return dismissalCache;
+            })
+            .catch(() => {
+                dismissalCache = dismissalCache ?? {};
+                return dismissalCache;
+            });
+    }
+    return dismissalLoad;
+}
+
+function lifeKeyFor(gameState: any): string {
+    const lineage = typeof gameState?.lineageId === 'string' ? gameState.lineageId : 'life';
+    const generation = typeof gameState?.generationNumber === 'number' ? gameState.generationNumber : 0;
+    return `${lineage}:${generation}`;
+}
+
+/** Test seam: forget the module cache so a fresh "launch" re-reads storage. */
+export function __resetTipDismissalCacheForTests(): void {
+    dismissalCache = null;
+    dismissalLoad = null;
+}
+
+/** Pure cooldown rule, exported for tests. A stamp from the future (another life's counter) never suppresses. */
+export function isTipSuppressed(dismissedAt: number | undefined, weeksLived: number): boolean {
+    if (dismissedAt === undefined) return false;
+    const delta = weeksLived - dismissedAt;
+    return delta >= 0 && delta < TIP_REDISPLAY_WEEKS;
+}
+
 export function useContextualTip(gameState: any) {
-    // tip id -> the absolute week it was dismissed on.
-    const [dismissedTips, setDismissedTips] = useState<Record<string, number>>({});
+    const lifeKey = lifeKeyFor(gameState);
+    // tip id -> the absolute week it was dismissed on, for THIS life.
+    const [dismissedTips, setDismissedTips] = useState<Record<string, number>>(
+        () => dismissalCache?.[lifeKey] ?? {}
+    );
+    useEffect(() => {
+        let cancelled = false;
+        setDismissedTips(dismissalCache?.[lifeKey] ?? {});
+        void loadDismissals().then((all) => {
+            if (!cancelled) setDismissedTips(all[lifeKey] ?? {});
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [lifeKey]);
 
     // Extract specific values to avoid re-evaluating on every gameState object change
     const health = gameState?.stats?.health ?? 100;
@@ -154,11 +226,7 @@ export function useContextualTip(gameState: any) {
         if (!gameState?.stats) return null;
 
         // A tip is suppressed while it is inside its dismissal cooldown.
-        const suppressed = (id: string) => {
-            const dismissedAt = dismissedTips[id];
-            if (dismissedAt === undefined) return false;
-            return weeksLived - dismissedAt < TIP_REDISPLAY_WEEKS;
-        };
+        const suppressed = (id: string) => isTipSuppressed(dismissedTips[id], weeksLived);
 
         // Check conditions in priority order
         // A vital tip fires on the shared CRITICAL band (lib/config/hierarchy),
@@ -187,13 +255,24 @@ export function useContextualTip(gameState: any) {
     }, [health, happiness, energy, money, currentJob, weeksLived, weeksThisLife, promotionReady, dismissedTips]);
 
     const dismissTip = (tipType: string) => {
-        setDismissedTips(prev => ({ ...prev, [tipType]: weeksLived }));
+        const next = { ...(dismissalCache?.[lifeKey] ?? dismissedTips), [tipType]: weeksLived };
+        dismissalCache = { ...(dismissalCache ?? {}), [lifeKey]: next };
+        setDismissedTips(next);
+        void safeAsyncStorage.setItem(TIP_DISMISSALS_KEY, dismissalCache);
     };
 
     return { activeTip, dismissTip };
 }
 
 const styles = StyleSheet.create({
+    // 44pt target (ONB-17). The bare 14pt icon plus a 10pt hitSlop was 34pt,
+    // so a miss landed on the tip body and navigated away instead.
+    dismissButton: {
+        minWidth: 44,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     tipContainer: {
         flexDirection: 'row',
         alignItems: 'center',

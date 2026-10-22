@@ -293,7 +293,9 @@ const gameShowCasting: EventTemplate = {
     choices: [
       {
         id: 'audition',
-        text: 'Go for it - a full day, and you might actually win',
+        // The $1,200 is the appearance fee, paid win or lose (the letter says
+        // so); the copy no longer implies a prize roll that does not exist.
+        text: 'Go for it - a full day for a $1,200 appearance fee',
         // Being on television is the biggest single thing that happens in this
         // pack, and it costs most of a week's energy to collect.
         effects: { money: 1200, stats: { energy: -18, happiness: 20, reputation: 8 } },
@@ -341,7 +343,7 @@ const neighbourPetition: EventTemplate = {
         text: 'Get both sides talking instead (an evening of it)',
         effects: {
           stats: { energy: -8, happiness: 6, reputation: 6 },
-          karma: { dimension: 'generosity', amount: 2, reason: 'Defused a neighbourhood dispute' },
+          karma: { dimension: 'generosity', amount: 2, reason: 'Defused a neighborhood dispute' },
         },
       },
       {

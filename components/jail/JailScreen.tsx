@@ -1,10 +1,13 @@
 import { actionColors, uiPalette } from '@/lib/config/theme';
-import React, { useState, useEffect, useMemo } from 'react';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { countOf } from '@/utils/grammar';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
-import { getInflatedPrice } from '@/lib/economy/inflation';
+import { prisonFoodBase, resolvePrisonFoodPurchase } from '@/lib/economy/foodPurchase';
+import { satietyHint, scaledFoodRestore } from '@/lib/economy/foodSatiety';
 import { computeBailCost } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { 
@@ -28,6 +31,8 @@ import {
   Smile
 } from 'lucide-react-native';
 import { gameAlert } from '@/utils/gameAlert';
+import { logger } from '@/utils/logger';
+import { useError } from '@/contexts/UIUXContext';
 import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
@@ -38,6 +43,7 @@ interface JailScreenProps {
 
 export default function JailScreen({ onClose }: JailScreenProps) {
   const { gameState, performJailActivity, payBail, setGameState, nextWeek } = useGame();
+  const { showError } = useError();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
   const insets = useSafeAreaInsets();
   const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
@@ -76,7 +82,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       gameAlert('Bail Posted', 'You have been released from jail!');
       if (onClose) onClose();
     } else {
-      gameAlert('Insufficient Funds', `You need $${bailCost} to post bail.`);
+      gameAlert('Not enough money', `You need ${formatMoney(bailCost)} to post bail - you have ${formatMoney(stats.money)}.`);
     }
   };
 
@@ -87,6 +93,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   // bar. "Serve a Week" always works: it advances the week, which decrements the
   // sentence, with no cost. This is the fix for the "freezes after working 2
   // jobs" report (2 crime jobs → caught → jail with no obvious way out).
+  const servingRef = useRef(false);
   const handleServeTime = () => {
     gameAlert(
       'Serve Your Time',
@@ -96,11 +103,21 @@ export default function JailScreen({ onClose }: JailScreenProps) {
         {
           text: 'Serve a Week',
           onPress: () => {
-            try {
-              nextWeek();
-            } catch {
-              // nextWeek guards itself; never let this throw block the escape.
-            }
+            // nextWeek is ASYNC: a sync try/catch never saw its rejection, so a
+            // failed tick here was an unhandled rejection with no feedback
+            // (TAB-17). Same handling as the HUD's Next Week button, and one
+            // tick at a time.
+            if (servingRef.current) return;
+            servingRef.current = true;
+            void Promise.resolve()
+              .then(() => nextWeek())
+              .catch((error: unknown) => {
+                logger.error('Serve-a-week tick failed:', error);
+                showError('weekly-interaction', 'Could not finish the weekly transition. Please try again.');
+              })
+              .finally(() => {
+                servingRef.current = false;
+              });
           },
         },
       ]
@@ -136,8 +153,8 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     // Check cost
     if (activity.cost && stats.money < activity.cost) {
       gameAlert(
-        'Insufficient Funds',
-        `This activity costs $${activity.cost}. You currently have $${stats.money}.`
+        'Not enough money',
+        `This activity costs ${formatMoney(activity.cost)} - you have ${formatMoney(stats.money)}.`
       );
       return;
     }
@@ -146,7 +163,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) {
       gameAlert(
         'Requirement Not Met',
-        `This activity requires at least ${activity.requiresWeeks} weeks remaining in jail. You have ${jailWeeks} weeks remaining.`
+        `This activity requires at least ${countOf(activity.requiresWeeks, 'week')} remaining in jail. You have ${countOf(jailWeeks, 'week')} remaining.`
       );
       return;
     }
@@ -156,7 +173,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     const lastUsed = activityCooldowns[activityId] || 0;
     if (currentTime - lastUsed < cooldownTime) {
       const remainingTime = Math.ceil((cooldownTime - (currentTime - lastUsed)) / 1000);
-      gameAlert('Cooldown', `Please wait ${remainingTime} second(s) before trying again.`);
+      gameAlert('Cooldown', `Please wait ${countOf(remainingTime, 'second')} before trying again.`);
       return;
     }
 
@@ -320,7 +337,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               <View style={styles.statusInfo}>
                 <View style={styles.statusItem}>
                   <Clock size={16} color={uiPalette.white} />
-                  <Text style={styles.statusText}>{jailWeeks} weeks remaining</Text>
+                  <Text style={styles.statusText}>{countOf(jailWeeks, 'week')} remaining</Text>
                 </View>
                 <View style={styles.statusItem}>
                   <DollarSign size={16} color={uiPalette.white} />
@@ -351,7 +368,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 style={styles.bailButtonGradient}
               >
                 <Text style={styles.bailButtonText}>
-                  {stats.money < bailCost ? 'Insufficient Funds' : `Pay Bail $${bailCost}`}
+                  {stats.money < bailCost ? 'Not enough money' : `Pay bail ${formatMoney(bailCost)}`}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -392,47 +409,38 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               contentContainerStyle={styles.foodScrollContent}
             >
               {foods.slice(0, 6).map(food => {
-                // Prison food prices are 2x inflated (prison markup)
-                const basePrice = getInflatedPrice(food.price, economy?.priceIndex || 1);
-                const price = Math.round(basePrice * 2);
+                // Prison price/restores (2x price, reduced benefits) and the
+                // weekly satiety curve - the same helpers the purchase uses,
+                // so the card shows exactly what a tap applies.
+                const base = prisonFoodBase(food, economy?.priceIndex || 1);
+                const price = base.price;
                 const canAfford = stats.money >= price;
-                // Prison food gives less happiness (only 25% of health restore, minimum 1)
-                const happinessRestore = Math.max(1, Math.round(food.healthRestore * 0.25));
-                // Prison food gives less health (75% of normal)
-                const healthRestore = Math.round(food.healthRestore * 0.75);
+                const eaten = gameState.weeklyFoodPurchases;
+                const healthRestore = scaledFoodRestore(base.health, eaten);
+                const happinessRestore = scaledFoodRestore(base.happiness, eaten);
+                const energyRestore = scaledFoodRestore(base.energy, eaten);
                 
                 return (
                   <TouchableOpacity accessibilityRole="button"
                     key={food.id}
                     onPress={() => {
                       if (!canAfford) {
-                        gameAlert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
+                        gameAlert('Not enough money', `You need ${formatMoney(price)} to buy ${food.name} - you have ${formatMoney(stats.money)}.`);
                         return;
                       }
-                      // Use custom prison food handler with reduced benefits.
-                      // Atomic: re-check affordability against prev - the old
-                      // updateStats path clamped money at 0, so a same-batch
-                      // double-tap bought a second meal effectively free.
-                      const foodItem = foods.find(f => f.id === food.id);
-                      if (foodItem) {
-                        setGameState(prev => {
-                          if ((prev.stats?.money ?? 0) < price) return prev;
-                          return {
-                            ...prev,
-                            stats: {
-                              ...prev.stats,
-                              money: (prev.stats.money ?? 0) - price,
-                              health: Math.min(100, (prev.stats.health ?? 0) + healthRestore),
-                              happiness: Math.min(100, (prev.stats.happiness ?? 0) + happinessRestore),
-                              energy: Math.min(100, (prev.stats.energy ?? 0) + foodItem.energyRestore),
-                            },
-                          };
-                        });
-                        gameAlert(
-                          'Food Purchased',
-                          `You ate ${food.name}!\n+${healthRestore} Health\n+${happinessRestore} Happiness\n+${foodItem.energyRestore} Energy`
-                        );
-                      }
+                      // One pure resolution, run on the snapshot for the toast
+                      // and inside the updater for the commit (the market's
+                      // C-9 shape): it re-checks affordability against prev,
+                      // so a same-batch double tap cannot buy a free meal, and
+                      // it applies the satiety and happiness curves (CMP-12).
+                      const preview = resolvePrisonFoodPurchase(gameState, food.id);
+                      if (!preview.ok) return;
+                      setGameState(prev => resolvePrisonFoodPurchase(prev, food.id).next);
+                      const hint = satietyHint(preview.purchasesAfter);
+                      gameAlert(
+                        'Food Purchased',
+                        `You ate ${food.name}!\n+${preview.applied.health} Health\n+${preview.applied.happiness} Happiness\n+${preview.applied.energy} Energy${hint ? `\n\n${hint}` : ''}`
+                      );
                     }}
                     disabled={!canAfford}
                     style={styles.foodCard}
@@ -465,7 +473,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         </View>
                         <View style={styles.foodBenefitItem}>
                           <Zap size={12} color="#FCD34D" />
-                          <Text style={styles.foodBenefitText}>+{food.energyRestore}</Text>
+                          <Text style={styles.foodBenefitText}>+{energyRestore}</Text>
                         </View>
                       </View>
                     </LinearGradient>

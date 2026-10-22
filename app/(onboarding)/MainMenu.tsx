@@ -35,9 +35,14 @@ import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackgroun
 import { applyLifePathSelectionToOnboardingState } from '@/src/features/onboarding/scenariosFlow';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
-import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { defaultOnboardingState, useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { useStartLife } from '@/src/features/onboarding/useStartLife';
-import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
+import {
+  isSaveFromFutureError,
+  isSaveUnreadableError,
+  SAVE_FROM_FUTURE_MESSAGE,
+  SAVE_UNREADABLE_MESSAGE,
+} from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
@@ -546,6 +551,8 @@ export default function MainMenu() {
         // from a newer build - the exact advice the outer handler exists to
         // avoid. Re-throw that one case so it reaches its handler.
         if (isSaveFromFutureError(loadError)) throw loadError;
+        // Same for a save that exists but cannot be read (audit SAVE-1).
+        if (isSaveUnreadableError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
         gameAlert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },
@@ -581,17 +588,17 @@ export default function MainMenu() {
             { text: 'OK' },
           ]);
         } else if (!validation.stateComplete) {
+          // validation.errors are validator strings ("Missing stat: happiness
+          // (value is null or undefined)") - logged above, never shown.
           gameAlert(
             'Incomplete Save',
-            validation.errors[0] ||
-              'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
+            'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         } else {
           gameAlert(
             'Invalid Save',
-            validation.errors[0] ||
-              'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
+            'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         }
@@ -621,6 +628,16 @@ export default function MainMenu() {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version');
         gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
+        return;
+      }
+      // The slot holds data that does not verify. Never suggest a new game
+      // here: send the player to the slot's Restore instead. (audit SAVE-1)
+      if (isSaveUnreadableError(error)) {
+        log.warn('Save is present but unreadable', { slot: error.slot });
+        gameAlert('Save Needs Recovery', SAVE_UNREADABLE_MESSAGE, [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open Save Slots', onPress: () => router.push('/(onboarding)/SaveSlots') },
+        ]);
         return;
       }
       log.error('Error in continueGame:', error);
@@ -653,11 +670,9 @@ export default function MainMenu() {
    * no perks - and lands on the final step, where one clearly-labelled tap
    * starts the life.
    *
-   * It stops at Perks rather than starting the game directly ON PURPOSE.
-   * `Perks.start()` is ~100 lines of save-safety ceremony (slot validation,
-   * backup, forced save, load-back, entry validation, draft clearing) and
-   * duplicating it to save one tap would put a second, less-tested path into
-   * the code that can overwrite a save. Reusing it is worth the tap.
+   * It starts the life directly, through the SAME start ceremony the Perks
+   * screen uses (`useStartLife`: slot validation, backup, forced save,
+   * load-back, entry validation, draft clearing) - not a second copy of it.
    *
    * The long flow is untouched - this is an additional door, not a replacement.
    */
@@ -688,11 +703,20 @@ export default function MainMenu() {
       }
 
       const recommended = scenarios.find((sc) => sc.id === 'food_courier') ?? scenarios[0];
-      const randomName = generateRandomName('random');
+      // Resolve the sex ONCE and use it for both the name and the body.
+      // The name generator flips its own coin for 'random' and the builder used
+      // to flip a second one for 'random', so half of all Quick Play lives got
+      // a name of one sex on a body of the other (ONB-3).
+      const sex: 'male' | 'female' = Math.random() < 0.5 ? 'male' : 'female';
+      const randomName = generateRandomName(sex);
 
-      setOnboardingState((prev) => ({
-        ...applyLifePathSelectionToOnboardingState(prev, recommended),
+      // Built from DEFAULTS, never from the previous draft: a persisted draft
+      // can hold an abandoned Custom Life's face, sex and orientation, and a
+      // "random" life must not inherit them (ONB-4).
+      setOnboardingState({
+        ...applyLifePathSelectionToOnboardingState(defaultOnboardingState, recommended),
         slot: targetSlot,
+        sex,
         firstName: randomName.firstName,
         lastName: randomName.lastName,
         // Left unset deliberately: both are optional in `gameStateBuilder`
@@ -701,7 +725,7 @@ export default function MainMenu() {
         ambitionId: undefined,
         perks: [],
         mindset: null,
-      }));
+      });
 
       // Straight into the game. This used to `router.push('/(onboarding)/Perks')`
       // purely to reach the start ceremony that lived inside that screen - so
@@ -721,7 +745,13 @@ export default function MainMenu() {
     }
   };
 
+  // `findFirstEmptySlot` decodes every occupied slot, so with saves present
+  // the button looked dead for a moment and a second tap pushed Intro twice
+  // (Back then landed on a duplicate). One start at a time (ONB-14).
+  const startNewInFlightRef = useRef(false);
   const startNew = async () => {
+    if (startNewInFlightRef.current) return;
+    startNewInFlightRef.current = true;
     haptic.light();
     try {
       // Always target the first EMPTY slot. Previously a new life inherited the
@@ -750,6 +780,13 @@ export default function MainMenu() {
     } catch (error) {
       log.error('Error starting new game:', error);
       gameAlert('Error', 'An error occurred while starting a new game. Please try again.', [{ text: 'OK' }]);
+    } finally {
+      // Released after a beat rather than at once: router.push resolves
+      // before the next screen has taken focus, so an immediate release
+      // would still let a fast second tap through.
+      setTimeout(() => {
+        startNewInFlightRef.current = false;
+      }, 600);
     }
   };
 
@@ -804,7 +841,7 @@ export default function MainMenu() {
             </HeroLine>
             <HeroLine index={2} reduced={reduced}>
               <Text style={styles.brandBottom} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
-                TYCOON
+                SIMULATOR
               </Text>
             </HeroLine>
           </View>

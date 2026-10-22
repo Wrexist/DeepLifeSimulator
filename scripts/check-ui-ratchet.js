@@ -51,7 +51,9 @@ const METRICS = {
     // GradientButton (no JSX gradient) and its old hero link went.
     // 141 -> 136 on 2026-10-10: locked in at the measured count after the
     // Life Skills / shared-control layout pass.
-    max: 136,
+    // 136 -> 135 on 2026-10-21: the weekly event's pre-selected green first
+    // choice went flat, so every choice reads as an equal option.
+    max: 135,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },

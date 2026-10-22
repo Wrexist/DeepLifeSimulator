@@ -112,10 +112,10 @@ export function calculatePension(input: {
  * The record written when a player stands down.
  *
  * `title` is captured HERE, while it is still true - the same reasoning as v42's
- * `title` on `CareerHistoryEntry`. Retiring resets `careers.political.level` to
- * 0 so lifestyle costs and the "in office?" UI stop treating a private citizen
- * as a sitting official, which means a title derived later would name whatever
- * level 0 is called.
+ * `title` on `CareerHistoryEntry`. Retiring zeroes `politics.careerLevel` so
+ * the "in office?" UI stops treating a private citizen as a sitting official,
+ * which means a title derived from the rank later would name whatever rank 0
+ * is called.
  */
 export function buildRetirement(input: {
   careerLevel: number;
@@ -134,6 +134,30 @@ export function buildRetirement(input: {
       termsServed: input.termsServed,
       approvalRating: input.approvalRating,
     }),
+  };
+}
+
+/**
+ * Fold a new retirement into the one already on record.
+ *
+ * Winning office again only SUSPENDS a pension (`getPoliticalPensionWeekly`);
+ * the record is meant to survive and resume. Retiring a second time therefore
+ * keeps the better of the two: the higher office (and its title), the larger
+ * pension, and the latest retirement week and term count (`termsServed` is the
+ * career-wide `electionsWon`, so the newer figure already includes the old).
+ * A malformed or absent previous record yields `next` unchanged.
+ */
+export function mergeRetirement(previous: unknown, next: PoliticalRetirement): PoliticalRetirement {
+  if (!previous || typeof previous !== 'object') return next;
+  const prev = previous as Partial<PoliticalRetirement>;
+  const prevLevel = Math.floor(safe(prev.officeLevel, 0));
+  const higherBefore = prevLevel > next.officeLevel && typeof prev.title === 'string' && prev.title.length > 0;
+  return {
+    retiredWeek: next.retiredWeek,
+    officeLevel: Math.max(prevLevel, next.officeLevel),
+    title: higherBefore ? (prev.title as string) : next.title,
+    termsServed: Math.max(Math.floor(safe(prev.termsServed, 0)), next.termsServed),
+    weeklyPension: Math.max(readPensionWeekly(prev), next.weeklyPension),
   };
 }
 
