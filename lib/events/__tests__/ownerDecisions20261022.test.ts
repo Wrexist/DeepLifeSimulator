@@ -24,7 +24,7 @@ import { getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { getKarmaModifiers, karmaEffectLines, INITIAL_KARMA, type KarmaState } from '@/lib/karma/karmaSystem';
 import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
-import type { Company, GameState, PoliticalScandalEntry, PoliticsState, Relationship, Vehicle } from '@/contexts/game/types';
+import type { Company, PoliticalScandalEntry, PoliticsState, Relationship, Vehicle } from '@/contexts/game/types';
 
 const ALL: EventTemplate[] = [...eventTemplates, ...lifeMilestoneEventTemplates, ...economyEventTemplates, ...secretEventTemplates];
 const byId = (id: string): EventTemplate => {
