@@ -16,11 +16,13 @@ export type GoalHorizon = 'now' | 'soon' | 'dream';
 /**
  * Where the player goes to act on a goal. An expo-router path.
  *
- * ONE DOOR PER ROOM: `market`, `health`, `progression`, `computer` and
- * `mobile` are `href: null` routes (merged into the Life shell and the Apps
- * tab), and pushing them by name rendered a second, un-chromed copy of the
- * screen with no tab highlighted - the audit's worst structural defect. The
- * canonical forms are the Life deep links and the Apps tab. Push sites append
+ * ONE DOOR PER ROOM: `market`, `health`, `computer` and `mobile` are
+ * `href: null` routes (merged into the Life shell and the Apps tab), and
+ * pushing them by name rendered a second, un-chromed copy of the screen with
+ * no tab highlighted - the audit's worst structural defect. The canonical
+ * forms are the Life deep links and the Apps tab. `progression` is the
+ * exception: it IS a tab-bar button (Profile), so its own route is its one
+ * door (TAB-3). Push sites append
  * a `ts` nonce so a repeated tap of the same goal still lands (the Life shell
  * consumes each deep link once).
  */
@@ -29,7 +31,7 @@ export type GoalRoute =
   | '/(tabs)/life'
   | '/(tabs)/life?segment=health'
   | '/(tabs)/life?segment=shop'
-  | '/(tabs)/life?segment=stats'
+  | '/(tabs)/progression'
   | '/(tabs)/home'
   | '/(tabs)/apps';
 

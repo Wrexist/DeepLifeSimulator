@@ -68,9 +68,9 @@ export const SYSTEM_ROUTES: Readonly<Record<string, SystemRoute>> = {
   darkWeb: { pathname: APPS, appId: 'onion', label: 'Open Onion Browser' },
   gamingStreaming: { pathname: APPS, appId: 'streaming', label: 'Open Streaming' },
 
-  prestige: { pathname: '/(tabs)/life', segment: 'stats', label: 'Open Progress' },
-  dynasty: { pathname: '/(tabs)/life', segment: 'stats', label: 'Open Progress' },
-  legacy: { pathname: '/(tabs)/life', segment: 'stats', label: 'Open Progress' },
+  prestige: { pathname: '/(tabs)/progression', label: 'Open Profile' },
+  dynasty: { pathname: '/(tabs)/progression', label: 'Open Profile' },
+  legacy: { pathname: '/(tabs)/progression', label: 'Open Profile' },
 };
 
 /** The destination for a system, or null when it has no single home. */
