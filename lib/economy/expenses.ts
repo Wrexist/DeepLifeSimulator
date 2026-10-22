@@ -1,11 +1,11 @@
 import { GameState } from '@/contexts/game/types';
-import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { getUpgradeTier, getUpgradeUpkeepBonus } from '@/lib/realEstate/housing';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
 import { portfolioPropertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
-import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { billAfterBudgeting, getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
 import { PET_WEEKLY_FOOD_COST } from '@/lib/pets/lifecycle';
 import { totalSubscriptionWeeklyCharge } from '@/lib/subscription/billing';
@@ -91,6 +91,7 @@ export function calcWeeklyExpenses(
 ): { total: number; breakdown: ExpenseBreakdown } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
+    const expenseMult = getLifeSkillModifiers(state)?.expenseMult;
     // CRITICAL: Validate realEstate array exists before reducing
     const realEstate = Array.isArray(state.realEstate) ? state.realEstate : [];
     const upkeep = realEstate.reduce((sum, p) => {
@@ -103,7 +104,7 @@ export function calcWeeklyExpenses(
       if (!tier) return sum; // Skip if tier lookup fails
       
       const propertyUpkeep = typeof p.upkeep === 'number' && isFinite(p.upkeep) && p.upkeep >= 0 ? p.upkeep : 0;
-      const tierUpkeepBonus = typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) && tier.upkeepBonus >= 0 ? tier.upkeepBonus : 0;
+      const tierUpkeepBonus = getUpgradeUpkeepBonus(tier, p);
       
       const totalUpkeep = propertyUpkeep + tierUpkeepBonus;
       if (isFinite(totalUpkeep) && totalUpkeep > 0) {
@@ -195,8 +196,12 @@ export function calcWeeklyExpenses(
     // It returns 0 when the player owns or is homeless, so this cannot double
     // count against the `upkeep` line above.
     const tenancyRent = computeHousingWellbeing(state).rent;
+    // TICK-13: the Budgeting skill trims each recurring bill exactly as the
+    // tick does - legacy rent and the tenancy are trimmed (and rounded) as two
+    // separate figures there, so they are here.
+    rentCosts = billAfterBudgeting(rentCosts, expenseMult);
     if (typeof tenancyRent === 'number' && isFinite(tenancyRent) && tenancyRent > 0) {
-      rentCosts += tenancyRent;
+      rentCosts += billAfterBudgeting(tenancyRent, expenseMult);
     }
 
     // Final validation
@@ -264,19 +269,27 @@ export function calcWeeklyExpenses(
       nextWeeksLived,
     );
 
+    // TICK-13: Budgeting trims the recurring bills, through the one rule the
+    // tick uses (`billAfterBudgeting`). The tick trims property upkeep and
+    // property tax as ONE housing figure, so the pair is trimmed together and
+    // split back out; the other bills are trimmed one charge at a time.
+    const housingBill = billAfterBudgeting(upkeep + propertyTax, expenseMult);
+    const propertyTaxBill = Math.min(housingBill, billAfterBudgeting(propertyTax, expenseMult));
+    const upkeepBill = housingBill - propertyTaxBill;
+
     // CRITICAL: Validate all components before summing to prevent NaN propagation
-    const safeUpkeep = isFinite(upkeep) && upkeep >= 0 ? upkeep : 0;
-    const safeLuxury = isFinite(luxuryCosts) && luxuryCosts >= 0 ? luxuryCosts : 0;
-    const safePets = isFinite(petCosts) && petCosts >= 0 ? petCosts : 0;
+    const safeUpkeep = isFinite(upkeepBill) && upkeepBill >= 0 ? upkeepBill : 0;
+    const safeLuxury = isFinite(luxuryCosts) && luxuryCosts >= 0 ? billAfterBudgeting(luxuryCosts, expenseMult) : 0;
+    const safePets = isFinite(petCosts) && petCosts >= 0 ? billAfterBudgeting(petCosts, expenseMult) : 0;
     const safeSubscriptions = isFinite(subscriptionCosts) && subscriptionCosts >= 0 ? subscriptionCosts : 0;
     const safeLoanPayments = isFinite(loanPayments) && loanPayments >= 0 ? loanPayments : 0;
     const safeMiningPowerCosts = isFinite(miningPowerCosts) && miningPowerCosts >= 0 ? miningPowerCosts : 0;
-    const safeVehicleCosts = isFinite(vehicleCosts) && vehicleCosts >= 0 ? vehicleCosts : 0;
-    const safeDietPlanCosts = isFinite(dietPlanCosts) && dietPlanCosts >= 0 ? dietPlanCosts : 0;
+    const safeVehicleCosts = isFinite(vehicleCosts) && vehicleCosts >= 0 ? billAfterBudgeting(vehicleCosts, expenseMult) : 0;
+    const safeDietPlanCosts = isFinite(dietPlanCosts) && dietPlanCosts >= 0 ? billAfterBudgeting(dietPlanCosts, expenseMult) : 0;
     const safeRentCosts = isFinite(rentCosts) && rentCosts >= 0 ? rentCosts : 0;
     const safeStudentLoans = isFinite(studentLoanCosts) && studentLoanCosts >= 0 ? studentLoanCosts : 0;
     const safeIncomeTax = isFinite(incomeTaxCost) && incomeTaxCost >= 0 ? incomeTaxCost : 0;
-    const safePropertyTax = isFinite(propertyTax) && propertyTax >= 0 ? propertyTax : 0;
+    const safePropertyTax = isFinite(propertyTaxBill) && propertyTaxBill >= 0 ? propertyTaxBill : 0;
     
     // Old arrears, settled first out of cash + income by `applyArrears`, capped
     // at what is available exactly as that function caps it.

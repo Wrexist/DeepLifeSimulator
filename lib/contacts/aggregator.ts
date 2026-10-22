@@ -16,6 +16,7 @@
 
 import { GameState } from '@/contexts/game/types';
 import { companyWeeklyPayroll } from '@/lib/business/hustleTick';
+import { businessOpportunityWeeklyIncome } from '@/lib/travel/businessOpportunity';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -174,7 +175,7 @@ export function aggregateContacts(
         kind: 'business',
         name: opp.name,
         subtitle: opp.invested
-          ? `Partner · $${safe(opp.weeklyIncome, 0).toLocaleString('en-US')}/wk`
+          ? `Partner · $${businessOpportunityWeeklyIncome(opp).toLocaleString('en-US')}/wk`
           : `Prospect · ${opp.destinationId}`,
         strength: opp.invested ? 80 : 30,
         tags: [opp.invested ? 'partner' : 'prospect'],

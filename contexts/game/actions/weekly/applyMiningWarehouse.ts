@@ -5,7 +5,7 @@
  * `GameActionsContext.tsx:1042-1129` (~87 lines). Three sub-concerns:
  *
  *   1. Difficulty multiplier — increases by 10% every 10 weeks, capped
- *      at 2.0×. The cooldown is tracked by `lastDifficultyUpdateAbsoluteWeek`
+ *      at `MINING_DIFFICULTY_CAP` (2.0x, see ECO-4 there). The cooldown is tracked by `lastDifficultyUpdateAbsoluteWeek`
  *      (newer field) with a fallback to `lastDifficultyUpdate` (legacy
  *      cyclic field, migrated lazily here).
  *   2. Miner durability degradation — each miner type loses
@@ -70,6 +70,17 @@ export const MINER_REPAIR_COSTS: Record<string, number> = {
 // — makes "which rigs get repaired when the funding coin is short" reproducible.
 const MINER_TIER_ORDER = ['basic', 'advanced', 'pro', 'industrial', 'quantum', 'mega', 'giga', 'tera'];
 
+/**
+ * Ceiling on the global mining difficulty (x1.1 every 10 weeks, reached in
+ * ~73 weeks). ECO-4 (owner decision 2026-10-22) proposed 3.0 to pull a
+ * quantum/giga rig from the audit's ~50%/yr IRR to ~20-25%, and said to
+ * re-measure first. The audit's model had no repairs; with ECO-3's real
+ * repair costs the rig measures 18.5%/yr pre-tax at 2.0 (mean over purchase
+ * phases), 12.9% at 2.5 and ~9% at 3.0. So it stays 2.0, and
+ * `__tests__/economy/miningIrr.test.ts` holds the band.
+ */
+export const MINING_DIFFICULTY_CAP = 2.0;
+
 export function applyMiningWarehouse(input: MiningWarehouseInput): MiningWarehouseResult {
   if (!input.prevWarehouse) return { updatedWarehouse: input.prevWarehouse };
   const warehouse = input.prevWarehouse;
@@ -87,7 +98,7 @@ export function applyMiningWarehouse(input: MiningWarehouseInput): MiningWarehou
   const lastDifficultyUpdateAbsoluteWeek = warehouse.lastDifficultyUpdateAbsoluteWeek ?? migratedLastUpdate;
   const shouldUpdateDifficulty = currentAbsoluteWeek - lastDifficultyUpdateAbsoluteWeek >= 10;
   const difficultyMultiplier = shouldUpdateDifficulty
-    ? Math.min(2.0, (warehouse.difficultyMultiplier || 1.0) * 1.1)
+    ? Math.min(MINING_DIFFICULTY_CAP, (warehouse.difficultyMultiplier || 1.0) * 1.1)
     : (warehouse.difficultyMultiplier || 1.0);
   const nextDifficultyUpdateAbsoluteWeek = shouldUpdateDifficulty
     ? currentAbsoluteWeek

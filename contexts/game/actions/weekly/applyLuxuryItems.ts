@@ -34,7 +34,7 @@ import {
 } from '@/lib/luxury';
 import type { LuxuryHolding } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
-import { chargeOrDefer } from './chargeOrDefer';
+import { chargeBill, chargeOrDefer } from './chargeOrDefer';
 
 export interface LuxuryWeekResult {
   /** Total upkeep deducted (the deduction already happened). */
@@ -84,8 +84,9 @@ export function applyLuxuryItemsForWeek(
     // Upkeep is MANDATORY, so an unaffordable week must book arrears rather
     // than vanish. This was the single largest forgiven cost in the game: a
     // full collection owes $556,820/wk, and a broke owner kept the collection
-    // AND its $301,200/wk of yields while booking nothing.
-    chargeOrDefer(ctx, upkeep);
+    // AND its $301,200/wk of yields while booking nothing. A recurring bill,
+    // so Budgeting applies (the risk cost below is not one).
+    chargeBill(ctx, upkeep);
   }
 
   // (b) Happiness — small sustained weekly bonus, self-clamped to 100.

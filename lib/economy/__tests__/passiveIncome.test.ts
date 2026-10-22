@@ -2,7 +2,7 @@ import { calcWeeklyPassiveIncome } from '../passiveIncome';
 import { GameState, RealEstate } from '@/contexts/GameContext';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import { getStockInfo } from '../stockMarket';
-import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { getUpgradeTier, getUpgradeRentBonus, getUpgradeUpkeepBonus } from '@/lib/realEstate/housing';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 function createState(overrides: Partial<GameState>): GameState {
@@ -93,7 +93,7 @@ describe('calcWeeklyPassiveIncome', () => {
     const expectedStocks = 0;
     const tier = getUpgradeTier(property.upgradeLevel);
     const expectedRealEstate = Math.round(
-      propertyRent + (tier?.rentBonus || 0) - (propertyUpkeep + (tier?.upkeepBonus || 0))
+      propertyRent + getUpgradeRentBonus(tier, property) - (propertyUpkeep + getUpgradeUpkeepBonus(tier, property))
     );
 
     expect(result.breakdown.stocks).toBe(expectedStocks);

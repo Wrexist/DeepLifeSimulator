@@ -9,7 +9,7 @@ import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { maintenanceCost, quotePropertySale, SALE_CLOSING_COST_RATE, SaleQuote } from '@/lib/realEstate/operations';
 import { PROPERTY_GAINS_TAX_RATE } from '@/lib/economy/taxLedger';
-import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier, getUpgradeTierCost } from '@/lib/realEstate/housing';
+import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier, getUpgradeTierCost, getUpgradeRentBonus } from '@/lib/realEstate/housing';
 import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
 import { isCommercialCatalogId } from '@/lib/realEstate/catalog';
 import { canMoveIn, moveInConsequence, movesBackInOnStopRenting } from '@/lib/realEstate/residence';
@@ -341,7 +341,7 @@ export default function ManagePropertyModal({
                       </Text>
                       {nextTier && (
                         <Text style={[styles.improveMeta, { color: theme.textMuted }]}>
-                          +${nextTier.rentBonus}/wk rent when rented
+                          +${getUpgradeRentBonus(nextTier, property).toLocaleString('en-US')}/wk rent when rented
                         </Text>
                       )}
                     </View>

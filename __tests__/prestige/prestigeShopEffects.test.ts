@@ -174,7 +174,7 @@ describe('early_career_access - "Unlock all careers from start"', () => {
     // thematic for, and were joinable with zero standing.
     const blocked = checkCareerRequirements({ reputation: 30 }, brokeAndUnqualified([]));
     expect(blocked.met).toBe(false);
-    expect(blocked.reputationShortfall).toEqual({ required: 30, actual: 0 });
+    expect(blocked.reputationShortfall).toEqual({ required: 30, actual: 0, fromVehicles: 0 });
 
     const waived = checkCareerRequirements({ reputation: 30 }, brokeAndUnqualified(['early_career_access']));
     expect(waived.met).toBe(true);

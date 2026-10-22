@@ -29,11 +29,18 @@ export interface RegimeParams {
   meanDurationWeeks: number;
 }
 
+// ECO-1 (2026-10-22): bull was +1.5%/wk and bear -1.2%/wk. With the regime on
+// screen, rotating into whichever coin showed Bull measured a median 67%/yr
+// (seeded, 300 lives x 5 years) against 8% for holding the same tape. At
+// +0.6% / -0.5% plus the weekly hazard re-roll in `weeklyTick.ts` the same
+// player measures ~14%/yr against ~5% buy-and-hold; the regime still means
+// something, it just no longer beats every other asset class.
+// `__tests__/regimeTiming.test.ts` gates it under 20%/yr.
 export const REGIME_PARAMS: Record<CryptoRegime, RegimeParams> = {
   stable:   { meanReturn:  0.0010, volatility: 0.020, bidAskSpread: 0.002, meanDurationWeeks: 16 },
   volatile: { meanReturn:  0.0000, volatility: 0.080, bidAskSpread: 0.010, meanDurationWeeks: 6 },
-  bull:     { meanReturn:  0.0150, volatility: 0.045, bidAskSpread: 0.004, meanDurationWeeks: 10 },
-  bear:     { meanReturn: -0.0120, volatility: 0.050, bidAskSpread: 0.006, meanDurationWeeks: 10 },
+  bull:     { meanReturn:  0.0060, volatility: 0.045, bidAskSpread: 0.004, meanDurationWeeks: 10 },
+  bear:     { meanReturn: -0.0050, volatility: 0.050, bidAskSpread: 0.006, meanDurationWeeks: 10 },
 };
 
 /**

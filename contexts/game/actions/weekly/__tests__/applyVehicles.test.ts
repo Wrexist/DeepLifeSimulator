@@ -67,7 +67,9 @@ function vehicle(overrides: Partial<Vehicle> = {}): Vehicle {
 }
 
 describe('applyVehiclesForWeek - baseline upkeep', () => {
-  it('deducts maintenance + full fuel for the ACTIVE vehicle, decays condition, adds mileage', () => {
+  it('deducts maintenance and burns a quarter tank for the ACTIVE vehicle, decays condition, adds mileage', () => {
+    // LIFE-7: fuel is paid at the pump. The tick bills maintenance only and
+    // drains the tank (a full tank is FUEL_TANK_WEEKS = 4 weeks of driving).
     const s = stats({ money: 1000 });
     const ctx = ctxWith(s);
     const result = applyVehiclesForWeek(
@@ -78,16 +80,30 @@ describe('applyVehiclesForWeek - baseline upkeep', () => {
     expect(result).toHaveLength(1);
     expect(result[0].condition).toBe(89); // 90 - 1% decay
     expect(result[0].mileage).toBe(1200); // +200/wk
-    expect(ctx.newStats.money).toBe(920); // 1000 - (50 + 30)
+    expect(result[0].fuelLevel).toBe(75); // 100 - 25
+    expect(ctx.newStats.money).toBe(950); // 1000 - 50 maintenance
   });
 
-  it('charges an IDLE vehicle 25% fuel - the rate the expense panel has always advertised', () => {
+  it('an IDLE vehicle burns 25% of the driven rate - the rate the expense panel has always advertised', () => {
     const s = stats({ money: 1000 });
     const ctx = ctxWith(s);
     // No activeVehicleId (or a different one): storage/idle rate applies.
-    applyVehiclesForWeek([vehicle()], ctx);
-    // 1000 - (50 maintenance + round(30 * 0.25) fuel) = 1000 - 58
-    expect(ctx.newStats.money).toBe(942);
+    const [after] = applyVehiclesForWeek([vehicle()], ctx);
+    expect(after.fuelLevel).toBe(93.75); // 100 - 25 x 0.25
+    expect(ctx.newStats.money).toBe(950);
+  });
+
+  it('warns once when the driven car crosses into the reserve, and never drains below empty', () => {
+    const ctx = ctxWith(stats());
+    const [low] = applyVehiclesForWeek([vehicle({ fuelLevel: 30 })], ctx, 'v1');
+    expect(low.fuelLevel).toBe(5);
+    expect(ctx.notifications.map((n) => n.title)).toContain('Low Fuel');
+
+    const ctx2 = ctxWith(stats());
+    const [empty] = applyVehiclesForWeek([low], ctx2, 'v1');
+    expect(empty.fuelLevel).toBe(0);
+    // Already under the line: no second warning.
+    expect(ctx2.notifications.map((n) => n.title)).not.toContain('Low Fuel');
   });
 
   it('leaves an unowned vehicle untouched and rolls no accident', () => {
@@ -218,9 +234,10 @@ describe('applyVehiclesForWeek - an accident is billed once, at the garage (LIFE
     const [after] = applyVehiclesForWeek([vehicle({ condition: 80 })], ctx, 'v1');
 
     expect(after.condition).toBeLessThan(79); // more than weekly wear: an accident
-    // Only the running cost (50 maintenance + 30 fuel) - no accident bill. The
-    // repair it would have charged is exactly what repairVehicle bills later.
-    expect(ctx.newStats.money).toBe(920);
+    // Only the running cost (50 maintenance; fuel is paid at the pump) - no
+    // accident bill. The repair it would have charged is exactly what
+    // repairVehicle bills later.
+    expect(ctx.newStats.money).toBe(950);
     const notif = ctx.notifications.find((n) => n.id === 'vehicle-accident-v1');
     expect(notif?.message).toContain(`Repair estimate: $${calculateRepairCost(after).toLocaleString('en-US')}`);
   });

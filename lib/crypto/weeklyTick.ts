@@ -92,11 +92,33 @@ function clampRegimeRoll(roll: number): number {
   return Math.max(0, Math.min(0.9999, roll));
 }
 
-function evolveRegime(
-  market: CoinMarket,
+/**
+ * Weekly chance that a coin's regime re-rolls BEFORE its sampled duration runs
+ * out (ECO-1, owner decision 2026-10-22).
+ *
+ * The regime used to change only when its countdown reached 1, and the Trade
+ * screen showed that countdown. So any coin showing "Bull Run, 6 weeks left"
+ * had a KNOWN bull draw next week, and rotating into whichever coin showed Bull
+ * measured ~66%/yr against ~10% for holding the same tape. The countdown is no
+ * longer shown, and this hazard means even the tick cannot promise next week's
+ * regime: a sampled duration is now an upper bound, not a schedule. The roll is
+ * the same seeded `rollFor` stream as every other crypto draw (CLAUDE.md §4.3).
+ * `__tests__/regimeTiming.test.ts` gates the result.
+ */
+export const REGIME_HAZARD_WEEKLY = 0.2;
+
+/**
+ * One coin's regime step for one week. Exported for the regime-timing gate.
+ *
+ * `rollHazard` defaults to 1 (never hits) so a caller that does not pass one
+ * reproduces the countdown-only behaviour.
+ */
+export function evolveCoinRegime(
+  market: Pick<CoinMarket, 'regime' | 'regimeWeeksRemaining' | 'bidAskSpread'>,
   forced: CryptoRegime | null,
   rollTransition: number,
-  rollDuration: number
+  rollDuration: number,
+  rollHazard = 1
 ): { regime: CryptoRegime; weeksRemaining: number; spread: number; changed: boolean } {
   const expiringSoon = safe(market.regimeWeeksRemaining) <= 1;
   if (forced != null && forced !== market.regime) {
@@ -107,7 +129,8 @@ function evolveRegime(
       changed: true,
     };
   }
-  if (expiringSoon) {
+  const hazardHit = safe(rollHazard, 1) < REGIME_HAZARD_WEEKLY;
+  if (expiringSoon || hazardHit) {
     const r = nextRegime(market.regime, clampRegimeRoll(rollTransition));
     return {
       regime: r,
@@ -138,11 +161,12 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
   for (const coin of cryptos) {
     const cm = market.coinMarkets?.[coin.id];
     if (!cm) continue;
-    const { regime, weeksRemaining, spread, changed } = evolveRegime(
+    const { regime, weeksRemaining, spread, changed } = evolveCoinRegime(
       cm,
       forcedRegime,
       input.rollFor(`crypto.${coin.id}.regimeTransition`),
-      input.rollFor(`crypto.${coin.id}.regimeDuration`)
+      input.rollFor(`crypto.${coin.id}.regimeDuration`),
+      input.rollFor(`crypto.${coin.id}.regimeHazard`)
     );
     if (changed) regimeChangeCount++;
     const oldPrice = safe(coin.price, 1);

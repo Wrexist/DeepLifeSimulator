@@ -173,6 +173,14 @@ export const highSpender: SimPolicy = async (ctx) => {
       if (r?.success) ctx.note('buy sedan');
     }
   }
+  // LIFE-7: the tank drains and the pump is where fuel is paid for, so a
+  // driver refuels when it runs low - the cost the flat weekly charge used to take.
+  for (const v of s.vehicles ?? []) {
+    if (v?.owned && (v.fuelLevel ?? 100) < 25 && s.stats.money >= 500) {
+      const r = await ctx.actions.refuelVehicle(v.id);
+      if (r?.success) ctx.note(`refuel ${v.id}`);
+    }
+  }
   if (unlockTier(s) >= 2 && s.stats.money >= 15_000 && (s.pets ?? []).length === 0) {
     const r = await ctx.actions.buyPet('cat_tabby');
     if (r?.success) ctx.note('adopt cat');

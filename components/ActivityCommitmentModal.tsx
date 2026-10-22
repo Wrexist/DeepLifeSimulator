@@ -10,7 +10,14 @@ import { safeSettings } from "@/utils/safeGameState";
 import { X, Target, Briefcase, Heart, Dumbbell, GraduationCap, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
+import {
+  getCommitmentBonuses,
+  getCommitmentPenalties,
+  canChangeCommitments,
+  COMMITMENT_NEGLECT_HAPPINESS,
+  COMMITMENT_REPUTATION_TARGET_MAX,
+  type CommitmentArea,
+} from '@/lib/commitments/commitmentSystem';
 import { gameAlert } from '@/utils/gameAlert';
 import { tier1Title } from '@/lib/config/hierarchy';
 import AlertHost from '@/components/ui/AlertHost';
@@ -214,6 +221,9 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               <TrendingUp size={16} color="#10B981" />
               <Text style={[styles.bonusText, settings.darkMode && styles.textDark]}>
                 +{Math.round(bonuses.progressBonus)}% progress, -{Math.round(bonuses.energyReduction)}% energy cost
+                {(bonuses.statBonus?.reputation ?? 0) > 0
+                  ? `, reputation held up to ${bonuses.statBonus?.reputation}`
+                  : ''}
               </Text>
             </View>
           )}
@@ -230,6 +240,9 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               <AlertCircle size={16} color="#EF4444" />
               <Text style={[styles.penaltyText, settings.darkMode && styles.textDark]}>
                 -{Math.round(penalties.progressPenalty)}% progress, +{Math.round(penalties.energyIncrease)}% energy cost
+                {penalties.statPenalty?.happiness
+                  ? `, ${penalties.statPenalty.happiness} happiness a week`
+                  : ''}
               </Text>
             </View>
           )}
@@ -326,7 +339,8 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                 <Text style={[styles.infoText, settings.darkMode && styles.textDarkSecondary]}>
                   • Choose up to 2 focus areas (Primary & Secondary){'\n'}
                   • Committed areas get bonuses: +30-50% progress, -20-30% energy cost{'\n'}
-                  • Neglected areas get penalties: -15% progress, +15% energy cost{'\n'}
+                  • Your primary focus holds reputation up as its level grows (up to {COMMITMENT_REPUTATION_TARGET_MAX}){'\n'}
+                  • Neglected areas get penalties: -15% progress, +15% energy cost, {COMMITMENT_NEGLECT_HAPPINESS} happiness a week each{'\n'}
                   • Commitment levels increase with activity, decay when neglected{'\n'}
                   • You can change commitments once every 4 weeks
                 </Text>

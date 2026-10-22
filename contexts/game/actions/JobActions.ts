@@ -988,10 +988,13 @@ export const applyForJob = (
   }
 
   if (requirementCheck.reputationShortfall) {
-    const { required, actual } = requirementCheck.reputationShortfall;
+    const { required, actual, fromVehicles } = requirementCheck.reputationShortfall;
     return {
       success: false,
-      message: `This role needs a reputation of ${required}+ - yours is ${Math.floor(actual)}. Get known first.`,
+      message:
+        fromVehicles > 0
+          ? `This role needs a reputation of ${required}+ earned, not bought - yours is ${Math.floor(actual)} without the ${Math.round(fromVehicles)} your cars add. Get known first.`
+          : `This role needs a reputation of ${required}+ - yours is ${Math.floor(actual)}. Get known first.`,
     };
   }
 

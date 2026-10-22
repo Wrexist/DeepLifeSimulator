@@ -7,6 +7,7 @@
 
 import { ImageSourcePropType } from 'react-native';
 import { Vehicle, VehicleInsurance } from '@/contexts/game/types';
+import { FUEL_TANK_WEEKS } from './runningCosts';
 
 // Insurance plan definitions
 export const INSURANCE_PLANS: Omit<VehicleInsurance, 'active' | 'expiresWeek'>[] = [
@@ -381,18 +382,66 @@ export function createVehicleFromTemplate(
   };
 }
 
-export function calculateVehicleSellPrice(vehicle: Vehicle): number {
-  // Base depreciation: 20% when you buy, then 5% per year (52 weeks)
-  const baseSellPercent = 0.8;
-  
-  // Condition affects price: 100% condition = full value, 0% = 20% of value
-  const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
-  
-  // Mileage penalty: -1% per 5000 miles
-  const mileagePenalty = Math.min(0.3, vehicle.mileage / 500000);
-  
-  const sellPrice = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-  return Math.max(0, Math.floor(sellPrice));
+// Resale price lives in `./resale` (no image requires) so net worth can read
+// the same formula without pulling the vehicle catalogue in. Re-exported here.
+export {
+  VEHICLE_AGE_DEPRECIATION_PER_YEAR,
+  VEHICLE_AGE_FACTOR_FLOOR,
+  vehicleAgeFactor,
+  calculateVehicleSellPrice,
+} from './resale';
+
+const positiveRep = (n: unknown): number =>
+  typeof n === 'number' && isFinite(n) && n > 0 ? n : 0;
+
+/**
+ * The reputation a garage vehicle carries: the bonus stamped on it at purchase
+ * (`createVehicleFromTemplate` copies the template's), else its template's.
+ * Read from the vehicle first so a later template rebalance cannot change what
+ * selling an already-owned car takes back, and so a vehicle that never carried
+ * any (a rental, the prestige starter car) takes back nothing.
+ */
+export function vehicleReputationBonus(vehicle: Pick<Vehicle, 'id' | 'reputationBonus'>): number {
+  const own = vehicle.reputationBonus;
+  if (typeof own === 'number' && isFinite(own) && own >= 0) return own;
+  return positiveRep(VEHICLE_TEMPLATES.find((t) => t.id === vehicle.id)?.reputationBonus);
+}
+
+/**
+ * The reputation selling `vehicle` takes back: what its purchase actually
+ * granted (`reputationGranted`, v55), else - for a vehicle bought before the
+ * record existed - the whole bonus it carries (`vehicleReputationBonus`).
+ */
+export function vehicleReputationTakeBack(
+  vehicle: Pick<Vehicle, 'id' | 'reputationBonus' | 'reputationGranted'>,
+): number {
+  const granted = vehicle.reputationGranted;
+  if (typeof granted === 'number' && isFinite(granted) && granted >= 0) return granted;
+  return vehicleReputationBonus(vehicle);
+}
+
+/**
+ * The most reputation the weekly ownership nudge will hold a player at for a
+ * car with `bonus` (ECO-9): the bonus itself, never more than 20. It was 3x the
+ * bonus, so a $55k Sports Coupe (+15) held reputation at 45, past the
+ * Celebrity bar (30), with no degree and no fame.
+ */
+export const VEHICLE_REPUTATION_FLOOR_CAP = 20;
+export function vehicleReputationFloor(bonus: number): number {
+  return Math.min(positiveRep(bonus), VEHICLE_REPUTATION_FLOOR_CAP);
+}
+
+/**
+ * Reputation the garage BOUGHT: the sum of what each owned vehicle's purchase
+ * granted. Career gates subtract it (ECO-9), so status goods move the number
+ * on the HUD but cannot buy a career that asks to be known.
+ */
+export function vehicleGrantedReputation(vehicles: readonly Vehicle[] | undefined | null): number {
+  let sum = 0;
+  for (const v of vehicles || []) {
+    if (v && v.owned) sum += vehicleReputationTakeBack(v);
+  }
+  return sum;
 }
 
 export function calculateRepairCost(vehicle: Vehicle): number {
@@ -433,7 +482,9 @@ export function insuredDamageShare(vehicle: Pick<Vehicle, 'condition' | 'insuran
 export function calculateFuelCost(vehicle: Vehicle): number {
   // Cost to fill from current level to 100%
   const emptyPercent = (100 - vehicle.fuelLevel) / 100;
-  const tankCost = vehicle.weeklyFuelCost * 2; // Full tank costs 2x weekly fuel cost
+  // A full tank is FUEL_TANK_WEEKS of driving (LIFE-7), so it costs that many
+  // weeks of fuel. It was 2x, back when the tank never drained.
+  const tankCost = vehicle.weeklyFuelCost * FUEL_TANK_WEEKS;
   return Math.floor(tankCost * emptyPercent);
 }
 
