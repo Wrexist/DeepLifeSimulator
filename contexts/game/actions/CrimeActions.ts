@@ -358,14 +358,67 @@ export const cashOutCleanBtc = (
 /** Price in BTC for a fresh identity package. Tuned high enough that this is a real choice. */
 export const NEW_IDENTITY_COST_BTC = 0.5;
 
+/** Share of walked-away debt paid as a settlement fee, in BTC. */
+const IDENTITY_DISCHARGE_FEE_RATE = 0.8;
+
+export interface NewIdentitySettlement {
+  /** Loans the new identity keeps (mortgage + auto - tied to collateral). */
+  keptLoans: NonNullable<GameState['loans']>;
+  /** Unsecured loans discharged with the old identity. */
+  droppedLoans: NonNullable<GameState['loans']>;
+  /** Credit cards closed with the old identity. */
+  closedCards: number;
+  /** Outstanding debt walked away from: unsecured principal + card balances. */
+  dischargedDebt: number;
+  /** BTC charged on top of the base price to settle that debt. */
+  settleBtc: number;
+  /** Base price + settlement, in BTC. */
+  totalBtc: number;
+}
+
+/**
+ * What burning this identity costs and discharges - the ONE computation the
+ * action charges and the Onion app quotes.
+ *
+ * Card balances are discharged debt exactly like an unsecured loan. They used
+ * to be closed (`creditCards: []`) with no settlement at all, so a maxed card's
+ * balance, interest and fees vanished for the 0.5 BTC base price - the M-1
+ * "walk away from debt for free" exploit again, through the cards.
+ */
+export function newIdentitySettlement(
+  state: Pick<GameState, 'loans' | 'cryptos' | 'banking'>,
+): NewIdentitySettlement {
+  const finitePositive = (v: unknown): number =>
+    typeof v === 'number' && isFinite(v) ? Math.max(0, v) : 0;
+  const loans = Array.isArray(state.loans) ? state.loans : [];
+  const keptLoans = loans.filter((loan) => loan?.type === 'mortgage' || loan?.type === 'auto');
+  const droppedLoans = loans.filter((loan) => loan?.type !== 'mortgage' && loan?.type !== 'auto');
+  const cards = Array.isArray(state.banking?.creditCards) ? state.banking!.creditCards : [];
+  const dischargedDebt =
+    droppedLoans.reduce((sum, l) => sum + finitePositive(l?.remaining), 0) +
+    cards.reduce((sum, c) => sum + finitePositive(c?.balance), 0);
+  const btcPrice = (state.cryptos ?? []).find((c) => c.id === 'btc')?.price ?? 0;
+  const settleBtc = btcPrice > 0 ? (dischargedDebt * IDENTITY_DISCHARGE_FEE_RATE) / btcPrice : 0;
+  return {
+    keptLoans,
+    droppedLoans,
+    closedCards: cards.length,
+    dischargedDebt,
+    settleBtc,
+    totalBtc: NEW_IDENTITY_COST_BTC + settleBtc,
+  };
+}
+
 /**
  * Acquire a new identity. Trade-off:
  *   - Heat resets to 0.
  *   - Active jobs are dropped (can't carry them across personas).
  *   - Buyer reputation resets (you're a stranger again).
  *   - Credit score resets to a thin-file 580 + history cleared.
- *   - Open loans + credit cards close (old identity owed them, not you).
- *   - Costs NEW_IDENTITY_COST_BTC from your regular BTC wallet.
+ *   - Unsecured loans + credit cards close (old identity owed them, not you);
+ *     mortgage and auto loans stay with their collateral. The street criminal
+ *     record (wanted/criminal level) is NOT touched.
+ *   - Costs NEW_IDENTITY_COST_BTC plus 80% of the discharged debt, in BTC.
  */
 export const acquireNewIdentity = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>
@@ -383,20 +436,13 @@ export const acquireNewIdentity = (
     // free money. Charge a settlement fee proportional to the discharged unsecured
     // principal (in BTC), so walking away from debt costs nearly as much as
     // repaying it. The base cost still covers a heat/rep reset when you owe little.
-    const keptLoans = (state.loans ?? []).filter(
-      (loan: { type?: string }) => loan?.type === 'mortgage' || loan?.type === 'auto'
-    );
-    const droppedLoans = (state.loans ?? []).filter(
-      (loan: { type?: string }) => loan?.type !== 'mortgage' && loan?.type !== 'auto'
-    );
-    const dischargedPrincipal = droppedLoans.reduce((sum, l: { remaining?: number }) => {
-      const r = typeof l?.remaining === 'number' && isFinite(l.remaining) ? Math.max(0, l.remaining) : 0;
-      return sum + r;
-    }, 0);
-    const btcPrice = state.cryptos.find((c) => c.id === 'btc')?.price ?? 0;
-    const DISCHARGE_FEE_RATE = 0.8; // pay 80% of walked-away debt in BTC
-    const settlementFeeBtc = btcPrice > 0 ? (dischargedPrincipal * DISCHARGE_FEE_RATE) / btcPrice : 0;
-    const totalCostBtc = NEW_IDENTITY_COST_BTC + settlementFeeBtc;
+    // Card balances count as discharged debt too (see newIdentitySettlement).
+    const {
+      keptLoans,
+      droppedLoans,
+      settleBtc: settlementFeeBtc,
+      totalBtc: totalCostBtc,
+    } = newIdentitySettlement(state);
 
     if (btc < totalCostBtc) {
       log.warn(
