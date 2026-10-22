@@ -30,6 +30,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTranslation } from '@/hooks/useTranslation';
 import { findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
+import { hasSeenIntro } from '@/src/features/onboarding/introSeen';
 import { readSaveSlotMeta, ensureSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 import { saveSlotMetaLooksPhantom } from '@/utils/phantomSaveCleanup';
 import { MENU_BACKGROUNDS, takeMenuBackgroundIndex } from '@/utils/menuBackground';
@@ -773,7 +774,13 @@ export default function MainMenu() {
       setOnboardingState((prev) => ({ ...prev, slot: targetSlot }));
 
       if (router && typeof router.push === 'function') {
-        router.push('/(onboarding)/Intro');
+        // ONB-10: the Intro shows once per device. After that, New Game goes
+        // straight to scenario selection.
+        if (await hasSeenIntro()) {
+          router.push('/(onboarding)/Scenarios');
+        } else {
+          router.push('/(onboarding)/Intro');
+        }
       } else {
         log.error('Router not available for navigation');
         gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
