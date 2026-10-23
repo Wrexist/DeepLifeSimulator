@@ -1053,6 +1053,9 @@ including the crash screen.
   an id once a life. Absent resolves through `metRelationshipIdsOf`, which seeds
   from the CURRENT relationships - the v50 `shownNotificationIds` shape - so
   nobody present can count again and `totalRelationships` is never lowered.
+  The migration also SNAPSHOTS that list into the save, because the resolver
+  reads it lazily and somebody removed before the next door call would drop out
+  of the seed (Codex, PR #283); the snapshot is fact, not a guess.
   Somebody removed before v58 left no record and can count once more; the
   opposite guess would invent people. `politics.peakOfficeLevel` (S2) is the
   highest office rank ever held (1-based, the `careerLevel` scale). The peak

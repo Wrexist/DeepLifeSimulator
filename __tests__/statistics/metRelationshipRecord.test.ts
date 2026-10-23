@@ -16,6 +16,7 @@ import { meetSomeone, resolveMeeting } from '@/contexts/game/actions/ContactsAct
 import { promoteMatchToFriend } from '@/contexts/game/actions/SparkActions';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import { metRelationshipIdsOf, recordMetRelationship } from '@/lib/statistics/statisticsTracker';
+import { runMigrations } from '@/utils/saveMigrations';
 
 const total = (s: GameState) => s.lifetimeStatistics?.totalRelationships ?? 0;
 const without = (s: GameState, id: string): GameState => ({
@@ -106,6 +107,29 @@ describe('S1: a save without the record (pre-v58) resolves instead of resetting'
     // Progress is never taken away: the stored counter only ever moves up.
     expect(fresh.lifetimeStatistics?.totalRelationships).toBe(8);
     expect(fresh.metRelationshipIds).toEqual([...(s.relationships ?? []).map((r) => r.id), 'met-w2']);
+  });
+
+  it('the v58 migration snapshots the current people, so a removal before the next door cannot re-arm one', () => {
+    const base = createTestGameState({ weeksLived: 12, lifeStartWeek: 0 });
+    const old = {
+      ...base,
+      version: 57,
+      metRelationshipIds: undefined,
+      relationships: [
+        ...(base.relationships ?? []),
+        { id: 'spm-p7', name: 'Ana Ruiz', type: 'partner', relationshipScore: 60, personality: 'kind', gender: 'female', age: 25 },
+      ],
+      lifetimeStatistics: { ...base.lifetimeStatistics!, totalRelationships: 7 },
+    } as GameState;
+    const migrated = runMigrations(old).state as GameState;
+    expect(migrated.metRelationshipIds).toContain('spm-p7');
+
+    // Removed after the load, before any door call, then met again: no recount.
+    const afterBreakup: GameState = {
+      ...migrated,
+      relationships: (migrated.relationships ?? []).filter((r) => r.id !== 'spm-p7'),
+    };
+    expect(recordMetRelationship(afterBreakup, 'spm-p7').lifetimeStatistics?.totalRelationships).toBe(7);
   });
 
   it('a stored record wins over the current list', () => {
