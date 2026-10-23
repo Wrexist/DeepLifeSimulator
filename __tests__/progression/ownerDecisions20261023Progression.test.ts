@@ -3,6 +3,7 @@
  * (D1, D4, D13). Each block pins the rule the decision set.
  */
 import { LIFE_CHAPTERS, earnedEducationThisLife } from '@/lib/progress/lifeChapters';
+import { LIFE_AMBITIONS } from '@/lib/ambitions/catalog';
 import { applyEducationProgression } from '@/contexts/game/actions/weekly/applyEducationProgression';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
 import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
@@ -91,6 +92,40 @@ describe('D1: a starting degree does not complete "Get Educated"', () => {
     });
     expect(educationGoal.checkComplete(state)).toBe(false);
     expect(educationGoal.checkProgress(state)).toBeCloseTo(0.75);
+  });
+});
+
+describe('D1: the "Master Your Craft" ambition follows the same rule', () => {
+  const milestone = (id: string) => {
+    for (const a of LIFE_AMBITIONS) {
+      const m = a.milestones.find((x) => x.id === id);
+      if (m) return m;
+    }
+    throw new Error(`missing milestone ${id}`);
+  };
+  const progress = (id: string, s: GameState): number => {
+    const f = milestone(id).checkProgress;
+    if (!f) throw new Error(`milestone ${id} has no progress`);
+    return f(s);
+  };
+  const earned = (id: string): Education => ({
+    id, name: id, description: '', cost: 0, duration: 52, completed: true, weeksRemaining: 0,
+  });
+
+  it('a starting degree does not tick "Get Educated"', () => {
+    const state = buildScenario('corporate_intern');
+    expect(milestone('mc_educated').checkComplete(state)).toBe(false);
+    expect(progress('mc_educated', state)).toBe(0);
+  });
+
+  it('a graduated degree does, and "Lifelong Scholar" counts only earned ones', () => {
+    const seeded = buildScenario('corporate_intern');
+    const one = { ...seeded, educations: [...seeded.educations, earned('mba')] };
+    expect(milestone('mc_educated').checkComplete(one)).toBe(true);
+    expect(milestone('mc_scholar').checkComplete(one)).toBe(false);
+    expect(progress('mc_scholar', one)).toBe(0.5);
+    const two = { ...one, educations: [...one.educations, earned('law')] };
+    expect(milestone('mc_scholar').checkComplete(two)).toBe(true);
   });
 });
 

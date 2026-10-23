@@ -41,7 +41,12 @@ const num = (v: unknown): number =>
  * never matches. Derived from what the save already holds - no new field.
  */
 export function earnedEducationThisLife(state: Pick<GameState, 'educations'>): boolean {
-  return (state.educations ?? []).some((e) => !!e && e.completed === true && e.weeksRemaining === 0);
+  return earnedEducationCount(state) > 0;
+}
+
+/** How many programmes were GRADUATED in this life (see `earnedEducationThisLife`). */
+export function earnedEducationCount(state: Pick<GameState, 'educations'>): number {
+  return (state.educations ?? []).filter((e) => !!e && e.completed === true && e.weeksRemaining === 0).length;
 }
 
 /** One log line per session for a throwing `netWorth` — see `wealthMark`. */
