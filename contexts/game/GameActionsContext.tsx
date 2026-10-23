@@ -62,6 +62,7 @@ import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
+import { mergeAccountEntitlementsFromLive } from '@/lib/prestige/accountEntitlements';
 import { PRESTIGE_ACHIEVEMENTS, type PrestigeAchievement } from '@/lib/prestige/prestigeAchievements';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
 import { LEGACY_PASS_XP, liveSeasonIdFor, getClaimableCount } from '@/lib/legacyPass/legacyPass';
@@ -615,7 +616,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // `saveGame(true)` below re-arms the schedule with the RESTORED state.
  resetCloudBackupSchedule();
 
- setGameState(outcome.state);
+ // D17: the cloud copy predates anything bought on this device since the last
+ // upload, and may hold a purchase made on another device. Merge account
+ // entitlements as a union against the LIVE state - inside the updater, so a
+ // purchase that committed while the download was in flight is seen too.
+ const restoredState = outcome.state;
+ setGameState(prev => mergeAccountEntitlementsFromLive(prev, restoredState));
  // `saveGame` reads `gameStateRef.current`, which lags the commit by one
  // passive-effect cycle - yield so the RESTORED state is what hits disk,
  // not the one it just replaced (the SettingsModal grant pattern).
@@ -5312,7 +5318,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (decision.repairs.length > 0) {
  logger.warn('[CloudSync] Remote state required repair:', decision.repairs);
  }
- setGameState(decision.state);
+ // D17: same entitlement union as `restoreFromCloud` - a purchase made on
+ // this device since the cloud copy was written must survive the swap.
+ const cloudState = decision.state;
+ setGameState(prev => mergeAccountEntitlementsFromLive(prev, cloudState));
  logger.info('[CloudSync] User chose cloud version - migrated + hydrated + state replaced (validated)', {
  localWeeks: decision.localWeeks,
  remoteWeeks: decision.remoteWeeks,
