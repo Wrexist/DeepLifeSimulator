@@ -65,6 +65,8 @@ describe('LIFE2-2: Peak Performance scales the gym', () => {
     const handler = gym.slice(gym.indexOf('const handleGym'));
     expect(handler).toMatch(/fitnessGainAfterSkills\(prev, GYM_FITNESS_GAIN\)/);
     expect(src('contexts/game/ItemActionsContext.tsx')).toMatch(/fitnessGainAfterSkills\(prevState,/);
+    // The HUD quick workout writes fitness too (Codex review, PR #274).
+    expect(src('components/TopStatsBar.tsx')).toMatch(/fitnessGainAfterSkills\(prev, deltas\.fitness\)/);
   });
 });
 
