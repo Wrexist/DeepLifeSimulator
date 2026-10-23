@@ -191,8 +191,11 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
           style={StyleSheet.absoluteFill} 
           activeOpacity={1} 
           onPress={onClose}
+          accessible={false}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
         >
-          <View 
+          <View
             style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' }]}
           />
         </TouchableOpacity>
@@ -268,7 +271,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   const colors = getCategoryColor(category);
                   const isSelected = selectedCategory === category;
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={category}
                       style={styles.categoryTabWrapper}
                       onPress={() => setSelectedCategory(category)}
@@ -632,7 +635,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                               </Text>
                             </View>
                           )}
-                          <TouchableOpacity
+                          <TouchableOpacity accessibilityRole="button"
                             style={[styles.purchaseButtonWrapper, isAtMaxLevel && styles.purchaseButtonWrapperMaxLevel]}
                             onPress={() => handlePurchase(bonus.id)}
                             disabled={!canPurchase || !canAfford}

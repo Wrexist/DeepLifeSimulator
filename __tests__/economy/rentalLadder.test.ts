@@ -212,9 +212,25 @@ describe('the HUD predicts what the tick actually pays', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require('path') as typeof import('path');
     const src = fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
+    // Either directly, or through the shared projection (lib/economy/vitalDrift),
+    // which is itself pinned below to call the tick's function (TICK2-2: the
+    // Energy breakdown now reads every line from the projection).
+    const direct = /computeHousingWellbeing\s*\(/.test(src) && /from\s+'@\/lib\/realEstate\/rentals'/.test(src);
+    const viaProjection =
+      /projectWeeklyVitalDrift\s*\(/.test(src) && /from\s+'@\/lib\/economy\/vitalDrift'/.test(src);
+    expect(direct || viaProjection).toBe(true);
+    // The specific shape that made a surface disagree with the tick.
+    expect(src).not.toMatch(/currentResidence\.weekly(Energy|Happiness)/);
+  });
+
+  it('the shared projection derives housing from computeHousingWellbeing', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs') as typeof import('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path') as typeof import('path');
+    const src = fs.readFileSync(path.join(__dirname, '..', '..', 'lib/economy/vitalDrift.ts'), 'utf8');
     expect(src).toMatch(/computeHousingWellbeing\s*\(/);
     expect(src).toMatch(/from\s+'@\/lib\/realEstate\/rentals'/);
-    // The specific shape that made a surface disagree with the tick.
     expect(src).not.toMatch(/currentResidence\.weekly(Energy|Happiness)/);
   });
 

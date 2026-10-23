@@ -124,6 +124,37 @@ export function getAchievementTitle(achievementId: string): string {
   return (mod.achievements || []).find((a) => a.id === achievementId)?.title ?? achievementId;
 }
 
+/**
+ * The selected perks that may actually be applied when the life starts.
+ *
+ * `state.perks` is part of the persisted onboarding draft, and unlock state is
+ * read from whatever save is in memory (ONB-9). So a perk picked while one save
+ * was loaded can come back after a relaunch as LOCKED - and a locked card is
+ * not tappable, so the player could neither see it as chosen nor deselect it,
+ * yet the start ceremony still applied it (a Trust Fund's $15,000 the screen
+ * said was locked). A permanent perk is applied separately by the builder, so
+ * passing it here too counted its boosts twice. Unknown ids and duplicates are
+ * dropped for the same reason. This is the one filter the Start button uses, so
+ * what is applied is exactly what the screen shows as selected and unlocked.
+ */
+export function startablePerkIds(
+  selectedPerkIds: string[],
+  perksList: PerkDefinition[],
+  permanentPerkIds: string[],
+  earnedAchievementIds: string[]
+): string[] {
+  const out: string[] = [];
+  for (const id of selectedPerkIds) {
+    if (out.includes(id)) continue;
+    const perk = perksList.find((p) => p.id === id);
+    if (!perk) continue;
+    if (permanentPerkIds.includes(id)) continue;
+    if (!isPerkUnlocked(perk, permanentPerkIds, earnedAchievementIds)) continue;
+    out.push(id);
+  }
+  return out;
+}
+
 /** Whether a perk is a purchased permanent perk. */
 export function isPerkPermanent(perkId: string, permanentPerkIds: string[]): boolean {
   return permanentPerkIds.includes(perkId);

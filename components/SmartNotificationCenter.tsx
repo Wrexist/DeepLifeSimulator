@@ -348,7 +348,7 @@ export default function SmartNotificationCenter({
                     </TouchableOpacity>
                   </View>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     onPress={handleClearAll}
                     style={styles.clearButton}
                   >
@@ -369,7 +369,7 @@ export default function SmartNotificationCenter({
                       { key: 'warning', label: 'Warnings' },
                       { key: 'tip', label: 'Tips' },
                     ].map(filter => (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={filter.key}
                         onPress={() => handleFilterChange(filter.key as typeof selectedFilter)}
                         style={[
@@ -405,7 +405,7 @@ export default function SmartNotificationCenter({
                   </View>
                 ) : (
                   filteredNotifications.map(notification => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={notification.id}
                       onPress={() => handleNotificationPress(notification)}
                       style={[styles.notificationCard, gameState.settings.darkMode && styles.notificationCardDark]}

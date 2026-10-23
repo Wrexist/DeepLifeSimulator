@@ -73,7 +73,7 @@ export default function StartJobModal({ visible, darkWeb, weeksLived, darkMode, 
               const eligible = meetsSkillReqs(tpl) && !alreadyRunning;
               const active = selected?.id === tpl.id;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={tpl.id}
                   disabled={!eligible}
                   onPress={() => setSelected(tpl)}
@@ -123,7 +123,7 @@ export default function StartJobModal({ visible, darkWeb, weeksLived, darkMode, 
               You can take on one job a week. Come back next week.
             </Text>
           )}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             disabled={!selected || weekFull}
             onPress={() => selected && !weekFull && onStart(selected.id)}
             style={[styles.confirm, { backgroundColor: selected && !weekFull ? accent.info : theme.border }]}

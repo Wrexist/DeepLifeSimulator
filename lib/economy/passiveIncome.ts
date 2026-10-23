@@ -19,6 +19,7 @@ import { logger } from '@/utils/logger';
 import { familyBrandIncomeMultiplier, findFamilyBusiness, legacyGenerationIncomeMultiplier } from '@/lib/business/familyBusinessEffects';
 import { minerFleetWeeklyPowerCost } from './minerPower';
 import { miningIncomeCap } from './constants';
+import { companyOwnerShare } from '@/lib/business/ownership';
 import {
   PROPERTY_THRESHOLD_1,
   PROPERTY_THRESHOLD_2, 
@@ -964,17 +965,9 @@ export function companyWeeklyIncomeFor(
   return isFinite(weeklyIncome) && weeklyIncome > 0 ? weeklyIncome : 0;
 }
 
-/**
- * The fraction of a company the player still owns: 1 while private, the kept
- * share after an IPO. Malformed values read as 1, so a corrupt overlay can
- * never zero a company's income.
- */
-export function companyOwnerShare(state: Pick<GameState, 'hustleApp'>, companyId: string): number {
-  const ipo = state.hustleApp?.companies?.[companyId]?.ipo;
-  if (!ipo || ipo.status !== 'public') return 1;
-  const pct = ipo.ownershipPercent;
-  return typeof pct === 'number' && isFinite(pct) && pct > 0 && pct <= 100 ? pct / 100 : 1;
-}
+// Lives in a leaf module so `netWorth` can read it without an import cycle;
+// re-exported here so existing importers are untouched.
+export { companyOwnerShare };
 
 export interface CompanyIncomeSummary {
   /** Sum of the raw stored `company.weeklyIncome` values. */

@@ -37,6 +37,7 @@
 import type { Education } from '@/contexts/game/types';
 import { countStressfulEducations, educationStressPenalties } from '@/lib/education/educationStress';
 import type { WeekContext } from './weekContext';
+import { energyAfterDrain } from '@/lib/economy/energyRegen';
 
 export interface EducationStressResult {
   numActiveEducations: number;
@@ -62,14 +63,13 @@ export function applyEducationStress(
 
   ctx.newStats.happiness = Math.max(0, Math.min(100, ctx.newStats.happiness + educationHappinessPenalty));
   ctx.newStats.health = Math.max(0, Math.min(100, ctx.newStats.health + educationHealthPenalty));
-  // Clamped like its two neighbours. This was the one stat write in the weekly
-  // modules with no clamp, on the theory that "the final 0-100 cap happens later
-  // in the updater" — but the intermediate value is READ before that cap (energy
-  // gates activities and feeds later weekly math), so a stacked penalty could
-  // drive it negative and make the rest of the tick reason about an impossible
-  // stat. Clamping here cannot change a legitimate outcome: the later cap applies
-  // the same 0-100 bounds.
-  ctx.newStats.energy = Math.max(0, Math.min(100, ctx.newStats.energy + educationEnergyPenalty));
+  // Floored at 0 so a stacked penalty cannot leave the rest of the tick reasoning
+  // about an impossible negative stat - but NOT capped at 100. The week's regen
+  // has already lifted energy past 100 at this point and the updater caps once,
+  // after every drain; capping here first threw the regen surplus away and then
+  // charged the full penalty from 100, so a working student resting at full
+  // energy lost energy the HUD projection said they would keep (TICK2-1).
+  ctx.newStats.energy = energyAfterDrain(ctx.newStats.energy, educationEnergyPenalty);
 
   return {
     numActiveEducations,

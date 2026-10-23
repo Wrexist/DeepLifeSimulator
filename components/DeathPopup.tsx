@@ -45,7 +45,7 @@ import { shareViewAsImage } from '@/utils/shareImage';
 import type { Obituary } from '@/lib/legacy/obituaryGenerator';
 import { createStyles } from '@/components/DeathPopupStyles';
 import { explainVitalDeath } from '@/lib/economy/deathCauses';
-import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
+import { suspendLifeAutosave, resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { stashNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { characterName } from '@/utils/characterName';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
@@ -554,6 +554,16 @@ function DeathPopup() {
 
   const performStartNewGame = useCallback(async () => {
     try {
+      // SAVE2-3: suspend the ambient autosave FIRST, before the death flags are
+      // cleared below. It used to be suspended only after the slot was deleted,
+      // so for the whole archive / carry-over / snapshot / delete sequence the
+      // 2-minute autosave and the AppState background force-save were free to
+      // write this character with `showDeathPopup: false` and no
+      // `deathReason` - a LIVING copy of the dead life. Landing before the
+      // delete, that copy survived an app kill as a revived character
+      // (background the app on this tap, then kill it); landing after, it
+      // re-filled the slot the new life needs.
+      suspendLifeAutosave('death -> start new game');
       setGameState(prev => ({
         ...prev,
         showDeathPopup: false,
@@ -588,12 +598,22 @@ function DeathPopup() {
         // slot outright, so a player who tapped "Start New Game" by mistake -
         // or who did not realise it wipes the slot - had no way back.
         // Rotation-exempt, so it is not evicted by the next few autosaves.
-        const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
-        await snapshotOutgoingSave(currentSlot, 'before_overwrite');
+        //
+        // Snapshot and delete under the save lock (SAVE2-3): suspension stops
+        // new saves, not one already writing, and a save that lands after the
+        // delete puts the buried life back in the slot.
+        const { saveLoadMutex } = await import('@/utils/saveLoadMutex');
+        const slotLock = await saveLoadMutex.acquire('save');
+        try {
+          const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
+          await snapshotOutgoingSave(currentSlot, 'before_overwrite');
 
-        // CRASH FIX (A-1): Delete all double-buffer keys for this slot
-        const { deleteSaveSlot } = await import('@/utils/saveValidation');
-        await deleteSaveSlot(currentSlot);
+          // CRASH FIX (A-1): Delete all double-buffer keys for this slot
+          const { deleteSaveSlot } = await import('@/utils/saveValidation');
+          await deleteSaveSlot(currentSlot);
+        } finally {
+          saveLoadMutex.release(slotLock);
+        }
         // Clear the cached slot summary too so SaveSlots can't show the dead
         // character as a playable slot. AWAITED before the navigation below -
         // the next screen reads this cache, so the invalidation must land
@@ -625,10 +645,15 @@ function DeathPopup() {
       if (__DEV__) {
         logger.error('Failed to start new game:', error);
       }
+      // Put the death back exactly as it was - reason included, or a later
+      // save records a death with no cause - and only then let the ambient
+      // autosave run again: the character is still the life in play.
       setGameState(prev => ({
         ...prev,
         showDeathPopup: true,
+        deathReason: prev.deathReason ?? gameState.deathReason,
       }));
+      resumeLifeAutosave();
     }
   }, [setGameState, currentSlot, router, setOnboardingState, gameState]);
 
@@ -848,7 +873,7 @@ function DeathPopup() {
   // Shared secondary action row (Read Story + Share) - appears in both footers.
   const secondaryActions = (
     <View style={styles.secondaryRow}>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.secondaryButton}
         onPress={handleShowLifeStory}
         activeOpacity={0.8}
@@ -857,7 +882,7 @@ function DeathPopup() {
         <Text style={styles.secondaryButtonText}>Read Story</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.secondaryButton}
         onPress={handleShareObituary}
         activeOpacity={0.8}
@@ -1008,7 +1033,8 @@ function DeathPopup() {
                   sits so a tab switch can bring it back to the top. */}
               <View style={styles.topBar} onLayout={handleTabBarLayout}>
                 <View style={styles.segmented}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === 'summary' }}
                     style={[styles.segment, activeTab === 'summary' && styles.segmentActive]}
                     onPress={handleSelectSummaryTab}
                     activeOpacity={0.8}
@@ -1019,7 +1045,8 @@ function DeathPopup() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === 'legacy' }}
                     style={[styles.segment, activeTab === 'legacy' && styles.segmentActive]}
                     onPress={handleSelectLegacyTab}
                     activeOpacity={0.8}
@@ -1666,7 +1693,8 @@ function DeathPopup() {
                               const childTotalNetWorth = inheritance + savings;
 
                               return (
-                                <TouchableOpacity
+                                <TouchableOpacity accessibilityRole="button"
+                                  accessibilityState={{ selected: isSelected }}
                                   key={child.id}
                                   style={[
                                     styles.childCard,
@@ -1763,7 +1791,7 @@ function DeathPopup() {
                         Your heir inherits the {inheritedMindsetName} mindset.
                       </Text>
                     ) : null}
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={[styles.actionButton, !canContinueLegacy && styles.disabledButton]}
                       onPress={handleContinueLegacy}
                       disabled={!canContinueLegacy}

@@ -42,6 +42,8 @@ import {
   getTrial,
   trialCapacity,
   trialRewardMultiplier,
+  trialWeeksRemaining,
+  TRIAL_MIN_WEEKS_PLAYED,
 } from '@/lib/dynasty/trials';
 import { SEAT_FEATURE, SEAT_WINGS, getSeatWing } from '@/lib/dynasty/seat';
 import { activeTrialIds, pendingTrialIds, seatWingIds } from '@/lib/dynasty/state';
@@ -163,6 +165,8 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
   const sworn = pendingTrialIds(gameState);
   const trialSlots = trialCapacity(gameState);
   const trialMultiplier = trialRewardMultiplier(gameState);
+  // D2: an active Trial pays only after a year of PLAYED weeks in this life.
+  const trialWeeksLeft = trialWeeksRemaining(gameState);
 
   const wingsBuilt = seatWingIds(gameState);
 
@@ -256,7 +260,7 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
       <Section
         icon={Swords}
         title="DYNASTY TRIALS · Prestige 4"
-        blurb={`Make the next life harder on purpose. Paid in legacy points when that life ends. ${sworn.length}/${trialSlots} sworn${trialMultiplier > 1 ? ' · rewards doubled by the Chapter House' : ''}.`}
+        blurb={`Make the next life harder on purpose. Paid in legacy points when that life ends, if it lasts ${TRIAL_MIN_WEEKS_PLAYED} weeks. ${sworn.length}/${trialSlots} sworn${trialMultiplier > 1 ? ' · rewards doubled by the Chapter House' : ''}.`}
         unlocked={trialsOpen}
         requirement={prestigeUnlockRequirement(gameState, TRIALS_FEATURE)}
         isDark={isDark}
@@ -268,7 +272,9 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
             <Row
               key={`trial-active-${id}`}
               title={trial.name}
-              subtitle={`Being borne now. Pays ${(trial.reward * trialMultiplier).toLocaleString('en-US')} when this life ends.`}
+              subtitle={trialWeeksLeft > 0
+                ? `Being borne now. Pays ${(trial.reward * trialMultiplier).toLocaleString('en-US')} when this life ends - after ${trialWeeksLeft} more week${trialWeeksLeft === 1 ? '' : 's'}. End it sooner and it is forfeit.`
+                : `Being borne now. Pays ${(trial.reward * trialMultiplier).toLocaleString('en-US')} when this life ends.`}
               action="Bearing"
               enabled={false}
               done

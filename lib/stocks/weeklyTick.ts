@@ -240,6 +240,9 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     input.currentWeek,
     typeof input.cashIn === 'number' && isFinite(input.cashIn) ? input.cashIn : Infinity,
     input.weekVolume,
+    // ECO2-6: gate buys on what they really cost here - notional plus the 2%
+    // commission charged below - so the cash floor cannot forgive the fee.
+    STOCK_FEE,
   );
   for (const fill of orderResult.fills) {
     const sym = fill.order.symbol.toUpperCase();

@@ -1,7 +1,20 @@
 import type { GameState } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { trialYearsLost } from '@/lib/dynasty/trials';
 
 /** The age a Youth Pill resets the character to. */
 export const YOUTH_PILL_AGE = 18;
+
+/**
+ * The age a pill resets THIS character to: {@link YOUTH_PILL_AGE}, plus the
+ * years an active Dynasty Trial took (The Long Road, D8). The Trial's reward
+ * pays for carrying those years; a pill that handed them back erased the whole
+ * cost while the reward still settled. The modal reads this too, so the card
+ * states the age the pill actually delivers.
+ */
+export function youthPillTargetAge(state: GameState | undefined | null): number {
+  return YOUTH_PILL_AGE + trialYearsLost(state);
+}
 
 /**
  * Spend one Youth Pill: one pill off the inventory and the displayed age back
@@ -31,12 +44,16 @@ export function applyYouthPill(prev: GameState): GameState {
     typeof prev.weeksLived === 'number' && Number.isFinite(prev.weeksLived) && prev.weeksLived > 0
       ? prev.weeksLived
       : 0;
+  // `weeksLived` counts from the 18th birthday and `YOUTH_PILL_AGE` IS 18, so
+  // the whole counter comes off: getAge = 18 + (weeksLived - offset) / 52.
+  // Under The Long Road the Trial's twelve years stay on the counter (D8): the
+  // pill takes off only what was lived beyond them.
+  const keptWeeks = trialYearsLost(prev) * WEEKS_PER_YEAR;
+  const offset = Math.max(0, weeksLived - keptWeeks);
   return {
     ...prev,
     youthPills: pills - 1,
-    // `weeksLived` counts from the 18th birthday and `YOUTH_PILL_AGE` IS 18, so
-    // the whole counter comes off: getAge = 18 + (weeksLived - offset) / 52.
-    ageOffsetWeeks: weeksLived,
-    date: { ...prev.date, age: YOUTH_PILL_AGE },
+    ageOffsetWeeks: offset,
+    date: { ...prev.date, age: YOUTH_PILL_AGE + Math.floor((weeksLived - offset) / WEEKS_PER_YEAR) },
   };
 }

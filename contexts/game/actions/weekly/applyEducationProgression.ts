@@ -50,6 +50,7 @@ import {
 } from '@/lib/education/educationSystem';
 import { makeLifeRoll, makeWeeklyRoll } from '@/utils/seededRoll';
 import type { WeekContext } from './weekContext';
+import { energyAfterDrain } from '@/lib/economy/energyRegen';
 
 export interface EducationProgressionInput {
   prevEducations: Education[];
@@ -253,7 +254,7 @@ export function applyEducationProgression(
           ctx.newStats.happiness = Math.max(0, Math.min(100, ctx.newStats.happiness + examResult.statChanges.happiness));
         }
         if (examResult.statChanges.energy) {
-          ctx.newStats.energy = Math.max(0, Math.min(100, ctx.newStats.energy + examResult.statChanges.energy));
+          ctx.newStats.energy = energyAfterDrain(ctx.newStats.energy, examResult.statChanges.energy);
         }
         if (examResult.statChanges.reputation) {
           ctx.newStats.reputation = Math.max(0, Math.min(100, ctx.newStats.reputation + examResult.statChanges.reputation));
@@ -280,7 +281,7 @@ export function applyEducationProgression(
           if (cls.statBonuses) {
             if (cls.statBonuses.health) ctx.newStats.health = Math.min(100, ctx.newStats.health + cls.statBonuses.health);
             if (cls.statBonuses.happiness) ctx.newStats.happiness = Math.min(100, ctx.newStats.happiness + cls.statBonuses.happiness);
-            if (cls.statBonuses.energy) ctx.newStats.energy = Math.min(100, ctx.newStats.energy + cls.statBonuses.energy);
+            if (cls.statBonuses.energy) ctx.newStats.energy = energyAfterDrain(ctx.newStats.energy, cls.statBonuses.energy);
             if (cls.statBonuses.fitness) ctx.newStats.fitness = Math.min(100, ctx.newStats.fitness + cls.statBonuses.fitness);
             if (cls.statBonuses.reputation) ctx.newStats.reputation = Math.min(100, ctx.newStats.reputation + cls.statBonuses.reputation);
           }

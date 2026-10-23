@@ -31,7 +31,7 @@ export const APPLE = {
    *
    * `scripts/asc-release.mjs` reads this as the record to create and fill.
    */
-  storeVersion: '1.7.0',
+  storeVersion: '1.8.0',
 
   /**
    * MANUAL: an approved version waits for a person to press Release in App
@@ -53,15 +53,14 @@ export const APPLE = {
    * described for three audiences, and a reader who finds them disagreeing
    * cannot tell which one is the lie.
    */
-  whatsNew: `Fairer choices, bigger rewards, and Mindsets that shape your whole life.
+  whatsNew: `A life that tells the truth: hundreds of fixes so events, money and people behave the way the game says.
 
-• Mindsets, rebuilt. Each one now changes the part of life its name promises, with one upside and one downside, and every number on the card is exactly what the game applies.
-• Bigger prestige rewards. Prestiging pays about ten times more points, Legacy Shop upgrades really carry over to your heir, and Achievement Hunter pays 25 points for every achievement you claim in a life.
-• Choices you can afford. Events show "Need $X" instead of quietly taking your money.
-• Live in a home you own. Make any property you own your residence from its Manage sheet.
-• More ways to earn gems. Watch an optional ad at the end of each year for bonus gems, or double your daily reward.
-• Fairer money. Street job rank raises your pay, brand deals pay for every sponsored post, and your staff stop drawing wages while you are in jail.
-• Things work the way they say. A stolen car that is gone stays gone, votes, investments and treatments do what the button says, achievements that could never unlock can now be earned, and rewinding time no longer pays rewards twice.
+• Share your life card. When a life ends, Share sends a picture of your life card.
+• Events that fit your life. No boss bonuses without a job, no car bills without a car, no festivals in jail. Appeals, counter-offers and lawyers are real gambles now.
+• Money that adds up. Your bank always matches your wallet, you can type exact amounts, and stock and crypto orders tell you whether they went through.
+• Family that works. Divorce splits what you really own, heirs inherit the whole fortune, and the family tree keeps every generation.
+• Better pay for therapists, vets, architects, journalists, soldiers and firefighters.
+• Saves you can rescue. A save that will not load points you to Restore instead of a new game.
 • Every save carries over.`,
 
   /**
@@ -205,15 +204,14 @@ Privacy Policy: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       // Mirrors APPLE.whatsNew. Kept in the register of the description above
       // — this locale is a real translation, not machine output, and a
       // machine-shaped release note next to hand-written copy reads as one.
-      whatsNew: `Decisiones más justas, mejores recompensas y Mindsets que moldean toda tu vida.
+      whatsNew: `Una vida que dice la verdad: cientos de correcciones para que los eventos, el dinero y las personas funcionen como dice el juego.
 
-• Mindsets, renovados. Cada uno cambia ahora la parte de la vida que promete su nombre, con una ventaja y una desventaja, y cada número de la tarjeta es exactamente lo que aplica el juego.
-• Más recompensas de prestigio. Hacer prestigio da unas diez veces más puntos, las mejoras de la Legacy Shop pasan de verdad a tu heredero, y Achievement Hunter da 25 puntos por cada logro que reclames en una vida.
-• Decisiones que puedes pagar. Los eventos muestran "Need $X" en lugar de quitarte el dinero sin avisar.
-• Vive en una casa tuya. Haz de cualquier propiedad que tengas tu residencia desde su hoja Manage.
-• Más formas de ganar gemas. Mira un anuncio opcional al final de cada año para ganar gemas extra, o duplica tu recompensa diaria.
-• Dinero más justo. El rango en los trabajos callejeros sube tu paga, los acuerdos con marcas pagan por cada publicación patrocinada, y tus empleados dejan de cobrar mientras estás en la cárcel.
-• Todo funciona como dice. Un auto robado que se perdió no vuelve, los votos, inversiones y tratamientos hacen lo que dice el botón, los logros que nunca se desbloqueaban ya se pueden ganar, y retroceder el tiempo ya no paga las recompensas dos veces.
+• Comparte tu tarjeta de vida. Cuando una vida termina, Compartir envía una imagen de tu tarjeta.
+• Eventos que encajan con tu vida. Nada de bonos del jefe sin trabajo, facturas del coche sin coche ni festivales en la cárcel. Las apelaciones, contraofertas y abogados ahora son apuestas reales.
+• Dinero que cuadra. Tu banco siempre coincide con tu cartera, puedes escribir cantidades exactas y las órdenes de acciones y cripto te dicen si se completaron.
+• Una familia que funciona. El divorcio reparte lo que de verdad tienes, los herederos heredan toda la fortuna y el árbol familiar guarda cada generación.
+• Mejor sueldo para terapeutas, veterinarios, arquitectos, periodistas, soldados y bomberos.
+• Partidas que se pueden rescatar. Una partida que no carga te lleva a Restaurar en lugar de a una partida nueva.
 • Todas las partidas se conservan.`,
 
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
@@ -268,15 +266,14 @@ Política de privacidad: https://wrexist.github.io/DeepLifeSimulator/privacy.htm
       subtitle: 'Carreira, crime, cripto, luxo',
       promotionalText:
         'Novo: entre ao vivo e fique famoso. Faça lives, ganhe seguidores e evolua suas habilidades; depois faça fortuna, crie uma família e deixe tudo a um herdeiro.',
-      whatsNew: `Escolhas mais justas, recompensas maiores e Mindsets que moldam a vida inteira.
+      whatsNew: `Uma vida que diz a verdade: centenas de correções para que eventos, dinheiro e pessoas funcionem como o jogo diz.
 
-• Mindsets, refeitos. Cada um agora muda a parte da vida que o nome promete, com uma vantagem e uma desvantagem, e cada número no card é exatamente o que o jogo aplica.
-• Recompensas de prestígio maiores. Fazer prestígio rende cerca de dez vezes mais pontos, as melhorias da Legacy Shop passam de verdade para o seu herdeiro, e Achievement Hunter rende 25 pontos para cada conquista resgatada em uma vida.
-• Escolhas que cabem no bolso. Os eventos mostram "Need $X" em vez de tirar seu dinheiro sem avisar.
-• More num imóvel seu. Transforme qualquer imóvel que você tem na sua residência pela tela Manage.
-• Mais formas de ganhar gemas. Assista a um anúncio opcional no fim de cada ano para ganhar gemas extras, ou dobre sua recompensa diária.
-• Dinheiro mais justo. O nível nos bicos aumenta seu pagamento, parcerias com marcas pagam por post patrocinado, e seus funcionários deixam de receber enquanto você está preso.
-• Tudo funciona como diz. Um carro roubado que sumiu não volta, votos, investimentos e tratamentos fazem o que o botão diz, conquistas que nunca desbloqueavam agora podem ser ganhas, e voltar no tempo não paga recompensas duas vezes.
+• Compartilhe o card da sua vida. Quando uma vida termina, Compartilhar envia uma imagem do seu card.
+• Eventos que combinam com a sua vida. Nada de bônus do chefe sem emprego, conta do carro sem carro ou festivais na prisão. Recursos, contrapropostas e advogados agora são apostas de verdade.
+• Dinheiro que fecha. O banco sempre bate com a carteira, você pode digitar valores exatos e as ordens de ações e cripto dizem se foram concluídas.
+• Uma família que funciona. O divórcio divide o que você realmente tem, os herdeiros herdam a fortuna inteira e a árvore genealógica guarda todas as gerações.
+• Salários melhores para terapeutas, veterinários, arquitetos, jornalistas, soldados e bombeiros.
+• Saves que dá para recuperar. Um save que não carrega leva você a Restaurar em vez de a um jogo novo.
 • Todos os saves continuam valendo.`,
 
       description: `Toda vida começa do mesmo jeito: sem dinheiro, sem emprego, sem plano.
@@ -325,16 +322,15 @@ Política de Privacidade: https://wrexist.github.io/DeepLifeSimulator/privacy.ht
       subtitle: 'Carrière, crime, crypto, luxe',
       promotionalText:
         "Nouveau : passez en live et devenez célèbre. Streamez, gagnez des abonnés, améliorez vos compétences, puis bâtissez une fortune et léguez-la.",
-      whatsNew: `Des choix plus justes, de plus grosses récompenses et des Mindsets qui façonnent toute votre vie.
+      whatsNew: `Une vie qui dit la vérité : des centaines de corrections pour que les événements, l'argent et les gens se comportent comme le jeu l'annonce.
 
-• Mindsets, repensés. Chacun change désormais la part de la vie que promet son nom, avec un avantage et un inconvénient, et chaque chiffre de la carte est exactement ce que le jeu applique.
-• Des récompenses de prestige plus grosses. Le prestige rapporte environ dix fois plus de points, les améliorations de la Legacy Shop passent vraiment à votre héritier, et Achievement Hunter rapporte 25 points par succès réclamé dans une vie.
-• Des choix à votre portée. Les événements affichent « Need $X » au lieu de prendre votre argent sans prévenir.
-• Habitez un logement à vous. Faites de n'importe quel bien que vous possédez votre résidence depuis sa fiche Manage.
-• Plus de façons de gagner des gemmes. Regardez une pub facultative à la fin de chaque année pour des gemmes bonus, ou doublez votre récompense quotidienne.
-• Un argent plus juste. Votre rang dans les petits boulots de rue augmente votre paie, les partenariats de marque paient chaque publication sponsorisée, et vos employés ne sont plus payés pendant que vous êtes en prison.
-• Tout marche comme annoncé. Une voiture volée disparue le reste, les votes, investissements et traitements font ce que dit le bouton, les succès impossibles à débloquer peuvent enfin être obtenus, et remonter le temps ne paie plus les récompenses deux fois.
-• Toutes vos parties sont conservées.`,
+• Partagez votre carte de vie. À la fin d'une vie, Partager envoie une image de votre carte.
+• Des événements adaptés à votre vie. Plus de prime du patron sans emploi, de facture de voiture sans voiture ni de festival en prison. Recours, contre-offres et avocats sont désormais de vrais paris.
+• Un argent qui tombe juste. Votre banque correspond toujours à votre portefeuille, vous pouvez saisir des montants exacts, et les ordres d'actions et de crypto indiquent s'ils sont passés.
+• Une famille qui fonctionne. Le divorce partage ce que vous possédez vraiment, les héritiers reçoivent toute la fortune et l'arbre généalogique garde chaque génération.
+• Meilleurs salaires pour les thérapeutes, vétérinaires, architectes, journalistes, soldats et pompiers.
+• Des sauvegardes récupérables. Une sauvegarde qui ne se charge pas vous mène à Restaurer plutôt qu'à une nouvelle partie.
+• Toutes les sauvegardes sont conservées.`,
 
       description: `Toute vie commence de la même façon : sans argent, sans emploi, sans plan.
 La suite ne dépend que de vous.
@@ -383,15 +379,14 @@ Politique de confidentialité : https://wrexist.github.io/DeepLifeSimulator/priv
       subtitle: 'Karriere, Verbrechen, Krypto',
       promotionalText:
         'Neu: Geh live und werde berühmt. Streame, gewinne Follower und verbessere deine Fähigkeiten, dann bau ein Vermögen und eine Familie auf und vererbe alles.',
-      whatsNew: `Fairere Entscheidungen, größere Belohnungen und Mindsets, die dein ganzes Leben prägen.
+      whatsNew: `Ein Leben, das die Wahrheit sagt: Hunderte Korrekturen, damit Ereignisse, Geld und Menschen sich so verhalten, wie das Spiel es sagt.
 
-• Mindsets, neu gebaut. Jedes verändert jetzt den Lebensbereich, den sein Name verspricht, mit einem Vorteil und einem Nachteil, und jede Zahl auf der Karte ist genau das, was das Spiel anwendet.
-• Größere Prestige-Belohnungen. Prestige bringt etwa zehnmal so viele Punkte, Upgrades aus dem Legacy Shop gehen wirklich auf deinen Erben über, und Achievement Hunter bringt 25 Punkte für jeden Erfolg, den du in einem Leben einlöst.
-• Entscheidungen, die du dir leisten kannst. Events zeigen „Need $X“, statt dir still das Geld abzunehmen.
-• Wohne im eigenen Zuhause. Mach jede Immobilie, die dir gehört, über ihr Manage-Menü zu deinem Wohnsitz.
-• Mehr Wege zu Edelsteinen. Schau am Ende jedes Jahres freiwillig eine Werbung für Bonus-Edelsteine oder verdopple deine tägliche Belohnung.
-• Faireres Geld. Dein Rang bei Straßenjobs erhöht deinen Lohn, Markendeals zahlen für jeden gesponserten Post, und deine Angestellten bekommen keinen Lohn, solange du im Gefängnis sitzt.
-• Alles funktioniert, wie es draufsteht. Ein gestohlenes Auto, das weg ist, bleibt weg, Abstimmungen, Investitionen und Behandlungen tun, was der Knopf sagt, Erfolge, die nie freischaltbar waren, lassen sich jetzt verdienen, und Zurückspulen zahlt Belohnungen nicht mehr doppelt aus.
+• Teile deine Lebenskarte. Wenn ein Leben endet, sendet Teilen ein Bild deiner Lebenskarte.
+• Ereignisse, die zu deinem Leben passen. Keine Chef-Boni ohne Job, keine Autorechnungen ohne Auto, keine Festivals im Gefängnis. Einsprüche, Gegenangebote und Anwälte sind jetzt echte Wagnisse.
+• Geld, das aufgeht. Deine Bank stimmt immer mit deinem Geldbeutel überein, du kannst genaue Beträge eingeben, und Aktien- und Krypto-Orders sagen dir, ob sie ausgeführt wurden.
+• Familie, die funktioniert. Eine Scheidung teilt, was du wirklich besitzt, Erben erben das ganze Vermögen, und der Stammbaum behält jede Generation.
+• Bessere Bezahlung für Therapeuten, Tierärzte, Architekten, Journalisten, Soldaten und Feuerwehrleute.
+• Rettbare Spielstände. Ein Spielstand, der nicht lädt, führt dich zu Wiederherstellen statt zu einem neuen Spiel.
 • Jeder Spielstand bleibt erhalten.`,
 
       description: `Jedes Leben beginnt gleich: kein Geld, kein Job, kein Plan.
@@ -477,36 +472,36 @@ export const PLAY = {
    * release as APPLE.whatsNew, cut to Play's limit.
    */
   releaseNotes: {
-    'en-US': `Mindsets now shape your whole life: one upside, one downside, and every number on the card is what the game applies.
-• Prestige pays about 10x more points, and Legacy Shop upgrades carry over to your heir.
-• Events show "Need $X" instead of quietly taking your money.
-• Make any home you own your residence.
-• Optional ads for bonus gems at year end, or to double your daily reward.
-• Fairer pay and many fixes. Every save carries over.`,
-    'es-419': `Los Mindsets ahora moldean toda tu vida: una ventaja, una desventaja, y cada número de la tarjeta es lo que aplica el juego.
-• El prestigio da unas 10 veces más puntos, y las mejoras de la Legacy Shop pasan a tu heredero.
-• Los eventos muestran "Need $X" en lugar de quitarte el dinero sin avisar.
-• Haz de cualquier casa tuya tu residencia.
-• Anuncios opcionales para gemas extra al final del año o para duplicar tu recompensa diaria.
-• Pagas más justas y muchas correcciones.`,
-    'pt-BR': `Os Mindsets agora moldam a vida inteira: uma vantagem, uma desvantagem, e cada número no card é o que o jogo aplica.
-• O prestígio rende cerca de 10 vezes mais pontos, e as melhorias da Legacy Shop passam para o seu herdeiro.
-• Os eventos mostram "Need $X" em vez de tirar seu dinheiro sem avisar.
-• Transforme qualquer imóvel seu na sua residência.
-• Anúncios opcionais para gemas extras no fim do ano ou para dobrar a recompensa diária.
-• Pagamentos mais justos e muitas correções.`,
-    'fr-FR': `Les Mindsets façonnent désormais toute votre vie : un avantage, un inconvénient, et chaque chiffre de la carte est ce que le jeu applique.
-• Le prestige rapporte environ 10 fois plus de points, et la Legacy Shop passe à votre héritier.
-• Les événements affichent « Need $X » au lieu de prendre votre argent sans prévenir.
-• Habitez un logement à vous.
-• Pubs facultatives pour des gemmes bonus en fin d'année ou pour doubler la récompense du jour.
-• Paies plus justes, nombreux correctifs.`,
-    'de-DE': `Mindsets prägen jetzt dein ganzes Leben: ein Vorteil, ein Nachteil, und jede Zahl auf der Karte ist das, was das Spiel anwendet.
-• Prestige bringt etwa 10-mal so viele Punkte, und Legacy-Shop-Upgrades gehen auf deinen Erben über.
-• Events zeigen „Need $X“, statt dir still das Geld abzunehmen.
-• Mach jede eigene Immobilie zu deinem Wohnsitz.
-• Freiwillige Werbung für Bonus-Edelsteine am Jahresende oder für die doppelte Tagesbelohnung.
-• Fairere Löhne und viele Fehlerbehebungen.`,
+    'en-US': `New: share your life card as a picture when a life ends.
+• Events fit your life: no boss bonuses without a job, no festivals in jail.
+• Divorce, inheritance and the family tree work the way they should.
+• Your bank always matches your wallet, and trades tell you if they went through.
+• Better pay for therapists, vets, architects and more.
+• Hundreds of fixes. Every save carries over.`,
+    'es-419': `Nuevo: comparte tu tarjeta de vida como imagen cuando una vida termina.
+• Eventos que encajan: nada de bonos sin trabajo ni festivales en la cárcel.
+• El divorcio, la herencia y el árbol familiar funcionan como deben.
+• Tu banco siempre coincide con tu cartera, y las órdenes dicen si se completaron.
+• Mejor sueldo para terapeutas, veterinarios, arquitectos y más.
+• Cientos de correcciones. Todas las partidas se conservan.`,
+    'pt-BR': `Novo: compartilhe o card da sua vida como imagem quando uma vida termina.
+• Eventos que combinam: nada de bônus sem emprego nem festivais na prisão.
+• Divórcio, herança e árvore genealógica funcionam como deveriam.
+• O banco sempre bate com a carteira, e as ordens dizem se foram concluídas.
+• Salários melhores para terapeutas, veterinários, arquitetos e mais.
+• Centenas de correções. Todos os saves continuam valendo.`,
+    'fr-FR': `Nouveau : partagez votre carte de vie en image à la fin d'une vie.
+• Des événements adaptés : pas de prime sans emploi, pas de festival en prison.
+• Divorce, héritage et arbre généalogique fonctionnent comme prévu.
+• Votre banque correspond toujours à votre portefeuille, et les ordres indiquent s'ils sont passés.
+• Meilleurs salaires pour thérapeutes, vétérinaires, architectes et plus.
+• Des centaines de corrections. Toutes les sauvegardes sont conservées.`,
+    'de-DE': `Neu: Teile deine Lebenskarte als Bild, wenn ein Leben endet.
+• Passende Ereignisse: keine Boni ohne Job, keine Festivals im Gefängnis.
+• Scheidung, Erbe und Stammbaum funktionieren, wie sie sollen.
+• Deine Bank stimmt immer mit deinem Geldbeutel überein, und Orders sagen dir, ob sie ausgeführt wurden.
+• Bessere Bezahlung für Therapeuten, Tierärzte, Architekten und mehr.
+• Hunderte Korrekturen. Jeder Spielstand bleibt erhalten.`,
   },
 
   /**

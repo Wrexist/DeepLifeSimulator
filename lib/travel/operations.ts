@@ -10,6 +10,7 @@ import { DESTINATIONS, TravelDestination } from './destinations';
 import { transportationMods } from './transportation';
 import { rollTripEvents, summarizeEvents, TravelEventDef } from './events';
 import { mindsetEffects } from '@/lib/mindset/effects';
+import { ownsPassport } from './passport';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -124,9 +125,7 @@ export function quoteTrip(
   // Passport requirement
   const reqItems = destination.requirements?.items;
   if (reqItems?.includes('passport')) {
-    const passportItem = state.items?.find((i) => i.id === 'passport');
-    const ownsPassport = state.travel?.passportOwned || passportItem?.owned;
-    if (!ownsPassport) {
+    if (!ownsPassport(state)) {
       return { ok: false, reason: 'needs-passport', message: 'You need a passport to visit this destination' };
     }
   }

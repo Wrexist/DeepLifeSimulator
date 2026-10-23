@@ -915,7 +915,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                       {!r.livingTogether && (
                         <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} darkMode={darkMode} wide />
                       )}
-                      {!r.engagementWeek && r.livingTogether && (
+                      {r.engagementWeek == null && r.livingTogether && (
                         <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} darkMode={darkMode} wide />
                       )}
                       {r.engagementWeek != null && !r.weddingPlanned && (

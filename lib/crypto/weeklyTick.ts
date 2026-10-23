@@ -85,6 +85,12 @@ export interface CryptoWeeklyTickResult {
    * ledger the Bank app reads — the same field name the stocks tick returns.
    */
   capitalGainsTaxUSD: number;
+  /**
+   * The part of the year-end capital-gains tax the player could NOT cover
+   * (ECO2-3). The caller folds it into `overdueBalance`, the same arrears bucket
+   * the stocks tick and the weekly income tax defer into.
+   */
+  capitalGainsTaxUnpaid: number;
   /** Notifications for the UI (regime changes, DCA fills, stop-loss triggers). */
   notifications: { id: string; title: string; message: string }[];
 }
@@ -356,17 +362,28 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
   // 52-week game year. Tax rate: 25% of realized gains, scaled by the Tax
   // Strategy life skill. Losses don't generate a refund here.
   let capitalGainsTaxUSD = 0;
+  let capitalGainsTaxUnpaid = 0;
   if (input.currentWeek > 0 && input.currentWeek % TAX_YEAR_WEEKS === 0 && market.realizedGainsThisYear > 0) {
     const gains = market.realizedGainsThisYear;
     const effectiveRate = CAPITAL_GAINS_TAX_RATE * clampTaxMult(input.taxMult);
     const tax = gains * effectiveRate;
     // Debit from the authoritative cash pool (stats.money via cashDelta), not a
     // mirror account whose balance is overwritten every tick (which dodged the
-    // tax entirely). Collect only what the player can afford this tick and carry
-    // the untaxed portion of gains forward rather than zeroing them unpaid.
+    // tax entirely). Collect what the player can afford this tick; the rest is
+    // DEBT (ECO2-3).
+    //
+    // It used to be carried forward as untaxed GAIN, to be taxed at the next
+    // year boundary against whatever cash happened to be on hand that week. The
+    // tax was assessed only on the boundary week, so a player who moved their
+    // cash into savings (or stocks) before it paid only what that week's income
+    // covered, and could roll the rest forward every year for the whole life -
+    // a perpetual, interest-free deferral the stocks tick had already closed by
+    // folding its shortfall into `overdueBalance`. Same answer here, so "you
+    // cannot pay" means one thing across the game.
     const availableCashForTax = safe(input.cashIn, 0) + cashDelta;
     const collected = Math.max(0, Math.min(tax, availableCashForTax));
     capitalGainsTaxUSD = collected;
+    capitalGainsTaxUnpaid = Math.max(0, tax - collected);
     if (collected > 0) {
       cashDelta -= collected;
       // Mirror the checking balance too so the same-tick UI matches.
@@ -385,15 +402,22 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
         // would vanish from the journal.
         id: `crypto-tax-${input.currentWeek}`,
         title: '🧾 Capital Gains Tax',
-        message: `Debited $${Math.round(collected).toLocaleString('en-US')} (${Math.round(effectiveRate * 100)}% of $${Math.round(gains).toLocaleString('en-US')} realized gains).`,
+        message:
+          `Debited $${Math.round(collected).toLocaleString('en-US')} (${Math.round(effectiveRate * 100)}% of $${Math.round(gains).toLocaleString('en-US')} realized gains).` +
+          (capitalGainsTaxUnpaid > 0
+            ? ` $${Math.round(capitalGainsTaxUnpaid).toLocaleString('en-US')} carried over as unpaid.`
+            : ''),
+      });
+    } else if (capitalGainsTaxUnpaid > 0) {
+      notifications.push({
+        id: `crypto-tax-${input.currentWeek}`,
+        title: '🧾 Capital Gains Tax',
+        message: `$${Math.round(capitalGainsTaxUnpaid).toLocaleString('en-US')} tax on $${Math.round(gains).toLocaleString('en-US')} realized gains is owed and added to your unpaid bills.`,
       });
     }
-    // Reduce YTD realized gains only by the fraction actually taxed this year.
-    // Divide by the EFFECTIVE rate, not the headline 25% - otherwise a player
-    // with Tax Strategy clears less gain than they actually paid tax on and the
-    // remainder is taxed a second time next year.
-    const taxedGains = effectiveRate > 0 ? collected / effectiveRate : 0;
-    market = { ...market, realizedGainsThisYear: Math.max(0, gains - taxedGains) };
+    // The whole year's gain has now been assessed: what was not collected is
+    // owed as arrears, so nothing carries forward to be taxed a second time.
+    market = { ...market, realizedGainsThisYear: 0 };
   }
 
   // --- 5) Economy state tracking (for regime forcing memory) -------------
@@ -416,5 +440,5 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     }
   }
 
-  return { market, cryptos, banking, cashDelta, capitalGainsTaxUSD, notifications };
+  return { market, cryptos, banking, cashDelta, capitalGainsTaxUSD, capitalGainsTaxUnpaid, notifications };
 }

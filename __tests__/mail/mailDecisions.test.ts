@@ -20,7 +20,7 @@ import {
 } from '@/lib/events/routing';
 import { letterFromEvent } from '@/lib/mail/letters';
 import { arrearsInvoice, jobOfferLetter, OFFER_EXPIRY_WEEKS } from '@/lib/mail/offers';
-import { applyArrearsPayment, applyCareerOffer } from '@/lib/mail/resolve';
+import { applyArrearsPayment, applyCareerOffer, offerNegotiationAgreed, OFFER_NEGOTIATION_SUCCESS_CHANCE } from '@/lib/mail/resolve';
 import { applyMailLapse } from '@/contexts/game/actions/weekly/applyMailLapse';
 import { chooseMailDecision } from '@/contexts/game/actions/MailActions';
 import { getMailState } from '@/lib/mail/state';
@@ -169,12 +169,51 @@ describe('the job offer', () => {
     expect(outcome).toMatch(/signed/i);
   });
 
+  /** A life whose employer says yes to `tech` attempt 1 (or no, with `agree: false`). */
+  const negotiating = (agree: boolean): GameState => {
+    for (let i = 0; i < 200; i++) {
+      const s = applied();
+      s.lineageId = `negotiation-probe-${i}`;
+      if (offerNegotiationAgreed(s, 'tech', 1) === agree) return s;
+    }
+    throw new Error('no probe lineage found');
+  };
+
   it('negotiating writes the SAME field the raise system uses, within its cap', () => {
-    const { state } = applyCareerOffer(applied(), 'tech', 'negotiate');
+    const { state } = applyCareerOffer(negotiating(true), 'tech', 'negotiate');
     const career = state.careers.find((c) => c.id === 'tech')!;
     expect(career.raiseMultiplier).toBeGreaterThan(1);
     // The raise ladder caps at 2.0 and this must live under the same ceiling.
     expect(career.raiseMultiplier).toBeLessThanOrEqual(2);
+  });
+
+  it('negotiating is a real risk: a refusal withdraws the offer (EVT2 - it used to dominate accepting)', () => {
+    const { state, outcome } = applyCareerOffer(negotiating(false), 'tech', 'negotiate');
+    expect(state.currentJob).toBeUndefined();
+    const career = state.careers.find((c) => c.id === 'tech')!;
+    expect(career.accepted).toBe(false);
+    expect(career.applied).toBe(false);
+    expect(career.raiseMultiplier).toBeUndefined();
+    expect(outcome).toMatch(/withdrawn/i);
+  });
+
+  it('the negotiation answer is fixed by the life and the attempt, not by when you tap', () => {
+    const s = negotiating(true);
+    const later = { ...s, weeksLived: (s.weeksLived ?? 0) + 7 };
+    expect(offerNegotiationAgreed(later, 'tech', 1)).toBe(true);
+    // Roughly the advertised odds across lives.
+    let yes = 0;
+    for (let i = 0; i < 2000; i++) {
+      if (offerNegotiationAgreed({ ...s, lineageId: `odds-${i}` }, 'tech', 1)) yes += 1;
+    }
+    expect(yes / 2000).toBeGreaterThan(OFFER_NEGOTIATION_SUCCESS_CHANCE - 0.05);
+    expect(yes / 2000).toBeLessThan(OFFER_NEGOTIATION_SUCCESS_CHANCE + 0.05);
+  });
+
+  it('the offer letter says a negotiation can lose the offer', () => {
+    const letter = jobOfferLetter(applied(), 100)!;
+    const negotiate = letter.decision!.choices.find((c) => c.id === 'negotiate')!;
+    expect(negotiate.detail).toMatch(/withdraw/i);
   });
 
   it('declining withdraws the application and leaves them unemployed', () => {

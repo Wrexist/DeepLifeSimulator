@@ -15,6 +15,8 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { netWorth } from '@/lib/progress/achievements';
 import { getAge as canonicalAge } from '@/lib/progress/lifeChapters';
 import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
+import { resolveResignAppointment, resolveRetirement } from '@/lib/politics/lifeOperations';
+import { applyOfficeExit } from '@/lib/politics/operations';
 import {
   RETIREMENT_AGE,
   EARLY_RETIRE_MIN_AGE,
@@ -185,16 +187,62 @@ export interface RetireResult {
  *   • records a 'retirement' LifeMilestone.
  * Mints no money.
  */
-export function retirePlayer(state: GameState): RetireResult {
-  const elig = getRetirementEligibility(state);
+/**
+ * Retiring from work ends PAID political work too (LATE2-1).
+ *
+ * `getPoliticalWeeklySalary` pays the elected seat off `politics.careerLevel`
+ * and the appointed post off `politics.appointment`; neither reads
+ * `currentJob` or the career's `accepted` flag. So clearing those two alone -
+ * all this reducer used to do - left a sitting official or an appointee
+ * drawing the full political salary on top of the frozen pension for the rest
+ * of the life, the stack LATE-7 closed from the other direction (a retired life
+ * cannot TAKE an appointment or run for office).
+ *
+ *   - an appointment is resigned exactly as by hand (its reputation goes back);
+ *   - a seat is stood down from through the Politics app's own retirement when
+ *     the official qualifies, so the political pension and title are recorded
+ *     (it is suspended only while in office, and stacks with a work pension by
+ *     design); otherwise the seat is simply vacated, like being voted out.
+ *
+ * A non-political life comes back as the same reference.
+ */
+function settlePoliticsOnRetirement(state: GameState): GameState {
+  let next = state;
+  if (next.politics?.appointment) {
+    const resigned = resolveResignAppointment(next);
+    next = resigned.ok
+      ? resigned.next
+      : { ...next, politics: { ...next.politics, appointment: undefined } };
+  }
+  const politics = next.politics;
+  if (politics && num(politics.careerLevel) > 0) {
+    const stoodDown = resolveRetirement(next);
+    if (stoodDown.ok) return stoodDown.next;
+    next = {
+      ...next,
+      careers: (next.careers ?? []).map((c) =>
+        c && c.id === 'political' ? { ...c, accepted: false, applied: false } : c
+      ),
+      currentJob: next.currentJob === 'political' ? undefined : next.currentJob,
+      politics: applyOfficeExit({ ...politics, careerLevel: 0, nextElectionWeek: undefined }),
+    };
+  }
+  return next;
+}
+
+export function retirePlayer(original: GameState): RetireResult {
+  const elig = getRetirementEligibility(original);
   if (!elig.canRetire) {
-    return { ok: false, reason: elig.reason, state, pensionWeekly: 0 };
+    return { ok: false, reason: elig.reason, state: original, pensionWeekly: 0 };
   }
 
-  const pension = computePension(state).weekly;
-  const retiredAtWeek = Math.max(0, num(state.weeksLived));
-  const retiredAtAge = getAge(state);
-  const priorJob = state.currentJob;
+  const pension = computePension(original).weekly;
+  const retiredAtWeek = Math.max(0, num(original.weeksLived));
+  const retiredAtAge = getAge(original);
+  // Read BEFORE the politics settlement below, which may itself clear a
+  // `currentJob` of 'political' - the history entry still has to be closed.
+  const priorJob = original.currentJob;
+  const state = settlePoliticsOnRetirement(original);
 
   // End career work — mirror quitJob: reset the accepted career so no salary or
   // work penalty is applied afterwards (applyCareerSalaryAndPenalty returns 0

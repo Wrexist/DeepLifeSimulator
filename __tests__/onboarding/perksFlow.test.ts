@@ -5,6 +5,7 @@ import {
   isPerkPermanent,
   getPerkBenefits,
   getStatColor,
+  startablePerkIds,
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
 
@@ -161,4 +162,30 @@ describe('getStatColor', () => {
     // slate-500 - the app's one neutral ramp (the old value was Tailwind
     // gray-500, part of a second undocumented ramp normalized away 2026-08-25)
     expect(getStatColor('not_a_stat')).toBe('#64748B'));
+});
+
+// ---------------------------------------------------------------------------
+// startablePerkIds (ONB2-1)
+// ---------------------------------------------------------------------------
+
+describe('startablePerkIds', () => {
+  const list = [unlockedPerk, lockedPerk, permanentPerk, completedPerk];
+
+  it('keeps selected perks that are unlocked', () => {
+    expect(startablePerkIds(['free', 'done'], list, [], ['ach_3'])).toEqual(['free', 'done']);
+  });
+
+  it('drops a draft perk that now reads as locked (it cannot be deselected on screen)', () => {
+    // Picked while another save was in memory; after a relaunch its
+    // achievement is not earned, the card is locked and untappable.
+    expect(startablePerkIds(['locked', 'free'], list, [], [])).toEqual(['free']);
+  });
+
+  it('drops a permanent perk, which the builder already applies once', () => {
+    expect(startablePerkIds(['perm', 'free'], list, ['perm'], [])).toEqual(['free']);
+  });
+
+  it('drops unknown ids and duplicates', () => {
+    expect(startablePerkIds(['free', 'free', 'ghost'], list, [], [])).toEqual(['free']);
+  });
 });

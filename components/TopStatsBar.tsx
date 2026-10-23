@@ -32,6 +32,7 @@ import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import { CRITICAL_VITAL } from '@/lib/config/hierarchy';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
+import { fitnessGainAfterSkills } from '@/lib/skillTrees/lifeSkillEffects';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import LiquidGlassDisc from '@/components/ui/LiquidGlassDisc';
@@ -128,6 +129,10 @@ function TopStatsBarComponent() {
 
  const shouldGlow = (value: number) => value >= 90 || value <= 20;
 
+ // Read at tap time for the workout toast's Peak Performance scaling, without
+ // subscribing the HUD to the life-skill tree.
+ const readStateForQuickAction = useGameStateGetter();
+
  const handleQuickAction = useCallback((action: string) => {
  buttonPress();
  setShowQuickActions(null);
@@ -204,7 +209,8 @@ function TopStatsBarComponent() {
  ? clamp((st.happiness ?? 0) + scaledHappinessGain(st.happiness ?? 0, deltas.happiness))
  : st.happiness,
  energy: deltas.energy != null ? clamp((st.energy ?? 0) + deltas.energy) : st.energy,
- fitness: deltas.fitness != null ? clamp((st.fitness ?? 0) + deltas.fitness) : st.fitness,
+ // Through Peak Performance, like the gym and the health activities.
+ fitness: deltas.fitness != null ? clamp((st.fitness ?? 0) + fitnessGainAfterSkills(prev, deltas.fitness)) : st.fitness,
  money: deltas.money != null ? Math.max(0, (st.money ?? 0) + deltas.money) : st.money,
  },
  };
@@ -251,12 +257,14 @@ function TopStatsBarComponent() {
  if ((s.energy ?? 0) < 8) { haptic('warning'); info('Too tired to socialize right now.'); return; }
  apply({ energy: -8, happiness: 10 }, `Good company - +${joy(10)} happiness.`);
  break;
- case 'exercise':
+ case 'exercise': {
  if ((s.energy ?? 0) < 12) { haptic('warning'); info('Too tired to work out right now.'); return; }
- apply({ energy: -12, fitness: 6, health: 5 }, `Great workout - +${room(stats?.fitness, 6)} fitness, +${room(stats?.health, 5)} health.`);
+ const workout = Math.round(fitnessGainAfterSkills(readStateForQuickAction(), 6));
+ apply({ energy: -12, fitness: 6, health: 5 }, `Great workout - +${room(stats?.fitness, workout)} fitness, +${room(stats?.health, 5)} health.`);
  break;
  }
- }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
+ }
+ }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame, readStateForQuickAction]);
 
 
 

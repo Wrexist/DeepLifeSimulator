@@ -49,10 +49,17 @@ export function resolveFamilySpouse(input: {
 
   const prevSpouseId = input.prevSpouse?.id;
   if (prevSpouseId) {
-    const stillMarried = (input.relationships ?? []).some(
+    const live = (input.relationships ?? []).find(
       (r) => r?.id === prevSpouseId && r?.type === 'spouse',
     );
-    if (stillMarried) return input.prevSpouse;
+    // SOC2-7: REFRESHED from the live record, not the copy carried in. The
+    // copy was taken on the wedding day and never updated while the marriage
+    // lasted, so every reader of `family.spouse` saw the wedding-day bond,
+    // income, job and mood forever (SOC-3 fixed the Family card by reading
+    // the live record itself; the obituary, the legacy summary and the
+    // week-ahead panel still read this). Re-deriving it each tick is the fix
+    // at the source - the copy is supposed to be a mirror, so mirror it.
+    if (live) return live as Spouse;
     // The marriage ended: drop the stale copy, then fall through in case the
     // player is somehow married to someone else in `relationships`.
   }

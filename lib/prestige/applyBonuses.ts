@@ -3,6 +3,7 @@ import { completeAllPrograms } from '@/lib/education/operations';
 import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { getStockInfo } from '@/lib/economy/stockMarket';
 import { getBonusLevel } from './prestigeBonuses';
+import { legacyReputationBonus } from '@/lib/legacy/legacyBonuses';
 
 /**
  * The property `starting_real_estate` grants: the cheapest residential tier
@@ -183,6 +184,13 @@ export function applyStartingBonuses(
         marketingLevel: 1,
         miners: {},
         warehouseLevel: 0,
+        // D3: founded the week this life begins, so the 26-week IPO gate
+        // (`IPO_MIN_WEEKS_OWNED`) applies to it like any company the player
+        // founds. Without the stamp it read as a pre-v56 company ("old
+        // enough"), and every prestige could float it at once and sell it.
+        // Both builders seed `weeksLived` before calling here; a Long Road
+        // Trial shifts this stamp with the clock (`advanceNewLifeClock`).
+        foundedWeek: newState.weeksLived ?? 0,
       };
       newState.companies = [...newState.companies, newCompany];
       // Keep a carried family business as the active company if there is one.
@@ -501,6 +509,21 @@ export function applyLegacyBonuses(
   // Family reputation bonus
   if (unlockedBonuses.includes('legacy_reputation')) {
     newState.stats.reputation = (newState.stats.reputation || 0) + 20;
+  }
+
+  // Inherited Legacy Bonus: reputation (D11). Both builders set
+  // `legacyBonuses` from the ended life before calling here, and this runs
+  // once per life creation - never on load - so it cannot be paid twice.
+  // Clamped to the 0-100 stat. Income and learning are read on the tick
+  // instead (lib/legacy/legacyBonuses.ts).
+  if (previousState) {
+    const inheritedReputation = legacyReputationBonus(newState);
+    if (inheritedReputation > 0) {
+      newState.stats = {
+        ...newState.stats,
+        reputation: Math.min(100, (newState.stats.reputation || 0) + inheritedReputation),
+      };
+    }
   }
 
   // NOTE: `legacy_business` is NOT handled here, or anywhere. A previous edit

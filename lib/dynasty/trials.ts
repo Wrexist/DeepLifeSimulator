@@ -21,10 +21,14 @@
  *    or a ceiling on the new life directly, so it costs a veteran and a
  *    first-timer the same real thing.
  *
- * 2. **The reward is paid on the NEXT transition, not on selection.** You have
- *    to actually live the life. Prestige is gated on a net-worth threshold that
- *    scales with prestige level (`isPrestigeAvailable`), so there is no way to
- *    take a Trial and immediately cash it.
+ * 2. **The reward is paid on the NEXT transition, not on selection, and only
+ *    after a year of it.** You have to actually live the life:
+ *    {@link TRIAL_MIN_WEEKS_PLAYED} played weeks (`weeksInThisLife`) before a
+ *    Trial settles. The net-worth prestige gate alone did not do this - an heir
+ *    who INHERITS above the threshold could swear a Trial, prestige in week 1
+ *    of the burdened life and collect the reward for a handicap carried for a
+ *    week (owner decision D2, 2026-10-23). A Trial ended early is forfeited:
+ *    the transition rebuilds `active` from the newly sworn ids only.
  *
  * 3. **Settlement is derived from the state being rebuilt**, so re-running the
  *    transition on the same save yields the same points rather than
@@ -45,6 +49,7 @@
 import type { DynastyState, GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { isPrestigeFeatureUnlocked, prestigeUnlockRequirement } from '@/lib/progress/featureUnlocks';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { hasSeatWing } from './seat';
 import { activeTrialIds, pendingTrialIds, readDynasty, withDynasty } from './state';
 
@@ -55,6 +60,28 @@ export const TRIALS_FEATURE = 'feature:trials';
 export const TRIALS_WING = 'seat_chapter_house';
 
 export const TRIALS_BASE_CAPACITY = 1;
+
+/**
+ * Played weeks a life must carry its Trials before they pay (D2). A year: long
+ * enough that the handicap is actually lived, short enough that no ordinary
+ * life misses it.
+ */
+export const TRIAL_MIN_WEEKS_PLAYED = WEEKS_PER_YEAR;
+
+/**
+ * Weeks PLAYED in this life - `weeksInThisLife` (lib/progress/lifeChapters),
+ * read through the same one-line primitive it wraps, so this module (which both
+ * prestige builders import) does not take on lifeChapters' much wider import
+ * graph (achievements, rentals, goals) for one subtraction.
+ */
+function playedWeeks(state: GameState | undefined | null): number {
+  return weeksSinceLifeStart(state?.weeksLived, state?.lifeStartWeek);
+}
+
+/** Played weeks still owed before this life's Trials settle; 0 once they will pay. */
+export function trialWeeksRemaining(state: GameState | undefined | null): number {
+  return Math.max(0, TRIAL_MIN_WEEKS_PLAYED - playedWeeks(state));
+}
 export const TRIALS_CHAPTER_HOUSE_CAPACITY = 2;
 
 export interface TrialEffects {
@@ -225,6 +252,11 @@ export function combinedTrialEffects(trialIds: readonly string[]): TrialEffects 
  *
  * Derived from the state being torn down, so re-running a transition against
  * the same save produces the same number instead of accumulating.
+ *
+ * Nothing is owed until the life has PLAYED {@link TRIAL_MIN_WEEKS_PLAYED}
+ * weeks (D2). `weeksLived` is seeded from the starting age and The Long Road
+ * adds twelve years to it, so the raw counter would pass on frame one for
+ * almost every life (CLAUDE.md §4.2); the baseline-relative count does not.
  */
 export function settleTrials(state: GameState | undefined | null): {
   points: number;
@@ -232,9 +264,24 @@ export function settleTrials(state: GameState | undefined | null): {
 } {
   const active = activeTrialIds(state);
   if (active.length === 0) return { points: 0, settledIds: [] };
+  if (trialWeeksRemaining(state) > 0) return { points: 0, settledIds: [] };
   const multiplier = trialRewardMultiplier(state);
   const points = active.reduce((sum, id) => sum + (getTrial(id)?.reward ?? 0) * multiplier, 0);
   return { points, settledIds: active };
+}
+
+/**
+ * Years The Long Road (or any `yearsLost` Trial) took from THIS life - the
+ * ACTIVE Trials, the ones the current life is carrying.
+ *
+ * A Youth Pill may not give them back (D8): the pill resets the age to
+ * `YOUTH_PILL_AGE + trialYearsLost(state)`, never below, so the handicap the
+ * reward pays for is still borne. Without this a pill bought for gems erased
+ * the whole cost of the 300-point Trial and the reward still settled.
+ */
+export function trialYearsLost(state: GameState | undefined | null): number {
+  const years = combinedTrialEffects(activeTrialIds(state)).yearsLost;
+  return typeof years === 'number' && Number.isFinite(years) && years > 0 ? years : 0;
 }
 
 /**
@@ -312,6 +359,8 @@ export function applyTrialEffectsToNewLife(
  *   - `legacyBuffs.*.expiresWeeksLived`  heir buffs dated from the seed; left
  *                            behind they would expire before the first tick
  *   - `realEstate[].purchasedWeek`       a starting-bonus home bought "today"
+ *   - `companies[].foundedWeek` / `company.foundedWeek`  the starting-bonus
+ *                            company, founded "today" (D3)
  *
  * Markers BELOW the seed (the zeros `initialGameState` carries, or a parent's
  * timeline on carried-over records) are already in the past and stay there.
@@ -350,5 +399,18 @@ function advanceNewLifeClock(newState: GameState, weeks: number): void {
         ? { ...p, purchasedWeek: p.purchasedWeek + weeks }
         : p
     );
+  }
+  // A starting-bonus company founded "today" (D3). Left at the seed, the
+  // twelve years would count as ownership and clear the 26-week IPO gate on
+  // frame one - the exploit stamping `foundedWeek` exists to close.
+  const shiftFounded = <C extends { foundedWeek?: number }>(c: C): C =>
+    c && typeof c.foundedWeek === 'number' && c.foundedWeek >= seed
+      ? { ...c, foundedWeek: c.foundedWeek + weeks }
+      : c;
+  if (Array.isArray(newState.companies)) {
+    newState.companies = newState.companies.map(shiftFounded);
+  }
+  if (newState.company) {
+    newState.company = shiftFounded(newState.company);
   }
 }

@@ -45,7 +45,7 @@ import {
 } from '@/lib/realEstate/residence';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
 import { propertyPriceMultiplier } from '@/lib/prestige/purchaseDiscounts';
-import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress, privateBankingAprCap } from './LoanActions';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 import { mindsetEffects } from '@/lib/mindset/effects';
 
@@ -118,6 +118,12 @@ export function quotePropertyPurchase(
   if (!banking) {
     return { rejected: true, reason: 'Banking not initialized' };
   }
+  // ECO2-4: priced exactly like a Bank-app loan. This quote used to omit the
+  // Private Banking cap (a $9.99 purchase sold as "Loan rates capped at 6%
+  // APR") and the live rate environment, so a mortgage ignored both, and it
+  // added the PMI / high-down adjustment AFTER the politics floor, which the
+  // discount then walked under. The adjustment now goes in with the credit
+  // terms, ahead of the floor, the cap and the rate environment.
   const quote = quoteLoan(banking, state.loans ?? [], {
     principal: orig.loanPrincipal,
     termWeeks: orig.termWeeks,
@@ -125,11 +131,13 @@ export function quotePropertyPurchase(
     weeklyIncome,
     aprReduction: politicsAprReduction(state),
     aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
+    aprCap: privateBankingAprCap(state),
+    loanDelta: banking.rateEnvironment?.loanDelta,
+    aprAdjustment: orig.aprAdjustment,
   });
   if (quote.rejected) return { rejected: true, reason: quote.reason };
 
-  // Adjust APR for PMI / high-down-payment discount.
-  const adjustedAPR = Math.max(0.025, quote.offeredAPR + orig.aprAdjustment);
+  const adjustedAPR = quote.offeredAPR;
   const weekly = calculatePeriodicPayment(orig.loanPrincipal, adjustedAPR, orig.termWeeks);
 
   return {
