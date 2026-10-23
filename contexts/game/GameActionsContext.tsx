@@ -46,6 +46,7 @@ import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { getSlotStorageGeneration, isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
+import { legacyLearningMultiplier } from '@/lib/legacy/legacyBonuses';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
@@ -1210,7 +1211,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    perkFastLearner: Boolean(prevState.perks?.fastLearner),
    // GL-1: the prestige learning bonuses finally reach the thing they claim to
    // speed up. `getExperienceMultiplier` had zero call sites.
-   experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
+   // D11: the inherited Legacy learning bonus (capped +15%) rides the same
+   // multiplier - the one education-speed seam.
+   experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []) * legacyLearningMultiplier(prevState),
    // Exams are drawn per life (lifeSalt), not per week - see the input doc.
    life: { lineageId: prevState.lineageId, generationNumber: prevState.generationNumber },
  }, weeklyCtx), { updatedEducations, pendingCampusEvent: undefined });

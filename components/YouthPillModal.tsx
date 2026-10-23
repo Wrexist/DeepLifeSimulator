@@ -5,7 +5,7 @@ import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
-import { applyYouthPill } from '@/lib/progress/youthPill';
+import { applyYouthPill, youthPillTargetAge, YOUTH_PILL_AGE } from '@/lib/progress/youthPill';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget } from '@/utils/touchTargets';
@@ -22,6 +22,9 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const youthPills = useGameSelector((s) => s.youthPills || 0);
   const currentAge = useGameSelector((s) => s.date?.age ?? 18);
+  // 18, or 18 plus the years an active Long Road Trial holds (D8) - the age
+  // `applyYouthPill` actually resets to.
+  const targetAge = useGameSelector((s) => youthPillTargetAge(s));
 
   const handleUseYouthPill = () => {
     if (youthPills <= 0) return;
@@ -57,7 +60,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                 <View>
                   <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Youth Pill</Text>
                   <Text style={[styles.subtitle, settings.darkMode && styles.subtitleDark]}>
-                    Reset your age to 18
+                    Reset your age to {targetAge}
                   </Text>
                 </View>
               </View>
@@ -101,7 +104,8 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
 
               <View style={styles.description}>
                 <Text style={[styles.descriptionText, settings.darkMode && styles.descriptionTextDark]}>
-                  Using a Youth Pill will instantly reset your age to 18 years old, giving you a fresh start with extended lifespan.
+                  Using a Youth Pill will instantly reset your age to {targetAge} years old, giving you a fresh start with extended lifespan.
+                  {targetAge > YOUTH_PILL_AGE ? ' The years The Long Road took stay taken while you carry the Trial.' : ''}
                 </Text>
               </View>
 
