@@ -73,3 +73,14 @@ export function ageInYears(pet: Pet): number {
  * are untouched.
  */
 export const PET_WEEKLY_FOOD_COST = 15;
+
+/**
+ * The pets that are still alive. A pet that dies stays in `state.pets` with
+ * `isDead` (the Pet app's memorial reads it), so anything that means "your
+ * pet" - an event, a challenge objective - must count from here, never from
+ * the raw roster (LIFE2-3, 2026-10-23: a dead pet fell ill, entered contests
+ * and ran away).
+ */
+export function livingPets(pets: readonly Pet[] | null | undefined): Pet[] {
+  return Array.isArray(pets) ? pets.filter((p) => !!p && !p.isDead) : [];
+}
