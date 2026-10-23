@@ -5655,6 +5655,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick earlyCareer 1`] = `
     "totalLateFeesPaid": 0,
   },
   "capitalGainsTaxUSD": 0,
+  "capitalGainsTaxUnpaid": 0,
   "cashDelta": 0,
   "cryptos": [
     {
@@ -5923,6 +5924,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick freshGame 1`] = `
     "totalLateFeesPaid": 0,
   },
   "capitalGainsTaxUSD": 0,
+  "capitalGainsTaxUnpaid": 0,
   "cashDelta": 0,
   "cryptos": [
     {
@@ -6191,6 +6193,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
     "totalLateFeesPaid": 0,
   },
   "capitalGainsTaxUSD": 0,
+  "capitalGainsTaxUnpaid": 0,
   "cashDelta": 0,
   "cryptos": [
     {
@@ -6459,6 +6462,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick midGame 1`] = `
     "totalLateFeesPaid": 0,
   },
   "capitalGainsTaxUSD": 0,
+  "capitalGainsTaxUnpaid": 0,
   "cashDelta": 0,
   "cryptos": [
     {
@@ -6727,6 +6731,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
     "totalLateFeesPaid": 0,
   },
   "capitalGainsTaxUSD": 0,
+  "capitalGainsTaxUnpaid": 0,
   "cashDelta": 0,
   "cryptos": [
     {
@@ -6995,6 +7000,7 @@ exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
     "totalLateFeesPaid": 0,
   },
   "capitalGainsTaxUSD": 0,
+  "capitalGainsTaxUnpaid": 0,
   "cashDelta": 0,
   "cryptos": [
     {
