@@ -9,7 +9,7 @@
  *   - lapses (cancels perks) any subscription the player can no longer afford,
  *   - skips billing while an annual prepay term is still in effect (then resumes
  *     ordinary weekly auto-renew once the term ends),
- *   - ends a CANCELLED Spark annual plan when its paid term runs out (D15:
+ *   - ends a CANCELLED annual plan (Spark or Pulse) when its paid term runs out (D15:
  *     cancelling stops renewal; it does not forfeit the prepaid weeks).
  *
  * Inert by construction: a subscription with `active !== true`, or with no
@@ -119,7 +119,15 @@ export function applySubscriptionsForWeek(
   const notifications: string[] = [];
 
   // ── Pulse Verified Pro ──────────────────────────────────────────────────
-  if (isInGameBillable(verifiedPro)) {
+  // D15: a cancelled annual plan runs to the end of its paid term, then ends.
+  if (isCancelledPrepaid(verifiedPro)) {
+    const vp = verifiedPro as PulseVerifiedPro;
+    if (!isPrepaidThisWeek(vp, nextWeeksLived)) {
+      nextVerifiedPro = lapsedVerifiedPro(vp);
+      verifiedProChanged = true;
+      notifications.push('Your Pulse Verified Pro ended - the prepaid year you cancelled is over.');
+    }
+  } else if (isInGameBillable(verifiedPro)) {
     const vp = verifiedPro as PulseVerifiedPro;
     if (!isPrepaidThisWeek(vp, nextWeeksLived)) {
       const price = vp.weeklyPrice as number;

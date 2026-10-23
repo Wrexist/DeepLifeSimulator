@@ -22,7 +22,7 @@ import {
   VERIFIED_PRO_WEEKLY_PRICE,
   VERIFIED_PRO_ANNUAL_PRICE,
 } from '@/lib/social/socialMedia';
-import { subscribeVerifiedPro, cancelVerifiedPro } from '@/contexts/game/actions/PulseActions';
+import { subscribeVerifiedPro, cancelVerifiedPro, verifiedProEndsWeek } from '@/contexts/game/actions/PulseActions';
 import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import { gameAlert } from '@/utils/gameAlert';
@@ -62,6 +62,11 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
   const verifiedPro = gameState.socialMedia?.verifiedPro;
   const isActive = verifiedPro?.active === true;
   const money = gameState.stats?.money ?? 0;
+  // D15: a cancelled annual plan keeps its perks until the prepaid term ends.
+  const endsWeek = verifiedProEndsWeek(verifiedPro);
+  const weeksLeft = endsWeek !== null ? Math.max(0, endsWeek - (gameState.weeksLived ?? 0)) : 0;
+  const isAnnualActive = isActive && verifiedPro?.plan === 'annual'
+    && typeof verifiedPro.paidThroughWeek === 'number' && verifiedPro.paidThroughWeek > (gameState.weeksLived ?? 0);
 
   const handleSubscribe = useCallback(
     (plan: 'weekly' | 'annual') => {
@@ -82,7 +87,9 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
     gameAlert(
       'Cancel Verified Pro?',
       // F7: "ad-free feed" removed here too - there is no in-feed ad to lose.
-      'You will lose the blue check, post boost, analytics, slower follower decay, and longer posts. You can resubscribe any time.',
+      isAnnualActive
+        ? 'Your prepaid year keeps running - you keep the blue check and every perk until it ends, and it will not renew.'
+        : 'You will lose the blue check, post boost, analytics, slower follower decay, and longer posts. You can resubscribe any time.',
       [
         { text: 'Keep it', style: 'cancel' },
         {
@@ -96,7 +103,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
         },
       ],
     );
-  }, [setGameState, saveGame, onDismiss]);
+  }, [setGameState, saveGame, onDismiss, isAnnualActive]);
 
   const canAffordWeekly = money >= VERIFIED_PRO_WEEKLY_PRICE;
   const canAffordAnnual = money >= VERIFIED_PRO_ANNUAL_PRICE;
@@ -111,7 +118,9 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
       footer={
         <Text style={[styles.legal, { color: theme.textMuted }]}>
           {isActive
-            ? verifiedPro?.plan === 'annual'
+            ? endsWeek !== null
+              ? `Cancelled - your perks stay for ${weeksLeft} more week${weeksLeft === 1 ? '' : 's'}, then the plan ends without renewing.`
+              : verifiedPro?.plan === 'annual'
               ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
               : 'Billed weekly from your in-game cash. Auto-renews until cancelled; lapses if you run out of money.'
             : `Paid from your in-game cash (${formatMoney(money)} available). Auto-renews weekly until cancelled.`}
@@ -141,11 +150,14 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
           <View style={styles.activeRow}>
             <Chip label="Active" tint={PULSE_COLORS.accent} size="md" />
             <Text style={[styles.activeInfo, { color: theme.text }]}>
-              {verifiedPro?.plan === 'annual'
+              {endsWeek !== null
+                ? `Cancelled · ends in ${weeksLeft} week${weeksLeft === 1 ? '' : 's'}`
+                : verifiedPro?.plan === 'annual'
                 ? `Prepaid annual plan · then $${VERIFIED_PRO_WEEKLY_PRICE}/week`
                 : `$${VERIFIED_PRO_WEEKLY_PRICE}/week · auto-renews from your cash`}
             </Text>
           </View>
+          {endsWeek === null ? (
           <Pressable
             onPress={handleCancel}
             accessibilityRole="button"
@@ -154,6 +166,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
           >
             <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>Cancel subscription</Text>
           </Pressable>
+          ) : null}
         </>
       ) : (
         <View style={styles.ctaRow}>

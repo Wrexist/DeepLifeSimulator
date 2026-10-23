@@ -19,6 +19,11 @@ import {
 } from '@/contexts/game/actions/SparkActions';
 import { giveGift } from '@/contexts/game/actions/DatingActions';
 import {
+  cancelVerifiedPro,
+  subscribeVerifiedPro,
+  verifiedProEndsWeek,
+} from '@/contexts/game/actions/PulseActions';
+import {
   calculateWeddingHappinessBonus,
   calculateWeddingReputationBonus,
   createWeddingPlan,
@@ -170,6 +175,57 @@ describe('D15: cancelling an annual Spark plan runs it to the end of the paid te
     cancelSparkPremium(h.setGameState);
     expect(h.get().sparkApp!.premium.active).toBe(false);
     expect(h.get().sparkApp!.premium.tier).toBe('free');
+  });
+});
+
+describe('D15 (Pulse): cancelling annual Verified Pro runs it to the end of the paid term', () => {
+  function subscribed(plan: 'weekly' | 'annual') {
+    const state = createTestGameState({ weeksLived: 200 });
+    state.stats.money = 100_000;
+    const h = harness(state);
+    expect(subscribeVerifiedPro(h.setGameState, state, plan).success).toBe(true);
+    return h;
+  }
+
+  it('keeps perks and the blue check after cancel, charges nothing meanwhile', () => {
+    const h = subscribed('annual');
+    cancelVerifiedPro(h.setGameState);
+    const vp = h.get().socialMedia!.verifiedPro!;
+    expect(vp.active).toBe(true);
+    expect(vp.perksUnlocked.blueCheckmark).toBe(true);
+    expect(h.get().userProfile.verified).toBe(true);
+    expect(verifiedProEndsWeek(vp)).toBe(252);
+    const mid = applySubscriptionsForWeek({
+      verifiedPro: vp, sparkPremium: undefined, moneyAvailable: 100_000, nextWeeksLived: 251,
+    });
+    expect(mid.verifiedProChanged).toBe(false);
+    expect(mid.totalCharged).toBe(0);
+  });
+
+  it('ends without a renewal charge on paidThroughWeek', () => {
+    const h = subscribed('annual');
+    cancelVerifiedPro(h.setGameState);
+    const end = applySubscriptionsForWeek({
+      verifiedPro: h.get().socialMedia!.verifiedPro, sparkPremium: undefined,
+      moneyAvailable: 100_000, nextWeeksLived: 252,
+    });
+    expect(end.totalCharged).toBe(0);
+    expect(end.verifiedProChanged).toBe(true);
+    expect(end.verifiedPro!.active).toBe(false);
+    expect(end.verifiedPro!.perksUnlocked.blueCheckmark).toBe(false);
+  });
+
+  it('a second cancel is a no-op; a weekly plan still ends at once', () => {
+    const h = subscribed('annual');
+    cancelVerifiedPro(h.setGameState);
+    const once = h.get();
+    cancelVerifiedPro(h.setGameState);
+    expect(h.get()).toBe(once);
+
+    const w = subscribed('weekly');
+    cancelVerifiedPro(w.setGameState);
+    expect(w.get().socialMedia!.verifiedPro!.active).toBe(false);
+    expect(w.get().userProfile.verified).toBe(false);
   });
 });
 
