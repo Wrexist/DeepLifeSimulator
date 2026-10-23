@@ -2182,12 +2182,15 @@ describe('pre-tick equivalence - applyDietPlanForWeek', () => {
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 
-  it('gains cap stats at 100', () => {
+  it('gains cap health and happiness at 100; energy is left for the updater to cap (TICK2-1)', () => {
     const plans: DietPlan[] = [
       { id: 'd4', name: 'Max', description: '', dailyCost: 100, healthGain: 50, energyGain: 50, happinessGain: 50, active: true },
     ];
     const ctx = dietStubCtx(dietStubStats({ health: 95, energy: 95, happiness: 95, money: 10000 }));
     const result = applyDietPlanForWeek(plans, ctx);
+    // Mid-tick energy is floored, not capped: the week loop caps it once after
+    // every drain, so a later drain is charged from the uncapped value.
+    expect(ctx.newStats.energy).toBe(145);
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 

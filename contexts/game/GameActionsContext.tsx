@@ -38,7 +38,7 @@ import { longevityPivot } from '@/lib/statistics/lifeExpectancy';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
-import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
+import { getStatDecayMultiplier , getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary, managementLevels, passiveIncomeEfficiency } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { perkDecayFactors } from '@/lib/economy/perkDecayShield';
@@ -85,7 +85,7 @@ import { accumulateDividendsThisYear, dividendYieldModifiers, playerDividendYiel
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { advancePlayStreak, playStreakBonusPercent } from '@/lib/economy/playStreak';
 import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
-import { getStartingEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { weeklyEnergyRegen } from '@/lib/economy/energyRegen';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 import { calculateActivePolicyEffects } from './actions/PoliticalActions';
 import { getPolicyById } from '@/lib/politics/policies';
@@ -940,35 +940,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    mindset: mindsetMods,
  };
 
- // Energy REGAINS when advancing weeks (like sleeping/resting)
- // BUG FIX: Apply prestige energy regen multiplier
- // CRITICAL FIX: Don't cap regen early - apply full regen, then penalties, then cap to 100
- // Base energy regained per week. Raised 30 → 40 so the early loop isn't
- // starved: street jobs cost 15-35 energy each, and at +30 a player could only
- // sustain ~1 job/week after week 1. +40 supports ~2 jobs/week, making the
- // grind feel steady rather than stalled (new-user fun audit).
- const baseEnergyRegen = 40; // Base regain per week
+ // Energy REGAINS when advancing weeks (like sleeping/resting). Full regen is
+ // applied here, uncapped; every reducer below floors at 0 without capping
+ // (`energyAfterDrain`), and energy is capped to 100 once, after them all.
+ //
+ // The composition - base 40 (raised from 30 so the early loop isn't starved),
+ // prestige regen bonus, Energy Boost gold upgrade (+50%), Stamina life skill,
+ // and the Vigorous Start first-year window - lives in `weeklyEnergyRegen`
+ // (lib/economy/energyRegen.ts), which the HUD projection and the Energy
+ // breakdown read too. They each restated a subset of it (TICK2-2).
  const unlockedBonuses = prevState.prestige?.unlockedBonuses || [];
- // R3-A: `getEnergyRegenMultiplier` is an ES import now.
- const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
- const safeEnergyRegenMultiplier = typeof energyRegenMultiplier === 'number' && isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier: 1.0;
- // Energy Boost gold upgrade: +50% energy regen. Was sold as
- // "Maximum energy increased to 100" - the max is already 100,
- // so the original framing did nothing. Reframe as a regen
- // boost (the cap stays 100, but you reach it 50% faster).
- const energyBoostBonus = prevState.goldUpgrades?.energy_boost ? 1.5: 1.0;
- // Life Skills: Stamina (+15% energy regen - reinterpreted from "+10 max energy"
- // since the energy ceiling is a hard 100). Bounded mult from the accessor.
- const staminaRegenMult = lifeSkillMods.energyRegenMult;
- // Vigorous Start (starting_energy): +25% regen for the first year of this
- // life - the half of the bonus that a 100-energy fresh start cannot clamp
- // away (the +20 starting grant only ever helped heirs). Windowed on weeks
- // into THIS life, not the absolute counter (§4.3).
- const vigorousStartMult = getStartingEnergyRegenMultiplier(
- unlockedBonuses,
- weeksSinceLifeStart(prevState.weeksLived || 0, prevState.lifeStartWeek),
- );
- const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult * vigorousStartMult); // Full regen amount (don't cap here)
+ const energyRegen = weeklyEnergyRegen(prevState); // Full regen amount (don't cap here)
  // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
  // points). `shouldAutoRest` had exactly one occurrence in the whole repo -
  // its own definition - so the bonus was bought and never fired.
@@ -993,10 +975,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Apply weekly item bonuses (e.g., basic_bed +10 energy +5 happiness,
  // gym_membership +2 fitness +3 health). Items declare \`dailyBonus\`
  // but no tick had ever read it - buying the bed gave nothing.
+ //
+ // Happiness is held back and added AFTER the decay baseline below
+ // (`happinessAfterDecay`), so the bed's +5 is a gain the once-per-tick
+ // diminishing-returns curve sees. Folded in here, before the baseline was
+ // taken, it was the one weekly happiness source that bypassed the curve
+ // entirely - the dynamic key also hid it from happinessGainAudit (TICK2-3).
+ let itemHappinessBonus = 0;
  for (const item of (prevState.items || [])) {
  if (!item?.owned ||!item.dailyBonus) continue;
  for (const [statKey, delta] of Object.entries(item.dailyBonus)) {
- if (typeof delta!== 'number') continue;
+ if (typeof delta!== 'number' || !Number.isFinite(delta)) continue;
+ if (statKey === 'happiness') {
+   itemHappinessBonus += delta;
+   continue;
+ }
  const current = (newStats as Record<string, number>)[statKey];
  if (typeof current === 'number') {
  (newStats as Record<string, number>)[statKey] = current + delta;
@@ -1038,6 +1031,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // measuring from here keeps it at full strength and applies the curve to
  // exactly what the subsystems added.
  const happinessAfterDecay = newStats.happiness ?? 0;
+ // The owned items' happiness (see the item loop above) lands after the
+ // baseline, so the net scaling at the end of the tick treats it as a gain.
+ if (itemHappinessBonus !== 0) {
+   newStats.happiness = Math.max(0, happinessAfterDecay + itemHappinessBonus);
+ }
 
  // Fitness decay: increases the longer you don't visit the gym
  // Measured from the later of the last visit and the start of THIS life.
@@ -2565,7 +2563,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  target: p.target ?? 0,
  met: p.completed ?? p.met ?? false,
  })),
- completed: progress.every((p: any) => p.completed ?? p.met),
+ // `every` on an empty list is true: a challenge id the catalogue no longer
+ // defines evaluates to [] and used to count as complete, paying its Legacy
+ // Pass XP for nothing. Same `length > 0` rule as the rotation salvage above
+ // and `isChallengeComplete` (TICK2-4).
+ completed: progress.length > 0 && progress.every((p: any) => p.completed ?? p.met),
  };
  }
  // ── WEEKLY CHALLENGE: Grant reward on first completion (idempotent) ──

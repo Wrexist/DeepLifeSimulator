@@ -1,10 +1,10 @@
 import { uiPalette } from '@/lib/config/theme';
 import React, { useMemo } from 'react';
-import { Briefcase, GraduationCap, Coffee, Home, Utensils } from 'lucide-react-native';
+import { Briefcase, GraduationCap, Coffee, Home, Package, Utensils } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { projectWeeklyVitalDrift } from '@/lib/economy/vitalDrift';
+import type { DriftCause, DriftCauseId } from '@/lib/economy/vitalDrift';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -13,49 +13,74 @@ interface EnergyBreakdownModalProps {
   onClose: () => void;
 }
 
+const CAUSE_ICONS: Record<DriftCauseId, LucideIcon> = {
+  decay: Coffee,
+  rest: Coffee,
+  home: Home,
+  job: Briefcase,
+  items: Package,
+  education: GraduationCap,
+  diet: Utensils,
+};
+
+/** Player-facing copy for one energy line. */
+function describeEnergyCause(cause: DriftCause): string {
+  const amount = Math.abs(cause.energy);
+  switch (cause.id) {
+    case 'rest':
+      return `Resting and sleeping restores ${amount} energy per week`;
+    case 'job':
+      return `Working drains ${amount} energy per week`;
+    case 'education':
+      return `Studying costs ${amount} energy per week`;
+    case 'diet':
+      return `Active diet plan provides ${amount} energy per week`;
+    case 'items':
+      return cause.energy > 0
+        ? `What you own restores ${amount} energy per week`
+        : `What you own costs ${amount} energy per week`;
+    case 'home':
+      if (cause.label === 'No home') {
+        return `Sleeping rough costs ${amount} energy per week - rent or buy a home`;
+      }
+      return cause.energy > 0
+        ? `Your home restores ${amount} energy per week`
+        : `Your housing costs ${amount} energy per week`;
+    default:
+      return `${cause.energy > 0 ? '+' : '-'}${amount} energy per week`;
+  }
+}
+
 export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdownModalProps) {
-  const stats = useGameSelector((s) => s.stats, shallowEqual);
+  const energy = useGameSelector((s) => s.stats?.energy ?? 0);
   const careers = useGameSelector((s) => s.careers);
   const currentJob = useGameSelector((s) => s.currentJob);
-  const prestige = useGameSelector((s) => s.prestige);
-  const realEstate = useGameSelector((s) => s.realEstate);
-  const rental = useGameSelector((s) => s.rental, shallowEqual);
-  // Studying and the diet plan come from the shared projection, so this modal
-  // shows what the tick will apply (TAB-4 / TAB-7).
-  const projected = useGameSelector(
-    (s) => {
-      const d = projectWeeklyVitalDrift(s);
-      const education = d.causes.find((c) => c.id === 'education');
-      const diet = d.causes.find((c) => c.id === 'diet');
-      return {
-        educationEnergy: education?.energy ?? 0,
-        educationLabel: education?.label ?? 'Studying',
-        dietEnergy: diet?.energy ?? 0,
-        dietLabel: diet?.label ?? 'Diet',
-      };
-    },
-    shallowEqual,
+  // Every energy line comes from the shared projection (lib/economy/vitalDrift),
+  // which reads the same functions the weekly tick applies. This modal used to
+  // restate them: a +30 regen against the tick's +40 (and no Energy Boost), a
+  // job drain read off `levels[].energyCost` - a field no career sets - and no
+  // line at all for the bed's +10 (TICK2-2).
+  const energyCauses = useGameSelector(
+    (s) => projectWeeklyVitalDrift(s).causes.filter((c) => c.energy !== 0),
+    (a, b) =>
+      a.length === b.length &&
+      a.every((c, i) => c.id === b[i].id && c.label === b[i].label && c.energy === b[i].energy),
   );
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
     const incomes: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
 
-    // Calculate energy drain from career (active job)
-    if (currentJob) {
-      const career = careers?.find(c => c.id === currentJob && c.accepted);
-      if (career && career.levels && career.levels.length > 0) {
-        const currentLevel = career.levels[career.level] || career.levels[0];
-        if (currentLevel && currentLevel.energyCost) {
-          drains.push({
-            label: `Career: ${currentLevel.name}`,
-            value: -currentLevel.energyCost,
-            icon: Briefcase,
-            color: '#EF4444',
-            description: `Working drains ${currentLevel.energyCost} energy per week`,
-          });
-        }
-      }
+    for (const cause of energyCauses) {
+      const entry = {
+        label: cause.id === 'rest' ? 'Week Progression' : cause.id === 'job' ? `Career: ${cause.label}` : cause.label,
+        value: cause.energy,
+        icon: CAUSE_ICONS[cause.id] ?? Coffee,
+        color: cause.energy > 0 ? '#10B981' : cause.id === 'education' ? '#F59E0B' : '#EF4444',
+        description: describeEnergyCause(cause),
+      };
+      if (cause.energy > 0) incomes.push(entry);
+      else drains.push(entry);
     }
 
     // Show pending applications (they don't drain energy, but good to show)
@@ -71,81 +96,14 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       });
     }
 
-    // Studying, from the SAME capped formula the tick applies
-    // (lib/education/educationStress via projectWeeklyVitalDrift). This used to
-    // restate it without the caps and overstate 3+ courses (TAB-4).
-    if (projected.educationEnergy < 0) {
-      drains.push({
-        label: projected.educationLabel,
-        value: projected.educationEnergy,
-        icon: GraduationCap,
-        color: '#F59E0B',
-        description: `Studying costs ${Math.abs(projected.educationEnergy)} energy per week`,
-      });
-    }
-
-    // Calculate energy income from week progression
-    const baseEnergyRegen = 30;
-    const unlockedBonuses = prestige?.unlockedBonuses || [];
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getEnergyRegenMultiplier } = require('@/lib/prestige/applyBonuses');
-    const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
-    const safeEnergyRegenMultiplier = typeof energyRegenMultiplier === 'number' && isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier : 1.0;
-    const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier);
-
-    incomes.push({
-      label: 'Week Progression',
-      value: energyRegen,
-      icon: Coffee,
-      color: '#10B981',
-      description: `Resting and sleeping restores ${energyRegen} energy per week${safeEnergyRegenMultiplier > 1.0 ? ` (${((safeEnergyRegenMultiplier - 1) * 100).toFixed(0)}% bonus from prestige)` : ''}`,
-    });
-
-    // Active diet plan, projected like the tick: a plan the player cannot
-    // afford this week is skipped (no gain), so it is not listed (TAB-7).
-    if (projected.dietEnergy > 0) {
-      incomes.push({
-        label: projected.dietLabel,
-        value: projected.dietEnergy,
-        icon: Utensils,
-        color: '#10B981',
-        description: `Active diet plan provides ${projected.dietEnergy} energy per week`,
-      });
-    }
-
-    // Housing, from the SAME function the weekly tick applies
-    // (`computeHousingWellbeing`) - an owned home, a rental, or the penalty
-    // for neither. The old owned-only `currentResidence` copy here is the
-    // divergence __tests__/economy/rentalLadder.test.ts exists to prevent:
-    // a modal that predicts a number the tick never delivers.
-    const housing = computeHousingWellbeing({ realEstate, rental });
-    if (housing.energy > 0) {
-      incomes.push({
-        label: 'Your housing',
-        value: housing.energy,
-        icon: Home,
-        color: '#10B981',
-        description: `Your home restores ${housing.energy} energy per week`,
-      });
-    } else if (housing.energy < 0) {
-      drains.push({
-        label: housing.homeless ? 'No place to live' : 'Your housing',
-        value: housing.energy,
-        icon: Home,
-        color: '#EF4444',
-        description: housing.homeless
-          ? `Sleeping rough costs ${Math.abs(housing.energy)} energy per week - rent or buy a home`
-          : `Your housing costs ${Math.abs(housing.energy)} energy per week`,
-      });
-    }
-
     // Calculate total drain and income
     const totalDrain = drains.reduce((sum, d) => sum + Math.abs(d.value), 0);
     const totalIncome = incomes.reduce((sum, i) => sum + i.value, 0);
     const netChange = totalIncome - totalDrain;
 
-    // Calculate projected energy after next week
-    const currentEnergy = stats?.energy || 0;
+    // Projected energy after next week: the tick applies every line and caps
+    // once at the end, so the sum is clamped once here too.
+    const currentEnergy = energy || 0;
     const projectedEnergy = Math.max(0, Math.min(100, currentEnergy + netChange));
 
     return {
@@ -157,7 +115,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       currentEnergy,
       projectedEnergy,
     };
-  }, [stats?.energy, currentJob, careers, prestige, realEstate, rental, projected]);
+  }, [energy, currentJob, careers, energyCauses]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {
@@ -212,7 +170,8 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
             {'\u2022'} Working at a career drains energy based on the job's requirements{'\n'}
             {'\u2022'} Studying multiple educations simultaneously increases energy drain{'\n'}
             {'\u2022'} Paused educations don't drain energy{'\n'}
-            {'\u2022'} Prestige bonuses can increase energy regeneration{'\n'}
+            {'\u2022'} Prestige bonuses, Energy Boost and the Stamina skill increase regeneration{'\n'}
+            {'\u2022'} Energy is capped at 100 after every gain and drain is applied{'\n'}
             {'\n'}
             Net Change = Income - Drain
           </>
