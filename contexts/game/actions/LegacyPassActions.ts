@@ -190,6 +190,19 @@ export function reconcileLegacyPassSeason(
    */
   entitlementCheckAuthoritative: boolean = true,
 ): GameState {
+  // The permanent premium unlock recorded IN THE SAVE counts too (MON2-3).
+  // Callers pass `subscriptionService.hasPremiumAccess()`, which only sees an
+  // active subscription or the LIFETIME_PREMIUM product in the store ledger.
+  // The $99.99 Mega Pack writes `lifetimePremium` (via `everythingUnlocked`)
+  // under its own consumable product id, so the ledger never shows it: its
+  // buyer got the 250-gem drop and +25% pay that read the save flag, and an
+  // authoritative reconcile then LOCKED the Legacy Pass premium track that
+  // Lifetime Premium promises. These flags are purchases (they survive
+  // prestige), not a subscription, so nothing here can lapse them.
+  const premium =
+    premiumActiveNow ||
+    state.settings?.lifetimePremium === true ||
+    state.settings?.everythingUnlocked === true;
   const seasonId = liveSeasonIdFor(state.legacyPass, nowMs);
   const current = state.legacyPass;
   if (current && current.seasonId === seasonId) {
@@ -197,10 +210,10 @@ export function reconcileLegacyPassSeason(
     // Re-derive premium from the live subscription: upgrade when it becomes
     // active, and downgrade when it lapses mid-season (otherwise a lapsed
     // subscriber could keep claiming premium rewards until the next rollover).
-    if (premiumActiveNow && !normalized.premiumOwned) {
+    if (premium && !normalized.premiumOwned) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: true } };
     }
-    if (!premiumActiveNow && normalized.premiumOwned && entitlementCheckAuthoritative) {
+    if (!premium && normalized.premiumOwned && entitlementCheckAuthoritative) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: false } };
     }
     return normalized === current ? state : { ...state, legacyPass: normalized };
@@ -208,7 +221,7 @@ export function reconcileLegacyPassSeason(
   // A rollover with an unknown entitlement must not START the new season
   // downgraded either — carry the old pass's flag until a real check lands.
   const rolloverPremium =
-    premiumActiveNow || (!entitlementCheckAuthoritative && current?.premiumOwned === true);
+    premium || (!entitlementCheckAuthoritative && current?.premiumOwned === true);
   return rolloverLegacyPass(state, seasonId, rolloverPremium);
 }
 
