@@ -1,5 +1,28 @@
 # What's New - DeepLife Simulator
 
+## v2.18.0 - Fair play, all the way up (store version 1.9.0, build 198; Play versionCode 118)
+
+**Compatibility:** every save loads; save format v58 (two carve-outs: the people
+met this life, and the highest office ever held; absent on older saves, which
+resolve them at read time).
+
+- **Rewards that mean what they say:** inherited Legacy Bonuses apply (income,
+  learning, reputation, capped); wedding venues give their advertised bonuses;
+  cancelling Spark premium runs to the end of the paid period; Mega Pack owners
+  see DeepLife+ as included.
+- **Money and banking:** a locked CD takes no deposits and drops to the savings
+  rate at maturity; mortgages and car loans need the purchase; net worth counts
+  IPO shares and staking; retiring from politics pays the pension only.
+- **Love, kids and heirs:** paid child bonds stick; marriages count toward
+  achievements; no double engagement; heirs get their own rolls; no gifts from
+  jail.
+- **Life and health:** restorative activities cost no energy; the weekly energy
+  refill is no longer partly lost; Peak Performance works; no vet bills for pets
+  that have passed; event previews match the happiness paid.
+- **Backups and taps:** heirs restore their own backups; a new game after a
+  death no longer revives the old character; cloud restores keep recent
+  purchases; a double tap on an alert runs once.
+
 ## v2.17.0 - A life that tells the truth (store version 1.8.0, build 197; Play versionCode 117)
 
 **Compatibility:** every save loads; save format unchanged at v57.
