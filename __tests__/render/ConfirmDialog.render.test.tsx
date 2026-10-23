@@ -89,7 +89,7 @@ describe('render - ConfirmDialog', () => {
     );
     const press = () => renderer.root
       .findAll((n: any) => n.props?.accessibilityLabel === 'Restore' && typeof n.props?.onPress === 'function')
-      .pop()
+      .pop()!
       .props.onPress();
     act(() => {
       press();

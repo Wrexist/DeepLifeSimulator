@@ -136,8 +136,8 @@ describe('AlertHost defers a button handler until its Modal has dismissed', () =
       .findAll((n: any) => n.props?.accessibilityLabel === 'Buy' && typeof n.props?.onPress === 'function')
       .pop();
     act(() => {
-      node.props.onPress();
-      node.props.onPress();
+      node!.props.onPress();
+      node!.props.onPress();
     });
     expect(buy).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(renderer.toJSON())).toContain('Still here?');
