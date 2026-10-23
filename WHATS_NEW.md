@@ -1,5 +1,30 @@
 # What's New - DeepLife Simulator
 
+## v2.17.0 - A life that tells the truth (store version 1.8.0, build 197; Play versionCode 117)
+
+**Compatibility:** every save loads; save format unchanged at v57.
+
+- **New:** when a life ends, Share sends a picture of the life card, not just text.
+- **Events that fit the life:** no boss bonuses without a job, no car bills
+  without a car, no festivals in jail. Appeals, counter-offers and lawyering up
+  are real gambles; surprise parties, burnout, recessions and lawsuits ask for a
+  real choice; weekly events wait for a choice instead of closing on an outside
+  tap; a neglected marriage can end in divorce.
+- **Money and markets:** the bank balance always matches the wallet and exact
+  amounts can be typed; stock and crypto orders confirm whether they went
+  through, taxes included; heirs inherit the whole fortune, stocks and crypto
+  included; budgeting trims the whole weekly bill pile; cars burn fuel and have
+  a Refuel button; therapists, vets, architects, journalists, soldiers and
+  firefighters earn more.
+- **Family and friends:** divorce splits what is really owned and warns about
+  any sale first; a pregnancy survives a breakup; each child gets their own
+  first word, first steps and graduation; young heirs grow up first, and the
+  family tree keeps everyone.
+- **Saves and screens:** a save that will not load points to Restore instead of
+  a new game; crash screens have a way back to the main menu; labels no longer
+  cut off on small phones and fields stay above the keyboard; screen readers
+  announce stats and choice costs; a Youth Pill makes you 18 everywhere.
+
 ## v2.16.1 - A fair game for everyone
 
 **Compatibility:** every save loads; save format v56 (three carve-outs: a
