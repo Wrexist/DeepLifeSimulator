@@ -261,7 +261,10 @@ export const PRODUCT_CONFIGS = {
   
   [IAP_PRODUCTS.GEMS_MEGA]: {
     name: 'Mega Pack',
-    description: '40,000 Gems + Unlimited Youth Pills + Everything Unlocked',
+    // "Everything Unlocked" includes `lifetimePremium` (the everythingUnlocked
+    // branch of applyProductBenefitsToState sets it), i.e. DeepLife+ forever -
+    // the single most valuable thing in the bundle, and it went unsaid (D14).
+    description: '40,000 Gems + Unlimited Youth Pills + Everything Unlocked, including lifetime DeepLife+ premium',
     gems: 40000,
     unlimitedYouthPills: true,
     everythingUnlocked: true,
@@ -728,7 +731,7 @@ export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
     contents: ['12,000 Gems', '10 Youth Pills', `All ${GEM_UPGRADES.length} permanent upgrades`],
   },
   [IAP_PRODUCTS.GEMS_MEGA]: {
-    contents: ['40,000 Gems', 'Unlimited Youth Pills', 'Everything unlocked'],
+    contents: ['40,000 Gems', 'Unlimited Youth Pills', 'Lifetime DeepLife+ premium', 'Everything unlocked'],
   },
   [IAP_PRODUCTS.YOUTH_PILL_PACK]: { contents: ['5 Youth Pills'] },
   // Feature unlocks featured in the store's hero area.

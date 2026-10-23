@@ -58,7 +58,7 @@ import {
 } from 'react-native';
 import { X, Crown, Check, Ban, Palette, Gift, ShieldCheck, TrendingUp, ChevronRight } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { subscriptionService } from '@/services/SubscriptionService';
@@ -74,6 +74,7 @@ import {
   DEEP_LIFE_PLUS_FREE_TRIAL_DAYS,
   DEEP_LIFE_PLUS_WELCOME_GEMS,
   isDeepLifePlusActive,
+  permanentPremiumSource,
   type DeepLifePlusPlan,
 } from '@/lib/subscription/deepLifePlus';
 import {
@@ -152,7 +153,13 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   // Set once the purchase completes, so the sheet can hand the player a welcome
   // instead of dropping them back on the sales pitch they just accepted.
   const [purchased, setPurchased] = useState<null | { lifetime: boolean }>(null);
-  const active = isDeepLifePlusActive();
+  // Premium owned FOREVER through a purchase recorded in the save (D14). The
+  // Mega Pack grants lifetime premium under its own product id, so the store
+  // ledger behind `isDeepLifePlusActive` never sees it; without this the sheet
+  // sold "Subscribe" to a player who already owns everything it lists.
+  const included = useGameSelector((s) => permanentPremiumSource(s?.settings));
+  // `active` gates every selling surface below (plans, trial, pay-once card).
+  const active = isDeepLifePlusActive() || included !== null;
 
   // Store-confirmed intro-offer eligibility for the selected plan (checked below).
   const [introStatus, setIntroStatus] = useState<'eligible' | 'ineligible' | 'unknown'>('unknown');
@@ -497,7 +504,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const selectedLabel = lifetime
     ? priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)
     : priceLabel(selectedPrice, selected.price);
-  const ctaMode: 'manage' | 'loading' | 'disabled' | 'retry' | 'buy' = active
+  //   included        → Close. Owned forever through a one-time purchase, so
+  //                     there is nothing to manage (the footer keeps Manage
+  //                     for anyone who also holds a subscription).
+  const ctaMode: 'included' | 'manage' | 'loading' | 'disabled' | 'retry' | 'buy' = included
+    ? 'included'
+    : active
     ? 'manage'
     : canPurchase
       ? 'buy'
@@ -508,7 +520,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           : 'retry';
 
   const ctaTitle =
-    ctaMode === 'manage'
+    ctaMode === 'included'
+      ? included === 'mega_pack'
+        ? 'Included with your Mega Pack'
+        : 'Included with Lifetime Premium'
+      : ctaMode === 'manage'
       ? 'Manage subscription'
       : ctaMode === 'loading'
         ? 'Loading plans…'
@@ -526,7 +542,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 : `Continue · ${selectedLabel} ${selected.unit}`;
 
   const ctaSub =
-    ctaMode === 'manage'
+    ctaMode === 'included'
+      ? 'Lifetime premium - nothing to buy, never expires'
+      : ctaMode === 'manage'
       ? undefined
       : ctaMode === 'loading'
         ? 'Fetching prices from the store'
@@ -545,7 +563,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                   : 'Cancel anytime';
 
   const ctaDisabled = busy || ctaMode === 'loading' || ctaMode === 'disabled';
-  const onCtaPress = ctaMode === 'manage'
+  const onCtaPress = ctaMode === 'included'
+    ? handleClose
+    : ctaMode === 'manage'
     ? handleManage
     : ctaMode === 'retry'
       ? prices.reload
@@ -589,7 +609,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             {/* Value stack - five rows, one glance. */}
             {active || purchased ? (
               <Text style={styles.plusLine}>
-                Included during an active trial or subscription. Lifetime premium does not expire.
+                {included === 'mega_pack' && !purchased
+                  ? 'Included with your Mega Pack: lifetime premium that never expires.'
+                  : 'Included during an active trial or subscription. Lifetime premium does not expire.'}
               </Text>
             ) : null}
             <View style={styles.benefits}>
@@ -795,6 +817,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
               ? purchased.lifetime
                 ? 'One-time purchase - no subscription, nothing renews.'
                 : 'Your subscription renews automatically until cancelled. Manage or cancel anytime in your store account.'
+              : included
+                ? 'Owned through a one-time purchase - no subscription, nothing renews.'
               : active
                 ? 'Manage or cancel anytime in your store account.'
                 : lifetime
