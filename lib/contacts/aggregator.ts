@@ -101,7 +101,7 @@ export function aggregateContacts(
       tags: [
         r.livingTogether ? 'living-together' : '',
         r.isPregnant ? 'expecting' : '',
-        r.engagementWeek ? 'engaged' : '',
+        r.engagementWeek != null ? 'engaged' : '',
       ].filter(Boolean),
       sourceApp: 'contacts',
       raw: r,

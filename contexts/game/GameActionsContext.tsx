@@ -1888,6 +1888,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  neglectDragTotal = 0;
  closeCircleSupportTotal = 0;
  spouseWhoFiled = undefined;
+ // ...and no wedding: the relationships above are carried over unmarried, so
+ // a spouse mirrored into `family.spouse` (or a popup, or a Spark marriage)
+ // from the failed pass would contradict them.
+ newWeddingSpouse = null;
+ newShowWeddingPopup = prevState.showWeddingPopup || false;
+ newWeddingPartnerName = prevState.weddingPartnerName;
  }
 
  // SOC-4: settle a spouse-filed divorce, only if the marriage really left
@@ -2709,6 +2715,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // A spouse-filed divorce is a divorce on the Spark record too (SOC-4).
  if (spouseDivorcedThisWeek) {
    sparkAppNext = bumpSparkLifetimeStat(sparkAppNext, 'totalDivorces');
+ }
+ // SOC2-2: and a wedding the tick executed is a marriage on it. The scheduled
+ // wedding lands HERE, not in `executeWedding` (which bumps the counter but is
+ // only reachable after the tick has already married them), so Spark's
+ // "Marriages" readout stayed at 0 for every player who ever married.
+ if (newWeddingSpouse) {
+   sparkAppNext = bumpSparkLifetimeStat(sparkAppNext, 'totalMarriages');
  }
 
  // In-game subscription auto-renew billing (Pulse Verified Pro + Spark
@@ -4839,6 +4852,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  children: prevState.family?.children ?? [],
  spouse: eventWeddingSpouse,
  },
+ // SOC2-2: the wedding event is a marriage on the Spark record too.
+ sparkApp: bumpSparkLifetimeStat(prevState.sparkApp, 'totalMarriages'),
  }
  : {}),
  pets: updatedPets, // Update pets if changed

@@ -14,11 +14,20 @@ const NEW_SPOUSE = { id: 'npc-9', name: 'Sam', type: 'spouse' } as never;
 
 describe('resolveFamilySpouse', () => {
   it('keeps the spouse while the spouse relationship survives the tick', () => {
+    const live = { id: 'npc-7', type: 'spouse' };
     const spouse = resolveFamilySpouse({
       prevSpouse: SPOUSE,
-      relationships: [{ id: 'npc-7', type: 'spouse' }, { id: 'npc-1', type: 'friend' }],
+      relationships: [live, { id: 'npc-1', type: 'friend' }],
     });
-    expect(spouse).toBe(SPOUSE);
+    // SOC2-7: the LIVE record, not the wedding-day copy carried in.
+    expect(spouse).toBe(live);
+  });
+
+  it('SOC2-7: refreshes the copy from the live record (bond, income, job)', () => {
+    const weddingDay = { id: 'npc-7', name: 'Robin', type: 'spouse', relationshipScore: 92, income: 80_000, job: 'Nurse' } as never;
+    const today = { id: 'npc-7', name: 'Robin', type: 'spouse', relationshipScore: 41, income: 60_000, job: 'Unemployed' };
+    const spouse = resolveFamilySpouse({ prevSpouse: weddingDay, relationships: [today] });
+    expect(spouse).toEqual(today);
   });
 
   it('drops the spouse when the relationship was REMOVED this tick', () => {

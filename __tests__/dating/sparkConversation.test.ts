@@ -644,6 +644,30 @@ describe('the thread', () => {
     expect(new Set(thread.map((m) => m.id)).size).toBe(2);
   });
 
+  it('SOC2-1: a FULL thread still mints unique ids for two moves in one week', () => {
+    // The thread is capped at 100. Ids used to be week + thread index, and a
+    // capped thread's length never moves, so the second move of a week reused
+    // the first move's ids - duplicate FlatList keys in every long chat.
+    const s = stateWith({ rapport: 30 });
+    s.sparkApp!.messages = {
+      [MATCH_ID]: Array.from({ length: 100 }, (_, i) => ({
+        id: `old-${i}`,
+        matchId: MATCH_ID,
+        from: (i % 2 === 0 ? 'player' : 'npc') as 'player' | 'npc',
+        text: 'earlier',
+        timestamp: i,
+        gameWeek: 2_990,
+      })),
+    };
+    const { setGameState, getState } = makeHarness(s);
+    expect(playConversationOption(setGameState, getState(), MATCH_ID, 'ask_interests', undefined, ALWAYS).success).toBe(true);
+    expect(playConversationOption(setGameState, getState(), MATCH_ID, 'compliment', undefined, ALWAYS).success).toBe(true);
+
+    const thread = threadIn(getState());
+    expect(thread).toHaveLength(100);
+    expect(new Set(thread.map((m) => m.id)).size).toBe(thread.length);
+  });
+
   it('clears both unread counters - the player is looking at the chat', () => {
     const s = stateWith({ rapport: 30, unreadByPlayer: 3, unreadByNpc: 2 });
     const { setGameState, getState } = makeHarness(s);
