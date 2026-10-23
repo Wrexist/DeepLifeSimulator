@@ -45,6 +45,64 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.18.0',
+    date: 'October 2026',
+    headline: 'Fair play, all the way up',
+    summary: 'Sixty more fixes, plus rewards and features that finally do what they say.',
+    changes: [
+      {
+        category: 'improved',
+        title: 'Rewards that mean what they say',
+        bullets: [
+          'Inherited Legacy Bonuses now apply: extra income, faster learning and reputation.',
+          'Wedding venues give the happiness and reputation they advertise.',
+          'Cancelling Spark premium keeps it running until the time you paid for ends.',
+          'Mega Pack owners see DeepLife+ marked as included instead of a subscribe button.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Money and banking',
+        bullets: [
+          'A locked CD takes no new deposits, and drops to the savings rate once it matures.',
+          'Mortgages and car loans now come with the home or car you are buying.',
+          'Net worth counts IPO shares and staked coins correctly.',
+          'Retiring from politics pays your pension, not your old salary on top.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Love, kids and heirs',
+        bullets: [
+          'Bonds you pay for with your children stick instead of slipping back.',
+          'Marriages count toward your achievements, and you cannot get engaged twice.',
+          'Your heirs get their own luck instead of replaying their parent\'s rolls.',
+          'Gifts cannot be sent from jail.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Life and health',
+        bullets: [
+          'Resting and other restorative activities no longer cost energy.',
+          'Your weekly energy refill is no longer partly thrown away.',
+          'Peak Performance gives its boost, and pets that have passed send no vet bills.',
+          'Event previews show the happiness you will actually get.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Backups and taps',
+        bullets: [
+          'Heirs can restore their own backups.',
+          'Starting a new game after a death no longer brings the old character back.',
+          'Restoring from the cloud keeps purchases you just made.',
+          'A quick double tap on an alert runs its action only once.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.17.0',
     date: 'October 2026',
     headline: 'A life that tells the truth',
