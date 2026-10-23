@@ -106,7 +106,7 @@ export default function SystemInterconnectionIndicator({
 
   return (
     <Animated.View style={[styles.container, { height }, darkMode && styles.containerDark]}>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         onPress={handleToggle}
         activeOpacity={0.7}
         style={styles.header}

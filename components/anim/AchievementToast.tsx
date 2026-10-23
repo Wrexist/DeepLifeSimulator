@@ -52,7 +52,9 @@ export const showAchievementToast = (title: string, category: string = 'general'
  * treatment prestige and promotions get.
  */
 export const showLevelUpToast = (title: string, detail?: string, category: string = 'work') => {
-  trigger?.({ title, category, reward: 1, kind: 'levelup', detail });
+  // No gems: a level-up grants none (the live path, utils/achievementToast,
+  // already sends 0). This copy said 1 and would have drawn a "+1" gem chip.
+  trigger?.({ title, category, reward: 0, kind: 'levelup', detail });
 };
 
 export default function AchievementToast() {
@@ -100,7 +102,7 @@ export default function AchievementToast() {
     announceTransient(
       `${achievement.kind === 'levelup' ? 'Level up' : 'Achievement unlocked'}: ${achievement.title}.${
         achievement.detail ? ` ${achievement.detail}.` : ''
-      } Plus ${achievement.reward} gems.`,
+      }${achievement.reward > 0 ? ` Plus ${achievement.reward} gems.` : ''}`,
     );
   }, [achievement, isVisible]);
 
@@ -216,11 +218,14 @@ export default function AchievementToast() {
           ) : null}
         </View>
 
-        {/* Reward Badge */}
-        <View style={styles.rewardContainer}>
-          <Gem size={16} color={uiPalette.white} />
-          <Text style={styles.rewardText}>+{achievement.reward}</Text>
-        </View>
+        {/* Reward Badge - only for a real gem reward. A level-up carries none
+            (reward 0), and drew a "+0" gem chip on every skill level-up. */}
+        {achievement.reward > 0 ? (
+          <View style={styles.rewardContainer}>
+            <Gem size={16} color={uiPalette.white} />
+            <Text style={styles.rewardText}>+{achievement.reward}</Text>
+          </View>
+        ) : null}
       </View>
     </MotiView>
   );

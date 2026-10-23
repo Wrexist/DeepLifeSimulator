@@ -183,7 +183,7 @@ export default function GymCard() {
             <Text style={styles.gymCostValue}>$50 · 20 {t('game.energy')}</Text>
           </View>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             onPress={handleGym}
             disabled={!canUseGym}
             activeOpacity={0.85}

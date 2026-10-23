@@ -211,7 +211,7 @@ function ElderCard() {
               Projected pension <Text style={styles.pensionAmount}>{formatMoney(view.projectedPension)}/wk</Text>
             </Text>
           </View>
-          <TouchableOpacity style={styles.retireBtn} onPress={doRetire} activeOpacity={0.85}>
+          <TouchableOpacity accessibilityRole="button" style={styles.retireBtn} onPress={doRetire} activeOpacity={0.85}>
             <Armchair size={scale(15)} color={uiPalette.navy} />
             <Text style={styles.retireText}>Retire now</Text>
           </TouchableOpacity>
@@ -239,7 +239,7 @@ function ElderCard() {
               const a = s.activity;
               const disabled = !s.available;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={a.id}
                   style={[styles.activityRow, disabled && styles.activityRowDisabled]}
                   onPress={() => doActivity(a.id)}

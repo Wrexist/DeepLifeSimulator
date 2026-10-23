@@ -126,17 +126,17 @@ export default function BugReportSheet({ visible, onClose }: Props) {
           </ScrollView>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.discordButton} onPress={handleDiscord}>
+            <TouchableOpacity accessibilityRole="button" style={styles.discordButton} onPress={handleDiscord}>
               <MessageCircle size={18} color={uiPalette.white} />
               <Text style={styles.sendButtonText}>Discord</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <TouchableOpacity accessibilityRole="button" style={styles.shareButton} onPress={handleShare}>
               <Share2 size={18} color={uiPalette.white} />
               <Text style={styles.sendButtonText}>Share</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sendButton} onPress={handleEmail}>
+            <TouchableOpacity accessibilityRole="button" style={styles.sendButton} onPress={handleEmail}>
               <Mail size={18} color={uiPalette.white} />
               <Text style={styles.sendButtonText}>Email</Text>
             </TouchableOpacity>

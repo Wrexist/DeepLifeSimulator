@@ -767,7 +767,7 @@ Discord: ${DISCORD_URL}`;
 
               {/* Primary Action Buttons */}
               <View style={styles.buttonContainer}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.button, styles.retryButton]}
                   onPress={this.handleRetry}
                   disabled={this.state.retryCount >= this.maxRetries}
@@ -778,7 +778,7 @@ Discord: ${DISCORD_URL}`;
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.button, styles.homeButton]}
                   onPress={this.handleGoHome}
                 >
@@ -789,7 +789,7 @@ Discord: ${DISCORD_URL}`;
 
               {/* Bug Report & Discord Buttons */}
               <View style={styles.bugReportButtonContainer}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.button, styles.exportButton]}
                   onPress={this.handleExportLog}
                 >
@@ -797,7 +797,7 @@ Discord: ${DISCORD_URL}`;
                   <Text style={styles.buttonText}>Export Crash Log</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.button, styles.discordButton]}
                   onPress={this.handleOpenDiscord}
                 >
