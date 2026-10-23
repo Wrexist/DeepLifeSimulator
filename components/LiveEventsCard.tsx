@@ -24,6 +24,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Check, Gem, Sparkles, Timer, Trophy } from 'lucide-react-native';
 import { useGameStateGetter, useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import { useLiveOps } from '@/hooks/useLiveOps';
 import { applyLiveEventClaim, applyLiveEventSeen } from '@/lib/liveops/claim';
@@ -72,6 +73,8 @@ export function rewardLabel(event: ResolvedLiveEvent): string {
 
 function LiveEventsCard(): React.ReactElement | null {
   const setGameState = useSetGameState();
+  // saveGame only; the actions context carries no state subscription.
+  const { saveGame } = useGameActions();
   const { events, weeksThisLife, context } = useLiveOps();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -146,8 +149,13 @@ function LiveEventsCard(): React.ReactElement | null {
         const result = applyLiveEventClaim(prev, event.definition, context, Date.now());
         return result.ok ? { ...prev, ...result.patch } : prev;
       });
+      // Persist the reward AND the ledger entry. Event windows are real UTC
+      // time, so a force-quit inside the autosave window could reload after
+      // the event closed - with the claim, and the reward, gone. Inline:
+      // saveGame waits for the pending commit itself.
+      void saveGame?.(false);
     },
-    [context, getState, setGameState, weeksThisLife],
+    [context, getState, setGameState, weeksThisLife, saveGame],
   );
 
   const visible = useMemo(() => events.slice(0, 3), [events]);
