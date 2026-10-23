@@ -59,11 +59,11 @@ describe('Private Banking caps financed purchases too', () => {
     expect(autoAPR(player({ privateBanking: true }))).toBeLessThanOrEqual(PRIVATE_BANKING_APR_CAP + 1e-12);
   });
 
-  it('matches the Bank app quote for the same loan type', () => {
+  it('is the only place a mortgage is priced: the Bank app no longer sells one (D7)', () => {
     const s = player({ privateBanking: true });
     const bank = getLoanQuote(s, { principal: 100_000, termWeeks: 1560, type: 'mortgage', weeklyIncome: 50_000 });
-    expect(bank.rejected).toBe(false);
-    expect(mortgageAPR(s, 'standard')).toBeCloseTo(bank.offeredAPR!, 12);
+    expect(bank.rejected).toBe(true);
+    expect(mortgageAPR(s, 'standard')).toBeLessThanOrEqual(PRIVATE_BANKING_APR_CAP + 1e-12);
   });
 });
 

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { act } from 'react-test-renderer';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import { useSetGameState } from '@/contexts/game/useGameSelector';
 
 jest.mock('@/hooks/useReducedMotion', () => ({
   __esModule: true,
@@ -101,6 +103,57 @@ describe('render - SubscriptionModal (DeepLife+ paywall)', () => {
     const { unmount } = renderWithProviders(
       <SubscriptionModal visible={false} onClose={() => {}} />,
     );
+    unmount();
+  });
+
+  /**
+   * D14: the Mega Pack grants lifetime premium (`everythingUnlocked` writes
+   * `settings.lifetimePremium`) under its own product id, which the store
+   * ledger behind `isDeepLifePlusActive` never sees - so the sheet kept
+   * selling "Subscribe" to someone who already owns premium for life.
+   */
+  function OwnsInSave({ flags }: { flags: { everythingUnlocked?: boolean; lifetimePremium?: boolean } }) {
+    const setGameState = useSetGameState();
+    useEffect(() => {
+      setGameState((prev) => ({ ...prev, settings: { ...prev.settings, ...flags } }));
+    }, [setGameState, flags]);
+    return null;
+  }
+
+  function renderOwning(flags: { everythingUnlocked?: boolean; lifetimePremium?: boolean }): {
+    json: string;
+    unmount: () => void;
+  } {
+    const { renderer, unmount } = renderWithProviders(
+      <>
+        <OwnsInSave flags={flags} />
+        <SubscriptionModal visible onClose={() => {}} />
+      </>,
+    );
+    act(() => {});
+    return { json: JSON.stringify(renderer.toJSON()), unmount };
+  }
+
+  it('tells a Mega Pack owner premium is included instead of offering a plan', () => {
+    const { json, unmount } = renderOwning({ everythingUnlocked: true, lifetimePremium: true });
+    expect(json).toContain('Included with your Mega Pack');
+    // No selling surface: no plan cards, no pay-once card, no "Cancel anytime".
+    expect(json).not.toContain('Annual');
+    expect(json).not.toContain('Prefer to pay once?');
+    expect(json).not.toContain('Store unavailable');
+    // The CTA is not "Manage subscription" (the footer's Manage link stays, for
+    // anyone who also holds a subscription they may want to cancel).
+    expect(json).not.toContain('["Manage subscription"]');
+    // The benefits still render - they are what the player owns.
+    expect(json).toContain('Ad-Free Play');
+    unmount();
+  });
+
+  it('names Lifetime Premium for a lifetime owner without the Mega Pack', () => {
+    const { json, unmount } = renderOwning({ lifetimePremium: true });
+    expect(json).toContain('Included with Lifetime Premium');
+    expect(json).not.toContain('Included with your Mega Pack');
+    expect(json).not.toContain('Annual');
     unmount();
   });
 });

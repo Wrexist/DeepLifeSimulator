@@ -70,6 +70,7 @@ import {
   hasCashDebtDueDate,
 } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage, calculateDivorceCosts, DATE_CONFIGS, GIFT_CONFIGS, type DateType } from '@/contexts/game/actions/DatingActions';
+import { isPlayerJailed } from '@/contexts/game/actions/_guards';
 import {
   currentIntroduction,
   meetBlockedReason,
@@ -895,7 +896,15 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             {isRomance || !isFamilyRelationship(r) ? (
               <CollapsibleSection id={`contact-relationship-${c.id}`} title="Relationship" defaultCollapsed compact>
                 <View style={styles.groupBody}>
-                  {isRomance && (
+                  {/* D16: no gifts from a jail cell - the same guard dates and
+                      proposals use, mirrored here so the screen does not offer
+                      what `giveGift` refuses. */}
+                  {isRomance && isPlayerJailed(gameState) && (
+                    <Text style={[styles.dateRowVibe, { color: theme.textMuted }]}>
+                      You can't send gifts while you're in jail.
+                    </Text>
+                  )}
+                  {isRomance && !isPlayerJailed(gameState) && (
                     <View style={styles.actionsRow}>
                       <ActionBtn label={`Flowers · ${formatMoney(mindsetPrice(GIFT_CONFIGS.flowers.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
                       <ActionBtn label={`Jewelry · ${formatMoney(mindsetPrice(GIFT_CONFIGS.jewelry.cost, mindsetEffects(gameState).socialCost))}`} Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />

@@ -19,7 +19,7 @@ import { useTheme } from '@/hooks/useTheme';
 
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { subscribeSparkPremium, cancelSparkPremium } from '@/contexts/game/actions/SparkActions';
+import { subscribeSparkPremium, cancelSparkPremium, sparkPremiumEndsWeek } from '@/contexts/game/actions/SparkActions';
 import { SPARK_TIER_PRICING } from '@/lib/dating/sparkLogic';
 import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
@@ -52,6 +52,11 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   const premium = gameState.sparkApp?.premium;
   const activeTier = premium?.active === true ? premium.tier : null;
   const money = gameState.stats?.money ?? 0;
+  // D15: a cancelled annual plan keeps its perks until the prepaid term ends.
+  const endsWeek = sparkPremiumEndsWeek(premium);
+  const weeksLeft = endsWeek !== null ? Math.max(0, endsWeek - (gameState.weeksLived ?? 0)) : 0;
+  const isAnnualActive = premium?.active === true && premium.plan === 'annual'
+    && typeof premium.paidThroughWeek === 'number' && premium.paidThroughWeek > (gameState.weeksLived ?? 0);
 
   // Billing cadence - annual is a prepaid 52-week block (~17% cheaper) that
   // subscribeSparkPremium fully supports; without this toggle it was
@@ -75,7 +80,9 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   const handleCancel = useCallback(() => {
     gameAlert(
       'Cancel Spark Premium?',
-      'You will drop back to the free tier and lose your premium perks. You can resubscribe any time.',
+      isAnnualActive
+        ? 'Your prepaid year keeps running - you keep your perks until it ends, and it will not renew.'
+        : 'You will drop back to the free tier and lose your premium perks. You can resubscribe any time.',
       [
         { text: 'Keep it', style: 'cancel' },
         {
@@ -89,7 +96,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
         },
       ],
     );
-  }, [setGameState, saveGame, onDismiss]);
+  }, [setGameState, saveGame, onDismiss, isAnnualActive]);
 
   return (
     <BaseModal
@@ -99,12 +106,16 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
       title={activeTier ? `Spark ${activeTier === 'ultra' ? 'Ultra' : 'Plus'} active` : 'Upgrade Spark'}
       subtitle={
         activeTier
-          ? 'Billed weekly from your in-game cash.'
+          ? endsWeek !== null
+            ? 'Cancelled - not renewing.'
+            : premium?.plan === 'annual'
+              ? 'Prepaid from your in-game cash.'
+              : 'Billed weekly from your in-game cash.'
           : 'Unlock unlimited swipes and see who likes you.'
       }
       footer={
         <View style={styles.footer}>
-          {activeTier ? (
+          {activeTier && endsWeek === null ? (
             <Pressable
               onPress={handleCancel}
               accessibilityRole="button"
@@ -116,7 +127,9 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
           ) : null}
           <Text style={[styles.legal, { color: theme.textMuted }]}>
             {activeTier
-              ? premium?.plan === 'annual'
+              ? endsWeek !== null
+                ? `Cancelled - your perks stay for ${weeksLeft} more week${weeksLeft === 1 ? '' : 's'}, then the plan ends without renewing. You can subscribe again after it ends.`
+                : premium?.plan === 'annual'
                 ? 'Prepaid for 52 weeks. After the term it renews weekly from your in-game cash; lapses if you run out of money.'
                 : 'Auto-renews weekly until cancelled; lapses if you run out of money.'
               : plan === 'annual'

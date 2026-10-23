@@ -126,6 +126,28 @@ export function debtProgress(prev: GameState, borrowed: boolean): Pick<GameState
 }
 
 /**
+ * Loan types the Bank app may originate as a free-standing cash loan.
+ *
+ * D7 (owner decision, 2026-10-23). Mortgage (6.5%) and auto (8%) rates are
+ * secured-lending prices - the house or the car backs the debt - but the Bank
+ * app's loan sheet offered both as plain cash in the player's pocket, beside a
+ * 12% personal loan for the identical thing. Nothing secured them, so "mortgage"
+ * was simply the cheapest personal loan in the game. Those rates now exist only
+ * on the paths that actually buy the asset:
+ * `RealEstateActions.purchaseProperty` (quotePropertyPurchase) and
+ * `VehicleActions.purchaseVehicleWithAutoLoan` (quoteVehiclePurchase), which
+ * price through `quoteLoan` directly and never come through here. Existing
+ * mortgages and auto loans are untouched (refinance keeps the loan's type).
+ */
+export const STANDALONE_LOAN_TYPES: readonly Loan['type'][] = ['personal', 'business'];
+
+export function isStandaloneLoanType(type: Loan['type']): boolean {
+  return STANDALONE_LOAN_TYPES.includes(type);
+}
+
+const SECURED_ONLY_REASON = 'Mortgages and auto loans are only offered when you buy a property or vehicle.';
+
+/**
  * Most loans a player may carry at once (M-3). The DTI gate alone could be
  * stacked past intent (missed-payment penalties inflate a loan's `remaining`
  * but not its `weeklyPayment`, so quoteLoan understates debt service).
@@ -152,6 +174,9 @@ export function getLoanQuote(
     weeklyIncome: number;
   }
 ): LoanQuote {
+  if (!isStandaloneLoanType(request.type)) {
+    return { rejected: true, reason: SECURED_ONLY_REASON };
+  }
   const banking = state.banking ?? initialGameState.banking;
   if (!banking) {
     return { rejected: true, reason: 'Banking not initialized' };
@@ -197,6 +222,12 @@ export const acceptLoan = (
     autoPay?: boolean;
   }
 ) => {
+  // D7: a pure check on the request, not on state, so it is safe outside the
+  // updater. Secured rates are only sold with the asset they secure.
+  if (!isStandaloneLoanType(spec.type)) {
+    log.info(`Loan rejected: ${SECURED_ONLY_REASON}`);
+    return;
+  }
   setGameState((prev) => {
     // P1-3: dead players can't take out loans.
     if (isPlayerBlocked(prev)) return prev;
