@@ -62,7 +62,7 @@ import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
 import { PRESTIGE_ACHIEVEMENTS, type PrestigeAchievement } from '@/lib/prestige/prestigeAchievements';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
-import { LEGACY_PASS_XP, getCurrentSeasonId, getClaimableCount } from '@/lib/legacyPass/legacyPass';
+import { LEGACY_PASS_XP, liveSeasonIdFor, getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import { track } from '@/lib/analytics';
 import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
 import { updateStats as updateStatsAction, applyStatsDelta } from './actions/StatsActions';
@@ -3861,7 +3861,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  legacyPass: (
    weeklyChallengeXpToAward > 0 &&
    !(prevState.legacyPass &&
-     prevState.legacyPass.seasonId !== getCurrentSeasonId(now) &&
+     prevState.legacyPass.seasonId !== liveSeasonIdFor(prevState.legacyPass, now) &&
      getClaimableCount(prevState.legacyPass) > 0)
  )
  ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game';
 import { useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { adsAvailable, areAdsRemoved, isGranted, runRewardedAd } from '@/lib/ads/rewardedAd';
 import { applyDailyAdBonus, dailyAdBonusFor } from '@/lib/ads/dailyAdBonus';
 import { AD_FREE_PERK_LABEL, dailyBonusOfferMode } from '@/lib/ads/orbGates';
@@ -44,6 +45,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const safeRewardAmount = typeof rewardAmount === 'number' && isFinite(rewardAmount) && rewardAmount >= 0 ? rewardAmount: 0;
  const nextDayReward = DAILY_LOGIN_REWARDS[loginStreak % DAILY_LOGIN_REWARDS.length] || 50;
  const setGameState = useSetGameState();
+ const { saveGame } = useGameActions();
  const getGameState = useGameStateGetter();
  // Optional doubler (lib/ads/dailyAdBonus.ts). Offered when a real ad can be
  // shown, and - MON-5 - to a player who paid to remove ads as a direct grant
@@ -95,7 +97,11 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  setHiddenForAd(true);
  await waitForDismissal();
  }
- const outcome = await runRewardedAd(() => setGameState(applyDailyAdBonus), {
+ const outcome = await runRewardedAd(() => {
+ setGameState(applyDailyAdBonus);
+ // A watched ad's reward must survive a force-quit inside the autosave window.
+ void saveGame?.(false);
+ }, {
  adsRemoved: adsRemovedNow,
  placement: 'daily_bonus',
  });
