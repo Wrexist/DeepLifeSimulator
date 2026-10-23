@@ -164,9 +164,23 @@ function matchIdFor(profileId: string): string {
   return `spm-${profileId}`;
 }
 
-/** A message id unique within its thread: the week it was sent plus its index. */
-function messageIdFor(prefix: string, matchId: string, weeksLived: number, index: number): string {
-  return `${prefix}-${matchId}-w${weeksLived}-${index}`;
+/**
+ * A message id unique within its thread: the week it was sent plus the move
+ * that sent it.
+ *
+ * It used to be the week plus the thread INDEX, and the thread is capped at
+ * `MESSAGE_HISTORY_CAP`. Once a thread was full its length stayed at the cap,
+ * so a second move played in the same week minted the SAME two ids as the
+ * first - duplicate React keys in ChatScreen's FlatList (rows dropped or
+ * re-used) for every long-running chat. Every conversation option carries a
+ * cooldown of at least one game week (stamped in the same updater that appends
+ * the messages), so a match can play a given option at most once per week:
+ * (week, option) is unique for the life of the thread, cap or no cap. Ids in
+ * the old `-<index>` shape cannot collide with these, since no option id is
+ * numeric.
+ */
+function messageIdFor(prefix: string, matchId: string, weeksLived: number, optionId: string): string {
+  return `${prefix}-${matchId}-w${weeksLived}-${optionId}`;
 }
 
 function findProfile(profileId: string): DatingProfile | undefined {
@@ -1007,9 +1021,6 @@ export const playConversationOption = (
     if (!preview.ok) return { success: false, message: preview.message };
   }
 
-  const threadLengthBefore = (sp.messages[matchId] ?? []).length;
-  const playerMsgId = messageIdFor('spmsg', matchId, gameState.weeksLived ?? 0, threadLengthBefore);
-  const npcMsgId = messageIdFor('spnpc', matchId, gameState.weeksLived ?? 0, threadLengthBefore + 1);
   const now = Date.now();
 
   setGameState((prev) => {
@@ -1051,7 +1062,9 @@ export const playConversationOption = (
     };
 
     const playerMsg: SparkMessage = {
-      id: playerMsgId,
+      // Derived from `prev`'s week, the same week the cooldown is stamped on,
+      // which is what makes the id unique (see `messageIdFor`).
+      id: messageIdFor('spmsg', matchId, prev.weeksLived ?? 0, optionId),
       matchId,
       from: 'player',
       text: resolution.playerText,
@@ -1059,7 +1072,7 @@ export const playConversationOption = (
       gameWeek: prev.weeksLived ?? 0,
     };
     const npcMsg: SparkMessage = {
-      id: npcMsgId,
+      id: messageIdFor('spnpc', matchId, prev.weeksLived ?? 0, optionId),
       matchId,
       from: 'npc',
       text: resolution.npcText,

@@ -20,7 +20,7 @@
  * feed the exploit check, then overwrote it without keeping a copy (BRC-14).
  */
 import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
-import { canRestoreBackup, createBackup, restoreFromBackup, listBackups } from '@/utils/saveBackup';
+import { canRestoreBackup, createBackup, restoreFromBackup, listBackups, updateProtectedState } from '@/utils/saveBackup';
 import { describeRestorePoint, relativeTime } from '@/components/onboarding/RestoreBackupSheet';
 
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-restore-recovery';
@@ -94,12 +94,29 @@ describe('a recovery restore is not treated as an exploit', () => {
     expect((await canRestoreBackup(SLOT, clean, heavy, 'recovery')).allowed).toBe(true);
   });
 
-  it('still refuses an age regression, in either mode - that check is not about the exploit', async () => {
+  it('refuses an age regression on a rewind, but not on a recovery', async () => {
     const older = alive({ date: { age: 70 } });
     const younger = alive({ date: { age: 30 } });
 
     expect((await canRestoreBackup(SLOT, younger, older, 'rewind')).allowed).toBe(false);
-    expect((await canRestoreBackup(SLOT, younger, older, 'recovery')).allowed).toBe(false);
+    // SAVE2-1: the per-slot age high-water mark outlives the life it was set
+    // by (heir, prestige), and a Youth Pill or a Time Machine rewind lowers the
+    // age legitimately. On a recovery the check refused every backup of the
+    // life actually being played.
+    expect((await canRestoreBackup(SLOT, younger, older, 'recovery')).allowed).toBe(true);
+  });
+
+  it('lets an heir recover their own backup in a slot whose previous life reached 80', async () => {
+    // Every save advances the protected high-water marks; the parent's last
+    // save left highestAgeReached at 80, and continuing as the heir does not
+    // clear it.
+    await updateProtectedState(SLOT, alive({ date: { age: 80 }, generationNumber: 2 }));
+
+    const heirNow = alive({ date: { age: 21 }, generationNumber: 3, weeksLived: 156 });
+    const heirBackup = alive({ date: { age: 20 }, generationNumber: 3, weeksLived: 104 });
+
+    expect((await canRestoreBackup(SLOT, heirBackup, heirNow, 'recovery')).allowed).toBe(true);
+    expect((await canRestoreBackup(SLOT, heirBackup, heirNow, 'rewind')).allowed).toBe(false);
   });
 
   it('fails OPEN when the check itself throws', async () => {

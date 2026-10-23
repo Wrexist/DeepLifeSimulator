@@ -261,7 +261,7 @@ export default function WeddingPopup() {
             {/* Continue button - pinned OUTSIDE the scroller on purpose, so the
                 one way to dismiss the popup is on screen the moment it opens
                 and never scrolls away. */}
-            <TouchableOpacity style={styles.continueButton} onPress={closePopup}>
+            <TouchableOpacity accessibilityRole="button" style={styles.continueButton} onPress={closePopup}>
               <LinearGradient
                 colors={['#FFD700', '#FFA500', '#FF8C00']}
                 style={styles.buttonGradient}

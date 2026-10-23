@@ -16,6 +16,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Gem } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import {
@@ -38,6 +39,7 @@ const SLOT_WAIT_MS = 8000;
 export default function YearEndBreak() {
   const { theme } = useTheme();
   const setGameState = useSetGameState();
+  const { saveGame } = useGameActions();
   const getGameState = useGameStateGetter();
   const [offer, setOffer] = useState<YearEndOffer | null>(getYearEndOffer);
   const [secondsLeft, setSecondsLeft] = useState<number>(YEAR_END_BREAK.introSeconds);
@@ -79,6 +81,9 @@ export default function YearEndBreak() {
       await adMobService.showRewardedInterstitialAd(() => {
         if (!claimYearEndReward(current.boundaryWeek)) return;
         setGameState((prev) => applyYearEndReward(prev, current.boundaryWeek));
+        // A watched ad's reward must survive a force-quit inside the autosave
+        // window; saveGame waits for the pending commit itself.
+        void saveGame?.(false);
       }, { placement: 'year_end' });
     } catch (error) {
       logger.warn('[ads] year-end break failed', {

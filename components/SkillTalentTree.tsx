@@ -236,7 +236,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleDismiss} statusBarTranslucent>
       <View style={styles.root}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} accessible={false} importantForAccessibility="no" accessibilityElementsHidden />
         </Animated.View>
 
         <Animated.View style={[styles.sheet, { transform: [{ translateY: slideY }] }]}>
@@ -255,7 +255,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
                 {skillId.charAt(0).toUpperCase() + skillId.slice(1)} • Level {skillLevel}
               </Text>
             </View>
-            <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} accessibilityLabel="Close">
+            <TouchableOpacity accessibilityRole="button" onPress={handleDismiss} style={styles.closeBtn} accessibilityLabel="Close">
               <X size={scale(18)} color="rgba(226, 232, 240, 0.7)" />
             </TouchableOpacity>
           </View>
@@ -297,7 +297,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
                   : 'rgba(226, 232, 240, 0.35)';
 
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={node.id}
                   onPress={() => handleNodePress(node)}
                   activeOpacity={0.85}
@@ -362,7 +362,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
           {selectedNode && getNodeStatus(selectedNode) === 'available' ? (
             <View style={[styles.stickyCta, { paddingBottom: verticalScale(12) + Math.max(insets.bottom, verticalScale(8)) }]}>
               <BlurViewFallback intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-              <TouchableOpacity activeOpacity={0.85} onPress={handleUnlock} style={styles.unlockBtnWrap}>
+              <TouchableOpacity accessibilityRole="button" activeOpacity={0.85} onPress={handleUnlock} style={styles.unlockBtnWrap}>
                 <LinearGradient
                   colors={[tree.accent[0], tree.accent[1]]}
                   start={{ x: 0, y: 0 }}

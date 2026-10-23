@@ -912,6 +912,14 @@ export function quoteLoan(
      * politics adjustments and floored at the same 0.025 floor via `effectiveLoanAPR`.
      */
     loanDelta?: number;
+    /**
+     * Product-specific APR adjustment (decimal; + surcharge, − discount) - the
+     * mortgage / auto-loan PMI surcharge or high-down-payment discount. Applied
+     * with the credit and politics terms, BEFORE the floor, the Private Banking
+     * cap and the rate environment, so none of those can be walked around by
+     * it (ECO2-4). Omitted = 0, the old price for every caller.
+     */
+    aprAdjustment?: number;
   }
 ): { rejected: false; offeredAPR: number; weeklyPayment: number; totalRepaid: number } | { rejected: true; reason: string } {
   const minScore = MIN_SCORE_BY_LOAN_TYPE[request.type];
@@ -933,9 +941,10 @@ export function quoteLoan(
   const aprFloor = typeof request.aprFloor === 'number' && isFinite(request.aprFloor)
     ? Math.max(0.025, request.aprFloor)
     : 0.025;
+  const aprAdjustment = safe(request.aprAdjustment, 0);
   let offeredAPR = Math.max(
     aprFloor,
-    baseByType[request.type] + creditScoreAPRAdjustment(banking.creditScore.score) - aprReduction
+    baseByType[request.type] + creditScoreAPRAdjustment(banking.creditScore.score) - aprReduction + aprAdjustment
   );
   // Private Banking IAP caps the rate (never below the 0.025 floor).
   if (typeof request.aprCap === 'number' && isFinite(request.aprCap)) {

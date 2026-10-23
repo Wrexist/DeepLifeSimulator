@@ -867,7 +867,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  ? describeRejectReason(elig.reason, { cooldownUntilWeek: elig.cooldownUntilWeek, weeksLived })
  : '';
  return (
- <TouchableOpacity
+ <TouchableOpacity accessibilityRole="button"
  key={action.id}
  style={[styles.parentingAction, disabled && styles.parentingActionDisabled]}
  onPress={() => handleParentingAction(child.id, action.id)}

@@ -375,8 +375,12 @@ export default function SaveSlots() {
         return;
       }
 
+      // `replace`, like the other two doors into a life (MainMenu's Continue
+      // and the start ceremony). A push left the slot picker under the loaded
+      // game, so a back gesture from Home returned to the menu with the life
+      // still live in memory.
       setTimeout(() => {
-        router.push('/(tabs)/home');
+        router.replace('/(tabs)/home');
       }, 80);
     } catch (error) {
       if (isSaveFromFutureError(error)) {
@@ -732,11 +736,8 @@ export default function SaveSlots() {
         cancelText="Cancel"
         destructive
         type="danger"
-        onConfirm={() => {
-          if (showDeleteConfirm !== null) {
-            void deleteSlot(showDeleteConfirm);
-          }
-        }}
+        // Returned, so the dialog stays latched until the delete settles.
+        onConfirm={() => (showDeleteConfirm !== null ? deleteSlot(showDeleteConfirm) : undefined)}
         onCancel={() => setShowDeleteConfirm(null)}
       />
     </View>

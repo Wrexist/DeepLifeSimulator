@@ -26,6 +26,7 @@ import {
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobApplicationOdds } from '@/lib/careers/applicationOdds';
 import { politicalPromotionBlocker } from '@/lib/careers/political';
+import { evaluateHiring, getEntryJobProfile } from '@/lib/careers/jobMarket';
 /**
  * Re-exported so existing importers of `RAISE_MIN_PERFORMANCE` keep working.
  * The constant itself now lives in `lib/careers/raisePremium` — `lib/mail`
@@ -1014,6 +1015,16 @@ export const applyForJob = (
     return { success: false, message: `Missing required education: ${eduNames}` };
   }
 
+  // The entry tier's hiring bar (lib/careers/jobMarket.ts: electrician wants
+  // Fitness 25, the kitchen Health 50, ...). The Work tab has always locked the
+  // card on it, but this action never asked, so the bar was a label rather than
+  // a gate: an Apply that reached here with the stats short (a same-batch drop,
+  // any non-card caller) was hired anyway (LIFE2-4, 2026-10-23).
+  const hiring = evaluateHiring(getEntryJobProfile(careerId), gameState);
+  if (!hiring.eligible) {
+    return { success: false, message: `They want - ${hiring.missing.join(' · ')}` };
+  }
+
   // All requirements met - apply for the job
   const applicationAttempts = (career.applicationAttempts || 0) + 1;
 
@@ -1040,6 +1051,7 @@ export const applyForJob = (
     // themselves accepted and corrupt careerHistory.
     if (prev.careers.some(c => c.applied && !c.accepted)) return prev;
     if (prev.currentJob) return prev;
+    if (!evaluateHiring(getEntryJobProfile(careerId), prev).eligible) return prev;
     const updatedCareers = prev.careers.map(c => {
       if (c.id !== careerId) return c;
 

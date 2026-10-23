@@ -17,6 +17,7 @@ import { letterFromEvent } from './letters';
 import { arrearsInvoice, jobOfferLetter } from './offers';
 import { breachNotice, extortionDemand } from './security';
 import { mailEvents } from '@/lib/events/routing';
+import { getMailState } from './state';
 import type { MailContext, MailFacts } from './types';
 import { makeLifeRoll } from '@/utils/seededRoll';
 
@@ -96,7 +97,17 @@ export function generateWeeklyMail(input: GenerateMailInput): MailMessage[] {
   // event, the career) rather than the week, so a decision that stays open for
   // several weeks is delivered once and `appendMessages` drops the repeats.
   try {
+    // An event that already has an OPEN letter is delivered, whatever that
+    // letter's id. This is what keeps a save written before letters were keyed
+    // per instance (see `letterIdFor`) from getting a second copy of a letter
+    // it is still holding.
+    const openLetterFor = new Set<string>();
+    for (const m of getMailState(input.state).messages) {
+      const resolver = m.decision?.resolver;
+      if (resolver && resolver.kind === 'event' && !m.decision?.chosenId) openLetterFor.add(resolver.eventId);
+    }
     for (const event of mailEvents(input.state)) {
+      if (openLetterFor.has(event.id)) continue;
       const letter = letterFromEvent(event, week);
       if (letter) out.push(letter);
     }

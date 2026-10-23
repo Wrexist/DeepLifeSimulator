@@ -737,7 +737,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 />
 
                 {/* Special Discord Button with Animation */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.discordButtonContainer}
                   onPress={handleJoinDiscord}
                   activeOpacity={0.9}

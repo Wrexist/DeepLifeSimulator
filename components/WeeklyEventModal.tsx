@@ -4,10 +4,11 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions
 import { AlertCircle, CheckCircle, Circle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
 import type { EnhancedEventChoice, EventSpecial } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
-import { getCurrentSeason } from '@/lib/events/seasonalEvents';
+import { getCurrentSeason, SEASONAL_EVENT_IDS } from '@/lib/events/seasonalEvents';
 import { modalEvents } from '@/lib/events/routing';
 import { getCurrentEconomicState } from '@/lib/events/economyEvents';
 import { resolveEventMoney } from '@/lib/events/moneyScaling';
+import { previewEventStatDelta } from '@/lib/events/statEffects';
 import { choiceAvailability } from '@/lib/events/choiceAffordability';
 import { netWorth } from '@/lib/progress/achievements';
 import type { GameState } from '@/contexts/game/types';
@@ -161,15 +162,6 @@ export default function WeeklyEventModal() {
  // Malformed events are cleared by the effect above; render nothing meanwhile.
  if (isMalformed) return null;
 
- // Check if this is a seasonal event
- const seasonalEventIds = [
- 'spring_festival', 'garden_event', 'beach_party', 'summer_sale',
- 'harvest_festival', 'career_fair', 'winter_holidays', 'new_year',
- 'valentines_day', 'halloween', 'christmas', 'easter_egg_hunt',
- 'spring_cleaning', 'summer_music_festival', 'national_holiday',
- 'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'
- ];
-
  // Check if this is an economic event
  const economicEventIds = [
  'economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift'
@@ -185,7 +177,7 @@ export default function WeeklyEventModal() {
  ];
  const isPersonalCrisisEvent = personalCrisisEventIds.includes(event.id);
 
- const isSeasonalEvent = seasonalEventIds.includes(event.id);
+ const isSeasonalEvent = SEASONAL_EVENT_IDS.has(event.id);
  const seasonData = isSeasonalEvent ? getCurrentSeason(gameState.weeksLived || 0): null;
 
  // Determine event type for notification design
@@ -522,13 +514,17 @@ export default function WeeklyEventModal() {
  </Text>
  </View>
  )}
- {Object.entries(statChanges).map(([stat, change]) => (
- <View key={stat} style={[styles.effectBadge, (change as number) > 0 ? styles.positiveBadge: styles.negativeBadge]}>
+ {Object.entries(statChanges).map(([stat, rawChange]) => {
+ // What the resolver will actually add (happiness gains taper).
+ const change = previewEventStatDelta(stat, gameState.stats?.[stat as keyof GameState['stats']] as number, rawChange as number);
+ return (
+ <View key={stat} style={[styles.effectBadge, (rawChange as number) > 0 ? styles.positiveBadge: styles.negativeBadge]}>
  <Text style={styles.effectBadgeText}>
- {stat.charAt(0).toUpperCase() + stat.slice(1)} {(change as number) > 0 ? '+': ''}{change}
+ {stat.charAt(0).toUpperCase() + stat.slice(1)} {(rawChange as number) > 0 ? '+': ''}{change}
  </Text>
  </View>
- ))}
+ );
+ })}
  {relationshipChange!== 0 && (
  <View style={[styles.effectBadge, relationshipChange > 0 ? styles.positiveBadge: styles.negativeBadge]}>
  <Text style={styles.effectBadgeText}>

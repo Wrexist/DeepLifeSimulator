@@ -27,6 +27,7 @@
 import { HOMELESS_PENALTY, RENTAL_TIERS, computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import type { GameState } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+import { energyAfterDrain } from '@/lib/economy/energyRegen';
 
 /** The bottom rung of the rental ladder - the fix the homeless notice names. */
 const cheapestRental = RENTAL_TIERS.reduce((a, b) => (b.weeklyRent < a.weeklyRent ? b : a), RENTAL_TIERS[0]);
@@ -80,7 +81,8 @@ export function applyHousingWellbeing(
   const owns = wellbeing.owned;
 
   ctx.newStats.health = clampStat(ctx.newStats.health + wellbeing.health);
-  ctx.newStats.energy = clampStat(ctx.newStats.energy + wellbeing.energy);
+  // Energy is floored, not capped: the updater caps it once after every drain.
+  ctx.newStats.energy = energyAfterDrain(ctx.newStats.energy, wellbeing.energy);
 
   if (wellbeing.homeless) {
     // Once, on a cadence — not every week. A penalty the player is reminded of

@@ -79,7 +79,7 @@ export function jobOfferLetter(
     {
       id: 'negotiate',
       label: 'Ask for more before signing',
-      detail: `${docMoney(negotiated)} a week if they agree`,
+      detail: `${docMoney(negotiated)} a week if they agree. If not, they withdraw the offer.`,
       kind: 'neutral',
     },
     {

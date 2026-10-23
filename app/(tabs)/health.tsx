@@ -22,6 +22,7 @@ import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import GymCard from '@/components/health/GymCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
+import { fitnessGainAfterSkills } from '@/lib/skillTrees/lifeSkillEffects';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { CRITICAL_VITAL, rhythm, vitalState } from '@/lib/config/hierarchy';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
@@ -188,7 +189,10 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         delta: Math.round(scaledHappinessGain(gameState.stats?.happiness ?? 0, activity.happinessGain)),
       });
     }
-    if (activity.fitnessGain) out.push({ stat: 'fitness', delta: healthCommitment.progress(activity.fitnessGain) });
+    if (activity.fitnessGain) {
+      // Peak Performance scales it too, the same way the action does.
+      out.push({ stat: 'fitness', delta: Math.round(fitnessGainAfterSkills(gameState, healthCommitment.progress(activity.fitnessGain))) });
+    }
     if (typeof activity.energyCost === 'number' && activity.energyCost !== 0) {
       // energyCost positive means it costs energy; negative means it restores energy.
       out.push({ stat: 'energy', delta: -energyCostOf(activity) });

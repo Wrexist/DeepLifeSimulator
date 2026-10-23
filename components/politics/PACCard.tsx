@@ -57,19 +57,19 @@ export default function PACCard({ pac, darkMode, onRaiseClean, onRaiseDirty, onS
 
       <View style={styles.actionsRow}>
         {onRaiseClean && (
-          <TouchableOpacity onPress={onRaiseClean} style={[styles.btn, { backgroundColor: accent.success }]}>
+          <TouchableOpacity accessibilityRole="button" onPress={onRaiseClean} style={[styles.btn, { backgroundColor: accent.success }]}>
             <Plus size={scale(12)} color="white" />
             <Text style={styles.btnText}>Raise clean</Text>
           </TouchableOpacity>
         )}
         {onRaiseDirty && (
-          <TouchableOpacity onPress={onRaiseDirty} style={[styles.btn, { backgroundColor: accent.warning }]}>
+          <TouchableOpacity accessibilityRole="button" onPress={onRaiseDirty} style={[styles.btn, { backgroundColor: accent.warning }]}>
             <Bitcoin size={scale(12)} color="white" />
             <Text style={styles.btnText}>Funnel BTC</Text>
           </TouchableOpacity>
         )}
         {onSpend && total > 0 && (
-          <TouchableOpacity onPress={onSpend} style={[styles.btn, { backgroundColor: accent.info }]}>
+          <TouchableOpacity accessibilityRole="button" onPress={onSpend} style={[styles.btn, { backgroundColor: accent.info }]}>
             <Send size={scale(12)} color="white" />
             <Text style={styles.btnText}>Spend</Text>
           </TouchableOpacity>

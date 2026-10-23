@@ -226,7 +226,10 @@ export function buildNewGameState(params: BuildGameStateParams): any {
   // advertised stat bonuses (iron_will, lucky_charm, trust_fund, etc.
   // were essentially cosmetic). Permanent perks earn the same boosts.
   const perkStatBoosts: Record<string, number> = {};
-  const allActivePerkIds = [...permanentPerks, ...selectedPerks];
+  // De-duplicated: a perk that is both permanent and in the draft's selection
+  // (a stale draft, or one bought after it was picked) is ONE perk, and used
+  // to pay its boosts twice - a Trust Fund started a life on $30,000.
+  const allActivePerkIds = Array.from(new Set([...permanentPerks, ...selectedPerks]));
   for (const perkId of allActivePerkIds) {
     const perk = perksCatalog.find((p) => p.id === perkId);
     if (!perk?.effects?.statBoosts) continue;

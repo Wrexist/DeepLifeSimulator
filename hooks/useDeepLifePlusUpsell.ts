@@ -23,6 +23,7 @@ import { haptic } from '@/utils/haptics';
 import { track } from '@/lib/analytics';
 import { subscriptionService } from '@/services/SubscriptionService';
 import { isDeepLifePlusActive } from '@/lib/subscription/deepLifePlus';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 
 export function useDeepLifePlusUpsell(surface: string) {
   const [open, setOpen] = useState(false);
@@ -66,5 +67,13 @@ export function useDeepLifePlusUpsell(surface: string) {
     setActive(isDeepLifePlusActive());
   }, []);
 
-  return { active, open, present, close };
+  // A permanent premium unlock recorded in the SAVE (MON2-3): the Mega Pack
+  // writes `lifetimePremium` under its own product id, so the store-ledger
+  // check above never sees it and the gem shop / ad sheet kept selling
+  // DeepLife+ to a player who already owns it forever.
+  const ownsLifetimeInSave = useGameSelector(
+    (s) => s?.settings?.lifetimePremium === true || s?.settings?.everythingUnlocked === true,
+  );
+
+  return { active: active || ownsLifetimeInSave, open, present, close };
 }

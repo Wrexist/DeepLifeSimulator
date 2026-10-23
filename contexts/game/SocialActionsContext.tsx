@@ -14,6 +14,7 @@ import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
 import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
+import { makeLifeRoll } from '@/utils/seededRoll';
 
 /**
  * Social actions - dating, gifts, weddings, children, divorce.
@@ -37,12 +38,23 @@ import { useUIUX } from '@/contexts/UIUXContext';
  * `recordInteraction` (Call / Hang Out - once per action per week, priced) and
  * `raiseRelationship` (the paid gesture, diminishing, once a week), both in
  * `ContactsActions`. Deleting the unguarded twins leaves one way to do it.
+ *
+ * TWO MORE went the same way (SOC2-4, 2026-10-23), for the same reason:
+ *
+ *   - `breakUp(id)` - zero callers, and an unguarded twin of
+ *     `GameActions.breakUpWithPartner`, which is what Contacts calls. It had
+ *     none of that function's fixes: no pregnancy hold (SOC-8 - it silently
+ *     erased an announced baby), no Spark un-promote, its -15 happiness was a
+ *     SECOND dispatch outside the updater (a double tap paid it twice, the M1
+ *     class), and it removed an engaged partner without a word about the ring
+ *     or the paid wedding deposit.
+ *   - `startDating(id)` - zero callers, changed nothing, and announced "You
+ *     started a new relationship!" all the same. A verb that reports success
+ *     for a state change it never makes is worse than no verb.
  */
 interface SocialActionsContextType {
   // Dating & Relationships
   executeWedding: (partnerId: string) => void;
-  startDating: (characterId: string) => void;
-  breakUp: (relationshipId: string) => void;
 
   // Social Actions
   goOnDate: (characterId: string) => void;
@@ -120,52 +132,6 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     }
   }, [setGameState, showError, showInfoBanner]);
 
-  const startDating = useCallback((characterId: string) => {
-    const state = getGameState();
-    if (!state) return;
-
-    // Check if already in a relationship
-    const existingPartner = state.relationships?.find(r => r.type === 'partner' || r.type === 'spouse');
-    if (existingPartner) {
-      showError('Already in a Relationship', `You are already with ${existingPartner.name}.`);
-      return;
-    }
-
-    logger.info('Started dating:', { characterId });
-    showInfoBanner('Dating', 'You started a new relationship!');
-  }, [showError, showInfoBanner]);
-
-  const breakUp = useCallback((relationshipId: string) => {
-    const state = getGameState();
-    if (!state) return;
-
-    const relationship = state.relationships?.find(r => r.id === relationshipId);
-    if (!relationship) {
-      showError('Error', 'Relationship not found.');
-      return;
-    }
-
-    if (relationship.type === 'spouse') {
-      showError('Cannot Break Up', 'You are married. File for divorce instead.');
-      return;
-    }
-
-    if (relationship.type !== 'partner' && relationship.type !== 'friend') {
-      showError('Error', 'You cannot break up with this person.');
-      return;
-    }
-
-    // Remove the relationship and decrease happiness
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).filter(r => r.id !== relationshipId),
-    }));
-    rawUpdateStats(setGameState, { happiness: -15 });
-
-    showInfoBanner('Break Up', `You ended your relationship with ${relationship.name}.`);
-    logger.info('Broke up with:', { relationshipId, name: relationship.name });
-  }, [setGameState, showError, showInfoBanner]);
-
   // --- Social Actions ---
 
   const goOnDate = useCallback((characterId: string) => {
@@ -223,9 +189,14 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
       female: ['Abigail', 'Beatrice', 'Catherine', 'Delilah', 'Elizabeth', 'Felicity', 'Gabriella', 'Hannah', 'Isabella', 'Jessica', 'Katherine', 'Lily', 'Madison', 'Natalie', 'Olivia', 'Penelope', 'Quinn', 'Rebecca', 'Sophia', 'Taylor', 'Ursula', 'Victoria', 'Willow', 'Xanthe', 'Yasmine', 'Zoe']
     };
 
-    const childGender: 'male' | 'female' = Math.random() < 0.5 ? 'male' : 'female';
+    // Seeded on the life, the week and the partner (CLAUDE.md §4.3, Program
+    // 14), not an unseeded draw: the gender and name are written into the save
+    // and announced, so a reload must not re-roll them - and the same life
+    // replayed must conceive the same child.
+    const roll = makeLifeRoll(state, state.weeksLived || 0);
+    const childGender: 'male' | 'female' = roll(`conceive:${partnerId}:gender`) < 0.5 ? 'male' : 'female';
     const namePool = childNames[childGender];
-    const childName = namePool[Math.floor(Math.random() * namePool.length)];
+    const childName = namePool[Math.min(namePool.length - 1, Math.floor(roll(`conceive:${partnerId}:name`) * namePool.length))];
 
     // Start pregnancy instead of instant child creation
     setGameState(prev => {
@@ -315,14 +286,12 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
   const value = useMemo<SocialActionsContextType>(() => ({
     executeWedding: executeWeddingAction,
-    startDating,
-    breakUp,
     goOnDate,
     giveGift,
     haveChild,
     nameChild,
     divorce,
-  }), [executeWeddingAction, startDating, breakUp, goOnDate, giveGift, haveChild, nameChild, divorce]);
+  }), [executeWeddingAction, goOnDate, giveGift, haveChild, nameChild, divorce]);
 
   return (
     <SocialActionsContext.Provider value={value}>

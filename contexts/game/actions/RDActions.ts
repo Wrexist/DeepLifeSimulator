@@ -469,6 +469,22 @@ export const filePatent = (
   return { success: true, message: `Patent filed: ${technology.name}! Weekly income: $${patent.weeklyIncome.toLocaleString('en-US')}` };
 };
 
+/**
+ * Whether `company` has an unresolved entry in `competitionId`. One entry per
+ * competition at a time - the rule the R&D panel shows (its Enter button reads
+ * this same condition). The action used to key it on the entry WEEK as well,
+ * so a player could enter the same competition again every week while the
+ * first entry was still pending, each a separate prize roll (APP2-6).
+ */
+export function hasPendingCompetitionEntry(
+  company: Pick<GameState['companies'][number], 'competitionHistory'>,
+  competitionId: string,
+): boolean {
+  return (company.competitionHistory || []).some(
+    (entry) => entry.competitionId === competitionId && !entry.completed,
+  );
+}
+
 export const enterCompetition = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
@@ -491,14 +507,7 @@ export const enterCompetition = (
   }
 
   // Check if already entered
-  const competitionHistory = company.competitionHistory || [];
-  const alreadyEntered = competitionHistory.some(
-    entry => entry.competitionId === competitionId && 
-             entry.entryWeek === absoluteWeek &&
-             !entry.completed
-  );
-
-  if (alreadyEntered) {
+  if (hasPendingCompetitionEntry(company, competitionId)) {
     return { success: false, message: 'You have already entered this competition' };
   }
 
@@ -544,12 +553,7 @@ export const enterCompetition = (
     const target = (prev.companies || []).find(c => c.id === companyId);
     if (!target) return prev;
 
-    const enteredInPrev = (target.competitionHistory || []).some(
-      entry => entry.competitionId === competitionId &&
-               entry.entryWeek === absoluteWeek &&
-               !entry.completed
-    );
-    if (enteredInPrev) return prev; // second same-batch tap - reject atomically
+    if (hasPendingCompetitionEntry(target, competitionId)) return prev; // second same-batch tap - reject atomically
 
     const spend = applyMoneyDelta(prev, -competition.entryCost, `Enter ${competition.name}`);
     if (!spend) return prev; // unaffordable (race guard) - reject atomically

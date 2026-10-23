@@ -62,7 +62,7 @@ export default function EnactPolicyModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" accessibilityElementsHidden />
         <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -144,7 +144,7 @@ function PolicyRow({
         },
       ]}
     >
-      <TouchableOpacity onPress={onToggle} activeOpacity={0.7} style={styles.rowHeader}>
+      <TouchableOpacity accessibilityRole="button" onPress={onToggle} activeOpacity={0.7} style={styles.rowHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.policyName, { color: theme.text }]} numberOfLines={1}>
             {policy.name}
@@ -188,7 +188,7 @@ function PolicyRow({
             ) : null}
           </View>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             disabled={!affordable}
             onPress={onEnact}
             style={[

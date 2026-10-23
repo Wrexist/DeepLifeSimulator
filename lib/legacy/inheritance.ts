@@ -9,6 +9,7 @@ import {
 } from './dynasty';
 import { netWorth } from '@/lib/progress/achievements';
 import { vaultItemIds } from '@/lib/dynasty/state';
+import { capLegacyBonuses } from './legacyBonuses';
 
 export interface InheritanceSummary {
   totalNetWorth: number;
@@ -267,11 +268,13 @@ export function computeInheritance(state: GameState): InheritanceSummary {
     bankSavings,
     debts,
     generatedMemories,
-    legacyBonuses: {
+    // Capped (D11): heirlooms stack without a bound, and these values are now
+    // APPLIED, not just shown - see lib/legacy/legacyBonuses.ts.
+    legacyBonuses: capLegacyBonuses({
       incomeMultiplier: finalIncomeMultiplier,
       learningMultiplier: finalLearningMultiplier,
       reputationBonus: finalReputationBonus,
-    },
+    }),
     // Dynasty & Heirloom System
     newHeirloom: newHeirloom || undefined,
     updatedHeirlooms,
