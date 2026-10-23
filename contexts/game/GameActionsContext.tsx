@@ -32,6 +32,7 @@ import { evaluateAchievements, netWorth, netWorth as canonicalNetWorth } from '@
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { isChoiceSelectable } from '@/lib/events/choiceAffordability';
 import { applyEventStatDeltas } from '@/lib/events/statEffects';
+import { SEASONAL_EVENT_IDS } from '@/lib/events/seasonalEvents';
 import { rollWeeklyLuckSeed, netEngagementBonus, ENGAGEMENT_BONUS_BASE_CAP } from '@/lib/economy/luckyBonus';
 import { longevityPivot } from '@/lib/statistics/lifeExpectancy';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
@@ -4587,14 +4588,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // Determine event category (needed for consequence tracking)
- const seasonalEventIds = ['spring_festival', 'garden_event', 'beach_party', 'summer_sale', 'harvest_festival', 'career_fair', 'winter_holidays', 'new_year', 'valentines_day', 'halloween', 'christmas', 'easter_egg_hunt', 'spring_cleaning', 'summer_music_festival', 'national_holiday', 'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'];
+ // Built from the seasonal template list, so a renamed or added template
+ // cannot fall out of the 'seasonal' category (EVT2-4).
  const economicEventIds = ['economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift', 'economic_event_end'];
  // `card_fraud` was the engine's second `identity_theft` until the duplicate
  // id was split; it keeps the classification it always had.
  const personalCrisisEventIds = ['medical_emergency', 'identity_theft', 'card_fraud', 'investment_opportunity', 'job_offer', 'relationship_crisis', 'legal_issue'];
 
  let eventCategory: 'regular' | 'seasonal' | 'economic' | 'personal_crisis' = 'regular';
- if (seasonalEventIds.includes(eventId)) {
+ if (SEASONAL_EVENT_IDS.has(eventId)) {
  eventCategory = 'seasonal';
  } else if (economicEventIds.includes(eventId)) {
  eventCategory = 'economic';
