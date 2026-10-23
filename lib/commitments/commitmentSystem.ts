@@ -237,7 +237,10 @@ export function canChangeCommitments(gameState: GameState): {
   weeksUntilChange: number;
 } {
   const commitments = gameState.activityCommitments;
-  if (!commitments?.lastChangedWeek) {
+  // `typeof`, not truthiness: an age-18 life starts at weeksLived 0, so a
+  // change made in its first week stamps 0, and `!0` read as "never changed"
+  // and skipped the lock.
+  if (typeof commitments?.lastChangedWeek !== 'number' || !Number.isFinite(commitments.lastChangedWeek)) {
     return { canChange: true, weeksUntilChange: 0 };
   }
 
