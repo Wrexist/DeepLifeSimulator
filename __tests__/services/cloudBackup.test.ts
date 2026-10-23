@@ -449,7 +449,8 @@ describe('the live-game restore (contexts/game/GameActionsContext.tsx)', () => {
 
   it('disarms the armed upload BEFORE the live state is replaced', () => {
     const disarm = restoreBody.indexOf('resetCloudBackupSchedule()');
-    const swap = restoreBody.indexOf('setGameState(outcome.state)');
+    // The swap merges account entitlements against the live state (D17).
+    const swap = restoreBody.indexOf('setGameState(prev => mergeAccountEntitlementsFromLive(prev, restoredState))');
     expect(disarm).toBeGreaterThan(-1);
     expect(swap).toBeGreaterThan(-1);
     // After the swap is too late: the upload is a timer callback carrying the
