@@ -976,7 +976,7 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId, wallet 
       onShow={() => setSheetShown(true)}
     >
       <View style={styles.overlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close store">
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessible={false} importantForAccessibility="no" accessibilityElementsHidden>
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2, 6, 23, 0.72)' }]} />
         </TouchableOpacity>
 

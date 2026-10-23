@@ -68,7 +68,11 @@ describe('the card quotes what the tick applies', () => {
       path.join(__dirname, '..', '..', 'contexts', 'game', 'actions', 'weekly', 'applyDietPlan.ts'),
       'utf8',
     );
-    const adds = tick.match(/ctx\.newStats\.\w+ \+ activeDietPlan\.\w+Gain/g) ?? [];
+    // Energy goes through energyAfterDrain (TICK2-1: the end-of-tick cap
+    // owns the 100 ceiling), health and happiness add in place.
+    const adds = tick.match(
+      /ctx\.newStats\.\w+ \+ activeDietPlan\.\w+Gain|energyAfterDrain\(ctx\.newStats\.energy, activeDietPlan\.energyGain\)/g,
+    ) ?? [];
 
     expect(adds).toHaveLength(3);
     expect(tick).not.toMatch(/Gain \* 7/);

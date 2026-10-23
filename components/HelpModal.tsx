@@ -838,7 +838,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
                   const key = section.category + item.question;
                   return (
                     <View key={key} style={styles.item}>
-                      <TouchableOpacity onPress={() => toggleItem(key)}>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => toggleItem(key)}>
                         <Text style={itemTextStyle}>{item.question}</Text>
                       </TouchableOpacity>
                       {expanded[key] && <Text style={answerStyle}>{item.answer}</Text>}
@@ -849,7 +849,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
             ))}
           </ScrollView>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.contactButton, settings.darkMode && styles.contactButtonDark]}
             onPress={handleContactSupport}
           >

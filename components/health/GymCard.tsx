@@ -24,6 +24,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import StatEffectChips from '@/components/market/StatEffectChips';
 import { clampStat, clampStatByKey } from '@/utils/statUtils';
 import { scaledHappinessGain } from '@/lib/economy/happinessGain';
+import { fitnessGainAfterSkills } from '@/lib/skillTrees/lifeSkillEffects';
+
+/** A session's base fitness gain, before the Peak Performance life skill. */
+const GYM_FITNESS_GAIN = 5;
 
 
 const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
@@ -52,11 +56,12 @@ export default function GymCard() {
     const fitness = Number.isFinite(gameState.stats.fitness) ? gameState.stats.fitness : 0;
     const health = Number.isFinite(gameState.stats.health) ? gameState.stats.health : 0;
     const happiness = Number.isFinite(gameState.stats.happiness) ? gameState.stats.happiness : 0;
-    const fitnessGain = clampStat(fitness + 5) - fitness;
+    // Peak Performance ("+15% gym efficiency") - the same figure the updater adds.
+    const fitnessGain = clampStat(fitness + fitnessGainAfterSkills(gameState, GYM_FITNESS_GAIN)) - fitness;
     const healthGain = clampStat(health + 3) - health;
     const happinessGain = clampStat(happiness + 2) - happiness;
     return { fitness: fitnessGain, health: healthGain, happiness: happinessGain };
-  }, [gameState.stats.fitness, gameState.stats.health, gameState.stats.happiness]);
+  }, [gameState]);
   const gymGainsAllZero = gymGains.fitness <= 0 && gymGains.health <= 0 && gymGains.happiness <= 0;
 
   // A gym session also refreshes the gym-visit timer the weekly tick reads to
@@ -111,7 +116,7 @@ export default function GymCard() {
           ...st,
           money: clampStatByKey('money', (st.money ?? 0) - cost),
           energy: clampStatByKey('energy', (st.energy ?? 0) - energyCost),
-          fitness: clampStatByKey('fitness', (st.fitness ?? 0) + 5),
+          fitness: clampStatByKey('fitness', (st.fitness ?? 0) + fitnessGainAfterSkills(prev, GYM_FITNESS_GAIN)),
           health: clampStatByKey('health', (st.health ?? 0) + 3),
           // Through the happiness taper (CLAUDE.md 4.3) like every other gain:
           // a raw +2 per $50 session was an uncapped way to buy happiness.
@@ -167,7 +172,7 @@ export default function GymCard() {
             caption="Per session"
             darkMode={settings.darkMode}
             effects={[
-              { key: 'fitness', value: 5 },
+              { key: 'fitness', value: Math.round(fitnessGainAfterSkills(gameState, GYM_FITNESS_GAIN)) },
               { key: 'health', value: 3 },
               { key: 'happiness', value: 2 },
             ]}
@@ -178,7 +183,7 @@ export default function GymCard() {
             <Text style={styles.gymCostValue}>$50 · 20 {t('game.energy')}</Text>
           </View>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             onPress={handleGym}
             disabled={!canUseGym}
             activeOpacity={0.85}

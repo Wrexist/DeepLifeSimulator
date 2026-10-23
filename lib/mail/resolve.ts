@@ -20,9 +20,33 @@ import { getMailState, appendMessages } from './state';
 import { SENDERS } from './senders';
 import { SHIELD_WEEKS } from './security';
 import { docMoney } from './format';
+import { fnv1a32, lifeSalt } from '@/utils/seededRoll';
 
 /** The negotiated premium a first offer can win. One step of the raise ladder. */
 export const OFFER_NEGOTIATION_PREMIUM = 1.08;
+
+/**
+ * Chance the employer agrees to the improved package.
+ *
+ * Negotiating used to ALWAYS succeed, so "Accept and start now" was strictly
+ * worse than "Ask for more" on every offer ever made - the letter's own copy
+ * ("if they agree") promised a risk the code never took. When they say no,
+ * they withdraw the offer, which is what makes asking a decision. Same shape
+ * as `business_partnership`'s counter-offer (PARTNER_NEGOTIATION_SUCCESS_CHANCE,
+ * owner decision EVT-1).
+ */
+export const OFFER_NEGOTIATION_SUCCESS_CHANCE = 0.65;
+
+/**
+ * Whether the employer agrees, decided by the LIFE, the career and the
+ * application attempt - never by the week the player happens to tap, so
+ * reloading and asking again gets the same answer (§4.3), while a fresh
+ * application to the same employer is a fresh conversation.
+ */
+export function offerNegotiationAgreed(state: GameState, careerId: string, attempt: number): boolean {
+  const key = `${lifeSalt(state)}|mail-offer-negotiation|${careerId}|${Math.max(1, Math.floor(attempt || 1))}`;
+  return fnv1a32(key) / 0x100000000 < OFFER_NEGOTIATION_SUCCESS_CHANCE;
+}
 
 export interface Applied {
   state: GameState;
@@ -82,6 +106,13 @@ export function applyCareerOffer(
   }
 
   const negotiated = choiceId === 'negotiate';
+  if (negotiated && !offerNegotiationAgreed(prev, careerId, career.applicationAttempts ?? 1)) {
+    next[index] = { ...career, applied: false, accepted: false, applicationWeeksPending: 0 };
+    return {
+      state: { ...prev, careers: next },
+      outcome: 'They would not move on the package, and the offer has been withdrawn. You can apply again.',
+    };
+  }
   next[index] = {
     ...career,
     accepted: true,

@@ -129,7 +129,7 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
               const active = selected?.tier === p.tier;
               const eligible = creditScore >= p.minCreditScore;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={p.tier}
                   onPress={() => setSelected(p)}
                   disabled={!eligible}
@@ -184,7 +184,7 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
             </View>
           )}
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             disabled={!canApply}
             onPress={() => selected && onApply(selected.tier, selected.baseAPR)}
             style={[styles.confirm, { backgroundColor: canApply ? accent.info : theme.border }]}

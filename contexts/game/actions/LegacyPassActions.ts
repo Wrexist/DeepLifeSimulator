@@ -21,7 +21,7 @@ import {
   claimLegacyPassTier,
   ensureCurrentSeason,
   getClaimableTiers,
-  getCurrentSeasonId,
+  liveSeasonIdFor,
   getDefaultLegacyPass,
   getUnclaimedEarnedRewards,
   type ClaimResult,
@@ -52,7 +52,9 @@ export function applyLegacyPassReward(state: GameState, reward: LegacyPassReward
       return { ...state, youthPills: safeAdd(state.youthPills, reward.amount) };
     case 'cosmetic': {
       if (!reward.id) return state;
-      const pass = ensureCurrentSeason(state.legacyPass);
+      // Normalise against the pass's OWN season: granting a reward never rolls
+      // the season (the claim paths already reconciled it against their clock).
+      const pass = ensureCurrentSeason(state.legacyPass, state.legacyPass?.seasonId);
       return {
         ...state,
         legacyPass: { ...pass, ownedCosmetics: pushUnique(pass.ownedCosmetics, reward.id) },
@@ -126,7 +128,7 @@ export function awardLegacyPassXp(
   amount: number,
   nowMs: number = Date.now(),
 ): GameState {
-  const seasonId = getCurrentSeasonId(nowMs);
+  const seasonId = liveSeasonIdFor(state.legacyPass, nowMs);
   const current = state.legacyPass;
   if (current && current.seasonId === seasonId) {
     return { ...state, legacyPass: addLegacyPassXp(current, amount, seasonId) };
@@ -188,17 +190,30 @@ export function reconcileLegacyPassSeason(
    */
   entitlementCheckAuthoritative: boolean = true,
 ): GameState {
-  const seasonId = getCurrentSeasonId(nowMs);
+  // The permanent premium unlock recorded IN THE SAVE counts too (MON2-3).
+  // Callers pass `subscriptionService.hasPremiumAccess()`, which only sees an
+  // active subscription or the LIFETIME_PREMIUM product in the store ledger.
+  // The $99.99 Mega Pack writes `lifetimePremium` (via `everythingUnlocked`)
+  // under its own consumable product id, so the ledger never shows it: its
+  // buyer got the 250-gem drop and +25% pay that read the save flag, and an
+  // authoritative reconcile then LOCKED the Legacy Pass premium track that
+  // Lifetime Premium promises. These flags are purchases (they survive
+  // prestige), not a subscription, so nothing here can lapse them.
+  const premium =
+    premiumActiveNow ||
+    state.settings?.lifetimePremium === true ||
+    state.settings?.everythingUnlocked === true;
+  const seasonId = liveSeasonIdFor(state.legacyPass, nowMs);
   const current = state.legacyPass;
   if (current && current.seasonId === seasonId) {
     const normalized = ensureCurrentSeason(current, seasonId);
     // Re-derive premium from the live subscription: upgrade when it becomes
     // active, and downgrade when it lapses mid-season (otherwise a lapsed
     // subscriber could keep claiming premium rewards until the next rollover).
-    if (premiumActiveNow && !normalized.premiumOwned) {
+    if (premium && !normalized.premiumOwned) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: true } };
     }
-    if (!premiumActiveNow && normalized.premiumOwned && entitlementCheckAuthoritative) {
+    if (!premium && normalized.premiumOwned && entitlementCheckAuthoritative) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: false } };
     }
     return normalized === current ? state : { ...state, legacyPass: normalized };
@@ -206,7 +221,7 @@ export function reconcileLegacyPassSeason(
   // A rollover with an unknown entitlement must not START the new season
   // downgraded either — carry the old pass's flag until a real check lands.
   const rolloverPremium =
-    premiumActiveNow || (!entitlementCheckAuthoritative && current?.premiumOwned === true);
+    premium || (!entitlementCheckAuthoritative && current?.premiumOwned === true);
   return rolloverLegacyPass(state, seasonId, rolloverPremium);
 }
 
@@ -223,7 +238,7 @@ export function claimLegacyPassReward(
 ): { state: GameState; result: ClaimResult } {
   // Roll over (auto-collecting unclaimed rewards) if the season changed since the
   // pass was last reconciled — never reset to an empty pass and drop them.
-  const base = withLiveSeason(state, getCurrentSeasonId(nowMs));
+  const base = withLiveSeason(state, liveSeasonIdFor(state.legacyPass, nowMs));
   const pass = base.legacyPass;
   const result = claimLegacyPassTier(pass, track, tier);
   if (!result.ok) {
@@ -245,7 +260,7 @@ export function claimAllLegacyPassRewards(
   state: GameState,
   nowMs: number = Date.now(),
 ): { state: GameState; claimedCount: number; gemsGained: number } {
-  const seasonId = getCurrentSeasonId(nowMs);
+  const seasonId = liveSeasonIdFor(state.legacyPass, nowMs);
   // Roll over (auto-collecting unclaimed rewards) if the season changed; the
   // collected rewards land on the account even though the new season has no
   // claimable tiers, so nothing is silently lost.

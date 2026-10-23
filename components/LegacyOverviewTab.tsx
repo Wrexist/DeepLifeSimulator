@@ -99,7 +99,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
 
             {/* Quick Actions */}
             <View style={styles.actionGrid}>
-              <TouchableOpacity 
+              <TouchableOpacity accessibilityRole="button" 
                 style={[styles.actionButton, settings.darkMode && styles.actionButtonDark]}
                 onPress={() => setShowTree(true)}
               >
@@ -107,7 +107,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
                 <Text style={[styles.actionText, settings.darkMode && styles.textDark]}>Family Tree</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
+              <TouchableOpacity accessibilityRole="button" 
                 style={[styles.actionButton, settings.darkMode && styles.actionButtonDark]}
                 onPress={() => setShowMemories(true)}
               >

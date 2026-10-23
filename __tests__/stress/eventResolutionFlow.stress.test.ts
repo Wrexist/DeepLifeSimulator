@@ -308,8 +308,11 @@ describe('Random event resolution audit', () => {
       relationId: 'fiance',
       choices: [{ id: 'marry', effects: { relationship: 5 } }],
     });
+    const marriagesBefore = captured!.state.sparkApp?.lifetimeStats?.totalMarriages ?? 0;
     act(() => captured!.game.resolveEvent('wedding', 'marry'));
     expect(captured!.state.relationships?.find(r => r.id === 'fiance')?.type).toBe('spouse');
+    // SOC2-2: a marriage on the Spark record too.
+    expect(captured!.state.sparkApp?.lifetimeStats?.totalMarriages).toBe(marriagesBefore + 1);
   });
 
   it('SOC-20: "marry" does not discard a wedding the player booked while the event waited', () => {

@@ -56,6 +56,7 @@ import {
   getPerkBenefits,
   getPerkUnlockRequirementText,
   getStatColor,
+  startablePerkIds,
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
@@ -461,8 +462,11 @@ export default function Perks() {
   // with none of the player's purchased perks). 2026-09-01 UI audit.
   const { startLife, isStarting } = useStartLife();
   const start = useCallback(() => {
-    startLife({ selectedPerks: selected, selectedMindset, origin: 'Perks' });
-  }, [startLife, selected, selectedMindset]);
+    // Only what the screen shows as selected AND unlocked: a draft perk that
+    // reads as locked now (or is already permanent) must not be applied.
+    const startable = startablePerkIds(selected, perks, permanentPerks, earnedAchievementIds);
+    startLife({ selectedPerks: startable, selectedMindset, origin: 'Perks' });
+  }, [startLife, selected, selectedMindset, permanentPerks, earnedAchievementIds]);
 
   const floatingStartButton = (
     <OnboardingFloatingButton

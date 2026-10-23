@@ -55,6 +55,7 @@ import {
   settleTrials,
   trialCapacity,
   trialRewardMultiplier,
+  TRIAL_MIN_WEEKS_PLAYED,
 } from '@/lib/dynasty/trials';
 import { SEAT_FEATURE, SEAT_WINGS, buySeatWing, hasSeatWing, totalSeatCost } from '@/lib/dynasty/seat';
 import { applyDynastyTransition } from '@/lib/dynasty/transition';
@@ -69,6 +70,12 @@ import {
 import { CURRENT_STATE_VERSION, isMigrationVersionCovered, runMigrations } from '@/utils/saveMigrations';
 import { LUXURY_CATALOG } from '@/lib/luxury/catalog';
 import type { GameState } from '@/contexts/game/types';
+
+/**
+ * A life that has PLAYED a year - the minimum before a Trial settles (owner
+ * decision D2). `createTestGameState` opens at week 0 of the life.
+ */
+const LIVED_A_YEAR = { lifeStartWeek: 0, weeksLived: TRIAL_MIN_WEEKS_PLAYED } as const;
 
 const at = (totalPrestiges: number, overrides: Parameters<typeof createTestGameState>[0] = {}) =>
   createTestGameState({ ...overrides, prestige: { totalPrestiges, ...(overrides.prestige ?? {}) } });
@@ -363,7 +370,7 @@ describe('tier 4 - Dynasty Trials', () => {
 
   it('settles only ACTIVE trials, and the Chapter House doubles the payout', () => {
     const trial = DYNASTY_TRIALS[0];
-    const bearing = at(4, { dynasty: { trials: { active: [trial.id], pending: [] } } });
+    const bearing = at(4, { ...LIVED_A_YEAR, dynasty: { trials: { active: [trial.id], pending: [] } } });
     expect(settleTrials(bearing)).toEqual({ points: trial.reward, settledIds: [trial.id] });
 
     // Sworn but not yet started pays nothing - you have to live the life.
@@ -371,6 +378,7 @@ describe('tier 4 - Dynasty Trials', () => {
     expect(settleTrials(sworn).points).toBe(0);
 
     const doubled = at(5, {
+      ...LIVED_A_YEAR,
       dynasty: {
         trials: { active: [trial.id] },
         seatWings: ['seat_long_gallery', 'seat_counting_house', 'seat_chapter_house'],
@@ -436,6 +444,7 @@ describe('tier 5 - the Dynasty Seat', () => {
 describe('the transition - what actually crosses a life boundary', () => {
   const oldLife = (): GameState =>
     at(4, {
+      ...LIVED_A_YEAR,
       legacyPoints: 1_000,
       legacyContracts: { claimedIds: ['contract_prestige_1'] },
       // The vaulted watch is still OWNED: only kept heirlooms cross (a sold one

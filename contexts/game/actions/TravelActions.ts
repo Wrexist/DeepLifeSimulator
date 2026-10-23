@@ -11,6 +11,7 @@ import {
   businessOpportunityWeeklyIncomeFor,
 } from '@/lib/travel/businessOpportunity';
 import { quoteTrip, buildTripReturnSummary, isTripReady } from '@/lib/travel/operations';
+import { ownsPassport, PASSPORT_ITEM_ID } from '@/lib/travel/passport';
 import { TravelEventDef } from '@/lib/travel/events';
 import { quoteActivity } from '@/lib/travel/activities';
 import { evaluateTravelMilestones, TravelMilestoneTier } from '@/lib/travel/milestones';
@@ -336,8 +337,7 @@ export const purchasePassport = (
 ) => {
   const passportCost = 500;
 
-  const passportItem = gameState.items?.find((i) => i.id === 'passport');
-  if (gameState.travel?.passportOwned || passportItem?.owned) {
+  if (ownsPassport(gameState)) {
     return { success: false, message: 'You already own a passport' };
   }
 
@@ -351,8 +351,7 @@ export const purchasePassport = (
   // Atomic gate→debit→grant: re-check ownership + funds against prev so a
   // same-batch double-tap can't charge $500 twice for one passport.
   setGameState((prev) => {
-    const prevPassportItem = prev.items?.find((i) => i.id === 'passport');
-    if (prev.travel?.passportOwned || prevPassportItem?.owned) return prev;
+    if (ownsPassport(prev)) return prev;
     const spend = applyMoneyDelta(prev, -passportCost, 'Passport purchase');
     if (!spend) return prev;
     return {
@@ -366,6 +365,9 @@ export const purchasePassport = (
         }),
         passportOwned: true,
       },
+      // The market's passport item is the same passport (APP2-5): mark it so
+      // the shop shows it Owned instead of selling a second one.
+      items: (prev.items || []).map((i) => (i.id === PASSPORT_ITEM_ID ? { ...i, owned: true } : i)),
     };
   });
 

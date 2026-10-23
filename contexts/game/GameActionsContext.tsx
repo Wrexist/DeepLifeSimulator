@@ -32,12 +32,13 @@ import { evaluateAchievements, netWorth, netWorth as canonicalNetWorth } from '@
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { isChoiceSelectable } from '@/lib/events/choiceAffordability';
 import { applyEventStatDeltas } from '@/lib/events/statEffects';
+import { SEASONAL_EVENT_IDS } from '@/lib/events/seasonalEvents';
 import { rollWeeklyLuckSeed, netEngagementBonus, ENGAGEMENT_BONUS_BASE_CAP } from '@/lib/economy/luckyBonus';
 import { longevityPivot } from '@/lib/statistics/lifeExpectancy';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
-import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
+import { getStatDecayMultiplier , getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, companyIncomeShareOfPassive, getPoliticalWeeklySalary, managementLevels, passiveIncomeEfficiency } from '@/lib/economy/passiveIncome';
 import { STAT_DECAY_BASE_RATE } from '@/lib/economy/statDecay';
 import { perkDecayFactors } from '@/lib/economy/perkDecayShield';
@@ -45,6 +46,7 @@ import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { getSlotStorageGeneration, isPristineUnstartedState, repairGameState, repairedCommit, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
+import { legacyLearningMultiplier } from '@/lib/legacy/legacyBonuses';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
@@ -63,7 +65,7 @@ import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prest
 import { mergeAccountEntitlementsFromLive } from '@/lib/prestige/accountEntitlements';
 import { PRESTIGE_ACHIEVEMENTS, type PrestigeAchievement } from '@/lib/prestige/prestigeAchievements';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
-import { LEGACY_PASS_XP, getCurrentSeasonId, getClaimableCount } from '@/lib/legacyPass/legacyPass';
+import { LEGACY_PASS_XP, liveSeasonIdFor, getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import { track } from '@/lib/analytics';
 import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
 import { updateStats as updateStatsAction, applyStatsDelta } from './actions/StatsActions';
@@ -85,7 +87,7 @@ import { accumulateDividendsThisYear, dividendYieldModifiers, playerDividendYiel
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { advancePlayStreak, playStreakBonusPercent } from '@/lib/economy/playStreak';
 import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
-import { getStartingEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { weeklyEnergyRegen } from '@/lib/economy/energyRegen';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 import { calculateActivePolicyEffects } from './actions/PoliticalActions';
 import { getPolicyById } from '@/lib/politics/policies';
@@ -945,35 +947,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    mindset: mindsetMods,
  };
 
- // Energy REGAINS when advancing weeks (like sleeping/resting)
- // BUG FIX: Apply prestige energy regen multiplier
- // CRITICAL FIX: Don't cap regen early - apply full regen, then penalties, then cap to 100
- // Base energy regained per week. Raised 30 → 40 so the early loop isn't
- // starved: street jobs cost 15-35 energy each, and at +30 a player could only
- // sustain ~1 job/week after week 1. +40 supports ~2 jobs/week, making the
- // grind feel steady rather than stalled (new-user fun audit).
- const baseEnergyRegen = 40; // Base regain per week
+ // Energy REGAINS when advancing weeks (like sleeping/resting). Full regen is
+ // applied here, uncapped; every reducer below floors at 0 without capping
+ // (`energyAfterDrain`), and energy is capped to 100 once, after them all.
+ //
+ // The composition - base 40 (raised from 30 so the early loop isn't starved),
+ // prestige regen bonus, Energy Boost gold upgrade (+50%), Stamina life skill,
+ // and the Vigorous Start first-year window - lives in `weeklyEnergyRegen`
+ // (lib/economy/energyRegen.ts), which the HUD projection and the Energy
+ // breakdown read too. They each restated a subset of it (TICK2-2).
  const unlockedBonuses = prevState.prestige?.unlockedBonuses || [];
- // R3-A: `getEnergyRegenMultiplier` is an ES import now.
- const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
- const safeEnergyRegenMultiplier = typeof energyRegenMultiplier === 'number' && isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier: 1.0;
- // Energy Boost gold upgrade: +50% energy regen. Was sold as
- // "Maximum energy increased to 100" - the max is already 100,
- // so the original framing did nothing. Reframe as a regen
- // boost (the cap stays 100, but you reach it 50% faster).
- const energyBoostBonus = prevState.goldUpgrades?.energy_boost ? 1.5: 1.0;
- // Life Skills: Stamina (+15% energy regen - reinterpreted from "+10 max energy"
- // since the energy ceiling is a hard 100). Bounded mult from the accessor.
- const staminaRegenMult = lifeSkillMods.energyRegenMult;
- // Vigorous Start (starting_energy): +25% regen for the first year of this
- // life - the half of the bonus that a 100-energy fresh start cannot clamp
- // away (the +20 starting grant only ever helped heirs). Windowed on weeks
- // into THIS life, not the absolute counter (§4.3).
- const vigorousStartMult = getStartingEnergyRegenMultiplier(
- unlockedBonuses,
- weeksSinceLifeStart(prevState.weeksLived || 0, prevState.lifeStartWeek),
- );
- const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult * vigorousStartMult); // Full regen amount (don't cap here)
+ const energyRegen = weeklyEnergyRegen(prevState); // Full regen amount (don't cap here)
  // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
  // points). `shouldAutoRest` had exactly one occurrence in the whole repo -
  // its own definition - so the bonus was bought and never fired.
@@ -998,10 +982,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Apply weekly item bonuses (e.g., basic_bed +10 energy +5 happiness,
  // gym_membership +2 fitness +3 health). Items declare \`dailyBonus\`
  // but no tick had ever read it - buying the bed gave nothing.
+ //
+ // Happiness is held back and added AFTER the decay baseline below
+ // (`happinessAfterDecay`), so the bed's +5 is a gain the once-per-tick
+ // diminishing-returns curve sees. Folded in here, before the baseline was
+ // taken, it was the one weekly happiness source that bypassed the curve
+ // entirely - the dynamic key also hid it from happinessGainAudit (TICK2-3).
+ let itemHappinessBonus = 0;
  for (const item of (prevState.items || [])) {
  if (!item?.owned ||!item.dailyBonus) continue;
  for (const [statKey, delta] of Object.entries(item.dailyBonus)) {
- if (typeof delta!== 'number') continue;
+ if (typeof delta!== 'number' || !Number.isFinite(delta)) continue;
+ if (statKey === 'happiness') {
+   itemHappinessBonus += delta;
+   continue;
+ }
  const current = (newStats as Record<string, number>)[statKey];
  if (typeof current === 'number') {
  (newStats as Record<string, number>)[statKey] = current + delta;
@@ -1043,6 +1038,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // measuring from here keeps it at full strength and applies the curve to
  // exactly what the subsystems added.
  const happinessAfterDecay = newStats.happiness ?? 0;
+ // The owned items' happiness (see the item loop above) lands after the
+ // baseline, so the net scaling at the end of the tick treats it as a gain.
+ if (itemHappinessBonus !== 0) {
+   newStats.happiness = Math.max(0, happinessAfterDecay + itemHappinessBonus);
+ }
 
  // Fitness decay: increases the longer you don't visit the gym
  // Measured from the later of the last visit and the start of THIS life.
@@ -1217,7 +1217,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    perkFastLearner: Boolean(prevState.perks?.fastLearner),
    // GL-1: the prestige learning bonuses finally reach the thing they claim to
    // speed up. `getExperienceMultiplier` had zero call sites.
-   experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
+   // D11: the inherited Legacy learning bonus (capped +15%) rides the same
+   // multiplier - the one education-speed seam.
+   experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []) * legacyLearningMultiplier(prevState),
    // Exams are drawn per life (lifeSalt), not per week - see the input doc.
    life: { lineageId: prevState.lineageId, generationNumber: prevState.generationNumber },
  }, weeklyCtx), { updatedEducations, pendingCampusEvent: undefined });
@@ -1894,6 +1896,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  neglectDragTotal = 0;
  closeCircleSupportTotal = 0;
  spouseWhoFiled = undefined;
+ // ...and no wedding: the relationships above are carried over unmarried, so
+ // a spouse mirrored into `family.spouse` (or a popup, or a Spark marriage)
+ // from the failed pass would contradict them.
+ newWeddingSpouse = null;
+ newShowWeddingPopup = prevState.showWeddingPopup || false;
+ newWeddingPartnerName = prevState.weddingPartnerName;
  }
 
  // SOC-4: settle a spouse-filed divorce, only if the marriage really left
@@ -2564,7 +2572,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  target: p.target ?? 0,
  met: p.completed ?? p.met ?? false,
  })),
- completed: progress.every((p: any) => p.completed ?? p.met),
+ // `every` on an empty list is true: a challenge id the catalogue no longer
+ // defines evaluates to [] and used to count as complete, paying its Legacy
+ // Pass XP for nothing. Same `length > 0` rule as the rotation salvage above
+ // and `isChallengeComplete` (TICK2-4).
+ completed: progress.length > 0 && progress.every((p: any) => p.completed ?? p.met),
  };
  }
  // ── WEEKLY CHALLENGE: Grant reward on first completion (idempotent) ──
@@ -2716,6 +2728,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (spouseDivorcedThisWeek) {
    sparkAppNext = bumpSparkLifetimeStat(sparkAppNext, 'totalDivorces');
  }
+ // SOC2-2: and a wedding the tick executed is a marriage on it. The scheduled
+ // wedding lands HERE, not in `executeWedding` (which bumps the counter but is
+ // only reachable after the tick has already married them), so Spark's
+ // "Marriages" readout stayed at 0 for every player who ever married.
+ if (newWeddingSpouse) {
+   sparkAppNext = bumpSparkLifetimeStat(sparkAppNext, 'totalMarriages');
+ }
 
  // In-game subscription auto-renew billing (Pulse Verified Pro + Spark
  // Premium). These are paid from cash - NOT real App Store IAPs - so the weekly
@@ -2857,6 +2876,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  finalCryptos = cryptoTick.cryptos;
  finalCryptoMarket = cryptoTick.market;
  cryptoCapitalGainsTax = cryptoTick.capitalGainsTaxUSD ?? 0;
+ // ECO2-3: year-end crypto tax the player could not cover is arrears, like
+ // the stocks tick's shortfall below - not a gain rolled into next year.
+ if (cryptoTick.capitalGainsTaxUnpaid > 0) {
+   weeklyCtx.deferredCharges = (weeklyCtx.deferredCharges ?? 0) + cryptoTick.capitalGainsTaxUnpaid;
+ }
  bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
  applyCashAndRecord(cryptoTick.cashDelta); // TICK-A4
@@ -3867,7 +3891,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  legacyPass: (
    weeklyChallengeXpToAward > 0 &&
    !(prevState.legacyPass &&
-     prevState.legacyPass.seasonId !== getCurrentSeasonId(now) &&
+     prevState.legacyPass.seasonId !== liveSeasonIdFor(prevState.legacyPass, now) &&
      getClaimableCount(prevState.legacyPass) > 0)
  )
  ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass
@@ -4593,14 +4617,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // Determine event category (needed for consequence tracking)
- const seasonalEventIds = ['spring_festival', 'garden_event', 'beach_party', 'summer_sale', 'harvest_festival', 'career_fair', 'winter_holidays', 'new_year', 'valentines_day', 'halloween', 'christmas', 'easter_egg_hunt', 'spring_cleaning', 'summer_music_festival', 'national_holiday', 'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'];
+ // Built from the seasonal template list, so a renamed or added template
+ // cannot fall out of the 'seasonal' category (EVT2-4).
  const economicEventIds = ['economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift', 'economic_event_end'];
  // `card_fraud` was the engine's second `identity_theft` until the duplicate
  // id was split; it keeps the classification it always had.
  const personalCrisisEventIds = ['medical_emergency', 'identity_theft', 'card_fraud', 'investment_opportunity', 'job_offer', 'relationship_crisis', 'legal_issue'];
 
  let eventCategory: 'regular' | 'seasonal' | 'economic' | 'personal_crisis' = 'regular';
- if (seasonalEventIds.includes(eventId)) {
+ if (SEASONAL_EVENT_IDS.has(eventId)) {
  eventCategory = 'seasonal';
  } else if (economicEventIds.includes(eventId)) {
  eventCategory = 'economic';
@@ -4845,6 +4870,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  children: prevState.family?.children ?? [],
  spouse: eventWeddingSpouse,
  },
+ // SOC2-2: the wedding event is a marriage on the Spark record too.
+ sparkApp: bumpSparkLifetimeStat(prevState.sparkApp, 'totalMarriages'),
  }
  : {}),
  pets: updatedPets, // Update pets if changed

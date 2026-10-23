@@ -24,6 +24,7 @@ import path from 'path';
 import { acceptLoan } from '@/contexts/game/actions/LoanActions';
 import { initialGameState } from '@/contexts/game/initialState';
 import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
+import { BASE_WEEKLY_ENERGY_REGEN } from '@/lib/economy/energyRegen';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
@@ -167,7 +168,8 @@ describe('Auto-Rest fires for the bonus that promises it', () => {
   }
 
   const AUTO_REST_TARGET = constantFromTick('AUTO_REST_TARGET_ENERGY');
-  const BASE_REGEN = constantFromTick('baseEnergyRegen');
+  // The base regen moved to lib/economy/energyRegen.ts (TICK2-2), which the tick reads.
+  const BASE_REGEN = BASE_WEEKLY_ENERGY_REGEN;
 
   function energyAfterTick(startEnergy: number, bonuses: string[]): number {
     // Mirrors the tick: decide from PRE-regen energy, then apply regen, then

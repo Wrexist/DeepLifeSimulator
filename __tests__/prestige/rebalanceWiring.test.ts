@@ -222,9 +222,12 @@ describe('Vigorous Start - the half that works on every path (2026-08-23)', () =
   });
 
   it('windowed on weeks into THIS life, wired into the regen line (source pin)', () => {
-    const src = code('contexts/game/GameActionsContext.tsx');
-    expect(src).toMatch(/getStartingEnergyRegenMultiplier\(/);
-    expect(src).toMatch(/weeksSinceLifeStart\(prevState\.weeksLived \|\| 0, prevState\.lifeStartWeek\)/);
+    // The regen is composed once in lib/economy/energyRegen.ts (TICK2-2), and
+    // the tick reads it from the pre-tick state.
+    const regen = code('lib/economy/energyRegen.ts');
+    expect(regen).toMatch(/getStartingEnergyRegenMultiplier\(/);
+    expect(regen).toMatch(/weeksSinceLifeStart\(state\.weeksLived \|\| 0, state\.lifeStartWeek\)/);
+    expect(code('contexts/game/GameActionsContext.tsx')).toMatch(/weeklyEnergyRegen\(prevState\)/);
   });
 });
 

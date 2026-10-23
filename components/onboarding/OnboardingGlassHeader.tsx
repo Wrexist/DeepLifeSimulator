@@ -13,7 +13,7 @@ interface OnboardingGlassHeaderProps {
 export default function OnboardingGlassHeader({ title, onBack, onInfo }: OnboardingGlassHeaderProps) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity accessibilityLabel="Go back" onPress={onBack} style={styles.buttonWrap}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={onBack} style={styles.buttonWrap}>
         <View style={styles.glassButton}>
           <View style={styles.glassOverlay} />
           <ArrowLeft size={24} color={uiPalette.white} />
@@ -25,7 +25,7 @@ export default function OnboardingGlassHeader({ title, onBack, onInfo }: Onboard
       </Text>
 
       {onInfo ? (
-        <TouchableOpacity accessibilityLabel="More information" onPress={onInfo} style={styles.buttonWrap}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="More information" onPress={onInfo} style={styles.buttonWrap}>
           <View style={styles.glassButton}>
             <View style={styles.glassOverlay} />
             <Info size={20} color={uiPalette.white} />

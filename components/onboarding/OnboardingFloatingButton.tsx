@@ -30,7 +30,7 @@ export default function OnboardingFloatingButton({
 
   return (
     <AnimatedView style={animatedStyle}>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}

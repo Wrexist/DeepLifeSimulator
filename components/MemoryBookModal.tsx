@@ -140,7 +140,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
           },
         ]}
       >
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[
             styles.card,
             settings.darkMode ? styles.cardDark : styles.cardLight,
@@ -404,7 +404,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
           {/* Filters */}
           <View style={styles.filters}>
             {(['all', 'unlocked', 'locked'] as const).map((f) => (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 key={f}
                 style={[
                   styles.filterButton,

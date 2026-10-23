@@ -37,9 +37,9 @@ function codeOnly(src: string): string {
 const DECLARED: Record<string, string> = {
   // ── TICK_CHOKE_POINT: covered by the single net scaling in the week loop ──
   'contexts/game/GameActionsContext.tsx':
-    'TICK_CHOKE_POINT. The four direct writes here (relationship support, anniversaries, ' +
-    'housing, savings goals) are inside the weekly updater, whose net movement is scaled ' +
-    'once after every subsystem has run.',
+    'TICK_CHOKE_POINT. The five direct writes here (owned items, relationship support, ' +
+    'anniversaries, housing, savings goals) are inside the weekly updater, after the decay ' +
+    'baseline, so its net movement is scaled once after every subsystem has run.',
   'contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts': 'TICK_CHOKE_POINT (and the delta is a penalty).',
   'contexts/game/actions/weekly/applyCommitmentStats.ts':
     'TICK_CHOKE_POINT (and the delta is always a loss: the LIFE-13 neglect cost).',

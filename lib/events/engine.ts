@@ -41,6 +41,7 @@ import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker
 import { PITY_THRESHOLD_WEEKLY_EVENTS } from '@/lib/randomness/randomnessConstants';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 import { friendsOf, chosenCompanyOf } from './socialCircle';
+import { livingPets } from '@/lib/pets/lifecycle';
 
 export interface EventChoiceEffects {
   /** Flat amount. Also the FLOOR when `moneyPct` is set. Sign carries. */
@@ -821,10 +822,12 @@ const petIllness: EventTemplate = {
   id: 'pet_illness',
   category: 'general',
   weight: 0.3,
-  condition: state => state.pets?.length > 0,
+  // Living pets only: a dead pet stays in the roster for the memorial.
+  condition: state => livingPets(state.pets).length > 0,
   generate: state => {
-    if (!state.pets?.length) return { id: 'pet_illness', description: 'You hear about a sick animal.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const pet = pickSeeded(state.pets, payloadRoll(state, 'pet_illness'), 'pet');
+    const alive = livingPets(state.pets);
+    if (!alive.length) return { id: 'pet_illness', description: 'You hear about a sick animal.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
+    const pet = pickSeeded(alive, payloadRoll(state, 'pet_illness'), 'pet');
     return {
       id: 'pet_illness',
       description: `${pet.name} seems ill. What do you do?`,
@@ -849,9 +852,9 @@ const petContest: EventTemplate = {
   id: 'pet_contest',
   category: 'general',
   weight: 0.2,
-  condition: state => state.pets?.some(p => p.happiness > 60),
+  condition: state => livingPets(state.pets).some(p => p.happiness > 60),
   generate: state => {
-    const candidates = (state.pets || []).filter(p => p.happiness > 60);
+    const candidates = livingPets(state.pets).filter(p => p.happiness > 60);
     if (!candidates.length) return { id: 'pet_contest', description: 'A local contest is happening.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const pet = pickSeeded(candidates, payloadRoll(state, 'pet_contest'), 'pet');
     return {
@@ -2125,6 +2128,11 @@ const freelanceOpportunity: EventTemplate = {
 // CHALLENGE EVENTS
 // ============================================
 
+/** The investigator's fee in `card_fraud`, paid win or lose. */
+export const CARD_FRAUD_INVESTIGATOR_FEE_USD = 200;
+/** Chance the investigator recovers the whole stolen sum in `card_fraud`. */
+export const CARD_FRAUD_INVESTIGATOR_SUCCESS_CHANCE = 0.5;
+
 // `card_fraud`, not `identity_theft`: `personalCrises.ts` registers its own
 // `identity_theft` in the same pool, and two templates under one id share a
 // cooldown, an event-log identity and a category - whichever was picked, the
@@ -2136,12 +2144,25 @@ const identityTheft: EventTemplate = {
   condition: state => state.stats.money >= 1000,
   generate: (state) => {
     const stolenAmount = Math.min(Math.floor(state.stats.money * 0.1), 500);
+    // The investigator is a gamble: the fee buys a CHANCE at the whole sum.
+    // It used to be a flat -$200 that silently recovered everything, so once
+    // the theft passed $400 it beat reporting on money AND happiness - the
+    // bank route was strictly dominated (2026-10-23 audit, EVT2).
+    const recovered = payloadRoll(state, 'card_fraud')('investigator') < CARD_FRAUD_INVESTIGATOR_SUCCESS_CHANCE;
     return {
       id: 'card_fraud',
       description: `Your identity was stolen! Someone made unauthorized purchases of $${stolenAmount}.`,
       choices: [
         { id: 'report', text: 'Report to bank (recover 50%)', effects: { money: Math.floor(-stolenAmount * 0.5), stats: { happiness: -10 } } },
-        { id: 'pursue', text: 'Hire investigator', effects: { money: -200, stats: { happiness: -5 } } },
+        {
+          id: 'pursue',
+          text: `Hire an investigator ($${CARD_FRAUD_INVESTIGATOR_FEE_USD} - recover all of it, or none)`,
+          outcomeHidden: true,
+          stake: CARD_FRAUD_INVESTIGATOR_FEE_USD + stolenAmount,
+          effects: recovered
+            ? { money: -CARD_FRAUD_INVESTIGATOR_FEE_USD, stats: { happiness: -2 } }
+            : { money: -(CARD_FRAUD_INVESTIGATOR_FEE_USD + stolenAmount), stats: { happiness: -12 } },
+        },
       ],
     };
   },
@@ -2326,7 +2347,7 @@ const petsitterNeeded: EventTemplate = {
   id: 'petsitter_needed',
   category: 'general',
   weight: 0.35,
-  condition: state => state.pets && state.pets.length > 0,
+  condition: state => livingPets(state.pets).length > 0,
   generate: () => ({
     id: 'petsitter_needed',
     description: "A neighbor needs someone to pet-sit for the weekend. They'll pay!",
@@ -2633,7 +2654,7 @@ const lostPet: EventTemplate = {
   id: 'lost_pet',
   category: 'general',
   weight: 0.25,
-  condition: state => Boolean(state.pets && state.pets.length > 0),
+  condition: state => livingPets(state.pets).length > 0,
   generate: () => ({
     id: 'lost_pet',
     description: 'Your pet got out! You need to find them quickly!',

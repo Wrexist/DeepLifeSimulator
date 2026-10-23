@@ -28,6 +28,7 @@ import { getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
 import { lifeQuality } from './lifeQuality';
 import { classifyLife } from './ribbonSystem';
 import { logger } from '@/utils/logger';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export interface PreviousLifeRecord {
   /** The character's name — who this life WAS (added with the archive, S2). */
@@ -141,8 +142,12 @@ export function buildLifeRecord(oldState: GameState): PreviousLifeRecord {
     deathReason: oldState.deathReason,
     timestamp: Date.now(),
     summaryAchievements: safely('achievements', () => getEarnedAchievementNames(oldState)),
-    // Weeks lived when this life ended - feeds the prestige-speed achievements.
-    weeksLivedAtEnd: oldState.weeksLived || 0,
+    // Weeks PLAYED when this life ended - feeds the prestige-speed achievements
+    // ("prestige within N weeks"). It stored the absolute `weeksLived`, which is
+    // seeded from the starting age (§4.2), so an heir who took over at 30 began
+    // at 624 and could never earn them, nor could a Long Road life (LATE2-5).
+    // Pre-v43 saves without `lifeStartWeek` fall back to the raw counter.
+    weeksLivedAtEnd: weeksSinceLifeStart(oldState.weeksLived, oldState.lifeStartWeek),
   };
 
   const stats = oldState.lifetimeStatistics;

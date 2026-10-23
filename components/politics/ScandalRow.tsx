@@ -73,7 +73,7 @@ export default function ScandalRow({ scandal, darkMode, onSuppress }: Props) {
                 </Text>
               </View>
               {onSuppress && (
-                <TouchableOpacity onPress={onSuppress} style={[styles.suppressBtn, { backgroundColor: color }]}>
+                <TouchableOpacity accessibilityRole="button" onPress={onSuppress} style={[styles.suppressBtn, { backgroundColor: color }]}>
                   <Text style={styles.suppressBtnText}>Suppress</Text>
                 </TouchableOpacity>
               )}

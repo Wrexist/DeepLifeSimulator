@@ -102,6 +102,14 @@ export function processOpenOrders(
    * resting orders cost what one big one would.
    */
   weekVolume?: WeeklyTradedVolume,
+  /**
+   * Broker commission the CALLER charges on each fill (ECO2-6): buys cost
+   * `notional x (1 + feeRate)`, sells pay out `notional x (1 - feeRate)`. The
+   * cash budget above has to use the same figures, or a buy the player could
+   * afford only before commission fills, and the caller's `max(0, ...)` cash
+   * floor quietly forgives the fee. Defaults to 0 (the old gate).
+   */
+  feeRate = 0,
 ): {
   orders: StockOrder[];
   orderHistory: StockOrder[];
@@ -114,6 +122,7 @@ export function processOpenOrders(
   let history = orderHistory;
   let volume = weekVolume;
   let cashLeft = typeof cashAvailable === 'number' && isFinite(cashAvailable) ? cashAvailable : Infinity;
+  const fee = Math.max(0, safe(feeRate));
 
   for (const order of orders) {
     const mid = safe(prices[order.symbol?.toUpperCase()], 0);
@@ -134,7 +143,7 @@ export function processOpenOrders(
     // Affordability gate for buys: a buy reserves `order.amount` USD. If the
     // player can't currently afford it, leave the order OPEN (fills a later
     // week once funded) instead of crediting shares for free.
-    if (order.side === 'buy' && order.amount > cashLeft + 0.01) {
+    if (order.side === 'buy' && order.amount * (1 + fee) > cashLeft + 0.01) {
       remaining.push(order);
       continue;
     }
@@ -152,8 +161,8 @@ export function processOpenOrders(
     const shares = order.side === 'buy' ? order.amount / fillPrice : order.amount;
     const notional = order.side === 'buy' ? order.amount : order.amount * fillPrice;
     // Track the running cash budget: buys consume cash, sells add proceeds.
-    if (order.side === 'buy') cashLeft -= notional;
-    else cashLeft += notional;
+    if (order.side === 'buy') cashLeft -= notional * (1 + fee);
+    else cashLeft += notional * (1 - fee);
     const completed: StockOrder = {
       ...order,
       status: 'filled',

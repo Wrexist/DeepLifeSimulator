@@ -29,7 +29,7 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
   const unlocked = currentNetWorth >= threshold;
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       style={[styles.container, darkMode && styles.containerDark]}
       onPress={onPress}
       activeOpacity={0.8}

@@ -61,7 +61,7 @@ export default function DiscoveryIndicator({
 
   if (compact) {
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         onPress={handlePress}
         style={[styles.compactContainer, darkMode && styles.compactContainerDark]}
         activeOpacity={0.7}
@@ -76,7 +76,7 @@ export default function DiscoveryIndicator({
 
   return (
     <>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         onPress={handlePress}
         style={[styles.container, darkMode && styles.containerDark]}
         activeOpacity={0.7}
