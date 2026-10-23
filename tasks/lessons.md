@@ -6024,3 +6024,21 @@ value, snapshot the ASSEMBLED state, and compose per-entry transforms instead
 of returning from the first one that fires. Also: a roll-audit declaration is a
 claim to re-check - the dark-web/politics/rent streams passed the week-only
 guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.
+
+## 2026-10-23 - Owner decisions, late game: a stamp on a new life must move with every clock shift
+
+D3 stamped the prestige starting company's `foundedWeek` with the new life's
+`weeksLived`, and the first test passed - but The Long Road Trial then moves
+`weeksLived` forward twelve years in `advanceNewLifeClock`, which shifted
+`lifeStartWeek`, event markers, buffs and property dates and nothing else. A
+company stamped "today" would have read 624 weeks of ownership on frame one and
+cleared the 26-week IPO gate the stamp exists for. Rule: any new "this happened
+at life start" marker needs a line in `advanceNewLifeClock` (and a Long Road
+test). The same lesson ran the other way in D8: a Youth Pill reset age through
+an offset that ignored the Trial's twelve years, so a gem purchase erased the
+cost a 300-point reward paid for. And D11: a value shown on three screens and
+applied nowhere is a broken promise; when wiring it, cap it where it is
+COMPUTED as well as where it is read, so the screens show what is applied.
+D9 turned out to be already withheld on the tick (the whole company slice is
+removed while jailed); the gate was moved into the contract function so every
+readout agrees - check the tick before trusting "still pays".
