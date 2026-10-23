@@ -119,6 +119,37 @@ describe('AlertHost defers a button handler until its Modal has dismissed', () =
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('a double tap in one batch answers ONE alert, not the one queued behind it', () => {
+    // Two presses inside the same React batch both read the same render's
+    // closure. Each used to shift the queue and, with a second alert waiting,
+    // run its handler immediately - so the confirm ran TWICE and the queued
+    // alert was thrown away unseen (CLAUDE.md 4.4, the gate -> grant class).
+    const buy = jest.fn();
+    const next = jest.fn();
+    const { renderer, unmount } = renderWithProviders(<AlertHost />);
+    act(() => {
+      gameAlert('Confirm', 'Buy it?', [{ text: 'Buy', onPress: buy }]);
+      gameAlert('Second', 'Still here?', [{ text: 'Got it', onPress: next }]);
+    });
+
+    const node = renderer.root
+      .findAll((n: any) => n.props?.accessibilityLabel === 'Buy' && typeof n.props?.onPress === 'function')
+      .pop();
+    act(() => {
+      node.props.onPress();
+      node.props.onPress();
+    });
+    expect(buy).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(renderer.toJSON())).toContain('Still here?');
+
+    pressButton(renderer, 'Got it');
+    act(() => {
+      jest.advanceTimersByTime(400);
+    });
+    expect(next).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
   it('a plain acknowledgement with no handler still closes the alert', () => {
     const { renderer, unmount } = renderWithProviders(<AlertHost />);
     act(() => {

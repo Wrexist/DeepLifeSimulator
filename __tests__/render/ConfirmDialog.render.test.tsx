@@ -1,4 +1,5 @@
 import React from 'react';
+import { act } from 'react-test-renderer';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -69,5 +70,40 @@ describe('render - ConfirmDialog', () => {
       />,
     );
     unmount();
+  });
+
+  it('answers a double tap in one batch once, and re-arms for a later tap', () => {
+    // A cloud restore or a slot delete must not run twice because both taps
+    // landed before `visible={false}` committed (CLAUDE.md 4.4).
+    jest.useFakeTimers();
+    const onConfirm = jest.fn();
+    const { renderer, unmount } = renderWithProviders(
+      <ConfirmDialog
+        visible
+        title="Restore From Cloud?"
+        message="This replaces the game."
+        confirmText="Restore"
+        onConfirm={onConfirm}
+        onCancel={() => {}}
+      />,
+    );
+    const press = () => renderer.root
+      .findAll((n: any) => n.props?.accessibilityLabel === 'Restore' && typeof n.props?.onPress === 'function')
+      .pop()
+      .props.onPress();
+    act(() => {
+      press();
+      press();
+    });
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    act(() => {
+      press();
+    });
+    expect(onConfirm).toHaveBeenCalledTimes(2);
+    unmount();
+    jest.useRealTimers();
   });
 });

@@ -96,12 +96,28 @@ export default function ConfirmDialog({
     return () => anim.stop();
   }, [visible, reducedMotion, scaleAnim]);
 
+  // One answer per tap burst. Both buttons call straight into the caller, and
+  // two presses inside one React batch both run before the `visible={false}`
+  // the first one set has committed - so a cloud restore, a slot delete or a
+  // quit-job ran twice (CLAUDE.md 4.4). The latch drops repeats from the same
+  // task and re-arms on the next one, so a dialog the caller deliberately keeps
+  // open (a failed delete) still answers a later, real tap.
+  const answeringRef = useRef(false);
+  const answerOnce = (handler: () => void) => () => {
+    if (answeringRef.current) return;
+    answeringRef.current = true;
+    setTimeout(() => {
+      answeringRef.current = false;
+    }, 0);
+    handler();
+  };
+
   const resolvedType: DialogType = destructive ? 'danger' : type;
   const accent = TYPE_ACCENT[resolvedType];
   const BadgeIcon = TYPE_ICON[resolvedType];
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={answerOnce(onCancel)}>
       <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <Animated.View
           style={[
@@ -125,7 +141,7 @@ export default function ConfirmDialog({
 
           <View style={styles.actions}>
             <TouchableOpacity
-              onPress={onCancel}
+              onPress={answerOnce(onCancel)}
               accessibilityRole="button"
               accessibilityLabel={cancelText}
               activeOpacity={0.8}
@@ -134,7 +150,7 @@ export default function ConfirmDialog({
               <Text style={[styles.cancelText, { color: theme.text }]}>{cancelText}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={onConfirm}
+              onPress={answerOnce(onConfirm)}
               accessibilityRole="button"
               accessibilityLabel={confirmText}
               activeOpacity={0.85}
