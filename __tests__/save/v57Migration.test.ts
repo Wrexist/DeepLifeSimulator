@@ -36,8 +36,8 @@ function v56Save(): AnyState {
 const migrate = (s: AnyState) => runMigrations(JSON.parse(JSON.stringify(s)));
 
 describe('v57 migration', () => {
-  it('is the current version', () => {
-    expect(STATE_VERSION).toBe(57);
+  it('is at or below the current version', () => {
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(57);
   });
 
   it('adopts the new ladders for known careers', () => {
@@ -50,7 +50,7 @@ describe('v57 migration', () => {
 
     const { state, errors } = migrate(save);
     expect(errors).toEqual([]);
-    expect((state as AnyState).version).toBe(57);
+    expect((state as AnyState).version).toBe(STATE_VERSION);
     for (const id of Object.keys(V56_LADDERS)) {
       const out = (state as AnyState).careers.find((c: AnyState) => c.id === id);
       const code = INITIAL_CAREERS.find((c) => c.id === id)!;

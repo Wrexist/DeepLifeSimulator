@@ -1541,6 +1541,46 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 57;
     return state;
   },
+  /**
+   * v58 - two fields (owner decisions S1/S2, 2026-10-23), both default
+   * `undefined` with no `repairGameState` mirror: absence RESOLVES at read time
+   * to exactly what an earlier save does today.
+   *
+   *   - `metRelationshipIds` (S1): the ids of everybody who entered this life
+   *     through a relationship door, kept after they leave, so meeting somebody
+   *     again no longer counts toward the 25-relationship achievement twice.
+   *     Absent resolves through `metRelationshipIdsOf`, which seeds from the
+   *     CURRENT relationships (the v50 `shownNotificationIds` shape) - nobody
+   *     already in the life can count again, and `totalRelationships` itself is
+   *     never touched, so no existing save loses progress. The migration does
+   *     SNAPSHOT that same list (Codex review, PR #283): the resolver reads it
+   *     lazily, so somebody removed after the load but before the next door
+   *     call would drop out of the seed and count again on re-meeting. The
+   *     snapshot is not a guess - everybody in the save has been met - and `[]`
+   *     would let everybody present count a second time. A partial save that
+   *     skips the migration still resolves lazily.
+   *   - `politics.peakOfficeLevel` (S2): the highest office rank ever held, so
+   *     winning a LOWER office no longer overwrites the record appointment
+   *     eligibility reads. Absent resolves through `highestOfficeHeld`'s old
+   *     derivation, and the first stamp (`nextPeakOfficeLevel`) folds that
+   *     derivation in before the win overwrites it. Writing it here would only
+   *     copy the same derivation into the save, and freeze it there.
+   *
+   * Same release, no schema: the grandchild birth roll and Spark's lineage
+   * seeds now fold in the generation (S3). Both salts read `lineageId` and
+   * `generationNumber`, which every save already carries (v54 minted the
+   * former), so S3 needs no field.
+   */
+  58: (state) => {
+    if (!Array.isArray(state.metRelationshipIds)) {
+      const people: unknown[] = Array.isArray(state.relationships) ? state.relationships : [];
+      state.metRelationshipIds = people
+        .map((r) => (r && typeof r === 'object' ? (r as { id?: unknown }).id : undefined))
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    }
+    state.version = 58;
+    return state;
+  },
 };
 
 /**

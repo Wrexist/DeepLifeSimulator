@@ -37,7 +37,7 @@ import {
   dismissCatfishSuspicion,
   REWIND_GEM_COST,
 } from '@/contexts/game/actions/SparkActions';
-import { swipesRemaining, superLikesRemaining, isCatfish, sparkDeckGenderFilter } from '@/lib/dating/sparkLogic';
+import { swipesRemaining, superLikesRemaining, isCatfish, sparkDeckGenderFilter, sparkLifeSeed } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import ProfileCard from '../components/ProfileCard';
 import EmptyState from '../components/EmptyState';
@@ -70,7 +70,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   // (contexts/game/actions/SparkActions.ts), otherwise the warning chip would
   // contradict the swipe result. A profile the player has deliberately proceeded
   // on (recorded in `dismissedCatfishIds`) no longer shows the chip.
-  const catfishSeed = gameState.lineageId ?? 'initial';
+  const catfishSeed = sparkLifeSeed(gameState, 'initial');
   const dismissedCatfish = useMemo(
     () => new Set(gameState.sparkApp?.dismissedCatfishIds ?? []),
     [gameState.sparkApp?.dismissedCatfishIds],

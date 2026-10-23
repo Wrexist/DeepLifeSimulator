@@ -6025,6 +6025,19 @@ of returning from the first one that fires. Also: a roll-audit declaration is a
 claim to re-check - the dark-web/politics/rent streams passed the week-only
 guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.
 
+## 2026-10-23 - Save v58: a "peak" read off a field that something else overwrites is not a record
+
+Two of the three save items were the same shape. The 25-relationship counter
+was incremented per ARRIVAL at every door, while the doors mint stable ids for
+the same PERSON (`met-w<N>`, `spm-<profile>`), so remove-and-meet-again paid
+twice. And the highest office held was derived from `careers.political.level`,
+which the exits carefully preserve and the next election win simply
+overwrites. Rule: a lifetime or peak figure needs its own monotonic record
+(a set of ids, a running max), stamped from the PRE-change state, and the
+derivation it replaces stays as the absence-resolver so an earlier save reads
+exactly as before. The third (S3) needed no field at all: an heir keeps
+`lineageId` and only `generationNumber` moves, so a seed that folds in the
+lineage alone is shared across generations - fold `lifeSalt`, not `lineageId`.
 ## 2026-10-23 - Owner decisions D5-D7: a cap is only as wide as the pool it is applied to
 
 Three banking defects, one shape: a limit enforced per container instead of

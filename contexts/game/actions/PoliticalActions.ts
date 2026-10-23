@@ -39,6 +39,7 @@ import {
 import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 import {
   highestOfficeHeld,
+  nextPeakOfficeLevel,
   resolveEmbezzle,
   resolveFormAlliance,
   resolveJoinParty,
@@ -565,6 +566,9 @@ export const runForOffice = (
         // political events (all gated on careerLevel > 0). It is deliberately
         // career.level + 1.
         careerLevel: newLevel + 1,
+        // v58: the peak survives this win overwriting `career.level` below a
+        // rung already served (S2) - computed from `prev`, before the write.
+        peakOfficeLevel: nextPeakOfficeLevel(prev, newLevel + 1),
         electionsWon: (prev.politics?.electionsWon || 0) + 1,
         approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 10),
         lastElectionWeek: currentWeek,

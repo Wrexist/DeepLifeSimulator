@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 57`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 58`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -542,7 +542,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 57`** — single source of truth in
+- **Canonical `STATE_VERSION = 58`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -1041,6 +1041,38 @@ including the crash screen.
   required-array table (optional, no default, every reader guards it - it
   logged a "corruption" repair on every load), and `loadGame` defaults an
   absent `checkpoints` to `[]` after the sidecar step for the same reason.
+- **v58 adds two CARVE-OUTS** (owner decisions S1/S2, 2026-10-23). Both
+  default `undefined`, so no backfill and no `repairGameState` mirror, and
+  absence RESOLVES at read time to what an earlier save already does.
+  `metRelationshipIds` (S1) is the per-life record of everybody who entered
+  through a relationship door (§4.8), kept after they leave. The doors mint
+  stable ids (`met-w<window>`, `spm-<profile>`, `intro-<contact>-<week>`), so
+  meeting somebody, removing them and meeting them again counted them twice
+  toward "Social Network - form 25 relationships". Every door now goes through
+  `recordMetRelationship` (`lib/statistics/statisticsTracker.ts`), which counts
+  an id once a life. Absent resolves through `metRelationshipIdsOf`, which seeds
+  from the CURRENT relationships - the v50 `shownNotificationIds` shape - so
+  nobody present can count again and `totalRelationships` is never lowered.
+  The migration also SNAPSHOTS that list into the save, because the resolver
+  reads it lazily and somebody removed before the next door call would drop out
+  of the seed (Codex, PR #283); the snapshot is fact, not a guess.
+  Somebody removed before v58 left no record and can count once more; the
+  opposite guess would invent people. `politics.peakOfficeLevel` (S2) is the
+  highest office rank ever held (1-based, the `careerLevel` scale). The peak
+  used to be read off `careers.political.level`, which the next election win
+  OVERWRITES, so a former Governor who won a Council seat read as rank 1 and
+  lost the appointments the governorship earned. `highestOfficeHeld` takes the
+  max of the stored peak and the old derivation, and `nextPeakOfficeLevel`
+  stamps it from the PRE-win state at both office-taking sites (`runForOffice`
+  and a Work-tab promotion), so the first stamp on an old save folds the
+  derivation in before the overwrite. Same release, no schema (S3): the
+  grandchild birth roll now folds in `lifeSalt` and Spark's lineage seeds
+  (catfish, jealousy, liked-you) fold in the generation via `sparkLifeSeed`,
+  so an heir no longer replays the parent's rolls. Both read `lineageId` and
+  `generationNumber`, which every save already carries. Generation 1 keeps the
+  bare-lineage spelling for the Spark seeds so no first-life save re-rolls a
+  catfish warning it is already showing; the grandchild id keeps its v34 shape
+  and only the roll key takes the salt.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

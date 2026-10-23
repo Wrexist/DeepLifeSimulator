@@ -27,7 +27,7 @@ import {
 import { logger } from '@/utils/logger';
 import { formatLifeWeek } from '@/utils/formatLifeWeek';
 import { applyMoneyDelta } from './MoneyActions';
-import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
+import { recordMetRelationship } from '@/lib/statistics/statisticsTracker';
 import { resolveInteraction, addMemory } from '@/lib/social/npcDepth';
 import { clampStatByKey } from '@/utils/statUtils';
 import {
@@ -1204,7 +1204,7 @@ export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect
         state: {
           ...prev,
           relationships: [...(prev.relationships ?? []), introduced],
-          lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
+          ...recordMetRelationship(prev, id),
         },
       };
     }
@@ -1440,7 +1440,9 @@ export function resolveMeeting(
         ...(next.relationships ?? []),
         introductionToRelationship(intro, weeksInThisLife(next)),
       ],
-      lifetimeStatistics: countNewRelationship(next.lifetimeStatistics),
+      // Counted once per PERSON: `met-w<window>` is offered again after a
+      // removal, and used to count again (S1).
+      ...recordMetRelationship(next, intro.id),
     },
   };
 }

@@ -24,8 +24,8 @@
  *
  * ## Determinism
  *
- * Births are decided by a hash of the child's identity and the absolute week —
- * no `Math.random`. The same save on the same week always produces the same
+ * Births are decided by a hash of the life (`lifeSalt`), the child's identity
+ * and the absolute week — no `Math.random`. The same save on the same week always produces the same
  * outcome, so a reloaded save cannot be rerolled for a birth, and the tests can
  * assert real behaviour rather than mocking randomness.
  */
@@ -130,17 +130,28 @@ export function canHaveGrandchild(
  */
 export function rollGrandchild(
   child: ChildInfo | undefined | null,
-  weeksLived: number
+  weeksLived: number,
+  lifeSaltKey?: string
 ): GrandchildInfo | null {
   if (!canHaveGrandchild(child, weeksLived)) return null;
 
   const week = Math.floor(asNumber(weeksLived));
   const identity = `${child!.name ?? 'child'}:${asNumber(child!.birthWeeksLived)}`;
-  const roll = hash(`${identity}:${week}`) % BIRTH_CHANCE_DENOMINATOR;
+  // S3: the roll is keyed on the LIFE too (`lifeSalt`, lineage + generation).
+  // `identity` is a name from a small pool plus an absolute week, and an heir
+  // restarts that week counter from the same age band - so without the salt an
+  // heir's child named like the parent's child, born the same week, replayed
+  // the parent's births, and two unrelated lives collided the same way.
+  // Only the ROLL keys take the salt; the id below keeps its v34 shape. A
+  // caller without a life (the unit tests) keeps the legacy unsalted keys.
+  const rollKey = typeof lifeSaltKey === 'string' && lifeSaltKey.length > 0
+    ? `${lifeSaltKey}|${identity}`
+    : identity;
+  const roll = hash(`${rollKey}:${week}`) % BIRTH_CHANCE_DENOMINATOR;
   if (roll !== 0) return null;
 
   const index = grandchildrenOf(child).length;
-  const nameSeed = hash(`${identity}:name:${index}:${week}`);
+  const nameSeed = hash(`${rollKey}:name:${index}:${week}`);
   return {
     id: `${identity}-gc-${index + 1}`,
     name: FIRST_NAMES[nameSeed % FIRST_NAMES.length],
@@ -157,8 +168,8 @@ export function rollGrandchild(
  * Returns the SAME object reference when nothing happened, so an unchanged
  * family causes no state churn in the weekly tick.
  */
-export function applyGrandchildWeek(child: ChildInfo, weeksLived: number): ChildInfo {
-  const born = rollGrandchild(child, weeksLived);
+export function applyGrandchildWeek(child: ChildInfo, weeksLived: number, lifeSaltKey?: string): ChildInfo {
+  const born = rollGrandchild(child, weeksLived, lifeSaltKey);
   if (!born) return child;
   return { ...child, grandchildren: [...grandchildrenOf(child), born] };
 }

@@ -33,12 +33,13 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyStatsDelta } from './StatsActions';
 import { applyMoneyDelta } from './MoneyActions';
+import { recordMetRelationship } from '@/lib/statistics/statisticsTracker';
 import { isCancelledPrepaid } from '@/lib/subscription/billing';
-import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { makeLifeRoll } from '@/utils/seededRoll';
 import {
   rollMatch,
   isCatfish,
+  sparkLifeSeed,
   perksForTier,
   swipesRemaining,
   superLikesRemaining,
@@ -271,7 +272,7 @@ export const swipeOnProfile = (
   }
 
   // Catfish suspicion - same deterministic seed per save/profile.
-  const lineageSeed = gameState.lineageId ?? 'initial';
+  const lineageSeed = sparkLifeSeed(gameState, 'initial');
   const catfishSuspected = isCatfish(profile, lineageSeed);
 
   // P1-5: mint the match id OUTSIDE the updater so we can return it. The UI
@@ -665,7 +666,7 @@ export function resolveMatchPromotion(
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
-      lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
+      ...recordMetRelationship(prev, relationshipId),
     },
   };
 }
@@ -829,7 +830,7 @@ export const promoteMatchToFriend = (
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
-      lifetimeStatistics: countNewRelationship(prev.lifetimeStatistics),
+      ...recordMetRelationship(prev, relationshipId),
     };
   });
 

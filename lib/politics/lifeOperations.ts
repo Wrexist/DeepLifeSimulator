@@ -45,6 +45,10 @@ export interface PoliticalOutcome {
   next: GameState;
 }
 
+/** A finite number, or `fallback` - a stored field can hold anything. */
+const safe = (v: unknown, fallback: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+
 const refuse = (state: GameState, message: string): PoliticalOutcome =>
   ({ ok: false, message, next: state });
 
@@ -65,8 +69,16 @@ export const emptyPolitics = (): PoliticsState => ({
   campaignFunds: 0,
 });
 
-/** Highest office rank (1-based) the player has ever reached. */
+/**
+ * Highest office rank (1-based) the player has ever reached this life.
+ *
+ * `politics.peakOfficeLevel` (v58) is the stored record. The derivation below
+ * is kept beside it because a save written before v58 has no record, and
+ * because `peakOfficeLevel` is only stamped when an office is TAKEN: it is the
+ * max of the two, so absence reads exactly as it always did.
+ */
 export function highestOfficeHeld(state: GameState): number {
+  const peak = Math.max(0, Math.floor(safe(state?.politics?.peakOfficeLevel, 0)));
   const sitting = Math.max(0, Math.floor(state?.politics?.careerLevel ?? 0));
   const retired = Math.max(0, Math.floor(state?.politics?.retirement?.officeLevel ?? 0));
   // A career entry survives being voted out, which `politics.careerLevel` does
@@ -75,7 +87,20 @@ export function highestOfficeHeld(state: GameState): number {
   const everElected = career?.accepted || (state?.politics?.electionsWon ?? 0) > 0
     ? Math.max(0, Math.floor(career?.level ?? 0)) + 1
     : 0;
-  return Math.max(sitting, retired, everElected);
+  return Math.max(peak, sitting, retired, everElected);
+}
+
+/**
+ * The `peakOfficeLevel` to stamp when the player takes office at `rank`
+ * (1-based), read from the state BEFORE the office is written (S2).
+ *
+ * Folding in `highestOfficeHeld(prev)` is what makes this safe on an earlier
+ * save: the derivation still sees the old `careers.political.level` at this
+ * point, so a former Governor winning a Council seat records 4, not 1, on the
+ * very win that overwrites the career level.
+ */
+export function nextPeakOfficeLevel(prev: GameState, rank: number): number {
+  return Math.max(highestOfficeHeld(prev), Math.max(0, Math.floor(safe(rank, 0))));
 }
 
 /** Weeks served in the CURRENT political office. */
