@@ -166,3 +166,65 @@ describe('runCryptoWeeklyTick - regime-flip notification gating (smoothness)', (
     expect(r.notifications.find((n) => n.id === 'crypto-regime-flip')).toBeDefined();
   });
 });
+
+// ECO2-3 (2026-10-23): the year-end tax the player cannot cover is arrears,
+// not untaxed gain rolled into next year (which a player could repeat every
+// year by keeping cash low on the boundary week).
+describe('runCryptoWeeklyTick - year-end capital-gains tax', () => {
+  const yearEnd = 52 * 10;
+
+  it('collects the full tax when cash covers it', () => {
+    const r = runCryptoWeeklyTick({
+      market: { ...emptyMarket(), lastHalvingWeek: yearEnd, realizedGainsThisYear: 100_000 },
+      cryptos: [btc],
+      cashIn: 1_000_000,
+      currentWeek: yearEnd,
+      rollFor: fixedRoll,
+    });
+    expect(r.capitalGainsTaxUSD).toBeCloseTo(25_000, 6);
+    expect(r.capitalGainsTaxUnpaid).toBe(0);
+    expect(r.cashDelta).toBeCloseTo(-25_000, 6);
+    expect(r.market.realizedGainsThisYear).toBe(0);
+  });
+
+  it('reports the shortfall as unpaid and carries no gain forward', () => {
+    const r = runCryptoWeeklyTick({
+      market: { ...emptyMarket(), lastHalvingWeek: yearEnd, realizedGainsThisYear: 100_000 },
+      cryptos: [btc],
+      cashIn: 4_000,
+      currentWeek: yearEnd,
+      rollFor: fixedRoll,
+    });
+    expect(r.capitalGainsTaxUSD).toBeCloseTo(4_000, 6);
+    expect(r.capitalGainsTaxUnpaid).toBeCloseTo(21_000, 6);
+    expect(r.market.realizedGainsThisYear).toBe(0);
+    expect(r.notifications.find((n) => n.id === `crypto-tax-${yearEnd}`)?.message).toMatch(/unpaid/);
+  });
+
+  it('owes the whole tax as arrears when the player has no cash at all', () => {
+    const r = runCryptoWeeklyTick({
+      market: { ...emptyMarket(), lastHalvingWeek: yearEnd, realizedGainsThisYear: 100_000 },
+      cryptos: [btc],
+      cashIn: 0,
+      currentWeek: yearEnd,
+      taxMult: 0.8,
+      rollFor: fixedRoll,
+    });
+    expect(r.capitalGainsTaxUSD).toBe(0);
+    expect(r.capitalGainsTaxUnpaid).toBeCloseTo(20_000, 6);
+    expect(r.market.realizedGainsThisYear).toBe(0);
+    expect(r.notifications.find((n) => n.id === `crypto-tax-${yearEnd}`)).toBeDefined();
+  });
+
+  it('assesses nothing off the year boundary', () => {
+    const r = runCryptoWeeklyTick({
+      market: { ...emptyMarket(), lastHalvingWeek: yearEnd, realizedGainsThisYear: 100_000 },
+      cryptos: [btc],
+      cashIn: 0,
+      currentWeek: yearEnd + 1,
+      rollFor: fixedRoll,
+    });
+    expect(r.capitalGainsTaxUnpaid).toBe(0);
+    expect(r.market.realizedGainsThisYear).toBe(100_000);
+  });
+});

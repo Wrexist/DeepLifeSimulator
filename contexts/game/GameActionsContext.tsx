@@ -2851,6 +2851,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  finalCryptos = cryptoTick.cryptos;
  finalCryptoMarket = cryptoTick.market;
  cryptoCapitalGainsTax = cryptoTick.capitalGainsTaxUSD ?? 0;
+ // ECO2-3: year-end crypto tax the player could not cover is arrears, like
+ // the stocks tick's shortfall below - not a gain rolled into next year.
+ if (cryptoTick.capitalGainsTaxUnpaid > 0) {
+   weeklyCtx.deferredCharges = (weeklyCtx.deferredCharges ?? 0) + cryptoTick.capitalGainsTaxUnpaid;
+ }
  bankingAfterCrypto = cryptoTick.banking ?? prevState.banking ?? initialGameState.banking!;
  if (cryptoTick.cashDelta!== 0) {
  applyCashAndRecord(cryptoTick.cashDelta); // TICK-A4
