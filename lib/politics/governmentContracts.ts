@@ -32,6 +32,15 @@ export function calculateGovernmentContractBonus(
     return 0;
   }
 
+  // D9: no contracts while serving a sentence - the same rule
+  // `getPoliticalWeeklySalary` applies to the office salary (LATE-8). The
+  // contract is a perk OF the office, and an official in a cell is steering no
+  // procurement. Gated here, at the one function every reader goes through, so
+  // the paycheck and every company readout agree.
+  if ((gameState.jailWeeks ?? 0) > 0) {
+    return 0;
+  }
+
   // Check approval rating (need at least 60% for contracts)
   if (politics.approvalRating < 60) {
     return 0;
@@ -94,6 +103,9 @@ export function areGovernmentContractsAvailable(gameState: GameState): boolean {
   const politics = gameState.politics;
   
   if (!politics || politics.careerLevel === 0) {
+    return false;
+  }
+  if ((gameState.jailWeeks ?? 0) > 0) {
     return false;
   }
 

@@ -12,6 +12,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { rejectIfBlocked } from './_guards';
 import { ITEM_SELL_RATE } from '@/lib/config/gameConstants';
 import { mindsetEffects } from '@/lib/mindset/effects';
+import { isItemOwned, PASSPORT_ITEM_ID } from '@/lib/travel/passport';
 
 const log = logger.scope('ItemActions');
 
@@ -31,7 +32,8 @@ export const buyItem = (
     return { success: false, message: 'Item not found' };
   }
 
-  if (item.owned && !item.consumable) {
+  // isItemOwned: a passport bought in the Travel app counts (APP2-5).
+  if (isItemOwned(gameState, item) && !item.consumable) {
     return { success: false, message: 'Already owned' }; // Already owned non-consumable
   }
 
@@ -72,7 +74,7 @@ export const buyItem = (
   // double-charge the player for one item.
   setGameState(prev => {
     const prevItem = (prev.items || []).find(i => i.id === itemId);
-    if (prevItem?.owned && !prevItem?.consumable) {
+    if (prevItem && isItemOwned(prev, prevItem) && !prevItem.consumable) {
       return prev; // already owned by an earlier same-batch buy
     }
     // Validate and calculate new money value
@@ -221,7 +223,7 @@ export const sellItem = (
     return { success: false, message: 'Item not found' };
   }
 
-  if (!item.owned) {
+  if (!isItemOwned(gameState, item)) {
     return { success: false, message: 'Item not owned' };
   }
 
@@ -246,7 +248,7 @@ export const sellItem = (
     // snapshot and both credit sellPrice while the item flips to unowned once -
     // a repeatable money printer. Mirror the buyItem ownership re-check.
     const prevItem = (prev.items || []).find(i => i.id === itemId);
-    if (!prevItem?.owned) {
+    if (!prevItem || !isItemOwned(prev, prevItem)) {
       return prev; // already sold by an earlier same-batch tap
     }
     // Validate and calculate new money value
@@ -260,6 +262,11 @@ export const sellItem = (
     const updatedItems = (prev.items || []).map(i => 
       i.id === itemId ? { ...i, owned: false } : i
     );
+    // Selling the passport ends it in BOTH places, or the Travel app's flag
+    // kept international travel open after the sale (APP2-5).
+    const travel = itemId === PASSPORT_ITEM_ID && prev.travel?.passportOwned
+      ? { ...prev.travel, passportOwned: false }
+      : prev.travel;
 
     // Update daily summary
     let dailySummary = prev.dailySummary;
@@ -287,6 +294,7 @@ export const sellItem = (
         money: newMoney, // Explicitly set the new money value
       },
       items: updatedItems,
+      travel,
       dailySummary,
       // Special case for phone
       hasPhone: itemId === 'smartphone' ? false : prev.hasPhone,

@@ -198,7 +198,7 @@ export default function Journal({ compact = false, bottomInset }: JournalProps) 
               const categoryInfo = getCategoryInfo(entry.category);
               const CategoryIcon = categoryInfo.icon;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={entry.id}
                   style={[styles.compactEntry, settings.darkMode && styles.compactEntryDark]}
                   onPress={() => setSelectedEntry(entry)}
@@ -344,7 +344,7 @@ export default function Journal({ compact = false, bottomInset }: JournalProps) 
               const count = category.id === 'all' ? stats.total : (stats.byCategory[category.id] || 0);
 
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={category.id}
                   style={[
                     styles.categoryChip,
@@ -367,7 +367,7 @@ export default function Journal({ compact = false, bottomInset }: JournalProps) 
           </ScrollView>
 
           {/* Sort Control */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.sortButton}
             onPress={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
           >
@@ -430,7 +430,7 @@ export default function Journal({ compact = false, bottomInset }: JournalProps) 
                     <View style={[styles.yearLine, settings.darkMode && styles.yearLineDark]} />
                   </View>
                 )}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.entryCard, settings.darkMode && styles.entryCardDark]}
                   onPress={() => setSelectedEntry(entry)}
                 >

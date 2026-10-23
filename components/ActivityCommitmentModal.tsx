@@ -19,6 +19,9 @@ import {
   type CommitmentArea,
 } from '@/lib/commitments/commitmentSystem';
 import { gameAlert } from '@/utils/gameAlert';
+import { showGlobalToast } from '@/utils/toastBridge';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
+import type { GameState } from '@/contexts/game/types';
 import { tier1Title } from '@/lib/config/hierarchy';
 import AlertHost from '@/components/ui/AlertHost';
 const LinearGradient = Gradient;
@@ -59,8 +62,31 @@ const AREA_CONFIG: Record<CommitmentArea, { label: string; icon: typeof Briefcas
   },
 };
 
+/**
+ * Commit a commitment change, re-checking the 4-week lock against `prev`.
+ * Returns `prev` unchanged when locked, so two taps in one batch (or a lock
+ * that landed after the render the button was drawn from) write nothing.
+ */
+export function applyCommitmentChange(
+  prev: GameState,
+  primary: CommitmentArea | undefined,
+  secondary: CommitmentArea | undefined,
+): GameState {
+  if (!canChangeCommitments(prev).canChange) return prev;
+  return {
+    ...prev,
+    activityCommitments: {
+      ...prev.activityCommitments,
+      primary,
+      secondary,
+      lastChangedWeek: prev.weeksLived,
+    },
+  };
+}
+
 export default function ActivityCommitmentModal({ visible, onClose }: ActivityCommitmentModalProps) {
   const { gameState, setGameState } = useGame();
+  const { saveGame } = useGameActions();
   const insets = useSafeAreaInsets();
   const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const commitments = gameState.activityCommitments;
@@ -95,8 +121,8 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
     }
 
     // The previous \`useGame().changeActivityCommitment\` was undefined and
-    // would have thrown TypeError on tap. Inline the state mutation here
-    // (the canChange validation already ran in the useMemo above).
+    // would have thrown TypeError on tap. The check below is for messaging;
+    // applyCommitmentChange re-checks the lock against `prev` (CLAUDE.md 4.4).
     if (!canChange) {
       gameAlert(
         'Cannot Change',
@@ -105,16 +131,15 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
       return;
     }
 
-    setGameState(prev => ({
-      ...prev,
-      activityCommitments: {
-        ...prev.activityCommitments,
-        primary: selectedPrimary,
-        secondary: selectedSecondary,
-        lastChangedWeek: prev.weeksLived,
-      },
-    }));
-    gameAlert('Success', 'Activity commitments updated.');
+    setGameState(prev => applyCommitmentChange(prev, selectedPrimary, selectedSecondary));
+    // Persist the picks AND the 4-week lock stamp - without it a force-quit
+    // before the next autosave undid both. Inline: saveGame waits for the
+    // pending commit itself.
+    void saveGame?.(false);
+    // A toast, not gameAlert: the alert would go to this Modal's own nested
+    // AlertHost, which onClose unmounts in the same commit, so the
+    // confirmation was dropped before it was ever drawn.
+    showGlobalToast('Activity commitments updated.', 'success');
     onClose();
   };
 
@@ -149,7 +174,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
     const { bonuses, penalties } = getAreaBonuses(area);
 
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         key={area}
         style={[
           styles.areaCard,
@@ -356,7 +381,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
 
             {/* Footer */}
             <View style={styles.footer}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.cancelButton, settings.darkMode && styles.cancelButtonDark]}
                 onPress={onClose}
               >
@@ -364,7 +389,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                   Cancel
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.saveButton,
                   (!canChange || (selectedPrimary === commitments?.primary && selectedSecondary === commitments?.secondary)) && styles.saveButtonDisabled,

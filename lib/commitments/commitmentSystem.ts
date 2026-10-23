@@ -237,7 +237,10 @@ export function canChangeCommitments(gameState: GameState): {
   weeksUntilChange: number;
 } {
   const commitments = gameState.activityCommitments;
-  if (!commitments?.lastChangedWeek) {
+  // `typeof`, not truthiness: an age-18 life starts at weeksLived 0, so a
+  // change made in its first week stamps 0, and `!0` read as "never changed"
+  // and skipped the lock.
+  if (typeof commitments?.lastChangedWeek !== 'number' || !Number.isFinite(commitments.lastChangedWeek)) {
     return { canChange: true, weeksUntilChange: 0 };
   }
 
@@ -268,7 +271,11 @@ export function canChangeCommitments(gameState: GameState): {
  * area and gets the same bonuses+penalties pairing, already resolved.
  */
 export interface CommitmentModifiers {
-  /** Energy a committed/neglected activity actually costs. Never below 1. */
+  /**
+   * Energy a committed/neglected activity actually costs. A positive cost
+   * never drops below 1; a zero cost or an energy restore (negative) passes
+   * through unchanged.
+   */
   energyCost: (baseCost: number) => number;
   /** Progress/XP an activity actually yields, rounded. */
   progress: (baseProgress: number) => number;
@@ -309,8 +316,15 @@ export function getEffectiveEnergyCost(
   bonuses: CommitmentBonuses,
   penalties: CommitmentPenalties
 ): number {
+  // Only a real COST is moved by a commitment. A zero-cost activity stays free
+  // and a negative "cost" is an energy RESTORE (the $16,000 Weekend Getaway is
+  // -20): the floor below turned both into a 1-energy charge, so the getaway
+  // took 1 energy while its card promised +20 (LIFE2-1, 2026-10-23).
+  if (!Number.isFinite(baseCost)) return 0;
+  if (baseCost <= 0) return baseCost;
+
   let effectiveCost = baseCost;
-  
+
   // Apply energy reduction from bonuses
   if (bonuses.energyReduction > 0) {
     effectiveCost = effectiveCost * (1 - bonuses.energyReduction / 100);

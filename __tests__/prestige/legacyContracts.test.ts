@@ -109,14 +109,23 @@ describe('reading metrics', () => {
   });
 
   it('never reports fewer weeks than this life', () => {
-    // A save whose lifetime total lags this life must not show a bar going
-    // backwards. `lifetimeStats` is non-optional on PrestigeData, so the
-    // realistic case is a STALE total, not a missing one.
     const s = withState((s) => {
       s.weeksLived = 900;
-      s.prestige!.lifetimeStats.totalWeeksLived = 100;
+      s.prestige!.lifetimeStats.totalWeeksLived = 0;
     });
     expect(readMetric(s, 'weeksLivedTotal')).toBe(900);
+  });
+
+  // LATE2-3: the lifetime total holds only ENDED lives (it is folded at a life
+  // boundary), so the life being played is added to it, not compared with it.
+  it('adds this life to the ended lives instead of taking the larger of the two', () => {
+    const s = withState((s) => {
+      s.lifeStartWeek = 0;
+      s.weeksLived = 600;
+      s.prestige!.lifetimeStats.totalWeeksLived = 1_500;
+    });
+    expect(readMetric(s, 'weeksLivedTotal')).toBe(2_100);
+    expect(getContractProgress(s, LEGACY_CONTRACTS.find((c) => c.id === 'contract_weeks_2000')!).claimable).toBe(true);
   });
 
   // LATE-14: `weeksLived` is seeded from the starting age, so an heir taking

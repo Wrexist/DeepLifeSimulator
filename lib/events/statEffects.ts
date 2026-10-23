@@ -68,3 +68,21 @@ export function applyEventStatDeltas(
     updatedStats[statKey] = Math.max(0, Math.min(100, currentVal + delta));
   });
 }
+
+/**
+ * The delta a choice's stat badge should SHOW: what `applyEventStatDeltas`
+ * will actually add, before the 0-100 clamp.
+ *
+ * The event screen previewed every stat at its authored face value while the
+ * resolver tapered happiness gains (`scaledHappinessGain`), so at 90 happiness
+ * a "Happiness +20" badge landed about +5. Same defect, and same answer, as the
+ * Life Moment chips (CPY-1, `lifeMomentEffectLabel`). Only positive happiness
+ * is scaled - a loss and every other stat land at face value - and the result
+ * is rounded the way the chips round it.
+ */
+export function previewEventStatDelta(stat: string, current: number, delta: number): number {
+  if (typeof delta !== 'number' || !Number.isFinite(delta)) return 0;
+  if (stat !== 'happiness' || delta <= 0) return delta;
+  const from = typeof current === 'number' && Number.isFinite(current) ? current : 0;
+  return Math.round(scaledHappinessGain(from, delta));
+}

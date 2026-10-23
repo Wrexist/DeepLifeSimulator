@@ -335,7 +335,7 @@ const workplaceInjury: EventTemplate = {
     const name = getCareerName(state);
     return {
       id: 'workplace_injury',
-      description: `You've been injured on the job as ${name}. Your back is sore and you can barely move.`,
+      description: `You've been injured on the job${name === 'your job' ? '' : ` as ${name}`}. Your back is sore and you can barely move.`,
       choices: [
         {
           id: 'take_leave',
@@ -368,7 +368,7 @@ const bossFavoritism: EventTemplate = {
     const roll = payloadRoll(state, 'boss_favoritism');
     return {
       id: 'boss_favoritism',
-      description: `Your boss at ${name} is clearly showing favoritism to another employee, giving them the best projects and praising them in meetings.`,
+      description: `Your boss is clearly showing favoritism to another ${name === 'your job' ? 'employee' : name}, giving them the best projects and praising them in meetings.`,
       choices: [
         {
           id: 'speak_up',

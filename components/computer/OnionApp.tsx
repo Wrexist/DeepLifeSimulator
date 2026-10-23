@@ -388,7 +388,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   );
 
   // New-identity cost preview (read-only mirror of acquireNewIdentity's settlement
-  // math): base cost + 80% of walked-away unsecured-loan principal, priced in BTC.
+  // math): base cost + the walked-away unsecured debt, priced in BTC.
   // The same settlement the action charges - one computation, not a copy.
   const idInfo = useMemo(() => {
     const s = newIdentitySettlement({
@@ -1086,7 +1086,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const launderLvl = dw.skills.laundering?.level ?? 1;
     const fronts = countLaunderingFronts(gameState);
     // R3-C5: gate on the TOTAL, not the base cost. `acquireNewIdentity`
-    // charges `newIdentitySettlement(state).totalBtc` (base + 80% of the
+    // charges `newIdentitySettlement(state).totalBtc` (base + all of the
     // discharged loan and card debt, in BTC) and returns `prev` (log-only) when the player cannot cover it -
     // and it returns void, so nothing surfaced the refusal. With the button
     // gated on the base cost alone, a player carrying student debt (typed

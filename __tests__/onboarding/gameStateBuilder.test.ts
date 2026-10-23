@@ -214,6 +214,15 @@ describe('buildNewGameState', () => {
     expect(state.perks.lucky_charm).toBe(true);
   });
 
+  it('applies a perk that is both permanent and selected only once (ONB2-1)', () => {
+    const once = buildNewGameState(baseParams({ permanentPerks: ['legacy_builder'] }));
+    const both = buildNewGameState(
+      baseParams({ selectedPerks: ['legacy_builder'], permanentPerks: ['legacy_builder'] })
+    );
+    expect(both.stats.money).toBe(once.stats.money);
+    expect(both.stats.reputation).toBe(once.stats.reputation);
+  });
+
   it('sets mindset when provided', () => {
     const state = buildNewGameState(baseParams({ selectedMindset: 'optimistic' as any }));
     expect(state.mindset).toEqual({ activeTraitId: 'optimistic', traits: ['optimistic'] });

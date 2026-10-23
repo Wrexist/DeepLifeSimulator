@@ -424,9 +424,20 @@ export async function canRestoreBackup(
       }
     }
     
-    // Check 3: Age regression - cannot become younger than highest age reached
-    const highestAge = Math.max(
-      protectedState?.highestAgeReached || 0, 
+    // Check 3: Age regression - cannot become younger than highest age reached.
+    //
+    // Skipped for a recovery, like checks 1, 4 and 5. The high-water mark is a
+    // per-SLOT number that three legitimate paths leave behind the life now in
+    // play: continuing as an heir and prestige both start an 18-year-old in
+    // the same slot without clearing it (only the new-game path does), a Youth
+    // Pill puts `date.age` back to 18, and a Time Machine rewind moves it back
+    // up to three years. After any of them every backup of the life the player
+    // is actually living reads as "younger than age N", so a corrupted save was
+    // unrecoverable - the restore sheet refused all of them and offered only
+    // the previous character's. A recovery already bypasses the death check,
+    // so the age check guarded nothing on that path. (2026-10-23 audit SAVE2-1)
+    const highestAge = isRecovery ? 0 : Math.max(
+      protectedState?.highestAgeReached || 0,
       currentState?.date?.age || 0
     );
     if (highestAge > 0) {

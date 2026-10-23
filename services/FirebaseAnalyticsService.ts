@@ -16,6 +16,50 @@ import { isAnalyticsForeground } from '@/utils/analyticsForeground';
 
 const log = logger.scope('FirebaseAnalytics');
 
+/**
+ * Event names Firebase reserves for its own automatic events. Copied from
+ * `@react-native-firebase/analytics` (`ReservedEventNames` in
+ * `lib/namespaced.ts`), whose `logEvent` THROWS on any of them before the call
+ * reaches native code - and the throw lands in our catch below as a debug line,
+ * so the event is dropped without a trace.
+ *
+ * That is not hypothetical: `session_start` is in our catalogue and is the
+ * event that carries the retention cohort (`trackSessionStart`), so every
+ * session-start funnel and cohort read from Firebase was empty. Firebase's own
+ * automatic `session_start` has no cohort fields, so it cannot stand in.
+ * `screen_view` is not here because it is routed to `logScreenView` instead.
+ */
+const FIREBASE_RESERVED_EVENT_NAMES: ReadonlySet<string> = new Set([
+  'ad_activeview', 'ad_click', 'ad_exposure', 'ad_query', 'ad_reward', 'adunit_exposure',
+  'app_background', 'app_clear_data', 'app_exception', 'app_remove', 'app_store_refund',
+  'app_store_subscription_cancel', 'app_store_subscription_convert', 'app_store_subscription_renew',
+  'app_update', 'app_upgrade', 'dynamic_link_app_open', 'dynamic_link_app_update',
+  'dynamic_link_first_open', 'error', 'first_open', 'first_visit', 'in_app_purchase',
+  'notification_dismiss', 'notification_foreground', 'notification_open', 'notification_receive',
+  'os_update', 'session_start', 'session_start_with_rollout', 'user_engagement',
+]);
+
+/** Firebase also reserves these name PREFIXES for events and parameters. */
+const FIREBASE_RESERVED_PREFIX = /^(firebase_|google_|ga_)/;
+
+/** Prefix that moves a reserved name into our own namespace. */
+const FIREBASE_RENAME_PREFIX = 'dl_';
+
+/**
+ * The name an event is logged under in Firebase. Normalised to
+ * `[a-zA-Z0-9_]`, starting with a letter, at most 40 characters, and moved out
+ * of Firebase's reserved names and prefixes (`session_start` ->
+ * `dl_session_start`). The self-hosted queue keeps the catalogue name; only
+ * this sink renames. Pure, exported for the test.
+ */
+export function firebaseEventName(name: string): string {
+  let safe = name.replace(/[^a-zA-Z0-9_]/g, '_');
+  if (FIREBASE_RESERVED_EVENT_NAMES.has(safe) || FIREBASE_RESERVED_PREFIX.test(safe) || !/^[a-zA-Z]/.test(safe)) {
+    safe = `${FIREBASE_RENAME_PREFIX}${safe}`;
+  }
+  return safe.slice(0, 40);
+}
+
 let analyticsModule: any = null;
 let loadAttempted = false;
 
@@ -134,10 +178,11 @@ class FirebaseAnalyticsServiceImpl {
     const analytics = loadModule();
     if (!analytics) return;
     try {
-      // Firebase rejects names outside [a-z_0-9] and over 40 chars, and drops
-      // the whole event when it does. Our names are already snake_case, but
-      // normalising here means a future event name cannot silently lose data.
-      const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 40);
+      // Firebase rejects names outside [a-z_0-9], over 40 chars, or RESERVED
+      // (the SDK throws), and drops the whole event when it does. Normalising
+      // here means no catalogue name can silently lose data - see
+      // `firebaseEventName`.
+      const safeName = firebaseEventName(name);
       if (safeName === 'screen_view') {
         const path = typeof params?.path === 'string' ? params.path : '';
         const segment = path.split('?')[0].split('/').filter(Boolean).pop() ?? 'home';

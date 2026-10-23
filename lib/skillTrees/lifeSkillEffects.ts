@@ -423,6 +423,26 @@ export function purchaseLifeSkill(
 }
 
 /**
+ * A workout's fitness gain after the Peak Performance life skill ("+15% gym
+ * efficiency"). Only a positive gain is scaled. Not rounded - the same
+ * fractional gain `updateStats` applies, so a +1 walk is not rounded back to +1.
+ *
+ * `updateStats` applied the multiplier, but the gym session (GymCard) and the
+ * fitness-building health activities (walk, yoga) write fitness directly, so
+ * the node's promise never reached the one place it names (LIFE2-2,
+ * 2026-10-23). Every direct fitness writer reads this.
+ */
+export function fitnessGainAfterSkills(
+  state: GameState | null | undefined,
+  baseGain: number,
+): number {
+  if (!(typeof baseGain === 'number' && Number.isFinite(baseGain))) return 0;
+  if (baseGain <= 0) return baseGain;
+  const mult = getLifeSkillModifiers(state).fitnessGainMult;
+  return mult > 1 ? baseGain * mult : baseGain;
+}
+
+/**
  * A recurring weekly bill after the Budgeting life skill (TICK-13, owner
  * decision 2026-10-22). The node promised "-5% weekly expenses" and only ever
  * discounted legacy rent and property upkeep; tenancy rent, diet, vehicles,

@@ -38,6 +38,7 @@ import {
 } from '@/lib/social/meetPeople';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { mindsetEffects, mindsetPrice } from '@/lib/mindset/effects';
+import { mirrorChildContactBondToFamily } from '@/lib/parenting/parentingLogic';
 
 const log = logger.scope('ContactsActions');
 
@@ -46,6 +47,18 @@ function ledgerOf(state: GameState): FavorLedger {
 }
 
 const usd = (n: number): string => `$${Math.round(isFinite(n) ? n : 0).toLocaleString('en-US')}`;
+
+/**
+ * SOC2-5: a Contacts action that moved a CHILD's bond moves the Family Bond
+ * too, so the paid gesture is not reverted by the next parenting action and
+ * the two screens show one number. No-op (same state) for anyone else.
+ */
+function withChildBondMirrored(state: GameState, contactId: string): GameState {
+  const rel = (state.relationships ?? []).find((r) => r?.id === contactId);
+  if (!rel || rel.type !== 'child') return state;
+  const family = mirrorChildContactBondToFamily(state.family, rel);
+  return family === state.family ? state : { ...state, family };
+}
 
 // ---------------------------------------------------------------------------
 // Overdue debts - squared up before any other dealings with contacts
@@ -258,7 +271,7 @@ function recordInteractionNow(
       if (!paid) return prev; // affordability failed inside the delta - abort
       next = { ...next, ...paid };
     }
-    return next;
+    return withChildBondMirrored(next, contactId);
   });
 
   return { success: true, message: preview.message };
@@ -391,7 +404,7 @@ function lendMoneyNow(
     };
     const newRels = [...rels];
     newRels[idx] = updatedRel;
-    return { ...prev, ...debit, relationships: newRels, favorLedger: nextLedger };
+    return withChildBondMirrored({ ...prev, ...debit, relationships: newRels, favorLedger: nextLedger }, contactId);
   });
 
   const repayable = formatLifeWeek(ws + LENT_CASH_TERM_WEEKS, gameState.lifeStartWeek);
@@ -490,7 +503,7 @@ function resolveBorrow(
   };
   const newRels = [...rels];
   newRels[idx] = updatedRel;
-  const asked: GameState = { ...state, relationships: newRels };
+  const asked: GameState = withChildBondMirrored({ ...state, relationships: newRels }, contactId);
   if (!granted) {
     return { result: { success: true, granted: false, message: `${target.name} said no this time. (-5)` }, next: asked };
   }
@@ -1369,7 +1382,7 @@ function raiseRelationshipNow(
       weeklyInteractions,
       actions: { ...(target.actions ?? {}), [actionKey]: prevWs },
     };
-    return { ...prev, ...charge, relationships: nextRels };
+    return withChildBondMirrored({ ...prev, ...charge, relationships: nextRels }, contactId);
   });
 
   log.info('Relationship bond raised', { contactId });

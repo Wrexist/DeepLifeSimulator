@@ -133,14 +133,24 @@ export default function AlertHost() {
 
   // Dismiss FIRST, then run the handler: a handler that raises another alert
   // must land behind this one in the queue, not be dropped by this shift.
+  //
+  // Answered once per alert id. Two presses in the same React batch both run
+  // against this render's closure, and each used to shift the queue: with a
+  // second alert waiting, the handler ran twice (a confirm that charges, twice)
+  // and the alert behind it was discarded unseen. The latch refuses the second
+  // answer, and the shift only removes the alert it was answering.
+  const answeredIdRef = useRef<number | null>(null);
   const dismiss = useCallback(
     (onPress?: () => void) => {
+      const id = queue[0]?.id;
+      if (id === undefined || answeredIdRef.current === id) return;
+      answeredIdRef.current = id;
       // Read before the update: with another alert queued behind this one the
       // Modal STAYS presented (it just swaps content), so nothing is
       // dismissing, `onDismiss` will never fire, and deferring would drop the
       // action entirely. Only the last alert out is the one that tears down.
       const isLastAlert = queue.length <= 1;
-      setQueue((prev) => prev.slice(1));
+      setQueue((prev) => (prev[0]?.id === id ? prev.slice(1) : prev));
       if (!onPress) return;
       if (!isLastAlert) {
         onPress();
@@ -150,7 +160,7 @@ export default function AlertHost() {
       if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
       actionTimerRef.current = setTimeout(runPendingAction, ACTION_SETTLE_MS);
     },
-    [queue.length, runPendingAction],
+    [queue, runPendingAction],
   );
 
   // Never lose a choice. If the host is torn down before either signal lands,

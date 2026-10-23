@@ -62,6 +62,14 @@ be written out separately, which made "add the name to the type, forget the
 Set" a silent failure — the call site type-checks, the event is dropped at
 runtime, and the only symptom is a funnel step that is permanently empty.
 
+**In Firebase, `session_start` is logged as `dl_session_start`.** Firebase
+reserves `session_start` (and ~30 other names, plus the `firebase_` / `google_`
+/ `ga_` prefixes) for its automatic events, and the RN SDK throws on them, so
+the event was silently dropped from that sink. `firebaseEventName` in
+`services/FirebaseAnalyticsService.ts` prefixes any reserved name with `dl_`;
+the self-hosted queue keeps the catalogue name. Query Firebase's automatic
+`session_start` for raw session counts and `dl_session_start` for the cohort.
+
 ### The catalogue, by group
 
 | Group | Events |

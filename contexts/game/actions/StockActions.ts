@@ -13,6 +13,8 @@ import { executeMarket, placeOrder as placeOrderPure, cancelOrder as cancelOrder
 import { priorWeekVolume, recordWeekVolume } from '@/lib/markets/orderBook';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 import { STOCK_CAPITAL_GAINS_TAX_RATE } from '@/lib/stocks/weeklyTick';
+import { clampTaxMult } from '@/lib/economy/taxLedger';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 const log = logger.scope('StockActions');
 
@@ -193,6 +195,14 @@ export function resolveSellStockMarket(prev: GameState, symbol: string, shares: 
     log.warn(`Sell rejected: non-finite fill for ${symbol}`);
     return prev;
   }
+  // ECO2-7: slippage is linear in the week's volume and nothing floors the
+  // sell price, so a big enough sale (~$200M of one symbol in a week) fills
+  // BELOW zero - the player would hand over the shares AND pay cash for the
+  // privilege. Refuse it, as the crypto sell already does.
+  if (result.notionalUSD <= 0 || (result.order.filledPrice ?? 0) <= 0) {
+    log.warn(`Sell rejected: non-positive fill for ${symbol}`);
+    return prev;
+  }
   const grossProceeds = result.notionalUSD * (1 - STOCK_FEE);
   const { holdings: newHoldings, basisPerShare } = applySellOnHoldings(stocks.holdings ?? [], symbol, shares);
   const realizedGain = (result.order.filledPrice! - basisPerShare) * shares;
@@ -217,9 +227,14 @@ export function resolveSellStockMarket(prev: GameState, symbol: string, shares: 
    * before it.
    */
   const taxableGain = Math.max(0, realizedGain);
+  // ECO2-5: the Tax Strategy life skill scales this exactly as it scales the
+  // limit-order path (the weekly tick) and the crypto year-end tax. Without it
+  // the instant Sell button, the main way stocks are sold, charged the full
+  // 25% to a player who had bought the skill.
+  const taxMult = clampTaxMult(getLifeSkillModifiers(prev)?.taxMult);
   const capitalGainsTax = Math.min(
     grossProceeds,
-    taxableGain * STOCK_CAPITAL_GAINS_TAX_RATE,
+    taxableGain * STOCK_CAPITAL_GAINS_TAX_RATE * taxMult,
   );
   const proceeds = grossProceeds - capitalGainsTax;
 

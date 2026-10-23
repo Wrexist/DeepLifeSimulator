@@ -10,6 +10,8 @@
  *   4. Beginner-luck bonus — deterministic sin-seeded bonus for weeks < 20.
  *   5. Money-Multiplier gold upgrade — flat 1.5× when `goldUpgrades.multiplier`.
  *   6. Onboarding perk income multipliers — stacked product of `perk.effects.incomeMultiplier`.
+ *   (later steps: macro economy, retirement pension, and the inherited Legacy
+ *   income bonus — `legacyIncomeMultiplier`, capped, D11.)
  *
  * Pure function. No React, no setGameState, no side effects. Returns the
  * three intermediate values the caller's downstream blocks still need:
@@ -29,6 +31,7 @@ import {
   WEEKS_PER_YEAR,
 } from '@/lib/config/gameConstants';
 import { getIncomeMultiplier } from '@/lib/prestige/applyBonuses';
+import { legacyIncomeMultiplier } from '@/lib/legacy/legacyBonuses';
 import { perks as perksCatalog } from '@/src/features/onboarding/perksData';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
@@ -266,8 +269,13 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
     ? rawRetirement
     : 0;
 
+  // 9. Inherited Legacy Bonus (D11) - the income % the death popup and the
+  // Legacy overview promise. Capped at +15% inside the reader (heirlooms stack
+  // without a bound); exactly 1 for a first life and for any save without it.
+  const legacyMult = legacyIncomeMultiplier(input.prevState);
+
   const totalIncome = Math.round(
-    baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus * safeEconMult,
+    baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus * safeEconMult * legacyMult,
   ) + safeRetirementIncome;
 
   return { partnerIncome, baseTotalIncome, totalIncome };

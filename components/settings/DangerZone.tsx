@@ -99,10 +99,20 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
 
       const slot = typeof currentSlot === 'number' && currentSlot > 0 ? currentSlot : null;
       if (slot != null) {
-        const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
-        await snapshotOutgoingSave(slot, 'before_overwrite').catch(() => {});
-        const { deleteSaveSlot } = await import('@/utils/saveValidation');
-        await deleteSaveSlot(slot);
+        // Under the save lock (SAVE2-3): the pristine state above stops NEW
+        // saves, but an autosave already past its checks is still writing the
+        // old life, and landing after the delete it would restore the very
+        // character the player just confirmed destroying.
+        const { saveLoadMutex } = await import('@/utils/saveLoadMutex');
+        const slotLock = await saveLoadMutex.acquire('save');
+        try {
+          const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
+          await snapshotOutgoingSave(slot, 'before_overwrite').catch(() => {});
+          const { deleteSaveSlot } = await import('@/utils/saveValidation');
+          await deleteSaveSlot(slot);
+        } finally {
+          saveLoadMutex.release(slotLock);
+        }
         await import('@/utils/saveSlotMeta')
           .then((m) => m.deleteSaveSlotMeta(slot))
           .catch(() => {});
@@ -206,13 +216,13 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
                 Are you sure you want to restart? All progress will be lost. Purchases you have paid for are kept.
               </Text>
               <View style={styles.confirmActions}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.cancelButton}
                   onPress={() => setShowRestartConfirm(false)}
                 >
                   <Text style={styles.cancelButtonText}>No</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmButton} onPress={confirmRestart}>
+                <TouchableOpacity accessibilityRole="button" style={styles.confirmButton} onPress={confirmRestart}>
                   <Text style={styles.confirmButtonText}>Yes</Text>
                 </TouchableOpacity>
               </View>
