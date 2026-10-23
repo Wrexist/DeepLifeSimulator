@@ -341,7 +341,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 </View>
                 <View style={styles.statusItem}>
                   <DollarSign size={16} color={uiPalette.white} />
-                  <Text style={styles.statusText}>Bail: ${bailCost}</Text>
+                  <Text style={styles.statusText}>Bail: {formatMoney(bailCost)}</Text>
                 </View>
               </View>
             </LinearGradient>
@@ -351,7 +351,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
           <View style={styles.bailCard}>
             <Text style={styles.sectionTitle}>Post Bail</Text>
             <Text style={styles.sectionDescription}>
-              Pay ${bailCost} to be released immediately
+              Pay {formatMoney(bailCost)} to be released immediately
             </Text>
             <TouchableOpacity
               onPress={handlePayBail}
@@ -454,7 +454,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       <View style={styles.foodCardHeader}>
                         <Utensils size={16} color={canAfford ? '#F59E0B' : uiPalette.lightMuted} />
                         <Text style={[styles.foodPrice, !canAfford && styles.disabledText]}>
-                          ${price}
+                          {formatMoney(price)}
                         </Text>
                       </View>
                       
@@ -549,12 +549,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       )}
 
                       <View style={styles.activityRewards}>
-                        {activity.payment && (
+                        {activity.payment ? (
                           <View style={styles.rewardItem}>
                             <DollarSign size={12} color={uiPalette.white} />
-                            <Text style={styles.rewardText}>+${activity.payment}</Text>
+                            <Text style={styles.rewardText}>+{formatMoney(activity.payment)}</Text>
                           </View>
-                        )}
+                        ) : null}
                         {activity.sentenceReduction && (
                           <View style={styles.rewardItem}>
                             <Shield size={12} color={uiPalette.white} />
@@ -594,11 +594,11 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         )}
                       </View>
 
-                      {activity.cost && (
+                      {activity.cost ? (
                         <View style={styles.costIndicator}>
-                          <Text style={styles.costText}>Cost: ${activity.cost}</Text>
+                          <Text style={styles.costText}>Cost: {formatMoney(activity.cost)}</Text>
                         </View>
-                      )}
+                      ) : null}
                     </LinearGradient>
                   </TouchableOpacity>
                 );
@@ -613,22 +613,22 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               <View style={styles.statItem}>
                 <BarChart3 size={16} color="#10B981" />
                 <Text style={styles.statLabel}>Energy</Text>
-                <Text style={styles.statValue}>{stats.energy}/100</Text>
+                <Text style={styles.statValue}>{Math.round(stats.energy)}/100</Text>
               </View>
               <View style={styles.statItem}>
                 <Heart size={16} color="#EF4444" />
                 <Text style={styles.statLabel}>Health</Text>
-                <Text style={styles.statValue}>{stats.health}/100</Text>
+                <Text style={styles.statValue}>{Math.round(stats.health)}/100</Text>
               </View>
               <View style={styles.statItem}>
                 <TrendingUp size={16} color="#3B82F6" />
                 <Text style={styles.statLabel}>Fitness</Text>
-                <Text style={styles.statValue}>{stats.fitness}/100</Text>
+                <Text style={styles.statValue}>{Math.round(stats.fitness ?? 0)}/100</Text>
               </View>
               <View style={styles.statItem}>
                 <DollarSign size={16} color="#F59E0B" />
                 <Text style={styles.statLabel}>Money</Text>
-                <Text style={styles.statValue}>${stats.money.toLocaleString('en-US')}</Text>
+                <Text style={styles.statValue}>{formatMoney(stats.money)}</Text>
               </View>
             </View>
           </View>
