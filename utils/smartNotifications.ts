@@ -514,7 +514,9 @@ class SmartNotificationSystem {
         priority: 'low',
         category: 'career',
         icon: '🏖️',
-        conditions: { minAge: 60, minMoney: 1000000 },
+        // `hasJob`: retiring clears the job, so without it a player who had
+        // ALREADY retired was told to consider retiring, every month.
+        conditions: { minAge: 60, minMoney: 1000000, hasJob: true },
         cooldown: 720, // 1 month
       },
     ];

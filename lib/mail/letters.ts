@@ -169,6 +169,33 @@ function snippet(description: string): string {
 }
 
 /**
+ * The letter's id: the event AND the instance of it.
+ *
+ * Keyed on the event id alone, not the week, because an event stays open for
+ * several weeks and a per-tick key would deliver the same letter every tick.
+ * But the event id alone is not enough either: a routed template can fire
+ * AGAIN once its repeat cooldown passes, and the first instance's answered
+ * letter is still in the 50-message mailbox, so `appendMessages` saw the id
+ * and silently dropped the new one. The second parking fine or summons was
+ * then in neither channel until it lapsed back to the modal four weeks later -
+ * the deferral the letter exists for, lost. `generatedAtWeeksLived` (stamped
+ * when the event is rolled) and `expiresAtWeek` (stamped when it is routed)
+ * are fixed for the life of one instance and differ between instances.
+ *
+ * An event with neither stamp keeps the original key, so nothing changes for
+ * a letter already in a save.
+ */
+export function letterIdFor(event: Pick<WeeklyEvent, 'id' | 'generatedAtWeeksLived' | 'expiresAtWeek'>): string {
+  const instance =
+    typeof event.generatedAtWeeksLived === 'number' && Number.isFinite(event.generatedAtWeeksLived)
+      ? event.generatedAtWeeksLived
+      : typeof event.expiresAtWeek === 'number' && Number.isFinite(event.expiresAtWeek)
+        ? `x${event.expiresAtWeek}`
+        : null;
+  return instance === null ? `mail-letter-${event.id}` : `mail-letter-${event.id}-${instance}`;
+}
+
+/**
  * Build the mail message for a routed event.
  *
  * The choice LABELS are the event's own `text` - deliberately, so the two
@@ -188,9 +215,7 @@ export function letterFromEvent(event: WeeklyEvent, atWeek: number): MailMessage
   }));
 
   return {
-    // Keyed on the EVENT id, not the week: an event lives across several weeks,
-    // and keying by week would deliver the same letter again every tick.
-    id: `mail-letter-${event.id}`,
+    id: letterIdFor(event),
     senderName: frame.senderName,
     senderEmail: frame.senderEmail,
     verified: frame.verified,
