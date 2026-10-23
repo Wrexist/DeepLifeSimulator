@@ -157,6 +157,21 @@ describe('executePrestige - prestige-achievement award pass', () => {
     expect(lives[lives.length - 1].weeksLivedAtEnd).toBe(4);
   });
 
+  // LATE2-5: `weeksLived` is seeded from the starting age, so an heir who took
+  // over at 30 starts at 624. The record holds weeks PLAYED, or the speed
+  // achievements are unreachable for every adult heir.
+  it('records weeks played, not the age-seeded counter, for an heir life', () => {
+    const heir = createTestGameState({
+      stats: { money: getPrestigeThreshold(0) + 5_000_000 },
+      lifeStartWeek: 624,
+      weeksLived: 628,
+    } as never);
+    const result = executePrestige(heir, 'reset');
+    const lives = result.previousLives ?? [];
+    expect(lives[lives.length - 1].weeksLivedAtEnd).toBe(4);
+    expect(result.prestige?.claimedPrestigeAchievements ?? []).toContain('prestige_speed_week_5');
+  });
+
   it('does not re-award the same achievement on a subsequent prestige (idempotent)', () => {
     const first = executePrestige(aboveThreshold(), 'reset');
     // Hand the reset life enough net worth to prestige again, keeping the
