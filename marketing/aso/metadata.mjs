@@ -31,7 +31,7 @@ export const APPLE = {
    *
    * `scripts/asc-release.mjs` reads this as the record to create and fill.
    */
-  storeVersion: '1.8.0',
+  storeVersion: '1.9.0',
 
   /**
    * MANUAL: an approved version waits for a person to press Release in App
@@ -53,14 +53,14 @@ export const APPLE = {
    * described for three audiences, and a reader who finds them disagreeing
    * cannot tell which one is the lie.
    */
-  whatsNew: `A life that tells the truth: hundreds of fixes so events, money and people behave the way the game says.
+  whatsNew: `Fair play, all the way up: sixty more fixes, and rewards that finally do what they say.
 
-• Share your life card. When a life ends, Share sends a picture of your life card.
-• Events that fit your life. No boss bonuses without a job, no car bills without a car, no festivals in jail. Appeals, counter-offers and lawyers are real gambles now.
-• Money that adds up. Your bank always matches your wallet, you can type exact amounts, and stock and crypto orders tell you whether they went through.
-• Family that works. Divorce splits what you really own, heirs inherit the whole fortune, and the family tree keeps every generation.
-• Better pay for therapists, vets, architects, journalists, soldiers and firefighters.
-• Saves you can rescue. A save that will not load points you to Restore instead of a new game.
+• Legacy that counts. Inherited Legacy Bonuses now apply: extra income, faster learning and reputation for your heir.
+• Weddings worth the venue. Each venue gives the happiness and reputation it advertises.
+• Rest that restores. Resting no longer costs energy, and your weekly energy refill is no longer partly lost.
+• Smarter banking. Mortgages and car loans come with the home or car you buy, and a matured CD drops to the savings rate.
+• Family that sticks. Bonds with your children hold, marriages count toward achievements, and heirs get their own luck.
+• Safer saves. Heirs can restore their own backups, and cloud restores keep purchases you just made.
 • Every save carries over.`,
 
   /**
@@ -204,14 +204,14 @@ Privacy Policy: https://wrexist.github.io/DeepLifeSimulator/privacy.html`,
       // Mirrors APPLE.whatsNew. Kept in the register of the description above
       // — this locale is a real translation, not machine output, and a
       // machine-shaped release note next to hand-written copy reads as one.
-      whatsNew: `Una vida que dice la verdad: cientos de correcciones para que los eventos, el dinero y las personas funcionen como dice el juego.
+      whatsNew: `Juego limpio de principio a fin: sesenta correcciones más y recompensas que por fin hacen lo que prometen.
 
-• Comparte tu tarjeta de vida. Cuando una vida termina, Compartir envía una imagen de tu tarjeta.
-• Eventos que encajan con tu vida. Nada de bonos del jefe sin trabajo, facturas del coche sin coche ni festivales en la cárcel. Las apelaciones, contraofertas y abogados ahora son apuestas reales.
-• Dinero que cuadra. Tu banco siempre coincide con tu cartera, puedes escribir cantidades exactas y las órdenes de acciones y cripto te dicen si se completaron.
-• Una familia que funciona. El divorcio reparte lo que de verdad tienes, los herederos heredan toda la fortuna y el árbol familiar guarda cada generación.
-• Mejor sueldo para terapeutas, veterinarios, arquitectos, periodistas, soldados y bomberos.
-• Partidas que se pueden rescatar. Una partida que no carga te lleva a Restaurar en lugar de a una partida nueva.
+• Un legado que cuenta. Las bonificaciones de legado heredadas ya se aplican: más ingresos, aprendizaje más rápido y reputación para tu heredero.
+• Bodas que valen el lugar. Cada lugar da la felicidad y la reputación que anuncia.
+• Descanso que repone. Descansar ya no cuesta energía y la recarga semanal de energía ya no se pierde en parte.
+• Banca más sensata. Las hipotecas y los préstamos de coche vienen con la casa o el coche que compras, y un depósito a plazo vencido baja a la tasa de ahorro.
+• Una familia que perdura. Los lazos con tus hijos se mantienen, los matrimonios cuentan para los logros y los herederos tienen su propia suerte.
+• Partidas más seguras. Los herederos pueden restaurar sus propias copias y restaurar desde la nube conserva las compras recientes.
 • Todas las partidas se conservan.`,
 
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
@@ -266,14 +266,14 @@ Política de privacidad: https://wrexist.github.io/DeepLifeSimulator/privacy.htm
       subtitle: 'Carreira, crime, cripto, luxo',
       promotionalText:
         'Novo: entre ao vivo e fique famoso. Faça lives, ganhe seguidores e evolua suas habilidades; depois faça fortuna, crie uma família e deixe tudo a um herdeiro.',
-      whatsNew: `Uma vida que diz a verdade: centenas de correções para que eventos, dinheiro e pessoas funcionem como o jogo diz.
+      whatsNew: `Jogo limpo do início ao fim: mais sessenta correções e recompensas que finalmente fazem o que prometem.
 
-• Compartilhe o card da sua vida. Quando uma vida termina, Compartilhar envia uma imagem do seu card.
-• Eventos que combinam com a sua vida. Nada de bônus do chefe sem emprego, conta do carro sem carro ou festivais na prisão. Recursos, contrapropostas e advogados agora são apostas de verdade.
-• Dinheiro que fecha. O banco sempre bate com a carteira, você pode digitar valores exatos e as ordens de ações e cripto dizem se foram concluídas.
-• Uma família que funciona. O divórcio divide o que você realmente tem, os herdeiros herdam a fortuna inteira e a árvore genealógica guarda todas as gerações.
-• Salários melhores para terapeutas, veterinários, arquitetos, jornalistas, soldados e bombeiros.
-• Saves que dá para recuperar. Um save que não carrega leva você a Restaurar em vez de a um jogo novo.
+• Um legado que conta. Os bônus de legado herdados agora valem: mais renda, aprendizado mais rápido e reputação para o seu herdeiro.
+• Casamentos que valem o local. Cada local dá a felicidade e a reputação que anuncia.
+• Descanso que recupera. Descansar não custa mais energia, e a recarga semanal de energia não é mais perdida em parte.
+• Banco mais sensato. Financiamentos de casa e carro vêm com o imóvel ou o carro que você compra, e um CDB vencido cai para a taxa da poupança.
+• Uma família que dura. Os laços com seus filhos se mantêm, casamentos contam para as conquistas e os herdeiros têm a própria sorte.
+• Saves mais seguros. Herdeiros podem restaurar os próprios backups, e restaurar da nuvem mantém compras recentes.
 • Todos os saves continuam valendo.`,
 
       description: `Toda vida começa do mesmo jeito: sem dinheiro, sem emprego, sem plano.
@@ -322,14 +322,14 @@ Política de Privacidade: https://wrexist.github.io/DeepLifeSimulator/privacy.ht
       subtitle: 'Carrière, crime, crypto, luxe',
       promotionalText:
         "Nouveau : passez en live et devenez célèbre. Streamez, gagnez des abonnés, améliorez vos compétences, puis bâtissez une fortune et léguez-la.",
-      whatsNew: `Une vie qui dit la vérité : des centaines de corrections pour que les événements, l'argent et les gens se comportent comme le jeu l'annonce.
+      whatsNew: `Fair-play jusqu'au bout : soixante corrections de plus, et des récompenses qui font enfin ce qu'elles promettent.
 
-• Partagez votre carte de vie. À la fin d'une vie, Partager envoie une image de votre carte.
-• Des événements adaptés à votre vie. Plus de prime du patron sans emploi, de facture de voiture sans voiture ni de festival en prison. Recours, contre-offres et avocats sont désormais de vrais paris.
-• Un argent qui tombe juste. Votre banque correspond toujours à votre portefeuille, vous pouvez saisir des montants exacts, et les ordres d'actions et de crypto indiquent s'ils sont passés.
-• Une famille qui fonctionne. Le divorce partage ce que vous possédez vraiment, les héritiers reçoivent toute la fortune et l'arbre généalogique garde chaque génération.
-• Meilleurs salaires pour les thérapeutes, vétérinaires, architectes, journalistes, soldats et pompiers.
-• Des sauvegardes récupérables. Une sauvegarde qui ne se charge pas vous mène à Restaurer plutôt qu'à une nouvelle partie.
+• Un héritage qui compte. Les bonus d'héritage s'appliquent désormais : revenus en plus, apprentissage plus rapide et réputation pour votre héritier.
+• Des mariages à la hauteur du lieu. Chaque lieu apporte le bonheur et la réputation annoncés.
+• Un repos qui repose. Se reposer ne coûte plus d'énergie, et la recharge hebdomadaire d'énergie n'est plus en partie perdue.
+• Une banque plus juste. Les prêts immobiliers et auto vont avec le logement ou la voiture achetés, et un dépôt à terme échu passe au taux d'épargne.
+• Une famille qui tient. Les liens avec vos enfants tiennent, les mariages comptent pour les succès et les héritiers ont leur propre chance.
+• Des sauvegardes plus sûres. Les héritiers peuvent restaurer leurs propres sauvegardes, et une restauration depuis le cloud garde vos achats récents.
 • Toutes les sauvegardes sont conservées.`,
 
       description: `Toute vie commence de la même façon : sans argent, sans emploi, sans plan.
@@ -379,14 +379,14 @@ Politique de confidentialité : https://wrexist.github.io/DeepLifeSimulator/priv
       subtitle: 'Karriere, Verbrechen, Krypto',
       promotionalText:
         'Neu: Geh live und werde berühmt. Streame, gewinne Follower und verbessere deine Fähigkeiten, dann bau ein Vermögen und eine Familie auf und vererbe alles.',
-      whatsNew: `Ein Leben, das die Wahrheit sagt: Hunderte Korrekturen, damit Ereignisse, Geld und Menschen sich so verhalten, wie das Spiel es sagt.
+      whatsNew: `Fair bis ganz nach oben: sechzig weitere Korrekturen und Belohnungen, die endlich halten, was sie versprechen.
 
-• Teile deine Lebenskarte. Wenn ein Leben endet, sendet Teilen ein Bild deiner Lebenskarte.
-• Ereignisse, die zu deinem Leben passen. Keine Chef-Boni ohne Job, keine Autorechnungen ohne Auto, keine Festivals im Gefängnis. Einsprüche, Gegenangebote und Anwälte sind jetzt echte Wagnisse.
-• Geld, das aufgeht. Deine Bank stimmt immer mit deinem Geldbeutel überein, du kannst genaue Beträge eingeben, und Aktien- und Krypto-Orders sagen dir, ob sie ausgeführt wurden.
-• Familie, die funktioniert. Eine Scheidung teilt, was du wirklich besitzt, Erben erben das ganze Vermögen, und der Stammbaum behält jede Generation.
-• Bessere Bezahlung für Therapeuten, Tierärzte, Architekten, Journalisten, Soldaten und Feuerwehrleute.
-• Rettbare Spielstände. Ein Spielstand, der nicht lädt, führt dich zu Wiederherstellen statt zu einem neuen Spiel.
+• Ein Erbe, das zählt. Geerbte Vermächtnis-Boni wirken jetzt: mehr Einkommen, schnelleres Lernen und Ansehen für deinen Erben.
+• Hochzeiten, die den Ort wert sind. Jeder Ort bringt das Glück und Ansehen, das er verspricht.
+• Erholung, die erholt. Ausruhen kostet keine Energie mehr, und die wöchentliche Energieaufladung geht nicht mehr teilweise verloren.
+• Klügere Bank. Hypotheken und Autokredite gibt es zum Haus oder Auto, das du kaufst, und ein fälliges Festgeld fällt auf den Sparzins.
+• Familie, die hält. Bindungen zu deinen Kindern bleiben, Ehen zählen für Erfolge, und Erben haben ihr eigenes Glück.
+• Sicherere Spielstände. Erben können ihre eigenen Backups wiederherstellen, und Wiederherstellen aus der Cloud behält frische Käufe.
 • Jeder Spielstand bleibt erhalten.`,
 
       description: `Jedes Leben beginnt gleich: kein Geld, kein Job, kein Plan.
@@ -472,36 +472,41 @@ export const PLAY = {
    * release as APPLE.whatsNew, cut to Play's limit.
    */
   releaseNotes: {
-    'en-US': `New: share your life card as a picture when a life ends.
-• Events fit your life: no boss bonuses without a job, no festivals in jail.
-• Divorce, inheritance and the family tree work the way they should.
-• Your bank always matches your wallet, and trades tell you if they went through.
-• Better pay for therapists, vets, architects and more.
-• Hundreds of fixes. Every save carries over.`,
-    'es-419': `Nuevo: comparte tu tarjeta de vida como imagen cuando una vida termina.
-• Eventos que encajan: nada de bonos sin trabajo ni festivales en la cárcel.
-• El divorcio, la herencia y el árbol familiar funcionan como deben.
-• Tu banco siempre coincide con tu cartera, y las órdenes dicen si se completaron.
-• Mejor sueldo para terapeutas, veterinarios, arquitectos y más.
-• Cientos de correcciones. Todas las partidas se conservan.`,
-    'pt-BR': `Novo: compartilhe o card da sua vida como imagem quando uma vida termina.
-• Eventos que combinam: nada de bônus sem emprego nem festivais na prisão.
-• Divórcio, herança e árvore genealógica funcionam como deveriam.
-• O banco sempre bate com a carteira, e as ordens dizem se foram concluídas.
-• Salários melhores para terapeutas, veterinários, arquitetos e mais.
-• Centenas de correções. Todos os saves continuam valendo.`,
-    'fr-FR': `Nouveau : partagez votre carte de vie en image à la fin d'une vie.
-• Des événements adaptés : pas de prime sans emploi, pas de festival en prison.
-• Divorce, héritage et arbre généalogique fonctionnent comme prévu.
-• Votre banque correspond toujours à votre portefeuille, et les ordres indiquent s'ils sont passés.
-• Meilleurs salaires pour thérapeutes, vétérinaires, architectes et plus.
-• Des centaines de corrections. Toutes les sauvegardes sont conservées.`,
-    'de-DE': `Neu: Teile deine Lebenskarte als Bild, wenn ein Leben endet.
-• Passende Ereignisse: keine Boni ohne Job, keine Festivals im Gefängnis.
-• Scheidung, Erbe und Stammbaum funktionieren, wie sie sollen.
-• Deine Bank stimmt immer mit deinem Geldbeutel überein, und Orders sagen dir, ob sie ausgeführt wurden.
-• Bessere Bezahlung für Therapeuten, Tierärzte, Architekten und mehr.
-• Hunderte Korrekturen. Jeder Spielstand bleibt erhalten.`,
+    'en-US': `Sixty more fixes, and rewards that do what they say.
+• Inherited Legacy Bonuses now apply to your heir.
+• Wedding venues give the happiness and reputation they advertise.
+• Resting no longer costs energy, and the weekly refill is no longer lost.
+• Mortgages and car loans come with the home or car you buy.
+• Heirs can restore their own backups and get their own luck.
+• Every save carries over.`,
+    'es-419': `Sesenta correcciones más y recompensas que cumplen lo que prometen.
+• Las bonificaciones de legado heredadas ya se aplican a tu heredero.
+• Los lugares de boda dan la felicidad y reputación que anuncian.
+• Descansar ya no cuesta energía y la recarga semanal ya no se pierde.
+• Hipotecas y préstamos de coche vienen con la casa o el coche.
+• Los herederos restauran sus copias y tienen su propia suerte.
+• Todas las partidas se conservan.`,
+    'pt-BR': `Mais sessenta correções e recompensas que cumprem o que prometem.
+• Os bônus de legado herdados agora valem para o seu herdeiro.
+• Locais de casamento dão a felicidade e a reputação que anunciam.
+• Descansar não custa energia, e a recarga semanal não se perde mais.
+• Financiamentos de casa e carro vêm com o imóvel ou o carro.
+• Herdeiros restauram os próprios backups e têm a própria sorte.
+• Todos os saves continuam valendo.`,
+    'fr-FR': `Soixante corrections de plus, et des récompenses qui tiennent parole.
+• Les bonus d'héritage s'appliquent désormais à votre héritier.
+• Les lieux de mariage apportent le bonheur et la réputation annoncés.
+• Se reposer ne coûte plus d'énergie, et la recharge hebdo n'est plus perdue.
+• Prêts immobiliers et auto vont avec le logement ou la voiture achetés.
+• Les héritiers restaurent leurs sauvegardes et ont leur propre chance.
+• Toutes les sauvegardes sont conservées.`,
+    'de-DE': `Sechzig weitere Korrekturen und Belohnungen, die halten, was sie versprechen.
+• Geerbte Vermächtnis-Boni wirken jetzt für deinen Erben.
+• Hochzeitsorte bringen das versprochene Glück und Ansehen.
+• Ausruhen kostet keine Energie, die Wochenaufladung geht nicht mehr verloren.
+• Hypotheken und Autokredite gibt es zum gekauften Haus oder Auto.
+• Erben stellen eigene Backups wieder her und haben eigenes Glück.
+• Jeder Spielstand bleibt erhalten.`,
   },
 
   /**

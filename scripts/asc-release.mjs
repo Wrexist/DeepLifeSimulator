@@ -17,6 +17,8 @@
 //   --version <x.y.z>  store version record to create/fill. Default: STORE_VERSION.
 //   --apply            actually write. Without it every mutation is printed only.
 //   --submit           submit for review. Requires --apply. See the note below.
+//   --release          release a PENDING_DEVELOPER_RELEASE version. Requires --apply.
+//   --status           print the existing versions and their states, then exit.
 //   --build <number>   attach this CFBundleVersion to the version record.
 //   --platform <IOS>   default IOS.
 //   --json             machine-readable plan on stdout.
@@ -190,6 +192,22 @@ async function main() {
     }
     for (const [k, u] of privacy) say(`  privacyPolicyUrl ${k} ${u}`);
     say('');
+  }
+
+  // ---- 1b2 · release an approved version ----------------------------------
+  // The listing uses releaseType MANUAL, so an approved version waits in
+  // PENDING_DEVELOPER_RELEASE until somebody presses Release. This is that
+  // press. Nothing else is written, and any other state is refused: releasing
+  // is the step that puts the build in front of every player.
+  if (has('--release')) {
+    if (!apply) die('--release requires --apply.');
+    const state = target ? stateOf(target) : null;
+    if (state !== 'PENDING_DEVELOPER_RELEASE') die(`Version ${versionString} is ${state ?? 'missing'}; only PENDING_DEVELOPER_RELEASE can be released here.`);
+    await client.post('/v1/appStoreVersionReleaseRequests', {
+      data: { type: 'appStoreVersionReleaseRequests', relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: target.id } } } },
+    });
+    say(`  ${C.green}RELEASED${C.off} ${versionString}`);
+    process.exit(0);
   }
 
   // ---- 1c · pull a version out of review ---------------------------------

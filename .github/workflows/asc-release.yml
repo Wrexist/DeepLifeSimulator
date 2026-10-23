@@ -26,10 +26,12 @@ on:
         default: plan
         type: choice
         options:
+          - status                   # read-only: list versions and their states
           - plan                     # read-only: show what would change
           - apply                    # create/fill the version record
           - apply-and-submit         # ...and submit for App Review
           - cancel-review            # pull a WAITING_FOR_REVIEW version back to editable
+          - release                  # release an approved (PENDING_DEVELOPER_RELEASE) version
       version:
         description: 'Store version record (blank = APPLE.storeVersion from metadata.mjs)'
         required: false
@@ -39,7 +41,7 @@ on:
         required: false
         type: string
       confirm_submit:
-        description: 'Type SUBMIT for apply-and-submit, CANCEL for cancel-review'
+        description: 'Type SUBMIT for apply-and-submit, CANCEL for cancel-review, RELEASE for release'
         required: false
         type: string
 
@@ -87,6 +89,14 @@ jobs:
           echo "::error title=Confirmation required::mode=cancel-review needs confirm_submit to be exactly CANCEL."
           exit 1
 
+      # Releasing puts the build in front of every player, so it takes a typed
+      # word like the other two outward steps.
+      - name: Confirm release
+        if: ${{ inputs.mode == 'release' && inputs.confirm_submit != 'RELEASE' }}
+        run: |
+          echo "::error title=Confirmation required::mode=release needs confirm_submit to be exactly RELEASE."
+          exit 1
+
       - name: Install dependencies
         run: npm ci
 
@@ -111,6 +121,8 @@ jobs:
             apply)            ARGS="$ARGS --apply" ;;
             apply-and-submit) ARGS="$ARGS --apply --submit" ;;
             cancel-review)    ARGS="$ARGS --apply --cancel-review" ;;
+            release)          ARGS="$ARGS --apply --release" ;;
+            status)           ARGS="$ARGS --status" ;;
           esac
           echo "Running: node scripts/asc-release.mjs $ARGS"
           node scripts/asc-release.mjs $ARGS 2>&1 | tee /tmp/asc-output.txt
