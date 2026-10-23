@@ -72,7 +72,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         category: 'fixed',
-        title: 'Family and friends',
+        title: 'Love, kids and heirs',
         bullets: [
           'Bonds you pay for with your children stick instead of slipping back.',
           'Marriages count toward your achievements, and you cannot get engaged twice.',
@@ -92,7 +92,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         category: 'fixed',
-        title: 'Saves and screens',
+        title: 'Backups and taps',
         bullets: [
           'Heirs can restore their own backups.',
           'Starting a new game after a death no longer brings the old character back.',
