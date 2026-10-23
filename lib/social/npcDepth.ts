@@ -321,6 +321,16 @@ const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  effects: { mood: 'sad', incomeChange: -20000, jobChange: 'Unemployed', relationshipScoreChange: -3 },
  weight: 3,
  },
+ // SOC2-8: the way back from `lost_job`. Before it, an unemployed NPC could
+ // only climb back through "got a promotion at work!" and "received a bonus
+ // at work" - copy that cannot be true of somebody whose card reads
+ // "Unemployed". Restores what `lost_job` took.
+ {
+ id: 'found_job',
+ description: '{name} found a new job.',
+ effects: { mood: 'happy', incomeChange: 20000, jobChange: 'New job', relationshipScoreChange: 1 },
+ weight: 10,
+ },
  {
  id: 'argument_friend',
  description: '{name} had a falling out with a friend.',
@@ -341,6 +351,9 @@ const NPC_LIFE_EVENTS: NPCLifeEvent[] = [
  },
 ];
 
+/** Life events that only make sense for somebody who currently has a job. */
+const WORK_EVENT_IDS = new Set(['got_promotion', 'bonus_at_work', 'work_stress', 'lost_job']);
+
 /**
  * Roll a random NPC life event. Only triggers ~15% of weeks.
  * Returns null if no event occurs.
@@ -359,11 +372,19 @@ export function rollNPCLifeEvent(
  if (relationship.type === 'child' && relationship.age < 16) return null;
 
  // Filter applicable events
+ // SOC2-8: work events need WORK. They used to fire for anyone, so the seeded
+ // parents (no job at all) "lost their job unexpectedly" - and then lost it
+ // again, and got promoted at a job the card said they did not have.
+ const job = typeof relationship.job === 'string' ? relationship.job.trim() : '';
+ const unemployed = job === 'Unemployed';
+ const employed = job.length > 0 && !unemployed;
  const applicableEvents = NPC_LIFE_EVENTS.filter(e => {
  // Children can't lose jobs or get promotions
- if (relationship.type === 'child' && (e.id === 'lost_job' || e.id === 'got_promotion' || e.id === 'bonus_at_work')) {
+ if (relationship.type === 'child' && (e.id === 'lost_job' || e.id === 'got_promotion' || e.id === 'bonus_at_work' || e.id === 'found_job')) {
  return false;
  }
+ if (WORK_EVENT_IDS.has(e.id) && !employed) return false;
+ if (e.id === 'found_job' && !unemployed) return false;
  return true;
  });
 
