@@ -19,7 +19,7 @@ import type {
   SparkJealousyEvent,
   SparkLikedYouEntry,
 } from '@/contexts/game/types';
-import { perksForTier, calculateJealousyRisk } from './sparkLogic';
+import { perksForTier, calculateJealousyRisk, sparkLifeSeed } from './sparkLogic';
 import { DATING_PROFILES } from './datingProfiles';
 
 export interface SparkTickResult {
@@ -118,7 +118,7 @@ export function processSparkWeeklyTick(
   if (!sp.activeJealousy) {
     const risk = calculateJealousyRisk(state);
     if (risk > 0) {
-      const jealousySeed = `spark-jealousy|${state.lineageId ?? 'init'}|${nextWeeksLived}`;
+      const jealousySeed = `spark-jealousy|${sparkLifeSeed(state, 'init')}|${nextWeeksLived}`;
       const rng = seededRandom(jealousySeed);
       if (rng < risk) {
         const partners = (state.relationships ?? []).filter(
@@ -153,7 +153,7 @@ export function processSparkWeeklyTick(
   // save-scum reroll, StrictMode-consistent). Distinct seed labels keep the
   // count, per-iteration profile pick, and super-like rolls independent.
   const likedSeed = (label: string): number =>
-    seededRandom(`spark-likedyou|${state.lineageId ?? 'init'}|${nextWeeksLived}|${label}`);
+    seededRandom(`spark-likedyou|${sparkLifeSeed(state, 'init')}|${nextWeeksLived}|${label}`);
   if (sp.premium.perks.seeWhoLikedYou) {
     // Seed 1-3 fresh "liked you" entries from random profiles each week
     const targetCount = Math.min(20, sp.likedYou.length + 1 + Math.floor(likedSeed('count') * 3));

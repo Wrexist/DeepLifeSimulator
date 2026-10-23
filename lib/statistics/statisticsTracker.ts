@@ -232,6 +232,48 @@ export function countNewRelationship(stats: LifetimeStatistics | undefined): Lif
 }
 
 /**
+ * Everyone who has entered this life through a relationship door (v58,
+ * `GameState.metRelationshipIds`).
+ *
+ * A save without the field RESOLVES here instead of reading as "nobody met":
+ * it seeds from the people currently in the life, so nobody already present can
+ * be counted a second time. (Somebody met and removed before v58 left no record
+ * and can count once more - the one gap an earlier save cannot close, and the
+ * opposite guess would mean inventing people.)
+ */
+export function metRelationshipIdsOf(
+  state: Pick<GameState, 'metRelationshipIds' | 'relationships'> | null | undefined,
+): string[] {
+  const stored = state?.metRelationshipIds;
+  const source = Array.isArray(stored) ? stored : (state?.relationships ?? []).map((r) => r?.id);
+  return source.filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
+/**
+ * The bookkeeping for somebody arriving through a relationship door: the
+ * updated met-record and the lifetime counter, which moves ONLY for somebody
+ * this life has not met before (S1). Meeting a person, removing them and
+ * meeting them again used to count them twice toward the 25-relationship
+ * achievement, because every door mints a stable id for the same person.
+ *
+ * Spread the result into the same updater that appends the relationship
+ * (§4.4), computed from the state BEFORE the append.
+ */
+export function recordMetRelationship(
+  state: Pick<GameState, 'metRelationshipIds' | 'relationships' | 'lifetimeStatistics'>,
+  relationshipId: string,
+): Pick<GameState, 'metRelationshipIds' | 'lifetimeStatistics'> {
+  const met = metRelationshipIdsOf(state);
+  if (met.includes(relationshipId)) {
+    return { metRelationshipIds: met, lifetimeStatistics: state.lifetimeStatistics };
+  }
+  return {
+    metRelationshipIds: [...met, relationshipId],
+    lifetimeStatistics: countNewRelationship(state.lifetimeStatistics),
+  };
+}
+
+/**
  * Increment children count
  */
 export function trackNewChild(stats: LifetimeStatistics): LifetimeStatistics {

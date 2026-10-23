@@ -192,7 +192,8 @@ export function createTestGameState(overrides: TestGameStateOverrides = {}): Gam
  * Fields whose default is `undefined` (the §7 carve-outs — `ambitionId`,
  * `lifeStartWeek`, `mail`, `dynasty`, v57's `ageOffsetWeeks` /
  * `deathRibbonPaidForLife` / `settings.notificationPrefs` /
- * `settings.lastAdVitalityGrantWeek` / `*.weekVolume`, …) are correctly absent
+ * `settings.lastAdVitalityGrantWeek` / `*.weekVolume`, v58's
+ * `metRelationshipIds` / `politics.peakOfficeLevel`, …) are correctly absent
  * here: they are not keys of `initialGameState`, and an absent key already
  * equals their default.
  *

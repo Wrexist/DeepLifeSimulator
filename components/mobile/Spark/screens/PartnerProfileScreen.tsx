@@ -30,7 +30,7 @@ import { getGlassCard, getGlassButton } from '@/utils/glassmorphismStyles';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { unmatch, reportProfile, exposeCatfish, fallForCatfish } from '@/contexts/game/actions/SparkActions';
-import { isCatfish } from '@/lib/dating/sparkLogic';
+import { isCatfish, sparkLifeSeed } from '@/lib/dating/sparkLogic';
 import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
@@ -60,7 +60,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
 
   // Catfish determination - same seed `swipeOnProfile` / the swipe-deck chip use,
   // so the "Expose" / "Send money" actions only appear on a genuine catfish.
-  const catfishSuspected = profile ? isCatfish(profile, gameState.lineageId ?? 'initial') : false;
+  const catfishSuspected = profile ? isCatfish(profile, sparkLifeSeed(gameState, 'initial')) : false;
 
   const handleUnmatch = useCallback(() => {
     gameAlert(

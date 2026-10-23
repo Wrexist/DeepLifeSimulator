@@ -191,3 +191,55 @@ describe('the weekly tick wiring', () => {
     expect(grandchildrenOf(after).length).toBe(1);
   });
 });
+
+/**
+ * S3 (owner decisions, 2026-10-23): the birth roll is keyed on the LIFE.
+ *
+ * The identity is a pool name plus an absolute week, and an heir restarts that
+ * counter from the same age band - so an heir's "Alex born week 0" replayed the
+ * parent's "Alex born week 0" exactly, and so did any unrelated life. The tick
+ * now passes `lifeSalt(state)` (lineage + generation).
+ */
+describe('S3: births are salted by the life', () => {
+  /** Every birth week over a long walk, as a fingerprint of the roll stream. */
+  function birthWeeks(salt: string | undefined): number[] {
+    const out: number[] = [];
+    for (let w = 0; w < 6_000; w += 1) {
+      if (rollGrandchild(child({ age: 30 }), w, salt)) out.push(w);
+    }
+    return out;
+  }
+
+  it('an heir (same lineage, next generation) does not replay the parent', () => {
+    expect(birthWeeks('lin-a:2')).not.toEqual(birthWeeks('lin-a:1'));
+  });
+
+  it('two unrelated lives do not collide', () => {
+    expect(birthWeeks('lin-a:1')).not.toEqual(birthWeeks('lin-b:1'));
+  });
+
+  it('is still deterministic within one life - a reload cannot reroll', () => {
+    expect(birthWeeks('lin-a:1')).toEqual(birthWeeks('lin-a:1'));
+  });
+
+  it('a caller with no life keeps the legacy keys', () => {
+    expect(birthWeeks(undefined)).toEqual(birthWeeks(''));
+    expect(birthWeeks(undefined)[0]).toBe(firstBirthWeek(child({ age: 30 })));
+  });
+
+  it('the tick path threads the salt through', () => {
+    const c = child({ age: 30 });
+    const parentWeeks = birthWeeks('lin-a:1');
+    const heirWeeks = birthWeeks('lin-a:2');
+    const parentOnly = parentWeeks.find((w) => !heirWeeks.includes(w))!;
+    expect(parentOnly).toBeDefined();
+    expect(grandchildrenOf(applyChildAging(c, parentOnly, 'lin-a:1') as ChildInfo)).toHaveLength(1);
+    // The heir does not get the parent's birth on the parent's week.
+    expect(grandchildrenOf(applyChildAging(c, parentOnly, 'lin-a:2') as ChildInfo)).toHaveLength(0);
+  });
+
+  it('keeps the v34 id shape - only the ROLL takes the salt', () => {
+    const week = birthWeeks('lin-a:1')[0];
+    expect(rollGrandchild(child({ age: 30 }), week, 'lin-a:1')!.id).toBe('Alex:0-gc-1');
+  });
+});

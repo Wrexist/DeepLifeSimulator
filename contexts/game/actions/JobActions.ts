@@ -26,6 +26,7 @@ import {
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobApplicationOdds } from '@/lib/careers/applicationOdds';
 import { politicalPromotionBlocker } from '@/lib/careers/political';
+import { nextPeakOfficeLevel } from '@/lib/politics/lifeOperations';
 /**
  * Re-exported so existing importers of `RAISE_MIN_PERFORMANCE` keep working.
  * The constant itself now lives in `lib/careers/raisePremium` — `lib/mail`
@@ -1232,6 +1233,7 @@ export const promoteCareer = (
             politics: {
               ...prev.politics,
               careerLevel: Math.max(prev.politics.careerLevel ?? 0, promotedLevel + 1),
+              peakOfficeLevel: nextPeakOfficeLevel(prev, promotedLevel + 1),
             },
           }
         : {}),

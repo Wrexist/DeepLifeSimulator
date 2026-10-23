@@ -2907,6 +2907,23 @@ export interface GameState {
    */
   shownNotificationIds?: string[];
   /**
+   * Ids of every `Relationship` that has entered THIS life through one of the
+   * relationship doors (Spark, the `intro` favour, `meetSomeone` - CLAUDE.md
+   * §4.8), kept after the person leaves (v58). It is what makes
+   * `lifetimeStatistics.totalRelationships` count PEOPLE rather than arrivals:
+   * the doors mint stable ids (`met-w<window>`, `spm-<profile>`,
+   * `intro-<contact>-<week>`), so removing somebody and meeting them again
+   * used to count them twice toward "Social Network - form 25 relationships".
+   *
+   * Default `undefined` - a CARVE-OUT, the v50 `shownNotificationIds` shape:
+   * absent RESOLVES rather than meaning "nobody met". `metRelationshipIdsOf`
+   * (lib/statistics/statisticsTracker.ts) seeds it from the current
+   * `relationships` on first read, so nobody already in the life can count
+   * again and the stored counter is never touched. Per life: prestige and
+   * heirs rebuild from `initialGameState`, which does not carry it.
+   */
+  metRelationshipIds?: string[];
+  /**
    * Company ids this LIFE has already taken public (v56). Selling a public
    * company and founding the same type again reuses the id, so this is what
    * stops found -> IPO -> sell -> found from paying the float again. Per life:
@@ -3833,6 +3850,24 @@ export interface PoliticsState {
     termsServed: number;
     weeklyPension: number;
   };
+
+  /**
+   * The highest office RANK ever held this life (v58), on the same 1-based
+   * scale as `careerLevel` (1 = Council ... 6 = President). Stamped as a
+   * running max wherever an office is taken (`runForOffice`, a Work-tab
+   * promotion).
+   *
+   * It exists because the record it replaces was `careers.political.level`,
+   * which the next election win OVERWRITES: a former Governor who won a Council
+   * seat came back as a Council Member everywhere `highestOfficeHeld` looked,
+   * and lost the ambassadorship / cabinet eligibility the governorship earned.
+   *
+   * Default `undefined` - a CARVE-OUT: absent resolves to the old derivation in
+   * `highestOfficeHeld` (sitting rank, retirement record, career level), which
+   * is exactly what an earlier save shows today, and the first stamp folds that
+   * derivation in before the overwrite happens.
+   */
+  peakOfficeLevel?: number;
 }
 
 export interface Goal {

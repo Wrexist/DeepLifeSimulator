@@ -1786,7 +1786,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (current.type === 'child') {
  // weeksLivedNow seeds the deterministic grandchild-birth roll - same save,
  // same week, same outcome, so a reload cannot be used to reroll a birth.
- current = applyChildAging(current, weeksLivedNow);
+ // lifeSalt keys it on the life too, so an heir does not replay it (S3).
+ current = applyChildAging(current, weeksLivedNow, lifeSalt(prevState));
  }
 
  // R7 Phase 2 step 2.6-iii-E: relationship health extracted to

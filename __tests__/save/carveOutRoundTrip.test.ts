@@ -553,6 +553,27 @@ const CARVE_OUTS: CarveOut[] = [
       return { ...b, settings: { ...b.settings, lastAdVitalityGrantWeek: 3_700 } };
     },
   },
+  {
+    version: 58,
+    path: 'metRelationshipIds',
+    // Everybody this life has met through a door. Erased on load, the resolver
+    // would reseed from the CURRENT relationships and a person removed before
+    // the save could be met - and counted toward "Social Network" - again (S1).
+    value: ['met-w1', 'spm-p7', 'met-w3'],
+    build: () => ({ ...base(), metRelationshipIds: ['met-w1', 'spm-p7', 'met-w3'] }),
+  },
+  {
+    version: 58,
+    path: 'politics.peakOfficeLevel',
+    // The highest office ever held. Erased on load, a former Governor sitting
+    // on the Council would read as a Council Member to appointment
+    // eligibility again (S2).
+    value: 4,
+    build: () => {
+      const b = base();
+      return { ...b, politics: { ...b.politics!, careerLevel: 1, peakOfficeLevel: 4 } };
+    },
+  },
 ];
 
 /** A factory founded at `week` - the v56 rows' company. */
@@ -669,7 +690,8 @@ describe('the §7 carve-out fields survive the load merge', () => {
     // `stocks.weekVolume`, `deathRibbonPaidForLife` and
     // `settings.lastAdVitalityGrantWeek`. (v57 ALSO reprices the stored career
     // ladders, the v54 shape, but it is not a NON_FIELD bump: it adds fields.)
-    expect(CARVE_OUTS).toHaveLength(38);
+    // 40 with v58's `metRelationshipIds` and `politics.peakOfficeLevel`.
+    expect(CARVE_OUTS).toHaveLength(40);
     // Bumps that add NO field, so they have no row here: v53 reprices the
     // stored diet catalogue; v54 reprices careers/street jobs/items and mints
     // `lineageId`. Declared, so an undeclared new field still fails.

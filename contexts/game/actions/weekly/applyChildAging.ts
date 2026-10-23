@@ -22,7 +22,7 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { applyGrandchildWeek } from '@/lib/parenting/grandchildren';
 
-export function applyChildAging(rel: Relationship, weeksLived?: number): Relationship {
+export function applyChildAging(rel: Relationship, weeksLived?: number, lifeSaltKey?: string): Relationship {
   const aged: Relationship = {
     ...rel,
     age: (rel.age || 0) + (1 / WEEKS_PER_YEAR),
@@ -37,5 +37,7 @@ export function applyChildAging(rel: Relationship, weeksLived?: number): Relatio
   // unchanged — without it, no birth is ever rolled, which is the correct
   // conservative answer for a caller that has no clock to seed from.
   if (typeof weeksLived !== 'number' || !Number.isFinite(weeksLived)) return aged;
-  return applyGrandchildWeek(aged as ChildInfo, weeksLived);
+  // `lifeSaltKey` (the tick passes `lifeSalt(state)`) keys the birth roll on
+  // the life, so an heir does not replay the parent's grandchild rolls (S3).
+  return applyGrandchildWeek(aged as ChildInfo, weeksLived, lifeSaltKey);
 }

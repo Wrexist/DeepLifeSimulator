@@ -13,6 +13,31 @@ import type {
   SparkPremium,
 } from '@/contexts/game/types';
 import type { DatingProfile } from './datingProfiles';
+import { lifeSalt } from '@/utils/seededRoll';
+
+/**
+ * The per-life part of Spark's lineage-keyed seeds (catfish, jealousy,
+ * liked-you), S3.
+ *
+ * Those seeds folded in `lineageId` alone, and an heir KEEPS the lineage (only
+ * `generationNumber` moves), so an heir drew exactly the parent's Spark rolls:
+ * the same profiles were catfish, the same weeks brought a jealousy scene. The
+ * generation is folded in from generation 2 on. Generation 1 keeps the bare
+ * lineage spelling these seeds have always used, so no existing first-life save
+ * re-rolls a catfish warning it is already showing on a profile card.
+ *
+ * `legacyFallback` is the spelling each call site used for a missing lineage.
+ */
+export function sparkLifeSeed(
+  state: { lineageId?: string; generationNumber?: number } | null | undefined,
+  legacyFallback: string,
+): string {
+  const lineage = typeof state?.lineageId === 'string' && state.lineageId.length > 0 ? state.lineageId : legacyFallback;
+  const generation = typeof state?.generationNumber === 'number' && Number.isFinite(state.generationNumber)
+    ? Math.floor(state.generationNumber)
+    : 1;
+  return generation > 1 ? `${lineage}:g${generation}` : lineage;
+}
 
 // ── Match probability ─────────────────────────────────────────────────────
 
@@ -100,7 +125,7 @@ export function calculateMatchProbability(
 
 /**
  * Deterministic "Did the NPC swipe right?" decision.
- * Uses the same `(handle, week, profileId)` seed pattern as the rest of the
+ * Uses the same `(life, handle, week, profileId)` seed pattern as the rest of the
  * codebase so re-renders / StrictMode produce identical results per week.
  */
 export function rollMatch(
@@ -109,7 +134,9 @@ export function rollMatch(
   weeksLived: number,
 ): boolean {
   const p = calculateMatchProbability(state, profile);
-  const seed = `spark|${state.userProfile?.handle ?? 'player'}|${weeksLived}|${profile.id}`;
+  // Keyed on the life (S3): the handle alone was 'player' for most lives and
+  // is kept by an heir, so every such life drew the same swipe outcomes.
+  const seed = `spark|${lifeSalt(state)}|${state.userProfile?.handle ?? 'player'}|${weeksLived}|${profile.id}`;
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
     h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
