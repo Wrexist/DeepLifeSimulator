@@ -169,13 +169,15 @@ export function readMetric(state: GameState | undefined | null, metric: Contract
       // it survives a crash back to zero, which is what makes it a fair target.
       return num(state.lifetimeStatistics?.peakNetWorth);
     case 'weeksLivedTotal':
-      // Lifetime total when present, else this life — never less than this life,
-      // so the bar cannot go backwards on a save that lacks the lifetime field.
-      // "This life" is weeks PLAYED, not the age-seeded absolute counter (§4.2).
-      return Math.max(
-        num(lifetime?.totalWeeksLived),
-        weeksSinceLifeStart(state.weeksLived, state.lifeStartWeek),
-      );
+      // Every ENDED life plus this one. `lifetimeStats.totalWeeksLived` is only
+      // folded at a life boundary (`calculateLifetimeStats`, run by prestige and
+      // by the heir flow), so it never includes the life being played. This was
+      // `Math.max(lifetime, thisLife)`, which froze the bar at the lifetime
+      // total for the whole of any life shorter than all the earlier ones put
+      // together - "Live 2,000 weeks across every life" at 1,500 + 600 still
+      // read 1,500 / 2,000 and could not be claimed (LATE2-3). "This life" is
+      // weeks PLAYED, not the age-seeded absolute counter (§4.2).
+      return num(lifetime?.totalWeeksLived) + weeksSinceLifeStart(state.weeksLived, state.lifeStartWeek);
     case 'companiesFounded':
       return Math.max(
         num(state.lifetimeStatistics?.totalCompaniesOwned),
