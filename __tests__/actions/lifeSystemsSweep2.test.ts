@@ -128,3 +128,21 @@ describe('LIFE2-4: applyForJob enforces the entry hiring bar', () => {
     expect(captured!(drained)).toBe(drained);
   });
 });
+
+describe('LIFE2-5: weekly challenge objectives measure what they say', () => {
+  it('Social Butterfly does not count the seeded parents', () => {
+    const seeded = createTestGameState();
+    const parents = (seeded.relationships ?? []).filter((r) => r.type === 'parent');
+    expect(parents.length).toBeGreaterThan(0);
+    const state = createTestGameState({ relationships: parents });
+    const progress = evaluateChallengeProgress('wc_social_butterfly', state);
+    expect(progress.find((p) => p.id === 'relationships_5')?.current).toBe(0);
+  });
+
+  it('the money objectives say cash, which is what they read', () => {
+    const scholar = evaluateChallengeProgress('wc_scholar', createTestGameState());
+    expect(scholar.find((p) => p.id === 'savings_10k')?.description).toBe('Have $10K+ cash');
+    const balanced = evaluateChallengeProgress('wc_balanced_life', createTestGameState());
+    expect(balanced.find((p) => p.id === 'savings_50k')?.description).toBe('Have $50K+ cash');
+  });
+});
