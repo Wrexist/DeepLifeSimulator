@@ -55,7 +55,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
     const isSelected = selectedMemberId === member.id;
     
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         key={member.id}
         style={[
           styles.nodeContainer,

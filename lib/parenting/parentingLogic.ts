@@ -283,3 +283,36 @@ export function syncChildContactAfterParenting<R extends {
     };
   });
 }
+
+/**
+ * SOC2-5: the other direction of `syncChildContactAfterParenting`.
+ *
+ * The Family Bond (`family.children[].relationshipScore`) is the authoritative
+ * number - the weekly tick never lets the Contacts copy overwrite it - and a
+ * parenting action copies it ONTO the Contacts record. So anything the
+ * Contacts app did to a child's bond (Call, Hang out, and the paid "bond"
+ * gesture at $400 + $60 per point) moved only the copy: the Family tab never
+ * showed it, and the next parenting action silently reverted it. A player who
+ * paid for a gesture toward their child lost both the money's effect and the
+ * screen agreement SOC-2 set out to fix.
+ *
+ * Called by the Contacts writers after they move a child's Contacts bond, so
+ * one number holds on both screens. Pure; returns the SAME family object when
+ * `rel` is not a child or has no Family record, so callers can spread it
+ * unconditionally.
+ */
+export function mirrorChildContactBondToFamily<F extends { children?: ChildInfo[] } | undefined>(
+  family: F,
+  rel: { id: string; type: string; relationshipScore: number } | null | undefined,
+): F {
+  if (!family || !rel || rel.type !== 'child') return family;
+  const children = Array.isArray(family.children) ? family.children : [];
+  const bond = typeof rel.relationshipScore === 'number' && Number.isFinite(rel.relationshipScore)
+    ? clampNurture(rel.relationshipScore)
+    : null;
+  if (bond == null || !children.some((c) => c?.id === rel.id && c.relationshipScore !== bond)) return family;
+  return {
+    ...family,
+    children: children.map((c) => (c?.id === rel.id ? { ...c, relationshipScore: bond } : c)),
+  };
+}

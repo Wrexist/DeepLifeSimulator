@@ -658,7 +658,7 @@ function IdentityCard({ onOpenPrestigeShop, compact = false }: IdentityCardProps
               {Math.floor(date?.age ?? 18)}
             </Text>
             {youthPills > 0 && (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.youthPillButton}
                 onPress={() => setShowYouthPillModal(true)}
                 accessibilityLabel="Use Youth Pill"

@@ -119,7 +119,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Down payment</Text>
               <View style={styles.chipRow}>
                 {(Object.keys(DOWN_PAYMENT_FRACTIONS) as DownPaymentTier[]).map((t) => (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={t}
                     onPress={() => setTier(t)}
                     style={[
@@ -143,7 +143,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
                 <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Term</Text>
                 <View style={styles.chipRow}>
                   {(['15y', '30y'] as MortgageTerm[]).map((tt) => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={tt}
                       onPress={() => setTerm(tt)}
                       style={[
@@ -221,7 +221,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
             )}
           </ScrollView>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             disabled={!quote || quote.rejected}
             onPress={() => onConfirm({ tier, term, asResidence: commercial ? false : asResidence })}
             style={[

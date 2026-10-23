@@ -148,6 +148,20 @@ export function isStandaloneLoanType(type: Loan['type']): boolean {
 const SECURED_ONLY_REASON = 'Mortgages and auto loans are only offered when you buy a property or vehicle.';
 
 /**
+ * Most loans a player may carry at once (M-3). The DTI gate alone could be
+ * stacked past intent (missed-payment penalties inflate a loan's `remaining`
+ * but not its `weeklyPayment`, so quoteLoan understates debt service).
+ */
+export const MAX_ACTIVE_LOANS = 6;
+
+/** Loans still owing money - the count `MAX_ACTIVE_LOANS` limits. */
+export function activeLoanCount(state: Pick<GameState, 'loans'>): number {
+  return (state.loans ?? []).filter(
+    (l) => (typeof l?.remaining === 'number' ? l.remaining : 0) > 0
+  ).length;
+}
+
+/**
  * Synchronous quote for the UI (read-only, doesn't mutate state).
  * Mirrors lib/banking/operations.quoteLoan but flattens the result for component use.
  */
@@ -166,6 +180,12 @@ export function getLoanQuote(
   const banking = state.banking ?? initialGameState.banking;
   if (!banking) {
     return { rejected: true, reason: 'Banking not initialized' };
+  }
+  // The same cap `acceptLoan` enforces (APP2-2). The quote used to skip it, so
+  // a seventh loan showed an approved offer, Accept closed the sheet, and
+  // `acceptLoan` refused it with only a log line - no loan, no message.
+  if (activeLoanCount(state) >= MAX_ACTIVE_LOANS) {
+    return { rejected: true, reason: `You already have ${MAX_ACTIVE_LOANS} loans open. Pay one off first.` };
   }
   const result = quoteLoan(banking, state.loans ?? [], {
     ...request,
@@ -214,15 +234,9 @@ export const acceptLoan = (
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
 
-    // M-3: hard cap on concurrent active loans. The DTI gate alone could be
-    // stacked past intent (missed-payment penalties inflate a loan's `remaining`
-    // but not its `weeklyPayment`, so quoteLoan understates debt service). A
-    // count cap bounds pathological loan stacking regardless.
-    const MAX_ACTIVE_LOANS = 6;
-    const activeLoanCount = (state.loans ?? []).filter(
-      (l) => (typeof l?.remaining === 'number' ? l.remaining : 0) > 0
-    ).length;
-    if (activeLoanCount >= MAX_ACTIVE_LOANS) {
+    // M-3: hard cap on concurrent active loans (see MAX_ACTIVE_LOANS).
+    // getLoanQuote applies the same test, so the sheet says so up front.
+    if (activeLoanCount(state) >= MAX_ACTIVE_LOANS) {
       log.info(`Loan rejected: already at the ${MAX_ACTIVE_LOANS}-loan limit`);
       return prev;
     }

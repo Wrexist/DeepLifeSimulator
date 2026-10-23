@@ -492,6 +492,14 @@ export const proposeMarriage = (
     return { success: false, message: 'Partner not found.', accepted: false };
   }
 
+  // SOC2-6: the OUTER mirror of the updater's `engagementWeek != null` refusal.
+  // Without it, proposing to someone already engaged rolled, reported "said
+  // YES! You're engaged!" and re-posted the engagement to Pulse while the
+  // updater (correctly) charged and changed nothing.
+  if (partner.engagementWeek != null) {
+    return { success: false, message: `You and ${partner.name} are already engaged.`, accepted: false };
+  }
+
   // ANTI-BIGAMY: can't propose while committed (engaged / married / living
   // with) to someone else.
   const committedElsewhere = findCommittedPartner(gameState.relationships, partnerId);

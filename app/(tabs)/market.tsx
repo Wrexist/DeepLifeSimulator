@@ -10,6 +10,7 @@ import { gameAlert } from '@/utils/gameAlert';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { satietyHint, scaledFoodRestore } from '@/lib/economy/foodSatiety';
 import { getFoodPurchasePrice, getItemPurchasePrice } from '@/lib/economy/itemPricing';
+import { PASSPORT_ITEM_ID } from '@/lib/travel/passport';
 import { ShoppingBag, Apple, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -131,13 +132,17 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
   // Memoized data with stable sorting. No filtering: the filter bar offered
   // four chips over ~8 items and is deleted (audit finding #2).
+  const travelPassport = !!gameState.travel?.passportOwned;
   const sortedItems = useMemo(() =>
-    [...(gameState.items || [])].sort((a, b) => {
-      // Sort by price first, then by name for stability
-      if (a.price !== b.price) return a.price - b.price;
-      return a.name.localeCompare(b.name);
-    }),
-    [gameState.items]
+    [...(gameState.items || [])]
+      // A passport bought in the Travel app is Owned here too (APP2-5).
+      .map((i) => (i.id === PASSPORT_ITEM_ID && travelPassport && !i.owned ? { ...i, owned: true } : i))
+      .sort((a, b) => {
+        // Sort by price first, then by name for stability
+        if (a.price !== b.price) return a.price - b.price;
+        return a.name.localeCompare(b.name);
+      }),
+    [gameState.items, travelPassport]
   );
 
   const sortedFoods = useMemo(() =>
@@ -161,8 +166,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   const canAffordItem = useCallback((price: number) => gameState.stats.money >= getItemPurchasePrice(price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses, marketMindsetMult), [gameState.stats.money, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, marketMindsetMult]);
 
   const ownedCount = useMemo(
-    () => (gameState.items || []).filter(item => item.owned).length,
-    [gameState.items]
+    () => sortedItems.filter(item => item.owned).length,
+    [sortedItems]
   );
 
   // Memoized render functions with proper dependencies

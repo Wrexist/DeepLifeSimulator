@@ -17,6 +17,7 @@ import { scaledHappinessGain } from '@/lib/economy/happinessGain';
 import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
 import { getCommitmentModifiers, recordCommitmentActivity } from '@/lib/commitments/commitmentSystem';
 import { makeLifeRoll } from '@/utils/seededRoll';
+import { fitnessGainAfterSkills } from '@/lib/skillTrees/lifeSkillEffects';
 
 /**
  * What a food purchase actually did - the market toast reads THIS rather than
@@ -501,7 +502,9 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       // Add fitness if applicable (Program 8: the walk and yoga build it).
       if (activity.fitnessGain) {
         const currentFitness = Number.isFinite(prevState.stats.fitness) ? prevState.stats.fitness : 0;
-        const fitnessGain = healthCommitment.progress(activity.fitnessGain);
+        // Peak Performance ("+15% gym efficiency") - walk and yoga count as a
+        // gym visit (FITNESS_INCREASING_ACTIVITIES), so they get it too.
+        const fitnessGain = fitnessGainAfterSkills(prevState, healthCommitment.progress(activity.fitnessGain));
         const newFitness = clampStatByKey('fitness', currentFitness + fitnessGain);
         updatedStats.fitness = newFitness;
         actualChanges.fitness = newFitness - currentFitness;

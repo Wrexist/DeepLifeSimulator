@@ -29,6 +29,7 @@ import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { applyHeirStartingBonuses } from '@/lib/legacy/legacyShop';
 import { applyDynastyTransition } from '@/lib/dynasty/transition';
 import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBonuses';
+import { capLegacyBonuses } from '@/lib/legacy/legacyBonuses';
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
 import { computeInheritance, isCarriedFamilyBusinessLoan } from '@/lib/legacy/inheritance';
@@ -475,11 +476,11 @@ function createResetGameState(
   const learningMultiplier = 1 + Math.min(completedAchievements, 20) / 200; // up to +10%
   const reputationBonus = Math.min(Math.floor((oldState.stats?.reputation || 0) / 10), 20);
   
-  newState.legacyBonuses = {
+  newState.legacyBonuses = capLegacyBonuses({
     incomeMultiplier,
     learningMultiplier,
     reputationBonus,
-  };
+  });
 
   // Preserve character name and profile when resetting (keep same character)
   if (oldState.userProfile) {

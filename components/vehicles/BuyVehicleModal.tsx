@@ -92,7 +92,7 @@ export default function BuyVehicleModal({ visible, template, gameState, weeklyIn
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Down payment</Text>
               <View style={styles.chipRow}>
                 {(Object.keys(AUTO_DOWN_FRACTIONS) as AutoDownTier[]).map((t) => (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={t}
                     onPress={() => setTier(t)}
                     style={[
@@ -111,7 +111,7 @@ export default function BuyVehicleModal({ visible, template, gameState, weeklyIn
                 <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Term</Text>
                 <View style={styles.chipRow}>
                   {(['3y', '5y', '7y'] as AutoTerm[]).map((tt) => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={tt}
                       onPress={() => setTerm(tt)}
                       style={[
@@ -148,7 +148,7 @@ export default function BuyVehicleModal({ visible, template, gameState, weeklyIn
             )}
           </ScrollView>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             disabled={!quote || quote.rejected}
             onPress={() => onConfirm(tier, term)}
             style={[styles.confirm, { backgroundColor: quote && !quote.rejected ? accent.info : theme.border }]}

@@ -99,7 +99,7 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
 
   if (!isAvailable) {
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.container}
         onPress={onPress}
         activeOpacity={0.8}
@@ -126,7 +126,7 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
   }
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       style={styles.container}
       onPress={onPress}
       activeOpacity={0.8}

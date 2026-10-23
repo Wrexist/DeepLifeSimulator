@@ -80,7 +80,7 @@ import {
   ENERGY_TYPES,
 } from '@/contexts/game/actions/MiningActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { sellMiner, sellAllMiners } from '@/contexts/game/company';
+import { sellMiner, sellAllMiners, minerDurabilityAfterBuy } from '@/contexts/game/company';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CoinRow from '@/components/crypto/CoinRow';
@@ -421,6 +421,10 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         selectedCrypto: 'btc',
       };
       const miners = { ...(w.miners ?? {}) };
+      // APP2-4: the new rig joins the tier's durability as a count-weighted
+      // average, exactly as `resolveBuyMiner` does. Without it the new unit
+      // inherited the tier's worn number (and its repair bill).
+      const minerDurability = { ...(w.minerDurability ?? {}), [tierId]: minerDurabilityAfterBuy(w, tierId) };
       miners[tierId] = (miners[tierId] ?? 0) + 1;
       // Canonical debit (same guards the trading side uses - see
       // CryptoTradingActions applyMoneyDelta note).
@@ -429,7 +433,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       return {
         ...prev,
         ...minerPatch,
-        warehouse: { ...w, miners },
+        warehouse: { ...w, miners, minerDurability },
       };
     });
     queueSave();

@@ -14,6 +14,7 @@ import { runMigrations } from '@/utils/saveMigrations';
 import { repairGameState } from '@/utils/saveValidation';
 import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
 import { LIFE_AMBITIONS } from '@/lib/ambitions/catalog';
+import { YOUTH_PILL_AGE } from '@/lib/progress/youthPill';
 
 /**
  * How many rewind targets a life keeps.
@@ -450,6 +451,42 @@ function carryClaimLedgers(live: GameState, restored: GameState): void {
 }
 
 /**
+ * A Youth Pill taken AFTER the checkpoint stays taken (SAVE2-2).
+ *
+ * `youthPills` is account inventory and carries at its LIVE count
+ * (`carryAccountLevelEntitlements`), so a pill spent since the checkpoint is
+ * already gone from the restored life - but its effect, `ageOffsetWeeks` and
+ * `date.age`, lived only in the snapshot and was rewound with it. The player
+ * paid for a pill and the rewind handed them back the old body without the
+ * pill: the paid-consumable loss `accountEntitlements.ts` exists to prevent.
+ *
+ * A pill sets the offset to the `weeksLived` it was taken at, which is at or
+ * after the checkpoint, so it is clamped to the restored `weeksLived`: the
+ * restored character is 18 and ages from there, exactly as if the pill had
+ * been taken at the checkpoint. Nothing happens when no pill was taken since
+ * (the live offset is not larger than the snapshot's). Mutates `restored`.
+ */
+function carryYouthPillUsedSince(live: GameState, restored: GameState): void {
+  const liveOffset = live.ageOffsetWeeks;
+  if (typeof liveOffset !== 'number' || !Number.isFinite(liveOffset) || liveOffset <= 0) return;
+  const snapshotOffset =
+    typeof restored.ageOffsetWeeks === 'number' && Number.isFinite(restored.ageOffsetWeeks)
+      ? restored.ageOffsetWeeks
+      : 0;
+  if (liveOffset <= snapshotOffset) return;
+  const restoredWeeks =
+    typeof restored.weeksLived === 'number' && Number.isFinite(restored.weeksLived) && restored.weeksLived > 0
+      ? restored.weeksLived
+      : 0;
+  const offset = Math.min(liveOffset, restoredWeeks);
+  restored.ageOffsetWeeks = offset;
+  restored.date = {
+    ...restored.date,
+    age: YOUTH_PILL_AGE + Math.max(0, restoredWeeks - offset) / WEEKS_PER_YEAR,
+  };
+}
+
+/**
  * Rewind to a checkpoint. Returns the restored GameState or null if failed.
  * Preserves cross-life data (ribbons, secrets, checkpoints array).
  */
@@ -549,6 +586,7 @@ export function rewindToCheckpoint(
     // unlocks, gold upgrades, perks and unspent youth pills.
     carryAccountLevelEntitlements(currentState, restored);
     carryClaimLedgers(currentState, restored);
+    carryYouthPillUsedSince(currentState, restored);
 
     // Deduct gem cost from CURRENT state's gems, carry into restored state
     // This prevents negative gems when the checkpoint was saved with fewer gems than the cost.

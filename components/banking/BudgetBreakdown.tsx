@@ -120,7 +120,7 @@ export default function BudgetBreakdown({ buckets, darkMode, weeks = 4, targets,
           </>
         );
         return onSetTarget ? (
-          <TouchableOpacity key={key} style={styles.row} activeOpacity={0.7} onPress={() => onSetTarget(key)}>
+          <TouchableOpacity accessibilityRole="button" key={key} style={styles.row} activeOpacity={0.7} onPress={() => onSetTarget(key)}>
             {rowBody}
           </TouchableOpacity>
         ) : (

@@ -475,6 +475,28 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
     assertClean('haveChild started');
   });
 
+  it('haveChild: the child conceived is a function of the life, not of Math.random (SOC2-3)', () => {
+    const conceive = (randomValue: number) => {
+      const spy = jest.spyOn(Math, 'random').mockReturnValue(randomValue);
+      try {
+        mounted = mountGame();
+        seedPartner('lover_alex', 90);
+        act(() => { captured!.setGameState(prev => ({ ...prev, relationships: prev.relationships.map(r => r.id === 'lover_alex' ? { ...r, livingTogether: true } : r) })); });
+        act(() => { captured!.social.haveChild('lover_alex'); });
+        const p = captured!.state.relationships?.find(r => r.id === 'lover_alex');
+        return { name: p?.pregnancyChildName, gender: p?.pregnancyChildGender };
+      } finally {
+        spy.mockRestore();
+        if (mounted) act(() => mounted!.root.unmount());
+        mounted = null;
+      }
+    };
+    const first = conceive(0.01);
+    const second = conceive(0.99);
+    expect(first.name).toBeDefined();
+    expect(second).toEqual(first);
+  });
+
   it('haveChild: refuses when relationship score < 70', () => {
     mounted = mountGame();
     seedPartner('lover_alex', 60);
@@ -647,19 +669,14 @@ describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => 
     assertClean('second promote blocked');
   });
 
-  it('Hook surface: useSocialActions.breakUp removes the partner', () => {
+  it('Hook surface: useSocialActions no longer exposes the unguarded breakUp (SOC2-4)', () => {
+    // `breakUp` was a zero-caller twin of `breakUpWithPartner` with none of its
+    // guards (pregnancy hold, single updater, Spark un-promote). Breaking up
+    // goes through `breakUpWithPartner` only - covered by the M1 tests below.
     mounted = mountGame();
-    seedPartner('lover_alex', 90);
-    expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')).toBeDefined();
-
-    act(() => { captured!.social.breakUp('lover_alex'); });
-    // Behaviour may differ: relationship type changed, removed, or score zeroed.
-    // Just assert state stays clean and the partner status reflects break-up.
-    const r = captured!.state.relationships?.find(rel => rel.id === 'lover_alex');
-    if (r) {
-      expect(['friend', 'partner']).toContain(r.type);
-    }
-    assertClean('hook breakUp');
+    expect('breakUp' in captured!.social).toBe(false);
+    expect('startDating' in captured!.social).toBe(false);
+    expect(typeof captured!.game.breakUpWithPartner).toBe('function');
   });
 
   // ── M1 (§4.4 gate→grant), 2026-08-16 architecture audit ──────────────────

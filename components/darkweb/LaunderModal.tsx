@@ -102,7 +102,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
                 const active = t === tier;
                 const params = MIXER_TIERS[t];
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={t}
                     onPress={() => setTier(t)}
                     style={[
@@ -134,7 +134,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
             <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Amount (BTC)</Text>
             <View style={[styles.fieldRow, { borderColor: theme.border }]}>
               <AmountSlider value={amountText} onChangeText={setAmountText} accessibilityLabel="Amount" maxAmount={dirtyBtc} unit={'BTC '} precision={8} darkMode={darkMode} />
-              <TouchableOpacity onPress={() => setAmountText(String(dirtyBtc))} style={styles.maxBtn}>
+              <TouchableOpacity accessibilityRole="button" onPress={() => setAmountText(String(dirtyBtc))} style={styles.maxBtn}>
                 <Text style={[styles.maxText, { color: theme.textSecondary }]}>MAX</Text>
               </TouchableOpacity>
             </View>
@@ -161,7 +161,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
           )}
           </ScrollView>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             disabled={!canSubmit}
             onPress={() => onSubmit(tier, amount)}
             style={[styles.confirm, { backgroundColor: canSubmit ? accent.info : theme.border }]}

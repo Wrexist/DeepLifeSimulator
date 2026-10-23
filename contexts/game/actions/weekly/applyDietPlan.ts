@@ -26,6 +26,7 @@
 
 import type { DietPlan } from '@/contexts/game/types';
 import type { WeekContext } from './weekContext';
+import { energyAfterDrain } from '@/lib/economy/energyRegen';
 import { dietPlanWeeklyCost } from '@/lib/economy/dietPlanCost';
 
 export interface DietPlanTickResult {
@@ -67,7 +68,7 @@ export function applyDietPlanForWeek(
   }
   // Apply energy gain.
   if (activeDietPlan.energyGain > 0) {
-    ctx.newStats.energy = Math.max(0, Math.min(100, ctx.newStats.energy + activeDietPlan.energyGain));
+    ctx.newStats.energy = energyAfterDrain(ctx.newStats.energy, activeDietPlan.energyGain);
   }
   // Apply happiness gain (if applicable).
   if (activeDietPlan.happinessGain && activeDietPlan.happinessGain > 0) {

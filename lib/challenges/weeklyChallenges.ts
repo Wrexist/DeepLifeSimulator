@@ -11,6 +11,8 @@
 import { netWorth } from '@/lib/progress/achievements';
 import { fnv1a32, mulberry32 } from '@/utils/seededRoll';
 import type { Company, GameState } from '@/contexts/game/types';
+import { livingPets } from '@/lib/pets/lifecycle';
+import { chosenCompanyOf } from '@/lib/events/socialCircle';
 
 export interface WeeklyChallengeObjective {
  id: string;
@@ -93,7 +95,9 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  },
  {
  id: 'savings_10k',
- description: 'Have $10K+ in savings',
+ // Cash on hand (`stats.money`), like every other money objective here -
+ // "in savings" pointed at the bank account this never read.
+ description: 'Have $10K+ cash',
  target: 1,
  checkCurrent: (s) => ((s.stats?.money ?? 0) >= 10000 ? 1 : 0),
  },
@@ -157,7 +161,9 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'relationships_5',
  description: 'Have 5+ relationships',
  target: 5,
- checkCurrent: (s) => (s.relationships ?? []).length,
+ // People the player chose: every life is seeded with Mom and Dad, which
+ // made two of the five free on frame one (the SOC-18 / LIFE-19 pattern).
+ checkCurrent: (s) => chosenCompanyOf(s).length,
  },
  {
  id: 'married',
@@ -260,7 +266,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  },
  {
  id: 'savings_50k',
- description: 'Have $50K+ in savings',
+ description: 'Have $50K+ cash',
  target: 1,
  checkCurrent: (s) => ((s.stats?.money ?? 0) >= 50000 ? 1 : 0),
  },
@@ -428,7 +434,8 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'pets_2',
  description: 'Own 2+ pets',
  target: 2,
- checkCurrent: (s) => (s.pets ?? []).length,
+ // Living pets: a pet that died stays in the roster for the memorial.
+ checkCurrent: (s) => livingPets(s.pets).length,
  },
  {
  id: 'happiness_80',

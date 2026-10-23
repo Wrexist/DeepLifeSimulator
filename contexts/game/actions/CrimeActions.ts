@@ -10,6 +10,7 @@ import React from 'react';
 import { GameState, DarkWebMixerTier } from '../types';
 import { logger } from '@/utils/logger';
 import { listingItemId } from '@/lib/darkweb/marketplace';
+import { makeLifeRoll } from '@/utils/seededRoll';
 import { initialGameState } from '../initialState';
 import {
   attemptJobStage,
@@ -55,9 +56,15 @@ export const buyMarketListing = (
   listingId: string
 ): { success: boolean; outcome?: 'success' | 'scam'; message: string } => {
   // P1-2: pre-roll outside the updater — React 19 StrictMode runs the updater
-  // twice in dev; rolling Math.random() inside would produce a different
-  // outcome on each invocation.
-  const purchaseRoll = Math.random();
+  // twice in dev, so the roll must not be drawn inside it.
+  //
+  // LATE2-4: seeded on the life, the week and the listing rather than
+  // an unseeded live draw. That made the scam outcome re-rollable: force-quit
+  // inside the autosave window and the same BTC buys the same listing again on
+  // a fresh die - the reload-retry the election roll was closed for
+  // (exploit sweep, 2026-10-19). A listing is consumed by its purchase, so one
+  // key per listing is one roll per purchase.
+  const purchaseRoll = makeLifeRoll(currentState, currentState.weeksLived ?? 0)(`darkweb.buy:${listingId}`);
 
   // E-2: no transactions once the player is dead — reject in the pre-check so
   // setGameState is never even called (the updater keeps its own guard too).
@@ -229,7 +236,14 @@ export const runJobStage = (
   jobId: string
 ): { success: boolean; outcome?: 'success' | 'fail' | 'completed' | 'expired'; message: string } => {
   // P1-2: pre-roll outside the updater (see buyMarketListing for rationale).
-  const stageRoll = Math.random();
+  // Seeded per ATTEMPT (LATE2-4): `completedStages` gains an entry on every
+  // attempt, success or fail, so its length numbers them - a retry after a
+  // failure draws a new die, while a reload replays the same one.
+  const attemptIndex =
+    currentState.darkWeb?.activeJobs?.find((j) => j.id === jobId)?.completedStages?.length ?? 0;
+  const stageRoll = makeLifeRoll(currentState, currentState.weeksLived ?? 0)(
+    `darkweb.stage:${jobId}:${attemptIndex}`,
+  );
 
   // Evaluate on the caller's snapshot so the result can be reported to the UI.
   // The updater below re-runs the same pure logic with the same roll.
@@ -358,8 +372,19 @@ export const cashOutCleanBtc = (
 /** Price in BTC for a fresh identity package. Tuned high enough that this is a real choice. */
 export const NEW_IDENTITY_COST_BTC = 0.5;
 
-/** Share of walked-away debt paid as a settlement fee, in BTC. */
-const IDENTITY_DISCHARGE_FEE_RATE = 0.8;
+/**
+ * Share of walked-away debt paid as a settlement fee, in BTC.
+ *
+ * 1.0, not the 0.8 it shipped at (APP2-1, 2026-10-23). Below 1.0, borrowing and
+ * then burning the identity was a profit on its own: take a personal loan to the
+ * DTI cap, pay 80% of it to walk away, keep the other 20%. The identity resets
+ * the credit score to 580, which is exactly the personal-loan minimum, and clears
+ * the inquiry history, so the next loan was available at once - an unbounded
+ * printer worth ~15 weeks of income per tap. At 1.0 walking away costs the
+ * principal plus the base fee; what it still saves is the future INTEREST, which
+ * is the real reason to burn a name with old debt.
+ */
+export const IDENTITY_DISCHARGE_FEE_RATE = 1.0;
 
 export interface NewIdentitySettlement {
   /** Loans the new identity keeps (mortgage + auto - tied to collateral). */
@@ -418,7 +443,7 @@ export function newIdentitySettlement(
  *   - Unsecured loans + credit cards close (old identity owed them, not you);
  *     mortgage and auto loans stay with their collateral. The street criminal
  *     record (wanted/criminal level) is NOT touched.
- *   - Costs NEW_IDENTITY_COST_BTC plus 80% of the discharged debt, in BTC.
+ *   - Costs NEW_IDENTITY_COST_BTC plus the discharged debt, in BTC (APP2-1).
  */
 export const acquireNewIdentity = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>
@@ -436,6 +461,8 @@ export const acquireNewIdentity = (
     // free money. Charge a settlement fee proportional to the discharged unsecured
     // principal (in BTC), so walking away from debt costs nearly as much as
     // repaying it. The base cost still covers a heat/rep reset when you owe little.
+    // The fee is the WHOLE principal now (APP2-1): at 80% the walk-away was itself
+    // a profit, and the 580 credit reset let the next loan follow at once.
     // Card balances count as discharged debt too (see newIdentitySettlement).
     const {
       keptLoans,

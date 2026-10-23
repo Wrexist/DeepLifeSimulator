@@ -121,13 +121,13 @@ export default function ErrorMessage({
  {(onRetry || (isRealError && onReport)) && (
  <View style={styles.actions}>
  {onRetry && (
- <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
+ <TouchableOpacity accessibilityRole="button" onPress={onRetry} style={styles.retryButton}>
  <RefreshCw size={16} color={uiPalette.white}/>
  <Text style={styles.retryText}>Retry</Text>
  </TouchableOpacity>
  )}
  {isRealError && onReport && (
- <TouchableOpacity onPress={onReport} style={styles.supportButton}>
+ <TouchableOpacity accessibilityRole="button" onPress={onReport} style={styles.supportButton}>
  <FileText size={16} color={uiPalette.white}/>
  <Text style={styles.supportText}>Report</Text>
  </TouchableOpacity>

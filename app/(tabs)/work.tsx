@@ -608,6 +608,10 @@ function WorkScreenContent() {
         // message so the player is never left with no feedback.
         if (result.promotion) setPromotionCelebration(result.promotion);
         else showSuccess(result.message);
+        // Persist the promotion the celebration just announced. Called inline:
+        // saveGame waits for the pending commit (CLAUDE.md 4.1). Without it a
+        // force-quit inside the autosave window undid a celebrated promotion.
+        void saveGame();
     };
 
     const renderCareerCard = (career: Career): React.ReactElement => {
@@ -794,6 +798,7 @@ function WorkScreenContent() {
                 // A rejection used to be silent - the reducer's message was
                 // discarded and the tap just buzzed. UX-2.
                 if (r && !r.success) showWarning(r.message);
+                else if (r?.success) void saveGame();
             };
         }
 
@@ -1384,6 +1389,7 @@ function WorkScreenContent() {
                 cancelText="Cancel"
                 onConfirm={() => {
                     quitJob();
+                    void saveGame();
                     setShowQuitJobConfirm(false);
                 }}
                 onCancel={() => setShowQuitJobConfirm(false)}

@@ -32,8 +32,8 @@
  *   `applyCareerSalaryAndPenalty` does; non-profiled careers take the −3/−2
  *   default it uses.
  * - Items: the weekly `dailyBonus` loop in the tick (bed, gym membership).
- * - Energy regen: the tick's base +40 × prestige multiplier, before the job
- *   and housing take theirs.
+ * - Energy regen: `weeklyEnergyRegen`, the one function the tick calls, before
+ *   the job and housing take theirs.
  *
  * Net worth is read from the canonical `netWorth` in `lib/progress/achievements`
  * rather than the tick's private `calculateNetWorth`; the two count slightly
@@ -43,7 +43,8 @@
 import type { GameState } from '@/contexts/game/types';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { getEntryJobProfile } from '@/lib/careers/jobMarket';
-import { getEnergyRegenMultiplier, getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
+import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
+import { weeklyEnergyRegen } from '@/lib/economy/energyRegen';
 import { netWorth } from '@/lib/progress/achievements';
 import { STAT_DECAY_BASE_RATE, graceRampFactor, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
@@ -71,8 +72,6 @@ export interface VitalDrift {
   /** Every non-zero cause, worst first by combined happiness + health cost. */
   causes: DriftCause[];
 }
-
-const BASE_ENERGY_REGEN = 40;
 
 const finite = (v: unknown, fallback = 0): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
@@ -202,14 +201,14 @@ export function projectWeeklyVitalDrift(state: GameState | null | undefined): Vi
   const diet = dietGains(state);
   if (diet) causes.push(diet);
 
-  const regenMultiplier = getEnergyRegenMultiplier(state.prestige?.unlockedBonuses || []);
-  const safeRegen = Number.isFinite(regenMultiplier) && regenMultiplier > 0 ? regenMultiplier : 1;
+  // The same composition the tick applies (prestige, Energy Boost, Stamina,
+  // Vigorous Start) - this used to apply the prestige multiplier only (TICK2-2).
   causes.push({
     id: 'rest',
     label: 'A week of rest',
     health: 0,
     happiness: 0,
-    energy: Math.round(BASE_ENERGY_REGEN * safeRegen),
+    energy: weeklyEnergyRegen(state),
   });
 
   const sum = (key: 'health' | 'happiness' | 'energy') =>

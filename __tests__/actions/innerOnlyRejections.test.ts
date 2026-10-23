@@ -165,7 +165,8 @@ describe('C-9 - the survey behind "62 is not 62 bugs"', () => {
     ['ContentActions.ts', 'buyAccessory', /if \(channel\.equipment\[id\]\) return \{ success: false/],
     ['MiningActions.ts', 'buyMinerUpgrade', /currentLevel >= definition\.maxLevel/],
     ['MiningActions.ts', 'claimStakingRewards', /stakingPositions\.length === 0/],
-    ['TravelActions.ts', 'purchasePassport', /gameState\.travel\?\.passportOwned \|\| passportItem\?\.owned/],
+    // APP2-5: the same flag-or-item check, now spelled through `ownsPassport`.
+    ['TravelActions.ts', 'purchasePassport', /if \(ownsPassport\(gameState\)\) \{/],
     ['HustleActions.ts', 'launchIPO', /overlay\.ipo\.status === 'public'/],
   ];
 

@@ -28,13 +28,14 @@ import {
 } from '@/lib/darkweb/marketplace';
 import { initialGameState } from '@/contexts/game/initialState';
 import { buyMarketListing } from '@/contexts/game/actions/CrimeActions';
+import * as seededRoll from '@/utils/seededRoll';
 
 const CATALOGUE_IDS = new Set((initialGameState.darkWebItems ?? []).map((i) => i.id));
 
 /**
  * A state holding one listing from a vendor good enough that the scam roll
  * cannot decide the outcome for us. `veil_market` sits at rep 80 → ~4.7% scam,
- * and `buyMarketListing` pre-rolls with `Math.random`, so the roll is stubbed in
+ * and `buyMarketListing` pre-rolls a life-seeded roll (LATE2-4), so the roll is stubbed in
  * the delivery tests below.
  */
 function stateWithListing(
@@ -131,13 +132,12 @@ describe('the title → item map cannot drift from the titles it maps', () => {
 });
 
 describe('a successful gear purchase delivers the listed item', () => {
-  const realRandom = Math.random;
   beforeEach(() => {
     // 0.99 is above every vendor's scam probability → guaranteed success.
-    Math.random = () => 0.99;
+    jest.spyOn(seededRoll, 'makeLifeRoll').mockReturnValue(() => 0.99);
   });
   afterEach(() => {
-    Math.random = realRandom;
+    jest.restoreAllMocks();
   });
 
   it('buying "Lockpicks" grants lockpick, not the first catalogue entry', () => {
@@ -183,5 +183,24 @@ describe('an already-owned tool is refused before any BTC moves', () => {
     expect(result.success).toBe(false);
     expect(result.message).toMatch(/already own/i);
     expect(state.cryptos?.find((c) => c.id === 'btc')?.owned).toBe(btcBefore);
+  });
+});
+
+// LATE2-4: the purchase roll is a function of the life, the week and the
+// listing, so replaying the same purchase (a force-quit inside the autosave
+// window) cannot draw a fresh die and turn a scam into a delivery.
+describe('the purchase roll is seeded, not re-rollable', () => {
+  it('the same state buying the same listing gets the same outcome every time', () => {
+    // A rep-50 vendor sits near an even scam chance, so a live die would split.
+    const state = stateWithListing({ title: 'Lockpicks', category: 'gear' });
+    const coinFlip: GameState = {
+      ...state,
+      darkWeb: {
+        ...state.darkWeb!,
+        vendors: [{ id: 'v-good', handle: 'veil_market', reputation: 50, reviewCount: 10 }],
+      },
+    };
+    const outcomes = new Set(Array.from({ length: 20 }, () => buy(coinFlip).result.outcome));
+    expect(outcomes.size).toBe(1);
   });
 });
