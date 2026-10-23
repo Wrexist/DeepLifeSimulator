@@ -11,6 +11,7 @@
 import { netWorth } from '@/lib/progress/achievements';
 import { fnv1a32, mulberry32 } from '@/utils/seededRoll';
 import type { Company, GameState } from '@/contexts/game/types';
+import { livingPets } from '@/lib/pets/lifecycle';
 
 export interface WeeklyChallengeObjective {
  id: string;
@@ -428,7 +429,8 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'pets_2',
  description: 'Own 2+ pets',
  target: 2,
- checkCurrent: (s) => (s.pets ?? []).length,
+ // Living pets: a pet that died stays in the roster for the memorial.
+ checkCurrent: (s) => livingPets(s.pets).length,
  },
  {
  id: 'happiness_80',

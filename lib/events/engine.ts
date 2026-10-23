@@ -41,6 +41,7 @@ import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker
 import { PITY_THRESHOLD_WEEKLY_EVENTS } from '@/lib/randomness/randomnessConstants';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 import { friendsOf, chosenCompanyOf } from './socialCircle';
+import { livingPets } from '@/lib/pets/lifecycle';
 
 export interface EventChoiceEffects {
   /** Flat amount. Also the FLOOR when `moneyPct` is set. Sign carries. */
@@ -821,10 +822,12 @@ const petIllness: EventTemplate = {
   id: 'pet_illness',
   category: 'general',
   weight: 0.3,
-  condition: state => state.pets?.length > 0,
+  // Living pets only: a dead pet stays in the roster for the memorial.
+  condition: state => livingPets(state.pets).length > 0,
   generate: state => {
-    if (!state.pets?.length) return { id: 'pet_illness', description: 'You hear about a sick animal.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const pet = pickSeeded(state.pets, payloadRoll(state, 'pet_illness'), 'pet');
+    const alive = livingPets(state.pets);
+    if (!alive.length) return { id: 'pet_illness', description: 'You hear about a sick animal.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
+    const pet = pickSeeded(alive, payloadRoll(state, 'pet_illness'), 'pet');
     return {
       id: 'pet_illness',
       description: `${pet.name} seems ill. What do you do?`,
@@ -849,9 +852,9 @@ const petContest: EventTemplate = {
   id: 'pet_contest',
   category: 'general',
   weight: 0.2,
-  condition: state => state.pets?.some(p => p.happiness > 60),
+  condition: state => livingPets(state.pets).some(p => p.happiness > 60),
   generate: state => {
-    const candidates = (state.pets || []).filter(p => p.happiness > 60);
+    const candidates = livingPets(state.pets).filter(p => p.happiness > 60);
     if (!candidates.length) return { id: 'pet_contest', description: 'A local contest is happening.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const pet = pickSeeded(candidates, payloadRoll(state, 'pet_contest'), 'pet');
     return {
@@ -2326,7 +2329,7 @@ const petsitterNeeded: EventTemplate = {
   id: 'petsitter_needed',
   category: 'general',
   weight: 0.35,
-  condition: state => state.pets && state.pets.length > 0,
+  condition: state => livingPets(state.pets).length > 0,
   generate: () => ({
     id: 'petsitter_needed',
     description: "A neighbor needs someone to pet-sit for the weekend. They'll pay!",
@@ -2633,7 +2636,7 @@ const lostPet: EventTemplate = {
   id: 'lost_pet',
   category: 'general',
   weight: 0.25,
-  condition: state => Boolean(state.pets && state.pets.length > 0),
+  condition: state => livingPets(state.pets).length > 0,
   generate: () => ({
     id: 'lost_pet',
     description: 'Your pet got out! You need to find them quickly!',
