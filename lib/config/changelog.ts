@@ -45,6 +45,65 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.17.0',
+    date: 'October 2026',
+    headline: 'A life that tells the truth',
+    summary: 'Hundreds of fixes so events, money and people behave the way the game says they do.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Share your life card',
+        bullets: [
+          'When a life ends, Share sends a picture of your life card, not just text.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Events that fit your life',
+        bullets: [
+          'No boss bonuses without a job, car bills without a car, or festivals in jail.',
+          'Appeals, counter-offers and lawyering up are real gambles that can pay off.',
+          'Surprise parties, burnout, recessions and lawsuits ask you to actually choose.',
+          'Weekly events wait for your choice instead of closing when you tap outside.',
+          'Neglect your marriage and your spouse may file for divorce.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Money and markets',
+        bullets: [
+          'Your bank balance always matches your wallet, and you can type exact amounts.',
+          'Stock and crypto orders tell you whether they went through, taxes included.',
+          'Heirs inherit the whole fortune, stocks and crypto included.',
+          'Budgeting trims your whole weekly bill pile, from rent to pet food.',
+          'Your car burns fuel as you drive: watch the gauge and hit Refuel.',
+          'Therapists, vets, architects, journalists, soldiers and firefighters earn more.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Family and friends',
+        bullets: [
+          'Divorce splits what you really own, and tells you about any sale first.',
+          'A baby on the way stays on the way if the relationship ends.',
+          'Each child gets their own first word, first steps and graduation.',
+          'Heirs who take over young grow up first, and the family tree keeps everyone.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Saves and screens',
+        bullets: [
+          'A save that will not load points you to Restore instead of a new game.',
+          'Crash screens have a working way back to the main menu.',
+          'Labels no longer cut off on small phones, and fields stay above the keyboard.',
+          'Screen readers announce your stats and what each choice costs.',
+          'Taking a Youth Pill makes you 18 everywhere in the game.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.16.1',
     date: 'October 2026',
     headline: 'A fair game for everyone',
