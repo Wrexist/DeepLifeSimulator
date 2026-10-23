@@ -91,6 +91,38 @@ describe('every exit from gameplay suspends, and every entry resumes', () => {
     expect(suspendAt).toBeLessThan(navigateAt);
   });
 
+  it('death -> new game suspends BEFORE clearing the death, and deletes under the save lock (SAVE2-3)', () => {
+    const source = read('components/DeathPopup.tsx');
+    const start = source.indexOf('const performStartNewGame');
+    const body = source.slice(start, source.indexOf('const handleStartNewGame', start));
+
+    const suspendAt = body.indexOf("suspendLifeAutosave('death -> start new game')");
+    const clearAt = body.indexOf('showDeathPopup: false,');
+    const lockAt = body.indexOf("saveLoadMutex.acquire('save')");
+    const deleteAt = body.indexOf('deleteSaveSlot(currentSlot)');
+    const releaseAt = body.indexOf('saveLoadMutex.release(slotLock)');
+
+    // An autosave between the clear and the suspension wrote a LIVING copy of
+    // the dead character.
+    expect(suspendAt).toBeGreaterThan(-1);
+    expect(suspendAt).toBeLessThan(clearAt);
+    // A save already writing must finish before the slot is emptied, not after.
+    expect(lockAt).toBeGreaterThan(-1);
+    expect(lockAt).toBeLessThan(deleteAt);
+    expect(releaseAt).toBeGreaterThan(deleteAt);
+    // A failed attempt hands the (still dead) life back to the autosave.
+    expect(body).toMatch(/resumeLifeAutosave\(\)/);
+  });
+
+  it('settings -> restart deletes under the save lock (SAVE2-3)', () => {
+    const source = read('components/settings/DangerZone.tsx');
+    const lockAt = source.indexOf("saveLoadMutex.acquire('save')");
+    const deleteAt = source.indexOf('deleteSaveSlot(slot)');
+    expect(lockAt).toBeGreaterThan(-1);
+    expect(lockAt).toBeLessThan(deleteAt);
+    expect(source.indexOf('saveLoadMutex.release(slotLock)')).toBeGreaterThan(deleteAt);
+  });
+
   it('death -> save slots suspends too', () => {
     expect(read('components/DeathPopup.tsx')).toMatch(/suspendLifeAutosave\('death -> save slots'\)/);
   });
