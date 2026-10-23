@@ -99,7 +99,7 @@ export default function AccountRow({
   currentWeek,
   lifeStartWeek,
   darkMode,
-  onPress,
+  onPress: onPressProp,
   onWithdraw,
   onClose,
   variant = 'row',
@@ -108,6 +108,10 @@ export default function AccountRow({
   const theme = getThemeColors(darkMode);
   const isLocked = account.lockUntilWeek != null && currentWeek < account.lockUntilWeek;
   const weeksUntilUnlock = isLocked ? account.lockUntilWeek! - currentWeek : 0;
+  // `onPress` is the deposit affordance, and a CD takes no deposits until it
+  // matures (D6) - `depositToAccount` refuses them, so offering the button
+  // would render a control that always fails.
+  const onPress = isLocked ? undefined : onPressProp;
   const Icon = variant === 'card' ? accountGlyph(account.type) : account.type === 'checking' ? Wallet : PiggyBank;
   // `checking-default` is a read-only view of cash - deposit/withdraw/close are
   // all rejected by the action layer, so don't offer them at all.

@@ -132,7 +132,7 @@ export const depositCashToAccount = (
     if (!debit) return prev;
     const moved = currentMoney - debit.stats.money;
     if (moved <= 0) return prev;
-    const result = depositToAccount(state.banking, accountId, moved);
+    const result = depositToAccount(state.banking, accountId, moved, state.weeksLived);
     if (!result.ok) {
       log.warn(`Deposit failed: ${result.reason}`);
       return prev;

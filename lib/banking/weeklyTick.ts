@@ -15,7 +15,7 @@
  */
 
 import { BankingState, BudgetCategory, Loan } from '@/contexts/game/types';
-import { accrueCreditCardInterest, accrueAccountInterest, detectBudgetOverspend, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend, withLiveMirrorBalances } from './operations';
+import { accrueCreditCardInterest, accrueAccountInterest, detectBudgetOverspend, matureCertificates, MIRRORED_ACCOUNT_IDS, recomputeCreditScore, tickBillPay, trackBudgetSpend, withLiveMirrorBalances } from './operations';
 import { getRateEnvironment } from './rateEnvironment';
 
 const safe = (n: number | undefined, fb = 0): number =>
@@ -170,8 +170,17 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   // path only covered the mirrored savings-default account. The live rate
   // environment's depositMult now scales the yield (recession/crash lower it,
   // boom raises it — always under SAVINGS_APR_HARD_CAP).
-  const accrual = accrueAccountInterest(banking, rateEnv.depositMult);
+  // D5: one $500k full-rate band across the legacy pool AND these accounts. The
+  // legacy pool is paid on its balance BEFORE this week's interest
+  // (newBankSavings - savingsInterest), so that is the share it used.
+  const legacyBalanceBeforeInterest = safe(input.newBankSavings) - safe(input.savingsInterest);
+  const accrual = accrueAccountInterest(banking, rateEnv.depositMult, legacyBalanceBeforeInterest);
   banking = accrual.banking;
+  // D6: AFTER the accrual, re-price every CD whose term ends this week to the
+  // savings rate. The week that completes the term is still paid at the CD
+  // rate (52 locked weeks earn 52 weeks of it), and the account the player
+  // finds unlocked is already on the new rate - never liquid at 5.5%.
+  banking = matureCertificates(banking, input.currentWeek);
 
   // 1c. Write the interest ledgers that were permanently $0 (audit #7).
   //   - totalInterestEarned += freshly accrued account interest + the legacy

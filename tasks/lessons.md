@@ -6025,6 +6025,18 @@ of returning from the first one that fires. Also: a roll-audit declaration is a
 claim to re-check - the dark-web/politics/rent streams passed the week-only
 guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.
 
+## 2026-10-23 - Owner decisions D5-D7: a cap is only as wide as the pool it is applied to
+
+Three banking defects, one shape: a limit enforced per container instead of
+per player. The $500k full-rate savings band was enforced once in the legacy
+pool and again, independently, across the self-opened accounts (R3-M6 had
+already fixed the same leak between accounts and stopped at the pool
+boundary); a CD's lock guarded withdrawals but not deposits, and its premium
+rate outlived the lock; and the mortgage/auto rates priced the collateral the
+Bank app never took. Rule: when a constant describes a player-level allowance
+(a band, a lock, a secured rate), find EVERY path that can draw on it and make
+them draw on the one budget - grep the constant's readers and the product's
+entry points, not just the file that defines it.
 ## 2026-10-23 - Owner decisions D12/D15/D16: a reward on the path nobody takes is no reward
 
 D12: the wedding venue bonuses were computed only in `executeWedding`, which the
