@@ -215,9 +215,20 @@ export function getVenueTypeColor(type: WeddingVenue['type']): string {
 }
 
 /**
- * Get total happiness bonus for a wedding
+ * Get total happiness bonus for a wedding.
+ *
+ * D12 (owner decision, 2026-10-23): this and the reputation bonus below are
+ * applied on the REAL wedding path - the weekly tick's `applyScheduledWedding`,
+ * in the same branch that charges the remaining balance - and shown on the
+ * planning screen. The figure is the RAW gain: the tick routes it through the
+ * happiness-gain curve with the rest of the week's net movement, so a life
+ * that is already happy gets less of it. Before, only the unreachable manual
+ * `executeWedding` read these, so a $100k island wedding bought exactly what a
+ * $200 courthouse did.
  */
-export function calculateWeddingHappinessBonus(plan: WeddingPlan): number {
+export function calculateWeddingHappinessBonus(
+  plan: Partial<WeddingPlan> & { venueId: string; guestCount: number },
+): number {
   const venue = getWeddingVenue(plan.venueId);
   if (!venue) return 0;
 
@@ -235,7 +246,9 @@ export function calculateWeddingHappinessBonus(plan: WeddingPlan): number {
 /**
  * Get total reputation bonus for a wedding
  */
-export function calculateWeddingReputationBonus(plan: WeddingPlan): number {
+export function calculateWeddingReputationBonus(
+  plan: Partial<WeddingPlan> & { venueId: string; guestCount: number },
+): number {
   const venue = getWeddingVenue(plan.venueId);
   if (!venue) return 0;
 

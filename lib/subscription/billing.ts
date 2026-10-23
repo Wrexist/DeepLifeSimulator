@@ -49,6 +49,31 @@ export function isPrepaidThisWeek(
   );
 }
 
+/**
+ * D15 (owner decision, 2026-10-23): a CANCELLED annual prepay that is still
+ * running out its paid term.
+ *
+ * Cancelling an annual plan used to drop the perks on the spot and forfeit the
+ * prepaid weeks. Cancel now means "stop renewal": the plan keeps `active`, its
+ * tier, its perks and `paidThroughWeek`, and loses `weeklyPrice` - the field
+ * that means "billed each weekly tick", which is exactly what a cancelled plan
+ * no longer is. No new field and no save change: every in-game subscription is
+ * written with a `weeklyPrice`, and a legacy real-money grant never carries a
+ * `plan`, so `active + annual + paidThroughWeek + no weeklyPrice` is this state
+ * and only this state. The weekly tick lapses it on `paidThroughWeek`
+ * (`weeksLived`, never the device clock).
+ */
+export function isCancelledPrepaid(sub: BillableSubscription | undefined): boolean {
+  return (
+    !!sub &&
+    sub.active === true &&
+    sub.plan === 'annual' &&
+    typeof sub.paidThroughWeek === 'number' &&
+    Number.isFinite(sub.paidThroughWeek) &&
+    !(typeof sub.weeklyPrice === 'number' && sub.weeklyPrice > 0)
+  );
+}
+
 /** What one subscription costs this week — 0 when not billable or prepaid. */
 export function subscriptionWeeklyCharge(
   sub: BillableSubscription | undefined,

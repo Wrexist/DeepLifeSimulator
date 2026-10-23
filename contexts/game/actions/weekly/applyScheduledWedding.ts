@@ -6,7 +6,8 @@
  *
  *   1. Execute. `rel.weddingPlanned.scheduledWeek === nextWeeksLived` AND
  *      the player can afford the remaining 75% of the budget → charge
- *      `floor(budget * 0.75)`, promote to spouse, +20 score, clear
+ *      `floor(budget * 0.75)`, grant the venue's happiness/reputation
+ *      bonus (D12), promote to spouse, +20 score, clear
  *      `weeksAtLowRelationship`, raise the wedding popup.
  *   2. Postpone or expire (insufficient funds). `scheduledWeek == this
  *      week` but player can't afford the balance → postpone +4 weeks UNLESS
@@ -18,6 +19,8 @@
  *
  * Side effects on `ctx`:
  *   - `ctx.newStats.money` — decremented by `remainingBalance` on execute.
+ *   - `ctx.newStats.happiness` / `.reputation` — raised by the plan's wedding
+ *     bonus on execute (happiness is scaled at the tick's net choke point).
  *   - `ctx.notifications.push(...)` — on postpone and on expiry. See the note on
  *     gate 2: both used to be silent, which is what "the wedding is planned but
  *     never occurs" looks like from the outside.
@@ -38,6 +41,10 @@ import { logger } from '@/utils/logger';
 import { WEEKS_PER_YEAR, WEDDING_REMAINDER_RATE } from '@/lib/config/gameConstants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
+import {
+  calculateWeddingHappinessBonus,
+  calculateWeddingReputationBonus,
+} from '@/lib/dating/weddingVenues';
 import type { WeekContext } from './weekContext';
 
 export interface ScheduledWeddingResult {
@@ -81,6 +88,17 @@ export function applyScheduledWedding(
     const remainingBalance = Math.floor(weddingBudget * WEDDING_REMAINDER_RATE);
     if (ctx.newStats.money >= remainingBalance) {
       ctx.newStats.money -= remainingBalance;
+      // D12: what the venue and the add-ons were paid FOR, granted in the same
+      // step that charges the balance - no charge without the bonus, no bonus
+      // without the charge (CLAUDE.md §4.4). Happiness is the RAW gain written
+      // into the tick's stats: the week loop scales its net happiness movement
+      // through the diminishing-returns curve once, after every subsystem, so
+      // scaling here as well would double-count (happinessGainAudit,
+      // TICK_CHOKE_POINT). Same calculators the planning screen shows.
+      const happinessBonus = calculateWeddingHappinessBonus(rel.weddingPlanned);
+      const reputationBonus = calculateWeddingReputationBonus(rel.weddingPlanned);
+      ctx.newStats.happiness = Math.max(0, Math.min(100, (ctx.newStats.happiness ?? 0) + happinessBonus));
+      ctx.newStats.reputation = Math.max(0, Math.min(100, (ctx.newStats.reputation ?? 0) + reputationBonus));
       logger.info(
         `[WEDDING] Wedding happening for ${rel.name} in week ${nextWeeksLived}! Charged $${remainingBalance} remaining balance.`,
       );

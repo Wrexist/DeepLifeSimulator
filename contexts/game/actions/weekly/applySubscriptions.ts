@@ -8,7 +8,9 @@
  *   - charges the weekly fee for each ACTIVE, in-game-billable subscription,
  *   - lapses (cancels perks) any subscription the player can no longer afford,
  *   - skips billing while an annual prepay term is still in effect (then resumes
- *     ordinary weekly auto-renew once the term ends).
+ *     ordinary weekly auto-renew once the term ends),
+ *   - ends a CANCELLED Spark annual plan when its paid term runs out (D15:
+ *     cancelling stops renewal; it does not forfeit the prepaid weeks).
  *
  * Inert by construction: a subscription with `active !== true`, or with no
  * `weeklyPrice` (e.g. a legacy IAP grant), is passed through UNCHANGED (same
@@ -32,7 +34,7 @@ import { perksForTier } from '@/lib/dating/sparkLogic';
 import { BANKRUPTCY_FLOOR } from '@/lib/config/gameConstants';
 // Shared with the home tab's Weekly Expenses panel, which has to report the
 // same charge this function makes — see lib/subscription/billing.ts.
-import { isInGameBillable, isPrepaidThisWeek } from '@/lib/subscription/billing';
+import { isCancelledPrepaid, isInGameBillable, isPrepaidThisWeek } from '@/lib/subscription/billing';
 
 export interface SubscriptionBillingInput {
   verifiedPro: PulseVerifiedPro | undefined;
@@ -138,7 +140,16 @@ export function applySubscriptionsForWeek(
   }
 
   // ── Spark Premium ───────────────────────────────────────────────────────
-  if (isInGameBillable(sparkPremium)) {
+  // D15: a cancelled annual plan runs to the end of the weeks it paid for, then
+  // ends - no charge, and no renewal.
+  if (isCancelledPrepaid(sparkPremium)) {
+    const sp = sparkPremium as SparkPremium;
+    if (!isPrepaidThisWeek(sp, nextWeeksLived)) {
+      nextSparkPremium = lapsedSparkPremium(sp);
+      sparkPremiumChanged = true;
+      notifications.push('Your Spark Premium ended - the prepaid year you cancelled is over.');
+    }
+  } else if (isInGameBillable(sparkPremium)) {
     const sp = sparkPremium as SparkPremium;
     if (!isPrepaidThisWeek(sp, nextWeeksLived)) {
       const price = sp.weeklyPrice as number;
