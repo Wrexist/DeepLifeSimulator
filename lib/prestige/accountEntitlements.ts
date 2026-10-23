@@ -217,6 +217,15 @@ function mergeEntitlementValue(live: unknown, applied: unknown): unknown {
 const CONSUMABLE_STATE_KEYS: ReadonlySet<string> = new Set(['youthPills', 'revivalPack']);
 
 /**
+ * Subscription STATUS, not a purchase: `reconcileSubscriptionBenefits` clears
+ * `deepLifePlusActivated` on an authoritative lapse. OR-ing it would let an
+ * older cloud copy re-activate a lapsed sub (salary and daily-gem benefits)
+ * until the next reconcile. The live value is the latest store answer this
+ * device has; a sub bought on another device is granted by the store check.
+ */
+const REVOCABLE_SETTINGS_KEYS: ReadonlySet<string> = new Set(['deepLifePlusActivated']);
+
+/**
  * Apply a state that came from ELSEWHERE (the cloud) over the live one without
  * losing an account purchase either copy holds (D17, 2026-10-23).
  *
@@ -236,6 +245,9 @@ const CONSUMABLE_STATE_KEYS: ReadonlySet<string> = new Set(['youthPills', 'reviv
  * authoritative reconcile would revoke it. A copy with `adsRemoved` and no hold
  * is a real purchase, so when either side has one the merged hold is cleared.
  *
+ * `deepLifePlusActivated` is revocable status, so it takes the live value
+ * (`REVOCABLE_SETTINGS_KEYS`).
+ *
  * The game-WEEK claim markers are not on these lists (see the note in
  * `PURCHASED_SETTINGS_KEYS`), so they come from the applied state - the life
  * whose `weeksLived` they are measured in. Device preferences are not
@@ -252,7 +264,9 @@ export function mergeAccountEntitlementsFromLive(live: GameState | null | undefi
   const settings: Record<string, unknown> = { ...appliedSettings };
 
   for (const key of PURCHASED_SETTINGS_KEYS) {
-    const merged = mergeEntitlementValue(liveSettings[key], appliedSettings[key]);
+    const merged = REVOCABLE_SETTINGS_KEYS.has(key)
+      ? (liveSettings[key] ?? appliedSettings[key])
+      : mergeEntitlementValue(liveSettings[key], appliedSettings[key]);
     if (merged !== undefined) settings[key] = merged;
   }
   const boughtAdsRemoved = (s: Record<string, unknown>): boolean =>

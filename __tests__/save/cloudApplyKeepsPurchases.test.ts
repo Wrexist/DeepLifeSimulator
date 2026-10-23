@@ -113,6 +113,20 @@ describe('mergeAccountEntitlementsFromLive', () => {
     expect(merged.revivalPack).toBe(false);
   });
 
+  it('takes the DeepLife+ status at the LIVE value: an older cloud copy cannot re-activate a lapsed sub', () => {
+    const { live, cloud } = liveAndCloud();
+    // Live: an authoritative reconcile has already cleared the lapsed sub.
+    live.settings = { ...live.settings, deepLifePlusActivated: false };
+    cloud.settings = { ...cloud.settings, deepLifePlusActivated: true };
+
+    expect(mergeAccountEntitlementsFromLive(live, cloud).settings.deepLifePlusActivated).toBe(false);
+
+    // And a live active sub is not dropped by a cloud copy from before it.
+    live.settings = { ...live.settings, deepLifePlusActivated: true };
+    cloud.settings = { ...cloud.settings, deepLifePlusActivated: false };
+    expect(mergeAccountEntitlementsFromLive(live, cloud).settings.deepLifePlusActivated).toBe(true);
+  });
+
   it('does not let a live ad-free HOLD make a Remove Ads bought on the other copy revocable', () => {
     const { live, cloud } = liveAndCloud();
     // Live: ad-free only because a lapsed DeepLife+ is being held (v52).
