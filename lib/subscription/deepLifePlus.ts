@@ -263,6 +263,31 @@ export function hasDeepLifePlusEntitlement(settings?: {
 }
 
 /**
+ * Which one-time purchase recorded IN THE SAVE grants DeepLife+ premium forever,
+ * or `null` when none does (D14, 2026-10-23).
+ *
+ * The paywall's own check (`isDeepLifePlusActive` → `hasPremiumAccess`) reads
+ * the store ledger: an active subscription or the LIFETIME_PREMIUM product.
+ * The $99.99 Mega Pack grants the same thing - its `everythingUnlocked` branch
+ * in `applyProductBenefitsToState` writes `settings.lifetimePremium` - but under
+ * its own consumable product id, so the ledger never shows it and the paywall
+ * kept offering "Subscribe" to a player who already owns premium for life.
+ *
+ * `everythingUnlocked` is checked FIRST so a Mega Pack owner is told it came
+ * with the pack they bought, not with a product they never saw.
+ */
+export type PermanentPremiumSource = 'mega_pack' | 'lifetime';
+
+export function permanentPremiumSource(settings?: {
+  lifetimePremium?: boolean;
+  everythingUnlocked?: boolean;
+}): PermanentPremiumSource | null {
+  if (settings?.everythingUnlocked === true) return 'mega_pack';
+  if (settings?.lifetimePremium === true) return 'lifetime';
+  return null;
+}
+
+/**
  * Introductory free-trial length advertised on the paywall (the "Try 7 days
  * free" hook). IMPORTANT: the MATCHING introductory offer must be configured on
  * the `deeplife_premium_*` subscription products in App Store Connect / Play
