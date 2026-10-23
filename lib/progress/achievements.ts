@@ -3,6 +3,7 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getTotalLuxuryMarketValue } from '@/lib/luxury';
 import { nonMirrorDeposits, totalCreditCardDebt } from '@/lib/banking/operations';
 import { calculateVehicleSellPrice } from '@/lib/vehicles/resale';
+import { companyOwnerShare } from '@/lib/business/ownership';
 
 export interface AchievementProgress {
   id: string;
@@ -59,6 +60,10 @@ interface NetWorthCacheKey {
    * served a stale figure by an existing memo.
    */
   overdueBalance: GameState['overdueBalance'];
+  /** ECO2-1: an IPO's kept share scales a company's value. */
+  hustleApp: GameState['hustleApp'];
+  /** ECO2-2: staked coins are still owned, and live in the warehouse. */
+  warehouse: GameState['warehouse'];
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -86,7 +91,9 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.luxuryHoldings === state.luxuryHoldings &&
       lastCacheKey.cryptos === state.cryptos &&
       lastCacheKey.banking === state.banking &&
-      lastCacheKey.darkWeb === state.darkWeb) {
+      lastCacheKey.darkWeb === state.darkWeb &&
+      lastCacheKey.hustleApp === state.hustleApp &&
+      lastCacheKey.warehouse === state.warehouse) {
     return lastNetWorthValue;
   }
 
@@ -146,9 +153,17 @@ export const netWorth = (state: GameState): number => {
 
   // Calculate companies value
   // CRITICAL FIX: Add overflow protection for weeklyIncome * 52
+  //
+  // ECO2-1: only the share the player still OWNS. Floating 40% in an IPO pays
+  // that 40% out as cash, which this sum already counts as `money`; valuing the
+  // company at 100% afterwards counted the floated share twice - a $10k/wk
+  // company floated for ~$200k read as ~$200k richer than the player was, on
+  // the figure that gates prestige and its points. `quoteCompanySaleValue`
+  // and the weekly income already apply the same share.
   const companyValue = state.companies?.reduce((total, company) => {
+    if (!company) return total;
     const weeklyIncome = company.weeklyIncome || 0;
-    const annualIncome = weeklyIncome * WEEKS_PER_YEAR;
+    const annualIncome = weeklyIncome * WEEKS_PER_YEAR * companyOwnerShare(state, company.id);
     // Prevent overflow: if calculation would exceed safe limit, clamp it
     if (!isFinite(annualIncome) || annualIncome > MAX_SAFE_VALUE) {
       return MAX_SAFE_VALUE;
@@ -235,6 +250,23 @@ export const netWorth = (state: GameState): number => {
     const price = Number(coin?.price);
     if (!isFinite(owned) || !isFinite(price) || owned <= 0 || price <= 0) return sum;
     return sum + owned * price;
+  }, 0);
+
+  /**
+   * ECO2-2: STAKED coins are still the player's. `stakeCrypto` moves them out
+   * of `cryptos[].owned` into a warehouse position and the claim at maturity
+   * hands every one back, so they are a locked holding, not a sale. Leaving
+   * them out made staking drop net worth by the staked value the moment it was
+   * tapped - and since this figure sets the ultra-rich passive-income soft cap,
+   * staking a crypto fortune was also a way to dodge it. Valued at the coin's
+   * live price, like `owned`; rewards not yet claimed are not counted.
+   */
+  const stakedCryptoValue = (state.warehouse?.stakingPositions ?? []).reduce((sum, position) => {
+    const amount = position?.amount;
+    if (typeof amount !== 'number' || !isFinite(amount) || amount <= 0) return sum;
+    const price = (state.cryptos ?? []).find((c) => c?.id === position.cryptoId)?.price;
+    if (typeof price !== 'number' || !isFinite(price) || price <= 0) return sum;
+    return sum + amount * price;
   }, 0);
 
   /**
@@ -327,7 +359,7 @@ export const netWorth = (state: GameState): number => {
 
   const safeSavingsGoalsValue = isFinite(savingsGoalsValue) ? savingsGoalsValue : 0;
 
-  const safeCryptoValue = isFinite(cryptoValue) ? cryptoValue : 0;
+  const safeCryptoValue = (isFinite(cryptoValue) ? cryptoValue : 0) + (isFinite(stakedCryptoValue) ? stakedCryptoValue : 0);
   const safeDarkWebBtcValue = isFinite(darkWebBtcValue) ? darkWebBtcValue : 0;
   const safeBankAccountsValue = isFinite(bankAccountsValue) ? bankAccountsValue : 0;
   const safeRealEstateValue = isFinite(realEstateValue) ? realEstateValue : 0;
@@ -389,7 +421,9 @@ export const netWorth = (state: GameState): number => {
     luxuryHoldings: state.luxuryHoldings,
     cryptos: state.cryptos,
     banking: state.banking,
-    darkWeb: state.darkWeb
+    darkWeb: state.darkWeb,
+    hustleApp: state.hustleApp,
+    warehouse: state.warehouse,
   };
   lastNetWorthValue = clampedTotal;
 
