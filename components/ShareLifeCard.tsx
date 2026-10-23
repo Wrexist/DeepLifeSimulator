@@ -355,7 +355,7 @@ ${shareUrlFor('life_card')}
 
  {/* Action Buttons */}
  <View style={styles.buttonRow}>
- <TouchableOpacity
+ <TouchableOpacity accessibilityRole="button"
  style={styles.button}
  onPress={handleShare}
  disabled={isSharing}

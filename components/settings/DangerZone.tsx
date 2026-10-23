@@ -206,13 +206,13 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
                 Are you sure you want to restart? All progress will be lost. Purchases you have paid for are kept.
               </Text>
               <View style={styles.confirmActions}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.cancelButton}
                   onPress={() => setShowRestartConfirm(false)}
                 >
                   <Text style={styles.cancelButtonText}>No</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmButton} onPress={confirmRestart}>
+                <TouchableOpacity accessibilityRole="button" style={styles.confirmButton} onPress={confirmRestart}>
                   <Text style={styles.confirmButtonText}>Yes</Text>
                 </TouchableOpacity>
               </View>

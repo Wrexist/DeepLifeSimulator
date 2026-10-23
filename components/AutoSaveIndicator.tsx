@@ -189,7 +189,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
     : [styles.container, safeAutoSaveSettings.darkMode && styles.containerDark, { top: insets.top + 70 }];
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       onPress={() => setShowDetails(!showDetails)}
       style={containerStyle}
       activeOpacity={0.7}

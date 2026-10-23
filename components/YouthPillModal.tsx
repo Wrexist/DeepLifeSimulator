@@ -121,7 +121,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
 
             {/* Actions */}
             <View style={styles.actions}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.cancelButton, settings.darkMode && styles.cancelButtonDark]}
                 onPress={onClose}
               >
@@ -129,7 +129,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                   Cancel
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.useButton, youthPills <= 0 && styles.useButtonDisabled]}
                 onPress={handleUseYouthPill}
                 disabled={youthPills <= 0}

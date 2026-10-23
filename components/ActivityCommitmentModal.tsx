@@ -174,7 +174,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
     const { bonuses, penalties } = getAreaBonuses(area);
 
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         key={area}
         style={[
           styles.areaCard,
@@ -381,7 +381,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
 
             {/* Footer */}
             <View style={styles.footer}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.cancelButton, settings.darkMode && styles.cancelButtonDark]}
                 onPress={onClose}
               >
@@ -389,7 +389,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                   Cancel
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.saveButton,
                   (!canChange || (selectedPrimary === commitments?.primary && selectedSecondary === commitments?.secondary)) && styles.saveButtonDisabled,

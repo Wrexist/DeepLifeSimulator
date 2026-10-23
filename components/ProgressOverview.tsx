@@ -180,7 +180,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           : allAchievements.filter(a => a.category === category.id).length;
 
         return (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={category.id}
             onPress={() => setSelectedCategory(category.id)}
             style={[
@@ -441,7 +441,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
           style={[styles.sortDropdown, darkMode && styles.sortDropdownDark]}
         >
           {SORT_OPTIONS.map(option => (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={option.value}
               style={[
                 styles.sortOption,
@@ -470,7 +470,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
 
           <View style={[styles.sortDivider, darkMode && styles.sortDividerDark]} />
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[
               styles.sortOption,
               showCompletedOnly && styles.sortOptionSelected,

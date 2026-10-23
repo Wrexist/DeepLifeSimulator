@@ -112,7 +112,7 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
 
                   <Text style={[styles.perk, { color: theme.textSecondary }]}>{p.perk(pursuit.level)}</Text>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     onPress={() => handlePractice(p.id)}
                     disabled={disabled}
                     style={[styles.practiceBtn, { backgroundColor: disabled ? theme.surfaceElevated : p.color }]}

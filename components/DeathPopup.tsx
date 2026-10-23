@@ -848,7 +848,7 @@ function DeathPopup() {
   // Shared secondary action row (Read Story + Share) - appears in both footers.
   const secondaryActions = (
     <View style={styles.secondaryRow}>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.secondaryButton}
         onPress={handleShowLifeStory}
         activeOpacity={0.8}
@@ -857,7 +857,7 @@ function DeathPopup() {
         <Text style={styles.secondaryButtonText}>Read Story</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.secondaryButton}
         onPress={handleShareObituary}
         activeOpacity={0.8}
@@ -1008,7 +1008,8 @@ function DeathPopup() {
                   sits so a tab switch can bring it back to the top. */}
               <View style={styles.topBar} onLayout={handleTabBarLayout}>
                 <View style={styles.segmented}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === 'summary' }}
                     style={[styles.segment, activeTab === 'summary' && styles.segmentActive]}
                     onPress={handleSelectSummaryTab}
                     activeOpacity={0.8}
@@ -1019,7 +1020,8 @@ function DeathPopup() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="tab"
+                    accessibilityState={{ selected: activeTab === 'legacy' }}
                     style={[styles.segment, activeTab === 'legacy' && styles.segmentActive]}
                     onPress={handleSelectLegacyTab}
                     activeOpacity={0.8}
@@ -1666,7 +1668,8 @@ function DeathPopup() {
                               const childTotalNetWorth = inheritance + savings;
 
                               return (
-                                <TouchableOpacity
+                                <TouchableOpacity accessibilityRole="button"
+                                  accessibilityState={{ selected: isSelected }}
                                   key={child.id}
                                   style={[
                                     styles.childCard,
@@ -1763,7 +1766,7 @@ function DeathPopup() {
                         Your heir inherits the {inheritedMindsetName} mindset.
                       </Text>
                     ) : null}
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={[styles.actionButton, !canContinueLegacy && styles.disabledButton]}
                       onPress={handleContinueLegacy}
                       disabled={!canContinueLegacy}
