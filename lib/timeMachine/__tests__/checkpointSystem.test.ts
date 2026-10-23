@@ -20,6 +20,8 @@ import {
   slimCheckpointSnapshot,
   getRewindCost,
 } from '@/lib/timeMachine/checkpointSystem';
+import { applyYouthPill } from '@/lib/progress/youthPill';
+import { getAge } from '@/lib/progress/lifeChapters';
 
 function heavyState(): GameState {
   // createTestGameState deep-clones initialGameState, so mutating the result
@@ -438,6 +440,47 @@ describe('checkpointSystem - rewinding prunes the abandoned timeline', () => {
     const list = addCheckpoint([oldTimeline], replayed);
     expect(list).toHaveLength(1);
     expect((list[0].snapshot as GameState).stats.money).toBe(9_999);
+  });
+});
+
+describe('checkpointSystem - a Youth Pill taken since the checkpoint stays taken (SAVE2-2)', () => {
+  function oldLife(weeks: number): GameState {
+    const s = createTestGameState();
+    s.weeksLived = weeks;
+    s.lifeStartWeek = 0;
+    s.date = { ...s.date, age: 18 + weeks / 52 };
+    s.stats = { ...s.stats, gems: 100_000 };
+    return s;
+  }
+
+  it('keeps the pill effect on the restored life instead of handing back the old body', () => {
+    const cp = createCheckpoint(oldLife(3_120), 'Age 78');
+
+    // Took the pill at 79 and died later. The inventory carries at its live
+    // count, so the pill is already spent on the restored life.
+    const live = applyYouthPill({ ...oldLife(3_172), youthPills: 1 });
+    live.weeksLived = 3_190;
+    live.checkpoints = [cp];
+    expect(live.youthPills).toBe(0);
+
+    const restored = rewindToCheckpoint(live, cp.id)!;
+    expect(restored.youthPills).toBe(0);
+    expect(restored.weeksLived).toBe(3_120);
+    expect(restored.ageOffsetWeeks).toBe(3_120);
+    expect(getAge(restored)).toBe(18);
+    expect(restored.date.age).toBe(18);
+  });
+
+  it('changes nothing when no pill was taken since the checkpoint', () => {
+    const atCheckpoint = applyYouthPill({ ...oldLife(2_000), youthPills: 1 });
+    atCheckpoint.weeksLived = 2_080;
+    atCheckpoint.date = { ...atCheckpoint.date, age: 19.5 };
+    const cp = createCheckpoint(atCheckpoint, 'Age 19');
+
+    const live: GameState = { ...atCheckpoint, weeksLived: 2_200, checkpoints: [cp] };
+    const restored = rewindToCheckpoint(live, cp.id)!;
+    expect(restored.ageOffsetWeeks).toBe(2_000);
+    expect(restored.date.age).toBe(19.5);
   });
 });
 
