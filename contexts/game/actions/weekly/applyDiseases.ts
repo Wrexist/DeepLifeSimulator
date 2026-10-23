@@ -398,7 +398,10 @@ export function applyDiseasesForWeek(
       // 100: the week's energy regen has already lifted energy past it, and
       // capping first would swallow the regen surplus and then charge the full
       // symptom from 100. The updater caps every stat once, after all reducers.
-      (ctx.newStats as unknown as Record<string, number>)[statKey] = Math.max(0, currentValue + value);
+      // Every OTHER stat keeps the cap: a bonus that overshot 100 (gym
+      // membership on full fitness) must not absorb the symptom.
+      const ceiling = statKey === 'energy' ? Infinity : 100;
+      (ctx.newStats as unknown as Record<string, number>)[statKey] = Math.max(0, Math.min(ceiling, currentValue) + value);
     }
   });
 

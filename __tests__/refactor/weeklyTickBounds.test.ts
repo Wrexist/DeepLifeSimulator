@@ -134,4 +134,23 @@ describe('weekly tick - pre-roll bounds (Batch 1: C3 vehicles, C4 diseases)', ()
     expect(result.diseases[21].effects.health).toBe(-5);
     expect(result.diseases).toHaveLength(22);
   });
+
+  it('a symptom is charged from the 100 cap on every stat except energy', () => {
+    // Codex review, PR #273: a bonus that overshot fitness (gym membership on
+    // full fitness) must not absorb the symptom. Energy keeps the regen surplus.
+    const flu: Disease = {
+      id: 'flu', name: 'Flu', severity: 'mild',
+      effects: { fitness: -5, energy: -5 },
+      curable: true, treatmentRequired: false,
+    };
+    const ctx = stubCtx(stubStats({ fitness: 102, energy: 120 }), {
+      diseaseComplication: [0.9], diseaseProgression: [0.9], diseaseRecovery: [0.9],
+    });
+    applyDiseasesForWeek(
+      { prevDiseases: [flu], prevDiseaseHistory: undefined, prevShowSicknessModal: false, prevLastDiseaseWeek: 0, newDisease: null },
+      ctx,
+    );
+    expect(ctx.newStats.fitness).toBe(95);
+    expect(ctx.newStats.energy).toBe(115);
+  });
 });
