@@ -6024,3 +6024,19 @@ value, snapshot the ASSEMBLED state, and compose per-entry transforms instead
 of returning from the first one that fires. Also: a roll-audit declaration is a
 claim to re-check - the dark-web/politics/rent streams passed the week-only
 guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.
+
+## 2026-10-23 - A flag that means "true" cannot tell you HOW it became true
+
+Chapter 4's "Get Educated" read `educations.some(e => e.completed)` and paid
+$1,000 + 20 gems on day one to every scenario that starts with a degree,
+because the scenario seed, the Legacy Shop and the prestige unlocks all write
+`completed: true` too. No new field was needed: graduation happens in one
+place (the weekly tick counts `weeksRemaining` to 0) while every grant writes
+`weeksRemaining: undefined`, so the SHAPE already records the provenance
+(`earnedEducationThisLife`). Rule: before a goal reads a boolean, list every
+writer of that boolean; if any writer is a grant, the goal is paying for the
+grant. Same audit: copy that advertises a value the state cannot hold
+(Redemption Arc's -10 reputation on a 0-100 stat) is a lie the clamp tells for
+you - assert the advertised number exactly, not through the clamp. And when a
+payout leaves an event, re-check the remaining choices for dominance: with the
+cash gone, `budget_crisis`'s "Borrow" was strictly best.

@@ -27,6 +27,23 @@ import { ageFromWeeksLived, weeksSinceLifeStart } from '@/utils/weekCounters';
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
 
+/**
+ * True when the player GRADUATED a programme in this life.
+ *
+ * `completed` alone cannot answer that: every grant path writes a completed
+ * entry too - the scenario seed (`gameStateBuilder`, "Start with a college
+ * education"), the Legacy Shop heir bonus and the prestige "all educations"
+ * unlocks. What tells them apart is the shape the weekly tick leaves behind.
+ * Graduation happens in exactly one place, `applyEducationProgression`, which
+ * counts `weeksRemaining` down and flips `completed` when it reaches 0, so an
+ * earned degree carries `weeksRemaining: 0`. Every grant writes
+ * `weeksRemaining: undefined` (the not-tickable shape), so a seeded degree
+ * never matches. Derived from what the save already holds - no new field.
+ */
+export function earnedEducationThisLife(state: Pick<GameState, 'educations'>): boolean {
+  return (state.educations ?? []).some((e) => !!e && e.completed === true && e.weeksRemaining === 0);
+}
+
 /** One log line per session for a throwing `netWorth` — see `wealthMark`. */
 let netWorthFailureLogged = false;
 
@@ -438,10 +455,14 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch4_education',
         title: 'Get Educated',
         description: 'Complete an education program',
-        checkComplete: (s) => s.educations?.some((e: any) => e.completed),
+        // Only a programme GRADUATED in this life counts. A scenario that
+        // starts with a degree (Corporate Intern, Trust Fund Baby, Medical
+        // Student) used to complete this on day one and pay its per-goal
+        // reward for nothing. See `earnedEducationThisLife`.
+        checkComplete: (s) => earnedEducationThisLife(s),
         checkProgress: (s) => {
-          const active = s.educations?.find((e: any) => !e.completed && !e.paused);
-          if (s.educations?.some((e: any) => e.completed)) return 1;
+          const active = s.educations?.find((e) => !e.completed && !e.paused);
+          if (earnedEducationThisLife(s)) return 1;
           if (!active) return 0;
           return 1 - (active.weeksRemaining || active.duration || 1) / (active.duration || 1);
         },

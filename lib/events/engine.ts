@@ -76,6 +76,14 @@ export interface EventChoiceEffects {
    * instead of arriving clean (EVT-15).
    */
   politicalDirtyUSD?: number;
+  /**
+   * Dollars credited to `politics.campaignFunds` - the campaign's pot, not
+   * the player's wallet. A fundraiser raises money for the campaign; it used
+   * to pay `money` straight into cash (2026-10-23 owner decision D4). Applied
+   * by `creditCampaignFunds` (lib/politics/campaignFunds.ts); a no-op for a
+   * player with no `politics` record.
+   */
+  campaignFunds?: number;
 }
 
 /**
@@ -1418,10 +1426,16 @@ const budgetCrisis: EventTemplate = {
   generate: () => ({
     id: 'budget_crisis',
     description: 'A budget crisis threatens to shut down government services. How do you respond?',
+    // Reputation only (2026-10-23 owner decision D4). Every choice used to pay
+    // $50k-$100k of GOVERNMENT money into the player's wallet. With the cash
+    // gone, the old reputation figures left "Borrow" strictly best (-5 vs -15
+    // and -20, and no happiness cost), so the three are re-cut as a trade:
+    // the visible cut costs the least standing but weighs on you, the tax
+    // rise costs the most standing, and borrowing is cheap now and stressful.
     choices: [
-      { id: 'cut_spending', text: 'Cut spending', effects: { money: 50000, stats: { reputation: -15, happiness: -10 } } },
-      { id: 'raise_taxes', text: 'Raise taxes', effects: { money: 100000, stats: { reputation: -20, happiness: -15 } } },
-      { id: 'borrow', text: 'Borrow money', effects: { money: 75000, stats: { reputation: -5 } } },
+      { id: 'cut_spending', text: 'Cut spending (services suffer)', effects: { stats: { reputation: -10, happiness: -5 } } },
+      { id: 'raise_taxes', text: 'Raise taxes (voters remember)', effects: { stats: { reputation: -15 } } },
+      { id: 'borrow', text: 'Borrow to cover it (kick the can)', effects: { stats: { reputation: -5, happiness: -10 } } },
     ],
   }),
 };
@@ -1576,8 +1590,10 @@ const politicalFundraiser: EventTemplate = {
   generate: () => ({
     id: 'political_fundraiser',
     description: 'A political fundraiser is organized to support your campaign.',
+    // The money is raised FOR THE CAMPAIGN: it lands in `campaignFunds`, not
+    // the wallet (2026-10-23 owner decision D4 - it used to pay $25,000 cash).
     choices: [
-      { id: 'attend', text: 'Attend the fundraiser', effects: { money: 25000, stats: { reputation: 8 } } },
+      { id: 'attend', text: 'Attend the fundraiser (+$25,000 campaign funds)', effects: { campaignFunds: 25000, stats: { reputation: 8 } } },
       { id: 'skip', text: 'Skip the event', effects: { stats: { reputation: -5 } } },
     ],
   }),

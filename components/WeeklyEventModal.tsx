@@ -225,6 +225,7 @@ export default function WeeklyEventModal() {
  return resolveEventMoney(effects, safeNetWorth(gameState)) >= 0
  && Object.values(effects.stats || {}).every((v) => (v as number) >= 0)
  && (effects.relationship || 0) >= 0
+ && (effects.campaignFunds || 0) >= 0
  && (!effects.karma || effects.karma.amount >= 0)
  && (!special || special.positive);
  })) {
@@ -477,9 +478,11 @@ export default function WeeklyEventModal() {
  const moneyChange = resolveEventMoney(effects, safeNetWorth(gameState));
  const statChanges = effects.stats || {};
  const relationshipChange = effects.relationship || 0;
+ const campaignFundsChange = effects.campaignFunds || 0;
  const specialLabel = SPECIAL_EFFECT_LABELS[choice.special ?? ''];
  const hasEffects =
  moneyChange!== 0 ||
+ campaignFundsChange!== 0 ||
  Object.keys(statChanges).length > 0 ||
  relationshipChange!== 0 ||
  !!effects.karma ||
@@ -530,6 +533,13 @@ export default function WeeklyEventModal() {
  <View style={[styles.effectBadge, relationshipChange > 0 ? styles.positiveBadge: styles.negativeBadge]}>
  <Text style={styles.effectBadgeText}>
  {`Relationship ${relationshipChange > 0 ? '+': ''}${relationshipChange}`}
+ </Text>
+ </View>
+ )}
+ {campaignFundsChange!== 0 && (
+ <View style={[styles.effectBadge, campaignFundsChange > 0 ? styles.positiveBadge: styles.negativeBadge]}>
+ <Text style={styles.effectBadgeText}>
+ {`Campaign funds ${campaignFundsChange > 0 ? '+': ''}${formatMoney(campaignFundsChange)}`}
  </Text>
  </View>
  )}
