@@ -22,10 +22,12 @@ import type {
   PulseScandalResolution,
   PulseActiveBrandDeal,
   InGameSubscriptionPlan,
+  PulseVerifiedPro,
 } from '../types';
 import { logger } from '@/utils/logger';
 import { updateStats, applyStatsDelta } from './StatsActions';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
+import { isCancelledPrepaid } from '@/lib/subscription/billing';
 import { lifeSalt, makeLifeRoll } from '@/utils/seededRoll';
 import {
   calculatePostEngagement,
@@ -1465,10 +1467,44 @@ export const subscribeVerifiedPro = (
   };
 };
 
+/**
+ * The week a cancelled annual Verified Pro plan ends, or null when the plan is
+ * not a cancelled prepay. The screen reads this so it says what the tick does.
+ */
+export function verifiedProEndsWeek(vp: PulseVerifiedPro | undefined): number | null {
+  return vp && isCancelledPrepaid(vp) ? (vp.paidThroughWeek ?? null) : null;
+}
+
+/**
+ * Cancel Pulse Verified Pro.
+ *
+ * D15 (owner decision, 2026-10-23), the Spark rule applied here too: an ANNUAL
+ * plan with prepaid weeks left is not taken away. Cancelling clears
+ * `weeklyPrice` (see `isCancelledPrepaid`) so it never renews; the perks and
+ * the blue check stay until `paidThroughWeek`, when the weekly tick lapses the
+ * plan and clears `userProfile.verified`. A weekly plan, or an annual one whose
+ * term is over, has nothing prepaid to honour and ends at once. Decided against
+ * `prev` inside the updater.
+ */
 export const cancelVerifiedPro = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
 ): void => {
   setGameState((prev) => {
+    const current = prev.socialMedia?.verifiedPro;
+    const paidThrough = current?.paidThroughWeek;
+    if (
+      current?.active === true &&
+      current.plan === 'annual' &&
+      typeof paidThrough === 'number' &&
+      paidThrough > (prev.weeksLived ?? 0)
+    ) {
+      // Already cancelled: nothing to change (keeps a double tap idempotent).
+      if (isCancelledPrepaid(current)) return prev;
+      return {
+        ...prev,
+        socialMedia: { ...ensureSocial(prev), verifiedPro: { ...current, weeklyPrice: undefined } },
+      };
+    }
     const sm = { ...ensureSocial(prev) };
     if (sm.verifiedPro) {
       sm.verifiedPro = {

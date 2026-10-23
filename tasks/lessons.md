@@ -6037,6 +6037,52 @@ Bank app never took. Rule: when a constant describes a player-level allowance
 (a band, a lock, a secured rate), find EVERY path that can draw on it and make
 them draw on the one budget - grep the constant's readers and the product's
 entry points, not just the file that defines it.
+## 2026-10-23 - Owner decisions D12/D15/D16: a reward on the path nobody takes is no reward
+
+D12: the wedding venue bonuses were computed only in `executeWedding`, which the
+weekly tick always beats to it (the tick marries on the scheduled week, after
+which `executeWedding` refuses a spouse) - so every venue tier bought the same
+day. When two paths reach one outcome purely by timing, check which one actually
+fires before trusting that a reward is granted; grant it in the branch that
+charges (§4.4), and on the tick write the RAW happiness into `ctx.newStats` so
+the net choke point scales it once. D15: a "stop renewal" state needed no new
+field - clearing `weeklyPrice` (the "billed each tick" field) on an annual plan
+is that state, uniquely, and the tick lapses it on `paidThroughWeek`. D16: a
+guard added to some verbs in a family (dates, proposals) and not to a sibling
+(gifts) is the gap; mirror it in the updater and the screen.
+## 2026-10-23 - Applying a foreign state is not a rewind: carry entitlements as a UNION
+
+"Keep Cloud Version" and "Restore from cloud" replaced the whole live state, so
+a purchase made on this device since the last upload was reverted (D17). The
+obvious fix - reuse `carryAccountLevelEntitlements` like the Time Machine -
+is wrong here: it lets the LIVE value overwrite, which is right for a snapshot
+of the same device's past but would write a live `false` over a purchase the
+cloud copy picked up on ANOTHER device. `mergeAccountEntitlementsFromLive`
+reads the same key lists and merges by shape (booleans OR, high-water marks
+max, day-key sets union), except consumables, which follow the rewind and take
+the live count (a count has no union; max re-hands a spent pill). And a flag
+that makes another flag REVOCABLE (`adsRemovedHeldForPlus`) must not be OR-ed
+blindly. Rule: before reusing a carry helper, ask which side may hold a value
+the other lacks - one-directional history takes live; two sources take a union.
+Also (D14): the paywall asked the store ledger whether premium was owned, but
+the Mega Pack grants premium under its own product id - when a product grants
+another product's entitlement, every "do you own it" check must read the save
+flag, not the ledger.
+## 2026-10-23 - A flag that means "true" cannot tell you HOW it became true
+
+Chapter 4's "Get Educated" read `educations.some(e => e.completed)` and paid
+$1,000 + 20 gems on day one to every scenario that starts with a degree,
+because the scenario seed, the Legacy Shop and the prestige unlocks all write
+`completed: true` too. No new field was needed: graduation happens in one
+place (the weekly tick counts `weeksRemaining` to 0) while every grant writes
+`weeksRemaining: undefined`, so the SHAPE already records the provenance
+(`earnedEducationThisLife`). Rule: before a goal reads a boolean, list every
+writer of that boolean; if any writer is a grant, the goal is paying for the
+grant. Same audit: copy that advertises a value the state cannot hold
+(Redemption Arc's -10 reputation on a 0-100 stat) is a lie the clamp tells for
+you - assert the advertised number exactly, not through the clamp. And when a
+payout leaves an event, re-check the remaining choices for dominance: with the
+cash gone, `budget_crisis`'s "Borrow" was strictly best.
 ## 2026-10-23 - Owner decisions, late game: a stamp on a new life must move with every clock shift
 
 D3 stamped the prestige starting company's `foundedWeek` with the new life's

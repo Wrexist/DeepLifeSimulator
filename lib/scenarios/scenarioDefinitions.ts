@@ -750,13 +750,17 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'redemption_arc',
     name: 'Redemption Arc',
-    description: 'Start with a criminal record and wanted level. Turn your life around and become a respected citizen.',
+    // The copy states what the builder applies. It used to promise a "wanted
+    // level" (nothing sets one) and start at -10 reputation, which the 0-100
+    // stat clamp turned into 0 - the card advertised a hole the game cannot
+    // represent (2026-10-23 owner decision D13).
+    description: 'Start with a criminal record and zero reputation. Turn your life around and become a respected citizen.',
     icon: '⚖️',
     difficulty: 'hard',
     startingConditions: {
       money: 50,
       age: 25,
-      reputation: -10,
+      reputation: 0,
       noChildren: true,
       stats: {
         health: 60,

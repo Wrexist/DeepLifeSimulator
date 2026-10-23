@@ -35,7 +35,10 @@ describe('challenge starting conditions reach the built life', () => {
     if (typeof sc.age === 'number') expect(state.date.age).toBe(sc.age);
     if (typeof sc.money === 'number') expect(state.stats.money).toBe(sc.money);
     if (typeof sc.reputation === 'number') {
-      expect(state.stats.reputation).toBe(Math.max(0, Math.min(100, sc.reputation)));
+      // Exactly the advertised figure - no clamp in the assertion. A starting
+      // reputation outside 0-100 is copy the game cannot honour (Redemption
+      // Arc advertised -10 and started at 0; owner decision D13).
+      expect(state.stats.reputation).toBe(sc.reputation);
     }
     if (sc.stats?.health !== undefined) expect(state.stats.health).toBe(sc.stats.health);
     if (sc.stats?.happiness !== undefined) expect(state.stats.happiness).toBe(sc.stats.happiness);

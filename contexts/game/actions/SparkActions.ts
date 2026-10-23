@@ -33,6 +33,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyStatsDelta } from './StatsActions';
 import { applyMoneyDelta } from './MoneyActions';
+import { isCancelledPrepaid } from '@/lib/subscription/billing';
 import { countNewRelationship } from '@/lib/statistics/statisticsTracker';
 import { makeLifeRoll } from '@/utils/seededRoll';
 import {
@@ -1223,11 +1224,49 @@ export const subscribeSparkPremium = (
   };
 };
 
+/**
+ * The week a cancelled annual Spark plan ends, or null when the plan is not a
+ * cancelled prepay. The screen reads this so it says what the tick will do.
+ */
+export function sparkPremiumEndsWeek(premium: SparkPremium | undefined): number | null {
+  return premium && isCancelledPrepaid(premium) ? (premium.paidThroughWeek ?? null) : null;
+}
+
+/**
+ * Cancel Spark Premium.
+ *
+ * D15 (owner decision, 2026-10-23): an ANNUAL plan with prepaid weeks left is
+ * not taken away - cancelling stops the renewal and the perks run to
+ * `paidThroughWeek`, when the weekly tick ends the plan (see
+ * `isCancelledPrepaid`). Before, this dropped the perks immediately and the
+ * player forfeited up to 51 paid weeks. A weekly plan (or an annual one whose
+ * term is already over) has nothing prepaid to honour and ends at once.
+ * Decided against `prev` inside the updater, so a stale snapshot cannot pick
+ * the wrong branch.
+ */
 export const cancelSparkPremium = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
 ): void => {
   setGameState((prev) => {
     const s = ensureSpark(prev);
+    const current = s.premium;
+    const paidThrough = current?.paidThroughWeek;
+    if (
+      current?.active === true &&
+      current.plan === 'annual' &&
+      typeof paidThrough === 'number' &&
+      paidThrough > (prev.weeksLived ?? 0)
+    ) {
+      // Already cancelled: nothing to change (keeps a double tap idempotent).
+      if (isCancelledPrepaid(current)) return prev;
+      return {
+        ...prev,
+        sparkApp: {
+          ...s,
+          premium: { ...current, weeklyPrice: undefined },
+        },
+      };
+    }
     return {
       ...prev,
       sparkApp: {
