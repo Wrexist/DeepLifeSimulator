@@ -1650,10 +1650,10 @@ exports[`pre-tick equivalence - applyDietPlanForWeek diet with happinessGain: ap
 }
 `;
 
-exports[`pre-tick equivalence - applyDietPlanForWeek gains cap stats at 100 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek gains cap health and happiness at 100; energy is left for the updater to cap (TICK2-1) 1`] = `
 {
   "newStats": {
-    "energy": 100,
+    "energy": 145,
     "fitness": 50,
     "gems": 0,
     "happiness": 100,

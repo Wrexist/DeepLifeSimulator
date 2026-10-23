@@ -394,7 +394,11 @@ export function applyDiseasesForWeek(
       // GameStats doesn't have an index signature; cast through `unknown`
       // to satisfy the strict type-check. Behavior matches the legacy
       // inline code: `(newStats as Record<string, number>)[statKey] = ...`.
-      (ctx.newStats as unknown as Record<string, number>)[statKey] = Math.max(0, Math.min(100, currentValue + value));
+      // Symptoms are always losses, so only the floor matters here. No cap at
+      // 100: the week's energy regen has already lifted energy past it, and
+      // capping first would swallow the regen surplus and then charge the full
+      // symptom from 100. The updater caps every stat once, after all reducers.
+      (ctx.newStats as unknown as Record<string, number>)[statKey] = Math.max(0, currentValue + value);
     }
   });
 

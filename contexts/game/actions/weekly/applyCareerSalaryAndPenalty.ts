@@ -36,6 +36,7 @@ import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { getEntryJobProfile } from '@/lib/careers/jobMarket';
 import { logger } from '@/utils/logger';
 import type { WeekContext } from './weekContext';
+import { energyAfterDrain } from '@/lib/economy/energyRegen';
 
 export interface CareerSalaryAndPenaltyResult {
   careerSalary: number;
@@ -195,7 +196,9 @@ export function applyCareerSalaryAndPenalty(
     ctx.newStats.health = Math.max(0, Math.min(100, ctx.newStats.health + careerHealthPenalty));
   }
   if (careerEnergyPenalty !== 0) {
-    ctx.newStats.energy = Math.max(0, Math.min(100, ctx.newStats.energy + careerEnergyPenalty));
+    // Floor only: the week's regen has already lifted energy past 100 and the
+    // updater caps it once, after every drain (see `energyAfterDrain`).
+    ctx.newStats.energy = energyAfterDrain(ctx.newStats.energy, careerEnergyPenalty);
   }
 
   return { careerSalary, careerHappinessPenalty, careerHealthPenalty, careerEnergyPenalty };
