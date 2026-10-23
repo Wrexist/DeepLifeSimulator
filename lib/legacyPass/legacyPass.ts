@@ -27,6 +27,40 @@ export function getCurrentSeasonId(nowMs: number = Date.now()): string {
   return `season-${seasonIndex}`;
 }
 
+/** The numeric index of a `season-N` id, or -1 for anything malformed. */
+function seasonIndexOf(seasonId: string | undefined): number {
+  const m = typeof seasonId === 'string' ? /^season-(\d+)$/.exec(seasonId) : null;
+  return m ? Number(m[1]) : -1;
+}
+
+/**
+ * Is `passSeasonId` a LATER season than `seasonId`? Then a pass on it must be
+ * kept, not reset (MON2-2).
+ *
+ * The season comes from the device clock, and every rollover resets the pass -
+ * claimed tiers and all - after auto-collecting what was earned. Rolling over
+ * BACKWARD was allowed too, so scrubbing the date back one season and forward
+ * again reset the pass twice: every XP point past tier 25 bought the whole
+ * reward table again, on demand, instead of once per six real weeks. Seasons
+ * now only move forward; a clock behind the pass simply keeps the pass.
+ */
+function isLaterSeason(passSeasonId: string | undefined, seasonId: string): boolean {
+  return seasonIndexOf(passSeasonId) > seasonIndexOf(seasonId);
+}
+
+/**
+ * The season a pass should be on now: the clock's season, or the pass's own
+ * season when the clock reads EARLIER than it (seasons never roll backward,
+ * see `isLaterSeason`).
+ */
+export function liveSeasonIdFor(
+  pass: Pick<LegacyPassState, 'seasonId'> | undefined,
+  nowMs: number = Date.now(),
+): string {
+  const clockSeason = getCurrentSeasonId(nowMs);
+  return pass && isLaterSeason(pass.seasonId, clockSeason) ? pass.seasonId : clockSeason;
+}
+
 // ── Tiers ────────────────────────────────────────────────────────────────────
 export const MAX_TIER = 25;
 export const XP_PER_TIER = 100;
@@ -183,12 +217,13 @@ export function getDefaultLegacyPass(seasonId: string = getCurrentSeasonId()): L
 /**
  * Ensure the pass belongs to the given season. If the season rolled over, reset
  * progress (including premium ownership - premium is purchased per season).
+ * A pass on a LATER season than `seasonId` is kept: seasons never roll back.
  */
 export function ensureCurrentSeason(
   pass: LegacyPassState | undefined,
   seasonId: string = getCurrentSeasonId(),
 ): LegacyPassState {
-  if (!pass || pass.seasonId !== seasonId) {
+  if (!pass || (pass.seasonId !== seasonId && !isLaterSeason(pass.seasonId, seasonId))) {
     return getDefaultLegacyPass(seasonId);
   }
   // Same season: defensively normalise array fields so any reader (incl. a
