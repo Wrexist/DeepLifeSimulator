@@ -375,8 +375,12 @@ export default function SaveSlots() {
         return;
       }
 
+      // `replace`, like the other two doors into a life (MainMenu's Continue
+      // and the start ceremony). A push left the slot picker under the loaded
+      // game, so a back gesture from Home returned to the menu with the life
+      // still live in memory.
       setTimeout(() => {
-        router.push('/(tabs)/home');
+        router.replace('/(tabs)/home');
       }, 80);
     } catch (error) {
       if (isSaveFromFutureError(error)) {
