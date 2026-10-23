@@ -47,3 +47,21 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Tell Bing (and the other IndexNow engines) that the pages changed, so
+      # they are recrawled in hours instead of weeks. ChatGPT search fetches
+      # through Bing, so an unindexed page cannot be cited there. The key is
+      # public by design: IndexNow proves ownership by fetching the key file
+      # (support-site/<key>.txt), and that location limits submissions to URLs
+      # under /DeepLifeSimulator/. A failed ping must never fail the deploy.
+      - name: Ping IndexNow
+        continue-on-error: true
+        env:
+          INDEXNOW_KEY: c2df4c646e8d062856d0aa666d701396
+          SITE: https://wrexist.github.io/DeepLifeSimulator/
+        run: |
+          urls=$(grep -o '<loc>[^<]*</loc>' support-site/sitemap.xml | sed 's/<[^>]*>//g' | jq -R . | jq -s -c .)
+          body=$(jq -n -c --arg key "$INDEXNOW_KEY" --arg loc "${SITE}${INDEXNOW_KEY}.txt" --argjson urls "$urls" \
+            '{host:"wrexist.github.io", key:$key, keyLocation:$loc, urlList:$urls}')
+          curl -sS -o /dev/null -w 'IndexNow HTTP %{http_code}\n' -X POST https://api.indexnow.org/indexnow \
+            -H 'Content-Type: application/json; charset=utf-8' -d "$body"
