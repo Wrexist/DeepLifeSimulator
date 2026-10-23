@@ -164,3 +164,114 @@ export function carryAccountLevelEntitlements(oldState: GameState, newState: Gam
 
   return newState;
 }
+
+/**
+ * The merge for one entitlement value that cannot revoke what either side
+ * holds. Every key on the two lists above is one of these shapes:
+ *
+ *   boolean  -> OR. An unlock, or a claim stamp whose `true` means "already
+ *               granted" (`deepLifePlusWelcomeClaimed`): OR keeps the purchase
+ *               AND the stamp, so it neither revokes nor re-mints.
+ *   number   -> max. `deepLifePlusLastGemClaimAt` is an epoch high-water mark.
+ *   string   -> max. Day keys and ISO dates order lexicographically, so this is
+ *               the later claim day / the later expiry.
+ *   array    -> union (`deepLifePlusGemClaimDays`).
+ *   object   -> per key, recursively (`goldUpgrades`, `perks`: maps of unlocks).
+ *
+ * A value only one side has is kept from that side.
+ */
+function mergeEntitlementValue(live: unknown, applied: unknown): unknown {
+  if (live === undefined || live === null) return applied;
+  if (applied === undefined || applied === null) return live;
+  if (typeof live === 'boolean' && typeof applied === 'boolean') return live || applied;
+  if (typeof live === 'number' && typeof applied === 'number') {
+    if (!Number.isFinite(live)) return applied;
+    if (!Number.isFinite(applied)) return live;
+    return Math.max(live, applied);
+  }
+  if (typeof live === 'string' && typeof applied === 'string') return live > applied ? live : applied;
+  if (Array.isArray(live) && Array.isArray(applied)) return [...new Set([...applied, ...live])];
+  if (typeof live === 'object' && typeof applied === 'object' && !Array.isArray(live) && !Array.isArray(applied)) {
+    const a = applied as Record<string, unknown>;
+    const l = live as Record<string, unknown>;
+    const out: Record<string, unknown> = { ...a };
+    for (const key of Object.keys(l)) out[key] = mergeEntitlementValue(l[key], a[key]);
+    return out;
+  }
+  // Mismatched shapes (one side is corrupt): the live device is the one the
+  // player is holding, so its value stands.
+  return live;
+}
+
+/**
+ * Consumables on `PURCHASED_STATE_KEYS`: a COUNT (or a one-shot charge) has no
+ * union. `max` would hand back a pill already spent on one device; a sum would
+ * count every pill both copies share twice. The Time Machine rewind - the
+ * precedent for applying another state over the live one - carries the LIVE
+ * value (`carryAccountLevelEntitlements`), and so does this: it is what the
+ * player sees right now, and it already includes anything bought in the last
+ * few minutes. The cost is that a pill bought on the OTHER device and not yet
+ * on this one is not added; that direction cannot be told apart from a pill
+ * this device has since spent.
+ */
+const CONSUMABLE_STATE_KEYS: ReadonlySet<string> = new Set(['youthPills', 'revivalPack']);
+
+/**
+ * Apply a state that came from ELSEWHERE (the cloud) over the live one without
+ * losing an account purchase either copy holds (D17, 2026-10-23).
+ *
+ * "Keep Cloud Version" and "Restore from cloud" both replaced the whole state.
+ * The cloud copy is minutes to days old, so a Remove Ads, Lifetime Premium,
+ * gold upgrade or banking unlock bought on THIS device since the last upload
+ * was silently reverted. The reverse matters too: the cloud copy may carry a
+ * purchase made on ANOTHER device, which is why this is not
+ * `carryAccountLevelEntitlements` - its live-overwrites-snapshot rule would
+ * write the live `false` over the cloud's `true`. Non-consumable entitlements
+ * merge as a UNION (`mergeEntitlementValue`); consumables take the live value
+ * (`CONSUMABLE_STATE_KEYS`).
+ *
+ * One key needs more than the generic rule: `adsRemovedHeldForPlus` marks
+ * `adsRemoved` as REVOCABLE (held after a DeepLife+ lapse, v52). OR-ing it
+ * could mark a Remove Ads BOUGHT on the other copy as held, and the next
+ * authoritative reconcile would revoke it. A copy with `adsRemoved` and no hold
+ * is a real purchase, so when either side has one the merged hold is cleared.
+ *
+ * The game-WEEK claim markers are not on these lists (see the note in
+ * `PURCHASED_SETTINGS_KEYS`), so they come from the applied state - the life
+ * whose `weeksLived` they are measured in. Device preferences are not
+ * entitlements and are not touched.
+ *
+ * Pure: returns a new state and mutates neither argument. Call it INSIDE the
+ * `setGameState` updater with `prev` as `live`, so a purchase that commits
+ * while the cloud download is in flight is still seen.
+ */
+export function mergeAccountEntitlementsFromLive(live: GameState | null | undefined, applied: GameState): GameState {
+  if (!live) return applied;
+  const liveSettings = (live.settings ?? {}) as unknown as Record<string, unknown>;
+  const appliedSettings = (applied.settings ?? {}) as unknown as Record<string, unknown>;
+  const settings: Record<string, unknown> = { ...appliedSettings };
+
+  for (const key of PURCHASED_SETTINGS_KEYS) {
+    const merged = mergeEntitlementValue(liveSettings[key], appliedSettings[key]);
+    if (merged !== undefined) settings[key] = merged;
+  }
+  const boughtAdsRemoved = (s: Record<string, unknown>): boolean =>
+    s.adsRemoved === true && s.adsRemovedHeldForPlus !== true;
+  if (
+    settings.adsRemovedHeldForPlus === true &&
+    (boughtAdsRemoved(liveSettings) || boughtAdsRemoved(appliedSettings))
+  ) {
+    settings.adsRemovedHeldForPlus = false;
+  }
+
+  const next = { ...applied, settings: settings as unknown as GameState['settings'] };
+  const liveAny = live as unknown as Record<string, unknown>;
+  const nextAny = next as unknown as Record<string, unknown>;
+  for (const key of PURCHASED_STATE_KEYS) {
+    const merged = CONSUMABLE_STATE_KEYS.has(key)
+      ? (liveAny[key] ?? nextAny[key])
+      : mergeEntitlementValue(liveAny[key], nextAny[key]);
+    if (merged !== undefined) nextAny[key] = merged;
+  }
+  return next;
+}

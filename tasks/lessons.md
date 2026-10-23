@@ -6024,3 +6024,22 @@ value, snapshot the ASSEMBLED state, and compose per-entry transforms instead
 of returning from the first one that fires. Also: a roll-audit declaration is a
 claim to re-check - the dark-web/politics/rent streams passed the week-only
 guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.
+
+## 2026-10-23 - Applying a foreign state is not a rewind: carry entitlements as a UNION
+
+"Keep Cloud Version" and "Restore from cloud" replaced the whole live state, so
+a purchase made on this device since the last upload was reverted (D17). The
+obvious fix - reuse `carryAccountLevelEntitlements` like the Time Machine -
+is wrong here: it lets the LIVE value overwrite, which is right for a snapshot
+of the same device's past but would write a live `false` over a purchase the
+cloud copy picked up on ANOTHER device. `mergeAccountEntitlementsFromLive`
+reads the same key lists and merges by shape (booleans OR, high-water marks
+max, day-key sets union), except consumables, which follow the rewind and take
+the live count (a count has no union; max re-hands a spent pill). And a flag
+that makes another flag REVOCABLE (`adsRemovedHeldForPlus`) must not be OR-ed
+blindly. Rule: before reusing a carry helper, ask which side may hold a value
+the other lacks - one-directional history takes live; two sources take a union.
+Also (D14): the paywall asked the store ledger whether premium was owned, but
+the Mega Pack grants premium under its own product id - when a product grants
+another product's entitlement, every "do you own it" check must read the save
+flag, not the ledger.
