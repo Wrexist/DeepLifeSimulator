@@ -113,6 +113,14 @@ describe('SOC2-8 - NPC work events need a job', () => {
     expect(ids.has('found_job')).toBe(true);
   });
 
+  it('a retiree, student or neighbour has no work events and is not job hunting', () => {
+    for (const job of ['Retired', 'Student', 'Neighbor']) {
+      const ids = reachable({ ...base, job });
+      for (const w of WORK) expect(ids.has(w)).toBe(false);
+      expect(ids.has('found_job')).toBe(false);
+    }
+  });
+
   it('an employed NPC keeps the full set of work events', () => {
     const ids = reachable({ ...base, job: 'Nurse' });
     for (const w of WORK) expect(ids.has(w)).toBe(true);

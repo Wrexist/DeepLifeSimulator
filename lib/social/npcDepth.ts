@@ -358,6 +358,8 @@ const WORK_EVENT_IDS = new Set(['got_promotion', 'bonus_at_work', 'work_stress',
  * Roll a random NPC life event. Only triggers ~15% of weeks.
  * Returns null if no event occurs.
  */
+const NON_WORKING_LABELS = new Set(['retired', 'student', 'neighbor']);
+
 export function rollNPCLifeEvent(
  relationship: Relationship,
  // Optional seeded roll (key → [0,1)). Passed from the weekly tick so the
@@ -377,7 +379,10 @@ export function rollNPCLifeEvent(
  // again, and got promoted at a job the card said they did not have.
  const job = typeof relationship.job === 'string' ? relationship.job.trim() : '';
  const unemployed = job === 'Unemployed';
- const employed = job.length > 0 && !unemployed;
+ // Labels that are not a job (the meet-people pools offer 'Retired',
+ // 'Student' and 'Neighbor'): no work events, and not looking for work.
+ const notWorking = NON_WORKING_LABELS.has(job.toLowerCase());
+ const employed = job.length > 0 && !unemployed && !notWorking;
  const applicableEvents = NPC_LIFE_EVENTS.filter(e => {
  // Children can't lose jobs or get promotions
  if (relationship.type === 'child' && (e.id === 'lost_job' || e.id === 'got_promotion' || e.id === 'bonus_at_work' || e.id === 'found_job')) {
