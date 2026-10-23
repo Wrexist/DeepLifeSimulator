@@ -46,7 +46,7 @@ import {
   originateAuto,
 } from '@/lib/vehicles/auto';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
-import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress, privateBankingAprCap } from './LoanActions';
 import type { Loan } from '../types';
 
 const log = logger.scope('VehicleActions');
@@ -1026,12 +1026,17 @@ export function quoteVehiclePurchase(
     // pays 5.5% - the exact borrow-low/save-high carry
     // `lib/banking/rateEnvironment.ts` caps deposits to prevent.
     aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
+    // ECO2-4: the Private Banking cap ("Loan rates capped at 6% APR") and the
+    // live rate environment reach auto loans too - this quote omitted both.
+    aprCap: privateBankingAprCap(state),
+    loanDelta: banking.rateEnvironment?.loanDelta,
+    // Applied inside the quote, ahead of the floor and the cap, so the
+    // vehicle-specific adjustment can neither walk the rate under the politics
+    // floor nor push a capped rate back over the cap.
+    aprAdjustment: orig.aprAdjustment,
   });
   if (quote.rejected) return { rejected: true, reason: quote.reason };
-  // The floor has to survive `orig.aprAdjustment` too, or the vehicle-specific
-  // adjustment walks the rate straight back under it.
-  const autoAprFloor = politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
-  const adjustedAPR = Math.max(autoAprFloor, quote.offeredAPR + orig.aprAdjustment);
+  const adjustedAPR = quote.offeredAPR;
   const weekly = calculatePeriodicPayment(orig.loanPrincipal, adjustedAPR, orig.termWeeks);
 
   return {
