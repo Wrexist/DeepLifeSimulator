@@ -732,11 +732,8 @@ export default function SaveSlots() {
         cancelText="Cancel"
         destructive
         type="danger"
-        onConfirm={() => {
-          if (showDeleteConfirm !== null) {
-            void deleteSlot(showDeleteConfirm);
-          }
-        }}
+        // Returned, so the dialog stays latched until the delete settles.
+        onConfirm={() => (showDeleteConfirm !== null ? deleteSlot(showDeleteConfirm) : undefined)}
         onCancel={() => setShowDeleteConfirm(null)}
       />
     </View>

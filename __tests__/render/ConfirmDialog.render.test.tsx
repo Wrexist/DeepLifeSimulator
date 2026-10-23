@@ -106,4 +106,35 @@ describe('render - ConfirmDialog', () => {
     unmount();
     jest.useRealTimers();
   });
+
+  it('stays latched until an async answer settles', async () => {
+    // Codex review, PR #275: SaveSlots' delete keeps the dialog open until the
+    // delete finishes; a tap in between must not start a second delete.
+    jest.useFakeTimers();
+    let finish: () => void = () => {};
+    const onConfirm = jest.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const { renderer, unmount } = renderWithProviders(
+      <ConfirmDialog
+        visible
+        title="Delete Save Slot?"
+        message="Gone for good."
+        confirmText="Delete"
+        onConfirm={onConfirm}
+        onCancel={() => {}}
+      />,
+    );
+    const press = () => renderer.root
+      .findAll((n: any) => n.props?.accessibilityLabel === 'Delete' && typeof n.props?.onPress === 'function')
+      .pop()!
+      .props.onPress();
+    act(() => { press(); });
+    act(() => { jest.advanceTimersByTime(50); });
+    act(() => { press(); });
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(); await Promise.resolve(); });
+    act(() => { press(); });
+    expect(onConfirm).toHaveBeenCalledTimes(2);
+    unmount();
+    jest.useRealTimers();
+  });
 });
