@@ -6025,6 +6025,19 @@ of returning from the first one that fires. Also: a roll-audit declaration is a
 claim to re-check - the dark-web/politics/rent streams passed the week-only
 guard under a NOT_LIFE_AFFECTING label while deciding jail time and elections.
 
+## 2026-10-23 - Owner decisions D12/D15/D16: a reward on the path nobody takes is no reward
+
+D12: the wedding venue bonuses were computed only in `executeWedding`, which the
+weekly tick always beats to it (the tick marries on the scheduled week, after
+which `executeWedding` refuses a spouse) - so every venue tier bought the same
+day. When two paths reach one outcome purely by timing, check which one actually
+fires before trusting that a reward is granted; grant it in the branch that
+charges (§4.4), and on the tick write the RAW happiness into `ctx.newStats` so
+the net choke point scales it once. D15: a "stop renewal" state needed no new
+field - clearing `weeklyPrice` (the "billed each tick" field) on an annual plan
+is that state, uniquely, and the tick lapses it on `paidThroughWeek`. D16: a
+guard added to some verbs in a family (dates, proposals) and not to a sibling
+(gifts) is the gap; mirror it in the updater and the screen.
 ## 2026-10-23 - Applying a foreign state is not a rewind: carry entitlements as a UNION
 
 "Keep Cloud Version" and "Restore from cloud" replaced the whole live state, so

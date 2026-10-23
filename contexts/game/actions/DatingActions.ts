@@ -371,6 +371,15 @@ export const giveGift = (
    */
   _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
+  // D16: no gifts from a jail cell - the same guard dates and proposals use.
+  // Re-checked against `prev` inside the updater below.
+  if (isPlayerJailed(gameState)) {
+    return { success: false, message: "You can't send gifts while you're in jail." };
+  }
+
   const partner = gameState.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
   if (!partner) {
     return { success: false, message: 'Partner not found.' };
@@ -399,7 +408,7 @@ export const giveGift = (
   // bypass the 2/wk cap.
   setGameState(prev => {
     const prevPartner = (prev.relationships || []).find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
-    if (!prevPartner || rejectIfBlocked(prev)) return prev;
+    if (!prevPartner || rejectIfBlocked(prev) || isPlayerJailed(prev)) return prev;
     const prevWeek = prev.weeksLived || 0;
     const prevGiftsThisWeek = prevPartner.lastGiftWeek === prevWeek ? (prevPartner.giftsThisWeek || 0) : 0;
     if (prevGiftsThisWeek >= MAX_GIFTS_PER_WEEK) return prev;

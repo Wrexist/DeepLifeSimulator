@@ -49,6 +49,8 @@ const DECLARED: Record<string, string> = {
   'contexts/game/actions/weekly/applyLuxuryItems.ts': 'TICK_CHOKE_POINT.',
   'contexts/game/actions/weekly/applyPets.ts': 'TICK_CHOKE_POINT.',
   'contexts/game/actions/weekly/applyPregnancyProgression.ts': 'TICK_CHOKE_POINT.',
+  'contexts/game/actions/weekly/applyScheduledWedding.ts':
+    'TICK_CHOKE_POINT: the venue bonus (D12) lands in the weekly updater with the balance charge.',
 
   // ── NOT_PLAYER ───────────────────────────────────────────────────────────
   'contexts/game/actions/PetActions.ts': "NOT_PLAYER: moves a pet's own happiness field.",

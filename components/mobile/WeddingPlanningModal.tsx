@@ -6,7 +6,14 @@ import { X, Calendar, Users, DollarSign, Check, MapPin, Heart } from 'lucide-rea
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { planWedding } from '@/contexts/game/actions/DatingActions';
-import { WEDDING_VENUES, WEDDING_ADDONS, calculateWeddingCost, getVenueTypeColor } from '@/lib/dating/weddingVenues';
+import {
+  WEDDING_VENUES,
+  WEDDING_ADDONS,
+  calculateWeddingCost,
+  calculateWeddingHappinessBonus,
+  calculateWeddingReputationBonus,
+  getVenueTypeColor,
+} from '@/lib/dating/weddingVenues';
 import { WeddingPlan } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
@@ -63,6 +70,18 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
       decorations,
     };
     return calculateWeddingCost(plan);
+  }, [selectedVenueId, guestCountNum, catering, photography, music, decorations]);
+
+  // D12: what the wedding day grants, from the same calculators the weekly
+  // tick applies when the balance is paid - so the screen cannot promise a
+  // number the wedding does not deliver.
+  const weddingBonus = useMemo(() => {
+    if (!selectedVenueId) return null;
+    const plan = { venueId: selectedVenueId, guestCount: guestCountNum, catering, photography, music, decorations };
+    return {
+      happiness: calculateWeddingHappinessBonus(plan),
+      reputation: calculateWeddingReputationBonus(plan),
+    };
   }, [selectedVenueId, guestCountNum, catering, photography, music, decorations]);
 
   const deposit = useMemo(() => {
@@ -219,6 +238,9 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                         <Text style={[styles.venueCost, isDarkMode && styles.venueCostDark]}>
                           ${venue.baseCost.toLocaleString('en-US')}
                         </Text>
+                        <Text style={[styles.venueCapacity, isDarkMode && styles.venueCapacityDark]}>
+                          +{venue.happinessBonus} happiness · +{venue.reputationBonus} rep
+                        </Text>
                         {isSelected && (
                           <View style={[styles.selectedBadge, { backgroundColor: venueColor }]}>
                             <Check size={scale(14)} color={uiPalette.white} />
@@ -325,6 +347,20 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                       ${(totalCost - deposit).toLocaleString('en-US')}
                     </Text>
                   </View>
+                  {weddingBonus && (
+                    <>
+                      <View style={styles.costRow}>
+                        <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>On the day:</Text>
+                        <Text style={[styles.costValue, isDarkMode && styles.costValueDark]}>
+                          +{weddingBonus.happiness} happiness · +{weddingBonus.reputation} rep
+                        </Text>
+                      </View>
+                      <Text style={[styles.serviceDescription, isDarkMode && styles.serviceDescriptionDark]}>
+                        Granted when the balance is paid on the wedding week. Add-ons raise happiness
+                        and every 20 guests adds 1 reputation. A happier life gains less happiness.
+                      </Text>
+                    </>
+                  )}
                 </View>
               </View>
             )}
