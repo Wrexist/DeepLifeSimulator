@@ -323,11 +323,11 @@ const gardenEvent: EventTemplate = {
   },
   generate: () => ({
     id: 'garden_event',
-    description: 'A community garden event offers free seeds and gardening tips.',
+    description: 'A community garden event is handing out free seeds and gardening tips, and pays its volunteers a small stipend.',
     choices: [
       {
         id: 'join',
-        text: 'Join the gardening event',
+        text: 'Volunteer at the garden event (+$50)',
         effects: {
           stats: { fitness: 8, happiness: 5, health: 5 },
           money: 50, // Small reward for participation
@@ -386,11 +386,11 @@ const summerSale: EventTemplate = {
   },
   generate: () => ({
     id: 'summer_sale',
-    description: 'Summer sales are everywhere! Great discounts on items and services.',
+    description: 'Summer sales are everywhere! Every shop window is plastered with red signs.',
     choices: [
       {
         id: 'shop',
-        text: 'Go shopping (items 20% off)',
+        text: 'Go shopping ($100)',
         effects: {
           stats: { happiness: 10 },
           money: -100, // Shopping expense
@@ -419,11 +419,11 @@ const harvestFestival: EventTemplate = {
   },
   generate: () => ({
     id: 'harvest_festival',
-    description: 'The annual Harvest Festival brings food, music, and community together.',
+    description: 'The annual Harvest Festival brings food, music, and community together - and the stallholders are paying for an extra pair of hands.',
     choices: [
       {
         id: 'participate',
-        text: 'Participate in the festival',
+        text: 'Help out on a stall (+$150)',
         effects: {
           stats: { happiness: 12, health: 5 },
           money: 150, // Festival earnings/rewards
@@ -449,7 +449,7 @@ const careerFair: EventTemplate = {
   },
   generate: () => ({
     id: 'career_fair',
-    description: 'A career fair is happening downtown with job opportunities and education discounts.',
+    description: 'A career fair is happening downtown, full of recruiters and people worth meeting.',
     choices: [
       {
         id: 'attend',
@@ -801,11 +801,11 @@ const blackFriday: EventTemplate = {
   },
   generate: () => ({
     id: 'black_friday',
-    description: 'Black Friday sales are here! Massive discounts on everything.',
+    description: 'Black Friday sales are here! The queues started before dawn.',
     choices: [
       {
         id: 'shop',
-        text: 'Go shopping (30% off everything, $200)',
+        text: 'Pick up a few deals ($200)',
         effects: {
           stats: { happiness: 12 },
           money: -200,
@@ -813,7 +813,7 @@ const blackFriday: EventTemplate = {
       },
       {
         id: 'big',
-        text: 'Big shopping spree (40% off, $500)',
+        text: 'Big shopping spree ($500)',
         effects: {
           stats: { happiness: 18 },
           money: -500,
@@ -905,7 +905,7 @@ const fallHarvest: EventTemplate = {
     choices: [
       {
         id: 'work',
-        text: 'Take seasonal work',
+        text: 'Take seasonal work (+$300)',
         effects: {
           stats: { happiness: 5, fitness: 5 },
           money: 300,
@@ -972,6 +972,15 @@ export const seasonalEventTemplates: EventTemplate[] = [
   newYear,
   valentinesDay,
 ];
+
+/**
+ * Ids of every seasonal template, derived from the list above so a surface
+ * that labels "Seasonal Event" cannot drift from what the season can deliver.
+ * The modal used to carry a hand-written list naming templates that do not
+ * exist (`easter_egg_hunt`, `black_friday_sale`, ...) while missing eight that
+ * do (`easter`, `black_friday`, `thanksgiving`, `independence_day`, ...).
+ */
+export const SEASONAL_EVENT_IDS: ReadonlySet<string> = new Set(seasonalEventTemplates.map((t) => t.id));
 
 /**
  * Get seasonal events for the current week

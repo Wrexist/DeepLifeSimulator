@@ -2125,6 +2125,11 @@ const freelanceOpportunity: EventTemplate = {
 // CHALLENGE EVENTS
 // ============================================
 
+/** The investigator's fee in `card_fraud`, paid win or lose. */
+export const CARD_FRAUD_INVESTIGATOR_FEE_USD = 200;
+/** Chance the investigator recovers the whole stolen sum in `card_fraud`. */
+export const CARD_FRAUD_INVESTIGATOR_SUCCESS_CHANCE = 0.5;
+
 // `card_fraud`, not `identity_theft`: `personalCrises.ts` registers its own
 // `identity_theft` in the same pool, and two templates under one id share a
 // cooldown, an event-log identity and a category - whichever was picked, the
@@ -2136,12 +2141,25 @@ const identityTheft: EventTemplate = {
   condition: state => state.stats.money >= 1000,
   generate: (state) => {
     const stolenAmount = Math.min(Math.floor(state.stats.money * 0.1), 500);
+    // The investigator is a gamble: the fee buys a CHANCE at the whole sum.
+    // It used to be a flat -$200 that silently recovered everything, so once
+    // the theft passed $400 it beat reporting on money AND happiness - the
+    // bank route was strictly dominated (2026-10-23 audit, EVT2).
+    const recovered = payloadRoll(state, 'card_fraud')('investigator') < CARD_FRAUD_INVESTIGATOR_SUCCESS_CHANCE;
     return {
       id: 'card_fraud',
       description: `Your identity was stolen! Someone made unauthorized purchases of $${stolenAmount}.`,
       choices: [
         { id: 'report', text: 'Report to bank (recover 50%)', effects: { money: Math.floor(-stolenAmount * 0.5), stats: { happiness: -10 } } },
-        { id: 'pursue', text: 'Hire investigator', effects: { money: -200, stats: { happiness: -5 } } },
+        {
+          id: 'pursue',
+          text: `Hire an investigator ($${CARD_FRAUD_INVESTIGATOR_FEE_USD} - recover all of it, or none)`,
+          outcomeHidden: true,
+          stake: CARD_FRAUD_INVESTIGATOR_FEE_USD + stolenAmount,
+          effects: recovered
+            ? { money: -CARD_FRAUD_INVESTIGATOR_FEE_USD, stats: { happiness: -2 } }
+            : { money: -(CARD_FRAUD_INVESTIGATOR_FEE_USD + stolenAmount), stats: { happiness: -12 } },
+        },
       ],
     };
   },
