@@ -8,6 +8,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { earnedEducationCount } from '@/lib/progress/lifeChapters';
 import type { LifeAmbition } from './types';
 
 // ---------------------------------------------------------------------------
@@ -41,8 +42,10 @@ const hasRomantic = (s: GameState): boolean =>
   // no relationship is ever type 'romantic', so the old check collapsed this
   // into hasSpouse and the "Fall in Love" milestone only flipped on marriage.
   hasSpouse(s) || (s.relationships?.some((r: any) => r?.type === 'partner' || r?.type === 'spouse') ?? false);
-const educationsCompleted = (s: GameState): number =>
-  s.educations?.filter((e: any) => e?.completed).length ?? 0;
+// Only programmes GRADUATED in this life. A scenario's starting degree (and
+// Legacy Shop / prestige grants) used to tick "Get Educated" on day one - the
+// same defect as Chapter 4 (2026-10-23 owner decision D1).
+const educationsCompleted = (s: GameState): number => earnedEducationCount(s);
 const ownsInvestment = (s: GameState): boolean =>
   (s.stocks?.holdings?.length ?? 0) > 0 ||
   (s.realEstate?.some((p: any) => p?.owned !== false && (p?.currentValue ?? p?.price ?? 0) > 0) ?? false);

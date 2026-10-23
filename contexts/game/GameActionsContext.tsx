@@ -75,6 +75,7 @@ import { recordMintedCoins } from '@/lib/crypto/operations';
 import { runDarkWebWeeklyTick } from '@/lib/darkweb/weeklyTick';
 import { runPoliticsWeeklyTick } from '@/lib/politics/weeklyTick';
 import { addLifetimeDirtyMoney, applyOfficeExit, clearScandalByLegalTeam } from '@/lib/politics/operations';
+import { creditCampaignFunds } from '@/lib/politics/campaignFunds';
 import { investPartnerCapital } from './actions/CompanyActions';
 import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // R3-A: hoist the modules previously `require()`'d inside the `nextWeek`
@@ -4844,6 +4845,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (effects.politicalDirtyUSD && effectsAffordable) {
    const politicsBase = updatedPolitics ?? prevState.politics;
    if (politicsBase) updatedPolitics = addLifetimeDirtyMoney(politicsBase, effects.politicalDirtyUSD);
+ }
+ // D4: money raised for the campaign lands in its pot, never the wallet.
+ if (effects.campaignFunds && effectsAffordable) {
+   const politicsBase = updatedPolitics ?? prevState.politics;
+   if (politicsBase) updatedPolitics = creditCampaignFunds(politicsBase, effects.campaignFunds);
  }
  if (choice.special === 'clear_political_scandal') {
    const politicsBase = updatedPolitics ?? prevState.politics;

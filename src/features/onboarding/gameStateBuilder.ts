@@ -239,7 +239,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
   }
 
   // A challenge's starting reputation and vitals (Health Recovery starts at
-  // 15 health, Redemption Arc at -10 reputation, ...) REPLACE the template's
+  // 15 health, Redemption Arc at 0 reputation, ...) REPLACE the template's
   // value; perks then add on top. These used to be dropped on the way from
   // the challenge card to here, so every challenge started as an ordinary life.
   const templateStats = initialGameState.stats;
