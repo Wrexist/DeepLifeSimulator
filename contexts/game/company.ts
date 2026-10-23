@@ -494,11 +494,7 @@ export function resolveBuyMiner(
   // worn unit of the tier for the price of one more, which has mattered since
   // durability started to scale yield (`minerDurabilityYieldFactor`).
   const ownedBefore = state.warehouse.miners[minerId] || 0;
-  const rawDurability = state.warehouse.minerDurability?.[minerId];
-  const durabilityBefore = typeof rawDurability === 'number' && Number.isFinite(rawDurability)
-    ? Math.max(0, Math.min(100, rawDurability))
-    : 100;
-  const durabilityAfter = (durabilityBefore * ownedBefore + 100) / (ownedBefore + 1);
+  const durabilityAfter = minerDurabilityAfterBuy(state.warehouse, minerId);
 
   return {
     success: true,
@@ -519,6 +515,22 @@ export function resolveBuyMiner(
       },
     },
   };
+}
+
+/**
+ * The tier's durability after one more new (100%) rig joins it. Durability is
+ * ONE number per tier (the average over its units), so the new rig joins as a
+ * count-weighted average. Shared by `resolveBuyMiner` and the BitcoinMiningApp
+ * buy button (APP2-4), which used to leave the tier's worn number as it was.
+ */
+export function minerDurabilityAfterBuy(
+  warehouse: { miners?: Record<string, number>; minerDurability?: Record<string, number> } | undefined,
+  minerId: string,
+): number {
+  const ownedBefore = warehouse?.miners?.[minerId] || 0;
+  const raw = warehouse?.minerDurability?.[minerId];
+  const before = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 100;
+  return (before * ownedBefore + 100) / (ownedBefore + 1);
 }
 
 export function buyMiner(

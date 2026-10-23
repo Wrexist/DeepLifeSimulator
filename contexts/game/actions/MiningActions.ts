@@ -268,6 +268,27 @@ export function buyMinerUpgrade(
 }
 
 /**
+ * R5-E: 1-week cooldown between pool changes - previously the player could
+ * hop between pools every action to chase the best `bonusMultiplier - fee`
+ * for the current crypto. The cooldown turns this into a deliberate choice.
+ */
+export const POOL_CHANGE_COOLDOWN_WEEKS = 1;
+
+/**
+ * Whether a pool join is refused by the cooldown. Gated on the stamp alone:
+ * the very first join has no stamp, so it is free. It used to ALSO require an
+ * `activePool`, and leaving clears that, so leave-then-join skipped the
+ * cooldown entirely (APP2-3).
+ */
+export function poolChangeOnCooldown(
+  warehouse: NonNullable<GameState['warehouse']>,
+  currentWeek: number,
+): boolean {
+  const lastChange = (warehouse as typeof warehouse & { lastPoolChangeWeek?: number }).lastPoolChangeWeek;
+  return typeof lastChange === 'number' && currentWeek - lastChange < POOL_CHANGE_COOLDOWN_WEEKS;
+}
+
+/**
  * Join mining pool
  */
 export function joinMiningPool(
@@ -288,22 +309,14 @@ export function joinMiningPool(
     return { success: false, message: 'Pool crypto must match selected mining crypto' };
   }
 
-  // R5-E: 1-week cooldown between pool changes - previously the player could
-  // hop between pools every action to chase the best `bonusMultiplier - fee`
-  // for the current crypto. The cooldown turns this into a deliberate choice.
-  const POOL_CHANGE_COOLDOWN_WEEKS = 1;
   const currentWeek = gameState.weeksLived ?? 0;
-  const warehouseWithCooldown = gameState.warehouse as typeof gameState.warehouse & {
-    lastPoolChangeWeek?: number;
-  };
-  const lastChange = warehouseWithCooldown.lastPoolChangeWeek;
-  // Don't gate the very first join - players need an initial choice.
-  if (gameState.warehouse.activePool && typeof lastChange === 'number' && currentWeek - lastChange < POOL_CHANGE_COOLDOWN_WEEKS) {
+  if (poolChangeOnCooldown(gameState.warehouse, currentWeek)) {
     return { success: false, message: `Pool changes are limited to once per week. Try again next week.` };
   }
 
   setGameState(prev => {
     if (!prev.warehouse) return prev;
+    if (poolChangeOnCooldown(prev.warehouse, prev.weeksLived ?? 0)) return prev;
 
     const pools = prev.warehouse.pools || [];
     const updatedPools = pools.map(p =>
