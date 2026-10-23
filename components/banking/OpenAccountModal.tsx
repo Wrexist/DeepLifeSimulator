@@ -9,6 +9,7 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { MATURED_CD_APR } from '@/lib/banking/operations';
 
 interface AccountProduct {
   type: BankAccountType;
@@ -43,7 +44,7 @@ const PRODUCTS: AccountProduct[] = [
   {
     type: 'cd',
     name: '52-Week CD',
-    description: 'Highest APR. Locked for one year - no withdrawals.',
+    description: `Highest APR. Locked for one year - no deposits or withdrawals. Then pays ${(MATURED_CD_APR * 100).toFixed(1)}%.`,
     baseAPR: 0.055,
     lockWeeks: 52,
     minDeposit: 500,

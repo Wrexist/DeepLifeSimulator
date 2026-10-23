@@ -22,11 +22,11 @@ interface Props {
   onClose: () => void;
 }
 
+// Mortgage and auto rates are only sold with the property or vehicle they
+// secure (D7) - see STANDALONE_LOAN_TYPES. Financing lives in those apps.
 const LOAN_TYPES: { type: Loan['type']; label: string }[] = [
   { type: 'personal', label: 'Personal' },
-  { type: 'auto', label: 'Auto' },
   { type: 'business', label: 'Business' },
-  { type: 'mortgage', label: 'Mortgage' },
 ];
 
 const TERM_OPTIONS = [

@@ -221,16 +221,68 @@ export function totalCreditLimit(banking: BankingState): number {
 // Account mutations
 // ---------------------------------------------------------------------------
 
+/** True while a lock-up (a CD's term) still holds the balance. */
+export function isAccountLocked(account: Pick<BankAccount, 'lockUntilWeek'>, currentWeek: number): boolean {
+  return typeof account.lockUntilWeek === 'number' && currentWeek < account.lockUntilWeek;
+}
+
+/**
+ * What a CD pays once its term is over: the high-yield savings rate (the
+ * `highYieldSavings` product in `OpenAccountModal`, 4.5%).
+ *
+ * D6 (owner decision, 2026-10-23). A matured 52-week CD used to keep its 5.5%
+ * forever while becoming fully liquid, so after one year it was strictly a
+ * better high-yield savings account - the lock was a one-off toll for a
+ * permanent top rate. The decision was "drop to the savings rate at maturity".
+ * Of the two shapes that allows, re-pricing the account in place was chosen
+ * over sweeping the balance into another account: it moves no money (so it
+ * cannot create or lose any), needs no target account to exist, keeps the
+ * account's history and age for the credit score, and every screen already
+ * reads `baseAPR`, so the new rate shows everywhere with no UI change. The
+ * HIGH-YIELD rate rather than the 2% basic one because the point is that a
+ * matured CD must not BEAT liquid savings, not that it should punish a player
+ * for not closing it on the exact week.
+ */
+export const MATURED_CD_APR = 0.045;
+
+/**
+ * Re-price every CD whose term has ended to `MATURED_CD_APR` and clear its
+ * lock. Idempotent: a matured CD already at (or under) the rate is untouched,
+ * so it runs every week from the banking tick. A CD with no lock at all (an
+ * older save, or one opened before locks were stamped) counts as matured.
+ */
+export function matureCertificates(banking: BankingState, currentWeek: number): BankingState {
+  let changed = false;
+  const accounts = (banking.accounts || []).map((acct) => {
+    if (acct.type !== 'cd' || isAccountLocked(acct, currentWeek)) return acct;
+    if (safe(acct.baseAPR) <= MATURED_CD_APR && acct.lockUntilWeek === undefined) return acct;
+    changed = true;
+    return { ...acct, baseAPR: Math.min(safe(acct.baseAPR), MATURED_CD_APR), lockUntilWeek: undefined };
+  });
+  return changed ? { ...banking, accounts } : banking;
+}
+
 export function depositToAccount(
   banking: BankingState,
   accountId: string,
-  amount: number
+  amount: number,
+  /**
+   * weeksLived now. A CD is a fixed deposit: money goes in when it is opened and
+   * not again until it matures (D6). Without this a player opened a $1 CD and
+   * topped it up whenever cash was spare, so the 52-week lock bought the CD's
+   * top rate on money that had never been locked for a week. Omitted = no lock
+   * check (pure-function callers that are not moving player money).
+   */
+  currentWeek?: number
 ): { banking: BankingState; ok: boolean; reason?: string } {
   const amt = Math.max(0, safe(amount));
   if (amt === 0) return { banking, ok: false, reason: 'Amount must be positive' };
 
   const idx = banking.accounts.findIndex((a) => a.id === accountId);
   if (idx === -1) return { banking, ok: false, reason: 'Account not found' };
+  if (typeof currentWeek === 'number' && isAccountLocked(banking.accounts[idx], currentWeek)) {
+    return { banking, ok: false, reason: `Locked until week ${banking.accounts[idx].lockUntilWeek}` };
+  }
 
   const next = { ...banking, accounts: [...banking.accounts] };
   next.accounts[idx] = { ...next.accounts[idx], balance: safe(next.accounts[idx].balance) + amt };
@@ -287,9 +339,15 @@ export function transferBetweenAccounts(
       reason: 'Account IDs collide - please reload your save or contact support.',
     };
   }
+  // Check the destination's lock BEFORE withdrawing, so a refused transfer
+  // leaves both balances exactly as they were.
+  const dest = findAccount(banking, toId);
+  if (dest && isAccountLocked(dest, currentWeek)) {
+    return { banking, ok: false, reason: `Locked until week ${dest.lockUntilWeek}` };
+  }
   const withdrawn = withdrawFromAccount(banking, fromId, amount, currentWeek);
   if (!withdrawn.ok) return withdrawn;
-  return depositToAccount(withdrawn.banking, toId, amount);
+  return depositToAccount(withdrawn.banking, toId, amount, currentWeek);
 }
 
 export function openAccount(
@@ -319,6 +377,17 @@ export function openAccount(
 }
 
 /**
+ * The part of the $500k full-rate savings band (`SAVINGS_BALANCE_SOFT_CAP`)
+ * still available to the self-opened accounts once the legacy `bankSavings`
+ * pool has taken its share. The legacy pool earns full rate on
+ * `min(balance, cap)` (applySavingsInterest), so that is exactly what it uses.
+ */
+export function remainingSavingsAllowance(legacySavingsBalance: number): number {
+  const used = Math.min(Math.max(0, safe(legacySavingsBalance)), SAVINGS_BALANCE_SOFT_CAP);
+  return SAVINGS_BALANCE_SOFT_CAP - used;
+}
+
+/**
  * Accrue one week of interest on every self-opened account.
  *
  * The two mirrored legacy accounts are skipped - `savings-default` is paid by
@@ -335,7 +404,12 @@ export function accrueAccountInterest(
    * `SAVINGS_APR_HARD_CAP` inside `effectiveDepositAPR`, so no boost can open a
    * borrow-low/save-high arbitrage (asserted by the rateEnvironment invariant test).
    */
-  depositMult = 1
+  depositMult = 1,
+  /**
+   * Part of the full-rate allowance already used by the legacy `bankSavings`
+   * pool this week (D5). Omitted = 0.
+   */
+  allowanceUsedElsewhere = 0
 ): { banking: BankingState; totalInterest: number } {
   let totalInterest = 0;
   const env = { depositMult, loanDelta: 0 };
@@ -357,6 +431,15 @@ export function accrueAccountInterest(
    * The allowance is allocated PROPORTIONALLY to balance rather than by
    * iteration order, so the result does not depend on which account happens to
    * come first and each account keeps its own APR.
+   *
+   * D5 (owner decision, 2026-10-23): and it is ONE allowance across BOTH pools.
+   * The legacy `bankSavings` pool (the gold piggy) is paid by
+   * `applySavingsInterest` with its own $500k band, and this function used to
+   * hand the self-opened accounts a second, independent $500k - so a player
+   * with $500k in each earned full rate on $1M (~$27k/yr more at 5.5% than the
+   * curve allows). The legacy pool takes its share first (its maths is
+   * unchanged), and only what is left of the band reaches these accounts:
+   * see `remainingSavingsAllowance`.
    */
   const eligible = (banking.accounts || []).filter(
     (a) => !MIRRORED_ACCOUNT_IDS.has(a.id) && safe(a.balance) > 0,
@@ -364,7 +447,7 @@ export function accrueAccountInterest(
   const totalEligibleBalance = eligible.reduce((sum, a) => sum + safe(a.balance), 0);
   const belowCapShareRatio =
     totalEligibleBalance > 0
-      ? Math.min(1, SAVINGS_BALANCE_SOFT_CAP / totalEligibleBalance)
+      ? Math.min(1, remainingSavingsAllowance(allowanceUsedElsewhere) / totalEligibleBalance)
       : 0;
 
   const accounts = (banking.accounts || []).map((acct) => {
