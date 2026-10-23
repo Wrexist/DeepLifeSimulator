@@ -35,6 +35,7 @@ import YourStoryModal, { type StorySurface } from '@/components/story/YourStoryM
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 import FamilyRecordsCard from '@/components/FamilyRecordsCard';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
+import { prestigeHeroDestination } from '@/lib/progress/prestigeHero';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
 import PrestigeModal from '@/components/PrestigeModal';
@@ -175,18 +176,14 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   // Derived - the stored flag is never set true in normal play (UX-1).
   const prestigeAvailable = isPrestigeAvailable(gameState);
 
-  /**
-   * Where the Prestige hero card goes, and the line that says so. Resolved
-   * once so the tap and the label can never disagree.
-   */
-  const prestigeDestination: { modal: 'prestige' | 'prestigeShop' | 'prestigeHistory'; meta: string } =
-    prestigeAvailable && prestigeLevel === 0
-      ? { modal: 'prestige', meta: 'Ready to prestige' }
-      : contractsClaimable > 0
-        ? { modal: 'prestigeShop', meta: `${contractsClaimable} contract${contractsClaimable === 1 ? '' : 's'} ready` }
-        : prestigeLevel > 0
-          ? { modal: 'prestigeHistory', meta: `${prestigePoints} points · history` }
-          : { modal: 'prestigeShop', meta: `${prestigePoints} points · shop` };
+  // Where the Prestige hero card goes, and the line that says so - one pure
+  // resolver so the tap and the label can never disagree (ONB2-2).
+  const prestigeDestination = prestigeHeroDestination({
+    prestigeAvailable,
+    prestigeLevel,
+    prestigePoints,
+    contractsClaimable,
+  });
 
   const legacyXp = gameState.legacyPass?.xp ?? 0;
   const legacyTier = getTierForXp(legacyXp);
